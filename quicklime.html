@@ -51,7 +51,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .login-brand p{font-size:15px;color:rgba(255,255,255,.6);line-height:1.7;margin-bottom:36px}
 .feature-list{display:flex;flex-direction:column;gap:12px}
 .feat-item{display:flex;align-items:center;gap:12px}
-.feat-icon{width:36px;height:36px;background:rgba(132,204,22,.15);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.feat-icon{width:38px;height:38px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .feat-text{font-size:13px;color:rgba(255,255,255,.75);font-weight:500}
 
 .login-right{
@@ -101,7 +101,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .nav-item{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:500;color:var(--ink3);border:none;background:transparent;width:100%;text-align:left;font-family:'Inter',sans-serif;transition:.12s}
 .nav-item:hover{background:var(--gs);color:var(--g)}
 .nav-item.active{background:var(--g);color:#fff;font-weight:700}
-.nav-item .ni{font-size:16px;flex-shrink:0}
+.nav-item .ni{width:28px;height:28px;border-radius:7px;background:var(--gs);border:1.5px solid var(--gm);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:.12s}
+.nav-item:hover .ni{background:var(--gb);border-color:var(--p2)}
+.nav-item.active .ni{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.35)}
 .nav-badge{margin-left:auto;background:#fef2f2;color:#dc2626;font-size:10px;font-weight:800;padding:2px 7px;border-radius:50px}
 .nav-badge.g{background:var(--gb);color:var(--g2)}
 
@@ -129,7 +131,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
 .kpi{background:var(--card);border:var(--border);border-radius:var(--r);padding:18px 20px}
 .kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.kpi-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.kpi-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;border:1.5px solid rgba(0,0,0,.08)}
 .kpi-trend{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px}
 .kpi-trend.up{background:var(--gb);color:var(--g2)}
 .kpi-trend.dn{background:#fef2f2;color:#dc2626}
@@ -197,7 +199,7 @@ table.t tbody tr:last-child td{border-bottom:none}
 /* ── PAYMENT STATUS ── */
 .pay-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f3f4f6}
 .pay-row:last-child{border-bottom:none}
-.pay-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.pay-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;border:1.5px solid rgba(0,0,0,.08)}
 .pay-info{flex:1}
 .pay-title{font-size:13px;font-weight:700;color:var(--ink)}
 .pay-sub{font-size:11px;color:var(--ink3);margin-top:1px}
