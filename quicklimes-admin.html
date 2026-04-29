@@ -6,6 +6,7 @@
 <title>QuickLimes Admin — Management Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -228,7 +229,11 @@ tr:last-child td{border-bottom:none}
 }
 
 /* ── ICON BOXES ── */
-.ic{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;font-size:14px;flex-shrink:0;vertical-align:middle;margin-right:4px}
+.ni i, .sb-item-icon i, .ic i, .kpi-icon i, .feat-icon i, .pay-icon i {
+  font-size: inherit;
+  line-height: 1;
+}
+.ic{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;font-size:13px;flex-shrink:0;vertical-align:middle;margin-right:4px}
 .ic-p{background:var(--p6);border:1.5px solid var(--p5)}
 .ic-g{background:#dcfce7;border:1.5px solid #86efac}
 .ic-r{background:#fee2e2;border:1.5px solid #fca5a5}
@@ -243,20 +248,20 @@ tr:last-child td{border-bottom:none}
 <div id="loginScreen">
   <div class="login-box">
     <div class="login-logo">
-      <div class="login-logo-icon">🍋</div>
+      <div class="login-logo-icon"><i class="fa-solid fa-lemon"></i></div>
       <div>
         <div class="login-logo-text">Quick<span>Limes</span></div>
         <div style="font-size:10px;color:#6b7280;text-align:center">Admin Panel</div>
       </div>
     </div>
     <p class="login-subtitle">प्रशासक लॉगिन — Management Dashboard</p>
-    <div id="loginError" class="login-error"><span class="ic ic-r">❌</span> गलत username या password</div>
+    <div id="loginError" class="login-error"><span class="ic ic-r"><i class="fa-solid fa-xmark"></i></span> गलत username या password</div>
     <label class="login-label">Username</label>
     <input class="login-input" id="adminUser" type="text" placeholder="admin username" autocomplete="off">
     <label class="login-label">Password</label>
     <input class="login-input" id="adminPass" type="password" placeholder="••••••••">
     <button class="login-btn" onclick="doAdminLogin()">लॉगिन करें →</button>
-    <div class="login-badge">🔐 Admin: <b>QLADMIN</b> · Pass: <b>quicklimes@2026</b></div>
+    <div class="login-badge"><i class="fa-solid fa-lock"></i> Admin: <b>QLADMIN</b> · Pass: <b>quicklimes@2026</b></div>
   </div>
 </div>
 
@@ -266,7 +271,7 @@ tr:last-child td{border-bottom:none}
   <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="sb-logo">
-      <div class="sb-logo-icon">🍋</div>
+      <div class="sb-logo-icon"><i class="fa-solid fa-lemon"></i></div>
       <div>
         <div class="sb-logo-text">QuickLimes</div>
         <div class="sb-logo-sub">Admin Panel</div>
@@ -274,15 +279,15 @@ tr:last-child td{border-bottom:none}
     </div>
     <nav class="sb-nav">
       <div class="sb-section">मुख्य</div>
-      <button class="sb-item active" onclick="goPage('dashboard',this)"><span class="sb-item-icon">📊</span>डैशबोर्ड</button>
-      <button class="sb-item" onclick="goPage('orders',this)"><span class="sb-item-icon">📦</span>सभी ऑर्डर</button>
-      <button class="sb-item" onclick="goPage('clients',this)"><span class="sb-item-icon">👥</span>क्लाइंट्स</button>
-      <button class="sb-item" onclick="goPage('invoices',this)"><span class="sb-item-icon">🧾</span>इनवॉइस</button>
-      <button class="sb-item" onclick="goPage('payments',this)"><span class="sb-item-icon">💳</span>भुगतान</button>
+      <button class="sb-item active" onclick="goPage('dashboard',this)"><span class="sb-item-icon"><i class="fa-solid fa-chart-bar"></i></span>डैशबोर्ड</button>
+      <button class="sb-item" onclick="goPage('orders',this)"><span class="sb-item-icon"><i class="fa-solid fa-box"></i></span>सभी ऑर्डर</button>
+      <button class="sb-item" onclick="goPage('clients',this)"><span class="sb-item-icon"><i class="fa-solid fa-users"></i></span>क्लाइंट्स</button>
+      <button class="sb-item" onclick="goPage('invoices',this)"><span class="sb-item-icon"><i class="fa-solid fa-file-invoice"></i></span>इनवॉइस</button>
+      <button class="sb-item" onclick="goPage('payments',this)"><span class="sb-item-icon"><i class="fa-solid fa-credit-card"></i></span>भुगतान</button>
       <div class="sb-section">सेटिंग्स</div>
-      <button class="sb-item" onclick="goPage('prices',this)"><span class="sb-item-icon">💰</span>रेट मैनेजर</button>
-      <button class="sb-item" onclick="goPage('addclient',this)"><span class="sb-item-icon">➕</span>नया क्लाइंट</button>
-      <button class="sb-item" onclick="goPage('settings',this)"><span class="sb-item-icon">⚙️</span>सेटिंग्स</button>
+      <button class="sb-item" onclick="goPage('prices',this)"><span class="sb-item-icon"><i class="fa-solid fa-indian-rupee-sign"></i></span>रेट मैनेजर</button>
+      <button class="sb-item" onclick="goPage('addclient',this)"><span class="sb-item-icon"><i class="fa-solid fa-plus"></i></span>नया क्लाइंट</button>
+      <button class="sb-item" onclick="goPage('settings',this)"><span class="sb-item-icon"><i class="fa-solid fa-gear"></i></span>सेटिंग्स</button>
     </nav>
     <div class="sb-user">
       <div class="sb-user-info">
@@ -292,7 +297,7 @@ tr:last-child td{border-bottom:none}
           <div class="sb-user-role">Super Admin</div>
         </div>
       </div>
-      <button class="sb-logout" onclick="doLogout()"><span class="ic ic-w">🚪</span> लॉगआउट</button>
+      <button class="sb-logout" onclick="doLogout()"><span class="ic ic-w"><i class="fa-solid fa-right-from-bracket"></i></span> लॉगआउट</button>
     </div>
   </div>
 
@@ -301,7 +306,7 @@ tr:last-child td{border-bottom:none}
     <div class="topbar">
       <div class="topbar-title" id="pageTitle">डैशबोर्ड</div>
       <div class="topbar-right">
-        <div class="tb-badge"><span class="ic ic-g">🟢</span> Live</div>
+        <div class="tb-badge"><span class="ic ic-g"><i class="fa-solid fa-circle" style="color:#22c55e;font-size:8px"></i></span> Live</div>
         <div style="font-size:13px;color:var(--ink3)" id="todayDate"></div>
       </div>
     </div>
@@ -312,19 +317,19 @@ tr:last-child td{border-bottom:none}
       <div class="page active" id="pg-dashboard">
         <div class="kpi-grid">
           <div class="kpi">
-            <div class="kpi-icon" style="background:#dcfce7">👥</div>
+            <div class="kpi-icon" style="background:#dcfce7"><i class="fa-solid fa-users"></i></div>
             <div><div class="kpi-label">कुल क्लाइंट्स</div><div class="kpi-val" id="kpi-clients">6</div><div class="kpi-sub">+2 इस महीने</div></div>
           </div>
           <div class="kpi">
-            <div class="kpi-icon" style="background:#dbeafe">📦</div>
+            <div class="kpi-icon" style="background:#dbeafe"><i class="fa-solid fa-boxes-stacked"></i></div>
             <div><div class="kpi-label">कुल ऑर्डर</div><div class="kpi-val" id="kpi-orders">48</div><div class="kpi-sub">+12 इस सप्ताह</div></div>
           </div>
           <div class="kpi">
-            <div class="kpi-icon" style="background:#fef9c3">💰</div>
+            <div class="kpi-icon" style="background:#fef9c3"><i class="fa-solid fa-indian-rupee-sign"></i></div>
             <div><div class="kpi-label">कुल राजस्व</div><div class="kpi-val" id="kpi-revenue">₹18.4L</div><div class="kpi-sub">इस महीने</div></div>
           </div>
           <div class="kpi">
-            <div class="kpi-icon" style="background:#fee2e2">⏳</div>
+            <div class="kpi-icon" style="background:#fee2e2"><i class="fa-solid fa-clock"></i></div>
             <div><div class="kpi-label">बकाया</div><div class="kpi-val" id="kpi-pending">₹2.8L</div><div class="kpi-sub">5 क्लाइंट से</div></div>
           </div>
         </div>
@@ -342,7 +347,7 @@ tr:last-child td{border-bottom:none}
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
           <div class="card">
-            <div class="card-title"><span class="ic ic-p">📋</span> हाल के ऑर्डर <button class="btn btn-outline btn-sm" onclick="goPage('orders',null)">सभी देखें</button></div>
+            <div class="card-title"><span class="ic ic-p"><i class="fa-solid fa-list-check"></i></span> हाल के ऑर्डर <button class="btn btn-outline btn-sm" onclick="goPage('orders',null)">सभी देखें</button></div>
             <div class="table-wrap">
               <table>
                 <thead><tr><th>क्लाइंट</th><th>मात्रा</th><th>राशि</th><th>स्थिति</th></tr></thead>
@@ -351,7 +356,7 @@ tr:last-child td{border-bottom:none}
             </div>
           </div>
           <div class="card">
-            <div class="card-title"><span class="ic ic-r">⚠️</span> बकाया भुगतान <button class="btn btn-outline btn-sm" onclick="goPage('payments',null)">सभी देखें</button></div>
+            <div class="card-title"><span class="ic ic-r"><i class="fa-solid fa-triangle-exclamation"></i></span> बकाया भुगतान <button class="btn btn-outline btn-sm" onclick="goPage('payments',null)">सभी देखें</button></div>
             <div class="table-wrap">
               <table>
                 <thead><tr><th>क्लाइंट</th><th>बकाया</th><th>देय तिथि</th></tr></thead>
@@ -416,12 +421,12 @@ tr:last-child td{border-bottom:none}
       <!-- PAYMENTS PAGE -->
       <div class="page" id="pg-payments">
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px">
-          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dcfce7">✅</div><div><div class="kpi-label">प्राप्त</div><div class="kpi-val">₹15.6L</div></div></div>
-          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#fef3c7">⏳</div><div><div class="kpi-label">बकाया</div><div class="kpi-val">₹2.8L</div></div></div>
-          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dbeafe">📅</div><div><div class="kpi-label">इस माह</div><div class="kpi-val">₹4.2L</div></div></div>
+          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dcfce7"><i class="fa-solid fa-circle-check"></i></div><div><div class="kpi-label">प्राप्त</div><div class="kpi-val">₹15.6L</div></div></div>
+          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#fef3c7"><i class="fa-solid fa-clock"></i></div><div><div class="kpi-label">बकाया</div><div class="kpi-val">₹2.8L</div></div></div>
+          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dbeafe"><i class="fa-solid fa-calendar-days"></i></div><div><div class="kpi-label">इस माह</div><div class="kpi-val">₹4.2L</div></div></div>
         </div>
         <div class="card">
-          <div class="card-title"><span class="ic ic-y">💳</span> भुगतान इतिहास <button class="btn btn-green btn-sm" onclick="openRecordPaymentModal()">+ भुगतान दर्ज करें</button></div>
+          <div class="card-title"><span class="ic ic-y"><i class="fa-solid fa-credit-card"></i></span> भुगतान इतिहास <button class="btn btn-green btn-sm" onclick="openRecordPaymentModal()">+ भुगतान दर्ज करें</button></div>
           <div class="table-wrap">
             <table>
               <thead><tr><th>क्लाइंट</th><th>राशि</th><th>माध्यम</th><th>तिथि</th><th>सन्दर्भ</th><th>स्थिति</th></tr></thead>
@@ -434,12 +439,12 @@ tr:last-child td{border-bottom:none}
       <!-- PRICES PAGE -->
       <div class="page" id="pg-prices">
         <div class="card" style="margin-bottom:16px">
-          <div class="card-title"><span class="ic ic-g">💰</span> लाइव रेट — अभी अपडेट करें</div>
+          <div class="card-title"><span class="ic ic-g"><i class="fa-solid fa-indian-rupee-sign"></i></span> लाइव रेट — अभी अपडेट करें</div>
           <div class="price-grid" id="priceGrid"></div>
-          <button class="btn btn-green" onclick="openPriceEditModal()"><span class="ic ic-w">✏️</span> रेट अपडेट करें</button>
+          <button class="btn btn-green" onclick="openPriceEditModal()"><span class="ic ic-w"><i class="fa-solid fa-pen"></i></span> रेट अपडेट करें</button>
         </div>
         <div class="card">
-          <div class="card-title"><span class="ic ic-b">🧾</span> GST सेटिंग</div>
+          <div class="card-title"><span class="ic ic-b"><i class="fa-solid fa-file-invoice"></i></span> GST सेटिंग</div>
           <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
             <div>
               <div class="form-label" style="margin-bottom:6px">CGST %</div>
@@ -459,7 +464,7 @@ tr:last-child td{border-bottom:none}
       <!-- ADD CLIENT PAGE -->
       <div class="page" id="pg-addclient">
         <div class="card" style="max-width:700px">
-          <div class="card-title"><span class="ic ic-g">➕</span> नया क्लाइंट जोड़ें</div>
+          <div class="card-title"><span class="ic ic-g"><i class="fa-solid fa-user-plus"></i></span> नया क्लाइंट जोड़ें</div>
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label">कंपनी का नाम *</label>
@@ -490,7 +495,7 @@ tr:last-child td{border-bottom:none}
               <input class="form-input" id="nc-address" placeholder="पूरा पता">
             </div>
             <div class="form-group" style="border-top:var(--border);padding-top:14px;grid-column:1/-1">
-              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px"><span class="ic ic-p">🔐</span> पोर्टल लॉगिन क्रेडेंशियल्स</div>
+              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px"><span class="ic ic-p"><i class="fa-solid fa-lock"></i></span> पोर्टल लॉगिन क्रेडेंशियल्स</div>
             </div>
             <div class="form-group">
               <label class="form-label">Username *</label>
@@ -516,8 +521,8 @@ tr:last-child td{border-bottom:none}
             </div>
           </div>
           <div style="display:flex;gap:10px;margin-top:20px">
-            <button class="btn btn-green" onclick="addNewClient()" style="padding:11px 24px"><span class="ic ic-w">✅</span> क्लाइंट जोड़ें</button>
-            <button class="btn btn-outline" onclick="clearClientForm()"><span class="ic ic-r">🗑</span> फॉर्म साफ़ करें</button>
+            <button class="btn btn-green" onclick="addNewClient()" style="padding:11px 24px"><span class="ic ic-w"><i class="fa-solid fa-circle-check"></i></span> क्लाइंट जोड़ें</button>
+            <button class="btn btn-outline" onclick="clearClientForm()"><span class="ic ic-r"><i class="fa-solid fa-trash"></i></span> फॉर्म साफ़ करें</button>
           </div>
           <div id="addClientMsg" style="margin-top:12px;font-size:13px;font-weight:600;display:none"></div>
         </div>
@@ -526,7 +531,7 @@ tr:last-child td{border-bottom:none}
       <!-- SETTINGS PAGE -->
       <div class="page" id="pg-settings">
         <div class="card" style="max-width:600px;margin-bottom:16px">
-          <div class="card-title"><span class="ic ic-p">🏢</span> कंपनी की जानकारी</div>
+          <div class="card-title"><span class="ic ic-p"><i class="fa-solid fa-building"></i></span> कंपनी की जानकारी</div>
           <div class="form-grid">
             <div class="form-group form-full">
               <label class="form-label">कंपनी नाम</label>
@@ -548,7 +553,7 @@ tr:last-child td{border-bottom:none}
           <button class="btn btn-green" style="margin-top:14px">सेव करें</button>
         </div>
         <div class="card" style="max-width:600px">
-          <div class="card-title"><span class="ic ic-r">🔐</span> Admin Password बदलें</div>
+          <div class="card-title"><span class="ic ic-r"><i class="fa-solid fa-lock"></i></span> Admin Password बदलें</div>
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label">नया Password</label>
@@ -570,7 +575,7 @@ tr:last-child td{border-bottom:none}
 <!-- ORDER STATUS MODAL -->
 <div class="modal-overlay" id="orderStatusModal">
   <div class="modal">
-    <div class="modal-title"><span class="ic ic-b">📦</span> ऑर्डर स्थिति अपडेट करें</div>
+    <div class="modal-title"><span class="ic ic-b"><i class="fa-solid fa-box"></i></span> ऑर्डर स्थिति अपडेट करें</div>
     <input type="hidden" id="editOrderId">
     <div class="form-group" style="margin-bottom:14px">
       <label class="form-label">नई स्थिति</label>
@@ -596,7 +601,7 @@ tr:last-child td{border-bottom:none}
 <!-- NEW ORDER MODAL -->
 <div class="modal-overlay" id="newOrderModal">
   <div class="modal">
-    <div class="modal-title"><span class="ic ic-g">➕</span> नया ऑर्डर बनाएं</div>
+    <div class="modal-title"><span class="ic ic-g"><i class="fa-solid fa-plus"></i></span> नया ऑर्डर बनाएं</div>
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">क्लाइंट</label>
@@ -633,7 +638,7 @@ tr:last-child td{border-bottom:none}
 <!-- PRICE EDIT MODAL -->
 <div class="modal-overlay" id="priceModal">
   <div class="modal">
-    <div class="modal-title"><span class="ic ic-y">💰</span> रेट अपडेट करें</div>
+    <div class="modal-title"><span class="ic ic-y"><i class="fa-solid fa-indian-rupee-sign"></i></span> रेट अपडेट करें</div>
     <div id="priceFormFields"></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal('priceModal')">रद्द</button>
@@ -645,7 +650,7 @@ tr:last-child td{border-bottom:none}
 <!-- RECORD PAYMENT MODAL -->
 <div class="modal-overlay" id="recordPaymentModal">
   <div class="modal">
-    <div class="modal-title"><span class="ic ic-y">💳</span> भुगतान दर्ज करें</div>
+    <div class="modal-title"><span class="ic ic-y"><i class="fa-solid fa-credit-card"></i></span> भुगतान दर्ज करें</div>
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">क्लाइंट</label>
@@ -808,7 +813,7 @@ function renderDashboard(){
       <td><strong>${c.company.split(' ')[0]}</strong></td>
       <td style="color:#dc2626;font-weight:700">₹${c.balance.toLocaleString('hi-IN')}</td>
       <td><span class="badge badge-amber">चालू</span></td>
-    </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:20px">✅ कोई बकाया नहीं</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:20px"><i class="fa-solid fa-circle-check" style="color:#22c55e"></i> कोई बकाया नहीं</td></tr>';
 
   // Charts
   setTimeout(()=>{
@@ -841,7 +846,7 @@ function renderOrders(orders){
       <td>${o.date}</td>
       <td>${statusBadge(o.status)}</td>
       <td>
-        <button class="btn btn-outline btn-sm" onclick="openEditOrder('${o.id}')">✏️ स्थिति</button>
+        <button class="btn btn-outline btn-sm" onclick="openEditOrder('${o.id}')"><i class="fa-solid fa-pen"></i> स्थिति</button>
       </td>
     </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#6b7280">कोई ऑर्डर नहीं</td></tr>';
 }
@@ -906,20 +911,20 @@ function renderClients(clients){
           <div class="cc-avatar">${c.company[0]}</div>
           <div>
             <div class="cc-name">${c.company}</div>
-            <div class="cc-location">📍 ${c.city}</div>
+            <div class="cc-location"><i class="fa-solid fa-location-dot"></i> ${c.city}</div>
           </div>
         </div>
         <span class="badge ${c.status==='active'?'badge-green':'badge-gray'}">${c.status==='active'?'सक्रिय':'निष्क्रिय'}</span>
       </div>
-      <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">👤 ${c.owner} · 📱 ${c.phone}</div>
-      <div style="font-size:12px;color:var(--ink3);margin-bottom:10px">🔑 ${c.username} · 💳 क्रेडिट: ₹${(c.credit/1000).toFixed(0)}K</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:8px"><i class="fa-solid fa-user"></i> ${c.owner} · <i class="fa-solid fa-phone"></i> ${c.phone}</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:10px"><i class="fa-solid fa-key"></i> ${c.username} · <i class="fa-solid fa-credit-card"></i> क्रेडिट: ₹${(c.credit/1000).toFixed(0)}K</div>
       <div class="cc-stats">
         <div class="cc-stat"><div class="cc-stat-label">कुल ऑर्डर</div><div class="cc-stat-val">${c.totalOrders||0}</div></div>
         <div class="cc-stat"><div class="cc-stat-label">बकाया</div><div class="cc-stat-val" style="${c.balance>0?'color:#dc2626':'color:var(--g)'}">₹${(c.balance||0).toLocaleString('hi-IN')}</div></div>
       </div>
       <div class="cc-actions">
-        <button class="btn btn-outline btn-sm" onclick="editClient('${c.id}')">✏️ संपादन</button>
-        <button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8" onclick="viewClientOrders('${c.id}')">📦 ऑर्डर</button>
+        <button class="btn btn-outline btn-sm" onclick="editClient('${c.id}')"><i class="fa-solid fa-pen"></i> संपादन</button>
+        <button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8" onclick="viewClientOrders('${c.id}')"><i class="fa-solid fa-box"></i> ऑर्डर</button>
         <button class="btn btn-sm" style="background:${c.status==='active'?'#fee2e2':'#dcfce7'};color:${c.status==='active'?'#dc2626':'#15803d'}" onclick="toggleClientStatus('${c.id}')">${c.status==='active'?'⏸ रोकें':'▶ चालू'}</button>
       </div>
     </div>`).join('') || '<div style="text-align:center;color:#6b7280;padding:40px;grid-column:1/-1">कोई क्लाइंट नहीं मिला</div>';
@@ -1005,9 +1010,9 @@ function renderInvoices(){
       <td>₹${inv.gst.toLocaleString('hi-IN')}</td>
       <td><strong>₹${inv.total.toLocaleString('hi-IN')}</strong></td>
       <td>${inv.date}</td>
-      <td>${inv.status==='paid'?'<span class="badge badge-green">✅ भुगतान हुआ</span>':'<span class="badge badge-amber">⏳ बकाया</span>'}</td>
+      <td>${inv.status==='paid'?'<span class="badge badge-green"><i class="fa-solid fa-check"></i> भुगतान हुआ</span>':'<span class="badge badge-amber"><i class="fa-solid fa-clock"></i> बकाया</span>'}</td>
       <td>
-        <button class="btn btn-outline btn-sm" onclick="toggleInvoiceStatus('${inv.id}')">${inv.status==='paid'?'↩ बकाया':'✅ भुगतान'}</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleInvoiceStatus('${inv.id}')">${inv.status==='paid'?'↩ बकाया':'<i class="fa-solid fa-check"></i> भुगतान'}</button>
       </td>
     </tr>`).join('');
 }
@@ -1088,7 +1093,7 @@ function saveGST(){
 
 // ══ HELPERS ══
 function statusBadge(s){
-  const map={pending:'<span class="badge badge-gray">⏳ प्रतीक्षा</span>',processing:'<span class="badge badge-amber">🔄 प्रोसेस</span>',transit:'<span class="badge badge-blue">🚚 रास्ते में</span>',delivered:'<span class="badge badge-green">✅ डिलीवर</span>',cancelled:'<span class="badge badge-red">❌ रद्द</span>'};
+  const map={pending:'<span class="badge badge-gray"><i class="fa-solid fa-clock"></i> प्रतीक्षा</span>',processing:'<span class="badge badge-amber"><i class="fa-solid fa-rotate"></i> प्रोसेस</span>',transit:'<span class="badge badge-blue"><i class="fa-solid fa-truck"></i> रास्ते में</span>',delivered:'<span class="badge badge-green"><i class="fa-solid fa-check"></i> डिलीवर</span>',cancelled:'<span class="badge badge-red"><i class="fa-solid fa-xmark"></i> रद्द</span>'};
   return map[s]||s;
 }
 function closeModal(id){document.getElementById(id).classList.remove('open')}
