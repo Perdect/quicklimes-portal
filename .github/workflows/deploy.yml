@@ -19,29 +19,19 @@ jobs:
           cp quicklimes-admin.html deploy/admin/index.html
           cp quicklimes-landing.html deploy/root/index.html
 
-      - name: 🌐 Deploy Landing Page → quicklimes.com
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: 62.72.28.240
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./deploy/root/
-          server-dir: /
+      - name: 🚀 Upload all files via FTP
+        run: |
+          curl -T deploy/root/index.html \
+            "ftp://62.72.28.240/index.html" \
+            -u "$FTP_USER:$FTP_PASS" --ftp-create-dirs --ssl-reqd --insecure
 
-      - name: 📱 Deploy Client Portal → app.quicklimes.com
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: 62.72.28.240
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./deploy/app/
-          server-dir: /app/
+          curl -T deploy/app/index.html \
+            "ftp://62.72.28.240/app/index.html" \
+            -u "$FTP_USER:$FTP_PASS" --ftp-create-dirs --ssl-reqd --insecure
 
-      - name: 🔧 Deploy Admin Panel → admin.quicklimes.com
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: 62.72.28.240
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./deploy/admin/
-          server-dir: /admin/
+          curl -T deploy/admin/index.html \
+            "ftp://62.72.28.240/admin/index.html" \
+            -u "$FTP_USER:$FTP_PASS" --ftp-create-dirs --ssl-reqd --insecure
+        env:
+          FTP_USER: ${{ secrets.FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.FTP_PASSWORD }}
