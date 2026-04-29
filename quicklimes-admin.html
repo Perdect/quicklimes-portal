@@ -670,16 +670,40 @@ tr:last-child td{border-bottom:none}
 const ADMIN = {user:'QLADMIN', pass:'quicklimes@2026'};
 
 let CLIENTS = JSON.parse(localStorage.getItem('ql_clients')||'null') || [
-  {id:'C001',company:'Deshwali Minerals',owner:'',phone:'9610099006',email:'',gstin:'08NLIPS9801K1Z5',city:'Merta City, Rajasthan',address:'Ground Floor, Kali Talai, Near Hafiz Sahab Ki Dragha, Merta City, Nagaur, Rajasthan - 341510',username:'DESHWALI2024',password:'lime@001',credit:1000000,terms:'30 दिन',balance:0,totalOrders:0,status:'active',bank:'HDFC Bank',accNo:'50200089605146',ifsc:'HDFC0002670'},
-  {id:'C002',company:'Gotan Lime Industries',owner:'KAKA JI',phone:'9460034743',email:'',gstin:'08BNAPM0488E1Z3',city:'Borunda, Rajasthan',address:'BORUNDA, DISTRICT-NAGAUR, RAJASTHAN - 342604',username:'GOTAN_LIME',password:'lime@002',credit:1000000,terms:'30 दिन',balance:0,totalOrders:0,status:'active',bank:'Bank of Baroda',accNo:'33580500001254',ifsc:'BARB0MERTAC'},
+  {id:'C001',company:'Ramkaran Lime Udyog',owner:'रामकरण गुप्ता',phone:'+91 98765 43210',email:'ramkaran@example.com',gstin:'08ABCDE1234F1Z5',city:'जोधपुर, राजस्थान',address:'MIA Industrial Area, Jodhpur',username:'RAMKARAN2024',password:'lime@123',credit:500000,terms:'30 दिन',balance:68000,totalOrders:18,status:'active'},
+  {id:'C002',company:'Shiv Lime Enterprises',owner:'शिव शंकर यादव',phone:'+91 87654 32109',email:'shiv@example.com',gstin:'23FGHIJ5678K2M6',city:'रतलाम, मध्य प्रदेश',address:'Industrial Colony, Ratlam',username:'SHIV_LIME',password:'lime@456',credit:300000,terms:'15 दिन',balance:45000,totalOrders:12,status:'active'},
+  {id:'C003',company:'Manoj Minerals Pvt Ltd',owner:'मनोज वर्मा',phone:'+91 76543 21098',email:'manoj@example.com',gstin:'09KLMNO9012P3Q7',city:'आगरा, उत्तर प्रदेश',address:'Bypass Road, Agra',username:'MANOJ_MIN',password:'lime@789',credit:400000,terms:'30 दिन',balance:0,totalOrders:8,status:'active'},
+  {id:'C004',company:'Agarwal Lime House',owner:'सुरेश अग्रवाल',phone:'+91 65432 10987',email:'suresh@example.com',gstin:'27PQRST3456U4V8',city:'नागपुर, महाराष्ट्र',address:'Hingna Road, Nagpur',username:'AGARWAL_L',password:'lime@321',credit:200000,terms:'7 दिन',balance:12000,totalOrders:6,status:'active'},
+  {id:'C005',company:'Rajputana Lime Co',owner:'दिलीप सिंह राठौड़',phone:'+91 54321 09876',email:'dilip@example.com',gstin:'08UVWXY7890Z5W9',city:'अजमेर, राजस्थान',address:'NH-58, Ajmer',username:'RAJPUT_L',password:'lime@654',credit:600000,terms:'60 दिन',balance:93000,totalOrders:14,status:'active'},
+  {id:'C006',company:'Gujarat Lime Traders',owner:'भावेश पटेल',phone:'+91 43210 98765',email:'bhavesh@example.com',gstin:'24YZABC1234D6X0',city:'सूरत, गुजरात',address:'Kim Industrial Estate, Surat',username:'GUJ_LIME',password:'lime@987',credit:250000,terms:'30 दिन',balance:0,totalOrders:4,status:'inactive'},
 ];
 
-let ORDERS = JSON.parse(localStorage.getItem('ql_orders')||'null') || [];
+let ORDERS = JSON.parse(localStorage.getItem('ql_orders')||'null') || [
+  {id:'ORD-001',clientId:'C001',client:'Ramkaran Lime Udyog',product:'Hydrated Lime',qty:50,rate:4800,amount:240000,date:'2026-04-20',status:'delivered'},
+  {id:'ORD-002',clientId:'C002',client:'Shiv Lime Enterprises',product:'Quick Lime',qty:30,rate:3500,amount:105000,date:'2026-04-22',status:'transit'},
+  {id:'ORD-003',clientId:'C003',client:'Manoj Minerals Pvt Ltd',product:'Hydrated Lime',qty:20,rate:4800,amount:96000,date:'2026-04-23',status:'processing'},
+  {id:'ORD-004',clientId:'C001',client:'Ramkaran Lime Udyog',product:'Lime Stone',qty:100,rate:1800,amount:180000,date:'2026-04-24',status:'delivered'},
+  {id:'ORD-005',clientId:'C004',client:'Agarwal Lime House',product:'Quick Lime',qty:15,rate:3500,amount:52500,date:'2026-04-25',status:'pending'},
+  {id:'ORD-006',clientId:'C005',client:'Rajputana Lime Co',product:'Hydrated Lime',qty:80,rate:4800,amount:384000,date:'2026-04-26',status:'processing'},
+  {id:'ORD-007',clientId:'C002',client:'Shiv Lime Enterprises',product:'Lime Stone',qty:60,rate:1800,amount:108000,date:'2026-04-27',status:'pending'},
+  {id:'ORD-008',clientId:'C006',client:'Gujarat Lime Traders',product:'Quick Lime',qty:25,rate:3500,amount:87500,date:'2026-04-28',status:'transit'},
+];
 
 let INVOICES = JSON.parse(localStorage.getItem('ql_invoices')||'null') || [
+  {id:'INV-2026-001',clientId:'C001',client:'Ramkaran Lime Udyog',amount:240000,gst:43200,total:283200,date:'2026-04-20',status:'paid'},
+  {id:'INV-2026-002',clientId:'C002',client:'Shiv Lime Enterprises',amount:105000,gst:18900,total:123900,date:'2026-04-22',status:'pending'},
+  {id:'INV-2026-003',clientId:'C003',client:'Manoj Minerals Pvt Ltd',amount:96000,gst:17280,total:113280,date:'2026-04-23',status:'pending'},
+  {id:'INV-2026-004',clientId:'C001',client:'Ramkaran Lime Udyog',amount:180000,gst:32400,total:212400,date:'2026-04-24',status:'paid'},
+  {id:'INV-2026-005',clientId:'C005',client:'Rajputana Lime Co',amount:384000,gst:69120,total:453120,date:'2026-04-26',status:'pending'},
 ];
 
-let PAYMENTS = JSON.parse(localStorage.getItem('ql_payments')||'null') || [];
+let PAYMENTS = JSON.parse(localStorage.getItem('ql_payments')||'null') || [
+  {client:'Ramkaran Lime Udyog',amount:283200,method:'NEFT/RTGS',date:'2026-04-21',ref:'UTR2026042112345',status:'received'},
+  {client:'Ramkaran Lime Udyog',amount:212400,method:'NEFT/RTGS',date:'2026-04-25',ref:'UTR2026042567890',status:'received'},
+  {client:'Shiv Lime Enterprises',amount:60000,method:'UPI',date:'2026-04-24',ref:'UPI2026042411111',status:'received'},
+  {client:'Agarwal Lime House',amount:40500,method:'चेक',date:'2026-04-26',ref:'CHQ-001234',status:'received'},
+  {client:'Rajputana Lime Co',amount:100000,method:'NEFT/RTGS',date:'2026-04-28',ref:'UTR2026042899999',status:'received'},
+];
 
 let PRICES = JSON.parse(localStorage.getItem('ql_prices')||'null') || [
   {name:'Hydrated Lime (बुझा चूना)',rate:4800,unit:'₹/MT'},
