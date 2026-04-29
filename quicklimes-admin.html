@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QuickLimes Admin — Management Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --p1:#4a44c0;--p2:#5655D7;--p3:#6e6de8;--p4:#9b9af0;--p5:#eeeeff;--p6:#f5f5ff;
+  --g1:linear-gradient(160deg,#5655D7 0%,#4a44c0 50%,#6e6de8 100%);
+  --ink:#0d0c22;--ink2:#1a1940;--ink3:#4b4a72;--ink4:#9491b8;
+  --green:#10b981;--green2:#d1fae5;--red:#f43f5e;--red2:#ffe4e6;
+  --bg:#eef0fb;--bg2:#e4e6f5;--card:#ffffff;
+  --border:1px solid #e8eaf5;--r:14px;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:Inter,sans-serif;color:var(--ink);background:var(--bg);display:flex}
+
+/* ── LOGIN ── */
+#loginScreen{
+  position:fixed;inset:0;z-index:1000;
+  background:var(--g1);
+  display:flex;align-items:center;justify-content:center;
+}
+.login-box{
+  background:#fff;border-radius:24px;padding:44px 40px;width:100%;max-width:400px;
+  box-shadow:0 24px 80px rgba(0,0,0,.2);
+}
+.login-logo{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:8px}
+.login-logo-icon{
+  width:52px;height:52px;border-radius:16px;
+  background:var(--g1);
+  display:flex;align-items:center;justify-content:center;font-size:26px;
+}
+.login-logo-text{font-size:24px;font-weight:900;color:var(--ink)}
+.login-logo-text span{color:var(--p2)}
+.login-subtitle{text-align:center;font-size:13px;color:var(--ink3);margin-bottom:32px;font-weight:500}
+.login-label{font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:6px;display:block}
+.login-input{
+  width:100%;padding:12px 14px;border:1.5px solid #e8eaf5;border-radius:10px;
+  font-size:14px;font-family:Inter,sans-serif;outline:none;transition:border .2s;
+  margin-bottom:16px;
+}
+.login-input:focus{border-color:var(--p2)}
+.login-btn{
+  width:100%;padding:13px;background:var(--g1);
+  color:#fff;border:none;border-radius:10px;font-weight:700;font-size:15px;
+  cursor:pointer;transition:all .2s;font-family:Inter,sans-serif;
+}
+.login-btn:hover{box-shadow:0 4px 20px rgba(86,85,215,.4);transform:translateY(-1px)}
+.login-error{color:var(--red);font-size:13px;margin-bottom:12px;display:none;text-align:center}
+.login-badge{
+  margin-top:20px;background:var(--p6);border-radius:10px;padding:12px 14px;
+  font-size:12px;color:var(--ink3);text-align:center;border:1px solid var(--p5);
+}
+
+/* ── LAYOUT ── */
+#app{display:flex;height:100%;width:100%}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:240px;flex-shrink:0;
+  background:var(--g1);
+  display:flex;flex-direction:column;height:100%;overflow:hidden;
+}
+.sb-logo{padding:20px 18px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.12)}
+.sb-logo-icon{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.sb-logo-text{font-size:16px;font-weight:800;color:#fff}
+.sb-logo-sub{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px}
+.sb-nav{flex:1;overflow-y:auto;padding:12px 10px}
+.sb-section{font-size:10px;font-weight:700;color:rgba(255,255,255,.35);letter-spacing:.8px;text-transform:uppercase;padding:12px 10px 6px}
+.sb-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-radius:10px;cursor:pointer;transition:all .15s;margin-bottom:2px;
+  color:rgba(255,255,255,.65);font-size:13px;font-weight:500;border:none;background:none;width:100%;text-align:left;
+}
+.sb-item:hover{background:rgba(255,255,255,.1);color:#fff}
+.sb-item.active{background:rgba(255,255,255,.2);color:#fff;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.sb-item-icon{font-size:16px;flex-shrink:0;width:20px;text-align:center}
+.sb-user{padding:14px 16px;border-top:1px solid rgba(255,255,255,.12)}
+.sb-user-info{display:flex;align-items:center;gap:10px}
+.sb-user-avatar{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:13px;flex-shrink:0}
+.sb-user-name{font-size:13px;font-weight:600;color:#fff}
+.sb-user-role{font-size:11px;color:rgba(255,255,255,.5)}
+.sb-logout{display:block;width:100%;margin-top:10px;padding:8px;background:rgba(255,255,255,.08);border:none;border-radius:8px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s}
+.sb-logout:hover{background:rgba(255,255,255,.15);color:#fff}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;height:100%;overflow:hidden}
+.topbar{
+  background:#fff;border-bottom:var(--border);
+  padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+.topbar-title{font-size:16px;font-weight:700;color:var(--ink)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.tb-badge{background:#dcfce7;color:#15803d;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.tb-notif{position:relative;cursor:pointer}
+.tb-notif-dot{position:absolute;top:0;right:0;width:8px;height:8px;border-radius:50%;background:#ef4444;border:2px solid #fff}
+.content{flex:1;overflow-y:auto;padding:24px;background:#f1f5f9}
+
+/* ── PAGES ── */
+.page{display:none}
+.page.active{display:block}
+
+/* ── CARDS ── */
+.card{background:#fff;border-radius:var(--r);border:var(--border);padding:20px}
+.card-title{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+.kpi{background:#fff;border-radius:var(--r);border:var(--border);padding:18px 20px;display:flex;align-items:center;gap:14px}
+.kpi-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.kpi-label{font-size:12px;color:var(--ink3);font-weight:500;margin-bottom:3px}
+.kpi-val{font-size:22px;font-weight:800;color:var(--ink);line-height:1}
+.kpi-sub{font-size:11px;color:var(--g);font-weight:600;margin-top:3px}
+
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f8fafc;padding:10px 14px;text-align:left;font-weight:600;color:var(--ink3);font-size:12px;letter-spacing:.3px;text-transform:uppercase;border-bottom:var(--border)}
+td{padding:11px 14px;border-bottom:1px solid #f1f5f9;color:var(--ink2)}
+tr:hover td{background:#f8fffe}
+tr:last-child td{border-bottom:none}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-green{background:var(--green2);color:#059669}
+.badge-amber{background:#fef3c7;color:#d97706}
+.badge-blue{background:var(--p5);color:var(--p1)}
+.badge-red{background:var(--red2);color:var(--red)}
+.badge-gray{background:var(--bg2);color:var(--ink3)}
+
+/* ── BUTTONS ── */
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:Inter,sans-serif;transition:all .15s}
+.btn-green{background:var(--p2);color:#fff}
+.btn-green:hover{background:var(--p1)}
+.btn-outline{background:#fff;border:1.5px solid var(--border);color:var(--ink2)}
+.btn-outline:hover{border-color:var(--p2);color:var(--p2)}
+.btn-red{background:var(--red2);color:var(--red);border:none}
+.btn-red:hover{background:#fecaca}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:6px}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:12px;font-weight:600;color:var(--ink2)}
+.form-input,.form-select{
+  padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:8px;
+  font-size:13px;font-family:Inter,sans-serif;outline:none;transition:border .2s;
+}
+.form-input:focus,.form-select:focus{border-color:var(--p2)}
+.form-full{grid-column:1/-1}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:20px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:20px;color:var(--ink)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+
+/* ── SEARCH BAR ── */
+.search-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.search-input{flex:1;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;font-family:Inter,sans-serif;outline:none}
+.search-input:focus{border-color:var(--g)}
+
+/* ── PRICE GRID ── */
+.price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.price-item{background:var(--p6);border-radius:12px;padding:16px;border:1px solid var(--p5)}
+.price-item-name{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.price-item-val{font-size:22px;font-weight:800;color:var(--p2)}
+.price-item-unit{font-size:11px;color:var(--ink3);margin-top:2px}
+
+/* ── CHART ── */
+.chart-wrap{position:relative;height:220px}
+
+/* ── STAT ROW ── */
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+
+/* ── CLIENT CARD ── */
+.client-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.client-card{
+  background:#fff;border-radius:var(--r);border:var(--border);padding:18px;
+  transition:all .2s;cursor:pointer;
+}
+.client-card:hover{border-color:var(--p4);box-shadow:0 4px 20px rgba(86,85,215,.1)}
+.cc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cc-avatar{
+  width:40px;height:40px;border-radius:12px;
+  background:var(--g1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;color:#fff;
+}
+.cc-name{font-weight:700;font-size:14px;color:var(--ink);margin-bottom:2px}
+.cc-location{font-size:12px;color:var(--ink3)}
+.cc-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.cc-stat{background:#f8fafc;border-radius:8px;padding:8px 10px}
+.cc-stat-label{font-size:10px;color:var(--ink3);font-weight:500}
+.cc-stat-val{font-size:14px;font-weight:700;color:var(--ink)}
+.cc-actions{display:flex;gap:6px;margin-top:12px}
+
+/* ── ORDER STATUS FLOW ── */
+.order-flow{display:flex;gap:0;margin-bottom:20px;overflow-x:auto}
+.of-item{
+  flex:1;min-width:100px;text-align:center;padding:14px 10px;
+  background:#f8fafc;cursor:pointer;border:var(--border);
+  border-right:none;transition:all .15s;
+}
+.of-item:first-child{border-radius:10px 0 0 10px}
+.of-item:last-child{border-radius:0 10px 10px 0;border-right:var(--border)}
+.of-item.active{background:#dcfce7;border-color:#86efac}
+.of-item:hover{background:#f0fdf4}
+.of-count{font-size:22px;font-weight:800;color:var(--ink)}
+.of-label{font-size:11px;color:var(--ink3);font-weight:500;margin-top:3px}
+
+@media(max-width:768px){
+  .sidebar{width:0;display:none}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .client-grid{grid-template-columns:1fr}
+  .price-grid{grid-template-columns:1fr 1fr}
+  .form-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">🍋</div>
+      <div>
+        <div class="login-logo-text">Quick<span>Limes</span></div>
+        <div style="font-size:10px;color:#6b7280;text-align:center">Admin Panel</div>
+      </div>
+    </div>
+    <p class="login-subtitle">प्रशासक लॉगिन — Management Dashboard</p>
+    <div id="loginError" class="login-error">❌ गलत username या password</div>
+    <label class="login-label">Username</label>
+    <input class="login-input" id="adminUser" type="text" placeholder="admin username" autocomplete="off">
+    <label class="login-label">Password</label>
+    <input class="login-input" id="adminPass" type="password" placeholder="••••••••">
+    <button class="login-btn" onclick="doAdminLogin()">लॉगिन करें →</button>
+    <div class="login-badge">🔐 Admin: <b>QLADMIN</b> · Pass: <b>quicklimes@2026</b></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-icon">🍋</div>
+      <div>
+        <div class="sb-logo-text">QuickLimes</div>
+        <div class="sb-logo-sub">Admin Panel</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-section">मुख्य</div>
+      <button class="sb-item active" onclick="goPage('dashboard',this)"><span class="sb-item-icon">📊</span>डैशबोर्ड</button>
+      <button class="sb-item" onclick="goPage('orders',this)"><span class="sb-item-icon">📦</span>सभी ऑर्डर</button>
+      <button class="sb-item" onclick="goPage('clients',this)"><span class="sb-item-icon">👥</span>क्लाइंट्स</button>
+      <button class="sb-item" onclick="goPage('invoices',this)"><span class="sb-item-icon">🧾</span>इनवॉइस</button>
+      <button class="sb-item" onclick="goPage('payments',this)"><span class="sb-item-icon">💳</span>भुगतान</button>
+      <div class="sb-section">सेटिंग्स</div>
+      <button class="sb-item" onclick="goPage('prices',this)"><span class="sb-item-icon">💰</span>रेट मैनेजर</button>
+      <button class="sb-item" onclick="goPage('addclient',this)"><span class="sb-item-icon">➕</span>नया क्लाइंट</button>
+      <button class="sb-item" onclick="goPage('settings',this)"><span class="sb-item-icon">⚙️</span>सेटिंग्स</button>
+    </nav>
+    <div class="sb-user">
+      <div class="sb-user-info">
+        <div class="sb-user-avatar">AD</div>
+        <div>
+          <div class="sb-user-name">Admin</div>
+          <div class="sb-user-role">Super Admin</div>
+        </div>
+      </div>
+      <button class="sb-logout" onclick="doLogout()">🚪 लॉगआउट</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="pageTitle">डैशबोर्ड</div>
+      <div class="topbar-right">
+        <div class="tb-badge">🟢 Live</div>
+        <div style="font-size:13px;color:var(--ink3)" id="todayDate"></div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD PAGE -->
+      <div class="page active" id="pg-dashboard">
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="kpi-icon" style="background:#dcfce7">👥</div>
+            <div><div class="kpi-label">कुल क्लाइंट्स</div><div class="kpi-val" id="kpi-clients">6</div><div class="kpi-sub">+2 इस महीने</div></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-icon" style="background:#dbeafe">📦</div>
+            <div><div class="kpi-label">कुल ऑर्डर</div><div class="kpi-val" id="kpi-orders">48</div><div class="kpi-sub">+12 इस सप्ताह</div></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-icon" style="background:#fef9c3">💰</div>
+            <div><div class="kpi-label">कुल राजस्व</div><div class="kpi-val" id="kpi-revenue">₹18.4L</div><div class="kpi-sub">इस महीने</div></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-icon" style="background:#fee2e2">⏳</div>
+            <div><div class="kpi-label">बकाया</div><div class="kpi-val" id="kpi-pending">₹2.8L</div><div class="kpi-sub">5 क्लाइंट से</div></div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
+          <div class="card">
+            <div class="card-title">मासिक ऑर्डर (MT में) <span style="font-size:12px;font-weight:500;color:var(--ink3)">पिछले 6 महीने</span></div>
+            <div class="chart-wrap"><canvas id="ordersChart"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title">ऑर्डर स्थिति</div>
+            <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="card">
+            <div class="card-title">हाल के ऑर्डर <button class="btn btn-outline btn-sm" onclick="goPage('orders',null)">सभी देखें</button></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>क्लाइंट</th><th>मात्रा</th><th>राशि</th><th>स्थिति</th></tr></thead>
+                <tbody id="dashOrdersTbl"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">बकाया भुगतान <button class="btn btn-outline btn-sm" onclick="goPage('payments',null)">सभी देखें</button></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>क्लाइंट</th><th>बकाया</th><th>देय तिथि</th></tr></thead>
+                <tbody id="dashPendingTbl"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ORDERS PAGE -->
+      <div class="page" id="pg-orders">
+        <div class="order-flow" id="orderFlow">
+          <div class="of-item active" onclick="filterOrders('all',this)"><div class="of-count" id="ofc-all">48</div><div class="of-label">सभी</div></div>
+          <div class="of-item" onclick="filterOrders('pending',this)"><div class="of-count" id="ofc-pending">8</div><div class="of-label">प्रतीक्षा में</div></div>
+          <div class="of-item" onclick="filterOrders('processing',this)"><div class="of-count" id="ofc-processing">12</div><div class="of-label">प्रोसेस</div></div>
+          <div class="of-item" onclick="filterOrders('transit',this)"><div class="of-count" id="ofc-transit">9</div><div class="of-label">रास्ते में</div></div>
+          <div class="of-item" onclick="filterOrders('delivered',this)"><div class="of-count" id="ofc-delivered">19</div><div class="of-label">डिलीवर</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            ऑर्डर लिस्ट
+            <div style="display:flex;gap:8px">
+              <input class="search-input" style="width:200px" placeholder="🔍 खोजें..." oninput="filterOrderSearch(this.value)">
+              <button class="btn btn-green" onclick="openNewOrderModal()">+ नया ऑर्डर</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>ऑर्डर ID</th><th>क्लाइंट</th><th>उत्पाद</th><th>मात्रा</th><th>राशि</th><th>तिथि</th><th>स्थिति</th><th>कार्य</th></tr></thead>
+              <tbody id="ordersTbl"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLIENTS PAGE -->
+      <div class="page" id="pg-clients">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <input class="search-input" style="width:280px" placeholder="🔍 क्लाइंट खोजें..." oninput="filterClients(this.value)">
+          <button class="btn btn-green" onclick="goPage('addclient',null)">+ नया क्लाइंट जोड़ें</button>
+        </div>
+        <div class="client-grid" id="clientGrid"></div>
+      </div>
+
+      <!-- INVOICES PAGE -->
+      <div class="page" id="pg-invoices">
+        <div class="card">
+          <div class="card-title">
+            इनवॉइस लिस्ट
+            <button class="btn btn-green" onclick="openNewInvoiceModal()">+ नया इनवॉइस</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>इनवॉइस #</th><th>क्लाइंट</th><th>राशि</th><th>GST</th><th>कुल</th><th>तिथि</th><th>स्थिति</th><th>कार्य</th></tr></thead>
+              <tbody id="invoicesTbl"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAYMENTS PAGE -->
+      <div class="page" id="pg-payments">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px">
+          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dcfce7">✅</div><div><div class="kpi-label">प्राप्त</div><div class="kpi-val">₹15.6L</div></div></div>
+          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#fef3c7">⏳</div><div><div class="kpi-label">बकाया</div><div class="kpi-val">₹2.8L</div></div></div>
+          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dbeafe">📅</div><div><div class="kpi-label">इस माह</div><div class="kpi-val">₹4.2L</div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">भुगतान इतिहास <button class="btn btn-green btn-sm" onclick="openRecordPaymentModal()">+ भुगतान दर्ज करें</button></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>क्लाइंट</th><th>राशि</th><th>माध्यम</th><th>तिथि</th><th>सन्दर्भ</th><th>स्थिति</th></tr></thead>
+              <tbody id="paymentsTbl"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRICES PAGE -->
+      <div class="page" id="pg-prices">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">लाइव रेट — अभी अपडेट करें</div>
+          <div class="price-grid" id="priceGrid"></div>
+          <button class="btn btn-green" onclick="openPriceEditModal()">✏️ रेट अपडेट करें</button>
+        </div>
+        <div class="card">
+          <div class="card-title">GST सेटिंग</div>
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <div>
+              <div class="form-label" style="margin-bottom:6px">CGST %</div>
+              <input class="form-input" id="cgstInput" value="9" style="width:100px">
+            </div>
+            <div>
+              <div class="form-label" style="margin-bottom:6px">SGST %</div>
+              <input class="form-input" id="sgstInput" value="9" style="width:100px">
+            </div>
+            <div style="align-self:flex-end">
+              <button class="btn btn-green" onclick="saveGST()">GST सेव करें</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADD CLIENT PAGE -->
+      <div class="page" id="pg-addclient">
+        <div class="card" style="max-width:700px">
+          <div class="card-title">नया क्लाइंट जोड़ें</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">कंपनी का नाम *</label>
+              <input class="form-input" id="nc-company" placeholder="जैसे: Ramkaran Lime Udyog">
+            </div>
+            <div class="form-group">
+              <label class="form-label">मालिक का नाम *</label>
+              <input class="form-input" id="nc-owner" placeholder="जैसे: रामकरण गुप्ता">
+            </div>
+            <div class="form-group">
+              <label class="form-label">मोबाइल नंबर *</label>
+              <input class="form-input" id="nc-phone" placeholder="+91 99999 99999" type="tel">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ईमेल</label>
+              <input class="form-input" id="nc-email" placeholder="email@example.com" type="email">
+            </div>
+            <div class="form-group">
+              <label class="form-label">GSTIN</label>
+              <input class="form-input" id="nc-gstin" placeholder="22AAAAA0000A1Z5">
+            </div>
+            <div class="form-group">
+              <label class="form-label">शहर / राज्य</label>
+              <input class="form-input" id="nc-city" placeholder="जैसे: जोधपुर, राजस्थान">
+            </div>
+            <div class="form-group form-full">
+              <label class="form-label">पता</label>
+              <input class="form-input" id="nc-address" placeholder="पूरा पता">
+            </div>
+            <div class="form-group" style="border-top:var(--border);padding-top:14px;grid-column:1/-1">
+              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">🔐 पोर्टल लॉगिन क्रेडेंशियल्स</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Username *</label>
+              <input class="form-input" id="nc-user" placeholder="जैसे: RAMKARAN2024">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password *</label>
+              <input class="form-input" id="nc-pass" placeholder="कम से कम 6 अक्षर" type="password">
+            </div>
+            <div class="form-group">
+              <label class="form-label">क्रेडिट लिमिट (₹)</label>
+              <input class="form-input" id="nc-credit" placeholder="जैसे: 500000" type="number">
+            </div>
+            <div class="form-group">
+              <label class="form-label">भुगतान शर्त</label>
+              <select class="form-select" id="nc-terms">
+                <option>तत्काल (Immediate)</option>
+                <option>7 दिन</option>
+                <option>15 दिन</option>
+                <option>30 दिन</option>
+                <option>60 दिन</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:20px">
+            <button class="btn btn-green" onclick="addNewClient()" style="padding:11px 24px">✅ क्लाइंट जोड़ें</button>
+            <button class="btn btn-outline" onclick="clearClientForm()">🗑 फॉर्म साफ़ करें</button>
+          </div>
+          <div id="addClientMsg" style="margin-top:12px;font-size:13px;font-weight:600;display:none"></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS PAGE -->
+      <div class="page" id="pg-settings">
+        <div class="card" style="max-width:600px;margin-bottom:16px">
+          <div class="card-title">कंपनी की जानकारी</div>
+          <div class="form-grid">
+            <div class="form-group form-full">
+              <label class="form-label">कंपनी नाम</label>
+              <input class="form-input" value="Deshwali Minerals">
+            </div>
+            <div class="form-group">
+              <label class="form-label">फोन</label>
+              <input class="form-input" value="+91 99999 99999">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ईमेल</label>
+              <input class="form-input" value="info@quicklimes.com">
+            </div>
+            <div class="form-group form-full">
+              <label class="form-label">पता</label>
+              <input class="form-input" value="राजस्थान, भारत">
+            </div>
+          </div>
+          <button class="btn btn-green" style="margin-top:14px">सेव करें</button>
+        </div>
+        <div class="card" style="max-width:600px">
+          <div class="card-title">Admin Password बदलें</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">नया Password</label>
+              <input class="form-input" type="password" placeholder="नया पासवर्ड">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm Password</label>
+              <input class="form-input" type="password" placeholder="दोबारा लिखें">
+            </div>
+          </div>
+          <button class="btn btn-green" style="margin-top:14px">पासवर्ड बदलें</button>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ORDER STATUS MODAL -->
+<div class="modal-overlay" id="orderStatusModal">
+  <div class="modal">
+    <div class="modal-title">ऑर्डर स्थिति अपडेट करें</div>
+    <input type="hidden" id="editOrderId">
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">नई स्थिति</label>
+      <select class="form-select" id="newOrderStatus" style="width:100%">
+        <option value="pending">प्रतीक्षा में</option>
+        <option value="processing">प्रोसेस हो रहा है</option>
+        <option value="transit">रास्ते में</option>
+        <option value="delivered">डिलीवर हो गया</option>
+        <option value="cancelled">रद्द</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">नोट (वैकल्पिक)</label>
+      <input class="form-input" id="orderStatusNote" placeholder="जैसे: ट्रक नंबर MH12AB1234">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('orderStatusModal')">रद्द</button>
+      <button class="btn btn-green" onclick="saveOrderStatus()">अपडेट करें</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW ORDER MODAL -->
+<div class="modal-overlay" id="newOrderModal">
+  <div class="modal">
+    <div class="modal-title">नया ऑर्डर बनाएं</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">क्लाइंट</label>
+        <select class="form-select" id="no-client" style="width:100%"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">उत्पाद</label>
+        <select class="form-select" id="no-product" style="width:100%">
+          <option>Hydrated Lime (बुझा चूना)</option>
+          <option>Quick Lime (कच्चा चूना)</option>
+          <option>Lime Stone (चूना पत्थर)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">मात्रा (MT)</label>
+        <input class="form-input" id="no-qty" type="number" placeholder="जैसे: 50">
+      </div>
+      <div class="form-group">
+        <label class="form-label">दर (₹/MT)</label>
+        <input class="form-input" id="no-rate" type="number" placeholder="जैसे: 4500">
+      </div>
+      <div class="form-group form-full">
+        <label class="form-label">डिलीवरी पता</label>
+        <input class="form-input" id="no-addr" placeholder="डिलीवरी का पूरा पता">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('newOrderModal')">रद्द</button>
+      <button class="btn btn-green" onclick="saveNewOrder()">ऑर्डर बनाएं</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRICE EDIT MODAL -->
+<div class="modal-overlay" id="priceModal">
+  <div class="modal">
+    <div class="modal-title">रेट अपडेट करें</div>
+    <div id="priceFormFields"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('priceModal')">रद्द</button>
+      <button class="btn btn-green" onclick="savePrices()">सेव करें</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECORD PAYMENT MODAL -->
+<div class="modal-overlay" id="recordPaymentModal">
+  <div class="modal">
+    <div class="modal-title">भुगतान दर्ज करें</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">क्लाइंट</label>
+        <select class="form-select" id="rp-client" style="width:100%"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">राशि (₹)</label>
+        <input class="form-input" id="rp-amount" type="number" placeholder="जैसे: 50000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">माध्यम</label>
+        <select class="form-select" id="rp-method" style="width:100%">
+          <option>NEFT/RTGS</option>
+          <option>UPI</option>
+          <option>चेक</option>
+          <option>नकद</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">सन्दर्भ नंबर</label>
+        <input class="form-input" id="rp-ref" placeholder="UTR/चेक नंबर">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('recordPaymentModal')">रद्द</button>
+      <button class="btn btn-green" onclick="savePayment()">दर्ज करें</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══ DATA ══
+const ADMIN = {user:'QLADMIN', pass:'quicklimes@2026'};
+
+let CLIENTS = JSON.parse(localStorage.getItem('ql_clients')||'null') || [
+  {id:'C001',company:'Deshwali Minerals',owner:'',phone:'9610099006',email:'',gstin:'08NLIPS9801K1Z5',city:'Merta City, Rajasthan',address:'Ground Floor, Kali Talai, Near Hafiz Sahab Ki Dragha, Merta City, Nagaur, Rajasthan - 341510',username:'DESHWALI2024',password:'lime@001',credit:1000000,terms:'30 दिन',balance:0,totalOrders:0,status:'active',bank:'HDFC Bank',accNo:'50200089605146',ifsc:'HDFC0002670'},
+  {id:'C002',company:'Gotan Lime Industries',owner:'KAKA JI',phone:'9460034743',email:'',gstin:'08BNAPM0488E1Z3',city:'Borunda, Rajasthan',address:'BORUNDA, DISTRICT-NAGAUR, RAJASTHAN - 342604',username:'GOTAN_LIME',password:'lime@002',credit:1000000,terms:'30 दिन',balance:0,totalOrders:0,status:'active',bank:'Bank of Baroda',accNo:'33580500001254',ifsc:'BARB0MERTAC'},
+];
+
+let ORDERS = JSON.parse(localStorage.getItem('ql_orders')||'null') || [];
+
+let INVOICES = JSON.parse(localStorage.getItem('ql_invoices')||'null') || [
+];
+
+let PAYMENTS = JSON.parse(localStorage.getItem('ql_payments')||'null') || [];
+
+let PRICES = JSON.parse(localStorage.getItem('ql_prices')||'null') || [
+  {name:'Hydrated Lime (बुझा चूना)',rate:4800,unit:'₹/MT'},
+  {name:'Quick Lime (कच्चा चूना)',rate:3500,unit:'₹/MT'},
+  {name:'Lime Stone (चूना पत्थर)',rate:1800,unit:'₹/MT'},
+  {name:'Fine Lime Powder',rate:5200,unit:'₹/MT'},
+  {name:'Calcined Lime',rate:6000,unit:'₹/MT'},
+  {name:'Agricultural Lime',rate:2200,unit:'₹/MT'},
+];
+
+function save(){
+  localStorage.setItem('ql_clients',JSON.stringify(CLIENTS));
+  localStorage.setItem('ql_orders',JSON.stringify(ORDERS));
+  localStorage.setItem('ql_invoices',JSON.stringify(INVOICES));
+  localStorage.setItem('ql_payments',JSON.stringify(PAYMENTS));
+  localStorage.setItem('ql_prices',JSON.stringify(PRICES));
+}
+
+// ══ LOGIN ══
+function doAdminLogin(){
+  const u=document.getElementById('adminUser').value.trim();
+  const p=document.getElementById('adminPass').value;
+  if(u===ADMIN.user && p===ADMIN.pass){
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    initApp();
+  } else {
+    const el=document.getElementById('loginError');
+    el.style.display='block';
+    setTimeout(()=>el.style.display='none',3000);
+  }
+}
+document.getElementById('adminPass').addEventListener('keydown',e=>{if(e.key==='Enter')doAdminLogin()});
+document.getElementById('adminUser').addEventListener('keydown',e=>{if(e.key==='Enter')doAdminLogin()});
+
+function doLogout(){
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('adminUser').value='';
+  document.getElementById('adminPass').value='';
+}
+
+// ══ NAV ══
+function goPage(id, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('pg-'+id).classList.add('active');
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  else {
+    document.querySelectorAll('.sb-item').forEach(b=>{
+      if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'"+id+"'")) b.classList.add('active');
+    });
+  }
+  const titles={dashboard:'डैशबोर्ड',orders:'सभी ऑर्डर',clients:'क्लाइंट्स',invoices:'इनवॉइस',payments:'भुगतान',prices:'रेट मैनेजर',addclient:'नया क्लाइंट',settings:'सेटिंग्स'};
+  document.getElementById('pageTitle').textContent=titles[id]||id;
+  if(id==='orders') renderOrders(ORDERS);
+  if(id==='clients') renderClients(CLIENTS);
+  if(id==='invoices') renderInvoices();
+  if(id==='payments') renderPayments();
+  if(id==='prices') renderPrices();
+}
+
+// ══ INIT ══
+function initApp(){
+  document.getElementById('todayDate').textContent=new Date().toLocaleDateString('hi-IN',{day:'numeric',month:'long',year:'numeric'});
+  renderDashboard();
+  renderOrders(ORDERS);
+  renderClients(CLIENTS);
+  renderInvoices();
+  renderPayments();
+  renderPrices();
+  populateClientSelects();
+}
+
+// ══ DASHBOARD ══
+function renderDashboard(){
+  // Recent orders
+  const tbody=document.getElementById('dashOrdersTbl');
+  tbody.innerHTML=ORDERS.slice(0,5).map(o=>`
+    <tr>
+      <td><strong>${o.client.split(' ')[0]}</strong></td>
+      <td>${o.qty} MT</td>
+      <td>₹${(o.amount/1000).toFixed(0)}K</td>
+      <td>${statusBadge(o.status)}</td>
+    </tr>`).join('');
+
+  // Pending payments
+  const pending=CLIENTS.filter(c=>c.balance>0);
+  document.getElementById('dashPendingTbl').innerHTML=pending.map(c=>`
+    <tr>
+      <td><strong>${c.company.split(' ')[0]}</strong></td>
+      <td style="color:#dc2626;font-weight:700">₹${c.balance.toLocaleString('hi-IN')}</td>
+      <td><span class="badge badge-amber">चालू</span></td>
+    </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:20px">✅ कोई बकाया नहीं</td></tr>';
+
+  // Charts
+  setTimeout(()=>{
+    const ctx1=document.getElementById('ordersChart');
+    if(ctx1._chart) ctx1._chart.destroy();
+    ctx1._chart=new Chart(ctx1,{type:'bar',data:{
+      labels:['नव','दिस','जन','फर','मार','अप्र'],
+      datasets:[{label:'MT',data:[120,180,150,220,190,280],backgroundColor:'rgba(22,163,74,.7)',borderRadius:8}]
+    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+
+    const ctx2=document.getElementById('statusChart');
+    if(ctx2._chart) ctx2._chart.destroy();
+    ctx2._chart=new Chart(ctx2,{type:'doughnut',data:{
+      labels:['डिलीवर','रास्ते में','प्रोसेस','प्रतीक्षा'],
+      datasets:[{data:[19,9,12,8],backgroundColor:['#22c55e','#3b82f6','#f59e0b','#9ca3af'],borderWidth:2}]
+    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}}}});
+  },100);
+}
+
+// ══ ORDERS ══
+let currentOrderFilter='all';
+function renderOrders(orders){
+  document.getElementById('ordersTbl').innerHTML=orders.map(o=>`
+    <tr>
+      <td><strong style="color:var(--g)">${o.id}</strong></td>
+      <td>${o.client}</td>
+      <td>${o.product}</td>
+      <td>${o.qty} MT</td>
+      <td>₹${o.amount.toLocaleString('hi-IN')}</td>
+      <td>${o.date}</td>
+      <td>${statusBadge(o.status)}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="openEditOrder('${o.id}')">✏️ स्थिति</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#6b7280">कोई ऑर्डर नहीं</td></tr>';
+}
+function filterOrders(status, btn){
+  currentOrderFilter=status;
+  document.querySelectorAll('.of-item').forEach(i=>i.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const filtered=status==='all'?ORDERS:ORDERS.filter(o=>o.status===status);
+  renderOrders(filtered);
+}
+function filterOrderSearch(q){
+  const filtered=ORDERS.filter(o=>o.client.toLowerCase().includes(q.toLowerCase())||o.id.toLowerCase().includes(q.toLowerCase())||o.product.toLowerCase().includes(q.toLowerCase()));
+  renderOrders(filtered);
+}
+function openEditOrder(id){
+  document.getElementById('editOrderId').value=id;
+  const o=ORDERS.find(x=>x.id===id);
+  if(o) document.getElementById('newOrderStatus').value=o.status;
+  document.getElementById('orderStatusModal').classList.add('open');
+}
+function saveOrderStatus(){
+  const id=document.getElementById('editOrderId').value;
+  const status=document.getElementById('newOrderStatus').value;
+  const idx=ORDERS.findIndex(o=>o.id===id);
+  if(idx>=0){ORDERS[idx].status=status;save();}
+  closeModal('orderStatusModal');
+  renderOrders(ORDERS);
+}
+function openNewOrderModal(){
+  document.getElementById('newOrderModal').classList.add('open');
+}
+function saveNewOrder(){
+  const clientId=document.getElementById('no-client').value;
+  const client=CLIENTS.find(c=>c.id===clientId);
+  const qty=parseFloat(document.getElementById('no-qty').value)||0;
+  const rate=parseFloat(document.getElementById('no-rate').value)||0;
+  if(!client||!qty||!rate){alert('कृपया सभी जानकारी भरें');return;}
+  const newOrder={
+    id:'ORD-'+(ORDERS.length+1).toString().padStart(3,'0'),
+    clientId,client:client.company,
+    product:document.getElementById('no-product').value,
+    qty,rate,amount:qty*rate,
+    date:new Date().toISOString().split('T')[0],
+    status:'pending'
+  };
+  ORDERS.unshift(newOrder);
+  client.totalOrders=(client.totalOrders||0)+1;
+  save();
+  closeModal('newOrderModal');
+  renderOrders(ORDERS);
+  renderClients(CLIENTS);
+  document.getElementById('no-qty').value='';
+  document.getElementById('no-rate').value='';
+}
+
+// ══ CLIENTS ══
+function renderClients(clients){
+  document.getElementById('clientGrid').innerHTML=clients.map(c=>`
+    <div class="client-card">
+      <div class="cc-head">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="cc-avatar">${c.company[0]}</div>
+          <div>
+            <div class="cc-name">${c.company}</div>
+            <div class="cc-location">📍 ${c.city}</div>
+          </div>
+        </div>
+        <span class="badge ${c.status==='active'?'badge-green':'badge-gray'}">${c.status==='active'?'सक्रिय':'निष्क्रिय'}</span>
+      </div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">👤 ${c.owner} · 📱 ${c.phone}</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:10px">🔑 ${c.username} · 💳 क्रेडिट: ₹${(c.credit/1000).toFixed(0)}K</div>
+      <div class="cc-stats">
+        <div class="cc-stat"><div class="cc-stat-label">कुल ऑर्डर</div><div class="cc-stat-val">${c.totalOrders||0}</div></div>
+        <div class="cc-stat"><div class="cc-stat-label">बकाया</div><div class="cc-stat-val" style="${c.balance>0?'color:#dc2626':'color:var(--g)'}">₹${(c.balance||0).toLocaleString('hi-IN')}</div></div>
+      </div>
+      <div class="cc-actions">
+        <button class="btn btn-outline btn-sm" onclick="editClient('${c.id}')">✏️ संपादन</button>
+        <button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8" onclick="viewClientOrders('${c.id}')">📦 ऑर्डर</button>
+        <button class="btn btn-sm" style="background:${c.status==='active'?'#fee2e2':'#dcfce7'};color:${c.status==='active'?'#dc2626':'#15803d'}" onclick="toggleClientStatus('${c.id}')">${c.status==='active'?'⏸ रोकें':'▶ चालू'}</button>
+      </div>
+    </div>`).join('') || '<div style="text-align:center;color:#6b7280;padding:40px;grid-column:1/-1">कोई क्लाइंट नहीं मिला</div>';
+}
+function filterClients(q){
+  renderClients(CLIENTS.filter(c=>c.company.toLowerCase().includes(q.toLowerCase())||c.owner.toLowerCase().includes(q.toLowerCase())||c.city.toLowerCase().includes(q.toLowerCase())));
+}
+function toggleClientStatus(id){
+  const c=CLIENTS.find(x=>x.id===id);
+  if(c){c.status=c.status==='active'?'inactive':'active';save();renderClients(CLIENTS);}
+}
+function editClient(id){
+  const c=CLIENTS.find(x=>x.id===id);
+  if(!c)return;
+  // Fill add client form with this client's data
+  document.getElementById('nc-company').value=c.company;
+  document.getElementById('nc-owner').value=c.owner;
+  document.getElementById('nc-phone').value=c.phone;
+  document.getElementById('nc-email').value=c.email;
+  document.getElementById('nc-gstin').value=c.gstin||'';
+  document.getElementById('nc-city').value=c.city;
+  document.getElementById('nc-address').value=c.address||'';
+  document.getElementById('nc-user').value=c.username;
+  document.getElementById('nc-pass').value=c.password;
+  document.getElementById('nc-credit').value=c.credit;
+  goPage('addclient',null);
+}
+function viewClientOrders(id){
+  const c=CLIENTS.find(x=>x.id===id);
+  if(!c)return;
+  const filtered=ORDERS.filter(o=>o.clientId===id);
+  goPage('orders',null);
+  renderOrders(filtered);
+}
+
+// ══ ADD CLIENT ══
+function addNewClient(){
+  const company=document.getElementById('nc-company').value.trim();
+  const owner=document.getElementById('nc-owner').value.trim();
+  const phone=document.getElementById('nc-phone').value.trim();
+  const username=document.getElementById('nc-user').value.trim();
+  const password=document.getElementById('nc-pass').value.trim();
+  if(!company||!owner||!phone||!username||!password){
+    showMsg('addClientMsg','❌ कृपया सभी अनिवार्य (*) फ़ील्ड भरें','#dc2626');return;
+  }
+  if(CLIENTS.find(c=>c.username===username)){
+    showMsg('addClientMsg','❌ यह username पहले से मौजूद है','#dc2626');return;
+  }
+  const newClient={
+    id:'C'+(CLIENTS.length+1).toString().padStart(3,'0'),
+    company,owner,phone,
+    email:document.getElementById('nc-email').value.trim(),
+    gstin:document.getElementById('nc-gstin').value.trim(),
+    city:document.getElementById('nc-city').value.trim(),
+    address:document.getElementById('nc-address').value.trim(),
+    username,password,
+    credit:parseFloat(document.getElementById('nc-credit').value)||100000,
+    terms:document.getElementById('nc-terms').value,
+    balance:0,totalOrders:0,status:'active'
+  };
+  CLIENTS.push(newClient);
+  save();
+  populateClientSelects();
+  showMsg('addClientMsg','✅ क्लाइंट सफलतापूर्वक जोड़ा गया! Username: '+username,'#15803d');
+  clearClientForm();
+}
+function clearClientForm(){
+  ['nc-company','nc-owner','nc-phone','nc-email','nc-gstin','nc-city','nc-address','nc-user','nc-pass','nc-credit'].forEach(id=>document.getElementById(id).value='');
+}
+function showMsg(id,msg,color){
+  const el=document.getElementById(id);
+  el.textContent=msg;el.style.color=color;el.style.display='block';
+  setTimeout(()=>el.style.display='none',4000);
+}
+
+// ══ INVOICES ══
+function renderInvoices(){
+  document.getElementById('invoicesTbl').innerHTML=INVOICES.map(inv=>`
+    <tr>
+      <td><strong style="color:var(--g)">${inv.id}</strong></td>
+      <td>${inv.client}</td>
+      <td>₹${inv.amount.toLocaleString('hi-IN')}</td>
+      <td>₹${inv.gst.toLocaleString('hi-IN')}</td>
+      <td><strong>₹${inv.total.toLocaleString('hi-IN')}</strong></td>
+      <td>${inv.date}</td>
+      <td>${inv.status==='paid'?'<span class="badge badge-green">भुगतान हुआ</span>':'<span class="badge badge-amber">बकाया</span>'}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="toggleInvoiceStatus('${inv.id}')">${inv.status==='paid'?'↩ बकाया':'✅ भुगतान'}</button>
+      </td>
+    </tr>`).join('');
+}
+function toggleInvoiceStatus(id){
+  const inv=INVOICES.find(i=>i.id===id);
+  if(inv){inv.status=inv.status==='paid'?'pending':'paid';save();renderInvoices();}
+}
+function openNewInvoiceModal(){alert('नया इनवॉइस फीचर जल्द आ रहा है।');}
+
+// ══ PAYMENTS ══
+function renderPayments(){
+  document.getElementById('paymentsTbl').innerHTML=PAYMENTS.map(p=>`
+    <tr>
+      <td>${p.client}</td>
+      <td><strong>₹${p.amount.toLocaleString('hi-IN')}</strong></td>
+      <td>${p.method}</td>
+      <td>${p.date}</td>
+      <td style="font-size:12px;color:var(--ink3)">${p.ref}</td>
+      <td><span class="badge badge-green">प्राप्त</span></td>
+    </tr>`).join('');
+}
+function openRecordPaymentModal(){
+  document.getElementById('recordPaymentModal').classList.add('open');
+}
+function savePayment(){
+  const clientId=document.getElementById('rp-client').value;
+  const client=CLIENTS.find(c=>c.id===clientId);
+  const amount=parseFloat(document.getElementById('rp-amount').value)||0;
+  if(!client||!amount){alert('कृपया सभी जानकारी भरें');return;}
+  PAYMENTS.unshift({
+    client:client.company,amount,
+    method:document.getElementById('rp-method').value,
+    date:new Date().toISOString().split('T')[0],
+    ref:document.getElementById('rp-ref').value||'—',
+    status:'received'
+  });
+  if(client.balance>=amount) client.balance-=amount;
+  else client.balance=0;
+  save();
+  closeModal('recordPaymentModal');
+  renderPayments();
+  renderClients(CLIENTS);
+}
+
+// ══ PRICES ══
+function renderPrices(){
+  document.getElementById('priceGrid').innerHTML=PRICES.map(p=>`
+    <div class="price-item">
+      <div class="price-item-name">${p.name}</div>
+      <div class="price-item-val">₹${p.rate.toLocaleString('hi-IN')}</div>
+      <div class="price-item-unit">${p.unit}</div>
+    </div>`).join('');
+}
+function openPriceEditModal(){
+  document.getElementById('priceFormFields').innerHTML=PRICES.map((p,i)=>`
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">${p.name}</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--ink3);font-size:14px">₹</span>
+        <input class="form-input" id="pr-${i}" value="${p.rate}" type="number" style="flex:1">
+        <span style="font-size:12px;color:var(--ink3)">${p.unit}</span>
+      </div>
+    </div>`).join('');
+  document.getElementById('priceModal').classList.add('open');
+}
+function savePrices(){
+  PRICES.forEach((p,i)=>{
+    const el=document.getElementById('pr-'+i);
+    if(el) p.rate=parseFloat(el.value)||p.rate;
+  });
+  save();
+  closeModal('priceModal');
+  renderPrices();
+}
+function saveGST(){
+  alert('GST सेटिंग सेव हो गई: CGST '+document.getElementById('cgstInput').value+'% + SGST '+document.getElementById('sgstInput').value+'%');
+}
+
+// ══ HELPERS ══
+function statusBadge(s){
+  const map={pending:'<span class="badge badge-gray">प्रतीक्षा</span>',processing:'<span class="badge badge-amber">प्रोसेस</span>',transit:'<span class="badge badge-blue">रास्ते में</span>',delivered:'<span class="badge badge-green">डिलीवर</span>',cancelled:'<span class="badge badge-red">रद्द</span>'};
+  return map[s]||s;
+}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function populateClientSelects(){
+  const opts=CLIENTS.map(c=>`<option value="${c.id}">${c.company}</option>`).join('');
+  document.getElementById('no-client').innerHTML=opts;
+  document.getElementById('rp-client').innerHTML=opts;
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')});
+});
+</script>
+</body>
+</html>

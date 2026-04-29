@@ -1,0 +1,12 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/hi",        "destination": "/deshwali_minerals_hindi.html" },
+    { "source": "/admin",     "destination": "/admin_panel.html" },
+    { "source": "/privacy",   "destination": "/privacy_policy.html" },
+    { "source": "/terms",     "destination": "/terms_and_conditions.html" },
+    { "source": "/dashboard", "destination": "/deshwali_dashboard.html" },
+    { "source": "/portal", "destination": "/quicklime" }
+  ]
+}

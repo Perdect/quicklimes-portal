@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>QuickLime Portal — Deshwali Minerals</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --p1:#4a44c0;--p2:#5655D7;--p3:#6e6de8;--p4:#9b9af0;--p5:#eeeeff;--p6:#f5f5ff;
+  --g1:linear-gradient(160deg,#5655D7 0%,#4a44c0 50%,#6e6de8 100%);
+  --g:#5655D7;--g2:#4a44c0;--g3:#3730a3;--gl:#6e6de8;
+  --gs:#f5f5ff;--gb:#eeeeff;--gm:#c7c6f8;
+  --ink:#0d0c22;--ink2:#1a1940;--ink3:#4b4a72;--ink4:#9491b8;
+  --green:#10b981;--green2:#d1fae5;--red:#f43f5e;--red2:#ffe4e6;
+  --white:#fff;--bg:#eef0fb;--bg2:#e4e6f5;--border:1px solid #e8eaf5;
+  --card:#fff;--r:14px;--r2:10px;
+  --shadow:0 1px 4px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
+  --shadow2:0 8px 24px rgba(86,85,215,.15);
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+
+/* ═══ LOGIN PAGE ═══ */
+#login-page{
+  display:flex;min-height:100vh;
+  background:var(--g1);
+}
+.login-left{
+  flex:1;display:flex;align-items:center;justify-content:center;padding:40px;
+  position:relative;overflow:hidden;
+}
+.login-left::before{
+  content:'';position:absolute;top:-100px;left:-100px;
+  width:400px;height:400px;background:rgba(132,204,22,.08);border-radius:50%;
+}
+.login-left::after{
+  content:'';position:absolute;bottom:-80px;right:-60px;
+  width:300px;height:300px;background:rgba(22,163,74,.1);border-radius:50%;
+}
+.login-brand{position:relative;z-index:1;max-width:420px}
+.login-brand .lb-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(132,204,22,.15);border:1px solid rgba(132,204,22,.3);
+  border-radius:50px;padding:6px 14px;margin-bottom:28px;
+}
+.lb-badge span{font-size:12px;font-weight:700;color:#bbf7d0;letter-spacing:.5px}
+.login-brand h1{font-size:42px;font-weight:800;color:#fff;line-height:1.1;margin-bottom:16px}
+.login-brand h1 em{color:#84cc16;font-style:normal}
+.login-brand p{font-size:15px;color:rgba(255,255,255,.6);line-height:1.7;margin-bottom:36px}
+.feature-list{display:flex;flex-direction:column;gap:12px}
+.feat-item{display:flex;align-items:center;gap:12px}
+.feat-icon{width:36px;height:36px;background:rgba(132,204,22,.15);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.feat-text{font-size:13px;color:rgba(255,255,255,.75);font-weight:500}
+
+.login-right{
+  width:440px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center;padding:40px;
+}
+.login-box{width:100%;max-width:360px}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:36px}
+.login-logo-icon{width:46px;height:46px;background:linear-gradient(135deg,#16a34a,#84cc16);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px}
+.login-logo-text{font-size:18px;font-weight:800;color:var(--ink)}
+.login-logo-text span{display:block;font-size:11px;font-weight:500;color:var(--ink3);margin-top:1px}
+.login-box h2{font-size:24px;font-weight:800;color:var(--ink);margin-bottom:6px}
+.login-box p{font-size:13px;color:var(--ink3);margin-bottom:28px}
+.fld{margin-bottom:16px}
+.fld label{display:block;font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.fld input{width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:11px 14px;font-size:14px;font-family:'Inter',sans-serif;color:var(--ink);outline:none;transition:.15s;background:#fafafa}
+.fld input:focus{border-color:var(--g);background:#fff;box-shadow:0 0 0 3px rgba(22,163,74,.12)}
+.btn-login{width:100%;padding:13px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;margin-top:8px;transition:.15s}
+.btn-login:hover{background:linear-gradient(135deg,#15803d,#14532d);box-shadow:0 4px 16px rgba(22,163,74,.4)}
+.login-hint{margin-top:20px;background:var(--gs);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--g3)}
+.login-hint strong{display:block;margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--g2)}
+.login-footer{margin-top:28px;text-align:center;font-size:11px;color:var(--ink4)}
+.login-error{display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;font-size:12px;color:#dc2626;margin-bottom:12px}
+
+/* ═══ APP ═══ */
+#app{display:none;min-height:100vh;flex-direction:column}
+
+/* ── TOPBAR ── */
+.app-top{
+  background:#fff;border-bottom:var(--border);height:60px;
+  display:flex;align-items:center;padding:0 24px;gap:16px;
+  position:sticky;top:0;z-index:100;box-shadow:var(--shadow);
+}
+.at-logo{display:flex;align-items:center;gap:10px}
+.at-logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#16a34a,#84cc16);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.at-logo-name{font-size:15px;font-weight:800;color:var(--ink)}
+.at-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.at-company{font-size:12px;font-weight:700;padding:5px 12px;background:var(--gs);color:var(--g2);border-radius:8px;border:1px solid var(--gm)}
+.at-user{display:flex;align-items:center;gap:8px;cursor:pointer}
+.at-avatar{width:34px;height:34px;background:linear-gradient(135deg,#16a34a,#84cc16);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff}
+.at-uname{font-size:12px;font-weight:600;color:var(--ink2)}
+.btn-logout{padding:6px 12px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif}
+
+/* ── LAYOUT ── */
+.app-body{display:flex;flex:1}
+.sidebar{width:220px;background:#fff;border-right:var(--border);flex-shrink:0;padding:16px 10px;display:flex;flex-direction:column;gap:2px;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto}
+.nav-sec{font-size:10px;font-weight:700;color:var(--ink4);text-transform:uppercase;letter-spacing:1.5px;padding:10px 10px 4px;margin-top:6px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:500;color:var(--ink3);border:none;background:transparent;width:100%;text-align:left;font-family:'Inter',sans-serif;transition:.12s}
+.nav-item:hover{background:var(--gs);color:var(--g)}
+.nav-item.active{background:var(--g);color:#fff;font-weight:700}
+.nav-item .ni{font-size:16px;flex-shrink:0}
+.nav-badge{margin-left:auto;background:#fef2f2;color:#dc2626;font-size:10px;font-weight:800;padding:2px 7px;border-radius:50px}
+.nav-badge.g{background:var(--gb);color:var(--g2)}
+
+.main{flex:1;padding:24px;background:var(--bg);overflow-x:hidden}
+
+/* ── PAGE ── */
+.page{display:none}
+.page.active{display:block}
+
+/* ── PAGE HEADER ── */
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px}
+.ph-left h2{font-size:22px;font-weight:800;color:var(--ink)}
+.ph-left p{font-size:13px;color:var(--ink3);margin-top:3px}
+.btn{padding:9px 18px;border-radius:9px;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;transition:.12s}
+.btn-primary{background:var(--g);color:#fff}
+.btn-primary:hover{background:var(--g2)}
+.btn-outline{background:#fff;color:var(--g);border:1.5px solid var(--gm)}
+.btn-outline:hover{background:var(--gs)}
+
+/* ── ALERT BANNER ── */
+.alert-banner{background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;font-size:13px;color:#92400e}
+.alert-banner.ok{background:var(--gs);border-color:var(--gm);color:var(--g3)}
+
+/* ── KPI ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.kpi{background:var(--card);border:var(--border);border-radius:var(--r);padding:18px 20px}
+.kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.kpi-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.kpi-trend{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px}
+.kpi-trend.up{background:var(--gb);color:var(--g2)}
+.kpi-trend.dn{background:#fef2f2;color:#dc2626}
+.kpi-trend.na{background:#f3f4f6;color:var(--ink3)}
+.kpi-label{font-size:11px;font-weight:600;color:var(--ink4);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.kpi-val{font-size:26px;font-weight:800;color:var(--ink);letter-spacing:-.5px;line-height:1}
+.kpi-sub{font-size:11px;color:var(--ink3);margin-top:6px}
+
+/* ── CARDS ── */
+.card{background:var(--card);border:var(--border);border-radius:var(--r);overflow:hidden}
+.card-head{padding:16px 20px;border-bottom:var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:14px;font-weight:700;color:var(--ink)}
+.card-body{padding:20px}
+
+/* ── GRID ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid13{display:grid;grid-template-columns:1fr 1.4fr;gap:16px}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t thead th{background:#f9fafb;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;border-bottom:var(--border)}
+table.t tbody td{padding:12px 14px;border-bottom:1px solid #f3f4f6;color:var(--ink2)}
+table.t tbody tr:hover td{background:#fafffe}
+table.t tbody tr:last-child td{border-bottom:none}
+.tr{text-align:right}
+.badge{display:inline-block;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700}
+.b-green{background:var(--gb);color:var(--g3)}
+.b-amber{background:#fef3c7;color:#92400e}
+.b-red{background:#fee2e2;color:#dc2626}
+.b-blue{background:#dbeafe;color:#1d4ed8}
+.b-gray{background:#f3f4f6;color:var(--ink3)}
+
+/* ── PRICE TICKER ── */
+.price-ticker{display:flex;align-items:center;gap:6px;background:var(--gs);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--g3);font-weight:600}
+.price-ticker .pt-val{font-size:18px;font-weight:800;color:var(--g)}
+
+/* ── ORDER FORM ── */
+.order-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.of-fld label{font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:5px;display:block;text-transform:uppercase;letter-spacing:.3px}
+.of-fld input,.of-fld select{width:100%;border:1.5px solid #e5e7eb;border-radius:9px;padding:10px 13px;font-size:14px;font-family:'Inter',sans-serif;color:var(--ink);outline:none;transition:.15s;background:#fafafa}
+.of-fld input:focus,.of-fld select:focus{border-color:var(--g);background:#fff;box-shadow:0 0 0 3px rgba(22,163,74,.1)}
+
+/* ── STATUS TRACKER ── */
+.tracker{display:flex;align-items:flex-start;gap:0;margin:8px 0}
+.tr-step{flex:1;display:flex;flex-direction:column;align-items:center;position:relative}
+.tr-step::before{content:'';position:absolute;top:14px;left:50%;width:100%;height:2px;background:#e5e7eb;z-index:0}
+.tr-step:last-child::before{display:none}
+.tr-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:2px solid #e5e7eb;background:#fff;position:relative;z-index:1}
+.tr-dot.done{background:var(--g);border-color:var(--g);color:#fff}
+.tr-dot.active{background:#fff;border-color:var(--g);color:var(--g)}
+.tr-dot.wait{background:#fff;border-color:#e5e7eb;color:var(--ink4)}
+.tr-label{font-size:10px;font-weight:600;color:var(--ink3);margin-top:6px;text-align:center;max-width:60px}
+.tr-step.done .tr-label{color:var(--g)}
+.tr-step.active .tr-label{color:var(--g);font-weight:700}
+.tr-step::after{content:'';position:absolute;top:14px;right:50%;width:100%;height:2px;background:var(--g);z-index:0;display:none}
+.tr-step.done::after{display:block}
+
+/* ── STAT ROW ── */
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:13px}
+.stat-row:last-child{border-bottom:none}
+.stat-label{color:var(--ink3);font-weight:500}
+.stat-val{font-weight:700;color:var(--ink)}
+
+/* ── PAYMENT STATUS ── */
+.pay-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f3f4f6}
+.pay-row:last-child{border-bottom:none}
+.pay-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.pay-info{flex:1}
+.pay-title{font-size:13px;font-weight:700;color:var(--ink)}
+.pay-sub{font-size:11px;color:var(--ink3);margin-top:1px}
+.pay-amt{font-size:14px;font-weight:800;text-align:right}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  .login-left{display:none}
+  .login-right{width:100%}
+  .sidebar{display:none}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .grid2,.grid13{grid-template-columns:1fr}
+  .order-form{grid-template-columns:1fr}
+  .main{padding:14px}
+  .ph{flex-direction:column}
+  .app-top{padding:0 14px}
+  .at-uname{display:none}
+}
+@media(max-width:400px){
+  .kpi-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     LOGIN PAGE
+═══════════════════════════════════════════════ -->
+<div id="login-page">
+  <div class="login-left">
+    <div class="login-brand">
+      <div class="lb-badge">
+        <span>🍋</span>
+        <span>QUICKLIME PORTAL v1.0</span>
+      </div>
+      <h1>अपने <em>चूना व्यापार</em> को आसान बनाएं</h1>
+      <p>Deshwali Minerals का एक्सक्लूसिव पोर्टल — अपने सभी ऑर्डर, भुगतान और डिलीवरी एक जगह ट्रैक करें।</p>
+      <div class="feature-list">
+        <div class="feat-item">
+          <div class="feat-icon">📦</div>
+          <div class="feat-text">ऑर्डर रियल-टाइम ट्रैकिंग — कब आएगा माल, सब दिखता है</div>
+        </div>
+        <div class="feat-item">
+          <div class="feat-icon">💳</div>
+          <div class="feat-text">भुगतान इतिहास और बकाया राशि — एक क्लिक में जानें</div>
+        </div>
+        <div class="feat-item">
+          <div class="feat-icon">🧾</div>
+          <div class="feat-text">सभी GST Invoice डाउनलोड करें — कहीं भी, कभी भी</div>
+        </div>
+        <div class="feat-item">
+          <div class="feat-icon">📊</div>
+          <div class="feat-text">महीनेवार खरीद रिपोर्ट — अपना खर्च समझें</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="login-right">
+    <div class="login-box">
+      <div class="login-logo">
+        <div class="login-logo-icon">🍋</div>
+        <div class="login-logo-text">
+          QuickLime Portal
+          <span>by Deshwali Minerals</span>
+        </div>
+      </div>
+      <h2>लॉगिन करें</h2>
+      <p>अपना कंपनी ID और पासवर्ड डालें</p>
+      <div class="login-error" id="login-err">❌ गलत ID या पासवर्ड। कृपया दोबारा कोशिश करें।</div>
+      <div class="fld">
+        <label>Company ID / Username</label>
+        <input type="text" id="login-user" placeholder="e.g. DESHWALI2024" autocomplete="username"/>
+      </div>
+      <div class="fld">
+        <label>पासवर्ड</label>
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <button class="btn-login" onclick="doLogin()">🔐 लॉगिन करें</button>
+      <div class="login-hint">
+        <strong>Demo Access</strong>
+        ID: <strong>DESHWALI2024</strong> &nbsp;|&nbsp; Password: <strong>lime@001</strong><br>
+        ID: <strong>GOTAN_LIME</strong> &nbsp;|&nbsp; Password: <strong>lime@002</strong>
+      </div>
+      <div class="login-footer">
+        © 2026 Deshwali Minerals · Merta City<br>
+        <span style="color:#9ca3af">सहायता: 9460034743</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MAIN APP
+═══════════════════════════════════════════════ -->
+<div id="app" style="display:flex;flex-direction:column">
+
+  <!-- TOPBAR -->
+  <div class="app-top">
+    <div class="at-logo">
+      <div class="at-logo-icon">🍋</div>
+      <div class="at-logo-name">QuickLime Portal</div>
+    </div>
+    <div class="at-right">
+      <div class="at-company" id="top-co">Ramkaran & Sons</div>
+      <div class="at-user" onclick="toggleProfileDrop()">
+        <div class="at-avatar" id="top-avatar">RS</div>
+        <div class="at-uname" id="top-uname">Ramkaran</div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="app-body">
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+      <button class="nav-item active" onclick="goPage('dashboard',this)">
+        <span class="ni">🏠</span> डैशबोर्ड
+      </button>
+      <div class="nav-sec">ऑर्डर</div>
+      <button class="nav-item" onclick="goPage('orders',this)">
+        <span class="ni">📦</span> मेरे ऑर्डर
+        <span class="nav-badge g">3</span>
+      </button>
+      <button class="nav-item" onclick="goPage('neworder',this)">
+        <span class="ni">➕</span> नया ऑर्डर
+      </button>
+      <button class="nav-item" onclick="goPage('tracking',this)">
+        <span class="ni">🚚</span> डिलीवरी ट्रैक
+      </button>
+      <div class="nav-sec">हिसाब-किताब</div>
+      <button class="nav-item" onclick="goPage('invoices',this)">
+        <span class="ni">🧾</span> Invoice
+      </button>
+      <button class="nav-item" onclick="goPage('payments',this)">
+        <span class="ni">💳</span> भुगतान
+        <span class="nav-badge">1</span>
+      </button>
+      <button class="nav-item" onclick="goPage('ledger',this)">
+        <span class="ni">📒</span> खाता बही
+      </button>
+      <div class="nav-sec">अन्य</div>
+      <button class="nav-item" onclick="goPage('prices',this)">
+        <span class="ni">📈</span> भाव सूची
+      </button>
+      <button class="nav-item" onclick="goPage('profile',this)">
+        <span class="ni">🏢</span> मेरी कंपनी
+      </button>
+      <button class="nav-item" onclick="goPage('support',this)">
+        <span class="ni">🤝</span> सहायता
+      </button>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <div class="main">
+
+      <!-- ═══ DASHBOARD ═══ -->
+      <div class="page active" id="page-dashboard">
+        <div class="ph">
+          <div class="ph-left">
+            <h2>नमस्ते, <span id="dash-name">Ramkaran Ji</span> 🙏</h2>
+            <p id="dash-date">आज का दिन: शनिवार, 29 अप्रैल 2026</p>
+          </div>
+          <button class="btn btn-primary" onclick="goPage('neworder',document.querySelector('.nav-item:nth-child(4))'))">➕ नया ऑर्डर</button>
+        </div>
+
+        <!-- Alert -->
+        <div class="alert-banner" id="dash-alert">
+          ⚠️ <strong>बकाया भुगतान:</strong> ₹45,000 — कृपया 5 मई 2026 से पहले जमा करें।
+          <button onclick="goPage('payments',null)" style="margin-left:auto;background:var(--g);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">भुगतान करें →</button>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="kpi-top">
+              <div class="kpi-icon" style="background:#dcfce7">📦</div>
+              <div class="kpi-trend up">▲ 12%</div>
+            </div>
+            <div class="kpi-label">इस महीने ऑर्डर</div>
+            <div class="kpi-val" style="color:var(--g)">3</div>
+            <div class="kpi-sub">340 MT Quick Lime</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-top">
+              <div class="kpi-icon" style="background:#fef3c7">💰</div>
+              <div class="kpi-trend up">▲ 8%</div>
+            </div>
+            <div class="kpi-label">कुल खरीद (2026)</div>
+            <div class="kpi-val">₹12.4L</div>
+            <div class="kpi-sub">1,240 MT कुल</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-top">
+              <div class="kpi-icon" style="background:#fee2e2">⚠️</div>
+              <div class="kpi-trend dn">बकाया</div>
+            </div>
+            <div class="kpi-label">बकाया राशि</div>
+            <div class="kpi-val" style="color:#dc2626">₹45,000</div>
+            <div class="kpi-sub">Due: 5 May 2026</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-top">
+              <div class="kpi-icon" style="background:#dbeafe">🚚</div>
+              <div class="kpi-trend na">चल रहा है</div>
+            </div>
+            <div class="kpi-label">अगली डिलीवरी</div>
+            <div class="kpi-val" style="font-size:20px">2 मई</div>
+            <div class="kpi-sub">100 MT — RJ14CX2891</div>
+          </div>
+        </div>
+
+        <!-- Charts + Recent -->
+        <div class="grid13" style="margin-bottom:16px">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">📊 मासिक खरीद (MT)</div>
+              <select style="font-size:11px;border:var(--border);border-radius:6px;padding:3px 8px;outline:none">
+                <option>2026</option><option>2025</option>
+              </select>
+            </div>
+            <div class="card-body">
+              <canvas id="chartBuy" height="180"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">🚚 ताज़ा ऑर्डर स्थिति</div></div>
+            <div class="card-body">
+              <div style="margin-bottom:16px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                  <div style="font-size:13px;font-weight:700">ORD-2026-047</div>
+                  <span class="badge b-amber">ट्रांजिट में</span>
+                </div>
+                <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">100 MT Quick Lime · RJ14CX2891</div>
+                <div class="tracker">
+                  <div class="tr-step done">
+                    <div class="tr-dot done">✓</div>
+                    <div class="tr-label">ऑर्डर</div>
+                  </div>
+                  <div class="tr-step done">
+                    <div class="tr-dot done">✓</div>
+                    <div class="tr-label">तैयार</div>
+                  </div>
+                  <div class="tr-step active">
+                    <div class="tr-dot active">🚚</div>
+                    <div class="tr-label">रास्ते में</div>
+                  </div>
+                  <div class="tr-step wait">
+                    <div class="tr-dot wait">📍</div>
+                    <div class="tr-label">पहुंचा</div>
+                  </div>
+                </div>
+              </div>
+              <div style="height:1px;background:var(--border);margin:14px 0"></div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div class="stat-row"><span class="stat-label">वाहन नं.</span><span class="stat-val">RJ14CX2891</span></div>
+                <div class="stat-row"><span class="stat-label">माल</span><span class="stat-val">100 MT Quick Lime</span></div>
+                <div class="stat-row"><span class="stat-label">भाव</span><span class="stat-val">₹715/MT</span></div>
+                <div class="stat-row"><span class="stat-label">कुल राशि</span><span class="stat-val" style="color:var(--g);font-size:15px">₹71,500</span></div>
+                <div class="stat-row"><span class="stat-label">अनुमानित डिलीवरी</span><span class="stat-val" style="color:var(--g)">2 मई 2026</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Orders + Quick Actions -->
+        <div class="grid2">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">📋 पिछले ऑर्डर</div>
+              <button class="btn btn-outline" style="font-size:11px;padding:5px 10px" onclick="goPage('orders',null)">सब देखें</button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="tbl-wrap">
+                <table class="t">
+                  <thead><tr><th>ऑर्डर</th><th>माल (MT)</th><th class="tr">राशि</th><th>स्थिति</th></tr></thead>
+                  <tbody>
+                    <tr><td><strong>ORD-047</strong><br><span style="font-size:10px;color:var(--ink3)">28 अप्रैल</span></td><td>100</td><td class="tr">₹71,500</td><td><span class="badge b-amber">ट्रांजिट</span></td></tr>
+                    <tr><td><strong>ORD-046</strong><br><span style="font-size:10px;color:var(--ink3)">20 अप्रैल</span></td><td>150</td><td class="tr">₹1,07,250</td><td><span class="badge b-green">पहुंचा</span></td></tr>
+                    <tr><td><strong>ORD-045</strong><br><span style="font-size:10px;color:var(--ink3)">10 अप्रैल</span></td><td>90</td><td class="tr">₹64,350</td><td><span class="badge b-green">पहुंचा</span></td></tr>
+                    <tr><td><strong>ORD-044</strong><br><span style="font-size:10px;color:var(--ink3)">2 अप्रैल</span></td><td>120</td><td class="tr">₹85,800</td><td><span class="badge b-red">बकाया</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">⚡ त्वरित कार्य</div></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+              <button onclick="goPage('neworder',null)" style="width:100%;padding:13px;background:var(--gs);border:1.5px solid var(--gm);border-radius:10px;text-align:left;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:12px">
+                <span style="font-size:22px">📦</span>
+                <div><div style="font-size:13px;font-weight:700;color:var(--g)">नया ऑर्डर करें</div><div style="font-size:11px;color:var(--ink3)">Quick Lime मंगाएं</div></div>
+              </button>
+              <button onclick="goPage('invoices',null)" style="width:100%;padding:13px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;text-align:left;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:12px">
+                <span style="font-size:22px">🧾</span>
+                <div><div style="font-size:13px;font-weight:700;color:#92400e">Invoice डाउनलोड</div><div style="font-size:11px;color:var(--ink3)">GST Invoice लें</div></div>
+              </button>
+              <button onclick="goPage('payments',null)" style="width:100%;padding:13px;background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;text-align:left;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:12px">
+                <span style="font-size:22px">💳</span>
+                <div><div style="font-size:13px;font-weight:700;color:#dc2626">बकाया चुकाएं</div><div style="font-size:11px;color:var(--ink3)">₹45,000 बाकी है</div></div>
+              </button>
+              <button onclick="goPage('support',null)" style="width:100%;padding:13px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;text-align:left;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:12px">
+                <span style="font-size:22px">📞</span>
+                <div><div style="font-size:13px;font-weight:700;color:#1d4ed8">सहायता लें</div><div style="font-size:11px;color:var(--ink3)">9460034743 पर कॉल</div></div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ ORDERS ═══ -->
+      <div class="page" id="page-orders">
+        <div class="ph">
+          <div class="ph-left"><h2>📦 मेरे ऑर्डर</h2><p>सभी ऑर्डर की सूची</p></div>
+          <button class="btn btn-primary" onclick="goPage('neworder',null)">➕ नया ऑर्डर</button>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">ऑर्डर इतिहास</div>
+            <select style="font-size:12px;border:var(--border);border-radius:7px;padding:5px 10px;outline:none" onchange="filterOrders(this.value)">
+              <option value="">सभी</option>
+              <option value="transit">ट्रांजिट</option>
+              <option value="delivered">पहुंचा</option>
+              <option value="pending">बकाया</option>
+            </select>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div class="tbl-wrap">
+              <table class="t" id="orders-table">
+                <thead><tr><th>ऑर्डर नं.</th><th>तारीख</th><th>माल (MT)</th><th class="tr">भाव/MT</th><th class="tr">कुल राशि</th><th>वाहन</th><th>स्थिति</th><th>Invoice</th></tr></thead>
+                <tbody>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-047</strong></td><td>28 Apr 2026</td><td>100</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹71,500</td><td style="font-size:11px">RJ14CX2891</td><td><span class="badge b-amber">ट्रांजिट में</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-046</strong></td><td>20 Apr 2026</td><td>150</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹1,07,250</td><td style="font-size:11px">RJ14GH4521</td><td><span class="badge b-green">✓ पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-045</strong></td><td>10 Apr 2026</td><td>90</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹64,350</td><td style="font-size:11px">RJ14AB1234</td><td><span class="badge b-green">✓ पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-044</strong></td><td>2 Apr 2026</td><td>120</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹85,800</td><td style="font-size:11px">RJ14KL9876</td><td><span class="badge b-red">⚠ बकाया</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-038</strong></td><td>15 Mar 2026</td><td>200</td><td class="tr">₹700</td><td class="tr" style="font-weight:700">₹1,40,000</td><td style="font-size:11px">RJ14MN5566</td><td><span class="badge b-green">✓ पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ NEW ORDER ═══ -->
+      <div class="page" id="page-neworder">
+        <div class="ph">
+          <div class="ph-left"><h2>➕ नया ऑर्डर</h2><p>Quick Lime का ऑर्डर दें</p></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-head"><div class="card-title">📝 ऑर्डर विवरण</div></div>
+            <div class="card-body">
+              <div class="order-form">
+                <div class="of-fld" style="grid-column:span 2">
+                  <label>माल</label>
+                  <select><option>🍋 Quick Lime (चूना)</option><option>💧 Hydrated Lime (बुझा चूना)</option></select>
+                </div>
+                <div class="of-fld">
+                  <label>मात्रा (MT में)</label>
+                  <input type="number" placeholder="जैसे: 100" min="10" oninput="calcOrder()"/>
+                </div>
+                <div class="of-fld">
+                  <label>वर्तमान भाव/MT</label>
+                  <input value="₹715" readonly style="background:#f9fafb;color:var(--g);font-weight:700"/>
+                </div>
+                <div class="of-fld">
+                  <label>डिलीवरी पता</label>
+                  <input placeholder="पूरा पता लिखें"/>
+                </div>
+                <div class="of-fld">
+                  <label>जरूरी तारीख</label>
+                  <input type="date"/>
+                </div>
+                <div class="of-fld" style="grid-column:span 2">
+                  <label>अतिरिक्त नोट</label>
+                  <input placeholder="कोई खास बात हो तो लिखें..."/>
+                </div>
+              </div>
+              <div id="order-calc" style="background:var(--gs);border-radius:10px;padding:14px;margin-top:16px;display:none">
+                <div class="stat-row"><span class="stat-label">मात्रा</span><span class="stat-val" id="oc-qty">—</span></div>
+                <div class="stat-row"><span class="stat-label">भाव/MT</span><span class="stat-val">₹715</span></div>
+                <div class="stat-row"><span class="stat-label">GST (5%)</span><span class="stat-val" id="oc-gst">—</span></div>
+                <div class="stat-row" style="border-top:2px solid var(--gm);padding-top:10px;margin-top:4px"><span style="font-size:14px;font-weight:800;color:var(--g)">कुल राशि</span><span style="font-size:18px;font-weight:800;color:var(--g)" id="oc-total">—</span></div>
+              </div>
+              <button class="btn btn-primary" style="width:100%;margin-top:16px;padding:13px;font-size:15px;border-radius:10px;justify-content:center" onclick="placeOrder()">📦 ऑर्डर दें</button>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="card">
+              <div class="card-head"><div class="card-title">💰 वर्तमान भाव</div></div>
+              <div class="card-body">
+                <div style="text-align:center;padding:10px 0">
+                  <div style="font-size:11px;color:var(--ink3);margin-bottom:4px">Quick Lime (प्रति MT)</div>
+                  <div style="font-size:36px;font-weight:800;color:var(--g)">₹715</div>
+                  <div style="font-size:11px;color:var(--ink3);margin-top:4px">GST अलग से · April 2026</div>
+                  <div style="margin-top:10px;display:inline-block;background:var(--gb);color:var(--g2);font-size:11px;font-weight:700;padding:4px 12px;border-radius:50px">▲ ₹15 पिछले महीने से</div>
+                </div>
+                <div style="height:1px;background:var(--border);margin:12px 0"></div>
+                <div style="font-size:12px;color:var(--ink3)">न्यूनतम ऑर्डर: <strong style="color:var(--ink)">10 MT</strong></div>
+                <div style="font-size:12px;color:var(--ink3);margin-top:4px">डिलीवरी समय: <strong style="color:var(--ink)">2–4 दिन</strong></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div class="card-title">🏦 भुगतान जानकारी</div></div>
+              <div class="card-body" style="font-size:13px">
+                <div class="stat-row"><span class="stat-label">बैंक</span><span class="stat-val">HDFC Bank</span></div>
+                <div class="stat-row"><span class="stat-label">A/C नं.</span><span class="stat-val" style="font-family:monospace">50200089605146</span></div>
+                <div class="stat-row"><span class="stat-label">IFSC</span><span class="stat-val">HDFC0002670</span></div>
+                <div class="stat-row"><span class="stat-label">नाम</span><span class="stat-val">Deshwali Minerals</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ INVOICES ═══ -->
+      <div class="page" id="page-invoices">
+        <div class="ph"><div class="ph-left"><h2>🧾 Invoice</h2><p>सभी GST Invoice डाउनलोड करें</p></div></div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Invoice सूची</div></div>
+          <div class="card-body" style="padding:0">
+            <div class="tbl-wrap">
+              <table class="t">
+                <thead><tr><th>Invoice नं.</th><th>तारीख</th><th>माल (MT)</th><th class="tr">राशि</th><th class="tr">GST</th><th class="tr">कुल</th><th>भुगतान</th><th>Download</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>INV-047</strong></td><td>28 Apr 26</td><td>100</td><td class="tr">₹71,500</td><td class="tr">₹3,575</td><td class="tr" style="font-weight:700">₹75,075</td><td><span class="badge b-amber">बाकी</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
+                  <tr><td><strong>INV-046</strong></td><td>20 Apr 26</td><td>150</td><td class="tr">₹1,07,250</td><td class="tr">₹5,363</td><td class="tr" style="font-weight:700">₹1,12,613</td><td><span class="badge b-green">✓ पूरा</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
+                  <tr><td><strong>INV-045</strong></td><td>10 Apr 26</td><td>90</td><td class="tr">₹64,350</td><td class="tr">₹3,218</td><td class="tr" style="font-weight:700">₹67,568</td><td><span class="badge b-green">✓ पूरा</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
+                  <tr><td><strong>INV-044</strong></td><td>2 Apr 26</td><td>120</td><td class="tr">₹85,800</td><td class="tr">₹4,290</td><td class="tr" style="font-weight:700">₹90,090</td><td><span class="badge b-red">⚠ बकाया</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ PAYMENTS ═══ -->
+      <div class="page" id="page-payments">
+        <div class="ph"><div class="ph-left"><h2>💳 भुगतान</h2><p>भुगतान इतिहास और बकाया</p></div></div>
+        <div class="grid2" style="margin-bottom:16px">
+          <div class="card" style="border:2px solid #fecaca">
+            <div class="card-body" style="display:flex;align-items:center;gap:16px">
+              <div style="width:52px;height:52px;background:#fee2e2;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px">⚠️</div>
+              <div>
+                <div style="font-size:12px;color:#dc2626;font-weight:700;text-transform:uppercase;letter-spacing:.5px">बकाया राशि</div>
+                <div style="font-size:32px;font-weight:800;color:#dc2626">₹45,000</div>
+                <div style="font-size:12px;color:var(--ink3)">Due: 5 May 2026 · ORD-044</div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="border:2px solid var(--gm)">
+            <div class="card-body" style="display:flex;align-items:center;gap:16px">
+              <div style="width:52px;height:52px;background:var(--gb);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px">✅</div>
+              <div>
+                <div style="font-size:12px;color:var(--g2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">कुल भुगतान (2026)</div>
+                <div style="font-size:32px;font-weight:800;color:var(--g)">₹2,88,531</div>
+                <div style="font-size:12px;color:var(--ink3)">8 लेनदेन · सब पूरे</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">भुगतान इतिहास</div></div>
+          <div class="card-body">
+            <div class="pay-row">
+              <div class="pay-icon" style="background:#fee2e2">⚠️</div>
+              <div class="pay-info"><div class="pay-title">ORD-044 बकाया</div><div class="pay-sub">2 Apr 2026 · NEFT/UPI · INV-044</div></div>
+              <div class="pay-amt" style="color:#dc2626">₹45,000<br><span style="font-size:10px;font-weight:500">बकाया</span></div>
+            </div>
+            <div class="pay-row">
+              <div class="pay-icon" style="background:var(--gb)">✅</div>
+              <div class="pay-info"><div class="pay-title">ORD-046 भुगतान</div><div class="pay-sub">22 Apr 2026 · NEFT · INV-046</div></div>
+              <div class="pay-amt" style="color:var(--g)">₹1,12,613<br><span style="font-size:10px;font-weight:500">पूरा</span></div>
+            </div>
+            <div class="pay-row">
+              <div class="pay-icon" style="background:var(--gb)">✅</div>
+              <div class="pay-info"><div class="pay-title">ORD-045 भुगतान</div><div class="pay-sub">12 Apr 2026 · UPI · INV-045</div></div>
+              <div class="pay-amt" style="color:var(--g)">₹67,568<br><span style="font-size:10px;font-weight:500">पूरा</span></div>
+            </div>
+            <div class="pay-row">
+              <div class="pay-icon" style="background:var(--gb)">✅</div>
+              <div class="pay-info"><div class="pay-title">ORD-038 भुगतान</div><div class="pay-sub">18 Mar 2026 · NEFT · INV-038</div></div>
+              <div class="pay-amt" style="color:var(--g)">₹1,47,000<br><span style="font-size:10px;font-weight:500">पूरा</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ PRICES ═══ -->
+      <div class="page" id="page-prices">
+        <div class="ph"><div class="ph-left"><h2>📈 भाव सूची</h2><p>Quick Lime के वर्तमान और पिछले भाव</p></div></div>
+        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+          <div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:var(--gb)">🍋</div><div class="kpi-trend up">▲ ₹15</div></div><div class="kpi-label">Quick Lime / MT</div><div class="kpi-val" style="color:var(--g)">₹715</div><div class="kpi-sub">April 2026</div></div>
+          <div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:#dbeafe">💧</div><div class="kpi-trend up">▲ ₹10</div></div><div class="kpi-label">Hydrated Lime / MT</div><div class="kpi-val" style="color:#1d4ed8">₹850</div><div class="kpi-sub">April 2026</div></div>
+          <div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:#fef3c7">🏗️</div><div class="kpi-trend na">Same</div></div><div class="kpi-label">Lime Stone / MT</div><div class="kpi-val">₹720</div><div class="kpi-sub">April 2026</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">भाव का इतिहास</div></div>
+          <div class="card-body"><canvas id="chartPrice" height="200"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ═══ PROFILE ═══ -->
+      <div class="page" id="page-profile">
+        <div class="ph"><div class="ph-left"><h2>🏢 मेरी कंपनी</h2><p>कंपनी की जानकारी</p></div></div>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-head"><div class="card-title">कंपनी विवरण</div></div>
+            <div class="card-body">
+              <div class="stat-row"><span class="stat-label">कंपनी नाम</span><span class="stat-val" id="prof-name">Ramkaran & Sons</span></div>
+              <div class="stat-row"><span class="stat-label">GSTIN</span><span class="stat-val" style="font-family:monospace;font-size:12px" id="prof-gstin">08XXXXX1234X1ZX</span></div>
+              <div class="stat-row"><span class="stat-label">शहर</span><span class="stat-val" id="prof-city">Nagaur, Rajasthan</span></div>
+              <div class="stat-row"><span class="stat-label">फ़ोन</span><span class="stat-val" id="prof-phone">9876543210</span></div>
+              <div class="stat-row"><span class="stat-label">Client ID</span><span class="stat-val" style="color:var(--g);font-family:monospace" id="prof-id">RAMKARAN2024</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">आपूर्तिकर्ता जानकारी</div></div>
+            <div class="card-body">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+                <div style="width:46px;height:46px;background:linear-gradient(135deg,#16a34a,#84cc16);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px">🏭</div>
+                <div><div style="font-weight:800;font-size:15px">Deshwali Minerals</div><div style="font-size:12px;color:var(--ink3)">Merta City, Nagaur</div></div>
+              </div>
+              <div class="stat-row"><span class="stat-label">GSTIN</span><span class="stat-val" style="font-family:monospace;font-size:12px">08NLIPS9801K1Z5</span></div>
+              <div class="stat-row"><span class="stat-label">बैंक</span><span class="stat-val">HDFC Bank, Merta City</span></div>
+              <div class="stat-row"><span class="stat-label">A/C</span><span class="stat-val" style="font-family:monospace">50200089605146</span></div>
+              <div class="stat-row"><span class="stat-label">IFSC</span><span class="stat-val" style="font-family:monospace">HDFC0002670</span></div>
+              <div style="margin-top:14px"><a href="tel:9460034743" style="display:flex;align-items:center;gap:8px;background:var(--g);color:#fff;text-decoration:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700"><span>📞</span>9460034743 पर कॉल करें</a></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ SUPPORT ═══ -->
+      <div class="page" id="page-support">
+        <div class="ph"><div class="ph-left"><h2>🤝 सहायता</h2><p>हम यहाँ हैं — कभी भी संपर्क करें</p></div></div>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+              <a href="tel:9460034743" style="display:flex;align-items:center;gap:14px;background:var(--gs);border:1.5px solid var(--gm);border-radius:12px;padding:16px;text-decoration:none">
+                <span style="font-size:28px">📞</span>
+                <div><div style="font-size:14px;font-weight:700;color:var(--g)">Phone / WhatsApp</div><div style="font-size:16px;font-weight:800;color:var(--ink)">9460034743</div><div style="font-size:11px;color:var(--ink3)">सुबह 9 – शाम 7</div></div>
+              </a>
+              <a href="tel:9610099006" style="display:flex;align-items:center;gap:14px;background:var(--gs);border:1.5px solid var(--gm);border-radius:12px;padding:16px;text-decoration:none">
+                <span style="font-size:28px">📱</span>
+                <div><div style="font-size:14px;font-weight:700;color:var(--g)">वैकल्पिक नंबर</div><div style="font-size:16px;font-weight:800;color:var(--ink)">9610099006</div></div>
+              </a>
+              <div style="display:flex;align-items:center;gap:14px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:16px">
+                <span style="font-size:28px">📍</span>
+                <div><div style="font-size:14px;font-weight:700;color:#92400e">कार्यालय पता</div><div style="font-size:13px;color:var(--ink2);margin-top:2px;line-height:1.5">Ground Floor, Kali Talai,<br>Near Hafiz Sahab Ki Dargah,<br><strong>Merta City, Nagaur — 341510</strong></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">📩 संदेश भेजें</div></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+              <div class="of-fld"><label>विषय</label><input placeholder="जैसे: ऑर्डर में समस्या"/></div>
+              <div class="of-fld"><label>संदेश</label><textarea placeholder="अपनी समस्या या सवाल लिखें..." style="width:100%;border:1.5px solid #e5e7eb;border-radius:9px;padding:10px 13px;font-size:13px;font-family:'Inter',sans-serif;resize:vertical;min-height:100px;outline:none"></textarea></div>
+              <button class="btn btn-primary" style="justify-content:center;padding:12px" onclick="alert('संदेश भेज दिया गया! हम जल्द संपर्क करेंगे।')">📤 भेजें</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TRACKING / LEDGER pages (simple placeholders) -->
+      <div class="page" id="page-tracking">
+        <div class="ph"><div class="ph-left"><h2>🚚 डिलीवरी ट्रैक</h2><p>वाहन की लाइव जानकारी</p></div></div>
+        <div class="card"><div class="card-body" style="text-align:center;padding:40px">
+          <div style="font-size:48px;margin-bottom:16px">🚚</div>
+          <div style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:8px">ORD-2026-047 — रास्ते में</div>
+          <div style="font-size:14px;color:var(--ink3);margin-bottom:24px">वाहन: RJ14CX2891 · 100 MT Quick Lime</div>
+          <div class="tracker" style="max-width:500px;margin:0 auto">
+            <div class="tr-step done"><div class="tr-dot done">✓</div><div class="tr-label">ऑर्डर दिया</div></div>
+            <div class="tr-step done"><div class="tr-dot done">✓</div><div class="tr-label">माल तैयार</div></div>
+            <div class="tr-step done"><div class="tr-dot done">✓</div><div class="tr-label">लोडिंग</div></div>
+            <div class="tr-step active"><div class="tr-dot active">🚚</div><div class="tr-label">रास्ते में</div></div>
+            <div class="tr-step wait"><div class="tr-dot wait">📍</div><div class="tr-label">पहुंचेगा</div></div>
+          </div>
+          <div style="margin-top:24px;background:var(--gs);border-radius:12px;padding:16px;display:inline-block;text-align:left">
+            <div style="font-size:13px;color:var(--ink3)">अनुमानित डिलीवरी</div>
+            <div style="font-size:22px;font-weight:800;color:var(--g)">2 मई 2026</div>
+          </div>
+        </div></div>
+      </div>
+      <div class="page" id="page-ledger">
+        <div class="ph"><div class="ph-left"><h2>📒 खाता बही</h2><p>पूरा लेनदेन रिकॉर्ड</p></div></div>
+        <div class="card"><div class="card-body" style="padding:0">
+          <div class="tbl-wrap"><table class="t">
+            <thead><tr><th>तारीख</th><th>विवरण</th><th class="tr">उधार (Dr)</th><th class="tr">जमा (Cr)</th><th class="tr">बकाया</th></tr></thead>
+            <tbody>
+              <tr><td>28 Apr 26</td><td>ORD-047 · 100MT Quick Lime</td><td class="tr" style="color:#dc2626">₹71,500</td><td class="tr">—</td><td class="tr" style="font-weight:700;color:#dc2626">₹1,16,500</td></tr>
+              <tr><td>22 Apr 26</td><td>भुगतान मिला · NEFT</td><td class="tr">—</td><td class="tr" style="color:var(--g)">₹1,12,613</td><td class="tr">₹45,000</td></tr>
+              <tr><td>20 Apr 26</td><td>ORD-046 · 150MT Quick Lime</td><td class="tr" style="color:#dc2626">₹1,07,250</td><td class="tr">—</td><td class="tr">₹1,57,613</td></tr>
+              <tr><td>12 Apr 26</td><td>भुगतान मिला · UPI</td><td class="tr">—</td><td class="tr" style="color:var(--g)">₹67,568</td><td class="tr">₹50,363</td></tr>
+            </tbody>
+          </table></div>
+        </div></div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /app-body -->
+</div><!-- /app -->
+
+<script>
+// ═══ USER DATABASE ═══
+const USERS = {
+  'DESHWALI2024': { pass:'lime@001', name:'Deshwali Minerals', company:'Deshwali Minerals', gstin:'08NLIPS9801K1Z5', city:'Merta City, Nagaur, Rajasthan', phone:'9610099006', initials:'DM', due:0, address:'Ground Floor, Kali Talai, Near Hafiz Sahab Ki Dragha, Merta City, Nagaur, Rajasthan - 341510', bank:'HDFC Bank', accNo:'50200089605146', ifsc:'HDFC0002670' },
+  'GOTAN_LIME':   { pass:'lime@002', name:'KAKA JI', company:'Gotan Lime Industries', gstin:'08BNAPM0488E1Z3', city:'Borunda, Nagaur, Rajasthan', phone:'9460034743', initials:'GL', due:0, address:'BORUNDA, DISTRICT-NAGAUR, RAJASTHAN - 342604', bank:'Bank of Baroda', accNo:'33580500001254', ifsc:'BARB0MERTAC' },
+};
+
+// ═══ LOGIN ═══
+function doLogin(){
+  const u=document.getElementById('login-user').value.trim().toUpperCase();
+  const p=document.getElementById('login-pass').value.trim();
+  const err=document.getElementById('login-err');
+  err.style.display='none';
+  if(USERS[u]&&USERS[u].pass===p){
+    const usr=USERS[u];
+    document.getElementById('login-page').style.display='none';
+    document.getElementById('app').style.display='flex';
+    // Fill user info
+    document.getElementById('dash-name').textContent=usr.name;
+    document.getElementById('top-co').textContent=usr.company;
+    document.getElementById('top-avatar').textContent=usr.initials;
+    document.getElementById('top-uname').textContent=usr.name;
+    document.getElementById('prof-name').textContent=usr.company;
+    document.getElementById('prof-gstin').textContent=usr.gstin;
+    document.getElementById('prof-city').textContent=usr.city;
+    document.getElementById('prof-phone').textContent=usr.phone;
+    document.getElementById('prof-id').textContent=u;
+    // Alert based on due
+    const banner=document.getElementById('dash-alert');
+    if(usr.due===0){banner.className='alert-banner ok';banner.innerHTML='✅ सब ठीक है! कोई बकाया राशि नहीं। धन्यवाद!';}
+    // Date
+    document.getElementById('dash-date').textContent='आज: '+new Date().toLocaleDateString('hi-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    initCharts();
+  } else {
+    err.style.display='block';
+    document.getElementById('login-pass').value='';
+  }
+}
+function doLogout(){
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-page').style.display='flex';
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+}
+
+// ═══ NAVIGATION ═══
+function goPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const p=document.getElementById('page-'+id);
+  if(p)p.classList.add('active');
+  if(btn)btn.classList.add('active');
+  else{
+    const found=[...document.querySelectorAll('.nav-item')].find(n=>n.onclick&&n.onclick.toString().includes("'"+id+"'"));
+    if(found)found.classList.add('active');
+  }
+  window.scrollTo(0,0);
+  if(id==='prices')setTimeout(initPriceChart,100);
+}
+
+// ═══ ORDER CALC ═══
+function calcOrder(){
+  const qty=parseFloat(document.querySelector('#page-neworder input[type=number]').value)||0;
+  const rate=715,gst=rate*.05,total=(rate+gst)*qty;
+  const el=document.getElementById('order-calc');
+  if(qty>0){
+    el.style.display='block';
+    document.getElementById('oc-qty').textContent=qty+' MT';
+    document.getElementById('oc-gst').textContent='₹'+Math.round(gst*qty).toLocaleString('en-IN');
+    document.getElementById('oc-total').textContent='₹'+Math.round(total).toLocaleString('en-IN');
+  } else el.style.display='none';
+}
+function placeOrder(){
+  const qty=parseFloat(document.querySelector('#page-neworder input[type=number]').value)||0;
+  if(!qty||qty<10){alert('कृपया कम से कम 10 MT का ऑर्डर दें।');return;}
+  alert('✅ ऑर्डर सफलतापूर्वक दिया गया!\n\nमात्रा: '+qty+' MT\nकुल: ₹'+Math.round(qty*715*1.05).toLocaleString('en-IN')+'\n\nहम 2-4 दिन में डिलीवरी करेंगे।\nकोई सवाल हो तो: 9460034743');
+}
+
+// ═══ CHARTS ═══
+let charts={};
+function initCharts(){
+  // Monthly purchase chart
+  const ctx=document.getElementById('chartBuy');
+  if(!ctx)return;
+  if(charts.buy)charts.buy.destroy();
+  charts.buy=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:['जन','फर','मार','अप्र','मई','जून','जुल','अग','सित','अक्','नव','दिस'],
+      datasets:[{
+        label:'MT',
+        data:[180,220,340,460,0,0,0,0,0,0,0,0],
+        backgroundColor:(ctx)=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,200);g.addColorStop(0,'rgba(22,163,74,.9)');g.addColorStop(1,'rgba(132,204,22,.4)');return g;},
+        borderRadius:8,borderSkipped:false
+      }]
+    },
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+' MT'},grid:{color:'#f3f4f6'}},x:{grid:{display:false}}}}
+  });
+}
+function initPriceChart(){
+  const ctx=document.getElementById('chartPrice');
+  if(!ctx)return;
+  if(charts.price)charts.price.destroy();
+  charts.price=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:['Nov','Dec','Jan','Feb','Mar','Apr'],
+      datasets:[
+        {label:'Quick Lime',data:[680,685,690,695,700,715],borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,.1)',tension:.4,fill:true,pointRadius:5,pointBackgroundColor:'#16a34a'},
+        {label:'Hydrated Lime',data:[820,825,830,835,840,850],borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.07)',tension:.4,fill:true,pointRadius:5,pointBackgroundColor:'#3b82f6'},
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>'₹'+v},grid:{color:'#f3f4f6'}},x:{grid:{display:false}}}}
+  });
+}
+
+// Enter key on username
+document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('login-pass').focus();});
+</script>
+</body>
+</html>
