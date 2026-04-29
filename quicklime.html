@@ -225,6 +225,15 @@ table.t tbody tr:last-child td{border-bottom:none}
 @media(max-width:400px){
   .kpi-grid{grid-template-columns:1fr}
 }
+
+/* ── ICON BOXES ── */
+.ic{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;font-size:14px;flex-shrink:0;vertical-align:middle;margin-right:4px}
+.ic-p{background:var(--gs);border:1.5px solid var(--gm)}
+.ic-g{background:#dcfce7;border:1.5px solid #86efac}
+.ic-r{background:#fee2e2;border:1.5px solid #fca5a5}
+.ic-b{background:#dbeafe;border:1.5px solid #93c5fd}
+.ic-y{background:#fef3c7;border:1.5px solid #fde68a}
+.ic-w{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35)}
 </style>
 </head>
 <body>
@@ -273,7 +282,7 @@ table.t tbody tr:last-child td{border-bottom:none}
       </div>
       <h2>लॉगिन करें</h2>
       <p>अपना कंपनी ID और पासवर्ड डालें</p>
-      <div class="login-error" id="login-err">❌ गलत ID या पासवर्ड। कृपया दोबारा कोशिश करें।</div>
+      <div class="login-error" id="login-err"><span class="ic ic-r">❌</span> गलत ID या पासवर्ड। कृपया दोबारा कोशिश करें।</div>
       <div class="fld">
         <label>Company ID / Username</label>
         <input type="text" id="login-user" placeholder="e.g. RAMKARAN2024" autocomplete="username"/>
@@ -282,7 +291,7 @@ table.t tbody tr:last-child td{border-bottom:none}
         <label>पासवर्ड</label>
         <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
       </div>
-      <button class="btn-login" onclick="doLogin()">🔐 लॉगिन करें</button>
+      <button class="btn-login" onclick="doLogin()"><span class="ic ic-w">🔐</span> लॉगिन करें</button>
       <div class="login-hint">
         <strong>Demo Access</strong>
         ID: <strong>RAMKARAN2024</strong> &nbsp;|&nbsp; Password: <strong>lime@123</strong><br>
@@ -365,15 +374,15 @@ table.t tbody tr:last-child td{border-bottom:none}
       <div class="page active" id="page-dashboard">
         <div class="ph">
           <div class="ph-left">
-            <h2>नमस्ते, <span id="dash-name">Ramkaran Ji</span> 🙏</h2>
+            <h2>नमस्ते, <span id="dash-name">Ramkaran Ji</span> <span class="ic ic-g">🙏</span></h2>
             <p id="dash-date">आज का दिन: शनिवार, 29 अप्रैल 2026</p>
           </div>
-          <button class="btn btn-primary" onclick="goPage('neworder',document.querySelector('.nav-item:nth-child(4))'))">➕ नया ऑर्डर</button>
+          <button class="btn btn-primary" onclick="goPage('neworder',document.querySelector('.nav-item:nth-child(4))'))"><span class="ic ic-w">➕</span> नया ऑर्डर</button>
         </div>
 
         <!-- Alert -->
         <div class="alert-banner" id="dash-alert">
-          ⚠️ <strong>बकाया भुगतान:</strong> ₹45,000 — कृपया 5 मई 2026 से पहले जमा करें।
+          <span class="ic ic-r">⚠️</span> <strong>बकाया भुगतान:</strong> ₹45,000 — कृपया 5 मई 2026 से पहले जमा करें।
           <button onclick="goPage('payments',null)" style="margin-left:auto;background:var(--g);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">भुगतान करें →</button>
         </div>
 
@@ -421,7 +430,7 @@ table.t tbody tr:last-child td{border-bottom:none}
         <div class="grid13" style="margin-bottom:16px">
           <div class="card">
             <div class="card-head">
-              <div class="card-title">📊 मासिक खरीद (MT)</div>
+              <div class="card-title"><span class="ic ic-p">📊</span> मासिक खरीद (MT)</div>
               <select style="font-size:11px;border:var(--border);border-radius:6px;padding:3px 8px;outline:none">
                 <option>2026</option><option>2025</option>
               </select>
@@ -431,7 +440,7 @@ table.t tbody tr:last-child td{border-bottom:none}
             </div>
           </div>
           <div class="card">
-            <div class="card-head"><div class="card-title">🚚 ताज़ा ऑर्डर स्थिति</div></div>
+            <div class="card-head"><div class="card-title"><span class="ic ic-b">🚚</span> ताज़ा ऑर्डर स्थिति</div></div>
             <div class="card-body">
               <div style="margin-bottom:16px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -474,7 +483,7 @@ table.t tbody tr:last-child td{border-bottom:none}
         <div class="grid2">
           <div class="card">
             <div class="card-head">
-              <div class="card-title">📋 पिछले ऑर्डर</div>
+              <div class="card-title"><span class="ic ic-p">📋</span> पिछले ऑर्डर</div>
               <button class="btn btn-outline" style="font-size:11px;padding:5px 10px" onclick="goPage('orders',null)">सब देखें</button>
             </div>
             <div class="card-body" style="padding:0">
@@ -492,22 +501,22 @@ table.t tbody tr:last-child td{border-bottom:none}
             </div>
           </div>
           <div class="card">
-            <div class="card-head"><div class="card-title">⚡ त्वरित कार्य</div></div>
+            <div class="card-head"><div class="card-title"><span class="ic ic-y">⚡</span> त्वरित कार्य</div></div>
             <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
               <button onclick="goPage('neworder',null)" style="width:100%;padding:13px;background:var(--gs);border:1.5px solid var(--gm);border-radius:10px;text-align:left;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:12px">
-                <span style="font-size:22px">📦</span>
+                <span class="ic ic-g" style="width:40px;height:40px;font-size:20px">📦</span>
                 <div><div style="font-size:13px;font-weight:700;color:var(--g)">नया ऑर्डर करें</div><div style="font-size:11px;color:var(--ink3)">Quick Lime मंगाएं</div></div>
               </button>
               <button onclick="goPage('invoices',null)" style="width:100%;padding:13px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;text-align:left;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:12px">
-                <span style="font-size:22px">🧾</span>
+                <span class="ic ic-y" style="width:40px;height:40px;font-size:20px">🧾</span>
                 <div><div style="font-size:13px;font-weight:700;color:#92400e">Invoice डाउनलोड</div><div style="font-size:11px;color:var(--ink3)">GST Invoice लें</div></div>
               </button>
               <button onclick="goPage('payments',null)" style="width:100%;padding:13px;background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;text-align:left;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:12px">
-                <span style="font-size:22px">💳</span>
+                <span class="ic ic-r" style="width:40px;height:40px;font-size:20px">💳</span>
                 <div><div style="font-size:13px;font-weight:700;color:#dc2626">बकाया चुकाएं</div><div style="font-size:11px;color:var(--ink3)">₹45,000 बाकी है</div></div>
               </button>
               <button onclick="goPage('support',null)" style="width:100%;padding:13px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;text-align:left;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:12px">
-                <span style="font-size:22px">📞</span>
+                <span class="ic ic-b" style="width:40px;height:40px;font-size:20px">📞</span>
                 <div><div style="font-size:13px;font-weight:700;color:#1d4ed8">सहायता लें</div><div style="font-size:11px;color:var(--ink3)">9460034743 पर कॉल</div></div>
               </button>
             </div>
@@ -518,8 +527,8 @@ table.t tbody tr:last-child td{border-bottom:none}
       <!-- ═══ ORDERS ═══ -->
       <div class="page" id="page-orders">
         <div class="ph">
-          <div class="ph-left"><h2>📦 मेरे ऑर्डर</h2><p>सभी ऑर्डर की सूची</p></div>
-          <button class="btn btn-primary" onclick="goPage('neworder',null)">➕ नया ऑर्डर</button>
+          <div class="ph-left"><h2><span class="ic ic-g">📦</span> मेरे ऑर्डर</h2><p>सभी ऑर्डर की सूची</p></div>
+          <button class="btn btn-primary" onclick="goPage('neworder',null)"><span class="ic ic-w">➕</span> नया ऑर्डर</button>
         </div>
         <div class="card">
           <div class="card-head">
@@ -551,11 +560,11 @@ table.t tbody tr:last-child td{border-bottom:none}
       <!-- ═══ NEW ORDER ═══ -->
       <div class="page" id="page-neworder">
         <div class="ph">
-          <div class="ph-left"><h2>➕ नया ऑर्डर</h2><p>Quick Lime का ऑर्डर दें</p></div>
+          <div class="ph-left"><h2><span class="ic ic-p">➕</span> नया ऑर्डर</h2><p>Quick Lime का ऑर्डर दें</p></div>
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="card-head"><div class="card-title">📝 ऑर्डर विवरण</div></div>
+            <div class="card-head"><div class="card-title"><span class="ic ic-p">📝</span> ऑर्डर विवरण</div></div>
             <div class="card-body">
               <div class="order-form">
                 <div class="of-fld" style="grid-column:span 2">
@@ -589,12 +598,12 @@ table.t tbody tr:last-child td{border-bottom:none}
                 <div class="stat-row"><span class="stat-label">GST (5%)</span><span class="stat-val" id="oc-gst">—</span></div>
                 <div class="stat-row" style="border-top:2px solid var(--gm);padding-top:10px;margin-top:4px"><span style="font-size:14px;font-weight:800;color:var(--g)">कुल राशि</span><span style="font-size:18px;font-weight:800;color:var(--g)" id="oc-total">—</span></div>
               </div>
-              <button class="btn btn-primary" style="width:100%;margin-top:16px;padding:13px;font-size:15px;border-radius:10px;justify-content:center" onclick="placeOrder()">📦 ऑर्डर दें</button>
+              <button class="btn btn-primary" style="width:100%;margin-top:16px;padding:13px;font-size:15px;border-radius:10px;justify-content:center" onclick="placeOrder()"><span class="ic ic-w">📦</span> ऑर्डर दें</button>
             </div>
           </div>
           <div style="display:flex;flex-direction:column;gap:16px">
             <div class="card">
-              <div class="card-head"><div class="card-title">💰 वर्तमान भाव</div></div>
+              <div class="card-head"><div class="card-title"><span class="ic ic-y">💰</span> वर्तमान भाव</div></div>
               <div class="card-body">
                 <div style="text-align:center;padding:10px 0">
                   <div style="font-size:11px;color:var(--ink3);margin-bottom:4px">Quick Lime (प्रति MT)</div>
@@ -608,7 +617,7 @@ table.t tbody tr:last-child td{border-bottom:none}
               </div>
             </div>
             <div class="card">
-              <div class="card-head"><div class="card-title">🏦 भुगतान जानकारी</div></div>
+              <div class="card-head"><div class="card-title"><span class="ic ic-b">🏦</span> भुगतान जानकारी</div></div>
               <div class="card-body" style="font-size:13px">
                 <div class="stat-row"><span class="stat-label">बैंक</span><span class="stat-val">HDFC Bank</span></div>
                 <div class="stat-row"><span class="stat-label">A/C नं.</span><span class="stat-val" style="font-family:monospace">50200089605146</span></div>
@@ -622,7 +631,7 @@ table.t tbody tr:last-child td{border-bottom:none}
 
       <!-- ═══ INVOICES ═══ -->
       <div class="page" id="page-invoices">
-        <div class="ph"><div class="ph-left"><h2>🧾 Invoice</h2><p>सभी GST Invoice डाउनलोड करें</p></div></div>
+        <div class="ph"><div class="ph-left"><h2><span class="ic ic-y">🧾</span> Invoice</h2><p>सभी GST Invoice डाउनलोड करें</p></div></div>
         <div class="card">
           <div class="card-head"><div class="card-title">Invoice सूची</div></div>
           <div class="card-body" style="padding:0">
@@ -643,7 +652,7 @@ table.t tbody tr:last-child td{border-bottom:none}
 
       <!-- ═══ PAYMENTS ═══ -->
       <div class="page" id="page-payments">
-        <div class="ph"><div class="ph-left"><h2>💳 भुगतान</h2><p>भुगतान इतिहास और बकाया</p></div></div>
+        <div class="ph"><div class="ph-left"><h2><span class="ic ic-y">💳</span> भुगतान</h2><p>भुगतान इतिहास और बकाया</p></div></div>
         <div class="grid2" style="margin-bottom:16px">
           <div class="card" style="border:2px solid #fecaca">
             <div class="card-body" style="display:flex;align-items:center;gap:16px">
@@ -695,7 +704,7 @@ table.t tbody tr:last-child td{border-bottom:none}
 
       <!-- ═══ PRICES ═══ -->
       <div class="page" id="page-prices">
-        <div class="ph"><div class="ph-left"><h2>📈 भाव सूची</h2><p>Quick Lime के वर्तमान और पिछले भाव</p></div></div>
+        <div class="ph"><div class="ph-left"><h2><span class="ic ic-g">📈</span> भाव सूची</h2><p>Quick Lime के वर्तमान और पिछले भाव</p></div></div>
         <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
           <div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:var(--gb)">🍋</div><div class="kpi-trend up">▲ ₹15</div></div><div class="kpi-label">Quick Lime / MT</div><div class="kpi-val" style="color:var(--g)">₹715</div><div class="kpi-sub">April 2026</div></div>
           <div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:#dbeafe">💧</div><div class="kpi-trend up">▲ ₹10</div></div><div class="kpi-label">Hydrated Lime / MT</div><div class="kpi-val" style="color:#1d4ed8">₹850</div><div class="kpi-sub">April 2026</div></div>
@@ -709,7 +718,7 @@ table.t tbody tr:last-child td{border-bottom:none}
 
       <!-- ═══ PROFILE ═══ -->
       <div class="page" id="page-profile">
-        <div class="ph"><div class="ph-left"><h2>🏢 मेरी कंपनी</h2><p>कंपनी की जानकारी</p></div></div>
+        <div class="ph"><div class="ph-left"><h2><span class="ic ic-p">🏢</span> मेरी कंपनी</h2><p>कंपनी की जानकारी</p></div></div>
         <div class="grid2">
           <div class="card">
             <div class="card-head"><div class="card-title">कंपनी विवरण</div></div>
@@ -732,7 +741,7 @@ table.t tbody tr:last-child td{border-bottom:none}
               <div class="stat-row"><span class="stat-label">बैंक</span><span class="stat-val">HDFC Bank, Merta City</span></div>
               <div class="stat-row"><span class="stat-label">A/C</span><span class="stat-val" style="font-family:monospace">50200089605146</span></div>
               <div class="stat-row"><span class="stat-label">IFSC</span><span class="stat-val" style="font-family:monospace">HDFC0002670</span></div>
-              <div style="margin-top:14px"><a href="tel:9460034743" style="display:flex;align-items:center;gap:8px;background:var(--g);color:#fff;text-decoration:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700"><span>📞</span>9460034743 पर कॉल करें</a></div>
+              <div style="margin-top:14px"><a href="tel:9460034743" style="display:flex;align-items:center;gap:8px;background:var(--g);color:#fff;text-decoration:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700"><span class="ic ic-w">📞</span>9460034743 पर कॉल करें</a></div>
             </div>
           </div>
         </div>
@@ -740,30 +749,30 @@ table.t tbody tr:last-child td{border-bottom:none}
 
       <!-- ═══ SUPPORT ═══ -->
       <div class="page" id="page-support">
-        <div class="ph"><div class="ph-left"><h2>🤝 सहायता</h2><p>हम यहाँ हैं — कभी भी संपर्क करें</p></div></div>
+        <div class="ph"><div class="ph-left"><h2><span class="ic ic-g">🤝</span> सहायता</h2><p>हम यहाँ हैं — कभी भी संपर्क करें</p></div></div>
         <div class="grid2">
           <div class="card">
             <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
               <a href="tel:9460034743" style="display:flex;align-items:center;gap:14px;background:var(--gs);border:1.5px solid var(--gm);border-radius:12px;padding:16px;text-decoration:none">
-                <span style="font-size:28px">📞</span>
+                <span class="ic ic-g" style="width:40px;height:40px;font-size:20px">📞</span>
                 <div><div style="font-size:14px;font-weight:700;color:var(--g)">Phone / WhatsApp</div><div style="font-size:16px;font-weight:800;color:var(--ink)">9460034743</div><div style="font-size:11px;color:var(--ink3)">सुबह 9 – शाम 7</div></div>
               </a>
               <a href="tel:9610099006" style="display:flex;align-items:center;gap:14px;background:var(--gs);border:1.5px solid var(--gm);border-radius:12px;padding:16px;text-decoration:none">
-                <span style="font-size:28px">📱</span>
+                <span class="ic ic-b" style="width:40px;height:40px;font-size:20px">📱</span>
                 <div><div style="font-size:14px;font-weight:700;color:var(--g)">वैकल्पिक नंबर</div><div style="font-size:16px;font-weight:800;color:var(--ink)">9610099006</div></div>
               </a>
               <div style="display:flex;align-items:center;gap:14px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:16px">
-                <span style="font-size:28px">📍</span>
+                <span class="ic ic-y" style="width:40px;height:40px;font-size:20px">📍</span>
                 <div><div style="font-size:14px;font-weight:700;color:#92400e">कार्यालय पता</div><div style="font-size:13px;color:var(--ink2);margin-top:2px;line-height:1.5">Ground Floor, Kali Talai,<br>Near Hafiz Sahab Ki Dargah,<br><strong>Merta City, Nagaur — 341510</strong></div></div>
               </div>
             </div>
           </div>
           <div class="card">
-            <div class="card-head"><div class="card-title">📩 संदेश भेजें</div></div>
+            <div class="card-head"><div class="card-title"><span class="ic ic-b">📩</span> संदेश भेजें</div></div>
             <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
               <div class="of-fld"><label>विषय</label><input placeholder="जैसे: ऑर्डर में समस्या"/></div>
               <div class="of-fld"><label>संदेश</label><textarea placeholder="अपनी समस्या या सवाल लिखें..." style="width:100%;border:1.5px solid #e5e7eb;border-radius:9px;padding:10px 13px;font-size:13px;font-family:'Inter',sans-serif;resize:vertical;min-height:100px;outline:none"></textarea></div>
-              <button class="btn btn-primary" style="justify-content:center;padding:12px" onclick="alert('संदेश भेज दिया गया! हम जल्द संपर्क करेंगे।')">📤 भेजें</button>
+              <button class="btn btn-primary" style="justify-content:center;padding:12px" onclick="alert('संदेश भेज दिया गया! हम जल्द संपर्क करेंगे।')"><span class="ic ic-w">📤</span> भेजें</button>
             </div>
           </div>
         </div>
@@ -771,9 +780,9 @@ table.t tbody tr:last-child td{border-bottom:none}
 
       <!-- TRACKING / LEDGER pages (simple placeholders) -->
       <div class="page" id="page-tracking">
-        <div class="ph"><div class="ph-left"><h2>🚚 डिलीवरी ट्रैक</h2><p>वाहन की लाइव जानकारी</p></div></div>
+        <div class="ph"><div class="ph-left"><h2><span class="ic ic-b">🚚</span> डिलीवरी ट्रैक</h2><p>वाहन की लाइव जानकारी</p></div></div>
         <div class="card"><div class="card-body" style="text-align:center;padding:40px">
-          <div style="font-size:48px;margin-bottom:16px">🚚</div>
+          <div style="margin-bottom:16px"><span class="ic ic-b" style="width:64px;height:64px;font-size:32px">🚚</span></div>
           <div style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:8px">ORD-2026-047 — रास्ते में</div>
           <div style="font-size:14px;color:var(--ink3);margin-bottom:24px">वाहन: RJ14CX2891 · 100 MT Quick Lime</div>
           <div class="tracker" style="max-width:500px;margin:0 auto">
@@ -790,7 +799,7 @@ table.t tbody tr:last-child td{border-bottom:none}
         </div></div>
       </div>
       <div class="page" id="page-ledger">
-        <div class="ph"><div class="ph-left"><h2>📒 खाता बही</h2><p>पूरा लेनदेन रिकॉर्ड</p></div></div>
+        <div class="ph"><div class="ph-left"><h2><span class="ic ic-p">📒</span> खाता बही</h2><p>पूरा लेनदेन रिकॉर्ड</p></div></div>
         <div class="card"><div class="card-body" style="padding:0">
           <div class="tbl-wrap"><table class="t">
             <thead><tr><th>तारीख</th><th>विवरण</th><th class="tr">उधार (Dr)</th><th class="tr">जमा (Cr)</th><th class="tr">बकाया</th></tr></thead>
