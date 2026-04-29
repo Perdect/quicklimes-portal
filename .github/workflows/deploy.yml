@@ -1,0 +1,47 @@
+name: 🚀 Deploy QuickLimes to Hostinger
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build deploy folders
+        run: |
+          mkdir -p deploy/app deploy/admin deploy/root
+          cp quicklime.html deploy/app/index.html
+          cp quicklimes-admin.html deploy/admin/index.html
+          cp quicklimes-landing.html deploy/root/index.html
+
+      - name: 🌐 Deploy Landing Page → quicklimes.com
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: 62.72.28.240
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./deploy/root/
+          server-dir: /domains/quicklimes.com/public_html/
+
+      - name: 📱 Deploy Client Portal → app.quicklimes.com
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: 62.72.28.240
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./deploy/app/
+          server-dir: /domains/quicklimes.com/public_html/app/
+
+      - name: 🔧 Deploy Admin Panel → admin.quicklimes.com
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: 62.72.28.240
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./deploy/admin/
+          server-dir: /domains/quicklimes.com/public_html/admin/
