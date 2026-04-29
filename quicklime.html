@@ -158,12 +158,13 @@ table.t tbody td{padding:12px 14px;border-bottom:1px solid #f3f4f6;color:var(--i
 table.t tbody tr:hover td{background:#fafffe}
 table.t tbody tr:last-child td{border-bottom:none}
 .tr{text-align:right}
-.badge{display:inline-block;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700}
-.b-green{background:var(--gb);color:var(--g3)}
-.b-amber{background:#fef3c7;color:#92400e}
-.b-red{background:#fee2e2;color:#dc2626}
-.b-blue{background:#dbeafe;color:#1d4ed8}
-.b-gray{background:#f3f4f6;color:var(--ink3)}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1.5px solid}
+.b-green{background:#dcfce7;color:#15803d;border-color:#86efac}
+.b-amber{background:#fef3c7;color:#92400e;border-color:#fde68a}
+.b-red{background:#fee2e2;color:#dc2626;border-color:#fca5a5}
+.b-blue{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd}
+.b-gray{background:#f3f4f6;color:var(--ink3);border-color:#d1d5db}
+.badge-icon{width:16px;height:16px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;background:rgba(0,0,0,.08)}
 
 /* ── PRICE TICKER ── */
 .price-ticker{display:flex;align-items:center;gap:6px;background:var(--gs);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--g3);font-weight:600}
@@ -445,7 +446,7 @@ table.t tbody tr:last-child td{border-bottom:none}
               <div style="margin-bottom:16px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                   <div style="font-size:13px;font-weight:700">ORD-2026-047</div>
-                  <span class="badge b-amber">ट्रांजिट में</span>
+                  <span class="badge b-amber"><span class="badge-icon">🚚</span>ट्रांजिट में</span>
                 </div>
                 <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">100 MT Quick Lime · RJ14CX2891</div>
                 <div class="tracker">
@@ -491,10 +492,10 @@ table.t tbody tr:last-child td{border-bottom:none}
                 <table class="t">
                   <thead><tr><th>ऑर्डर</th><th>माल (MT)</th><th class="tr">राशि</th><th>स्थिति</th></tr></thead>
                   <tbody>
-                    <tr><td><strong>ORD-047</strong><br><span style="font-size:10px;color:var(--ink3)">28 अप्रैल</span></td><td>100</td><td class="tr">₹71,500</td><td><span class="badge b-amber">ट्रांजिट</span></td></tr>
-                    <tr><td><strong>ORD-046</strong><br><span style="font-size:10px;color:var(--ink3)">20 अप्रैल</span></td><td>150</td><td class="tr">₹1,07,250</td><td><span class="badge b-green">पहुंचा</span></td></tr>
-                    <tr><td><strong>ORD-045</strong><br><span style="font-size:10px;color:var(--ink3)">10 अप्रैल</span></td><td>90</td><td class="tr">₹64,350</td><td><span class="badge b-green">पहुंचा</span></td></tr>
-                    <tr><td><strong>ORD-044</strong><br><span style="font-size:10px;color:var(--ink3)">2 अप्रैल</span></td><td>120</td><td class="tr">₹85,800</td><td><span class="badge b-red">बकाया</span></td></tr>
+                    <tr><td><strong>ORD-047</strong><br><span style="font-size:10px;color:var(--ink3)">28 अप्रैल</span></td><td>100</td><td class="tr">₹71,500</td><td><span class="badge b-amber"><span class="badge-icon">🚚</span>ट्रांजिट</span></td></tr>
+                    <tr><td><strong>ORD-046</strong><br><span style="font-size:10px;color:var(--ink3)">20 अप्रैल</span></td><td>150</td><td class="tr">₹1,07,250</td><td><span class="badge b-green"><span class="badge-icon">✅</span>पहुंचा</span></td></tr>
+                    <tr><td><strong>ORD-045</strong><br><span style="font-size:10px;color:var(--ink3)">10 अप्रैल</span></td><td>90</td><td class="tr">₹64,350</td><td><span class="badge b-green"><span class="badge-icon">✅</span>पहुंचा</span></td></tr>
+                    <tr><td><strong>ORD-044</strong><br><span style="font-size:10px;color:var(--ink3)">2 अप्रैल</span></td><td>120</td><td class="tr">₹85,800</td><td><span class="badge b-red"><span class="badge-icon">⚠️</span>बकाया</span></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -532,7 +533,7 @@ table.t tbody tr:last-child td{border-bottom:none}
         </div>
         <div class="card">
           <div class="card-head">
-            <div class="card-title">ऑर्डर इतिहास</div>
+            <div class="card-title"><span class="ic ic-p">📋</span> ऑर्डर इतिहास</div>
             <select style="font-size:12px;border:var(--border);border-radius:7px;padding:5px 10px;outline:none" onchange="filterOrders(this.value)">
               <option value="">सभी</option>
               <option value="transit">ट्रांजिट</option>
@@ -545,11 +546,11 @@ table.t tbody tr:last-child td{border-bottom:none}
               <table class="t" id="orders-table">
                 <thead><tr><th>ऑर्डर नं.</th><th>तारीख</th><th>माल (MT)</th><th class="tr">भाव/MT</th><th class="tr">कुल राशि</th><th>वाहन</th><th>स्थिति</th><th>Invoice</th></tr></thead>
                 <tbody>
-                  <tr><td><strong style="color:var(--g)">ORD-2026-047</strong></td><td>28 Apr 2026</td><td>100</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹71,500</td><td style="font-size:11px">RJ14CX2891</td><td><span class="badge b-amber">ट्रांजिट में</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
-                  <tr><td><strong style="color:var(--g)">ORD-2026-046</strong></td><td>20 Apr 2026</td><td>150</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹1,07,250</td><td style="font-size:11px">RJ14GH4521</td><td><span class="badge b-green">✓ पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
-                  <tr><td><strong style="color:var(--g)">ORD-2026-045</strong></td><td>10 Apr 2026</td><td>90</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹64,350</td><td style="font-size:11px">RJ14AB1234</td><td><span class="badge b-green">✓ पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
-                  <tr><td><strong style="color:var(--g)">ORD-2026-044</strong></td><td>2 Apr 2026</td><td>120</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹85,800</td><td style="font-size:11px">RJ14KL9876</td><td><span class="badge b-red">⚠ बकाया</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
-                  <tr><td><strong style="color:var(--g)">ORD-2026-038</strong></td><td>15 Mar 2026</td><td>200</td><td class="tr">₹700</td><td class="tr" style="font-weight:700">₹1,40,000</td><td style="font-size:11px">RJ14MN5566</td><td><span class="badge b-green">✓ पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-047</strong></td><td>28 Apr 2026</td><td>100</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹71,500</td><td style="font-size:11px">RJ14CX2891</td><td><span class="badge b-amber"><span class="badge-icon">🚚</span>ट्रांजिट में</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-046</strong></td><td>20 Apr 2026</td><td>150</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹1,07,250</td><td style="font-size:11px">RJ14GH4521</td><td><span class="badge b-green"><span class="badge-icon">✅</span>पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-045</strong></td><td>10 Apr 2026</td><td>90</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹64,350</td><td style="font-size:11px">RJ14AB1234</td><td><span class="badge b-green"><span class="badge-icon">✅</span>पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-044</strong></td><td>2 Apr 2026</td><td>120</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹85,800</td><td style="font-size:11px">RJ14KL9876</td><td><span class="badge b-red"><span class="badge-icon">⚠️</span>बकाया</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-038</strong></td><td>15 Mar 2026</td><td>200</td><td class="tr">₹700</td><td class="tr" style="font-weight:700">₹1,40,000</td><td style="font-size:11px">RJ14MN5566</td><td><span class="badge b-green"><span class="badge-icon">✅</span>पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
                 </tbody>
               </table>
             </div>
@@ -633,16 +634,16 @@ table.t tbody tr:last-child td{border-bottom:none}
       <div class="page" id="page-invoices">
         <div class="ph"><div class="ph-left"><h2><span class="ic ic-y">🧾</span> Invoice</h2><p>सभी GST Invoice डाउनलोड करें</p></div></div>
         <div class="card">
-          <div class="card-head"><div class="card-title">Invoice सूची</div></div>
+          <div class="card-head"><div class="card-title"><span class="ic ic-y">🧾</span> Invoice सूची</div></div>
           <div class="card-body" style="padding:0">
             <div class="tbl-wrap">
               <table class="t">
                 <thead><tr><th>Invoice नं.</th><th>तारीख</th><th>माल (MT)</th><th class="tr">राशि</th><th class="tr">GST</th><th class="tr">कुल</th><th>भुगतान</th><th>Download</th></tr></thead>
                 <tbody>
-                  <tr><td><strong>INV-047</strong></td><td>28 Apr 26</td><td>100</td><td class="tr">₹71,500</td><td class="tr">₹3,575</td><td class="tr" style="font-weight:700">₹75,075</td><td><span class="badge b-amber">बाकी</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
-                  <tr><td><strong>INV-046</strong></td><td>20 Apr 26</td><td>150</td><td class="tr">₹1,07,250</td><td class="tr">₹5,363</td><td class="tr" style="font-weight:700">₹1,12,613</td><td><span class="badge b-green">✓ पूरा</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
-                  <tr><td><strong>INV-045</strong></td><td>10 Apr 26</td><td>90</td><td class="tr">₹64,350</td><td class="tr">₹3,218</td><td class="tr" style="font-weight:700">₹67,568</td><td><span class="badge b-green">✓ पूरा</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
-                  <tr><td><strong>INV-044</strong></td><td>2 Apr 26</td><td>120</td><td class="tr">₹85,800</td><td class="tr">₹4,290</td><td class="tr" style="font-weight:700">₹90,090</td><td><span class="badge b-red">⚠ बकाया</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
+                  <tr><td><strong>INV-047</strong></td><td>28 Apr 26</td><td>100</td><td class="tr">₹71,500</td><td class="tr">₹3,575</td><td class="tr" style="font-weight:700">₹75,075</td><td><span class="badge b-amber"><span class="badge-icon">⏳</span>बाकी</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
+                  <tr><td><strong>INV-046</strong></td><td>20 Apr 26</td><td>150</td><td class="tr">₹1,07,250</td><td class="tr">₹5,363</td><td class="tr" style="font-weight:700">₹1,12,613</td><td><span class="badge b-green"><span class="badge-icon">✅</span>पूरा</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
+                  <tr><td><strong>INV-045</strong></td><td>10 Apr 26</td><td>90</td><td class="tr">₹64,350</td><td class="tr">₹3,218</td><td class="tr" style="font-weight:700">₹67,568</td><td><span class="badge b-green"><span class="badge-icon">✅</span>पूरा</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
+                  <tr><td><strong>INV-044</strong></td><td>2 Apr 26</td><td>120</td><td class="tr">₹85,800</td><td class="tr">₹4,290</td><td class="tr" style="font-weight:700">₹90,090</td><td><span class="badge b-red"><span class="badge-icon">⚠️</span>बकाया</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
                 </tbody>
               </table>
             </div>
@@ -676,7 +677,7 @@ table.t tbody tr:last-child td{border-bottom:none}
           </div>
         </div>
         <div class="card">
-          <div class="card-head"><div class="card-title">भुगतान इतिहास</div></div>
+          <div class="card-head"><div class="card-title"><span class="ic ic-g">💳</span> भुगतान इतिहास</div></div>
           <div class="card-body">
             <div class="pay-row">
               <div class="pay-icon" style="background:#fee2e2">⚠️</div>
@@ -711,7 +712,7 @@ table.t tbody tr:last-child td{border-bottom:none}
           <div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:#fef3c7">🏗️</div><div class="kpi-trend na">Same</div></div><div class="kpi-label">Lime Stone / MT</div><div class="kpi-val">₹720</div><div class="kpi-sub">April 2026</div></div>
         </div>
         <div class="card">
-          <div class="card-head"><div class="card-title">भाव का इतिहास</div></div>
+          <div class="card-head"><div class="card-title"><span class="ic ic-b">📈</span> भाव का इतिहास</div></div>
           <div class="card-body"><canvas id="chartPrice" height="200"></canvas></div>
         </div>
       </div>

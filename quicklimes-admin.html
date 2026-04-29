@@ -130,12 +130,12 @@ tr:hover td{background:#f8fffe}
 tr:last-child td{border-bottom:none}
 
 /* ── BADGES ── */
-.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
-.badge-green{background:var(--green2);color:#059669}
-.badge-amber{background:#fef3c7;color:#d97706}
-.badge-blue{background:var(--p5);color:var(--p1)}
-.badge-red{background:var(--red2);color:var(--red)}
-.badge-gray{background:var(--bg2);color:var(--ink3)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;border:1.5px solid}
+.badge-green{background:#dcfce7;color:#15803d;border-color:#86efac}
+.badge-amber{background:#fef3c7;color:#d97706;border-color:#fde68a}
+.badge-blue{background:var(--p5);color:var(--p1);border-color:#c7c6f8}
+.badge-red{background:var(--red2);color:var(--red);border-color:#fca5a5}
+.badge-gray{background:var(--bg2);color:var(--ink3);border-color:#d1d5db}
 
 /* ── BUTTONS ── */
 .btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:Inter,sans-serif;transition:all .15s}
@@ -1005,7 +1005,7 @@ function renderInvoices(){
       <td>₹${inv.gst.toLocaleString('hi-IN')}</td>
       <td><strong>₹${inv.total.toLocaleString('hi-IN')}</strong></td>
       <td>${inv.date}</td>
-      <td>${inv.status==='paid'?'<span class="badge badge-green">भुगतान हुआ</span>':'<span class="badge badge-amber">बकाया</span>'}</td>
+      <td>${inv.status==='paid'?'<span class="badge badge-green">✅ भुगतान हुआ</span>':'<span class="badge badge-amber">⏳ बकाया</span>'}</td>
       <td>
         <button class="btn btn-outline btn-sm" onclick="toggleInvoiceStatus('${inv.id}')">${inv.status==='paid'?'↩ बकाया':'✅ भुगतान'}</button>
       </td>
@@ -1088,7 +1088,7 @@ function saveGST(){
 
 // ══ HELPERS ══
 function statusBadge(s){
-  const map={pending:'<span class="badge badge-gray">प्रतीक्षा</span>',processing:'<span class="badge badge-amber">प्रोसेस</span>',transit:'<span class="badge badge-blue">रास्ते में</span>',delivered:'<span class="badge badge-green">डिलीवर</span>',cancelled:'<span class="badge badge-red">रद्द</span>'};
+  const map={pending:'<span class="badge badge-gray">⏳ प्रतीक्षा</span>',processing:'<span class="badge badge-amber">🔄 प्रोसेस</span>',transit:'<span class="badge badge-blue">🚚 रास्ते में</span>',delivered:'<span class="badge badge-green">✅ डिलीवर</span>',cancelled:'<span class="badge badge-red">❌ रद्द</span>'};
   return map[s]||s;
 }
 function closeModal(id){document.getElementById(id).classList.remove('open')}
