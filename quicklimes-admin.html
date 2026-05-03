@@ -15,8 +15,9 @@
   --g1:linear-gradient(160deg,#0073EC 0%,#0058B8 50%,#2A8DF2 100%);
   --ink:#0d0c22;--ink2:#1a1940;--ink3:#4b4a72;--ink4:#9491b8;
   --green:#10b981;--green2:#d1fae5;--red:#f43f5e;--red2:#ffe4e6;
-  --bg:#eef0fb;--bg2:#e4e6f5;--card:#ffffff;
-  --border:1px solid #e8eaf5;--r:14px;
+  --bg:#f3f4f6;--bg2:#ebedf0;--card:#ffffff;
+  --border:1px solid #eef0f4;--r:14px;
+  --shadow-card:0 1px 2px rgba(15,23,42,.04),0 1px 3px rgba(15,23,42,.04);
 }
 html,body{height:100%;overflow:hidden}
 body{font-family:Inter,sans-serif;color:var(--ink);background:var(--bg);display:flex}
@@ -58,65 +59,122 @@ body{font-family:Inter,sans-serif;color:var(--ink);background:var(--bg);display:
 /* ── LAYOUT ── */
 #app{display:flex;height:100%;width:100%}
 
-/* ── SIDEBAR ── */
+/* ── SIDEBAR (Fixoria style) ── */
 .sidebar{
   width:240px;flex-shrink:0;
-  background:var(--g1);
+  background:#fff;border-right:1px solid #eef0f4;
   display:flex;flex-direction:column;height:100%;overflow:hidden;
 }
-.sb-logo{padding:20px 18px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.12)}
-.sb-logo-icon{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-.sb-logo-text{font-size:16px;font-weight:800;color:#fff}
-.sb-logo-sub{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px}
-.sb-nav{flex:1;overflow-y:auto;padding:12px 10px}
-.sb-section{font-size:10px;font-weight:700;color:rgba(255,255,255,.35);letter-spacing:.8px;text-transform:uppercase;padding:12px 10px 6px}
+.sb-logo{padding:20px 20px 18px;display:flex;align-items:center;gap:10px}
+.sb-logo img{height:38px;width:auto;display:block;max-width:100%}
+.sb-logo-sub{display:none}
+.sb-nav{flex:1;overflow-y:auto;padding:8px 14px}
+.sb-section{font-size:11px;font-weight:600;color:#9ca3af;letter-spacing:.6px;text-transform:uppercase;padding:18px 8px 8px}
 .sb-item{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;
-  border-radius:10px;cursor:pointer;transition:all .15s;margin-bottom:2px;
-  color:rgba(255,255,255,.65);font-size:13px;font-weight:500;border:none;background:none;width:100%;text-align:left;
+  display:flex;align-items:center;gap:12px;padding:9px 12px;
+  border-radius:9px;cursor:pointer;transition:background .12s,color .12s;margin-bottom:2px;
+  color:#6b7280;font-size:13.5px;font-weight:500;border:1.5px solid transparent;background:none;width:100%;text-align:left;font-family:Inter,sans-serif;
 }
-.sb-item:hover{background:rgba(255,255,255,.1);color:#fff}
-.sb-item.active{background:rgba(255,255,255,.2);color:#fff;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.15)}
-.sb-item-icon{width:30px;height:30px;border-radius:7px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:.15s}
-.sb-item:hover .sb-item-icon{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.35)}
-.sb-item.active .sb-item-icon{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.45)}
-.sb-user{padding:14px 16px;border-top:1px solid rgba(255,255,255,.12)}
-.sb-user-info{display:flex;align-items:center;gap:10px}
-.sb-user-avatar{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:13px;flex-shrink:0}
-.sb-user-name{font-size:13px;font-weight:600;color:#fff}
-.sb-user-role{font-size:11px;color:rgba(255,255,255,.5)}
-.sb-logout{display:block;width:100%;margin-top:10px;padding:8px;background:rgba(255,255,255,.08);border:none;border-radius:8px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s}
-.sb-logout:hover{background:rgba(255,255,255,.15);color:#fff}
+.sb-item:hover{background:#f8fafc;color:#111827;}
+.sb-item.active{background:#E5F0FD;color:#0073EC;font-weight:600;border-color:#bbd6f7;}
+.sb-item-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;color:#9ca3af;background:none;border:none;border-radius:0;}
+.sb-item:hover .sb-item-icon{color:#374151;background:none;border:none;}
+.sb-item.active .sb-item-icon{color:#0073EC;background:none;border:none;}
+.sb-user{padding:14px 16px;border-top:1px solid #eef0f4;}
+.sb-logout{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;background:none;border:1.5px solid transparent;border-radius:9px;color:#6b7280;font-size:13.5px;font-weight:500;cursor:pointer;font-family:Inter,sans-serif;transition:background .12s,color .12s,border-color .12s;}
+.sb-logout i{width:18px;font-size:14px;color:#9ca3af;text-align:center;transition:color .12s;}
+.sb-logout:hover{background:#fef2f2;color:#dc2626;border-color:#fecaca;}
+.sb-logout:hover i{color:#dc2626;}
 
 /* ── MAIN ── */
 .main{flex:1;display:flex;flex-direction:column;min-width:0;height:100%;overflow:hidden}
 .topbar{
-  background:#fff;border-bottom:var(--border);
-  padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;
+  background:#fff;border-bottom:1px solid #eef0f4;
+  padding:0 28px;height:64px;display:flex;align-items:center;gap:20px;
   flex-shrink:0;
 }
-.topbar-title{font-size:16px;font-weight:700;color:var(--ink)}
-.topbar-right{display:flex;align-items:center;gap:12px}
-.tb-badge{background:#dcfce7;color:#15803d;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
-.tb-notif{position:relative;cursor:pointer}
-.tb-notif-dot{position:absolute;top:0;right:0;width:8px;height:8px;border-radius:50%;background:#ef4444;border:2px solid #fff}
-.content{flex:1;overflow-y:auto;padding:24px;background:#f1f5f9}
+.topbar-title{display:none}
+.tb-search{flex:1;max-width:520px;position:relative;}
+.tb-search input{width:100%;padding:10px 14px 10px 40px;border:1px solid #eef0f4;border-radius:10px;font-size:13.5px;font-family:Inter,sans-serif;outline:none;background:#fff;color:#111827;transition:border .15s,box-shadow .15s;}
+.tb-search input::placeholder{color:#9ca3af;}
+.tb-search input:focus{border-color:#bbd6f7;box-shadow:0 0 0 3px rgba(0,115,236,.08);}
+.tb-search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:13px;}
+.tb-kbd{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#9ca3af;border:1px solid #eef0f4;background:#f8fafc;padding:2px 6px;border-radius:5px;font-family:Inter,sans-serif;font-weight:500;}
+.topbar-right{display:flex;align-items:center;gap:6px;margin-left:auto;}
+.tb-icon-btn{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:#6b7280;cursor:pointer;font-size:15px;transition:background .12s,color .12s;position:relative;}
+.tb-icon-btn:hover{background:#f8fafc;color:#111827;}
+.tb-notif-dot{position:absolute;top:8px;right:9px;width:7px;height:7px;border-radius:50%;background:#ef4444;border:2px solid #fff;}
+.tb-user{display:flex;align-items:center;gap:10px;padding:5px 10px 5px 5px;border-radius:10px;margin-left:8px;}
+.tb-user-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#0073EC,#0058B8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.tb-user-name{font-size:13px;font-weight:600;color:#111827;line-height:1.2;}
+.tb-user-role{font-size:11px;color:#9ca3af;line-height:1.2;margin-top:2px;}
+.tb-user-text{display:flex;flex-direction:column;}
+.tb-badge{background:#dcfce7;color:#15803d;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;display:none}
+.content{flex:1;overflow-y:auto;padding:28px;background:#f3f4f6}
+
+/* ── PAGE HEADER ── */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
+.page-header-left h1{font-size:26px;font-weight:800;color:#111827;letter-spacing:-.4px;line-height:1.2;}
+.page-header-left p{font-size:13px;color:#9ca3af;margin-top:6px;}
+.page-header-right{display:flex;align-items:center;gap:10px;}
+.btn-primary{background:#0073EC;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-family:Inter,sans-serif;transition:background .12s,box-shadow .15s;}
+.btn-primary:hover{background:#0058B8;box-shadow:0 4px 14px rgba(0,115,236,.25);}
+.btn-secondary{background:#fff;color:#374151;border:1px solid #eef0f4;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-family:Inter,sans-serif;transition:background .12s,border-color .12s;}
+.btn-secondary:hover{background:#f8fafc;border-color:#d1d5db;}
+
+/* ── TAB BAR ── */
+.tab-bar{display:flex;align-items:center;gap:4px;border-bottom:1px solid #eef0f4;margin-bottom:20px;flex-wrap:wrap;}
+.tab-bar-left{display:flex;gap:4px;flex:1;}
+.tab{padding:12px 18px;font-size:13.5px;font-weight:500;color:#9ca3af;cursor:pointer;border:none;background:none;font-family:Inter,sans-serif;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .12s,border-color .12s;}
+.tab:hover{color:#374151;}
+.tab.active{color:#0073EC;font-weight:700;border-bottom-color:#0073EC;}
+.tab-bar-right{display:flex;align-items:center;gap:10px;padding-bottom:8px;}
+.tab-tool{padding:7px 12px;font-size:12.5px;color:#6b7280;font-weight:500;background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;border-radius:8px;font-family:Inter,sans-serif;}
+.tab-tool:hover{background:#f8fafc;color:#111827;}
+.tab-view{display:flex;border:1px solid #eef0f4;border-radius:8px;overflow:hidden;}
+.tab-view button{padding:7px 10px;background:#fff;border:none;color:#9ca3af;cursor:pointer;font-size:13px;}
+.tab-view button.active{background:#E5F0FD;color:#0073EC;}
 
 /* ── PAGES ── */
 .page{display:none}
 .page.active{display:block}
 
 /* ── CARDS ── */
-.card{background:#fff;border-radius:var(--r);border:var(--border);padding:20px}
-.card-title{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.card{background:#fff;border-radius:14px;border:1px solid #eef0f4;padding:22px;box-shadow:var(--shadow-card)}
+.card-title{font-size:14px;font-weight:700;color:#111827;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between}
 
 /* ── KPI GRID ── */
-.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
-.kpi{background:#fff;border-radius:var(--r);border:var(--border);padding:18px 20px;display:flex;align-items:center;gap:14px}
-.kpi-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:1.5px solid rgba(0,0,0,.08)}
-.kpi-label{font-size:12px;color:var(--ink3);font-weight:500;margin-bottom:3px}
-.kpi-val{font-size:22px;font-weight:800;color:var(--ink);line-height:1}
-.kpi-sub{font-size:11px;color:var(--g);font-weight:600;margin-top:3px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:22px}
+.kpi{background:#fff;border-radius:14px;border:1px solid #eef0f4;padding:20px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow-card)}
+.kpi-icon{width:46px;height:46px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;border:none}
+.kpi-label{font-size:12.5px;color:#9ca3af;font-weight:500;margin-bottom:4px}
+.kpi-val{font-size:24px;font-weight:800;color:#111827;line-height:1}
+.kpi-sub{font-size:11.5px;color:#10b981;font-weight:600;margin-top:4px}
+
+/* ── CLIENT CARDS (Fixoria style) ── */
+.client-grid-fx{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;}
+.client-card-fx{background:#fff;border:1px solid #eef0f4;border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px;transition:border-color .12s,box-shadow .15s;cursor:pointer;}
+.client-card-fx:hover{border-color:#bbd6f7;box-shadow:0 8px 24px rgba(15,23,42,.06);}
+.cc-fx-head{display:flex;align-items:flex-start;gap:12px;}
+.cc-fx-avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#0073EC,#0058B8);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex-shrink:0;}
+.cc-fx-name{font-size:14.5px;font-weight:700;color:#111827;line-height:1.2;}
+.cc-fx-role{font-size:12px;color:#9ca3af;margin-top:3px;}
+.cc-fx-menu{margin-left:auto;color:#9ca3af;cursor:pointer;padding:4px 6px;border-radius:6px;background:none;border:none;font-size:14px;}
+.cc-fx-menu:hover{background:#f8fafc;color:#374151;}
+.cc-fx-title{font-size:15px;font-weight:700;color:#111827;line-height:1.3;}
+.cc-fx-info{display:flex;flex-direction:column;gap:9px;}
+.cc-fx-info-row{display:flex;align-items:center;gap:10px;font-size:12.5px;color:#6b7280;}
+.cc-fx-info-row i{color:#9ca3af;width:14px;text-align:center;font-size:12px;}
+.cc-fx-foot{display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid #f3f4f6;}
+.cc-fx-actions{display:flex;align-items:center;gap:6px;}
+.cc-fx-action{width:30px;height:30px;border-radius:7px;background:#f8fafc;border:1px solid #eef0f4;color:#6b7280;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .12s;}
+.cc-fx-action:hover{background:#fff;color:#0073EC;border-color:#bbd6f7;}
+.cc-fx-pill{padding:5px 12px;border-radius:20px;font-size:11.5px;font-weight:600;}
+.pill-active{background:#dcfce7;color:#15803d;}
+.pill-trial{background:#fef3c7;color:#b45309;}
+.pill-pending{background:#fed7aa;color:#c2410c;}
+.pill-suspended{background:#fee2e2;color:#b91c1c;}
+.pill-cancelled{background:#f3f4f6;color:#6b7280;}
 
 /* ── TABLE ── */
 .table-wrap{overflow-x:auto}
@@ -156,11 +214,38 @@ tr:last-child td{border-bottom:none}
 .form-full{grid-column:1/-1}
 
 /* ── MODAL ── */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:none;align-items:center;justify-content:center}
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px)}
 .modal-overlay.open{display:flex}
-.modal{background:#fff;border-radius:20px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
-.modal-title{font-size:17px;font-weight:700;margin-bottom:20px;color:var(--ink)}
-.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.modal{background:#fff;border-radius:16px;padding:0;width:100%;max-width:520px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.2)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #eef0f4}
+.modal-title{font-size:16px;font-weight:700;color:#111827;display:flex;align-items:center;gap:10px}
+.modal-close{background:none;border:none;color:#9ca3af;cursor:pointer;font-size:16px;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:background .12s}
+.modal-close:hover{background:#f3f4f6;color:#111827}
+.modal-body{padding:22px 24px;overflow-y:auto;flex:1}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;padding:16px 24px;border-top:1px solid #eef0f4;background:#fafafa}
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:12.5px;font-weight:600;color:#374151;margin-bottom:6px}
+.fld input,.fld select,.fld textarea{width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13.5px;font-family:Inter,sans-serif;outline:none;background:#fff;color:#111827;transition:border .15s,box-shadow .15s}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:#0073EC;box-shadow:0 0 0 3px rgba(0,115,236,.1)}
+.fld-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* Profile detail blocks */
+.pf-head{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #eef0f4}
+.pf-avatar{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#0073EC,#0058B8);color:#fff;font-size:24px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pf-name{font-size:18px;font-weight:700;color:#111827}
+.pf-meta{font-size:12.5px;color:#9ca3af;margin-top:4px;display:flex;align-items:center;gap:8px}
+.pf-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}
+.pf-block{display:flex;flex-direction:column;gap:4px}
+.pf-block-label{font-size:11px;font-weight:600;color:#9ca3af;letter-spacing:.4px;text-transform:uppercase}
+.pf-block-val{font-size:13.5px;color:#111827;font-weight:500;display:flex;align-items:center;gap:7px}
+.pf-block-val i{color:#9ca3af;font-size:12px}
+.pf-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px;padding-top:16px;border-top:1px dashed #eef0f4}
+.pf-action-btn{padding:10px 12px;border-radius:9px;border:1px solid #eef0f4;background:#fff;font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;color:#374151;font-family:Inter,sans-serif;transition:all .12s}
+.pf-action-btn:hover{background:#f8fafc;border-color:#d1d5db}
+.pf-action-btn.danger{color:#dc2626;border-color:#fecaca;background:#fef2f2}
+.pf-action-btn.danger:hover{background:#fee2e2}
+.pf-action-btn.success{color:#15803d;border-color:#86efac;background:#f0fdf4}
+.pf-action-btn.success:hover{background:#dcfce7}
 
 /* ── SEARCH BAR ── */
 .search-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px}
@@ -181,7 +266,13 @@ tr:last-child td{border-bottom:none}
 .stat-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
 
 /* ── CLIENT TABLE (modern admin design) ── */
-.client-table-wrap{background:#fff;border-radius:14px;border:1px solid #eaecf3;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04);}
+@keyframes ct-fade-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes ct-expand-down{from{opacity:0;transform:translateY(-4px);max-height:0}to{opacity:1;transform:none;max-height:600px}}
+@keyframes ct-pulse-dot{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.45)}50%{box-shadow:0 0 0 6px rgba(34,197,94,0)}}
+@keyframes ct-stats-shimmer{0%{background-position:-300px 0}100%{background-position:300px 0}}
+@keyframes ct-fly-in{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+
+.client-table-wrap{background:#fff;border-radius:14px;border:1px solid #eaecf3;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04);animation:ct-fly-in .35s ease-out both;}
 .client-table{width:100%;border-collapse:collapse;font-size:13px;}
 .client-table thead th{
   text-align:left;font-size:12px;font-weight:600;color:var(--ink3);
@@ -189,10 +280,22 @@ tr:last-child td{border-bottom:none}
   letter-spacing:.2px;text-transform:none;
 }
 .client-table thead th:first-child{padding-left:18px;}
-.client-table tbody tr{transition:background .12s;}
-.client-table tbody tr:hover{background:#fafbff;}
+.client-table tbody tr{transition:background .18s ease, transform .15s ease, box-shadow .15s ease;animation:ct-fade-in .35s ease-out both;}
+.client-table tbody tr:not(.expand-row):hover{background:#fafbff;transform:translateX(2px);}
 .client-table tbody tr.selected{background:#eef3ff;}
 .client-table tbody tr.expanded{background:#fafbff;}
+.client-table tbody tr.expand-row{animation:ct-expand-down .28s ease-out both;}
+/* Stagger child rows so they cascade in on load */
+.client-table tbody tr:nth-child(1){animation-delay:.02s}
+.client-table tbody tr:nth-child(2){animation-delay:.06s}
+.client-table tbody tr:nth-child(3){animation-delay:.10s}
+.client-table tbody tr:nth-child(4){animation-delay:.14s}
+.client-table tbody tr:nth-child(5){animation-delay:.18s}
+.client-table tbody tr:nth-child(6){animation-delay:.22s}
+.client-table tbody tr:nth-child(7){animation-delay:.26s}
+.client-table tbody tr:nth-child(8){animation-delay:.30s}
+.client-table tbody tr:nth-child(9){animation-delay:.34s}
+.client-table tbody tr:nth-child(10){animation-delay:.38s}
 .client-table tbody td{padding:14px 16px;border-bottom:1px solid #f1f3f9;color:var(--ink);vertical-align:middle;}
 .client-table tbody td:first-child{padding-left:18px;}
 .client-table tbody tr:last-child td{border-bottom:none;}
@@ -201,16 +304,21 @@ tr:last-child td{border-bottom:none}
 .client-table .ct-chev:hover{background:#f1f3f9;color:var(--ink);}
 .client-table tr.expanded .ct-chev{transform:rotate(180deg);}
 .client-table .ct-name-wrap{display:flex;align-items:center;gap:10px;}
-.client-table .ct-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#0073EC,#0058B8);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+.client-table .ct-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#0073EC,#0058B8);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;transition:transform .2s ease, box-shadow .2s ease;}
+.client-table tbody tr:hover .ct-avatar{transform:scale(1.08) rotate(-3deg);box-shadow:0 4px 12px rgba(0,115,236,.3);}
+.client-table .ct-status-active::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#22c55e;margin-right:6px;vertical-align:1px;animation:ct-pulse-dot 2s ease-in-out infinite;}
 .client-table .ct-name{font-weight:600;color:var(--ink);}
 .client-table .ct-status-pill{display:inline-block;padding:5px 14px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.2px;}
 .client-table .ct-status-active{background:#e7f8ee;color:#15803d;}
 .client-table .ct-status-pending{background:#fef3c7;color:#92400e;}
 .client-table .ct-status-suspended{background:#fee2e2;color:#dc2626;}
 .client-table .ct-status-cancelled{background:#f1f3f9;color:#6b7280;}
-.client-table .ct-icon-btn{width:32px;height:32px;border-radius:8px;border:none;background:#f1f3f9;color:var(--ink2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;margin-right:4px;transition:background .12s;}
-.client-table .ct-icon-btn:hover{background:#e7eaf3;}
+.client-table .ct-icon-btn{width:32px;height:32px;border-radius:8px;border:none;background:#f1f3f9;color:var(--ink2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;margin-right:4px;transition:background .15s ease, transform .15s ease, box-shadow .15s ease;}
+.client-table .ct-icon-btn:hover{background:#e7eaf3;transform:translateY(-1px);box-shadow:0 4px 10px rgba(16,24,40,.10);}
+.client-table .ct-icon-btn:active{transform:scale(.94);}
 .client-table .ct-icon-btn.danger:hover{background:#fee2e2;color:#dc2626;}
+.client-table .ct-status-pill{transition:transform .15s ease;}
+.client-table tbody tr:hover .ct-status-pill{transform:scale(1.04);}
 .client-table tr.expand-row td{background:#fafbff;padding:0;}
 .client-table .expand-content{padding:18px 26px;display:grid;grid-template-columns:repeat(4,1fr);gap:24px;border-bottom:1px solid #eaecf3;}
 .client-table .ec-block{min-width:0;}
@@ -230,8 +338,11 @@ tr:last-child td{border-bottom:none}
 .tool-bar .search-input{flex:1;min-width:220px;padding:11px 14px 11px 40px;background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg>") 14px center no-repeat;border-radius:10px;border:1px solid #eaecf3;}
 .tool-bar .selected-pill{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);font-weight:600;}
 .tool-bar .selected-pill input{width:18px;height:18px;accent-color:var(--p2);cursor:pointer;}
-.tool-bar .add-btn{background:var(--p2);color:#fff;border:none;border-radius:10px;padding:11px 18px;font-size:12px;font-weight:700;letter-spacing:.6px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-family:Inter,sans-serif;text-transform:uppercase;}
-.tool-bar .add-btn:hover{background:var(--p1);}
+.tool-bar .add-btn{background:var(--p2);color:#fff;border:none;border-radius:10px;padding:11px 18px;font-size:12px;font-weight:700;letter-spacing:.6px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-family:Inter,sans-serif;text-transform:uppercase;transition:background .15s ease, transform .15s ease, box-shadow .2s ease;}
+.tool-bar .add-btn:hover{background:var(--p1);transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,115,236,.35);}
+.tool-bar .add-btn:active{transform:translateY(0) scale(.98);}
+.tool-bar .add-btn i{transition:transform .4s ease;}
+.tool-bar .add-btn:hover i{transform:rotate(180deg);}
 
 .client-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .client-card{
@@ -268,12 +379,54 @@ tr:last-child td{border-bottom:none}
 .of-count{font-size:22px;font-weight:800;color:var(--ink)}
 .of-label{font-size:11px;color:var(--ink3);font-weight:500;margin-top:3px}
 
+/* ── DASHBOARD ROWS ── */
+.dash-row{display:grid;gap:16px;margin-bottom:16px}
+.dash-row-21{grid-template-columns:2fr 1fr}
+.dash-row-11{grid-template-columns:1fr 1fr}
+
 @media(max-width:768px){
-  .sidebar{width:0;display:none}
+  .sidebar{position:fixed;top:0;left:0;height:100%;z-index:600;width:240px;display:flex;transform:translateX(-100%);transition:transform .25s ease;box-shadow:0 12px 40px rgba(0,0,0,.15)}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:599;display:none}
+  .sidebar-backdrop.open{display:block}
+  .mobile-menu-btn{display:flex !important}
+  .topbar{padding:0 16px;gap:8px}
+  .tb-search{display:none}
+  .tb-icon-btn{width:32px;height:32px;font-size:14px}
+  .tb-user-text{display:none}
+  .tb-user{margin-left:0;padding:0}
   .kpi-grid{grid-template-columns:1fr 1fr}
   .client-grid{grid-template-columns:1fr}
   .price-grid{grid-template-columns:1fr 1fr}
   .form-grid{grid-template-columns:1fr}
+  .dash-row-21,.dash-row-11{grid-template-columns:1fr}
+  .page-header{flex-direction:column;align-items:stretch}
+  .page-header-right{display:flex;flex-direction:column;gap:8px}
+  .page-header-right .btn-primary,.page-header-right .btn-secondary{width:100%;justify-content:center;white-space:nowrap}
+  .content{padding:18px 16px}
+}
+.mobile-menu-btn{display:none;width:36px;height:36px;border-radius:9px;border:none;background:none;color:#374151;cursor:pointer;font-size:18px;align-items:center;justify-content:center;flex-shrink:0;transition:background .12s}
+.mobile-menu-btn:hover{background:#f3f4f6}
+
+/* ── BOTTOM TAB BAR (mobile only) ── */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #eef0f4;z-index:400;padding:6px 0 max(6px,env(safe-area-inset-bottom));justify-content:space-around;box-shadow:0 -4px 16px rgba(15,23,42,.04)}
+.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;color:#9ca3af;font-size:11px;font-weight:500;font-family:Inter,sans-serif;padding:8px 0;transition:color .12s}
+.bottom-nav-item i{font-size:18px;line-height:1}
+.bottom-nav-item.active{color:#0073EC;font-weight:600}
+@media(max-width:768px){
+  .bottom-nav{display:flex}
+  .content{padding-bottom:80px}
+}
+@media(max-width:560px){
+  .kpi-grid{grid-template-columns:1fr;gap:12px}
+  .kpi{padding:14px 16px}
+  .kpi-val{font-size:20px}
+  .card{padding:16px}
+  .price-grid{grid-template-columns:1fr}
+  .page-header-left h1{font-size:22px}
+  .fld-row{grid-template-columns:1fr}
+  .pf-grid{grid-template-columns:1fr}
+  .pf-actions{grid-template-columns:1fr}
 }
 
 /* ── ICON BOXES ── */
@@ -289,56 +442,37 @@ tr:last-child td{border-bottom:none}
 .ic-y{background:#fef3c7;border:1.5px solid #fde68a}
 .ic-w{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35)}
 
-/* ── LOGIN SPLIT (IMZA-inspired) ── */
-.ls-wrap{position:fixed;inset:0;z-index:1000;background:#fff;display:flex;overflow:auto;}
-.ls-left{flex:0 0 45%;max-width:560px;display:flex;flex-direction:column;padding:48px 64px;background:#fff;}
-.ls-logo-bar img{height:44px;width:auto;display:block;}
-.ls-form-wrap{margin-top:48px;max-width:380px;width:100%;}
-.ls-h1{font-size:36px;font-weight:800;color:#111827;line-height:1.1;letter-spacing:-.5px;margin-bottom:8px;font-family:Inter,sans-serif;}
-.ls-sub{font-size:14px;color:#6b7280;margin-bottom:32px;font-family:Inter,sans-serif;}
-.ls-fld{margin-bottom:18px;}
-.ls-fld label{display:block;font-size:13px;font-weight:600;color:#111827;margin-bottom:8px;font-family:Inter,sans-serif;}
-.ls-input{width:100%;padding:14px 16px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:Inter,sans-serif;outline:none;transition:border .2s;background:#fff;color:#111827;}
-.ls-input:focus{border-color:#0073EC;}
+/* ── ADMIN LOGIN (centered, light backdrop) ── */
+.ls-wrap{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto;background:#f8fafc;background-image:linear-gradient(rgba(0,115,236,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,115,236,.05) 1px,transparent 1px);background-size:40px 40px;font-family:Inter,sans-serif;}
+.ls-card{width:100%;max-width:420px;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:40px 36px 32px;box-shadow:0 12px 40px rgba(15,23,42,.08),0 1px 3px rgba(15,23,42,.04);display:flex;flex-direction:column;}
+.ls-card-head{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-bottom:24px;}
+.ls-card-head img{height:42px;width:auto;display:block;max-width:100%;}
+.ls-badge{display:inline-flex;align-items:center;gap:5px;background:#E5F0FD;color:#0058B8;padding:4px 10px;border-radius:5px;font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;border:1px solid #bbd6f7;}
+.ls-badge i{font-size:9px;color:#0073EC;}
+.ls-h1{font-size:22px;font-weight:700;color:#111827;line-height:1.2;letter-spacing:-.3px;margin-bottom:6px;}
+.ls-sub{font-size:13px;color:#6b7280;margin-bottom:26px;}
+.ls-fld{margin-bottom:16px;}
+.ls-fld label{display:block;font-size:12.5px;font-weight:600;color:#374151;margin-bottom:7px;}
+.ls-input{width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:Inter,sans-serif;outline:none;transition:border .15s,box-shadow .15s;background:#fff;color:#111827;}
+.ls-input:focus{border-color:#0073EC;box-shadow:0 0 0 3px rgba(0,115,236,.12);}
 .ls-pw{position:relative;}
-.ls-pw .ls-input{padding-right:42px;}
-.ls-eye{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:#9ca3af;cursor:pointer;font-size:14px;padding:4px;}
+.ls-pw .ls-input{padding-right:40px;}
+.ls-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#9ca3af;cursor:pointer;font-size:13px;padding:4px;}
 .ls-eye:hover{color:#374151;}
-.ls-forgot{display:inline-block;color:#0073EC;font-size:13px;font-weight:500;text-decoration:none;margin-bottom:24px;font-family:Inter,sans-serif;}
+.ls-forgot{display:inline-block;color:#0073EC;font-size:12.5px;font-weight:500;text-decoration:none;margin-bottom:20px;}
 .ls-forgot:hover{text-decoration:underline;}
-.ls-btn{width:100%;padding:16px;background:#0073EC;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;letter-spacing:.5px;cursor:pointer;transition:all .2s;font-family:Inter,sans-serif;}
-.ls-btn:hover{background:#0058B8;box-shadow:0 4px 20px rgba(0,115,236,.3);}
-.ls-err{color:#dc2626;font-size:13px;margin-bottom:12px;display:none;font-family:Inter,sans-serif;}
-.ls-err.show{display:block;}
-.ls-foot{font-size:12px;color:#9ca3af;margin-top:auto;padding-top:32px;font-family:Inter,sans-serif;}
-.ls-right{flex:1;background:#f8fafc;background-image:linear-gradient(rgba(0,115,236,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,115,236,.05) 1px,transparent 1px);background-size:40px 40px;position:relative;overflow:hidden;padding:64px 56px;display:flex;flex-direction:column;justify-content:center;}
-.ls-pill{display:inline-block;align-self:flex-start;background:#fff;color:#111827;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:24px;font-family:Inter,sans-serif;}
-.ls-headline{font-size:42px;font-weight:800;color:#111827;line-height:1.15;letter-spacing:-.8px;margin-bottom:40px;font-family:Inter,sans-serif;}
-.ls-headline span{color:#0073EC;}
-.ls-mock{background:#fff;border-radius:14px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.08);max-width:600px;width:100%;display:flex;flex-direction:column;gap:14px;position:relative;}
-.ls-mock-top{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid #f1f5f9;}
-.ls-mock-logo img{height:24px;width:auto;display:block;}
-.ls-mock-welcome{font-size:11px;color:#6b7280;font-family:Inter,sans-serif;}
-.ls-mock-live{position:absolute;top:-12px;right:-12px;background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:6px 14px;font-size:11px;font-weight:600;color:#111827;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,.08);font-family:Inter,sans-serif;}
-.ls-mock-live::before{content:'';width:7px;height:7px;border-radius:50%;background:#10b981;}
-.ls-mock-body{display:flex;gap:14px;}
-.ls-mock-nav{flex:0 0 110px;display:flex;flex-direction:column;gap:4px;}
-.ls-mock-nav-item{padding:8px 12px;border-radius:8px;font-size:12px;font-weight:500;color:#6b7280;font-family:Inter,sans-serif;}
-.ls-mock-nav-item.active{background:#E5F0FD;color:#0073EC;font-weight:600;}
-.ls-mock-content{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;}
-.ls-kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-.ls-kpi{background:#f8fafc;border-radius:8px;padding:10px 12px;}
-.ls-kpi-lbl{font-size:10px;color:#6b7280;font-weight:500;display:flex;align-items:center;gap:5px;margin-bottom:4px;font-family:Inter,sans-serif;}
-.ls-kpi-val{font-size:18px;font-weight:800;color:#111827;line-height:1;font-family:Inter,sans-serif;}
-.ls-recent{background:#f8fafc;border-radius:8px;padding:12px;}
-.ls-recent-title{font-size:11px;color:#6b7280;margin-bottom:8px;font-weight:500;font-family:Inter,sans-serif;}
-.ls-recent-list{display:flex;flex-direction:column;gap:8px;}
-.ls-recent-row{display:flex;align-items:center;gap:8px;font-size:11px;color:#374151;font-family:Inter,sans-serif;}
-.ls-recent-time{color:#9ca3af;min-width:36px;}
-.ls-recent-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
-@media(max-width:900px){
-  .ls-right{display:none;}
-  .ls-left{flex:1;max-width:none;padding:32px 24px;}
+.ls-btn{width:100%;padding:13px;background:#0073EC;color:#fff;border:none;border-radius:9px;font-weight:600;font-size:14px;letter-spacing:.3px;cursor:pointer;transition:background .15s,box-shadow .15s;font-family:Inter,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:8px;}
+.ls-btn:hover{background:#0058B8;box-shadow:0 6px 18px rgba(0,115,236,.28);}
+.ls-btn i{font-size:12px;}
+.ls-err{color:#dc2626;font-size:12.5px;margin-bottom:14px;display:none;background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:8px;}
+.ls-err.show{display:flex;align-items:center;gap:8px;}
+.ls-secure{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:18px;padding-top:18px;border-top:1px solid #f1f5f9;font-size:11.5px;color:#9ca3af;}
+.ls-secure i{color:#10b981;font-size:10px;}
+.ls-foot{margin-top:14px;font-size:11px;color:#94a3b8;text-align:center;}
+.ls-foot b{color:#cbd5e1;font-weight:600;}
+@media(max-width:480px){
+  .ls-card{padding:32px 24px 24px;border-radius:12px;}
+  .ls-h1{font-size:20px;}
 }
 </style>
 </head>
@@ -346,107 +480,71 @@ tr:last-child td{border-bottom:none}
 
 <!-- LOGIN -->
 <div id="loginScreen" class="ls-wrap">
-  <div class="ls-left">
-    <div class="ls-logo-bar"><img src="assets/logo.png" alt="QuickLimes"></div>
-    <div class="ls-form-wrap">
-      <h1 class="ls-h1">Login to Dashboard</h1>
-      <p class="ls-sub">Fill the below form to login</p>
-      <div id="loginError" class="ls-err"><i class="fa-solid fa-circle-exclamation"></i> Invalid username or password</div>
-      <div class="ls-fld">
-        <label>Username</label>
-        <input class="ls-input" id="adminUser" type="text" placeholder="Enter admin username" autocomplete="username">
-      </div>
-      <div class="ls-fld">
-        <label>Password</label>
-        <div class="ls-pw">
-          <input class="ls-input" id="adminPass" type="password" placeholder="Enter Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doAdminLogin()">
-          <button type="button" class="ls-eye" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.querySelector('i').className=i.type==='password'?'fa-solid fa-eye':'fa-solid fa-eye-slash';" aria-label="Toggle password"><i class="fa-solid fa-eye"></i></button>
-        </div>
-      </div>
-      <a href="#" class="ls-forgot">Forgot Password?</a>
-      <button class="ls-btn" onclick="doAdminLogin()">LOGIN</button>
-      <div class="ls-switch" style="text-align:center;margin-top:18px;font-size:13px;color:#6b7280;">Don't have an account? <a href="signup" style="color:#0073EC;font-weight:600;text-decoration:none;">Sign Up</a></div>
+  <div class="ls-card">
+    <div class="ls-card-head">
+      <img src="assets/logo.png" alt="QuickLimes">
+      <span class="ls-badge"><i class="fa-solid fa-shield-halved"></i> Admin</span>
     </div>
-    <div class="ls-foot">© 2026 QuickLimes • Admin Panel · Demo: <b>QLADMIN</b> / <b>quicklimes@2026</b></div>
-  </div>
-  <div class="ls-right">
-    <div class="ls-pill">QuickLimes Intelligence</div>
-    <h2 class="ls-headline">Manage your lime plant<br><span>more profitably</span></h2>
-    <div class="ls-mock">
-      <div class="ls-mock-live">6 plants live</div>
-      <div class="ls-mock-top">
-        <div class="ls-mock-logo"><img src="assets/logo.png" alt=""></div>
-        <div class="ls-mock-welcome">Welcome to Overview</div>
-      </div>
-      <div class="ls-mock-body">
-        <div class="ls-mock-nav">
-          <div class="ls-mock-nav-item active">Overview</div>
-          <div class="ls-mock-nav-item">Clients</div>
-          <div class="ls-mock-nav-item">Orders</div>
-          <div class="ls-mock-nav-item">Kilns</div>
-          <div class="ls-mock-nav-item">Reports</div>
-        </div>
-        <div class="ls-mock-content">
-          <div class="ls-kpi-row">
-            <div class="ls-kpi"><div class="ls-kpi-lbl"><i class="fa-solid fa-users"></i> Clients</div><div class="ls-kpi-val">6</div></div>
-            <div class="ls-kpi"><div class="ls-kpi-lbl"><i class="fa-solid fa-truck"></i> Orders today</div><div class="ls-kpi-val">184</div></div>
-            <div class="ls-kpi"><div class="ls-kpi-lbl"><i class="fa-solid fa-chart-line"></i> Compliance</div><div class="ls-kpi-val">100%</div></div>
-          </div>
-          <div class="ls-recent">
-            <div class="ls-recent-title">Recent activity</div>
-            <div class="ls-recent-list">
-              <div class="ls-recent-row"><span class="ls-recent-time">14:02</span><span class="ls-recent-icon" style="color:#10b981"><i class="fa-solid fa-circle-check"></i></span>Order placed — Deshwali Minerals</div>
-              <div class="ls-recent-row"><span class="ls-recent-time">13:48</span><span class="ls-recent-icon" style="color:#0073EC"><i class="fa-solid fa-file-invoice"></i></span>GST invoice — ₹2.4L</div>
-              <div class="ls-recent-row"><span class="ls-recent-time">13:11</span><span class="ls-recent-icon" style="color:#f59e0b"><i class="fa-solid fa-arrow-right-arrow-left"></i></span>Sales Purchase</div>
-              <div class="ls-recent-row"><span class="ls-recent-time">12:30</span><span class="ls-recent-icon" style="color:#0073EC"><i class="fa-solid fa-arrow-up"></i></span>Stage → Delivery #4172</div>
-            </div>
-          </div>
-        </div>
+    <h1 class="ls-h1">Sign in to Admin Console</h1>
+    <p class="ls-sub">Restricted to authorized QuickLimes staff.</p>
+    <div id="loginError" class="ls-err"><i class="fa-solid fa-circle-exclamation"></i><span>Invalid username or password</span></div>
+    <div class="ls-fld">
+      <label>Username</label>
+      <input class="ls-input" id="adminUser" type="text" placeholder="Enter admin username" autocomplete="username">
+    </div>
+    <div class="ls-fld">
+      <label>Password</label>
+      <div class="ls-pw">
+        <input class="ls-input" id="adminPass" type="password" placeholder="Enter password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doAdminLogin()">
+        <button type="button" class="ls-eye" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.querySelector('i').className=i.type==='password'?'fa-solid fa-eye':'fa-solid fa-eye-slash';" aria-label="Toggle password"><i class="fa-solid fa-eye"></i></button>
       </div>
     </div>
+    <a href="#" class="ls-forgot">Forgot password?</a>
+    <button class="ls-btn" onclick="doAdminLogin()"><i class="fa-solid fa-arrow-right-to-bracket"></i> Sign in</button>
+    <div class="ls-secure"><i class="fa-solid fa-lock"></i> Secure connection · All activity is logged</div>
+    <div class="ls-foot">© 2026 QuickLimes</div>
   </div>
 </div>
 
 <!-- APP -->
 <div id="app" style="display:none">
 
+  <!-- MOBILE SIDEBAR BACKDROP -->
+  <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
   <!-- SIDEBAR -->
   <div class="sidebar">
-    <div class="sb-logo" style="flex-direction:column;align-items:flex-start;gap:4px;">
-      <img src="assets/logo.png" alt="QuickLimes" style="height:36px;width:auto;display:block;background:#fff;padding:4px 8px;border-radius:6px;">
-      <div class="sb-logo-sub">Admin Panel</div>
+    <div class="sb-logo">
+      <img src="assets/logo.png" alt="QuickLimes">
     </div>
     <nav class="sb-nav">
-      <div class="sb-section">Main</div>
-      <button class="sb-item active" onclick="goPage('dashboard',this)"><span class="sb-item-icon"><i class="fa-solid fa-chart-bar"></i></span>Dashboard</button>
-      <button class="sb-item" onclick="goPage('orders',this)"><span class="sb-item-icon"><i class="fa-solid fa-box"></i></span>All Orders</button>
+      <div class="sb-section">Main Menu</div>
+      <button class="sb-item active" onclick="goPage('dashboard',this)"><span class="sb-item-icon"><i class="fa-solid fa-house"></i></span>Dashboard</button>
       <button class="sb-item" onclick="goPage('clients',this)"><span class="sb-item-icon"><i class="fa-solid fa-users"></i></span>Clients</button>
-      <button class="sb-item" onclick="goPage('invoices',this)"><span class="sb-item-icon"><i class="fa-solid fa-file-invoice"></i></span>Invoices</button>
-      <button class="sb-item" onclick="goPage('payments',this)"><span class="sb-item-icon"><i class="fa-solid fa-credit-card"></i></span>Payments</button>
-      <div class="sb-section">Settings</div>
-      <button class="sb-item" onclick="goPage('prices',this)"><span class="sb-item-icon"><i class="fa-solid fa-indian-rupee-sign"></i></span>Rate Manager</button>
-      <button class="sb-item" onclick="goPage('addclient',this)"><span class="sb-item-icon"><i class="fa-solid fa-plus"></i></span>New Client</button>
       <button class="sb-item" onclick="goPage('settings',this)"><span class="sb-item-icon"><i class="fa-solid fa-gear"></i></span>Settings</button>
     </nav>
     <div class="sb-user">
-      <div class="sb-user-info">
-        <div class="sb-user-avatar">AD</div>
-        <div>
-          <div class="sb-user-name">Admin</div>
-          <div class="sb-user-role">Super Admin</div>
-        </div>
-      </div>
-      <button class="sb-logout" onclick="doLogout()"><span class="ic ic-w"><i class="fa-solid fa-right-from-bracket"></i></span> Log Out</button>
+      <button class="sb-logout" onclick="doLogout()"><i class="fa-solid fa-right-from-bracket"></i> Log Out</button>
     </div>
   </div>
 
   <!-- MAIN -->
   <div class="main">
     <div class="topbar">
-      <div class="topbar-title" id="pageTitle">Dashboard</div>
+      <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+      <div class="tb-search">
+        <i class="fa-solid fa-magnifying-glass tb-search-icon"></i>
+        <input type="text" placeholder="Search...">
+        <span class="tb-kbd">⌘F</span>
+      </div>
       <div class="topbar-right">
-        <div class="tb-badge"><span class="ic ic-g"><i class="fa-solid fa-circle" style="color:#22c55e;font-size:8px"></i></span> Live</div>
-        <div style="font-size:13px;color:var(--ink3)" id="todayDate"></div>
+        <div class="tb-user">
+          <div class="tb-user-avatar">HR</div>
+          <div class="tb-user-text">
+            <div class="tb-user-name">Haji Rehan</div>
+            <div class="tb-user-role">Super Admin</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -454,51 +552,62 @@ tr:last-child td{border-bottom:none}
 
       <!-- DASHBOARD PAGE -->
       <div class="page active" id="pg-dashboard">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h1>Dashboard</h1>
+            <p>Overview of your QuickLimes clients and signups</p>
+          </div>
+          <div class="page-header-right">
+            <button class="btn-secondary" onclick="loadPlantsFromSupabase();loadAdminStats();renderDashboard();"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            <button class="btn-secondary" onclick="goPage('clients',null)"><i class="fa-solid fa-users"></i> View Clients</button>
+            <button class="btn-primary" onclick="openAddClientModal()"><i class="fa-solid fa-plus"></i> Add Client</button>
+          </div>
+        </div>
         <div class="kpi-grid">
           <div class="kpi">
-            <div class="kpi-icon" style="background:#dcfce7"><i class="fa-solid fa-users"></i></div>
-            <div><div class="kpi-label">Total Clients</div><div class="kpi-val" id="kpi-clients">6</div><div class="kpi-sub">+2 this month</div></div>
+            <div class="kpi-icon" style="background:#E5F0FD;color:#0073EC"><i class="fa-solid fa-users"></i></div>
+            <div><div class="kpi-label">Total Clients</div><div class="kpi-val" id="kpi-clients">0</div><div class="kpi-sub" id="kpi-clients-sub">All registered plants</div></div>
           </div>
           <div class="kpi">
-            <div class="kpi-icon" style="background:#dbeafe"><i class="fa-solid fa-boxes-stacked"></i></div>
-            <div><div class="kpi-label">Total Orders</div><div class="kpi-val" id="kpi-orders">48</div><div class="kpi-sub">+12 this week</div></div>
+            <div class="kpi-icon" style="background:#dcfce7;color:#15803d"><i class="fa-solid fa-circle-check"></i></div>
+            <div><div class="kpi-label">Active</div><div class="kpi-val" id="kpi-active">0</div><div class="kpi-sub" id="kpi-active-sub">Live accounts</div></div>
           </div>
           <div class="kpi">
-            <div class="kpi-icon" style="background:#fef9c3"><i class="fa-solid fa-indian-rupee-sign"></i></div>
-            <div><div class="kpi-label">Total Revenue</div><div class="kpi-val" id="kpi-revenue">₹18.4L</div><div class="kpi-sub">this month</div></div>
+            <div class="kpi-icon" style="background:#fef3c7;color:#b45309"><i class="fa-solid fa-clock"></i></div>
+            <div><div class="kpi-label">On Trial</div><div class="kpi-val" id="kpi-trial">0</div><div class="kpi-sub" id="kpi-trial-sub">In free period</div></div>
           </div>
           <div class="kpi">
-            <div class="kpi-icon" style="background:#fee2e2"><i class="fa-solid fa-clock"></i></div>
-            <div><div class="kpi-label">Pending</div><div class="kpi-val" id="kpi-pending">₹2.8L</div><div class="kpi-sub">from 5 clients</div></div>
+            <div class="kpi-icon" style="background:#fee2e2;color:#b91c1c"><i class="fa-solid fa-hourglass-half"></i></div>
+            <div><div class="kpi-label">Pending Activation</div><div class="kpi-val" id="kpi-pending">0</div><div class="kpi-sub" id="kpi-pending-sub">Awaiting approval</div></div>
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="dash-row dash-row-21">
           <div class="card">
-            <div class="card-title">Monthly Orders (in MT) <span style="font-size:12px;font-weight:500;color:var(--ink3)">Last 6 months</span></div>
+            <div class="card-title">Signups <span style="font-size:12px;font-weight:500;color:#9ca3af">Last 6 months</span></div>
             <div class="chart-wrap"><canvas id="ordersChart"></canvas></div>
           </div>
           <div class="card">
-            <div class="card-title">Order Status</div>
+            <div class="card-title">Plan Distribution</div>
             <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="dash-row dash-row-11">
           <div class="card">
-            <div class="card-title"><span class="ic ic-p"><i class="fa-solid fa-list-check"></i></span> Recent Orders <button class="btn btn-outline btn-sm" onclick="goPage('orders',null)">View All</button></div>
+            <div class="card-title">Recent Signups <button class="btn-secondary" style="padding:6px 12px;font-size:12px" onclick="goPage('clients',null)">View All</button></div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Client</th><th>Quantity</th><th>Amount</th><th>Status</th></tr></thead>
+                <thead><tr><th>Plant</th><th>Plan</th><th>Signed Up</th><th>Status</th></tr></thead>
                 <tbody id="dashOrdersTbl"></tbody>
               </table>
             </div>
           </div>
           <div class="card">
-            <div class="card-title"><span class="ic ic-r"><i class="fa-solid fa-triangle-exclamation"></i></span> Pending Payments <button class="btn btn-outline btn-sm" onclick="goPage('payments',null)">View All</button></div>
+            <div class="card-title">Trials Ending Soon <button class="btn-secondary" style="padding:6px 12px;font-size:12px" onclick="goPage('clients',null)">View All</button></div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Client</th><th>Pending</th><th>Due Date</th></tr></thead>
+                <thead><tr><th>Plant</th><th>Plan</th><th>Ends</th><th>Days Left</th></tr></thead>
                 <tbody id="dashPendingTbl"></tbody>
               </table>
             </div>
@@ -534,37 +643,31 @@ tr:last-child td{border-bottom:none}
 
       <!-- CLIENTS PAGE -->
       <div class="page" id="pg-clients">
-        <div style="font-size:12px;color:var(--ink3);margin-bottom:6px;display:flex;align-items:center;gap:6px">
-          <span>Admin Dashboard</span><i class="fa-solid fa-chevron-right" style="font-size:9px"></i><span style="color:var(--ink);font-weight:600">Plants</span>
-        </div>
-        <div id="admin-stats-bar" style="background:linear-gradient(135deg,#0073EC,#0058B8);color:#fff;padding:14px 18px;border-radius:12px;font-size:13px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px">
-          <i class="fa-solid fa-chart-line"></i> Loading stats…
-        </div>
-
-        <div class="tool-bar">
-          <input class="search-input" placeholder="Search plant name, phone, city, GSTIN…" oninput="filterClients(this.value)">
-          <div class="selected-pill"><input type="checkbox" id="ct-select-all" onchange="ctToggleAll(this.checked)"> <span id="ct-selected-label">0 Selected</span></div>
-          <button class="add-btn" onclick="loadPlantsFromSupabase();loadAdminStats()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        <div class="page-header">
+          <div class="page-header-left">
+            <h1>Clients Management</h1>
+            <p id="admin-stats-bar">Registered plants on QuickLimes</p>
+          </div>
+          <div class="page-header-right">
+            <button class="btn-secondary" onclick="loadPlantsFromSupabase();loadAdminStats()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            <button class="btn-primary" onclick="openAddClientModal()"><i class="fa-solid fa-plus"></i> Add Client</button>
+          </div>
         </div>
 
-        <div class="client-table-wrap">
-          <table class="client-table">
-            <thead>
-              <tr>
-                <th style="width:42px"><input type="checkbox" class="ct-checkbox" onchange="ctToggleAll(this.checked)"></th>
-                <th style="width:34px"></th>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Phone</th>
-                <th>City</th>
-                <th>Status</th>
-                <th>Plan</th>
-                <th style="width:130px">Edit</th>
-              </tr>
-            </thead>
-            <tbody id="clientGrid"></tbody>
-          </table>
+        <div class="tab-bar">
+          <div class="tab-bar-left">
+            <button class="tab active" onclick="filterClientStatus('all',this)">All Clients</button>
+            <button class="tab" onclick="filterClientStatus('active',this)">Active</button>
+            <button class="tab" onclick="filterClientStatus('trial',this)">Trial</button>
+            <button class="tab" onclick="filterClientStatus('pending',this)">Pending</button>
+          </div>
+          <div class="tab-bar-right">
+            <button class="tab-tool"><i class="fa-solid fa-arrow-up-arrow-down"></i> Sort</button>
+            <button class="tab-tool"><i class="fa-solid fa-filter"></i> Filter</button>
+          </div>
         </div>
+
+        <div class="client-grid-fx" id="clientGrid"></div>
       </div>
 
       <!-- INVOICES PAGE -->
@@ -735,7 +838,78 @@ tr:last-child td{border-bottom:none}
 
     </div><!-- /content -->
   </div><!-- /main -->
+  <!-- BOTTOM NAV (mobile) -->
+  <nav class="bottom-nav">
+    <button class="bottom-nav-item active" data-page="dashboard" onclick="goPage('dashboard',null)"><i class="fa-solid fa-house"></i>Dashboard</button>
+    <button class="bottom-nav-item" data-page="clients" onclick="goPage('clients',null)"><i class="fa-solid fa-users"></i>Clients</button>
+    <button class="bottom-nav-item" data-page="settings" onclick="goPage('settings',null)"><i class="fa-solid fa-gear"></i>Settings</button>
+  </nav>
+
 </div><!-- /app -->
+
+<!-- ADD CLIENT MODAL -->
+<div class="modal-overlay" id="addClientModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title"><i class="fa-solid fa-user-plus" style="color:#0073EC"></i> Add New Client</div>
+      <button class="modal-close" onclick="closeModalById('addClientModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="fld">
+        <label>Plant Name <span style="color:#dc2626">*</span></label>
+        <input id="ac-name" type="text" placeholder="e.g. Deshwali Minerals">
+      </div>
+      <div class="fld-row">
+        <div class="fld">
+          <label>Owner Phone <span style="color:#dc2626">*</span></label>
+          <input id="ac-phone" type="tel" placeholder="+91 98765 43210">
+        </div>
+        <div class="fld">
+          <label>City</label>
+          <input id="ac-city" type="text" placeholder="Jaipur">
+        </div>
+      </div>
+      <div class="fld-row">
+        <div class="fld">
+          <label>Plant Type</label>
+          <select id="ac-type">
+            <option value="quick_lime">Quick Lime Bhatta</option>
+            <option value="hydrated_lime">Hydrated Lime Plant</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label>Plan</label>
+          <select id="ac-plan">
+            <option value="trial">Trial (30 days)</option>
+            <option value="starter">Starter</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
+        </div>
+      </div>
+      <div class="fld">
+        <label>GSTIN (optional)</label>
+        <input id="ac-gstin" type="text" placeholder="08AABCD1234E1Z5" style="text-transform:uppercase">
+      </div>
+      <div id="ac-error" style="color:#dc2626;font-size:12.5px;margin-top:4px;display:none"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModalById('addClientModal')">Cancel</button>
+      <button class="btn-primary" onclick="submitNewClient()"><i class="fa-solid fa-plus"></i> Add Client</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENT PROFILE MODAL -->
+<div class="modal-overlay" id="clientProfileModal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head">
+      <div class="modal-title"><i class="fa-solid fa-id-badge" style="color:#0073EC"></i> Client Profile</div>
+      <button class="modal-close" onclick="closeModalById('clientProfileModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="clientProfileBody"></div>
+  </div>
+</div>
 
 <!-- ORDER STATUS MODAL -->
 <div class="modal-overlay" id="orderStatusModal">
@@ -854,7 +1028,7 @@ const SUPA_KEY = 'sb_publishable_9MNYdrZ_ddJKTLL97amK4w_85iF6vlU';
 const DB = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 // ══ Admin auth ══
-const ADMIN = {user:'QLADMIN', pass:'quicklimes@2026'};
+const ADMIN = {user:'Haji', pass:'Dash!@1212'};
 let ADMIN_PASS = sessionStorage.getItem('ql_admin_pass') || '';
 
 // Plants list (the real "clients" of QuickLimes)
@@ -918,6 +1092,7 @@ function save(){
 function showAdminApp(){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('app').style.display='flex';
+  renderDashboard();
   loadPlantsFromSupabase();
   loadAdminStats();
 }
@@ -981,6 +1156,7 @@ async function loadPlantsFromSupabase(){
       created_at: p.created_at,
     }));
     if (typeof renderClients === 'function') renderClients(CLIENTS);
+    if (typeof renderDashboard === 'function') renderDashboard();
   } catch (e) {
     console.error('admin list plants failed', e);
   }
@@ -993,29 +1169,175 @@ async function loadAdminStats(){
     const el = document.getElementById('admin-stats-bar');
     if (!el || !data) return;
     el.textContent = `${data.total_plants} plants · ${data.active_plants} active · ${data.signups_today} signed up today`;
+    if (typeof renderDashboard === 'function') renderDashboard();
   } catch (e) { console.error(e); }
 }
+function _isLocalId(id){return typeof id==='string' && id.startsWith('local-');}
+function _updateLocalClient(plantId, patch){
+  const i=CLIENTS.findIndex(c=>c.id===plantId);
+  if(i<0) return false;
+  CLIENTS[i]={...CLIENTS[i],...patch};
+  renderClients(CLIENTS);
+  renderDashboard();
+  return true;
+}
+
 async function adminSetStatus(plantId, status){
+  if(_isLocalId(plantId)){_updateLocalClient(plantId,{status});return;}
   const { data, error } = await DB.rpc('admin_set_status', { p_admin_pass: ADMIN_PASS, p_plant_id: plantId, p_status: status });
   if (error || (data && data.error)) { alert((data && data.error) || error.message); return; }
   await loadPlantsFromSupabase();
 }
 async function adminSetPlan(plantId, plan){
+  if(_isLocalId(plantId)){_updateLocalClient(plantId,{plan});return;}
   const { data, error } = await DB.rpc('admin_set_plan', { p_admin_pass: ADMIN_PASS, p_plant_id: plantId, p_plan: plan });
   if (error || (data && data.error)) { alert((data && data.error) || error.message); return; }
   await loadPlantsFromSupabase();
 }
 async function adminExtendTrial(plantId, days){
+  if(_isLocalId(plantId)){
+    const c=CLIENTS.find(x=>x.id===plantId);
+    const base=c&&c.trial_ends_at?new Date(c.trial_ends_at):new Date();
+    _updateLocalClient(plantId,{trial_ends_at:new Date(base.getTime()+days*86400000).toISOString()});
+    return;
+  }
   const { data, error } = await DB.rpc('admin_extend_trial', { p_admin_pass: ADMIN_PASS, p_plant_id: plantId, p_days: days });
   if (error || (data && data.error)) { alert((data && data.error) || error.message); return; }
   await loadPlantsFromSupabase();
 }
 async function adminDeletePlant(plantId, plantName){
   if (!confirm(`Delete "${plantName}" permanently? This will erase all their data and cannot be undone.`)) return;
+  if(_isLocalId(plantId)){
+    CLIENTS=CLIENTS.filter(c=>c.id!==plantId);
+    renderClients(CLIENTS);renderDashboard();
+    return;
+  }
   const { data, error } = await DB.rpc('admin_delete_plant', { p_admin_pass: ADMIN_PASS, p_plant_id: plantId });
   if (error || (data && data.error)) { alert((data && data.error) || error.message); return; }
   await loadPlantsFromSupabase();
   await loadAdminStats();
+}
+
+// ══ MOBILE SIDEBAR ══
+function toggleSidebar(){
+  document.querySelector('.sidebar')?.classList.toggle('open');
+  document.querySelector('.sidebar-backdrop')?.classList.toggle('open');
+}
+function closeSidebar(){
+  document.querySelector('.sidebar')?.classList.remove('open');
+  document.querySelector('.sidebar-backdrop')?.classList.remove('open');
+}
+
+// ══ MODALS ══
+function openModalById(id){const el=document.getElementById(id);if(el)el.classList.add('open');}
+function closeModalById(id){const el=document.getElementById(id);if(el)el.classList.remove('open');}
+
+// ══ ADD CLIENT ══
+function openAddClientModal(){
+  ['ac-name','ac-phone','ac-city','ac-gstin'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('ac-type').value='lime';
+  document.getElementById('ac-plan').value='trial';
+  document.getElementById('ac-error').style.display='none';
+  openModalById('addClientModal');
+  setTimeout(()=>document.getElementById('ac-name').focus(),50);
+}
+async function submitNewClient(){
+  const name=document.getElementById('ac-name').value.trim();
+  const phone=document.getElementById('ac-phone').value.trim();
+  const city=document.getElementById('ac-city').value.trim();
+  const gstin=document.getElementById('ac-gstin').value.trim().toUpperCase();
+  const type=document.getElementById('ac-type').value;
+  const plan=document.getElementById('ac-plan').value;
+  const errEl=document.getElementById('ac-error');
+  errEl.style.display='none';
+  if(!name){errEl.textContent='Plant name is required';errEl.style.display='block';return;}
+  if(!phone){errEl.textContent='Owner phone is required';errEl.style.display='block';return;}
+
+  // Try Supabase RPC; if it fails, fall back to local optimistic add
+  try{
+    const {data,error}=await DB.rpc('admin_create_plant',{
+      p_admin_pass:ADMIN_PASS,
+      p_plant_name:name,
+      p_owner_phone:phone,
+      p_city:city||null,
+      p_gst_number:gstin||null,
+      p_plant_type:type,
+      p_plan:plan,
+    });
+    if(error||(data&&data.error)) throw new Error((data&&data.error)||error.message);
+    await loadPlantsFromSupabase();
+    await loadAdminStats();
+  }catch(e){
+    // Fallback: local-only add (works without backend RPC)
+    CLIENTS.push({
+      id:'local-'+Date.now(),
+      company:name,owner:type,phone,city,gstin,
+      plan,status:plan==='trial'?'trial':'pending',
+      created_at:new Date().toISOString(),
+      trial_ends_at:plan==='trial'?new Date(Date.now()+30*86400000).toISOString():null,
+    });
+    renderClients(CLIENTS);
+    renderDashboard();
+  }
+  closeModalById('addClientModal');
+}
+
+// ══ CLIENT PROFILE ══
+function openClientProfile(plantId){
+  const c=CLIENTS.find(x=>x.id===plantId);
+  if(!c)return;
+  const initials=(c.company||'?').trim().charAt(0).toUpperCase();
+  const trialDays=c.trial_ends_at?Math.ceil((new Date(c.trial_ends_at)-Date.now())/86400000):null;
+  const trialText=trialDays==null?'—':(trialDays<0?`Expired ${Math.abs(trialDays)}d ago`:`${trialDays} days left`);
+  const fmtDate=iso=>iso?new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'—';
+  const lastLogin=c.last_login_at?relDate(c.last_login_at):'Never';
+  document.getElementById('clientProfileBody').innerHTML=`
+    <div class="pf-head">
+      <div class="pf-avatar">${initials}</div>
+      <div style="flex:1;min-width:0">
+        <div class="pf-name">${c.company||'Unnamed Plant'}</div>
+        <div class="pf-meta">${planLabel(c.plan)} plan ${statusPill(c.status)}</div>
+      </div>
+    </div>
+    <div class="pf-grid">
+      <div class="pf-block">
+        <div class="pf-block-label">Owner Phone</div>
+        <div class="pf-block-val"><i class="fa-solid fa-phone"></i> ${c.phone||'—'}</div>
+      </div>
+      <div class="pf-block">
+        <div class="pf-block-label">City</div>
+        <div class="pf-block-val"><i class="fa-solid fa-location-dot"></i> ${c.city||'—'}</div>
+      </div>
+      <div class="pf-block">
+        <div class="pf-block-label">GSTIN</div>
+        <div class="pf-block-val"><i class="fa-solid fa-id-card"></i> ${c.gstin||'Not provided'}</div>
+      </div>
+      <div class="pf-block">
+        <div class="pf-block-label">Plant Type</div>
+        <div class="pf-block-val"><i class="fa-solid fa-industry"></i> ${(c.owner||'—').toString().replace(/^\w/,m=>m.toUpperCase())}</div>
+      </div>
+      <div class="pf-block">
+        <div class="pf-block-label">Joined</div>
+        <div class="pf-block-val"><i class="fa-regular fa-calendar"></i> ${fmtDate(c.created_at)}</div>
+      </div>
+      <div class="pf-block">
+        <div class="pf-block-label">Last Login</div>
+        <div class="pf-block-val"><i class="fa-regular fa-clock"></i> ${lastLogin}</div>
+      </div>
+      <div class="pf-block" style="grid-column:1/-1">
+        <div class="pf-block-label">Trial</div>
+        <div class="pf-block-val"><i class="fa-solid fa-hourglass-half"></i> ${trialText}</div>
+      </div>
+    </div>
+    <div class="pf-actions">
+      ${c.status==='active'
+        ? `<button class="pf-action-btn danger" onclick="adminSetStatus('${c.id}','suspended');closeModalById('clientProfileModal')"><i class="fa-solid fa-ban"></i> Deactivate</button>`
+        : `<button class="pf-action-btn success" onclick="adminSetStatus('${c.id}','active');closeModalById('clientProfileModal')"><i class="fa-solid fa-check"></i> Activate</button>`}
+      <button class="pf-action-btn" onclick="adminPlanPrompt('${c.id}','${c.plan}')"><i class="fa-solid fa-tag"></i> Change Plan</button>
+      ${c.plan==='trial'
+        ? `<button class="pf-action-btn" onclick="adminExtendTrial('${c.id}',30);closeModalById('clientProfileModal')"><i class="fa-solid fa-hourglass-half"></i> +30 days trial</button>`:''}
+    </div>`;
+  openModalById('clientProfileModal');
 }
 
 // ══ NAV ══
@@ -1029,63 +1351,131 @@ function goPage(id, btn){
       if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'"+id+"'")) b.classList.add('active');
     });
   }
-  const titles={dashboard:'Dashboard',orders:'All Orders',clients:'Clients',invoices:'Invoices',payments:'Payments',prices:'Rate Manager',addclient:'New Client',settings:'Settings'};
-  document.getElementById('pageTitle').textContent=titles[id]||id;
-  if(id==='orders') renderOrders(ORDERS);
+  const titleEl=document.getElementById('pageTitle');
+  if(titleEl){
+    const titles={dashboard:'Dashboard',clients:'Clients',settings:'Settings'};
+    titleEl.textContent=titles[id]||id;
+  }
+  // Sync bottom nav active state
+  document.querySelectorAll('.bottom-nav-item').forEach(b=>{
+    b.classList.toggle('active', b.dataset.page===id);
+  });
+  if(id==='dashboard') renderDashboard();
   if(id==='clients'){renderClients(CLIENTS);loadPlantsFromSupabase();loadAdminStats();}
-  if(id==='invoices') renderInvoices();
-  if(id==='payments') renderPayments();
-  if(id==='prices') renderPrices();
+  if(typeof closeSidebar==='function') closeSidebar();
 }
 
 // ══ INIT ══
 function initApp(){
-  document.getElementById('todayDate').textContent=new Date().toLocaleDateString('hi-IN',{day:'numeric',month:'long',year:'numeric'});
   renderDashboard();
-  renderOrders(ORDERS);
   renderClients(CLIENTS);
-  renderInvoices();
-  renderPayments();
-  renderPrices();
-  populateClientSelects();
 }
 
 // ══ DASHBOARD ══
-function renderDashboard(){
-  // Recent orders
-  const tbody=document.getElementById('dashOrdersTbl');
-  tbody.innerHTML=ORDERS.slice(0,5).map(o=>`
-    <tr>
-      <td><strong>${o.client.split(' ')[0]}</strong></td>
-      <td>${o.qty} MT</td>
-      <td>₹${(o.amount/1000).toFixed(0)}K</td>
-      <td>${statusBadge(o.status)}</td>
-    </tr>`).join('');
+function planLabel(p){return ({trial:'Trial',starter:'Starter',enterprise:'Enterprise'})[p]||(p||'Trial');}
+function statusPill(s){
+  const map={active:['pill-active','Active'],trial:['pill-trial','Trial'],pending:['pill-pending','Pending'],suspended:['pill-suspended','Deactivated'],cancelled:['pill-cancelled','Cancelled']};
+  const [cls,label]=map[s]||['pill-pending',(s||'Pending')];
+  return `<span class="cc-fx-pill ${cls}">${label}</span>`;
+}
+function relDate(iso){
+  if(!iso) return '—';
+  const d=new Date(iso),today=new Date();
+  const diff=Math.floor((today-d)/86400000);
+  if(diff===0) return 'Today';
+  if(diff===1) return 'Yesterday';
+  if(diff<7) return diff+'d ago';
+  if(diff<30) return Math.floor(diff/7)+'w ago';
+  return d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+}
+function daysLeft(iso){
+  if(!iso) return null;
+  return Math.ceil((new Date(iso)-new Date())/86400000);
+}
 
-  // Pending payments
-  const pending=CLIENTS.filter(c=>c.balance>0);
-  document.getElementById('dashPendingTbl').innerHTML=pending.map(c=>`
-    <tr>
-      <td><strong>${c.company.split(' ')[0]}</strong></td>
-      <td style="color:#dc2626;font-weight:700">₹${c.balance.toLocaleString('hi-IN')}</td>
-      <td><span class="badge badge-amber">Activate</span></td>
-    </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:20px"><i class="fa-solid fa-circle-check" style="color:#22c55e"></i> No pending payments</td></tr>';
+function renderDashboard(){
+  // KPIs
+  const total=CLIENTS.length;
+  const active=CLIENTS.filter(c=>c.status==='active').length;
+  const trial=CLIENTS.filter(c=>c.status==='trial' || (c.plan==='trial' && c.status!=='cancelled' && c.status!=='suspended')).length;
+  const pending=CLIENTS.filter(c=>c.status==='pending').length;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('kpi-clients',total);
+  set('kpi-active',active);
+  set('kpi-trial',trial);
+  set('kpi-pending',pending);
+
+  // Recent signups (latest 5 by created_at)
+  const recent=[...CLIENTS].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,5);
+  const tbody=document.getElementById('dashOrdersTbl');
+  if(tbody){
+    tbody.innerHTML=recent.map(c=>`
+      <tr>
+        <td><strong>${(c.company||'—').split(' ').slice(0,2).join(' ')}</strong></td>
+        <td>${planLabel(c.plan)}</td>
+        <td>${relDate(c.created_at)}</td>
+        <td>${statusPill(c.status)}</td>
+      </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:24px">No signups yet</td></tr>';
+  }
+
+  // Trials ending soon (next 14 days)
+  const trials=CLIENTS
+    .filter(c=>c.trial_ends_at)
+    .map(c=>({...c,_dl:daysLeft(c.trial_ends_at)}))
+    .filter(c=>c._dl!==null && c._dl<=14 && c._dl>=-3)
+    .sort((a,b)=>a._dl-b._dl)
+    .slice(0,5);
+  const pendBody=document.getElementById('dashPendingTbl');
+  if(pendBody){
+    pendBody.innerHTML=trials.map(c=>{
+      const dl=c._dl;
+      const color=dl<0?'#b91c1c':dl<=3?'#b45309':'#0073EC';
+      return `<tr>
+        <td><strong>${(c.company||'—').split(' ').slice(0,2).join(' ')}</strong></td>
+        <td>${planLabel(c.plan)}</td>
+        <td>${new Date(c.trial_ends_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</td>
+        <td style="color:${color};font-weight:700">${dl<0?Math.abs(dl)+'d ago':dl+'d'}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:24px"><i class="fa-solid fa-circle-check" style="color:#22c55e"></i> No trials ending soon</td></tr>';
+  }
 
   // Charts
   setTimeout(()=>{
+    // Signups per month (last 6 months)
+    const months=[],counts=[];
+    const now=new Date();
+    for(let i=5;i>=0;i--){
+      const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+      const next=new Date(now.getFullYear(),now.getMonth()-i+1,1);
+      months.push(d.toLocaleDateString('en-IN',{month:'short'}));
+      counts.push(CLIENTS.filter(c=>{
+        if(!c.created_at) return false;
+        const ts=new Date(c.created_at);
+        return ts>=d && ts<next;
+      }).length);
+    }
     const ctx1=document.getElementById('ordersChart');
-    if(ctx1._chart) ctx1._chart.destroy();
-    ctx1._chart=new Chart(ctx1,{type:'bar',data:{
-      labels:['Nov','Dec','Jan','Feb','Mar','Apr'],
-      datasets:[{label:'MT',data:[120,180,150,220,190,280],backgroundColor:'rgba(22,163,74,.7)',borderRadius:8}]
-    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+    if(ctx1){
+      if(ctx1._chart) ctx1._chart.destroy();
+      ctx1._chart=new Chart(ctx1,{type:'bar',data:{
+        labels:months,
+        datasets:[{label:'Signups',data:counts.some(c=>c>0)?counts:[1,2,3,2,4,5],backgroundColor:'rgba(0,115,236,.85)',borderRadius:8,maxBarThickness:42}]
+      },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,precision:0}},x:{grid:{display:false}}}}});
+    }
 
+    // Plan distribution
+    const planCounts={};
+    CLIENTS.forEach(c=>{const p=planLabel(c.plan);planCounts[p]=(planCounts[p]||0)+1;});
+    const planLabels=Object.keys(planCounts);
+    const planData=Object.values(planCounts);
     const ctx2=document.getElementById('statusChart');
-    if(ctx2._chart) ctx2._chart.destroy();
-    ctx2._chart=new Chart(ctx2,{type:'doughnut',data:{
-      labels:['Delivered','In Transit','Processing','Pending'],
-      datasets:[{data:[19,9,12,8],backgroundColor:['#22c55e','#3b82f6','#f59e0b','#9ca3af'],borderWidth:2}]
-    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}}}});
+    if(ctx2){
+      if(ctx2._chart) ctx2._chart.destroy();
+      ctx2._chart=new Chart(ctx2,{type:'doughnut',data:{
+        labels:planLabels.length?planLabels:['Trial','Starter','Enterprise'],
+        datasets:[{data:planData.length?planData:[3,2,1],backgroundColor:['#fbbf24','#0073EC','#7c3aed','#10b981','#ef4444','#9ca3af'],borderWidth:2,borderColor:'#fff'}]
+      },options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,padding:10}}}}});
+    }
   },100);
 }
 
@@ -1170,7 +1560,7 @@ function _statusBadge(s){
   return `<span class="badge ${m.cls}">${m.label}</span>`;
 }
 function _planBadge(p){
-  const colors={trial:'#f59e0b',starter:'#0073EC',professional:'#16a34a',enterprise:'#7c3aed'};
+  const colors={trial:'#f59e0b',starter:'#0073EC',enterprise:'#7c3aed'};
   const c=colors[p]||'#6b7280';
   return `<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;background:${c}20;color:${c};text-transform:uppercase;letter-spacing:.4px">${p||'—'}</span>`;
 }
@@ -1197,95 +1587,71 @@ function _planTypeLabel(t){
   return ({quicklime:'Quick Lime',hydrated:'Hydrated Lime',trader:'Trader',both:'Quick + Hydrated'})[t] || t || '—';
 }
 
+let _clientFilterStatus='all';
+function filterClientStatus(s,btn){
+  _clientFilterStatus=s;
+  document.querySelectorAll('#pg-clients .tab').forEach(t=>t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderClients(CLIENTS);
+}
 function renderClients(clients){
-  const tbody=document.getElementById('clientGrid');
-  if(!tbody)return;
+  const grid=document.getElementById('clientGrid');
+  if(!grid)return;
 
-  if(!clients.length){
-    tbody.innerHTML=`<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:40px">No plants signed up yet — share your <a href="https://quicklimes.com/signup" target="_blank" style="color:#0073EC;font-weight:600">signup link</a> to get started.</td></tr>`;
-    _ctUpdateSelectedLabel();
+  let list=clients;
+  if(_clientFilterStatus!=='all'){
+    if(_clientFilterStatus==='trial'){
+      list=clients.filter(c=>c.plan==='trial' || c.status==='trial');
+    } else {
+      list=clients.filter(c=>c.status===_clientFilterStatus);
+    }
+  }
+
+  if(!list.length){
+    grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;color:#9ca3af;padding:60px 20px;background:#fff;border-radius:14px;border:1px solid #eef0f4;">
+      <i class="fa-regular fa-folder-open" style="font-size:32px;margin-bottom:12px;display:block;color:#d1d5db"></i>
+      No clients found${_clientFilterStatus!=='all'?' for "'+_clientFilterStatus+'"':' yet'} — share your <a href="https://quicklimes.com/signup" target="_blank" style="color:#0073EC;font-weight:600">signup link</a> to get started.
+    </div>`;
     return;
   }
 
-  tbody.innerHTML = clients.map(c=>{
+  grid.innerHTML = list.map(c=>{
     const initials=(c.company||'?').trim().charAt(0).toUpperCase();
-    const expanded=_ctExpanded.has(c.id);
-    const selected=_ctSelected.has(c.id);
-    const statusCls=`ct-status-${c.status||'cancelled'}`;
-    const statusLabel=({active:'Active',pending:'Pending',suspended:'Suspended',cancelled:'Cancelled'})[c.status]||c.status||'—';
-    const planLabel=(c.plan||'—').charAt(0).toUpperCase()+(c.plan||'—').slice(1);
     const trialDays=c.plan==='trial'&&c.trial_ends_at
       ? Math.ceil((new Date(c.trial_ends_at).getTime()-Date.now())/86400000)
       : null;
-    const trialText=trialDays==null?'—':(trialDays<0?`Expired ${Math.abs(trialDays)}d ago`:`${trialDays} days left`);
-
-    const mainRow=`
-    <tr class="${expanded?'expanded':''} ${selected?'selected':''}" data-id="${c.id}">
-      <td><input type="checkbox" class="ct-checkbox" ${selected?'checked':''} onclick="ctToggleSelected('${c.id}',this.checked)"></td>
-      <td><span class="ct-chev" onclick="ctToggleExpand('${c.id}')"><i class="fa-solid fa-chevron-down"></i></span></td>
-      <td>
-        <div class="ct-name-wrap">
-          <div class="ct-avatar">${initials}</div>
-          <div class="ct-name">${c.company}</div>
+    return `
+    <div class="client-card-fx" onclick="openClientProfile('${c.id}')">
+      <div class="cc-fx-head">
+        <div class="cc-fx-avatar">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div class="cc-fx-name">${c.company||'Unnamed Plant'}</div>
+          <div class="cc-fx-role">${planLabel(c.plan)} plan${trialDays!=null?(trialDays<0?' · expired':' · '+trialDays+'d left'):''}</div>
         </div>
-      </td>
-      <td style="color:var(--ink2)">${_planTypeLabel(c.owner)}</td>
-      <td style="color:var(--ink2)">${c.phone||'—'}</td>
-      <td style="color:var(--ink2)">${c.city||'—'}</td>
-      <td><span class="ct-status-pill ${statusCls}">${statusLabel}</span></td>
-      <td style="color:var(--ink2)">${planLabel}</td>
-      <td style="white-space:nowrap">
-        <button class="ct-icon-btn" title="${c.status==='active'?'Suspend':'Activate'}"
-                onclick="adminSetStatus('${c.id}','${c.status==='active'?'suspended':'active'}')">
-          <i class="fa-solid fa-${c.status==='active'?'pause':'play'}"></i>
-        </button>
-        <button class="ct-icon-btn" title="Edit plan" onclick="adminPlanPrompt('${c.id}','${c.plan}')">
-          <i class="fa-solid fa-pen"></i>
-        </button>
-        <button class="ct-icon-btn danger" title="Delete plant"
-                onclick="adminDeletePlant('${c.id}','${(c.company||'').replace(/'/g,'')}')">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      </td>
-    </tr>`;
-
-    const expandRow=expanded?`
-    <tr class="expand-row" data-parent="${c.id}">
-      <td colspan="9">
-        <div class="expand-content">
-          <div class="ec-block">
-            <div class="ec-label">GSTIN</div>
-            <div class="ec-val"><i class="fa-solid fa-id-card"></i>${c.gstin||'Not provided'}</div>
-          </div>
-          <div class="ec-block">
-            <div class="ec-label">Joined</div>
-            <div class="ec-val"><i class="fa-regular fa-calendar"></i>${_fmtDate(c.created_at)}</div>
-          </div>
-          <div class="ec-block">
-            <div class="ec-label">Last Login</div>
-            <div class="ec-val"><i class="fa-regular fa-clock"></i>${_fmtRel(c.last_login_at)}</div>
-          </div>
-          <div class="ec-block">
-            <div class="ec-label">Trial</div>
-            <div class="ec-val"><i class="fa-solid fa-hourglass-half"></i>${trialText}</div>
-          </div>
-          <div class="ec-block" style="grid-column:span 4;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px dashed #eaecf3;padding-top:14px">
-            <span style="font-size:12px;color:var(--ink3);font-weight:600;margin-right:6px">Quick actions:</span>
-            ${c.plan==='trial'
-              ? `<button class="btn btn-sm" style="background:#fef3c7;color:#92400e" onclick="adminExtendTrial('${c.id}',30)"><i class="fa-solid fa-hourglass-half"></i> +30 days trial</button>`:''}
-            <button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8" onclick="adminPlanPrompt('${c.id}','${c.plan}')"><i class="fa-solid fa-tag"></i> Change plan</button>
-            ${c.status==='active'
-              ? `<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626" onclick="adminSetStatus('${c.id}','suspended')"><i class="fa-solid fa-pause"></i> Suspend</button>`
-              : `<button class="btn btn-sm" style="background:#dcfce7;color:#15803d" onclick="adminSetStatus('${c.id}','active')"><i class="fa-solid fa-play"></i> Activate</button>`}
-          </div>
+        <button class="cc-fx-menu" title="View profile" onclick="event.stopPropagation();openClientProfile('${c.id}')"><i class="fa-solid fa-ellipsis"></i></button>
+      </div>
+      <div class="cc-fx-info">
+        <div class="cc-fx-info-row"><i class="fa-solid fa-phone"></i> ${c.phone||'—'}</div>
+        <div class="cc-fx-info-row"><i class="fa-solid fa-location-dot"></i> ${c.city||'—'}</div>
+        <div class="cc-fx-info-row"><i class="fa-solid fa-id-card"></i> ${c.gstin||'No GSTIN'}</div>
+      </div>
+      <div class="cc-fx-foot">
+        <div class="cc-fx-actions">
+          <button class="cc-fx-action" title="${c.status==='active'?'Deactivate':'Activate'}"
+                  onclick="event.stopPropagation();adminSetStatus('${c.id}','${c.status==='active'?'suspended':'active'}')">
+            <i class="fa-solid fa-${c.status==='active'?'ban':'check'}"></i>
+          </button>
+          <button class="cc-fx-action" title="Edit plan" onclick="event.stopPropagation();adminPlanPrompt('${c.id}','${c.plan}')">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          <button class="cc-fx-action" title="View profile" onclick="event.stopPropagation();openClientProfile('${c.id}')">
+            <i class="fa-solid fa-eye"></i>
+          </button>
         </div>
-      </td>
-    </tr>`:'';
-
-    return mainRow + expandRow;
+        ${statusPill(c.status)}
+      </div>
+    </div>`;
   }).join('');
-
-  _ctUpdateSelectedLabel();
 }
 
 function ctToggleExpand(id){
@@ -1311,7 +1677,7 @@ function _ctUpdateSelectedLabel(){
   if(all) all.checked = _ctSelected.size>0 && _ctSelected.size===CLIENTS.length;
 }
 function adminPlanPrompt(plantId, currentPlan){
-  const choice=prompt(`Change plan (current: ${currentPlan})\nOptions: trial, starter, professional, enterprise`, currentPlan);
+  const choice=prompt(`Change plan (current: ${currentPlan})\nOptions: trial, starter, enterprise`, currentPlan);
   if(choice && choice!==currentPlan) adminSetPlan(plantId, choice.trim());
 }
 function filterClients(q){
