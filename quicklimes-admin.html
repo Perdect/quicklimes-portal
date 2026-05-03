@@ -658,7 +658,9 @@ tr:last-child td{border-bottom:none}
           <div class="tab-bar-left">
             <button class="tab active" onclick="filterClientStatus('all',this)">All Clients</button>
             <button class="tab" onclick="filterClientStatus('active',this)">Active</button>
-            <button class="tab" onclick="filterClientStatus('trial',this)">Trial</button>
+            <button class="tab" onclick="filterClientStatus('trial',this)">Free Trial</button>
+            <button class="tab" onclick="filterClientStatus('starter',this)">Starter</button>
+            <button class="tab" onclick="filterClientStatus('enterprise',this)">Enterprise</button>
             <button class="tab" onclick="filterClientStatus('pending',this)">Pending</button>
           </div>
           <div class="tab-bar-right">
@@ -1601,9 +1603,15 @@ function renderClients(clients){
 
   let list=clients;
   if(_clientFilterStatus!=='all'){
+    // Plan-based filters
     if(_clientFilterStatus==='trial'){
       list=clients.filter(c=>c.plan==='trial' || c.status==='trial');
+    } else if(_clientFilterStatus==='starter'){
+      list=clients.filter(c=>c.plan==='starter');
+    } else if(_clientFilterStatus==='enterprise'){
+      list=clients.filter(c=>c.plan==='enterprise');
     } else {
+      // Status-based filters (active, pending)
       list=clients.filter(c=>c.status===_clientFilterStatus);
     }
   }
@@ -1611,7 +1619,7 @@ function renderClients(clients){
   if(!list.length){
     grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;color:#9ca3af;padding:60px 20px;background:#fff;border-radius:14px;border:1px solid #eef0f4;">
       <i class="fa-regular fa-folder-open" style="font-size:32px;margin-bottom:12px;display:block;color:#d1d5db"></i>
-      No clients found${_clientFilterStatus!=='all'?' for "'+_clientFilterStatus+'"':' yet'} — share your <a href="https://quicklimes.com/signup" target="_blank" style="color:#0073EC;font-weight:600">signup link</a> to get started.
+      ${(()=>{const labels={trial:'on Free Trial',starter:'on Starter plan',enterprise:'on Enterprise plan',active:'with Active status',pending:'with Pending status'};return _clientFilterStatus==='all'?'No clients yet':'No clients '+(labels[_clientFilterStatus]||'found');})()} — share your <a href="https://quicklimes.com/signup" target="_blank" style="color:#0073EC;font-weight:600">signup link</a> to get started.
     </div>`;
     return;
   }
