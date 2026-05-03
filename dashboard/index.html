@@ -7794,5 +7794,112 @@ function exportChunna(){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Chunna Sales');
   XLSX.writeFile(wb,'ChunnaSales.xlsx');
 }
+
+// ═══════════════════════════════════════════════
+// EDIT PROFILE — replaces the legacy hidden #profile-menu
+// ═══════════════════════════════════════════════
+function toggleProfileMenu(){
+  // Open the new edit-profile modal instead of the old hidden dropdown
+  openEditProfileModal();
+}
+function openEditProfileModal(){
+  const c = (typeof CO==='function') ? CO() : null;
+  if(!c){ showToast?.('Profile not loaded','error'); return; }
+  document.getElementById('ep-name').value  = c.short || c.name || '';
+  document.getElementById('ep-city').value  = c.city || '';
+  document.getElementById('ep-gstin').value = c.gstin || '';
+  document.getElementById('ep-phone-display').textContent = (typeof QL_PLANT!=='undefined' ? QL_PLANT?.owner_phone : '') || '—';
+  document.getElementById('ep-error').style.display = 'none';
+  document.getElementById('ep-pass').value = '';
+  document.getElementById('editProfileModal').classList.add('open');
+  setTimeout(()=>document.getElementById('ep-name').focus(),60);
+}
+function closeEditProfileModal(){ document.getElementById('editProfileModal').classList.remove('open'); }
+async function submitEditProfile(){
+  const err  = document.getElementById('ep-error');
+  const btn  = document.getElementById('ep-save-btn');
+  err.style.display = 'none';
+  const name  = document.getElementById('ep-name').value.trim();
+  const city  = document.getElementById('ep-city').value.trim();
+  const gstin = document.getElementById('ep-gstin').value.trim().toUpperCase();
+  const pass  = document.getElementById('ep-pass').value;
+  if (name.length < 2)  { err.textContent='Company name is required'; err.style.display='block'; return; }
+  if (pass.length < 8)  { err.textContent='Enter your account password to confirm'; err.style.display='block'; return; }
+  const phone   = QL_PLANT?.owner_phone;
+  const plantId = (typeof CO==='function' ? CO()?.key : null);
+  if (!phone || !plantId) { err.textContent='Session error — please log in again'; err.style.display='block'; return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const { data, error } = await DB.rpc('update_my_plant', {
+      p_owner_phone: phone,
+      p_password:    pass,
+      p_plant_id:    plantId,
+      p_plant_name:  name,
+      p_city:        city || null,
+      p_gst_number:  gstin || null,
+    });
+    if (error || (data && data.error)) {
+      err.textContent = (data && data.error) || error.message;
+      err.style.display = 'block';
+      btn.disabled=false; btn.textContent='Save changes';
+      return;
+    }
+    // Update the in-memory COMPANIES entry so the UI refreshes immediately
+    const c = CO();
+    if (c) { c.name = name.toUpperCase(); c.short = name; c.city = city; c.gstin = gstin; }
+    if (typeof updateSidebarForCompany==='function') updateSidebarForCompany();
+    closeEditProfileModal();
+    if (typeof showToast==='function') showToast('Profile updated','success');
+    btn.disabled=false; btn.textContent='Save changes';
+  } catch (e) {
+    err.textContent = 'Network error — please try again';
+    err.style.display = 'block';
+    btn.disabled=false; btn.textContent='Save changes';
+  }
+}
 </script>
+
+<!-- EDIT PROFILE MODAL -->
+<div id="editProfileModal" style="position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px);font-family:Inter,sans-serif">
+  <style>#editProfileModal.open{display:flex}</style>
+  <div style="background:#fff;border-radius:14px;max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column;max-height:90vh">
+    <div style="padding:18px 22px;border-bottom:1px solid #eef0f4;display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:#0D1B2D">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0073EC" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit Profile
+      </div>
+      <button onclick="closeEditProfileModal()" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:18px;width:30px;height:30px;border-radius:8px">×</button>
+    </div>
+    <div style="padding:20px 22px;overflow-y:auto">
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:12.5px;font-weight:600;color:#374151;margin-bottom:6px">Company / Plant Name <span style="color:#dc2626">*</span></label>
+        <input id="ep-name" type="text" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13.5px;font-family:Inter,sans-serif;outline:none">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div>
+          <label style="display:block;font-size:12.5px;font-weight:600;color:#374151;margin-bottom:6px">City</label>
+          <input id="ep-city" type="text" placeholder="e.g. Jaipur" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13.5px;font-family:Inter,sans-serif;outline:none">
+        </div>
+        <div>
+          <label style="display:block;font-size:12.5px;font-weight:600;color:#374151;margin-bottom:6px">GSTIN</label>
+          <input id="ep-gstin" type="text" placeholder="08AABCD1234E1Z5" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13.5px;font-family:Inter,sans-serif;outline:none;text-transform:uppercase">
+        </div>
+      </div>
+      <div style="background:#f8fafc;border:1px solid #eef0f4;border-radius:9px;padding:10px 12px;margin-bottom:14px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:#6b7280">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        Phone: <strong id="ep-phone-display" style="color:#0D1B2D">—</strong> <span style="color:#9ca3af">(can't change here — contact support to update)</span>
+      </div>
+      <div style="margin-bottom:6px">
+        <label style="display:block;font-size:12.5px;font-weight:600;color:#374151;margin-bottom:6px">Confirm with your password <span style="color:#dc2626">*</span></label>
+        <input id="ep-pass" type="password" placeholder="Enter your account password" style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13.5px;font-family:Inter,sans-serif;outline:none">
+      </div>
+      <div id="ep-error" style="display:none;color:#dc2626;font-size:12.5px;margin-top:8px;background:#fef2f2;border:1px solid #fecaca;padding:9px 11px;border-radius:8px"></div>
+    </div>
+    <div style="padding:14px 22px;border-top:1px solid #eef0f4;background:#fafafa;display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="closeEditProfileModal()" style="padding:10px 16px;border:1px solid #e5e7eb;border-radius:9px;background:#fff;color:#374151;font-weight:600;font-size:13px;cursor:pointer;font-family:Inter,sans-serif">Cancel</button>
+      <button id="ep-save-btn" onclick="submitEditProfile()" style="padding:10px 18px;background:#0073EC;color:#fff;border:none;border-radius:9px;font-weight:700;font-size:13px;cursor:pointer;font-family:Inter,sans-serif">Save changes</button>
+    </div>
+  </div>
+</div>
+
 </body></html>
