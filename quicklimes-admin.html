@@ -482,9 +482,14 @@ tr:last-child td{border-bottom:none}
 
       <!-- CLIENTS PAGE -->
       <div class="page" id="pg-clients">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-          <input class="search-input" style="width:280px" placeholder="🔍 क्लाइंट खोजें..." oninput="filterClients(this.value)">
-          <button class="btn btn-green" onclick="goPage('addclient',null)">+ नया क्लाइंट जोड़ें</button>
+        <div id="admin-stats-bar" style="background:linear-gradient(135deg,#0073EC,#0058B8);color:#fff;padding:14px 18px;border-radius:12px;font-size:13px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+          <i class="fa-solid fa-chart-line"></i> Loading stats…
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap">
+          <input class="search-input" style="width:280px;flex:1;min-width:200px" placeholder="🔍 Search by name, phone, city..." oninput="filterClients(this.value)">
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="loadPlantsFromSupabase();loadAdminStats()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          </div>
         </div>
         <div class="client-grid" id="clientGrid"></div>
       </div>
@@ -768,11 +773,22 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// ══ DATA ══
-const ADMIN = {user:'QLADMIN', pass:'quicklimes@2026'};
+// ══ Supabase ══
+const SUPA_URL = 'https://iteaawedfmaujujyrqdu.supabase.co';
+const SUPA_KEY = 'sb_publishable_9MNYdrZ_ddJKTLL97amK4w_85iF6vlU';
+const DB = supabase.createClient(SUPA_URL, SUPA_KEY);
 
-let CLIENTS = JSON.parse(localStorage.getItem('ql_clients')||'null') || [
+// ══ Admin auth ══
+const ADMIN = {user:'QLADMIN', pass:'quicklimes@2026'};
+let ADMIN_PASS = sessionStorage.getItem('ql_admin_pass') || '';
+
+// Plants list (the real "clients" of QuickLimes)
+let CLIENTS = [];
+
+// Static reference data still used by other admin pages (orders, invoices, etc.)
+const _LEGACY_DEMO_CLIENTS = [
   {id:'C001',company:'Ramkaran Lime Udyog',owner:'रामकरण गुप्ता',phone:'+91 98765 43210',email:'ramkaran@example.com',gstin:'08ABCDE1234F1Z5',city:'जोधपुर, राजस्थान',address:'MIA Industrial Area, Jodhpur',username:'RAMKARAN2024',password:'lime@123',credit:500000,terms:'30 दिन',balance:68000,totalOrders:18,status:'active'},
   {id:'C002',company:'Shiv Lime Enterprises',owner:'शिव शंकर यादव',phone:'+91 87654 32109',email:'shiv@example.com',gstin:'23FGHIJ5678K2M6',city:'रतलाम, मध्य प्रदेश',address:'Industrial Colony, Ratlam',username:'SHIV_LIME',password:'lime@456',credit:300000,terms:'15 दिन',balance:45000,totalOrders:12,status:'active'},
   {id:'C003',company:'Manoj Minerals Pvt Ltd',owner:'मनोज वर्मा',phone:'+91 76543 21098',email:'manoj@example.com',gstin:'09KLMNO9012P3Q7',city:'आगरा, उत्तर प्रदेश',address:'Bypass Road, Agra',username:'MANOJ_MIN',password:'lime@789',credit:400000,terms:'30 दिन',balance:0,totalOrders:8,status:'active'},
@@ -826,11 +842,19 @@ function save(){
 }
 
 // ══ LOGIN ══
+function showAdminApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  loadPlantsFromSupabase();
+  loadAdminStats();
+}
 function doAdminLogin(){
   const u=document.getElementById('adminUser').value.trim();
   const p=document.getElementById('adminPass').value;
   if(u===ADMIN.user && p===ADMIN.pass){
-    window.location.href='https://app.quicklimes.com/';
+    ADMIN_PASS=p;
+    sessionStorage.setItem('ql_admin_pass',ADMIN_PASS);
+    showAdminApp();
   } else {
     const el=document.getElementById('loginError');
     el.style.display='block';
@@ -841,10 +865,84 @@ document.getElementById('adminPass').addEventListener('keydown',e=>{if(e.key==='
 document.getElementById('adminUser').addEventListener('keydown',e=>{if(e.key==='Enter')doAdminLogin()});
 
 function doLogout(){
+  ADMIN_PASS='';
+  sessionStorage.removeItem('ql_admin_pass');
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('app').style.display='none';
   document.getElementById('adminUser').value='';
   document.getElementById('adminPass').value='';
+}
+
+// Restore session if admin password is remembered
+if(ADMIN_PASS){
+  // defer until DOM is ready
+  setTimeout(showAdminApp, 0);
+}
+
+// ══ Real plant data from Supabase ══
+async function loadPlantsFromSupabase(){
+  if(!ADMIN_PASS) return;
+  try {
+    const { data, error } = await DB.rpc('admin_list_plants', { p_admin_pass: ADMIN_PASS });
+    if (error) { console.error(error); return; }
+    // Map plant rows to the existing CLIENT shape used by render code
+    CLIENTS = (data || []).map(p => ({
+      id: p.id,
+      company: p.plant_name || 'Unnamed Plant',
+      owner: p.plant_type || '',
+      phone: p.owner_phone || '',
+      email: '',
+      gstin: p.gst_number || '',
+      city: p.city || '',
+      address: '',
+      username: p.owner_phone || '',
+      password: '••••••••',
+      credit: 0,
+      terms: '',
+      balance: 0,
+      totalOrders: 0,
+      status: p.status,
+      plan: p.plan,
+      trial_ends_at: p.trial_ends_at,
+      last_login_at: p.last_login_at,
+      created_at: p.created_at,
+    }));
+    if (typeof renderClients === 'function') renderClients(CLIENTS);
+  } catch (e) {
+    console.error('admin list plants failed', e);
+  }
+}
+async function loadAdminStats(){
+  if(!ADMIN_PASS) return;
+  try {
+    const { data, error } = await DB.rpc('admin_stats', { p_admin_pass: ADMIN_PASS });
+    if (error) { console.error(error); return; }
+    const el = document.getElementById('admin-stats-bar');
+    if (!el || !data) return;
+    el.textContent = `${data.total_plants} plants · ${data.active_plants} active · ${data.signups_today} signed up today`;
+  } catch (e) { console.error(e); }
+}
+async function adminSetStatus(plantId, status){
+  const { data, error } = await DB.rpc('admin_set_status', { p_admin_pass: ADMIN_PASS, p_plant_id: plantId, p_status: status });
+  if (error || (data && data.error)) { alert((data && data.error) || error.message); return; }
+  await loadPlantsFromSupabase();
+}
+async function adminSetPlan(plantId, plan){
+  const { data, error } = await DB.rpc('admin_set_plan', { p_admin_pass: ADMIN_PASS, p_plant_id: plantId, p_plan: plan });
+  if (error || (data && data.error)) { alert((data && data.error) || error.message); return; }
+  await loadPlantsFromSupabase();
+}
+async function adminExtendTrial(plantId, days){
+  const { data, error } = await DB.rpc('admin_extend_trial', { p_admin_pass: ADMIN_PASS, p_plant_id: plantId, p_days: days });
+  if (error || (data && data.error)) { alert((data && data.error) || error.message); return; }
+  await loadPlantsFromSupabase();
+}
+async function adminDeletePlant(plantId, plantName){
+  if (!confirm(`Delete "${plantName}" permanently? This will erase all their data and cannot be undone.`)) return;
+  const { data, error } = await DB.rpc('admin_delete_plant', { p_admin_pass: ADMIN_PASS, p_plant_id: plantId });
+  if (error || (data && data.error)) { alert((data && data.error) || error.message); return; }
+  await loadPlantsFromSupabase();
+  await loadAdminStats();
 }
 
 // ══ NAV ══
@@ -861,7 +959,7 @@ function goPage(id, btn){
   const titles={dashboard:'डैशबोर्ड',orders:'सभी ऑर्डर',clients:'क्लाइंट्स',invoices:'इनवॉइस',payments:'भुगतान',prices:'रेट मैनेजर',addclient:'नया क्लाइंट',settings:'सेटिंग्स'};
   document.getElementById('pageTitle').textContent=titles[id]||id;
   if(id==='orders') renderOrders(ORDERS);
-  if(id==='clients') renderClients(CLIENTS);
+  if(id==='clients'){renderClients(CLIENTS);loadPlantsFromSupabase();loadAdminStats();}
   if(id==='invoices') renderInvoices();
   if(id==='payments') renderPayments();
   if(id==='prices') renderPrices();
@@ -988,34 +1086,84 @@ function saveNewOrder(){
 }
 
 // ══ CLIENTS ══
+function _statusBadge(s){
+  const map={
+    active:{cls:'badge-green',label:'Active'},
+    pending:{cls:'badge-amber',label:'Pending'},
+    suspended:{cls:'badge-red',label:'Suspended'},
+    cancelled:{cls:'badge-gray',label:'Cancelled'},
+  };
+  const m=map[s]||{cls:'badge-gray',label:s||'—'};
+  return `<span class="badge ${m.cls}">${m.label}</span>`;
+}
+function _planBadge(p){
+  const colors={trial:'#f59e0b',starter:'#0073EC',professional:'#16a34a',enterprise:'#7c3aed'};
+  const c=colors[p]||'#6b7280';
+  return `<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;background:${c}20;color:${c};text-transform:uppercase;letter-spacing:.4px">${p||'—'}</span>`;
+}
+function _fmtDate(s){ if(!s)return '—'; const d=new Date(s); return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+function _fmtRel(s){
+  if(!s)return 'Never';
+  const ms=Date.now()-new Date(s).getTime();
+  const m=Math.floor(ms/60000), h=Math.floor(m/60), d=Math.floor(h/24);
+  if(d>0)return d+'d ago'; if(h>0)return h+'h ago'; if(m>0)return m+'m ago'; return 'Just now';
+}
+function _trialBadge(c){
+  if(c.plan!=='trial')return '';
+  const ms=new Date(c.trial_ends_at).getTime()-Date.now();
+  const days=Math.ceil(ms/(1000*60*60*24));
+  const expired=days<0;
+  const color=expired?'#dc2626':(days<=7?'#f59e0b':'#10b981');
+  return `<div style="font-size:11px;font-weight:600;color:${color}">${expired?'Trial expired':`Trial: ${days} day${days!==1?'s':''} left`}</div>`;
+}
 function renderClients(clients){
-  document.getElementById('clientGrid').innerHTML=clients.map(c=>`
+  const grid=document.getElementById('clientGrid');
+  if(!grid)return;
+  grid.innerHTML=clients.map(c=>{
+    const initials=(c.company||'?').trim().charAt(0).toUpperCase();
+    const planType=({quicklime:'Quick Lime',hydrated:'Hydrated Lime',trader:'Trader',both:'Quick + Hydrated'})[c.owner]||c.owner||'';
+    return `
     <div class="client-card">
       <div class="cc-head">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div class="cc-avatar">${c.company[0]}</div>
-          <div>
-            <div class="cc-name">${c.company}</div>
-            <div class="cc-location"><i class="fa-solid fa-location-dot"></i> ${c.city}</div>
+        <div style="display:flex;align-items:center;gap:10px;min-width:0">
+          <div class="cc-avatar">${initials}</div>
+          <div style="min-width:0">
+            <div class="cc-name" title="${c.company}">${c.company}</div>
+            <div class="cc-location"><i class="fa-solid fa-phone"></i> ${c.phone||'—'}</div>
           </div>
         </div>
-        <span class="badge ${c.status==='active'?'badge-green':'badge-gray'}">${c.status==='active'?'सक्रिय':'निष्क्रिय'}</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">${_statusBadge(c.status)}${_planBadge(c.plan)}</div>
       </div>
-      <div style="font-size:12px;color:var(--ink3);margin-bottom:8px"><i class="fa-solid fa-user"></i> ${c.owner} · <i class="fa-solid fa-phone"></i> ${c.phone}</div>
-      <div style="font-size:12px;color:var(--ink3);margin-bottom:10px"><i class="fa-solid fa-key"></i> ${c.username} · <i class="fa-solid fa-credit-card"></i> क्रेडिट: ₹${(c.credit/1000).toFixed(0)}K</div>
-      <div class="cc-stats">
-        <div class="cc-stat"><div class="cc-stat-label">कुल ऑर्डर</div><div class="cc-stat-val">${c.totalOrders||0}</div></div>
-        <div class="cc-stat"><div class="cc-stat-label">बकाया</div><div class="cc-stat-val" style="${c.balance>0?'color:#dc2626':'color:var(--g)'}">₹${(c.balance||0).toLocaleString('hi-IN')}</div></div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:6px"><i class="fa-solid fa-industry"></i> ${planType||'—'}${c.gstin?` · GSTIN ${c.gstin}`:''}</div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;display:flex;justify-content:space-between;gap:8px">
+        <span><i class="fa-regular fa-clock"></i> Last login ${_fmtRel(c.last_login_at)}</span>
+        <span><i class="fa-regular fa-calendar"></i> Joined ${_fmtDate(c.created_at)}</span>
       </div>
-      <div class="cc-actions">
-        <button class="btn btn-outline btn-sm" onclick="editClient('${c.id}')"><i class="fa-solid fa-pen"></i> संपादन</button>
-        <button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8" onclick="viewClientOrders('${c.id}')"><i class="fa-solid fa-box"></i> ऑर्डर</button>
-        <button class="btn btn-sm" style="background:${c.status==='active'?'#fee2e2':'#dcfce7'};color:${c.status==='active'?'#dc2626':'#15803d'}" onclick="toggleClientStatus('${c.id}')">${c.status==='active'?'⏸ रोकें':'▶ चालू'}</button>
+      ${_trialBadge(c)}
+      <div class="cc-actions" style="margin-top:10px">
+        ${c.status==='active'
+          ? `<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626" onclick="adminSetStatus('${c.id}','suspended')"><i class="fa-solid fa-pause"></i> Suspend</button>`
+          : `<button class="btn btn-sm" style="background:#dcfce7;color:#15803d" onclick="adminSetStatus('${c.id}','active')"><i class="fa-solid fa-play"></i> Activate</button>`}
+        ${c.plan==='trial'
+          ? `<button class="btn btn-sm" style="background:#fef3c7;color:#92400e" onclick="adminExtendTrial('${c.id}',30)"><i class="fa-solid fa-hourglass-half"></i> +30 days</button>`
+          : ''}
+        <button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8" onclick="adminPlanPrompt('${c.id}','${c.plan}')"><i class="fa-solid fa-tag"></i> Plan</button>
+        <button class="btn btn-outline btn-sm" style="color:#dc2626;border-color:#fecaca" onclick="adminDeletePlant('${c.id}','${(c.company||'').replace(/'/g,'')}')"><i class="fa-solid fa-trash"></i></button>
       </div>
-    </div>`).join('') || '<div style="text-align:center;color:#6b7280;padding:40px;grid-column:1/-1">कोई क्लाइंट नहीं मिला</div>';
+    </div>`;
+  }).join('') || '<div style="text-align:center;color:#6b7280;padding:40px;grid-column:1/-1">No plants signed up yet — share your <a href="https://quicklimes.com/signup" target="_blank">signup link</a> to get started.</div>';
+}
+function adminPlanPrompt(plantId, currentPlan){
+  const choice=prompt(`Change plan (current: ${currentPlan})\nOptions: trial, starter, professional, enterprise`, currentPlan);
+  if(choice && choice!==currentPlan) adminSetPlan(plantId, choice.trim());
 }
 function filterClients(q){
-  renderClients(CLIENTS.filter(c=>c.company.toLowerCase().includes(q.toLowerCase())||c.owner.toLowerCase().includes(q.toLowerCase())||c.city.toLowerCase().includes(q.toLowerCase())));
+  const ql = (q||'').toLowerCase().trim();
+  if(!ql){renderClients(CLIENTS);return;}
+  renderClients(CLIENTS.filter(c=>{
+    const fields=[c.company,c.phone,c.city,c.gstin,c.plan,c.status].map(x=>(x||'').toString().toLowerCase());
+    return fields.some(f=>f.includes(ql));
+  }));
 }
 function toggleClientStatus(id){
   const c=CLIENTS.find(x=>x.id===id);
