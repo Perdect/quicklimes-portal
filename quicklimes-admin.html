@@ -135,25 +135,36 @@ body{font-family:Inter,sans-serif;color:var(--ink);background:var(--bg);display:
 .tab-view button{padding:7px 10px;background:#fff;border:none;color:#9ca3af;cursor:pointer;font-size:13px;}
 .tab-view button.active{background:#E5F0FD;color:#0073EC;}
 
-/* ── FILTER BAR (pill style with grouping) ── */
-.filter-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;margin-bottom:18px;background:#fff;border:1px solid #eef0f4;border-radius:14px;box-shadow:0 1px 2px rgba(15,23,42,.04);flex-wrap:wrap;}
-.filter-bar-left{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.filter-bar-right{display:flex;align-items:center;gap:6px;}
-.filter-group-label{font-size:10px;font-weight:700;color:#cbd5e1;letter-spacing:.7px;text-transform:uppercase;padding:0 4px 0 8px;border-left:1px solid #eef0f4;margin-left:4px;align-self:stretch;display:flex;align-items:center;}
-.fpill{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;border:1px solid transparent;background:transparent;color:#6b7280;font-size:12.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .12s;}
-.fpill:hover{background:#f8fafc;color:#0D1B2D;}
-.fpill.active{background:#0D1B2D;color:#fff;}
-.fpill.active .fpill-count{background:rgba(255,255,255,.18);color:#fff;}
-.fpill-all.active{background:#0073EC;}
-.fpill-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;}
-.fpill-label{line-height:1;}
-.fpill-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;padding:1px 6px;background:#f1f5f9;color:#64748b;border-radius:999px;font-size:11px;font-weight:700;line-height:1.4;}
-@media(max-width:768px){
-  .filter-bar{padding:10px 12px;gap:8px;}
-  .filter-group-label{display:none;}
-  .fpill{padding:6px 10px;font-size:12px;}
-  .fpill-count{min-width:18px;padding:1px 5px;font-size:10.5px;}
-}
+/* ── STAT FILTERS (KPI tile style) ── */
+.stat-filters{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px;font-family:Inter,sans-serif}
+.sf-card{background:#fff;border:1px solid #eef0f4;border-radius:12px;padding:14px 14px 12px;cursor:pointer;text-align:left;transition:border-color .15s,box-shadow .15s,transform .12s;position:relative;display:flex;flex-direction:column;gap:6px;font-family:Inter,sans-serif;overflow:hidden}
+.sf-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:transparent;transition:background .15s}
+.sf-card:hover{border-color:#bbd6f7;transform:translateY(-1px);box-shadow:0 6px 18px rgba(15,23,42,.06)}
+.sf-card.active{border-color:transparent;box-shadow:0 6px 20px rgba(15,23,42,.10)}
+.sf-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:#f1f5f9;color:#64748b;flex-shrink:0;transition:background .15s,color .15s}
+.sf-num{font-size:24px;font-weight:800;color:#0D1B2D;line-height:1;margin-top:4px}
+.sf-label{font-size:12px;font-weight:600;color:#64748b;letter-spacing:.2px}
+/* Per-card colour accents (icon bg + active state) */
+.sf-all .sf-icon{background:#dbeafe;color:#0073EC}
+.sf-all.active::before{background:#0073EC}
+.sf-all.active .sf-icon{background:#0073EC;color:#fff}
+.sf-active .sf-icon{background:#dcfce7;color:#15803d}
+.sf-active.active::before{background:#22c55e}
+.sf-active.active .sf-icon{background:#22c55e;color:#fff}
+.sf-pending .sf-icon{background:#ffedd5;color:#c2410c}
+.sf-pending.active::before{background:#f97316}
+.sf-pending.active .sf-icon{background:#f97316;color:#fff}
+.sf-trial .sf-icon{background:#fef3c7;color:#b45309}
+.sf-trial.active::before{background:#fbbf24}
+.sf-trial.active .sf-icon{background:#fbbf24;color:#fff}
+.sf-starter .sf-icon{background:#dbeafe;color:#0058B8}
+.sf-starter.active::before{background:#0073EC}
+.sf-starter.active .sf-icon{background:#0073EC;color:#fff}
+.sf-enterprise .sf-icon{background:#ede9fe;color:#6d28d9}
+.sf-enterprise.active::before{background:#7c3aed}
+.sf-enterprise.active .sf-icon{background:#7c3aed;color:#fff}
+@media(max-width:1100px){.stat-filters{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:560px){.stat-filters{grid-template-columns:repeat(2,1fr);gap:8px}.sf-card{padding:12px}.sf-num{font-size:20px}}
 
 /* ── PAGES ── */
 .page{display:none}
@@ -674,44 +685,37 @@ tr:last-child td{border-bottom:none}
           </div>
         </div>
 
-        <div class="filter-bar">
-          <div class="filter-bar-left">
-            <button class="fpill fpill-all active" data-filter="all" onclick="filterClientStatus('all',this)">
-              <span class="fpill-label">All Clients</span>
-              <span class="fpill-count" data-count="all">0</span>
-            </button>
-            <span class="filter-group-label">Status</span>
-            <button class="fpill" data-filter="active" onclick="filterClientStatus('active',this)">
-              <span class="fpill-dot" style="background:#22c55e"></span>
-              <span class="fpill-label">Active</span>
-              <span class="fpill-count" data-count="active">0</span>
-            </button>
-            <button class="fpill" data-filter="pending" onclick="filterClientStatus('pending',this)">
-              <span class="fpill-dot" style="background:#f97316"></span>
-              <span class="fpill-label">Pending</span>
-              <span class="fpill-count" data-count="pending">0</span>
-            </button>
-            <span class="filter-group-label">Plan</span>
-            <button class="fpill" data-filter="trial" onclick="filterClientStatus('trial',this)">
-              <span class="fpill-dot" style="background:#fbbf24"></span>
-              <span class="fpill-label">Free Trial</span>
-              <span class="fpill-count" data-count="trial">0</span>
-            </button>
-            <button class="fpill" data-filter="starter" onclick="filterClientStatus('starter',this)">
-              <span class="fpill-dot" style="background:#0073EC"></span>
-              <span class="fpill-label">Starter</span>
-              <span class="fpill-count" data-count="starter">0</span>
-            </button>
-            <button class="fpill" data-filter="enterprise" onclick="filterClientStatus('enterprise',this)">
-              <span class="fpill-dot" style="background:#7c3aed"></span>
-              <span class="fpill-label">Enterprise</span>
-              <span class="fpill-count" data-count="enterprise">0</span>
-            </button>
-          </div>
-          <div class="filter-bar-right">
-            <button class="tab-tool"><i class="fa-solid fa-arrow-up-arrow-down"></i> Sort</button>
-            <button class="tab-tool"><i class="fa-solid fa-filter"></i> Filter</button>
-          </div>
+        <div class="stat-filters">
+          <button class="sf-card sf-all active" data-filter="all" onclick="filterClientStatus('all',this)">
+            <div class="sf-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div class="sf-num" data-count="all">0</div>
+            <div class="sf-label">Total</div>
+          </button>
+          <button class="sf-card sf-active" data-filter="active" onclick="filterClientStatus('active',this)">
+            <div class="sf-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <div class="sf-num" data-count="active">0</div>
+            <div class="sf-label">Active</div>
+          </button>
+          <button class="sf-card sf-pending" data-filter="pending" onclick="filterClientStatus('pending',this)">
+            <div class="sf-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div class="sf-num" data-count="pending">0</div>
+            <div class="sf-label">Pending</div>
+          </button>
+          <button class="sf-card sf-trial" data-filter="trial" onclick="filterClientStatus('trial',this)">
+            <div class="sf-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6m0 8v6m-7.07-9.07l4.24 4.24m5.66 0l4.24-4.24M2 12h6m8 0h6m-9.07 7.07l4.24-4.24m0-5.66L9.93 4.93"/></svg></div>
+            <div class="sf-num" data-count="trial">0</div>
+            <div class="sf-label">Free Trial</div>
+          </button>
+          <button class="sf-card sf-starter" data-filter="starter" onclick="filterClientStatus('starter',this)">
+            <div class="sf-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+            <div class="sf-num" data-count="starter">0</div>
+            <div class="sf-label">Starter</div>
+          </button>
+          <button class="sf-card sf-enterprise" data-filter="enterprise" onclick="filterClientStatus('enterprise',this)">
+            <div class="sf-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg></div>
+            <div class="sf-num" data-count="enterprise">0</div>
+            <div class="sf-label">Enterprise</div>
+          </button>
         </div>
 
         <div class="client-grid-fx" id="clientGrid"></div>
@@ -1638,8 +1642,9 @@ function _planTypeLabel(t){
 let _clientFilterStatus='all';
 function filterClientStatus(s,btn){
   _clientFilterStatus=s;
-  document.querySelectorAll('#pg-clients .fpill').forEach(t=>t.classList.remove('active'));
-  if(btn) btn.classList.add('active');
+  document.querySelectorAll('#pg-clients .sf-card').forEach(t=>t.classList.remove('active'));
+  if(btn && btn.classList) btn.classList.add('active');
+  else { const el=document.querySelector(`#pg-clients .sf-card[data-filter="${s}"]`); if(el) el.classList.add('active'); }
   renderClients(CLIENTS);
 }
 function _updateFilterCounts(clients){
@@ -1652,7 +1657,7 @@ function _updateFilterCounts(clients){
     enterprise: clients.filter(c=>c.plan==='enterprise').length,
   };
   Object.keys(counts).forEach(k=>{
-    const el=document.querySelector(`#pg-clients .fpill-count[data-count="${k}"]`);
+    const el=document.querySelector(`#pg-clients .sf-num[data-count="${k}"]`);
     if(el) el.textContent=counts[k];
   });
 }
