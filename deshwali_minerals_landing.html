@@ -2224,10 +2224,6 @@ h1 .icon,h2 .icon,h3 .icon{width:0.85em;height:0.85em;vertical-align:-0.1em;}
           <label>Company / Firm Name</label>
           <input id="lf-company" type="text" placeholder="e.g. Raj Lime Industries" required/>
         </div>
-        <div class="form-group">
-          <label>Contact Person</label>
-          <input id="lf-person" type="text" placeholder="Owner / Manager name" required/>
-        </div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -2264,14 +2260,6 @@ h1 .icon,h2 .icon,h3 .icon{width:0.85em;height:0.85em;vertical-align:-0.1em;}
           <label>Location / District</label>
           <input id="lf-location" type="text" placeholder="e.g. Gotan, Nagaur" required/>
         </div>
-      </div>
-      <div class="form-group">
-        <label>Annual Production Capacity (MT)</label>
-        <input id="lf-capacity" type="text" placeholder="e.g. 5000 MT / year"/>
-      </div>
-      <div class="form-group">
-        <label>Additional Info</label>
-        <textarea id="lf-message" placeholder="Tell us about your business, certifications, buyer markets…" style="height:80px;"></textarea>
       </div>
       <button type="submit" class="modal-submit" id="lf-btn">Book My Demo →</button>
     </form>
@@ -2410,13 +2398,10 @@ async function submitListing(e){
   try{
     await sbInsert('business_listings',{
       company_name: document.getElementById('lf-company').value.trim(),
-      contact_person:document.getElementById('lf-person').value.trim(),
       phone:        document.getElementById('lf-phone').value.trim(),
       gst_number:   document.getElementById('lf-gst').value.trim().toUpperCase(),
       product_type: document.getElementById('lf-product').value,
       location:     document.getElementById('lf-location').value.trim(),
-      capacity:     document.getElementById('lf-capacity').value.trim(),
-      message:      document.getElementById('lf-message').value.trim(),
       source:       'English Landing Page'
     });
     showToast('success','Demo Booked!','We\'ll contact you within 2 hours to schedule your QuickLimes walkthrough.');
