@@ -1297,7 +1297,7 @@ function openClientProfile(plantId){
       <div class="pf-avatar">${initials}</div>
       <div style="flex:1;min-width:0">
         <div class="pf-name">${c.company||'Unnamed Plant'}</div>
-        <div class="pf-meta">${planLabel(c.plan)} plan ${statusPill(c.status)}</div>
+        <div class="pf-meta">${c.plan==='trial'?'30-Day Free Trial':(planLabel(c.plan)+' plan')} ${statusPill(c.status)}</div>
       </div>
     </div>
     <div class="pf-grid">
@@ -1627,7 +1627,7 @@ function renderClients(clients){
         <div class="cc-fx-avatar">${initials}</div>
         <div style="flex:1;min-width:0">
           <div class="cc-fx-name">${c.company||'Unnamed Plant'}</div>
-          <div class="cc-fx-role">${planLabel(c.plan)} plan${trialDays!=null?(trialDays<0?' · expired':' · '+trialDays+'d left'):''}</div>
+          <div class="cc-fx-role">${c.plan==='trial'?'30-Day Free Trial':(planLabel(c.plan)+' plan')}${trialDays!=null?(trialDays<0?' · expired':' · '+trialDays+'d left'):''}</div>
         </div>
         <button class="cc-fx-menu" title="View profile" onclick="event.stopPropagation();openClientProfile('${c.id}')"><i class="fa-solid fa-ellipsis"></i></button>
       </div>
