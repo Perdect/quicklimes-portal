@@ -2297,9 +2297,22 @@ let COMPANIES={
     dataKey:'dm_data_v2_gotan'
   }
 };
-// Inject a generic COMPANIES entry for the logged-in plant if not already a known key
-const QL_DATA_KEY = QL_PLANT.id;
-if (!COMPANIES[QL_DATA_KEY]) {
+// Multi-tenancy: each logged-in user sees ONLY their own company.
+// 1) If the user matches a legacy hardcoded entry by plant_name (e.g. the
+//    long-standing Deshwali/Gotan accounts), reuse that key so all the
+//    pre-filled GSTIN/address/bank info is preserved.
+// 2) Otherwise inject a generic entry keyed by their plant UUID.
+// 3) Strip every OTHER entry from COMPANIES so the switcher dropdown only
+//    shows one item (and the existing UI hides it when there's just one).
+let QL_DATA_KEY = QL_PLANT.id;
+const _qlNameUpper = (QL_PLANT.plant_name || '').trim().toUpperCase();
+const _matchedKey = Object.entries(COMPANIES).find(([_k, c]) =>
+  (c.name || '').trim().toUpperCase() === _qlNameUpper ||
+  (c.short || '').trim().toUpperCase() === _qlNameUpper
+)?.[0];
+if (_matchedKey) {
+  QL_DATA_KEY = _matchedKey;
+} else if (!COMPANIES[QL_DATA_KEY]) {
   COMPANIES[QL_DATA_KEY] = {
     key: QL_DATA_KEY,
     name: (QL_PLANT.plant_name || 'Your Plant').toUpperCase(),
@@ -2311,8 +2324,10 @@ if (!COMPANIES[QL_DATA_KEY]) {
     dataKey: 'ql_data_' + QL_DATA_KEY
   };
 }
-let ACTIVE_CO = localStorage.getItem('dm_active_co') || QL_DATA_KEY;
-if (!COMPANIES[ACTIVE_CO]) ACTIVE_CO = QL_DATA_KEY;
+// Drop all entries that don't belong to this user
+Object.keys(COMPANIES).forEach(k => { if (k !== QL_DATA_KEY) delete COMPANIES[k]; });
+let ACTIVE_CO = QL_DATA_KEY;
+localStorage.setItem('dm_active_co', ACTIVE_CO);
 function CO(){return COMPANIES[ACTIVE_CO];}
 
 // ══ DATA ══
