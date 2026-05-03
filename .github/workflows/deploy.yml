@@ -12,26 +12,51 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build deploy folders
+      - name: Build deploy tree
         run: |
-          mkdir -p deploy/app deploy/admin deploy/root
-          cp quicklime.html deploy/app/index.html
+          set -e
+          mkdir -p deploy
+
+          # ── ROOT (quicklimes.com) ──
+          # Marketing site + signup + login + legal pages + assets
+          cp quicklimes-landing.html deploy/index.html
+          cp signup.html             deploy/signup.html
+          cp privacy_policy.html     deploy/privacy_policy.html
+          cp terms_and_conditions.html deploy/terms_and_conditions.html
+          cp quicklime.html          deploy/quicklime.html
+          cp quicklimes-admin.html   deploy/quicklimes-admin.html
+          cp -r assets               deploy/assets
+
+          # ── APP SUBDOMAIN (app.quicklimes.com) ──
+          # The dashboard
+          mkdir -p deploy/app
+          cp dashboard/index.html         deploy/app/index.html
+          cp dashboard/manifest.json      deploy/app/manifest.json
+          cp dashboard/icon.svg           deploy/app/icon.svg
+          cp dashboard/quick-limes-logo.png deploy/app/quick-limes-logo.png
+          cp -r "dashboard/Deshwali Minerals — Business Suite_files" deploy/app/
+          # Make the brand logo also accessible inside /app for any header reuse
+          cp -r assets deploy/app/assets
+
+          # ── ADMIN SUBDOMAIN (admin.quicklimes.com) ──
+          # Admin login → redirects to dashboard on success
+          mkdir -p deploy/admin
           cp quicklimes-admin.html deploy/admin/index.html
-          cp quicklimes-landing.html deploy/root/index.html
+          cp -r assets             deploy/admin/assets
 
-      - name: 🚀 Upload all files via FTP
-        run: |
-          curl -T deploy/root/index.html \
-            "ftp://62.72.28.240/index.html" \
-            -u "$FTP_USER:$FTP_PASS" --ftp-create-dirs --ssl-reqd --insecure
+          echo "── deploy tree ──"
+          find deploy -maxdepth 3 -type f | sort
 
-          curl -T deploy/app/index.html \
-            "ftp://62.72.28.240/app/index.html" \
-            -u "$FTP_USER:$FTP_PASS" --ftp-create-dirs --ssl-reqd --insecure
-
-          curl -T deploy/admin/index.html \
-            "ftp://62.72.28.240/admin/index.html" \
-            -u "$FTP_USER:$FTP_PASS" --ftp-create-dirs --ssl-reqd --insecure
-        env:
-          FTP_USER: ${{ secrets.FTP_USERNAME }}
-          FTP_PASS: ${{ secrets.FTP_PASSWORD }}
+      - name: 🚀 Sync deploy/ to Hostinger via FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: 62.72.28.240
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./deploy/
+          server-dir: /
+          state-name: .ftp-deploy-sync-state.json
+          log-level: minimal
+          # Don't delete other files on the server (keeps anything outside deploy/)
+          dangerous-clean-slate: false
