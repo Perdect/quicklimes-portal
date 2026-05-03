@@ -135,6 +135,26 @@ body{font-family:Inter,sans-serif;color:var(--ink);background:var(--bg);display:
 .tab-view button{padding:7px 10px;background:#fff;border:none;color:#9ca3af;cursor:pointer;font-size:13px;}
 .tab-view button.active{background:#E5F0FD;color:#0073EC;}
 
+/* ── FILTER BAR (pill style with grouping) ── */
+.filter-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;margin-bottom:18px;background:#fff;border:1px solid #eef0f4;border-radius:14px;box-shadow:0 1px 2px rgba(15,23,42,.04);flex-wrap:wrap;}
+.filter-bar-left{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.filter-bar-right{display:flex;align-items:center;gap:6px;}
+.filter-group-label{font-size:10px;font-weight:700;color:#cbd5e1;letter-spacing:.7px;text-transform:uppercase;padding:0 4px 0 8px;border-left:1px solid #eef0f4;margin-left:4px;align-self:stretch;display:flex;align-items:center;}
+.fpill{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;border:1px solid transparent;background:transparent;color:#6b7280;font-size:12.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .12s;}
+.fpill:hover{background:#f8fafc;color:#0D1B2D;}
+.fpill.active{background:#0D1B2D;color:#fff;}
+.fpill.active .fpill-count{background:rgba(255,255,255,.18);color:#fff;}
+.fpill-all.active{background:#0073EC;}
+.fpill-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.fpill-label{line-height:1;}
+.fpill-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;padding:1px 6px;background:#f1f5f9;color:#64748b;border-radius:999px;font-size:11px;font-weight:700;line-height:1.4;}
+@media(max-width:768px){
+  .filter-bar{padding:10px 12px;gap:8px;}
+  .filter-group-label{display:none;}
+  .fpill{padding:6px 10px;font-size:12px;}
+  .fpill-count{min-width:18px;padding:1px 5px;font-size:10.5px;}
+}
+
 /* ── PAGES ── */
 .page{display:none}
 .page.active{display:block}
@@ -654,16 +674,41 @@ tr:last-child td{border-bottom:none}
           </div>
         </div>
 
-        <div class="tab-bar">
-          <div class="tab-bar-left">
-            <button class="tab active" onclick="filterClientStatus('all',this)">All Clients</button>
-            <button class="tab" onclick="filterClientStatus('active',this)">Active</button>
-            <button class="tab" onclick="filterClientStatus('trial',this)">Free Trial</button>
-            <button class="tab" onclick="filterClientStatus('starter',this)">Starter</button>
-            <button class="tab" onclick="filterClientStatus('enterprise',this)">Enterprise</button>
-            <button class="tab" onclick="filterClientStatus('pending',this)">Pending</button>
+        <div class="filter-bar">
+          <div class="filter-bar-left">
+            <button class="fpill fpill-all active" data-filter="all" onclick="filterClientStatus('all',this)">
+              <span class="fpill-label">All Clients</span>
+              <span class="fpill-count" data-count="all">0</span>
+            </button>
+            <span class="filter-group-label">Status</span>
+            <button class="fpill" data-filter="active" onclick="filterClientStatus('active',this)">
+              <span class="fpill-dot" style="background:#22c55e"></span>
+              <span class="fpill-label">Active</span>
+              <span class="fpill-count" data-count="active">0</span>
+            </button>
+            <button class="fpill" data-filter="pending" onclick="filterClientStatus('pending',this)">
+              <span class="fpill-dot" style="background:#f97316"></span>
+              <span class="fpill-label">Pending</span>
+              <span class="fpill-count" data-count="pending">0</span>
+            </button>
+            <span class="filter-group-label">Plan</span>
+            <button class="fpill" data-filter="trial" onclick="filterClientStatus('trial',this)">
+              <span class="fpill-dot" style="background:#fbbf24"></span>
+              <span class="fpill-label">Free Trial</span>
+              <span class="fpill-count" data-count="trial">0</span>
+            </button>
+            <button class="fpill" data-filter="starter" onclick="filterClientStatus('starter',this)">
+              <span class="fpill-dot" style="background:#0073EC"></span>
+              <span class="fpill-label">Starter</span>
+              <span class="fpill-count" data-count="starter">0</span>
+            </button>
+            <button class="fpill" data-filter="enterprise" onclick="filterClientStatus('enterprise',this)">
+              <span class="fpill-dot" style="background:#7c3aed"></span>
+              <span class="fpill-label">Enterprise</span>
+              <span class="fpill-count" data-count="enterprise">0</span>
+            </button>
           </div>
-          <div class="tab-bar-right">
+          <div class="filter-bar-right">
             <button class="tab-tool"><i class="fa-solid fa-arrow-up-arrow-down"></i> Sort</button>
             <button class="tab-tool"><i class="fa-solid fa-filter"></i> Filter</button>
           </div>
@@ -1593,13 +1638,30 @@ function _planTypeLabel(t){
 let _clientFilterStatus='all';
 function filterClientStatus(s,btn){
   _clientFilterStatus=s;
-  document.querySelectorAll('#pg-clients .tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#pg-clients .fpill').forEach(t=>t.classList.remove('active'));
   if(btn) btn.classList.add('active');
   renderClients(CLIENTS);
+}
+function _updateFilterCounts(clients){
+  const counts={
+    all:        clients.length,
+    active:     clients.filter(c=>c.status==='active').length,
+    pending:    clients.filter(c=>c.status==='pending').length,
+    trial:      clients.filter(c=>c.plan==='trial' || c.status==='trial').length,
+    starter:    clients.filter(c=>c.plan==='starter').length,
+    enterprise: clients.filter(c=>c.plan==='enterprise').length,
+  };
+  Object.keys(counts).forEach(k=>{
+    const el=document.querySelector(`#pg-clients .fpill-count[data-count="${k}"]`);
+    if(el) el.textContent=counts[k];
+  });
 }
 function renderClients(clients){
   const grid=document.getElementById('clientGrid');
   if(!grid)return;
+
+  // Refresh tab pill counts to reflect total dataset (not the filtered subset)
+  _updateFilterCounts(clients);
 
   let list=clients;
   if(_clientFilterStatus!=='all'){
