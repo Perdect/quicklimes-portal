@@ -1,0 +1,31 @@
+# QuickLimes — URL rewrites for LiteSpeed/Apache
+# Replaces the rewrite rules previously in vercel.json
+
+RewriteEngine On
+
+# ── Clean named routes ──
+RewriteRule ^portal/?$    quicklime.html              [L]
+RewriteRule ^signup/?$    signup.html                 [L]
+RewriteRule ^login/?$     quicklime.html              [L]
+RewriteRule ^hi/?$        deshwali_minerals_hindi.html [L]
+RewriteRule ^privacy/?$   privacy_policy.html         [L]
+RewriteRule ^terms/?$     terms_and_conditions.html   [L]
+RewriteRule ^dashboard/?$ deshwali_dashboard.html     [L]
+
+# ── Clean URLs: /foo serves /foo.html if it exists ──
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^(.+)$ $1.html [L]
+
+# ── Cache static assets a bit, but not HTML (always fresh) ──
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/png  "access plus 7 days"
+  ExpiresByType image/svg+xml "access plus 7 days"
+  ExpiresByType image/jpeg "access plus 7 days"
+  ExpiresByType text/css   "access plus 1 day"
+  ExpiresByType application/javascript "access plus 1 day"
+  ExpiresByType text/html  "access plus 0 seconds"
+</IfModule>
+
