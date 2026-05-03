@@ -63,6 +63,25 @@ body{font-family:Inter,sans-serif;background:#eef0fb;color:var(--ink);height:100
 .sb-co-row[data-empty-hidden][data-empty="1"]{display:none}
 .sb-co-label{font-size:9px;font-weight:700;color:#9ca3af;letter-spacing:.6px;text-transform:uppercase}
 .sb-co-val{font-size:12px;font-weight:600;color:#0D1B2D;word-break:break-all;line-height:1.3}
+/* Profile chip + dropdown menu */
+.sb-profile-wrap{position:relative}
+.sb-profile-btn{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:10px;border:1.5px solid #eef0f4;background:#fff;cursor:pointer;font-family:Inter,sans-serif;transition:background .12s,border-color .12s}
+.sb-profile-btn:hover{background:#f8fafc;border-color:#bbd6f7}
+.sb-profile-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#0073EC,#0058B8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.sb-profile-text{flex:1;min-width:0;text-align:left}
+.sb-profile-name{font-size:12.5px;font-weight:700;color:#0D1B2D;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.sb-profile-role{font-size:10px;color:#9ca3af;font-weight:500;line-height:1.2;margin-top:2px}
+.sb-profile-menu{position:absolute;bottom:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid #eef0f4;border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.08);padding:5px;z-index:100;display:flex;flex-direction:column;gap:1px}
+.sb-profile-menu[hidden]{display:none}
+.sb-profile-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border:none;background:none;border-radius:7px;font-size:12.5px;font-weight:500;color:#374151;cursor:pointer;font-family:Inter,sans-serif;text-decoration:none;text-align:left;transition:background .12s,color .12s}
+.sb-profile-item:hover{background:#f8fafc;color:#0D1B2D}
+.sb-profile-item svg{color:#9ca3af;flex-shrink:0}
+.sb-profile-item:hover svg{color:#0073EC}
+.sb-profile-item-danger{color:#dc2626}
+.sb-profile-item-danger svg{color:#dc2626}
+.sb-profile-item-danger:hover{background:#fef2f2;color:#dc2626}
+.sb-profile-item-danger:hover svg{color:#dc2626}
+.sb-profile-divider{height:1px;background:#eef0f4;margin:4px 4px}
 .sb-bank{background:var(--bg2);border:1px solid var(--bg2);border-radius:10px;padding:10px 12px;font-size:11px;color:var(--ink3);line-height:1.8}
 .sb-bank strong{display:block;color:var(--ink2);font-weight:700;font-size:12px;margin-bottom:2px}
 
@@ -983,11 +1002,32 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
       <button id="lang-en" data-lang="en" onclick="setLang('en')" class="lang-btn" style="flex:1;padding:7px;border-radius:8px;border:1.5px solid var(--p4);background:var(--p2);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">EN English</button>
       <button id="lang-hi" data-lang="hi" onclick="setLang('hi')" class="lang-btn" style="flex:1;padding:7px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:var(--ink3);font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">हिं Hindi</button>
     </div>
-    <!-- Logout -->
-    <button onclick="qlLogout()" style="width:100%;padding:10px 12px;border-radius:9px;border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;font-size:12.5px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .12s,border-color .12s">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      Log out
-    </button>
+    <!-- Profile chip with dropdown -->
+    <div class="sb-profile-wrap">
+      <button id="sb-profile-btn" onclick="toggleSbProfileMenu(event)" class="sb-profile-btn">
+        <div class="sb-profile-avatar" id="sb-profile-avatar">D</div>
+        <div class="sb-profile-text">
+          <div class="sb-profile-name" id="sb-profile-name">—</div>
+          <div class="sb-profile-role">Owner</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div id="sb-profile-menu" class="sb-profile-menu" hidden>
+        <button class="sb-profile-item" onclick="closeSbProfileMenu();toggleProfileMenu()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Edit Profile
+        </button>
+        <a class="sb-profile-item" href="https://wa.me/918875020202?text=Hi%20QuickLimes%20Support%2C%20I%20need%20help%20with%20my%20account." target="_blank" rel="noopener" onclick="closeSbProfileMenu()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Support
+        </a>
+        <div class="sb-profile-divider"></div>
+        <button class="sb-profile-item sb-profile-item-danger" onclick="qlLogout()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Log out
+        </button>
+      </div>
+    </div>
   </div>
 </nav>
 
@@ -6607,7 +6647,30 @@ function updateSidebarForCompany(){
   setRow('sb-co-phone', c.phone || (typeof QL_PLANT!=='undefined' && QL_PLANT?.owner_phone) || '');
   setRow('sb-co-gstin', c.gstin || '');
   setRow('sb-co-city', c.city ? (c.city + (c.state?(', '+c.state.replace(/\s*\(.*\)\s*$/,'')):'')) : '');
+  // Populate sidebar profile chip
+  const av=document.getElementById('sb-profile-avatar');
+  const nm=document.getElementById('sb-profile-name');
+  if(av) av.textContent=(c.short||c.name||'?').trim().charAt(0).toUpperCase();
+  if(nm) nm.textContent=c.short||c.name||'Owner';
   updateProfileMenu();
+}
+function toggleSbProfileMenu(e){
+  if(e) e.stopPropagation();
+  const m=document.getElementById('sb-profile-menu');
+  if(!m) return;
+  m.hidden=!m.hidden;
+  if(!m.hidden){
+    setTimeout(()=>{document.addEventListener('click',_sbProfileOutside,{once:true});},0);
+  }
+}
+function closeSbProfileMenu(){
+  const m=document.getElementById('sb-profile-menu');
+  if(m) m.hidden=true;
+}
+function _sbProfileOutside(e){
+  const wrap=document.querySelector('.sb-profile-wrap');
+  if(wrap && !wrap.contains(e.target)) closeSbProfileMenu();
+  else document.addEventListener('click',_sbProfileOutside,{once:true});
 }
 function updateProfileMenu(){
   const c=CO();
