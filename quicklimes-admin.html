@@ -180,7 +180,59 @@ tr:last-child td{border-bottom:none}
 /* ── STAT ROW ── */
 .stat-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
 
-/* ── CLIENT CARD ── */
+/* ── CLIENT TABLE (modern admin design) ── */
+.client-table-wrap{background:#fff;border-radius:14px;border:1px solid #eaecf3;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04);}
+.client-table{width:100%;border-collapse:collapse;font-size:13px;}
+.client-table thead th{
+  text-align:left;font-size:12px;font-weight:600;color:var(--ink3);
+  padding:14px 16px;background:#fafbff;border-bottom:1px solid #eaecf3;
+  letter-spacing:.2px;text-transform:none;
+}
+.client-table thead th:first-child{padding-left:18px;}
+.client-table tbody tr{transition:background .12s;}
+.client-table tbody tr:hover{background:#fafbff;}
+.client-table tbody tr.selected{background:#eef3ff;}
+.client-table tbody tr.expanded{background:#fafbff;}
+.client-table tbody td{padding:14px 16px;border-bottom:1px solid #f1f3f9;color:var(--ink);vertical-align:middle;}
+.client-table tbody td:first-child{padding-left:18px;}
+.client-table tbody tr:last-child td{border-bottom:none;}
+.client-table .ct-checkbox{width:16px;height:16px;accent-color:var(--p2);cursor:pointer;}
+.client-table .ct-chev{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;cursor:pointer;color:var(--ink3);transition:transform .15s,background .12s;}
+.client-table .ct-chev:hover{background:#f1f3f9;color:var(--ink);}
+.client-table tr.expanded .ct-chev{transform:rotate(180deg);}
+.client-table .ct-name-wrap{display:flex;align-items:center;gap:10px;}
+.client-table .ct-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#0073EC,#0058B8);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+.client-table .ct-name{font-weight:600;color:var(--ink);}
+.client-table .ct-status-pill{display:inline-block;padding:5px 14px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.2px;}
+.client-table .ct-status-active{background:#e7f8ee;color:#15803d;}
+.client-table .ct-status-pending{background:#fef3c7;color:#92400e;}
+.client-table .ct-status-suspended{background:#fee2e2;color:#dc2626;}
+.client-table .ct-status-cancelled{background:#f1f3f9;color:#6b7280;}
+.client-table .ct-icon-btn{width:32px;height:32px;border-radius:8px;border:none;background:#f1f3f9;color:var(--ink2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;margin-right:4px;transition:background .12s;}
+.client-table .ct-icon-btn:hover{background:#e7eaf3;}
+.client-table .ct-icon-btn.danger:hover{background:#fee2e2;color:#dc2626;}
+.client-table tr.expand-row td{background:#fafbff;padding:0;}
+.client-table .expand-content{padding:18px 26px;display:grid;grid-template-columns:repeat(4,1fr);gap:24px;border-bottom:1px solid #eaecf3;}
+.client-table .ec-block{min-width:0;}
+.client-table .ec-label{font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.client-table .ec-val{font-size:13px;color:var(--ink);display:flex;align-items:center;gap:7px;}
+.client-table .ec-val i{color:var(--ink3);font-size:12px;}
+@media(max-width:900px){
+  .client-table thead{display:none;}
+  .client-table tbody td{display:block;padding:8px 16px;border-bottom:none;}
+  .client-table tbody tr{display:block;border-bottom:1px solid #f1f3f9;padding:10px 0;}
+  .client-table .expand-content{grid-template-columns:1fr 1fr;}
+}
+
+.tool-bar{
+  display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;
+}
+.tool-bar .search-input{flex:1;min-width:220px;padding:11px 14px 11px 40px;background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg>") 14px center no-repeat;border-radius:10px;border:1px solid #eaecf3;}
+.tool-bar .selected-pill{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);font-weight:600;}
+.tool-bar .selected-pill input{width:18px;height:18px;accent-color:var(--p2);cursor:pointer;}
+.tool-bar .add-btn{background:var(--p2);color:#fff;border:none;border-radius:10px;padding:11px 18px;font-size:12px;font-weight:700;letter-spacing:.6px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-family:Inter,sans-serif;text-transform:uppercase;}
+.tool-bar .add-btn:hover{background:var(--p1);}
+
 .client-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .client-card{
   background:#fff;border-radius:var(--r);border:var(--border);padding:18px;
@@ -299,7 +351,7 @@ tr:last-child td{border-bottom:none}
     <div class="ls-form-wrap">
       <h1 class="ls-h1">Login to Dashboard</h1>
       <p class="ls-sub">Fill the below form to login</p>
-      <div id="loginError" class="ls-err"><i class="fa-solid fa-circle-exclamation"></i> गलत username या password</div>
+      <div id="loginError" class="ls-err"><i class="fa-solid fa-circle-exclamation"></i> Invalid username or password</div>
       <div class="ls-fld">
         <label>Username</label>
         <input class="ls-input" id="adminUser" type="text" placeholder="Enter admin username" autocomplete="username">
@@ -365,16 +417,16 @@ tr:last-child td{border-bottom:none}
       <div class="sb-logo-sub">Admin Panel</div>
     </div>
     <nav class="sb-nav">
-      <div class="sb-section">मुख्य</div>
-      <button class="sb-item active" onclick="goPage('dashboard',this)"><span class="sb-item-icon"><i class="fa-solid fa-chart-bar"></i></span>डैशबोर्ड</button>
-      <button class="sb-item" onclick="goPage('orders',this)"><span class="sb-item-icon"><i class="fa-solid fa-box"></i></span>सभी ऑर्डर</button>
-      <button class="sb-item" onclick="goPage('clients',this)"><span class="sb-item-icon"><i class="fa-solid fa-users"></i></span>क्लाइंट्स</button>
-      <button class="sb-item" onclick="goPage('invoices',this)"><span class="sb-item-icon"><i class="fa-solid fa-file-invoice"></i></span>इनवॉइस</button>
-      <button class="sb-item" onclick="goPage('payments',this)"><span class="sb-item-icon"><i class="fa-solid fa-credit-card"></i></span>भुगतान</button>
-      <div class="sb-section">सेटिंग्स</div>
-      <button class="sb-item" onclick="goPage('prices',this)"><span class="sb-item-icon"><i class="fa-solid fa-indian-rupee-sign"></i></span>रेट मैनेजर</button>
-      <button class="sb-item" onclick="goPage('addclient',this)"><span class="sb-item-icon"><i class="fa-solid fa-plus"></i></span>नया क्लाइंट</button>
-      <button class="sb-item" onclick="goPage('settings',this)"><span class="sb-item-icon"><i class="fa-solid fa-gear"></i></span>सेटिंग्स</button>
+      <div class="sb-section">Main</div>
+      <button class="sb-item active" onclick="goPage('dashboard',this)"><span class="sb-item-icon"><i class="fa-solid fa-chart-bar"></i></span>Dashboard</button>
+      <button class="sb-item" onclick="goPage('orders',this)"><span class="sb-item-icon"><i class="fa-solid fa-box"></i></span>All Orders</button>
+      <button class="sb-item" onclick="goPage('clients',this)"><span class="sb-item-icon"><i class="fa-solid fa-users"></i></span>Clients</button>
+      <button class="sb-item" onclick="goPage('invoices',this)"><span class="sb-item-icon"><i class="fa-solid fa-file-invoice"></i></span>Invoices</button>
+      <button class="sb-item" onclick="goPage('payments',this)"><span class="sb-item-icon"><i class="fa-solid fa-credit-card"></i></span>Payments</button>
+      <div class="sb-section">Settings</div>
+      <button class="sb-item" onclick="goPage('prices',this)"><span class="sb-item-icon"><i class="fa-solid fa-indian-rupee-sign"></i></span>Rate Manager</button>
+      <button class="sb-item" onclick="goPage('addclient',this)"><span class="sb-item-icon"><i class="fa-solid fa-plus"></i></span>New Client</button>
+      <button class="sb-item" onclick="goPage('settings',this)"><span class="sb-item-icon"><i class="fa-solid fa-gear"></i></span>Settings</button>
     </nav>
     <div class="sb-user">
       <div class="sb-user-info">
@@ -384,14 +436,14 @@ tr:last-child td{border-bottom:none}
           <div class="sb-user-role">Super Admin</div>
         </div>
       </div>
-      <button class="sb-logout" onclick="doLogout()"><span class="ic ic-w"><i class="fa-solid fa-right-from-bracket"></i></span> लॉगआउट</button>
+      <button class="sb-logout" onclick="doLogout()"><span class="ic ic-w"><i class="fa-solid fa-right-from-bracket"></i></span> Log Out</button>
     </div>
   </div>
 
   <!-- MAIN -->
   <div class="main">
     <div class="topbar">
-      <div class="topbar-title" id="pageTitle">डैशबोर्ड</div>
+      <div class="topbar-title" id="pageTitle">Dashboard</div>
       <div class="topbar-right">
         <div class="tb-badge"><span class="ic ic-g"><i class="fa-solid fa-circle" style="color:#22c55e;font-size:8px"></i></span> Live</div>
         <div style="font-size:13px;color:var(--ink3)" id="todayDate"></div>
@@ -405,48 +457,48 @@ tr:last-child td{border-bottom:none}
         <div class="kpi-grid">
           <div class="kpi">
             <div class="kpi-icon" style="background:#dcfce7"><i class="fa-solid fa-users"></i></div>
-            <div><div class="kpi-label">कुल क्लाइंट्स</div><div class="kpi-val" id="kpi-clients">6</div><div class="kpi-sub">+2 इस महीने</div></div>
+            <div><div class="kpi-label">Total Clients</div><div class="kpi-val" id="kpi-clients">6</div><div class="kpi-sub">+2 this month</div></div>
           </div>
           <div class="kpi">
             <div class="kpi-icon" style="background:#dbeafe"><i class="fa-solid fa-boxes-stacked"></i></div>
-            <div><div class="kpi-label">कुल ऑर्डर</div><div class="kpi-val" id="kpi-orders">48</div><div class="kpi-sub">+12 इस सप्ताह</div></div>
+            <div><div class="kpi-label">Total Orders</div><div class="kpi-val" id="kpi-orders">48</div><div class="kpi-sub">+12 this week</div></div>
           </div>
           <div class="kpi">
             <div class="kpi-icon" style="background:#fef9c3"><i class="fa-solid fa-indian-rupee-sign"></i></div>
-            <div><div class="kpi-label">कुल राजस्व</div><div class="kpi-val" id="kpi-revenue">₹18.4L</div><div class="kpi-sub">इस महीने</div></div>
+            <div><div class="kpi-label">Total Revenue</div><div class="kpi-val" id="kpi-revenue">₹18.4L</div><div class="kpi-sub">this month</div></div>
           </div>
           <div class="kpi">
             <div class="kpi-icon" style="background:#fee2e2"><i class="fa-solid fa-clock"></i></div>
-            <div><div class="kpi-label">बकाया</div><div class="kpi-val" id="kpi-pending">₹2.8L</div><div class="kpi-sub">5 क्लाइंट से</div></div>
+            <div><div class="kpi-label">Pending</div><div class="kpi-val" id="kpi-pending">₹2.8L</div><div class="kpi-sub">from 5 clients</div></div>
           </div>
         </div>
 
         <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
           <div class="card">
-            <div class="card-title">मासिक ऑर्डर (MT में) <span style="font-size:12px;font-weight:500;color:var(--ink3)">पिछले 6 महीने</span></div>
+            <div class="card-title">Monthly Orders (in MT) <span style="font-size:12px;font-weight:500;color:var(--ink3)">Last 6 months</span></div>
             <div class="chart-wrap"><canvas id="ordersChart"></canvas></div>
           </div>
           <div class="card">
-            <div class="card-title">ऑर्डर स्थिति</div>
+            <div class="card-title">Order Status</div>
             <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
           </div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
           <div class="card">
-            <div class="card-title"><span class="ic ic-p"><i class="fa-solid fa-list-check"></i></span> हाल के ऑर्डर <button class="btn btn-outline btn-sm" onclick="goPage('orders',null)">सभी देखें</button></div>
+            <div class="card-title"><span class="ic ic-p"><i class="fa-solid fa-list-check"></i></span> Recent Orders <button class="btn btn-outline btn-sm" onclick="goPage('orders',null)">View All</button></div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>क्लाइंट</th><th>मात्रा</th><th>राशि</th><th>स्थिति</th></tr></thead>
+                <thead><tr><th>Client</th><th>Quantity</th><th>Amount</th><th>Status</th></tr></thead>
                 <tbody id="dashOrdersTbl"></tbody>
               </table>
             </div>
           </div>
           <div class="card">
-            <div class="card-title"><span class="ic ic-r"><i class="fa-solid fa-triangle-exclamation"></i></span> बकाया भुगतान <button class="btn btn-outline btn-sm" onclick="goPage('payments',null)">सभी देखें</button></div>
+            <div class="card-title"><span class="ic ic-r"><i class="fa-solid fa-triangle-exclamation"></i></span> Pending Payments <button class="btn btn-outline btn-sm" onclick="goPage('payments',null)">View All</button></div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>क्लाइंट</th><th>बकाया</th><th>देय तिथि</th></tr></thead>
+                <thead><tr><th>Client</th><th>Pending</th><th>Due Date</th></tr></thead>
                 <tbody id="dashPendingTbl"></tbody>
               </table>
             </div>
@@ -457,23 +509,23 @@ tr:last-child td{border-bottom:none}
       <!-- ORDERS PAGE -->
       <div class="page" id="pg-orders">
         <div class="order-flow" id="orderFlow">
-          <div class="of-item active" onclick="filterOrders('all',this)"><div class="of-count" id="ofc-all">48</div><div class="of-label">सभी</div></div>
-          <div class="of-item" onclick="filterOrders('pending',this)"><div class="of-count" id="ofc-pending">8</div><div class="of-label">प्रतीक्षा में</div></div>
-          <div class="of-item" onclick="filterOrders('processing',this)"><div class="of-count" id="ofc-processing">12</div><div class="of-label">प्रोसेस</div></div>
-          <div class="of-item" onclick="filterOrders('transit',this)"><div class="of-count" id="ofc-transit">9</div><div class="of-label">रास्ते में</div></div>
-          <div class="of-item" onclick="filterOrders('delivered',this)"><div class="of-count" id="ofc-delivered">19</div><div class="of-label">डिलीवर</div></div>
+          <div class="of-item active" onclick="filterOrders('all',this)"><div class="of-count" id="ofc-all">48</div><div class="of-label">All</div></div>
+          <div class="of-item" onclick="filterOrders('pending',this)"><div class="of-count" id="ofc-pending">8</div><div class="of-label">Pending</div></div>
+          <div class="of-item" onclick="filterOrders('processing',this)"><div class="of-count" id="ofc-processing">12</div><div class="of-label">Processing</div></div>
+          <div class="of-item" onclick="filterOrders('transit',this)"><div class="of-count" id="ofc-transit">9</div><div class="of-label">In Transit</div></div>
+          <div class="of-item" onclick="filterOrders('delivered',this)"><div class="of-count" id="ofc-delivered">19</div><div class="of-label">Delivered</div></div>
         </div>
         <div class="card">
           <div class="card-title">
-            ऑर्डर लिस्ट
+            Orders List
             <div style="display:flex;gap:8px">
-              <input class="search-input" style="width:200px" placeholder="🔍 खोजें..." oninput="filterOrderSearch(this.value)">
-              <button class="btn btn-green" onclick="openNewOrderModal()">+ नया ऑर्डर</button>
+              <input class="search-input" style="width:200px" placeholder="🔍 Search..." oninput="filterOrderSearch(this.value)">
+              <button class="btn btn-green" onclick="openNewOrderModal()">+ New Order</button>
             </div>
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>ऑर्डर ID</th><th>क्लाइंट</th><th>उत्पाद</th><th>मात्रा</th><th>राशि</th><th>तिथि</th><th>स्थिति</th><th>कार्य</th></tr></thead>
+              <thead><tr><th>Order ID</th><th>Client</th><th>Product</th><th>Quantity</th><th>Amount</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody id="ordersTbl"></tbody>
             </table>
           </div>
@@ -482,28 +534,49 @@ tr:last-child td{border-bottom:none}
 
       <!-- CLIENTS PAGE -->
       <div class="page" id="pg-clients">
+        <div style="font-size:12px;color:var(--ink3);margin-bottom:6px;display:flex;align-items:center;gap:6px">
+          <span>Admin Dashboard</span><i class="fa-solid fa-chevron-right" style="font-size:9px"></i><span style="color:var(--ink);font-weight:600">Plants</span>
+        </div>
         <div id="admin-stats-bar" style="background:linear-gradient(135deg,#0073EC,#0058B8);color:#fff;padding:14px 18px;border-radius:12px;font-size:13px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px">
           <i class="fa-solid fa-chart-line"></i> Loading stats…
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap">
-          <input class="search-input" style="width:280px;flex:1;min-width:200px" placeholder="🔍 Search by name, phone, city..." oninput="filterClients(this.value)">
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-outline btn-sm" onclick="loadPlantsFromSupabase();loadAdminStats()"><i class="fa-solid fa-rotate"></i> Refresh</button>
-          </div>
+
+        <div class="tool-bar">
+          <input class="search-input" placeholder="Search plant name, phone, city, GSTIN…" oninput="filterClients(this.value)">
+          <div class="selected-pill"><input type="checkbox" id="ct-select-all" onchange="ctToggleAll(this.checked)"> <span id="ct-selected-label">0 Selected</span></div>
+          <button class="add-btn" onclick="loadPlantsFromSupabase();loadAdminStats()"><i class="fa-solid fa-rotate"></i> Refresh</button>
         </div>
-        <div class="client-grid" id="clientGrid"></div>
+
+        <div class="client-table-wrap">
+          <table class="client-table">
+            <thead>
+              <tr>
+                <th style="width:42px"><input type="checkbox" class="ct-checkbox" onchange="ctToggleAll(this.checked)"></th>
+                <th style="width:34px"></th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Phone</th>
+                <th>City</th>
+                <th>Status</th>
+                <th>Plan</th>
+                <th style="width:130px">Edit</th>
+              </tr>
+            </thead>
+            <tbody id="clientGrid"></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- INVOICES PAGE -->
       <div class="page" id="pg-invoices">
         <div class="card">
           <div class="card-title">
-            इनवॉइस लिस्ट
-            <button class="btn btn-green" onclick="openNewInvoiceModal()">+ नया इनवॉइस</button>
+            Invoices List
+            <button class="btn btn-green" onclick="openNewInvoiceModal()">+ New Invoice</button>
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>इनवॉइस #</th><th>क्लाइंट</th><th>राशि</th><th>GST</th><th>कुल</th><th>तिथि</th><th>स्थिति</th><th>कार्य</th></tr></thead>
+              <thead><tr><th>Invoice #</th><th>Client</th><th>Amount</th><th>GST</th><th>Total</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody id="invoicesTbl"></tbody>
             </table>
           </div>
@@ -513,15 +586,15 @@ tr:last-child td{border-bottom:none}
       <!-- PAYMENTS PAGE -->
       <div class="page" id="pg-payments">
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px">
-          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dcfce7"><i class="fa-solid fa-circle-check"></i></div><div><div class="kpi-label">प्राप्त</div><div class="kpi-val">₹15.6L</div></div></div>
-          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#fef3c7"><i class="fa-solid fa-clock"></i></div><div><div class="kpi-label">बकाया</div><div class="kpi-val">₹2.8L</div></div></div>
-          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dbeafe"><i class="fa-solid fa-calendar-days"></i></div><div><div class="kpi-label">इस माह</div><div class="kpi-val">₹4.2L</div></div></div>
+          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dcfce7"><i class="fa-solid fa-circle-check"></i></div><div><div class="kpi-label">Received</div><div class="kpi-val">₹15.6L</div></div></div>
+          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#fef3c7"><i class="fa-solid fa-clock"></i></div><div><div class="kpi-label">Pending</div><div class="kpi-val">₹2.8L</div></div></div>
+          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dbeafe"><i class="fa-solid fa-calendar-days"></i></div><div><div class="kpi-label">this month</div><div class="kpi-val">₹4.2L</div></div></div>
         </div>
         <div class="card">
-          <div class="card-title"><span class="ic ic-y"><i class="fa-solid fa-credit-card"></i></span> भुगतान इतिहास <button class="btn btn-green btn-sm" onclick="openRecordPaymentModal()">+ भुगतान दर्ज करें</button></div>
+          <div class="card-title"><span class="ic ic-y"><i class="fa-solid fa-credit-card"></i></span> Payment History <button class="btn btn-green btn-sm" onclick="openRecordPaymentModal()">+ Record Payment</button></div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>क्लाइंट</th><th>राशि</th><th>माध्यम</th><th>तिथि</th><th>सन्दर्भ</th><th>स्थिति</th></tr></thead>
+              <thead><tr><th>Client</th><th>Amount</th><th>Method</th><th>Date</th><th>Reference</th><th>Status</th></tr></thead>
               <tbody id="paymentsTbl"></tbody>
             </table>
           </div>
@@ -531,12 +604,12 @@ tr:last-child td{border-bottom:none}
       <!-- PRICES PAGE -->
       <div class="page" id="pg-prices">
         <div class="card" style="margin-bottom:16px">
-          <div class="card-title"><span class="ic ic-g"><i class="fa-solid fa-indian-rupee-sign"></i></span> लाइव रेट — अभी अपडेट करें</div>
+          <div class="card-title"><span class="ic ic-g"><i class="fa-solid fa-indian-rupee-sign"></i></span> Live Rates — Update Now</div>
           <div class="price-grid" id="priceGrid"></div>
-          <button class="btn btn-green" onclick="openPriceEditModal()"><span class="ic ic-w"><i class="fa-solid fa-pen"></i></span> रेट अपडेट करें</button>
+          <button class="btn btn-green" onclick="openPriceEditModal()"><span class="ic ic-w"><i class="fa-solid fa-pen"></i></span> Update Rates</button>
         </div>
         <div class="card">
-          <div class="card-title"><span class="ic ic-b"><i class="fa-solid fa-file-invoice"></i></span> GST सेटिंग</div>
+          <div class="card-title"><span class="ic ic-b"><i class="fa-solid fa-file-invoice"></i></span> GST Settings</div>
           <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
             <div>
               <div class="form-label" style="margin-bottom:6px">CGST %</div>
@@ -547,7 +620,7 @@ tr:last-child td{border-bottom:none}
               <input class="form-input" id="sgstInput" value="9" style="width:100px">
             </div>
             <div style="align-self:flex-end">
-              <button class="btn btn-green" onclick="saveGST()">GST सेव करें</button>
+              <button class="btn btn-green" onclick="saveGST()">Save GST</button>
             </div>
           </div>
         </div>
@@ -556,22 +629,22 @@ tr:last-child td{border-bottom:none}
       <!-- ADD CLIENT PAGE -->
       <div class="page" id="pg-addclient">
         <div class="card" style="max-width:700px">
-          <div class="card-title"><span class="ic ic-g"><i class="fa-solid fa-user-plus"></i></span> नया क्लाइंट जोड़ें</div>
+          <div class="card-title"><span class="ic ic-g"><i class="fa-solid fa-user-plus"></i></span> Add New Client</div>
           <div class="form-grid">
             <div class="form-group">
-              <label class="form-label">कंपनी का नाम *</label>
-              <input class="form-input" id="nc-company" placeholder="जैसे: Ramkaran Lime Udyog">
+              <label class="form-label">Company Name *</label>
+              <input class="form-input" id="nc-company" placeholder="e.g. Ramkaran Lime Udyog">
             </div>
             <div class="form-group">
-              <label class="form-label">मालिक का नाम *</label>
-              <input class="form-input" id="nc-owner" placeholder="जैसे: रामकरण गुप्ता">
+              <label class="form-label">Owner Name *</label>
+              <input class="form-input" id="nc-owner" placeholder="e.g. Owner full name">
             </div>
             <div class="form-group">
-              <label class="form-label">मोबाइल नंबर *</label>
+              <label class="form-label">Mobile Number *</label>
               <input class="form-input" id="nc-phone" placeholder="+91 99999 99999" type="tel">
             </div>
             <div class="form-group">
-              <label class="form-label">ईमेल</label>
+              <label class="form-label">Email</label>
               <input class="form-input" id="nc-email" placeholder="email@example.com" type="email">
             </div>
             <div class="form-group">
@@ -579,42 +652,42 @@ tr:last-child td{border-bottom:none}
               <input class="form-input" id="nc-gstin" placeholder="22AAAAA0000A1Z5">
             </div>
             <div class="form-group">
-              <label class="form-label">शहर / राज्य</label>
-              <input class="form-input" id="nc-city" placeholder="जैसे: जोधपुर, राजस्थान">
+              <label class="form-label">City / State</label>
+              <input class="form-input" id="nc-city" placeholder="e.g. Jodhpur, Rajasthan">
             </div>
             <div class="form-group form-full">
-              <label class="form-label">पता</label>
-              <input class="form-input" id="nc-address" placeholder="पूरा पता">
+              <label class="form-label">Address</label>
+              <input class="form-input" id="nc-address" placeholder="Full address">
             </div>
             <div class="form-group" style="border-top:var(--border);padding-top:14px;grid-column:1/-1">
-              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px"><span class="ic ic-p"><i class="fa-solid fa-lock"></i></span> पोर्टल लॉगिन क्रेडेंशियल्स</div>
+              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px"><span class="ic ic-p"><i class="fa-solid fa-lock"></i></span> Portal Login Credentials</div>
             </div>
             <div class="form-group">
               <label class="form-label">Username *</label>
-              <input class="form-input" id="nc-user" placeholder="जैसे: RAMKARAN2024">
+              <input class="form-input" id="nc-user" placeholder="e.g. RAMKARAN2024">
             </div>
             <div class="form-group">
               <label class="form-label">Password *</label>
-              <input class="form-input" id="nc-pass" placeholder="कम से कम 6 अक्षर" type="password">
+              <input class="form-input" id="nc-pass" placeholder="At least 6 characters" type="password">
             </div>
             <div class="form-group">
-              <label class="form-label">क्रेडिट लिमिट (₹)</label>
-              <input class="form-input" id="nc-credit" placeholder="जैसे: 500000" type="number">
+              <label class="form-label">Credit Limit (₹)</label>
+              <input class="form-input" id="nc-credit" placeholder="e.g. 500000" type="number">
             </div>
             <div class="form-group">
-              <label class="form-label">भुगतान शर्त</label>
+              <label class="form-label">Payment Terms</label>
               <select class="form-select" id="nc-terms">
-                <option>तत्काल (Immediate)</option>
-                <option>7 दिन</option>
-                <option>15 दिन</option>
-                <option>30 दिन</option>
-                <option>60 दिन</option>
+                <option>Immediate</option>
+                <option>7 days</option>
+                <option>15 days</option>
+                <option>30 days</option>
+                <option>60 days</option>
               </select>
             </div>
           </div>
           <div style="display:flex;gap:10px;margin-top:20px">
-            <button class="btn btn-green" onclick="addNewClient()" style="padding:11px 24px"><span class="ic ic-w"><i class="fa-solid fa-circle-check"></i></span> क्लाइंट जोड़ें</button>
-            <button class="btn btn-outline" onclick="clearClientForm()"><span class="ic ic-r"><i class="fa-solid fa-trash"></i></span> फॉर्म साफ़ करें</button>
+            <button class="btn btn-green" onclick="addNewClient()" style="padding:11px 24px"><span class="ic ic-w"><i class="fa-solid fa-circle-check"></i></span> Save Client</button>
+            <button class="btn btn-outline" onclick="clearClientForm()"><span class="ic ic-r"><i class="fa-solid fa-trash"></i></span> Clear Form</button>
           </div>
           <div id="addClientMsg" style="margin-top:12px;font-size:13px;font-weight:600;display:none"></div>
         </div>
@@ -623,40 +696,40 @@ tr:last-child td{border-bottom:none}
       <!-- SETTINGS PAGE -->
       <div class="page" id="pg-settings">
         <div class="card" style="max-width:600px;margin-bottom:16px">
-          <div class="card-title"><span class="ic ic-p"><i class="fa-solid fa-building"></i></span> कंपनी की जानकारी</div>
+          <div class="card-title"><span class="ic ic-p"><i class="fa-solid fa-building"></i></span> Company Information</div>
           <div class="form-grid">
             <div class="form-group form-full">
-              <label class="form-label">कंपनी नाम</label>
+              <label class="form-label">Company Name</label>
               <input class="form-input" value="Deshwali Minerals">
             </div>
             <div class="form-group">
-              <label class="form-label">फोन</label>
+              <label class="form-label">Phone</label>
               <input class="form-input" value="+91 99999 99999">
             </div>
             <div class="form-group">
-              <label class="form-label">ईमेल</label>
+              <label class="form-label">Email</label>
               <input class="form-input" value="info@quicklimes.com">
             </div>
             <div class="form-group form-full">
-              <label class="form-label">पता</label>
-              <input class="form-input" value="राजस्थान, भारत">
+              <label class="form-label">Address</label>
+              <input class="form-input" value="Rajasthan, India">
             </div>
           </div>
-          <button class="btn btn-green" style="margin-top:14px">सेव करें</button>
+          <button class="btn btn-green" style="margin-top:14px">Save</button>
         </div>
         <div class="card" style="max-width:600px">
-          <div class="card-title"><span class="ic ic-r"><i class="fa-solid fa-lock"></i></span> Admin Password बदलें</div>
+          <div class="card-title"><span class="ic ic-r"><i class="fa-solid fa-lock"></i></span> Change Admin Password</div>
           <div class="form-grid">
             <div class="form-group">
-              <label class="form-label">नया Password</label>
-              <input class="form-input" type="password" placeholder="नया पासवर्ड">
+              <label class="form-label">New Password</label>
+              <input class="form-input" type="password" placeholder="New Password">
             </div>
             <div class="form-group">
               <label class="form-label">Confirm Password</label>
-              <input class="form-input" type="password" placeholder="दोबारा लिखें">
+              <input class="form-input" type="password" placeholder="Re-enter password">
             </div>
           </div>
-          <button class="btn btn-green" style="margin-top:14px">पासवर्ड बदलें</button>
+          <button class="btn btn-green" style="margin-top:14px">Change Password</button>
         </div>
       </div>
 
@@ -667,25 +740,25 @@ tr:last-child td{border-bottom:none}
 <!-- ORDER STATUS MODAL -->
 <div class="modal-overlay" id="orderStatusModal">
   <div class="modal">
-    <div class="modal-title"><span class="ic ic-b"><i class="fa-solid fa-box"></i></span> ऑर्डर स्थिति अपडेट करें</div>
+    <div class="modal-title"><span class="ic ic-b"><i class="fa-solid fa-box"></i></span> Update Order Status</div>
     <input type="hidden" id="editOrderId">
     <div class="form-group" style="margin-bottom:14px">
-      <label class="form-label">नई स्थिति</label>
+      <label class="form-label">New Status</label>
       <select class="form-select" id="newOrderStatus" style="width:100%">
-        <option value="pending">प्रतीक्षा में</option>
-        <option value="processing">प्रोसेस हो रहा है</option>
-        <option value="transit">रास्ते में</option>
-        <option value="delivered">डिलीवर हो गया</option>
-        <option value="cancelled">रद्द</option>
+        <option value="pending">Pending</option>
+        <option value="processing">Processing</option>
+        <option value="transit">In Transit</option>
+        <option value="delivered">Delivered</option>
+        <option value="cancelled">Cancelled</option>
       </select>
     </div>
     <div class="form-group" style="margin-bottom:14px">
-      <label class="form-label">नोट (वैकल्पिक)</label>
-      <input class="form-input" id="orderStatusNote" placeholder="जैसे: ट्रक नंबर MH12AB1234">
+      <label class="form-label">Note (optional)</label>
+      <input class="form-input" id="orderStatusNote" placeholder="e.g. Truck Number MH12AB1234">
     </div>
     <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('orderStatusModal')">रद्द</button>
-      <button class="btn btn-green" onclick="saveOrderStatus()">अपडेट करें</button>
+      <button class="btn btn-outline" onclick="closeModal('orderStatusModal')">Cancelled</button>
+      <button class="btn btn-green" onclick="saveOrderStatus()">Update</button>
     </div>
   </div>
 </div>
@@ -693,36 +766,36 @@ tr:last-child td{border-bottom:none}
 <!-- NEW ORDER MODAL -->
 <div class="modal-overlay" id="newOrderModal">
   <div class="modal">
-    <div class="modal-title"><span class="ic ic-g"><i class="fa-solid fa-plus"></i></span> नया ऑर्डर बनाएं</div>
+    <div class="modal-title"><span class="ic ic-g"><i class="fa-solid fa-plus"></i></span> Create New Order</div>
     <div class="form-grid">
       <div class="form-group">
-        <label class="form-label">क्लाइंट</label>
+        <label class="form-label">Client</label>
         <select class="form-select" id="no-client" style="width:100%"></select>
       </div>
       <div class="form-group">
-        <label class="form-label">उत्पाद</label>
+        <label class="form-label">Product</label>
         <select class="form-select" id="no-product" style="width:100%">
-          <option>Hydrated Lime (बुझा चूना)</option>
-          <option>Quick Lime (कच्चा चूना)</option>
-          <option>Lime Stone (चूना पत्थर)</option>
+          <option>Hydrated Lime </option>
+          <option>Quick Lime </option>
+          <option>Lime Stone </option>
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">मात्रा (MT)</label>
-        <input class="form-input" id="no-qty" type="number" placeholder="जैसे: 50">
+        <label class="form-label">Quantity (MT)</label>
+        <input class="form-input" id="no-qty" type="number" placeholder="e.g. 50">
       </div>
       <div class="form-group">
-        <label class="form-label">दर (₹/MT)</label>
-        <input class="form-input" id="no-rate" type="number" placeholder="जैसे: 4500">
+        <label class="form-label">Rate (₹/MT)</label>
+        <input class="form-input" id="no-rate" type="number" placeholder="e.g. 4500">
       </div>
       <div class="form-group form-full">
-        <label class="form-label">डिलीवरी पता</label>
-        <input class="form-input" id="no-addr" placeholder="डिलीवरी का पूरा पता">
+        <label class="form-label">Delivery Address</label>
+        <input class="form-input" id="no-addr" placeholder="Delivery full address">
       </div>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('newOrderModal')">रद्द</button>
-      <button class="btn btn-green" onclick="saveNewOrder()">ऑर्डर बनाएं</button>
+      <button class="btn btn-outline" onclick="closeModal('newOrderModal')">Cancelled</button>
+      <button class="btn btn-green" onclick="saveNewOrder()">Create Order</button>
     </div>
   </div>
 </div>
@@ -730,11 +803,11 @@ tr:last-child td{border-bottom:none}
 <!-- PRICE EDIT MODAL -->
 <div class="modal-overlay" id="priceModal">
   <div class="modal">
-    <div class="modal-title"><span class="ic ic-y"><i class="fa-solid fa-indian-rupee-sign"></i></span> रेट अपडेट करें</div>
+    <div class="modal-title"><span class="ic ic-y"><i class="fa-solid fa-indian-rupee-sign"></i></span> Update Rates</div>
     <div id="priceFormFields"></div>
     <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('priceModal')">रद्द</button>
-      <button class="btn btn-green" onclick="savePrices()">सेव करें</button>
+      <button class="btn btn-outline" onclick="closeModal('priceModal')">Cancelled</button>
+      <button class="btn btn-green" onclick="savePrices()">Save</button>
     </div>
   </div>
 </div>
@@ -742,33 +815,33 @@ tr:last-child td{border-bottom:none}
 <!-- RECORD PAYMENT MODAL -->
 <div class="modal-overlay" id="recordPaymentModal">
   <div class="modal">
-    <div class="modal-title"><span class="ic ic-y"><i class="fa-solid fa-credit-card"></i></span> भुगतान दर्ज करें</div>
+    <div class="modal-title"><span class="ic ic-y"><i class="fa-solid fa-credit-card"></i></span> Record Payment</div>
     <div class="form-grid">
       <div class="form-group">
-        <label class="form-label">क्लाइंट</label>
+        <label class="form-label">Client</label>
         <select class="form-select" id="rp-client" style="width:100%"></select>
       </div>
       <div class="form-group">
-        <label class="form-label">राशि (₹)</label>
-        <input class="form-input" id="rp-amount" type="number" placeholder="जैसे: 50000">
+        <label class="form-label">Amount (₹)</label>
+        <input class="form-input" id="rp-amount" type="number" placeholder="e.g. 50000">
       </div>
       <div class="form-group">
-        <label class="form-label">माध्यम</label>
+        <label class="form-label">Method</label>
         <select class="form-select" id="rp-method" style="width:100%">
           <option>NEFT/RTGS</option>
           <option>UPI</option>
-          <option>चेक</option>
-          <option>नकद</option>
+          <option>Cheque</option>
+          <option>Cash</option>
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">सन्दर्भ नंबर</label>
-        <input class="form-input" id="rp-ref" placeholder="UTR/चेक नंबर">
+        <label class="form-label">Reference Number</label>
+        <input class="form-input" id="rp-ref" placeholder="UTR / Cheque Number">
       </div>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('recordPaymentModal')">रद्द</button>
-      <button class="btn btn-green" onclick="savePayment()">दर्ज करें</button>
+      <button class="btn btn-outline" onclick="closeModal('recordPaymentModal')">Cancelled</button>
+      <button class="btn btn-green" onclick="savePayment()">Record</button>
     </div>
   </div>
 </div>
@@ -789,12 +862,12 @@ let CLIENTS = [];
 
 // Static reference data still used by other admin pages (orders, invoices, etc.)
 const _LEGACY_DEMO_CLIENTS = [
-  {id:'C001',company:'Ramkaran Lime Udyog',owner:'रामकरण गुप्ता',phone:'+91 98765 43210',email:'ramkaran@example.com',gstin:'08ABCDE1234F1Z5',city:'जोधपुर, राजस्थान',address:'MIA Industrial Area, Jodhpur',username:'RAMKARAN2024',password:'lime@123',credit:500000,terms:'30 दिन',balance:68000,totalOrders:18,status:'active'},
-  {id:'C002',company:'Shiv Lime Enterprises',owner:'शिव शंकर यादव',phone:'+91 87654 32109',email:'shiv@example.com',gstin:'23FGHIJ5678K2M6',city:'रतलाम, मध्य प्रदेश',address:'Industrial Colony, Ratlam',username:'SHIV_LIME',password:'lime@456',credit:300000,terms:'15 दिन',balance:45000,totalOrders:12,status:'active'},
-  {id:'C003',company:'Manoj Minerals Pvt Ltd',owner:'मनोज वर्मा',phone:'+91 76543 21098',email:'manoj@example.com',gstin:'09KLMNO9012P3Q7',city:'आगरा, उत्तर प्रदेश',address:'Bypass Road, Agra',username:'MANOJ_MIN',password:'lime@789',credit:400000,terms:'30 दिन',balance:0,totalOrders:8,status:'active'},
-  {id:'C004',company:'Agarwal Lime House',owner:'सुरेश अग्रवाल',phone:'+91 65432 10987',email:'suresh@example.com',gstin:'27PQRST3456U4V8',city:'नागपुर, महाराष्ट्र',address:'Hingna Road, Nagpur',username:'AGARWAL_L',password:'lime@321',credit:200000,terms:'7 दिन',balance:12000,totalOrders:6,status:'active'},
-  {id:'C005',company:'Rajputana Lime Co',owner:'दिलीप सिंह राठौड़',phone:'+91 54321 09876',email:'dilip@example.com',gstin:'08UVWXY7890Z5W9',city:'अजमेर, राजस्थान',address:'NH-58, Ajmer',username:'RAJPUT_L',password:'lime@654',credit:600000,terms:'60 दिन',balance:93000,totalOrders:14,status:'active'},
-  {id:'C006',company:'Gujarat Lime Traders',owner:'भावेश पटेल',phone:'+91 43210 98765',email:'bhavesh@example.com',gstin:'24YZABC1234D6X0',city:'सूरत, गुजरात',address:'Kim Industrial Estate, Surat',username:'GUJ_LIME',password:'lime@987',credit:250000,terms:'30 दिन',balance:0,totalOrders:4,status:'inactive'},
+  {id:'C001',company:'Ramkaran Lime Udyog',owner:'Owner full name',phone:'+91 98765 43210',email:'ramkaran@example.com',gstin:'08ABCDE1234F1Z5',city:'Jodhpur, Rajasthan',address:'MIA Industrial Area, Jodhpur',username:'RAMKARAN2024',password:'lime@123',credit:500000,terms:'30 days',balance:68000,totalOrders:18,status:'active'},
+  {id:'C002',company:'Shiv Lime Enterprises',owner:'Shiv Shankar Yadav',phone:'+91 87654 32109',email:'shiv@example.com',gstin:'23FGHIJ5678K2M6',city:'Ratlam, Madhya Pradesh',address:'Industrial Colony, Ratlam',username:'SHIV_LIME',password:'lime@456',credit:300000,terms:'15 days',balance:45000,totalOrders:12,status:'active'},
+  {id:'C003',company:'Manoj Minerals Pvt Ltd',owner:'Manoj Verma',phone:'+91 76543 21098',email:'manoj@example.com',gstin:'09KLMNO9012P3Q7',city:'Agra, Uttar Pradesh',address:'Bypass Road, Agra',username:'MANOJ_MIN',password:'lime@789',credit:400000,terms:'30 days',balance:0,totalOrders:8,status:'active'},
+  {id:'C004',company:'Agarwal Lime House',owner:'Suresh Aggarwal',phone:'+91 65432 10987',email:'suresh@example.com',gstin:'27PQRST3456U4V8',city:'Nagpur, Maharashtra',address:'Hingna Road, Nagpur',username:'AGARWAL_L',password:'lime@321',credit:200000,terms:'7 days',balance:12000,totalOrders:6,status:'active'},
+  {id:'C005',company:'Rajputana Lime Co',owner:'Dilip Singh Rathod',phone:'+91 54321 09876',email:'dilip@example.com',gstin:'08UVWXY7890Z5W9',city:'Ajmer, Rajasthan',address:'NH-58, Ajmer',username:'RAJPUT_L',password:'lime@654',credit:600000,terms:'60 days',balance:93000,totalOrders:14,status:'active'},
+  {id:'C006',company:'Gujarat Lime Traders',owner:'Bhavesh Patel',phone:'+91 43210 98765',email:'bhavesh@example.com',gstin:'24YZABC1234D6X0',city:'Surat, Gujarat',address:'Kim Industrial Estate, Surat',username:'GUJ_LIME',password:'lime@987',credit:250000,terms:'30 days',balance:0,totalOrders:4,status:'inactive'},
 ];
 
 let ORDERS = JSON.parse(localStorage.getItem('ql_orders')||'null') || [
@@ -820,14 +893,14 @@ let PAYMENTS = JSON.parse(localStorage.getItem('ql_payments')||'null') || [
   {client:'Ramkaran Lime Udyog',amount:283200,method:'NEFT/RTGS',date:'2026-04-21',ref:'UTR2026042112345',status:'received'},
   {client:'Ramkaran Lime Udyog',amount:212400,method:'NEFT/RTGS',date:'2026-04-25',ref:'UTR2026042567890',status:'received'},
   {client:'Shiv Lime Enterprises',amount:60000,method:'UPI',date:'2026-04-24',ref:'UPI2026042411111',status:'received'},
-  {client:'Agarwal Lime House',amount:40500,method:'चेक',date:'2026-04-26',ref:'CHQ-001234',status:'received'},
+  {client:'Agarwal Lime House',amount:40500,method:'Cheque',date:'2026-04-26',ref:'CHQ-001234',status:'received'},
   {client:'Rajputana Lime Co',amount:100000,method:'NEFT/RTGS',date:'2026-04-28',ref:'UTR2026042899999',status:'received'},
 ];
 
 let PRICES = JSON.parse(localStorage.getItem('ql_prices')||'null') || [
-  {name:'Hydrated Lime (बुझा चूना)',rate:4800,unit:'₹/MT'},
-  {name:'Quick Lime (कच्चा चूना)',rate:3500,unit:'₹/MT'},
-  {name:'Lime Stone (चूना पत्थर)',rate:1800,unit:'₹/MT'},
+  {name:'Hydrated Lime ',rate:4800,unit:'₹/MT'},
+  {name:'Quick Lime ',rate:3500,unit:'₹/MT'},
+  {name:'Lime Stone ',rate:1800,unit:'₹/MT'},
   {name:'Fine Lime Powder',rate:5200,unit:'₹/MT'},
   {name:'Calcined Lime',rate:6000,unit:'₹/MT'},
   {name:'Agricultural Lime',rate:2200,unit:'₹/MT'},
@@ -956,7 +1029,7 @@ function goPage(id, btn){
       if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'"+id+"'")) b.classList.add('active');
     });
   }
-  const titles={dashboard:'डैशबोर्ड',orders:'सभी ऑर्डर',clients:'क्लाइंट्स',invoices:'इनवॉइस',payments:'भुगतान',prices:'रेट मैनेजर',addclient:'नया क्लाइंट',settings:'सेटिंग्स'};
+  const titles={dashboard:'Dashboard',orders:'All Orders',clients:'Clients',invoices:'Invoices',payments:'Payments',prices:'Rate Manager',addclient:'New Client',settings:'Settings'};
   document.getElementById('pageTitle').textContent=titles[id]||id;
   if(id==='orders') renderOrders(ORDERS);
   if(id==='clients'){renderClients(CLIENTS);loadPlantsFromSupabase();loadAdminStats();}
@@ -995,22 +1068,22 @@ function renderDashboard(){
     <tr>
       <td><strong>${c.company.split(' ')[0]}</strong></td>
       <td style="color:#dc2626;font-weight:700">₹${c.balance.toLocaleString('hi-IN')}</td>
-      <td><span class="badge badge-amber">चालू</span></td>
-    </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:20px"><i class="fa-solid fa-circle-check" style="color:#22c55e"></i> कोई बकाया नहीं</td></tr>';
+      <td><span class="badge badge-amber">Activate</span></td>
+    </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:20px"><i class="fa-solid fa-circle-check" style="color:#22c55e"></i> No pending payments</td></tr>';
 
   // Charts
   setTimeout(()=>{
     const ctx1=document.getElementById('ordersChart');
     if(ctx1._chart) ctx1._chart.destroy();
     ctx1._chart=new Chart(ctx1,{type:'bar',data:{
-      labels:['नव','दिस','जन','फर','मार','अप्र'],
+      labels:['Nov','Dec','Jan','Feb','Mar','Apr'],
       datasets:[{label:'MT',data:[120,180,150,220,190,280],backgroundColor:'rgba(22,163,74,.7)',borderRadius:8}]
     },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
 
     const ctx2=document.getElementById('statusChart');
     if(ctx2._chart) ctx2._chart.destroy();
     ctx2._chart=new Chart(ctx2,{type:'doughnut',data:{
-      labels:['डिलीवर','रास्ते में','प्रोसेस','प्रतीक्षा'],
+      labels:['Delivered','In Transit','Processing','Pending'],
       datasets:[{data:[19,9,12,8],backgroundColor:['#22c55e','#3b82f6','#f59e0b','#9ca3af'],borderWidth:2}]
     },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}}}});
   },100);
@@ -1029,9 +1102,9 @@ function renderOrders(orders){
       <td>${o.date}</td>
       <td>${statusBadge(o.status)}</td>
       <td>
-        <button class="btn btn-outline btn-sm" onclick="openEditOrder('${o.id}')"><i class="fa-solid fa-pen"></i> स्थिति</button>
+        <button class="btn btn-outline btn-sm" onclick="openEditOrder('${o.id}')"><i class="fa-solid fa-pen"></i> Status</button>
       </td>
-    </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#6b7280">कोई ऑर्डर नहीं</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#6b7280">No orders found</td></tr>';
 }
 function filterOrders(status, btn){
   currentOrderFilter=status;
@@ -1066,7 +1139,7 @@ function saveNewOrder(){
   const client=CLIENTS.find(c=>c.id===clientId);
   const qty=parseFloat(document.getElementById('no-qty').value)||0;
   const rate=parseFloat(document.getElementById('no-rate').value)||0;
-  if(!client||!qty||!rate){alert('कृपया सभी जानकारी भरें');return;}
+  if(!client||!qty||!rate){alert('Please fill all information');return;}
   const newOrder={
     id:'ORD-'+(ORDERS.length+1).toString().padStart(3,'0'),
     clientId,client:client.company,
@@ -1091,7 +1164,7 @@ function _statusBadge(s){
     active:{cls:'badge-green',label:'Active'},
     pending:{cls:'badge-amber',label:'Pending'},
     suspended:{cls:'badge-red',label:'Suspended'},
-    cancelled:{cls:'badge-gray',label:'Cancelled'},
+    cancelled:{cls:'badge-gray',label:'Cancelledled'},
   };
   const m=map[s]||{cls:'badge-gray',label:s||'—'};
   return `<span class="badge ${m.cls}">${m.label}</span>`;
@@ -1116,42 +1189,126 @@ function _trialBadge(c){
   const color=expired?'#dc2626':(days<=7?'#f59e0b':'#10b981');
   return `<div style="font-size:11px;font-weight:600;color:${color}">${expired?'Trial expired':`Trial: ${days} day${days!==1?'s':''} left`}</div>`;
 }
+// Track expanded + selected rows
+let _ctExpanded = new Set();
+let _ctSelected = new Set();
+
+function _planTypeLabel(t){
+  return ({quicklime:'Quick Lime',hydrated:'Hydrated Lime',trader:'Trader',both:'Quick + Hydrated'})[t] || t || '—';
+}
+
 function renderClients(clients){
-  const grid=document.getElementById('clientGrid');
-  if(!grid)return;
-  grid.innerHTML=clients.map(c=>{
+  const tbody=document.getElementById('clientGrid');
+  if(!tbody)return;
+
+  if(!clients.length){
+    tbody.innerHTML=`<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:40px">No plants signed up yet — share your <a href="https://quicklimes.com/signup" target="_blank" style="color:#0073EC;font-weight:600">signup link</a> to get started.</td></tr>`;
+    _ctUpdateSelectedLabel();
+    return;
+  }
+
+  tbody.innerHTML = clients.map(c=>{
     const initials=(c.company||'?').trim().charAt(0).toUpperCase();
-    const planType=({quicklime:'Quick Lime',hydrated:'Hydrated Lime',trader:'Trader',both:'Quick + Hydrated'})[c.owner]||c.owner||'';
-    return `
-    <div class="client-card">
-      <div class="cc-head">
-        <div style="display:flex;align-items:center;gap:10px;min-width:0">
-          <div class="cc-avatar">${initials}</div>
-          <div style="min-width:0">
-            <div class="cc-name" title="${c.company}">${c.company}</div>
-            <div class="cc-location"><i class="fa-solid fa-phone"></i> ${c.phone||'—'}</div>
+    const expanded=_ctExpanded.has(c.id);
+    const selected=_ctSelected.has(c.id);
+    const statusCls=`ct-status-${c.status||'cancelled'}`;
+    const statusLabel=({active:'Active',pending:'Pending',suspended:'Suspended',cancelled:'Cancelled'})[c.status]||c.status||'—';
+    const planLabel=(c.plan||'—').charAt(0).toUpperCase()+(c.plan||'—').slice(1);
+    const trialDays=c.plan==='trial'&&c.trial_ends_at
+      ? Math.ceil((new Date(c.trial_ends_at).getTime()-Date.now())/86400000)
+      : null;
+    const trialText=trialDays==null?'—':(trialDays<0?`Expired ${Math.abs(trialDays)}d ago`:`${trialDays} days left`);
+
+    const mainRow=`
+    <tr class="${expanded?'expanded':''} ${selected?'selected':''}" data-id="${c.id}">
+      <td><input type="checkbox" class="ct-checkbox" ${selected?'checked':''} onclick="ctToggleSelected('${c.id}',this.checked)"></td>
+      <td><span class="ct-chev" onclick="ctToggleExpand('${c.id}')"><i class="fa-solid fa-chevron-down"></i></span></td>
+      <td>
+        <div class="ct-name-wrap">
+          <div class="ct-avatar">${initials}</div>
+          <div class="ct-name">${c.company}</div>
+        </div>
+      </td>
+      <td style="color:var(--ink2)">${_planTypeLabel(c.owner)}</td>
+      <td style="color:var(--ink2)">${c.phone||'—'}</td>
+      <td style="color:var(--ink2)">${c.city||'—'}</td>
+      <td><span class="ct-status-pill ${statusCls}">${statusLabel}</span></td>
+      <td style="color:var(--ink2)">${planLabel}</td>
+      <td style="white-space:nowrap">
+        <button class="ct-icon-btn" title="${c.status==='active'?'Suspend':'Activate'}"
+                onclick="adminSetStatus('${c.id}','${c.status==='active'?'suspended':'active'}')">
+          <i class="fa-solid fa-${c.status==='active'?'pause':'play'}"></i>
+        </button>
+        <button class="ct-icon-btn" title="Edit plan" onclick="adminPlanPrompt('${c.id}','${c.plan}')">
+          <i class="fa-solid fa-pen"></i>
+        </button>
+        <button class="ct-icon-btn danger" title="Delete plant"
+                onclick="adminDeletePlant('${c.id}','${(c.company||'').replace(/'/g,'')}')">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </td>
+    </tr>`;
+
+    const expandRow=expanded?`
+    <tr class="expand-row" data-parent="${c.id}">
+      <td colspan="9">
+        <div class="expand-content">
+          <div class="ec-block">
+            <div class="ec-label">GSTIN</div>
+            <div class="ec-val"><i class="fa-solid fa-id-card"></i>${c.gstin||'Not provided'}</div>
+          </div>
+          <div class="ec-block">
+            <div class="ec-label">Joined</div>
+            <div class="ec-val"><i class="fa-regular fa-calendar"></i>${_fmtDate(c.created_at)}</div>
+          </div>
+          <div class="ec-block">
+            <div class="ec-label">Last Login</div>
+            <div class="ec-val"><i class="fa-regular fa-clock"></i>${_fmtRel(c.last_login_at)}</div>
+          </div>
+          <div class="ec-block">
+            <div class="ec-label">Trial</div>
+            <div class="ec-val"><i class="fa-solid fa-hourglass-half"></i>${trialText}</div>
+          </div>
+          <div class="ec-block" style="grid-column:span 4;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px dashed #eaecf3;padding-top:14px">
+            <span style="font-size:12px;color:var(--ink3);font-weight:600;margin-right:6px">Quick actions:</span>
+            ${c.plan==='trial'
+              ? `<button class="btn btn-sm" style="background:#fef3c7;color:#92400e" onclick="adminExtendTrial('${c.id}',30)"><i class="fa-solid fa-hourglass-half"></i> +30 days trial</button>`:''}
+            <button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8" onclick="adminPlanPrompt('${c.id}','${c.plan}')"><i class="fa-solid fa-tag"></i> Change plan</button>
+            ${c.status==='active'
+              ? `<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626" onclick="adminSetStatus('${c.id}','suspended')"><i class="fa-solid fa-pause"></i> Suspend</button>`
+              : `<button class="btn btn-sm" style="background:#dcfce7;color:#15803d" onclick="adminSetStatus('${c.id}','active')"><i class="fa-solid fa-play"></i> Activate</button>`}
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">${_statusBadge(c.status)}${_planBadge(c.plan)}</div>
-      </div>
-      <div style="font-size:12px;color:var(--ink3);margin-bottom:6px"><i class="fa-solid fa-industry"></i> ${planType||'—'}${c.gstin?` · GSTIN ${c.gstin}`:''}</div>
-      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;display:flex;justify-content:space-between;gap:8px">
-        <span><i class="fa-regular fa-clock"></i> Last login ${_fmtRel(c.last_login_at)}</span>
-        <span><i class="fa-regular fa-calendar"></i> Joined ${_fmtDate(c.created_at)}</span>
-      </div>
-      ${_trialBadge(c)}
-      <div class="cc-actions" style="margin-top:10px">
-        ${c.status==='active'
-          ? `<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626" onclick="adminSetStatus('${c.id}','suspended')"><i class="fa-solid fa-pause"></i> Suspend</button>`
-          : `<button class="btn btn-sm" style="background:#dcfce7;color:#15803d" onclick="adminSetStatus('${c.id}','active')"><i class="fa-solid fa-play"></i> Activate</button>`}
-        ${c.plan==='trial'
-          ? `<button class="btn btn-sm" style="background:#fef3c7;color:#92400e" onclick="adminExtendTrial('${c.id}',30)"><i class="fa-solid fa-hourglass-half"></i> +30 days</button>`
-          : ''}
-        <button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8" onclick="adminPlanPrompt('${c.id}','${c.plan}')"><i class="fa-solid fa-tag"></i> Plan</button>
-        <button class="btn btn-outline btn-sm" style="color:#dc2626;border-color:#fecaca" onclick="adminDeletePlant('${c.id}','${(c.company||'').replace(/'/g,'')}')"><i class="fa-solid fa-trash"></i></button>
-      </div>
-    </div>`;
-  }).join('') || '<div style="text-align:center;color:#6b7280;padding:40px;grid-column:1/-1">No plants signed up yet — share your <a href="https://quicklimes.com/signup" target="_blank">signup link</a> to get started.</div>';
+      </td>
+    </tr>`:'';
+
+    return mainRow + expandRow;
+  }).join('');
+
+  _ctUpdateSelectedLabel();
+}
+
+function ctToggleExpand(id){
+  if(_ctExpanded.has(id)) _ctExpanded.delete(id); else { _ctExpanded.clear(); _ctExpanded.add(id); }
+  renderClients(CLIENTS);
+}
+function ctToggleSelected(id, checked){
+  if(checked) _ctSelected.add(id); else _ctSelected.delete(id);
+  _ctUpdateSelectedLabel();
+  document.querySelectorAll(`tr[data-id="${id}"]`).forEach(r=>{
+    if(checked) r.classList.add('selected'); else r.classList.remove('selected');
+  });
+}
+function ctToggleAll(checked){
+  _ctSelected.clear();
+  if(checked) CLIENTS.forEach(c=>_ctSelected.add(c.id));
+  renderClients(CLIENTS);
+}
+function _ctUpdateSelectedLabel(){
+  const lbl=document.getElementById('ct-selected-label');
+  const all=document.getElementById('ct-select-all');
+  if(lbl) lbl.textContent=`${_ctSelected.size} Selected`;
+  if(all) all.checked = _ctSelected.size>0 && _ctSelected.size===CLIENTS.length;
 }
 function adminPlanPrompt(plantId, currentPlan){
   const choice=prompt(`Change plan (current: ${currentPlan})\nOptions: trial, starter, professional, enterprise`, currentPlan);
@@ -1201,10 +1358,10 @@ function addNewClient(){
   const username=document.getElementById('nc-user').value.trim();
   const password=document.getElementById('nc-pass').value.trim();
   if(!company||!owner||!phone||!username||!password){
-    showMsg('addClientMsg','❌ कृपया सभी अनिवार्य (*) फ़ील्ड भरें','#dc2626');return;
+    showMsg('addClientMsg','❌ Please fill all required (*) fields','#dc2626');return;
   }
   if(CLIENTS.find(c=>c.username===username)){
-    showMsg('addClientMsg','❌ यह username पहले से मौजूद है','#dc2626');return;
+    showMsg('addClientMsg','❌ This username already exists','#dc2626');return;
   }
   const newClient={
     id:'C'+(CLIENTS.length+1).toString().padStart(3,'0'),
@@ -1221,7 +1378,7 @@ function addNewClient(){
   CLIENTS.push(newClient);
   save();
   populateClientSelects();
-  showMsg('addClientMsg','✅ क्लाइंट सफलतापूर्वक जोड़ा गया! Username: '+username,'#15803d');
+  showMsg('addClientMsg','✅ Client added successfully — Username: '+username,'#15803d');
   clearClientForm();
 }
 function clearClientForm(){
@@ -1243,9 +1400,9 @@ function renderInvoices(){
       <td>₹${inv.gst.toLocaleString('hi-IN')}</td>
       <td><strong>₹${inv.total.toLocaleString('hi-IN')}</strong></td>
       <td>${inv.date}</td>
-      <td>${inv.status==='paid'?'<span class="badge badge-green"><i class="fa-solid fa-check"></i> भुगतान हुआ</span>':'<span class="badge badge-amber"><i class="fa-solid fa-clock"></i> बकाया</span>'}</td>
+      <td>${inv.status==='paid'?'<span class="badge badge-green"><i class="fa-solid fa-check"></i> Paid</span>':'<span class="badge badge-amber"><i class="fa-solid fa-clock"></i> Pending</span>'}</td>
       <td>
-        <button class="btn btn-outline btn-sm" onclick="toggleInvoiceStatus('${inv.id}')">${inv.status==='paid'?'↩ बकाया':'<i class="fa-solid fa-check"></i> भुगतान'}</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleInvoiceStatus('${inv.id}')">${inv.status==='paid'?'↩ Pending':'<i class="fa-solid fa-check"></i> Payments'}</button>
       </td>
     </tr>`).join('');
 }
@@ -1253,7 +1410,7 @@ function toggleInvoiceStatus(id){
   const inv=INVOICES.find(i=>i.id===id);
   if(inv){inv.status=inv.status==='paid'?'pending':'paid';save();renderInvoices();}
 }
-function openNewInvoiceModal(){alert('नया इनवॉइस फीचर जल्द आ रहा है।');}
+function openNewInvoiceModal(){alert('New Invoice feature coming soon.');}
 
 // ══ PAYMENTS ══
 function renderPayments(){
@@ -1264,7 +1421,7 @@ function renderPayments(){
       <td>${p.method}</td>
       <td>${p.date}</td>
       <td style="font-size:12px;color:var(--ink3)">${p.ref}</td>
-      <td><span class="badge badge-green">प्राप्त</span></td>
+      <td><span class="badge badge-green">Received</span></td>
     </tr>`).join('');
 }
 function openRecordPaymentModal(){
@@ -1274,7 +1431,7 @@ function savePayment(){
   const clientId=document.getElementById('rp-client').value;
   const client=CLIENTS.find(c=>c.id===clientId);
   const amount=parseFloat(document.getElementById('rp-amount').value)||0;
-  if(!client||!amount){alert('कृपया सभी जानकारी भरें');return;}
+  if(!client||!amount){alert('Please fill all information');return;}
   PAYMENTS.unshift({
     client:client.company,amount,
     method:document.getElementById('rp-method').value,
@@ -1321,12 +1478,12 @@ function savePrices(){
   renderPrices();
 }
 function saveGST(){
-  alert('GST सेटिंग सेव हो गई: CGST '+document.getElementById('cgstInput').value+'% + SGST '+document.getElementById('sgstInput').value+'%');
+  alert('GST settings saved: CGST '+document.getElementById('cgstInput').value+'% + SGST '+document.getElementById('sgstInput').value+'%');
 }
 
 // ══ HELPERS ══
 function statusBadge(s){
-  const map={pending:'<span class="badge badge-gray"><i class="fa-solid fa-clock"></i> प्रतीक्षा</span>',processing:'<span class="badge badge-amber"><i class="fa-solid fa-rotate"></i> प्रोसेस</span>',transit:'<span class="badge badge-blue"><i class="fa-solid fa-truck"></i> रास्ते में</span>',delivered:'<span class="badge badge-green"><i class="fa-solid fa-check"></i> डिलीवर</span>',cancelled:'<span class="badge badge-red"><i class="fa-solid fa-xmark"></i> रद्द</span>'};
+  const map={pending:'<span class="badge badge-gray"><i class="fa-solid fa-clock"></i> Pending</span>',processing:'<span class="badge badge-amber"><i class="fa-solid fa-rotate"></i> Processing</span>',transit:'<span class="badge badge-blue"><i class="fa-solid fa-truck"></i> In Transit</span>',delivered:'<span class="badge badge-green"><i class="fa-solid fa-check"></i> Delivered</span>',cancelled:'<span class="badge badge-red"><i class="fa-solid fa-xmark"></i> Cancelled</span>'};
   return map[s]||s;
 }
 function closeModal(id){document.getElementById(id).classList.remove('open')}
