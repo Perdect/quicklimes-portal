@@ -94,10 +94,9 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:var(--ink);background
         <label>Plant Type</label>
         <select class="ls-select" id="su-plant">
           <option value="">Select your business type</option>
-          <option value="quicklime">Quick Lime Manufacturer</option>
+          <option value="quicklime">Quick Lime Bhatta</option>
           <option value="hydrated">Hydrated Lime Plant</option>
-          <option value="trader">Lime Trader / Distributor</option>
-          <option value="both">Both Quick &amp; Hydrated Lime</option>
+          <option value="other">Other</option>
         </select>
       </div>
       <div class="ls-fld">
@@ -217,12 +216,24 @@ async function doSignup(){
       return;
     }
 
-    // Success — show banner, then redirect to portal login
-    ok.querySelector('span') ? null : null; // (success element already has the message)
-    ok.innerHTML = '<i class="fa-solid fa-circle-check"></i> Account created! Redirecting to login…';
+    // Success — auto-login and redirect straight to the dashboard
+    ok.innerHTML = '<i class="fa-solid fa-circle-check"></i> Account created! Opening your dashboard…';
     ok.classList.add('show');
     btn.textContent = 'ACCOUNT CREATED ✓';
-    setTimeout(() => { window.location.href = '/portal'; }, 2200);
+    try {
+      const { data: loginData, error: loginErr } = await DB.rpc('login_plant', {
+        p_owner_phone: f.phone,
+        p_password:    f.pass,
+      });
+      if (loginErr || !loginData || !loginData.success || !loginData.plant) throw (loginErr || new Error('login_failed'));
+      // Stash plant info + cross-subdomain hash handoff (same flow as /portal)
+      localStorage.setItem('ql_plant', JSON.stringify(loginData.plant));
+      const handoff = btoa(unescape(encodeURIComponent(JSON.stringify(loginData.plant))));
+      setTimeout(() => { window.location.href = 'https://app.quicklimes.com/#auth=' + handoff; }, 800);
+    } catch (_e) {
+      // Fallback: send them to portal so they can log in manually
+      setTimeout(() => { window.location.href = '/portal'; }, 1500);
+    }
   } catch (e) {
     console.error(e);
     errMsg.textContent = 'Network error — please try again.';
