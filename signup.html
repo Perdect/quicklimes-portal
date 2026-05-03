@@ -219,7 +219,7 @@ async function doSignup(){
 
     // Success — show banner, then redirect to portal login
     ok.querySelector('span') ? null : null; // (success element already has the message)
-    ok.innerHTML = '<i class="fa-solid fa-circle-check"></i> Account created! Our team will approve it shortly. Redirecting to login…';
+    ok.innerHTML = '<i class="fa-solid fa-circle-check"></i> Account created! Redirecting to login…';
     ok.classList.add('show');
     btn.textContent = 'ACCOUNT CREATED ✓';
     setTimeout(() => { window.location.href = '/portal'; }, 2200);
