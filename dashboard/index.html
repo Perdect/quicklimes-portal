@@ -958,6 +958,11 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
       <button id="lang-en" data-lang="en" onclick="setLang('en')" class="lang-btn" style="flex:1;padding:7px;border-radius:8px;border:1.5px solid var(--p4);background:var(--p2);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">EN English</button>
       <button id="lang-hi" data-lang="hi" onclick="setLang('hi')" class="lang-btn" style="flex:1;padding:7px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:var(--ink3);font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">हिं Hindi</button>
     </div>
+    <!-- Logout -->
+    <button onclick="qlLogout()" style="width:100%;padding:10px 12px;border-radius:9px;border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;font-size:12.5px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .12s,border-color .12s">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Log out
+    </button>
   </div>
 </nav>
 
@@ -6546,9 +6551,18 @@ function updateSidebarForCompany(){
     // Repopulate dropdown to match COMPANIES (which may include the logged-in plant's row)
     sw.innerHTML=Object.values(COMPANIES).map(co=>`<option value="${co.key}">🏭 ${co.short}</option>`).join('');
     sw.value=ACTIVE_CO;
-    // Hide the dropdown when there's only one company to switch to
     const wrap=sw.parentElement;
-    if(wrap){wrap.parentElement.style.display=Object.keys(COMPANIES).length>1?'':'none';}
+    const isMulti=Object.keys(COMPANIES).length>1;
+    // When the user has only one company, show it as a static chip
+    // (no dropdown chevron, no click). When they have multiple, keep the
+    // selectable dropdown.
+    if(wrap){
+      const chev=wrap.querySelector('svg');
+      if(chev) chev.style.display=isMulti?'':'none';
+      sw.style.cursor=isMulti?'pointer':'default';
+      sw.style.pointerEvents=isMulti?'':'none';
+      sw.style.paddingRight=isMulti?'40px':'14px';
+    }
   }
   const fb=document.getElementById('sb-bank-info');
   if(fb)fb.innerHTML=c.bank?`<strong>${c.bank}${c.bankBranch?' · '+c.bankBranch:''}</strong>A/C: ${c.accNo}<br>IFSC: ${c.ifsc}<br>GSTIN: ${c.gstin}`:`<strong>${c.name}</strong>GSTIN: ${c.gstin}<br>${c.phone}`;
