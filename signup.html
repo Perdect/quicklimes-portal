@@ -160,20 +160,28 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:var(--ink);background
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-function doSignup(){
+// ── Supabase config (publishable anon key — safe for browser) ──
+const SUPA_URL = 'https://iteaawedfmaujujyrqdu.supabase.co';
+const SUPA_KEY = 'sb_publishable_9MNYdrZ_ddJKTLL97amK4w_85iF6vlU';
+const DB = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+async function doSignup(){
   const f = {
     company: document.getElementById('su-company').value.trim(),
-    phone: document.getElementById('su-phone').value.trim(),
-    plant: document.getElementById('su-plant').value,
-    pass: document.getElementById('su-pass').value,
-    terms: document.getElementById('su-terms').checked,
+    phone:   document.getElementById('su-phone').value.trim(),
+    plant:   document.getElementById('su-plant').value,
+    pass:    document.getElementById('su-pass').value,
+    terms:   document.getElementById('su-terms').checked,
   };
-  const err = document.getElementById('signupError');
-  const errMsg = document.getElementById('signupErrorMsg');
-  const ok = document.getElementById('signupSuccess');
+  const err     = document.getElementById('signupError');
+  const errMsg  = document.getElementById('signupErrorMsg');
+  const ok      = document.getElementById('signupSuccess');
+  const btn     = document.querySelector('.ls-btn');
   err.classList.remove('show'); ok.classList.remove('show');
 
+  // Client-side validation
   if(!f.company || !f.phone || !f.plant || !f.pass){
     errMsg.textContent = 'Please fill in all required fields.';
     err.classList.add('show'); return;
@@ -187,11 +195,41 @@ function doSignup(){
     err.classList.add('show'); return;
   }
 
-  // Demo: brief success state, then redirect to dashboard
-  ok.classList.add('show');
-  document.querySelector('.ls-btn').disabled = true;
-  document.querySelector('.ls-btn').textContent = 'REDIRECTING...';
-  setTimeout(()=>{ window.location.href = 'https://app.quicklimes.com/'; }, 800);
+  btn.disabled = true;
+  btn.textContent = 'CREATING ACCOUNT...';
+
+  // Real signup → calls Supabase RPC
+  try {
+    const { data, error } = await DB.rpc('signup_plant', {
+      p_plant_name:  f.company,
+      p_plant_type:  f.plant,
+      p_owner_phone: f.phone,
+      p_password:    f.pass,
+    });
+
+    if (error) throw error;
+
+    if (data && data.error) {
+      errMsg.textContent = data.error;
+      err.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'CREATE ACCOUNT';
+      return;
+    }
+
+    // Success — show banner, then redirect to portal login
+    ok.querySelector('span') ? null : null; // (success element already has the message)
+    ok.innerHTML = '<i class="fa-solid fa-circle-check"></i> Account created! Our team will approve it shortly. Redirecting to login…';
+    ok.classList.add('show');
+    btn.textContent = 'ACCOUNT CREATED ✓';
+    setTimeout(() => { window.location.href = '/portal'; }, 2200);
+  } catch (e) {
+    console.error(e);
+    errMsg.textContent = 'Network error — please try again.';
+    err.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'CREATE ACCOUNT';
+  }
 }
 document.getElementById('su-pass').addEventListener('keydown', e => { if(e.key==='Enter') doSignup(); });
 </script>
