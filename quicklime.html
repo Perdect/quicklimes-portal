@@ -912,7 +912,10 @@ async function doLogin(){
     if (data && data.success && data.plant) {
       // Stash plant info so the dashboard knows who's logged in
       localStorage.setItem('ql_plant', JSON.stringify(data.plant));
-      window.location.href = 'https://app.quicklimes.com/';
+      // Cross-subdomain handoff: app.quicklimes.com has its own localStorage,
+      // so pass the session via URL hash for the dashboard to pick up.
+      const handoff = btoa(unescape(encodeURIComponent(JSON.stringify(data.plant))));
+      window.location.href = 'https://app.quicklimes.com/#auth=' + handoff;
       return;
     }
 

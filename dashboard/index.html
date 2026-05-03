@@ -2228,6 +2228,16 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
 // ══════════════════════════════════════════════════
 // ══ AUTH GATE — must be logged in via /portal ══
 // ══════════════════════════════════════════════════
+// Cross-subdomain handoff: portal at quicklimes.com sets URL hash with
+// session data; we mirror it into our own localStorage and clean the URL.
+if (location.hash.startsWith('#auth=')) {
+  try {
+    const plantJson = decodeURIComponent(escape(atob(location.hash.slice(6))));
+    JSON.parse(plantJson); // validate
+    localStorage.setItem('ql_plant', plantJson);
+    history.replaceState(null, '', location.pathname + location.search);
+  } catch (_e) { /* fall through to normal auth check */ }
+}
 const _qlRaw = localStorage.getItem('ql_plant');
 if (!_qlRaw) {
   window.location.replace('https://quicklimes.com/portal');
