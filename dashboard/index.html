@@ -2225,8 +2225,29 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
 </div>
 
 <script>
+// ══════════════════════════════════════════════════
+// ══ AUTH GATE — must be logged in via /portal ══
+// ══════════════════════════════════════════════════
+const _qlRaw = localStorage.getItem('ql_plant');
+if (!_qlRaw) {
+  window.location.replace('https://quicklimes.com/portal');
+  throw new Error('not_logged_in');
+}
+let QL_PLANT;
+try { QL_PLANT = JSON.parse(_qlRaw); }
+catch (_e) {
+  localStorage.removeItem('ql_plant');
+  window.location.replace('https://quicklimes.com/portal');
+  throw new Error('bad_session');
+}
+if (!QL_PLANT || !QL_PLANT.id) {
+  localStorage.removeItem('ql_plant');
+  window.location.replace('https://quicklimes.com/portal');
+  throw new Error('bad_session');
+}
+
 // ══ COMPANY CONFIG ══
-const COMPANIES={
+let COMPANIES={
   deshwali:{
     key:'deshwali',
     name:'DESHWALI MINERALS',
@@ -2268,7 +2289,22 @@ const COMPANIES={
     dataKey:'dm_data_v2_gotan'
   }
 };
-let ACTIVE_CO=localStorage.getItem('dm_active_co')||'gotan';
+// Inject a generic COMPANIES entry for the logged-in plant if not already a known key
+const QL_DATA_KEY = QL_PLANT.id;
+if (!COMPANIES[QL_DATA_KEY]) {
+  COMPANIES[QL_DATA_KEY] = {
+    key: QL_DATA_KEY,
+    name: (QL_PLANT.plant_name || 'Your Plant').toUpperCase(),
+    short: QL_PLANT.plant_name || 'Your Plant',
+    owner: '', address: '', city: '', state: 'Rajasthan (08)', pin: '',
+    gstin: '', phone: '', bank: '', bankBranch: '', accNo: '', ifsc: '',
+    product: 'Manufactures of Quick Lime and Hydrated Lime.',
+    tan: '', jurisdiction: '',
+    dataKey: 'ql_data_' + QL_DATA_KEY
+  };
+}
+let ACTIVE_CO = localStorage.getItem('dm_active_co') || QL_DATA_KEY;
+if (!COMPANIES[ACTIVE_CO]) ACTIVE_CO = QL_DATA_KEY;
 function CO(){return COMPANIES[ACTIVE_CO];}
 
 // ══ DATA ══
@@ -5856,15 +5892,11 @@ async function saveToCloud(){
   if(!DB)return;
   try{
     dbStatus('saving');
-    const payload={
-      id:ACTIVE_CO,
-      data:{sales:SALES,purchases:PURCHASES,workers:WORKERS,workLog:WORK_LOG,att:ATT,
+    const data={sales:SALES,purchases:PURCHASES,workers:WORKERS,workLog:WORK_LOG,att:ATT,
             tds:TDS_ENTRIES,challans:TDS_CHALLANS,parties:PARTIES,cashbook:CASHBOOK,
             chunna:CHUNNA_SALES,
-            profile_pic:localStorage.getItem('dm_profile_pic')||null},
-      updated_at:new Date().toISOString()
-    };
-    const{error}=await DB.from('app_data').upsert(payload,{onConflict:'id'});
+            profile_pic:localStorage.getItem('dm_profile_pic')||null};
+    const{error}=await DB.rpc('save_my_data',{p_plant_id:QL_PLANT.id,p_id:ACTIVE_CO,p_data:data});
     if(error)throw error;
     dbStatus('ok');
   }catch(e){
@@ -5888,9 +5920,31 @@ function saveLocalAndCloud(){
 async function loadFromCloud(){
   if(!DB)return false;
   try{
-    const{data,error}=await DB.from('app_data').select('data').eq('id',ACTIVE_CO).maybeSingle();
-    if(error||!data||!data.data)return false;
-    const d=data.data;
+    // Scoped to plant_id via the get_my_data RPC, then pick the active row
+    const{data:rows,error}=await DB.rpc('get_my_data',{p_plant_id:QL_PLANT.id});
+    if(error||!rows||!rows.length)return false;
+    const row=rows.find(r=>r.id===ACTIVE_CO)||rows[0];
+    if(!row||!row.data)return false;
+    // If active row id changed (e.g. tenant whose row is keyed by their UUID), align ACTIVE_CO
+    if(row.id!==ACTIVE_CO){
+      ACTIVE_CO=row.id;
+      localStorage.setItem('dm_active_co',ACTIVE_CO);
+    }
+    // Make sure every row owned by this plant is in COMPANIES (so the switcher works)
+    rows.forEach(r=>{
+      if(!COMPANIES[r.id]){
+        COMPANIES[r.id]={
+          key:r.id,
+          name:(QL_PLANT.plant_name||r.id).toUpperCase(),
+          short:QL_PLANT.plant_name||r.id,
+          owner:'',address:'',city:'',state:'Rajasthan (08)',pin:'',
+          gstin:'',phone:'',bank:'',bankBranch:'',accNo:'',ifsc:'',
+          product:'Manufactures of Quick Lime and Hydrated Lime.',
+          tan:'',jurisdiction:'',dataKey:'ql_data_'+r.id
+        };
+      }
+    });
+    const d=row.data;
     _clearArrays();
     if(d.sales)SALES.push(...d.sales.map(s=>({...s,party:cleanName(s.party||''),status:s.status||'pending'})));
     if(d.purchases)PURCHASES.push(...d.purchases.map(p=>({...p,sup:cleanName(p.sup||''),party:cleanName(p.party||''),status:p.status||'pending'})));
@@ -6464,7 +6518,15 @@ function switchCompany(key){
 }
 function updateSidebarForCompany(){
   const c=CO();
-  const sw=document.getElementById('co-switcher');if(sw)sw.value=ACTIVE_CO;
+  const sw=document.getElementById('co-switcher');
+  if(sw){
+    // Repopulate dropdown to match COMPANIES (which may include the logged-in plant's row)
+    sw.innerHTML=Object.values(COMPANIES).map(co=>`<option value="${co.key}">🏭 ${co.short}</option>`).join('');
+    sw.value=ACTIVE_CO;
+    // Hide the dropdown when there's only one company to switch to
+    const wrap=sw.parentElement;
+    if(wrap){wrap.parentElement.style.display=Object.keys(COMPANIES).length>1?'':'none';}
+  }
   const fb=document.getElementById('sb-bank-info');
   if(fb)fb.innerHTML=c.bank?`<strong>${c.bank}${c.bankBranch?' · '+c.bankBranch:''}</strong>A/C: ${c.accNo}<br>IFSC: ${c.ifsc}<br>GSTIN: ${c.gstin}`:`<strong>${c.name}</strong>GSTIN: ${c.gstin}<br>${c.phone}`;
   document.title=c.short+' — Quick Limes';
@@ -6486,9 +6548,20 @@ function updateProfileMenu(){
   const pa=document.getElementById('pm-acc');if(pa)pa.textContent=c.accNo||'—';
   const pf=document.getElementById('pm-ifsc');if(pf)pf.textContent=c.ifsc||'—';
   const pad=document.getElementById('pm-address');if(pad)pad.textContent=c.address||'';
-  // Company switch pills
+  // Company switch pills + Logout
   const psw=document.getElementById('pm-switcher');
-  if(psw)psw.innerHTML=Object.values(COMPANIES).map(co=>`<button onclick="switchCompany('${co.key}');closeProfileMenu()" style="flex:1;padding:7px 10px;border-radius:8px;border:1.5px solid ${co.key===ACTIVE_CO?'var(--p2)':'var(--border)'};background:${co.key===ACTIVE_CO?'var(--p5)':'#fff'};color:${co.key===ACTIVE_CO?'var(--p2)':'var(--ink3)'};font-size:11px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">${co.short}</button>`).join('');
+  if(psw){
+    const switcherButtons = Object.values(COMPANIES).length > 1
+      ? Object.values(COMPANIES).map(co=>`<button onclick="switchCompany('${co.key}');closeProfileMenu()" style="flex:1;padding:7px 10px;border-radius:8px;border:1.5px solid ${co.key===ACTIVE_CO?'var(--p2)':'var(--border)'};background:${co.key===ACTIVE_CO?'var(--p5)':'#fff'};color:${co.key===ACTIVE_CO?'var(--p2)':'var(--ink3)'};font-size:11px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">${co.short}</button>`).join('')
+      : '';
+    const logoutBtn = `<button onclick="qlLogout()" style="margin-top:10px;width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Log out</button>`;
+    psw.innerHTML = switcherButtons + logoutBtn;
+  }
+}
+function qlLogout(){
+  localStorage.removeItem('ql_plant');
+  localStorage.removeItem('dm_active_co');
+  window.location.replace('https://quicklimes.com/portal');
 }
 function toggleProfileMenu(){
   const m=document.getElementById('profile-menu');
