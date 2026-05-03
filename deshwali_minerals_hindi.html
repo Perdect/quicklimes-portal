@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>देशवाली मिनरल्स — लाइम इंडस्ट्री स्मार्ट ERP</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --p:#7C3AED;--p2:#9333EA;--pl:#EDE9FE;--pd:#5B21B6;
+  --green:#10B981;--red:#EF4444;--amber:#F59E0B;
+  --blue:#3B82F6;--teal:#14B8A6;
+  --dark:#111827;--slate:#374151;--muted:#6B7280;
+  --border:#E5E7EB;--card:#fff;--bg:#F9FAFB;
+}
+html{scroll-behavior:smooth;}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--slate);background:var(--bg);line-height:1.7;}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:999;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 6%;height:66px;
+  background:rgba(255,255,255,.96);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+}
+.nav-brand{display:flex;align-items:center;gap:11px;text-decoration:none;}
+.nb-icon{width:40px;height:40px;border-radius:11px;flex-shrink:0;background:linear-gradient(145deg,#5B21B6 0%,#7C3AED 55%,#8B5CF6 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(91,33,182,.4),inset 0 1px 0 rgba(255,255,255,.15);}
+.nb-text{display:flex;flex-direction:column;gap:0;}
+.nb-name{font-size:1.02rem;font-weight:800;color:var(--dark);line-height:1.2;letter-spacing:-.3px;}
+.nb-sub{font-size:.58rem;font-weight:700;letter-spacing:2.8px;text-transform:uppercase;color:var(--p);line-height:1;}
+.nav-links{display:flex;gap:1.8rem;list-style:none;}
+.nav-links a{color:var(--muted);text-decoration:none;font-size:.875rem;font-weight:500;transition:color .15s;}
+.nav-links a:hover{color:var(--p);}
+.nav-right{display:flex;align-items:center;gap:10px;}
+.btn-ghost{padding:.45rem 1.1rem;border-radius:8px;border:1.5px solid var(--border);font-size:.85rem;font-weight:600;color:var(--dark);text-decoration:none;transition:border-color .15s;}
+.btn-ghost:hover{border-color:var(--p);color:var(--p);}
+.btn-nav{padding:.45rem 1.2rem;border-radius:8px;background:var(--p);color:#fff;font-size:.85rem;font-weight:700;text-decoration:none;transition:background .15s,transform .1s;}
+.btn-nav:hover{background:var(--pd);transform:translateY(-1px);}
+.lang-switch{display:flex;align-items:center;gap:4px;padding:.35rem .9rem;border-radius:8px;border:1.5px solid var(--border);font-size:.78rem;font-weight:700;color:var(--muted);text-decoration:none;transition:all .15s;}
+.lang-switch:hover{border-color:var(--p);color:var(--p);}
+
+/* ── COMMON ── */
+section{padding:96px 6%;}
+.container{max-width:1120px;margin:0 auto;}
+.tag{display:inline-flex;align-items:center;gap:6px;background:var(--pl);color:var(--p);font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:.3rem .9rem;border-radius:20px;margin-bottom:1.2rem;border:1px solid #DDD6FE;}
+h2.sec-title{font-size:clamp(1.8rem,3.5vw,2.6rem);font-weight:800;color:var(--dark);line-height:1.25;max-width:660px;margin-bottom:1rem;}
+h2.sec-title.c{text-align:center;margin:0 auto 1rem;}
+p.sec-sub{font-size:1rem;color:var(--muted);max-width:580px;margin-bottom:3rem;line-height:1.8;}
+p.sec-sub.c{text-align:center;margin:0 auto 3rem;}
+
+/* ── HERO ── */
+#hero{
+  min-height:100vh;padding-top:120px;padding-bottom:80px;
+  background:linear-gradient(160deg,#F5F3FF 0%,#EDE9FE 35%,#F9FAFB 70%,#fff 100%);
+  display:flex;align-items:center;position:relative;overflow:hidden;
+}
+#hero::before{content:'';position:absolute;top:-100px;right:-100px;width:550px;height:550px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.12) 0%,transparent 70%);pointer-events:none;}
+.hero-inner{display:grid;grid-template-columns:1.1fr 1fr;gap:4rem;align-items:center;max-width:1120px;margin:0 auto;width:100%;}
+.hero-tag{display:inline-flex;align-items:center;gap:8px;background:var(--pl);border:1px solid #DDD6FE;border-radius:20px;padding:.3rem 1rem;font-size:.75rem;font-weight:700;color:var(--p);letter-spacing:1px;text-transform:uppercase;margin-bottom:1.4rem;}
+.hero-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.4);}}
+h1{font-size:clamp(2.2rem,4.5vw,3.4rem);font-weight:900;color:var(--dark);line-height:1.2;margin-bottom:1.3rem;}
+h1 span{background:linear-gradient(135deg,var(--p),#A78BFA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-sub{font-size:1.05rem;color:var(--muted);margin-bottom:2.2rem;max-width:500px;line-height:1.75;}
+.hero-btns{display:flex;gap:.9rem;flex-wrap:wrap;margin-bottom:2.5rem;}
+.btn-primary{display:inline-flex;align-items:center;gap:8px;background:var(--p);color:#fff;padding:.8rem 1.8rem;border-radius:10px;font-size:.95rem;font-weight:700;text-decoration:none;box-shadow:0 8px 24px rgba(124,58,237,.3);transition:background .15s,transform .1s;}
+.btn-primary:hover{background:var(--pd);transform:translateY(-2px);}
+.btn-outline{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--border);color:var(--dark);padding:.8rem 1.8rem;border-radius:10px;font-size:.95rem;font-weight:600;text-decoration:none;transition:border-color .15s,color .15s;}
+.btn-outline:hover{border-color:var(--p);color:var(--p);}
+.hero-stats{display:flex;gap:2rem;flex-wrap:wrap;padding-top:1.8rem;border-top:1.5px solid var(--border);}
+.h-stat .h-num{font-size:1.7rem;font-weight:900;color:var(--dark);}
+.h-stat .h-num span{color:var(--p);}
+.h-stat .h-lbl{font-size:.75rem;color:var(--muted);margin-top:2px;}
+.hero-card{background:#fff;border-radius:20px;padding:24px;box-shadow:0 24px 64px rgba(124,58,237,.12),0 4px 16px rgba(0,0,0,.06);border:1.5px solid #F3F0FF;}
+.hc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.hc-title{font-size:.8rem;font-weight:700;color:var(--dark);}
+.hc-date{font-size:.72rem;color:var(--muted);}
+.hc-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.hc-m{background:var(--bg);border-radius:10px;padding:12px 14px;}
+.hc-m .m-lbl{font-size:.68rem;color:var(--muted);font-weight:500;margin-bottom:2px;}
+.hc-m .m-val{font-size:1.1rem;font-weight:800;color:var(--dark);}
+.m-badge{font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:4px;}
+.up{background:#D1FAE5;color:var(--green);}
+.dn{background:#FEE2E2;color:var(--red);}
+.hc-modules{display:flex;flex-direction:column;gap:8px;}
+.hc-mod{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:9px;background:#F9FAFB;border:1px solid var(--border);}
+.hc-mod-icon{width:28px;height:28px;border-radius:7px;background:var(--pl);display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;}
+.hc-mod-label{font-size:.78rem;font-weight:600;color:var(--dark);flex:1;}
+.hc-mod-status{font-size:.67rem;font-weight:700;padding:2px 7px;border-radius:20px;}
+.active-s{background:#D1FAE5;color:var(--green);}
+.phase-s{background:#FEF3C7;color:var(--amber);}
+
+/* ── PROBLEM ── */
+#problem{background:#fff;}
+.prob-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+.prob-card{background:var(--bg);border:1.5px solid var(--border);border-radius:14px;padding:20px;transition:border-color .2s,box-shadow .2s,background .2s;}
+.prob-card:hover{background:#fff;border-color:#DDD6FE;box-shadow:0 6px 24px rgba(124,58,237,.08);}
+.prob-ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;margin-bottom:12px;}
+.r-ico{background:#FEE2E2;}.a-ico{background:#FEF3C7;}.b-ico{background:#DBEAFE;}.g-ico{background:#D1FAE5;}.v-ico{background:var(--pl);}
+.prob-card h3{font-size:.92rem;font-weight:700;color:var(--dark);margin-bottom:.35rem;}
+.prob-card p{font-size:.82rem;color:var(--muted);}
+
+/* ── SOLUTION ── */
+#solution{background:var(--bg);}
+.sol-wrap{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:start;}
+.sol-feats{display:flex;flex-direction:column;gap:10px;}
+.sol-feat{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:12px;background:#fff;border:1.5px solid var(--border);transition:border-color .2s,box-shadow .2s;}
+.sol-feat:hover{border-color:#DDD6FE;box-shadow:0 4px 16px rgba(124,58,237,.08);}
+.sf-icon{width:38px;height:38px;border-radius:9px;background:var(--pl);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.sf-icon.g{background:#D1FAE5;}.sf-icon.b{background:#DBEAFE;}.sf-icon.a{background:#FEF3C7;}
+.sol-feat h4{font-size:.9rem;font-weight:700;color:var(--dark);margin-bottom:.2rem;}
+.sol-feat p{font-size:.8rem;color:var(--muted);}
+.mod-panel{background:var(--dark);border-radius:18px;padding:24px;box-shadow:0 24px 56px rgba(0,0,0,.18);position:sticky;top:90px;}
+.mp-label{font-size:.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#A78BFA;margin-bottom:14px;}
+.mp-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);}
+.mp-row:last-child{border-bottom:none;}
+.mp-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.green-d{background:var(--green);}.amber-d{background:var(--amber);}.blue-d{background:var(--blue);}
+.mp-row span{color:rgba(255,255,255,.85);font-size:.84rem;flex:1;}
+.mp-badge{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:4px;}
+.b-live{background:rgba(16,185,129,.2);color:var(--green);}
+.b-phase{background:rgba(245,158,11,.15);color:var(--amber);}
+.mp-divider{border:none;border-top:1px solid rgba(255,255,255,.08);margin:6px 0;}
+
+/* ── AI ── */
+#ai{background:linear-gradient(145deg,#1E1B4B 0%,#2D1B69 50%,#1E1B4B 100%);}
+#ai .sec-title{color:#fff;}
+#ai .sec-sub{color:rgba(255,255,255,.5);}
+#ai .tag{background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.3);color:#A78BFA;}
+.ai-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:12px;}
+.ai-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px;transition:background .2s,border-color .2s,transform .15s;}
+.ai-card:hover{background:rgba(124,58,237,.1);border-color:rgba(167,139,250,.3);transform:translateY(-3px);}
+.ai-card-ico{font-size:1.6rem;margin-bottom:10px;}
+.ai-card h4{font-size:.9rem;font-weight:700;color:#fff;margin-bottom:.35rem;}
+.ai-card p{font-size:.8rem;color:rgba(255,255,255,.45);}
+
+/* ── BENEFITS ── */
+#benefits{background:#fff;}
+.ben-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;}
+.ben-card{border:2px solid var(--border);border-radius:16px;padding:24px 20px;text-align:center;transition:border-color .2s,box-shadow .2s,transform .15s;}
+.ben-card:hover{border-color:var(--p);box-shadow:0 8px 32px rgba(124,58,237,.1);transform:translateY(-3px);}
+.ben-num{font-size:2.6rem;font-weight:900;background:linear-gradient(135deg,var(--p),#A78BFA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;}
+.ben-card h4{font-size:.95rem;font-weight:700;color:var(--dark);margin:.5rem 0 .35rem;}
+.ben-card p{font-size:.82rem;color:var(--muted);}
+
+/* ── ROADMAP ── */
+#roadmap{background:var(--bg);}
+.road-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:2rem;position:relative;}
+.road-grid::before{content:'';position:absolute;top:23px;left:5%;right:5%;height:2px;background:linear-gradient(to right,var(--p),#A78BFA,#DDD6FE,#E5E7EB);z-index:0;}
+.road-step{padding:0 16px;text-align:center;position:relative;}
+.rs-num{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--p),#A78BFA);color:#fff;font-weight:900;font-size:1.1rem;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;position:relative;z-index:1;box-shadow:0 4px 16px rgba(124,58,237,.3);}
+.road-step:nth-child(3) .rs-num,.road-step:nth-child(4) .rs-num{background:linear-gradient(135deg,#DDD6FE,#EDE9FE);color:var(--p);box-shadow:none;}
+.rs-phase{font-size:.68rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--p);margin-bottom:.3rem;}
+.road-step h4{font-size:.92rem;font-weight:700;color:var(--dark);margin-bottom:.35rem;}
+.road-step p{font-size:.8rem;color:var(--muted);}
+
+/* ── CONTACT ── */
+#contact{background:#fff;}
+.contact-wrap{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;}
+.contact-info{display:flex;flex-direction:column;gap:20px;}
+.office-card{background:var(--bg);border:1.5px solid var(--border);border-radius:14px;padding:20px 22px;transition:border-color .2s,box-shadow .2s;}
+.office-card:hover{border-color:#DDD6FE;box-shadow:0 6px 20px rgba(124,58,237,.08);}
+.oc-flag{font-size:1.4rem;margin-bottom:8px;}
+.oc-country{font-size:.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--p);margin-bottom:4px;}
+.oc-name{font-size:.98rem;font-weight:700;color:var(--dark);margin-bottom:6px;}
+.oc-address{font-size:.82rem;color:var(--muted);line-height:1.6;margin-bottom:8px;}
+.oc-phone{display:inline-flex;align-items:center;gap:6px;font-size:.88rem;font-weight:700;color:var(--p);text-decoration:none;}
+.oc-phone:hover{text-decoration:underline;}
+.contact-form{background:var(--bg);border:1.5px solid var(--border);border-radius:16px;padding:28px;}
+.contact-form h3{font-size:1.05rem;font-weight:700;color:var(--dark);margin-bottom:18px;}
+.form-group{margin-bottom:14px;}
+.form-group label{display:block;font-size:.78rem;font-weight:600;color:var(--slate);margin-bottom:5px;}
+.form-group input,.form-group textarea,.form-group select{
+  width:100%;padding:9px 13px;border-radius:9px;border:1.5px solid var(--border);
+  font-size:.85rem;font-family:inherit;color:var(--dark);background:#fff;
+  transition:border-color .15s;outline:none;
+}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:var(--p);}
+.form-group textarea{resize:vertical;min-height:90px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.submit-btn{width:100%;padding:.85rem;border:none;border-radius:10px;background:var(--p);color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .15s,transform .1s;font-family:inherit;}
+.submit-btn:hover{background:var(--pd);transform:translateY(-1px);}
+
+/* ── OPPORTUNITY ── */
+#opportunity{background:linear-gradient(145deg,#1E1B4B 0%,#2D1B69 50%,#1E1B4B 100%);text-align:center;}
+#opportunity h2{color:#fff;font-size:clamp(1.9rem,4vw,2.8rem);font-weight:800;margin-bottom:1rem;}
+#opportunity p.lead{color:rgba(255,255,255,.55);font-size:1.05rem;max-width:540px;margin:0 auto 2.8rem;}
+.opp-cards{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:3rem;}
+.opp-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:20px 24px;min-width:165px;transition:background .2s,border-color .2s,transform .15s;}
+.opp-card:hover{background:rgba(124,58,237,.15);border-color:rgba(167,139,250,.4);transform:translateY(-3px);}
+.opp-ico{font-size:1.6rem;margin-bottom:.7rem;}
+.opp-card h4{color:#fff;font-size:.9rem;font-weight:700;}
+.opp-card p{color:rgba(255,255,255,.4);font-size:.77rem;margin-top:.2rem;}
+.cta-group{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;}
+.btn-white{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--p);padding:.8rem 1.8rem;border-radius:10px;font-size:.95rem;font-weight:700;text-decoration:none;box-shadow:0 8px 24px rgba(0,0,0,.15);transition:background .15s,transform .1s;}
+.btn-white:hover{background:#F5F3FF;transform:translateY(-2px);}
+.btn-outline-w{display:inline-flex;align-items:center;gap:8px;border:1.5px solid rgba(255,255,255,.25);color:#fff;padding:.8rem 1.8rem;border-radius:10px;font-size:.95rem;font-weight:600;text-decoration:none;transition:border-color .15s,background .15s;}
+.btn-outline-w:hover{border-color:rgba(167,139,250,.6);background:rgba(124,58,237,.15);}
+
+/* ── FOOTER ── */
+footer{background:#0F0A1E;padding:0;}
+.footer-main{max-width:1120px;margin:0 auto;padding:56px 6% 36px;display:grid;grid-template-columns:2fr 1fr 1fr 1.2fr;gap:3rem;}
+.footer-brand .fb-logo{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.fb-icon{width:40px;height:40px;border-radius:11px;background:linear-gradient(145deg,#5B21B6 0%,#7C3AED 55%,#8B5CF6 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(91,33,182,.5),inset 0 1px 0 rgba(255,255,255,.15);flex-shrink:0;}
+.fb-text{display:flex;flex-direction:column;gap:0;}
+.fb-name{color:#fff;font-size:1rem;font-weight:800;letter-spacing:-.2px;line-height:1.2;}
+.fb-sub{font-size:.56rem;font-weight:700;letter-spacing:2.8px;text-transform:uppercase;color:#A78BFA;line-height:1;}
+.footer-brand p{color:rgba(255,255,255,.4);font-size:.82rem;line-height:1.7;max-width:260px;margin-bottom:18px;}
+.social-row{display:flex;gap:10px;}
+.social-btn{
+  width:36px;height:36px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.6);text-decoration:none;
+  transition:background .15s,color .15s,transform .1s;
+  font-size:.9rem;
+}
+.social-btn:hover{background:var(--p);color:#fff;border-color:var(--p);transform:translateY(-2px);}
+.social-btn svg{width:16px;height:16px;}
+.footer-col h4{color:#fff;font-size:.88rem;font-weight:700;margin-bottom:14px;}
+.footer-col ul{list-style:none;display:flex;flex-direction:column;gap:8px;}
+.footer-col ul li a{color:rgba(255,255,255,.45);font-size:.82rem;text-decoration:none;transition:color .15s;}
+.footer-col ul li a:hover{color:#A78BFA;}
+.footer-office{margin-bottom:14px;}
+.fo-country{font-size:.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--p);margin-bottom:3px;}
+.fo-address{font-size:.78rem;color:rgba(255,255,255,.4);line-height:1.6;margin-bottom:4px;}
+.fo-phone{font-size:.82rem;font-weight:700;color:#A78BFA;text-decoration:none;}
+.fo-phone:hover{color:#fff;}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.07);padding:18px 6%;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.8rem;max-width:100%;}
+.footer-bottom p{color:rgba(255,255,255,.28);font-size:.75rem;}
+.footer-bottom-links{display:flex;gap:1.4rem;}
+.footer-bottom-links a{color:rgba(255,255,255,.35);font-size:.75rem;text-decoration:none;transition:color .15s;}
+.footer-bottom-links a:hover{color:#A78BFA;}
+
+/* ── MANUFACTURERS (हिंदी) ── */
+#manufacturers{background:#fff;}
+.mfr-intro{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1.5rem;margin-bottom:2.8rem;}
+.mfr-badge{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1px solid #F59E0B;border-radius:20px;padding:.35rem 1rem;font-size:.75rem;font-weight:700;color:#92400E;white-space:nowrap;}
+.mfr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:2.5rem;}
+.mfr-card{border:1.5px solid var(--border);border-radius:16px;padding:22px 18px;display:flex;flex-direction:column;align-items:center;text-align:center;transition:border-color .2s,box-shadow .2s,transform .15s;position:relative;overflow:hidden;background:#fff;}
+.mfr-card:hover{border-color:var(--p);box-shadow:0 10px 36px rgba(124,58,237,.12);transform:translateY(-4px);}
+.mfr-card.featured{border-color:var(--p);border-width:2px;background:linear-gradient(160deg,#F5F3FF,#fff);}
+.mfr-card.featured::before{content:'⭐ हमारा ब्रांड';position:absolute;top:11px;right:10px;background:var(--p);color:#fff;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:20px;}
+.mfr-logo-wrap{width:76px;height:76px;margin-bottom:20px;margin-top:4px;position:relative;flex-shrink:0;}
+.mfr-logo{width:56px;height:56px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,.35);}
+.mfr-logo::after{content:'';position:absolute;inset:4px;border:1px solid rgba(255,255,255,.2);}
+.mfr-logo-inner{transform:rotate(-45deg);font-family:Georgia,'Times New Roman',serif;font-size:.78rem;font-weight:700;color:#fff;text-align:center;line-height:1.25;letter-spacing:.5px;position:relative;z-index:1;}
+.mfr-name{font-size:.92rem;font-weight:800;color:var(--dark);margin-bottom:.25rem;}
+.mfr-type{font-size:.73rem;color:var(--muted);margin-bottom:.8rem;line-height:1.5;}
+.mfr-location{font-size:.7rem;color:var(--muted);margin-bottom:.75rem;display:flex;align-items:center;gap:4px;justify-content:center;}
+.mfr-products{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;margin-bottom:.9rem;}
+.mfr-pill{font-size:.67rem;font-weight:600;padding:3px 7px;border-radius:6px;background:var(--pl);color:var(--p);}
+.mfr-pill.g{background:#D1FAE5;color:var(--green);}
+.mfr-pill.a{background:#FEF3C7;color:#92400E;}
+.contact-now-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--p);color:#fff;padding:.52rem 1rem;border-radius:9px;border:none;font-size:.8rem;font-weight:700;cursor:pointer;text-decoration:none;transition:background .15s,transform .1s;font-family:inherit;width:100%;}
+.contact-now-btn:hover{background:var(--pd);transform:translateY(-1px);}
+.contact-now-btn.ghost{background:transparent;color:var(--p);border:1.5px solid var(--p);}
+.contact-now-btn.ghost:hover{background:var(--pl);}
+.mfr-cta-banner{background:linear-gradient(135deg,#1E1B4B,#2D1B69);border-radius:18px;padding:30px 34px;display:flex;align-items:center;justify-content:space-between;gap:2rem;flex-wrap:wrap;}
+.mcb-text h3{color:#fff;font-size:1.05rem;font-weight:800;margin-bottom:.45rem;}
+.mcb-text p{color:rgba(255,255,255,.5);font-size:.85rem;max-width:480px;line-height:1.65;}
+.mcb-actions{display:flex;gap:10px;flex-wrap:wrap;flex-shrink:0;}
+.btn-amber{display:inline-flex;align-items:center;gap:7px;background:#F59E0B;color:#fff;padding:.72rem 1.5rem;border-radius:10px;font-size:.88rem;font-weight:700;text-decoration:none;transition:background .15s,transform .1s;white-space:nowrap;}
+.btn-amber:hover{background:#D97706;transform:translateY(-1px);}
+@media(max-width:900px){.mfr-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:540px){.mfr-grid{grid-template-columns:1fr;}.mfr-cta-banner{flex-direction:column;}.mcb-actions{width:100%;}.btn-amber,.contact-now-btn{width:100%;justify-content:center;}}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1000px){
+  .footer-main{grid-template-columns:1fr 1fr;}
+  .hero-inner{grid-template-columns:1fr;}
+  .hero-card{display:none;}
+  .sol-wrap{grid-template-columns:1fr;}
+  .contact-wrap{grid-template-columns:1fr;}
+  .road-grid{grid-template-columns:1fr 1fr;row-gap:2.5rem;}
+  .road-grid::before{display:none;}
+  .nav-links{display:none;}
+}
+@media(max-width:600px){
+  section{padding:72px 5%;}
+  .road-grid{grid-template-columns:1fr;}
+  .footer-main{grid-template-columns:1fr;gap:2rem;padding:40px 5% 28px;}
+  .form-row{grid-template-columns:1fr;}
+}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,10,30,.75);backdrop-filter:blur(6px);z-index:2000;align-items:center;justify-content:center;padding:16px;overflow-y:auto;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:#fff;border-radius:20px;padding:32px;max-width:560px;width:100%;position:relative;box-shadow:0 24px 80px rgba(124,58,237,.28);animation:modalIn .22s ease;}
+@keyframes modalIn{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:none;}}
+.modal-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;border:none;background:var(--bg);cursor:pointer;font-size:.95rem;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.modal-close:hover{background:var(--border);}
+.modal-title{font-size:1.2rem;font-weight:800;color:var(--dark);margin-bottom:.35rem;}
+.modal-sub{font-size:.85rem;color:var(--muted);margin-bottom:1.4rem;line-height:1.6;}
+.form-msg{padding:.75rem 1rem;border-radius:10px;font-size:.88rem;font-weight:600;margin-bottom:1rem;display:none;}
+.form-msg.success{background:#D1FAE5;color:#065F46;display:block;}
+.form-msg.error{background:#FEE2E2;color:#991B1B;display:block;}
+.modal-submit{width:100%;padding:.9rem;border:none;border-radius:10px;background:var(--p);color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .15s,transform .1s;font-family:inherit;box-shadow:0 6px 20px rgba(124,58,237,.25);}
+.modal-submit:hover{background:var(--pd);transform:translateY(-1px);}
+.modal-submit:disabled{opacity:.6;cursor:default;transform:none;}
+
+/* ── RESPONSIVE IMPROVEMENTS ── */
+@media(max-width:900px){.mod-panel{position:static!important;top:auto;margin-top:2rem;}}
+@media(max-width:560px){
+  .opp-cards{flex-wrap:wrap!important;}
+  .opp-card{flex:1 1 100%!important;min-width:0!important;}
+  .modal-box{padding:24px 18px;}
+  .mfr-card{padding:22px 16px;}
+  nav{padding:0 4%;}
+}
+
+/* ── ICON SYSTEM ── */
+.icon{display:inline-block;width:1em;height:1em;vertical-align:-0.14em;flex-shrink:0;}
+.flag-badge{display:inline-block;padding:.1em .45em;border-radius:4px;font-size:.7em;font-weight:700;letter-spacing:.5px;vertical-align:middle;background:rgba(124,58,237,.12);color:var(--p,#7C3AED);}
+
+/* ── ICON VISIBILITY FIXES ── */
+/* DARK BACKGROUND SECTIONS — force white icons so they're visible */
+#ai .icon,
+#ai .ai-card-ico .icon,
+#ai .av-task-ico .icon,
+#ai .av-task-check .icon,
+#opportunity .icon,
+.opp-card .icon,
+.agent-visual .icon,
+.av-header .icon,
+.belt-section .icon,
+.belt-loc .icon,
+.mfr-cta-banner .icon,
+footer .icon,
+.fb-icon .icon {
+  color: rgba(255,255,255,0.9) !important;
+}
+/* Colored icon containers on light sections */
+.sf-icon .icon{color:var(--p);}
+.sf-icon.g .icon{color:var(--green);}
+.sf-icon.b .icon{color:var(--blue);}
+.sf-icon.a .icon{color:var(--amber);}
+.hc-mod-icon .icon{color:var(--p);}
+.at-chip-ico .icon{color:var(--p);}
+.prob-ico .icon{color:inherit;}
+/* Tags */
+.tag .icon{vertical-align:-0.2em;}
+/* Buttons always show icon in button color */
+.btn-nav .icon,.mm-btn .icon,.btn-primary .icon,.btn-ghost .icon,
+.submit-btn .icon,.modal-submit .icon,.btn-amber .icon,
+.contact-now-btn .icon{color:currentColor;}
+/* Fix icon size in headings */
+h1 .icon,h2 .icon,h3 .icon{width:0.85em;height:0.85em;vertical-align:-0.1em;}
+
+
+/* ── TOAST NOTIFICATIONS ── */
+#toast-container{position:fixed;bottom:28px;right:28px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none;}
+.toast{display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);font-size:.88rem;font-weight:600;min-width:280px;max-width:360px;pointer-events:all;animation:toastIn .3s cubic-bezier(.34,1.56,.64,1) forwards;transition:opacity .3s,transform .3s;}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px);}to{opacity:1;transform:none;}}
+@keyframes toastOut{to{opacity:0;transform:translateX(40px);}}
+.toast.hide{animation:toastOut .25s ease forwards;}
+.toast-success{background:#fff;border-left:4px solid #10B981;color:#065F46;}
+.toast-error{background:#fff;border-left:4px solid #EF4444;color:#991B1B;}
+.toast-info{background:#fff;border-left:4px solid #7C3AED;color:#5B21B6;}
+.toast-icon{flex-shrink:0;margin-top:1px;}
+.toast-body{flex:1;}
+.toast-title{font-weight:800;font-size:.88rem;margin-bottom:2px;}
+.toast-msg{font-weight:500;color:#6B7280;font-size:.8rem;line-height:1.5;}
+.toast-close{background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:1rem;padding:0;line-height:1;flex-shrink:0;transition:color .15s;}
+.toast-close:hover{color:#374151;}
+@media(max-width:480px){#toast-container{bottom:16px;right:12px;left:12px;}.toast{min-width:0;max-width:100%;}}
+
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="#">
+    <div class="nb-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="12,2 21,8 21,16 12,22 3,16 3,8" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.55)" stroke-width="1.4" stroke-linejoin="round"/>
+        <polygon points="12,2 21,8 12,12 3,8" fill="rgba(255,255,255,0.22)"/>
+        <line x1="3" y1="8" x2="21" y2="8" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+        <line x1="12" y1="12" x2="12" y2="22" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+      </svg>
+    </div>
+    <div class="nb-text">
+      <span class="nb-name">देशवाली</span>
+      <span class="nb-sub">Minerals</span>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#problem">समस्या</a></li>
+    <li><a href="#solution">समाधान</a></li>
+    <li><a href="#ai">AI शक्ति</a></li>
+    <li><a href="#roadmap">रोडमैप</a></li>
+    <li><a href="#contact">संपर्क</a></li>
+  </ul>
+  <div class="nav-right">
+    <a href="deshwali_minerals_landing.html" class="lang-switch"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> English</a>
+    <a href="https://deshwali-minerals.vercel.app/" class="btn-ghost" target="_blank">Live App</a>
+    <button onclick="openListed()" class="btn-nav" style="border:none;cursor:pointer;">शुरू करें →</button>
+  </div>
+</nav>
+
+<!-- ═══ HERO ═══ -->
+<section id="hero">
+  <div class="hero-inner container">
+    <div>
+      <div class="hero-tag"><div class="hero-dot"></div> भारत का पहला AI-संचालित लाइम इंडस्ट्री ERP</div>
+      <h1>लाइम उद्योग का <span>स्मार्ट ऑपरेटिंग सिस्टम</span></h1>
+      <p class="hero-sub">
+        किलन संचालन, मजदूरी ट्रैकिंग, GST बिलिंग और ट्रांसपोर्ट — सब कुछ एक ही AI-संचालित प्लेटफ़ॉर्म पर। विशेष रूप से चूने के कारोबारियों के लिए।
+      </p>
+      <div class="hero-btns">
+        <a href="#solution" class="btn-primary">प्लेटफ़ॉर्म देखें →</a>
+        <a href="#contact" class="btn-outline">हमसे जुड़ें</a>
+      </div>
+      <div class="hero-stats">
+        <div class="h-stat"><div class="h-num"><span>70%</span></div><div class="h-lbl">समय की बचत</div></div>
+        <div class="h-stat"><div class="h-num">100<span>%</span></div><div class="h-lbl">GST अनुपालन</div></div>
+        <div class="h-stat"><div class="h-num"><span>AI</span></div><div class="h-lbl">AI-Powered Lime ERP द्वारा</div></div>
+        <div class="h-stat"><div class="h-num">4</div><div class="h-lbl">चरण रोलआउट</div></div>
+      </div>
+    </div>
+    <div class="hero-card">
+      <div class="hc-header">
+        <div class="hc-title">अवलोकन — मार्च 2026</div>
+        <div class="hc-date">देशवाली मिनरल्स</div>
+      </div>
+      <div class="hc-metrics">
+        <div class="hc-m"><div class="m-lbl">कुल आय</div><div class="m-val">₹5.04L <span class="m-badge up">↑18%</span></div></div>
+        <div class="hc-m"><div class="m-lbl">सकल लाभ</div><div class="m-val">₹1.46L <span class="m-badge up">29%</span></div></div>
+        <div class="hc-m"><div class="m-lbl">चालान</div><div class="m-val">1,248 <span class="m-badge up">↑12%</span></div></div>
+        <div class="hc-m"><div class="m-lbl">E-Way बिल</div><div class="m-val">386 <span class="m-badge up">दर्ज</span></div></div>
+      </div>
+      <div class="hc-modules">
+        <div class="hc-mod"><div class="hc-mod-icon"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M14 8H8M16 12H8M11 16H8"/></svg></div><span class="hc-mod-label">GST बिलिंग + IRN</span><span class="hc-mod-status active-s">सक्रिय</span></div>
+        <div class="hc-mod"><div class="hc-mod-icon"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div><span class="hc-mod-label">E-Way बिल सिस्टम</span><span class="hc-mod-status active-s">सक्रिय</span></div>
+        <div class="hc-mod"><div class="hc-mod-icon"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="1"/><path d="M16 7V3H8v4"/><path d="M8 11h4M8 15h4M16 11h.01M16 15h.01"/></svg></div><span class="hc-mod-label">किलन + मजदूर ट्रैकर</span><span class="hc-mod-status active-s">सक्रिय</span></div>
+        <div class="hc-mod"><div class="hc-mod-icon"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M8 8V5a4 4 0 0 1 8 0v3"/><circle cx="9" cy="14" r="1" fill="currentColor"/><circle cx="15" cy="14" r="1" fill="currentColor"/><path d="M12 3v2M3 12H1M23 12h-2"/></svg></div><span class="hc-mod-label">AI सहायक</span><span class="hc-mod-status active-s">सक्रिय</span></div>
+        <div class="hc-mod"><div class="hc-mod-icon"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><span class="hc-mod-label">TDS + उन्नत रिपोर्ट</span><span class="hc-mod-status phase-s">चरण 4</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PROBLEM ═══ -->
+<section id="problem">
+  <div class="container">
+    <div class="tag"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> उद्योग की समस्या</div>
+    <h2 class="sec-title">लाइम उद्योग आज भी पुराने तरीकों से जूझ रहा है</h2>
+    <p class="sec-sub">बिना सिस्टम के हर दिन नुकसान होता है — जुर्माने में, ITC में और बर्बाद समय में।</p>
+    <div class="prob-grid">
+      <div class="prob-card"><div class="prob-ico r-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M14 8H8M16 12H8M11 16H8"/></svg></div><h3>मैन्युअल GST बिलिंग</h3><p>हाथ से बनाए गए चालान में गलतियाँ होती हैं जिससे पोर्टल रिजेक्शन और टैक्स जुर्माना होता है।</p></div>
+      <div class="prob-card"><div class="prob-ico a-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="1"/><path d="M16 7V3H8v4"/><path d="M8 11h4M8 15h4M16 11h.01M16 15h.01"/></svg></div><h3>किलन ट्रैकिंग नहीं</h3><p>किलन आउटपुट, ईंधन उपयोग या मजदूरी का कोई रियल-टाइम रिकॉर्ड नहीं होता।</p></div>
+      <div class="prob-card"><div class="prob-ico b-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div><h3>ट्रांसपोर्ट की परेशानी</h3><p>E-Way बिल मैन्युअल बनाने से डिलीवरी देरी और चेकपोस्ट पर समस्या होती है।</p></div>
+      <div class="prob-card"><div class="prob-ico g-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><h3>लाभ की जानकारी नहीं</h3><p>कोई रियल-टाइम P&L नहीं — मालिक को पता नहीं कि पैसा कहाँ जा रहा है।</p></div>
+      <div class="prob-card"><div class="prob-ico v-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div><h3>ITC और GST का नुकसान</h3><p>Petcoke ITC ट्रैकिंग न होने से GST रिफंड का पैसा बेकार चला जाता है।</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ MANUFACTURERS ═══ -->
+<section id="manufacturers">
+  <div class="container">
+    <div class="mfr-intro">
+      <div>
+        <div class="tag"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg> शीर्ष निर्माता</div>
+        <h2 class="sec-title" style="margin-bottom:.5rem;">राजस्थान के प्रमुख क्विक लाइम और हाइड्रेटेड लाइम निर्माता</h2>
+        <p style="font-size:.92rem;color:var(--muted);max-width:580px;">नागौर के बोरुंडा, गोतन और मानकपुर लाइमस्टोन बेल्ट के भरोसेमंद ब्रांड। थोक आपूर्ति के लिए सीधे निर्माता से संपर्क करें।</p>
+      </div>
+      <div class="mfr-badge"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg> नागौर बेल्ट, राजस्थान, भारत</div>
+    </div>
+
+    <div class="mfr-grid">
+
+      <!-- Shubhlax Minerals -->
+      <div class="mfr-card">
+        <div class="mfr-logo-wrap"><div class="mfr-logo" style="background:linear-gradient(135deg,#7C3AED,#A78BFA);box-shadow:0 6px 20px rgba(124,58,237,.35);"><div class="mfr-logo-inner">SL<br/>MIN</div></div></div>
+        <div class="mfr-name">Shubhlax Minerals</div>
+        <div class="mfr-location"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg> गोतन, नागौर, राजस्थान</div>
+        <div class="mfr-type">क्विक लाइम · हाइड्रेटेड लाइम · लाइमस्टोन</div>
+        <div class="mfr-products">
+          <span class="mfr-pill">क्विक लाइम</span>
+          <span class="mfr-pill g">हाइड्रेटेड लाइम</span>
+          <span class="mfr-pill a">लाइमस्टोन</span>
+        </div>
+        <a href="#contact" class="contact-now-btn"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.81 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.74 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> अभी संपर्क करें</a>
+      </div>
+
+      <!-- Raj Lime -->
+      <div class="mfr-card">
+        <div class="mfr-logo-wrap"><div class="mfr-logo" style="background:linear-gradient(135deg,#D97706,#F59E0B);box-shadow:0 6px 20px rgba(217,119,6,.35);"><div class="mfr-logo-inner">RAJ<br/>LIME</div></div></div>
+        <div class="mfr-name">Raj Lime</div>
+        <div class="mfr-location"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg> बोरुंडा, नागौर, राजस्थान</div>
+        <div class="mfr-type">बल्क क्विक लाइम · औद्योगिक आपूर्ति</div>
+        <div class="mfr-products">
+          <span class="mfr-pill">क्विक लाइम</span>
+          <span class="mfr-pill a">बल्क सप्लाई</span>
+          <span class="mfr-pill g">इंडस्ट्रियल ग्रेड</span>
+        </div>
+        <a href="#contact" class="contact-now-btn"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.81 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.74 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> अभी संपर्क करें</a>
+      </div>
+
+      <!-- White N White Minerals -->
+      <div class="mfr-card">
+        <div class="mfr-logo-wrap"><div class="mfr-logo" style="background:linear-gradient(135deg,#1F2937,#4B5563);box-shadow:0 6px 20px rgba(31,41,55,.4);"><div class="mfr-logo-inner">W&amp;<br/>W</div></div></div>
+        <div class="mfr-name">White N White Minerals</div>
+        <div class="mfr-location"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg> मानकपुर, नागौर, राजस्थान</div>
+        <div class="mfr-type">प्रीमियम हाइड्रेटेड लाइम · लाइम पाउडर</div>
+        <div class="mfr-products">
+          <span class="mfr-pill g">हाइड्रेटेड लाइम</span>
+          <span class="mfr-pill">लाइम पाउडर</span>
+          <span class="mfr-pill a">एक्सपोर्ट ग्रेड</span>
+        </div>
+        <a href="#contact" class="contact-now-btn"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.81 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.74 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> अभी संपर्क करें</a>
+      </div>
+
+      <!-- Arif Chemical Lime -->
+      <div class="mfr-card">
+        <div class="mfr-logo-wrap"><div class="mfr-logo" style="background:linear-gradient(135deg,#065F46,#059669);box-shadow:0 6px 20px rgba(6,95,70,.35);"><div class="mfr-logo-inner">ACL</div></div></div>
+        <div class="mfr-name">Arif Chemical Lime</div>
+        <div class="mfr-location"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg> गोतन, नागौर, राजस्थान</div>
+        <div class="mfr-type">केमिकल ग्रेड लाइम · वाटर ट्रीटमेंट</div>
+        <div class="mfr-products">
+          <span class="mfr-pill g">केमिकल ग्रेड</span>
+          <span class="mfr-pill">क्विक लाइम</span>
+          <span class="mfr-pill a">वाटर ट्रीटमेंट</span>
+        </div>
+        <a href="#contact" class="contact-now-btn"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.81 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.74 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> अभी संपर्क करें</a>
+      </div>
+
+      <!-- Gotan Lime Industries -->
+      <div class="mfr-card">
+        <div class="mfr-logo-wrap"><div class="mfr-logo" style="background:linear-gradient(135deg,#1D4ED8,#3B82F6);box-shadow:0 6px 20px rgba(29,78,216,.35);"><div class="mfr-logo-inner">GLI</div></div></div>
+        <div class="mfr-name">Gotan Lime Industries</div>
+        <div class="mfr-location"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg> गोतन, नागौर, राजस्थान</div>
+        <div class="mfr-type">बड़े पैमाने पर लाइम उत्पादन</div>
+        <div class="mfr-products">
+          <span class="mfr-pill">क्विक लाइम</span>
+          <span class="mfr-pill g">हाइड्रेटेड लाइम</span>
+          <span class="mfr-pill a">किलन संचालन</span>
+        </div>
+        <a href="#contact" class="contact-now-btn"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.81 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.74 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> अभी संपर्क करें</a>
+      </div>
+
+      <!-- Deshwali Minerals FEATURED -->
+      <div class="mfr-card featured">
+        <div class="mfr-logo-wrap"><div class="mfr-logo" style="background:linear-gradient(135deg,#4C1D95,#7C3AED);box-shadow:0 6px 24px rgba(124,58,237,.5);border-color:rgba(167,139,250,.5);"><div class="mfr-logo-inner">DM</div></div></div>
+        <div class="mfr-name">देशवाली मिनरल्स</div>
+        <div class="mfr-location"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg> नागौर बेल्ट · जयपुर मुख्यालय</div>
+        <div class="mfr-type">क्विक लाइम · हाइड्रेटेड लाइम · ERP प्लेटफ़ॉर्म</div>
+        <div class="mfr-products">
+          <span class="mfr-pill">क्विक लाइम</span>
+          <span class="mfr-pill g">हाइड्रेटेड लाइम</span>
+          <span class="mfr-pill a">स्मार्ट ERP</span>
+        </div>
+        <a href="https://deshwali-minerals.vercel.app/" target="_blank" class="contact-now-btn" style="margin-bottom:8px;"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> प्लेटफ़ॉर्म देखें</a>
+        <a href="#contact" class="contact-now-btn ghost"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.81 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.74 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> अभी संपर्क करें</a>
+      </div>
+
+    </div>
+
+    <!-- CTA BANNER -->
+    <div class="mfr-cta-banner">
+      <div class="mcb-text">
+        <h3><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="1"/><path d="M16 7V3H8v4"/><path d="M8 11h4M8 15h4M16 11h.01M16 15h.01"/></svg> क्या आप राजस्थान में लाइम निर्माता हैं?</h3>
+        <p>इस डायरेक्टरी में सूचीबद्ध हों और भारत तथा UAE के खरीदारों से जुड़ें। देशवाली मिनरल्स ERP आपके संचालन को डिजिटल करने, GST फ़ाइल करने और किलन ट्रैक करने में भी मदद करता है।</p>
+      </div>
+      <div class="mcb-actions">
+        <button onclick="openListed()" class="btn-amber" style="border:none;cursor:pointer;"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg> मुफ़्त में सूचीबद्ध हों</button>
+        <a href="https://deshwali-minerals.vercel.app/" target="_blank" style="display:inline-flex;align-items:center;gap:6px;border:1.5px solid rgba(255,255,255,.3);color:#fff;padding:.72rem 1.4rem;border-radius:10px;font-size:.88rem;font-weight:600;text-decoration:none;transition:background .15s;">ERP मुफ़्त आज़माएं →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ SOLUTION ═══ -->
+<section id="solution">
+  <div class="container">
+    <div class="sol-wrap">
+      <div>
+        <div class="tag"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg> हमारा समाधान</div>
+        <h2 class="sec-title">एक प्लेटफ़ॉर्म। सभी काम। पूरी तरह एकीकृत।</h2>
+        <p class="sec-sub">देशवाली मिनरल्स ERP हर स्प्रेडशीट और रजिस्टर की जगह लेता है — एक स्मार्ट और AI-संचालित सिस्टम जो चूने के कारखानों के लिए बनाया गया है।</p>
+        <div class="sol-feats">
+          <div class="sol-feat"><div class="sf-icon"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M14 8H8M16 12H8M11 16H8"/></svg></div><div><h4>GST बिलिंग + E-Invoice (IRN)</h4><p>स्वचालित रूप से IRN और QR कोड के साथ अनुपालन चालान बनाएं। IGST और CGST अपने-आप पहचाने।</p></div></div>
+          <div class="sol-feat"><div class="sf-icon b"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div><div><h4>E-Way बिल सिस्टम</h4><p>एक क्लिक में GST पोर्टल API से E-Way बिल बनाएं। कोई मैन्युअल फ़ॉर्म नहीं।</p></div></div>
+          <div class="sol-feat"><div class="sf-icon g"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="1"/><path d="M16 7V3H8v4"/><path d="M8 11h4M8 15h4M16 11h.01M16 15h.01"/></svg></div><div><h4>किलन + मजदूर ट्रैकिंग</h4><p>रियल-टाइम उत्पादन लॉग, शिफ्ट रिकॉर्ड, हाजिरी और PF/ESI गणना।</p></div></div>
+          <div class="sol-feat"><div class="sf-icon a"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div><h4>बैंक + लाभ डैशबोर्ड</h4><p>Live P&L, बैंक मिलान, प्रति टन लागत विश्लेषण और मासिक रिपोर्ट।</p></div></div>
+          <div class="sol-feat"><div class="sf-icon"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></div><div><h4>Petcoke ITC ट्रैकर</h4><p>Petcoke इनपुट क्रेडिट की पात्रता स्वचालित रूप से ट्रैक करें — GST रिफंड का एक पैसा न खोएं।</p></div></div>
+        </div>
+      </div>
+      <div class="mod-panel">
+        <div class="mp-label">सिस्टम मॉड्यूल</div>
+        <div class="mp-row"><div class="mp-dot green-d"></div><span>GST बिलिंग + IRN E-Invoice</span><span class="mp-badge b-live">Live</span></div>
+        <div class="mp-row"><div class="mp-dot green-d"></div><span>E-Way बिल जनरेशन</span><span class="mp-badge b-live">Live</span></div>
+        <div class="mp-row"><div class="mp-dot green-d"></div><span>किलन और मजदूर ट्रैकिंग</span><span class="mp-badge b-live">Live</span></div>
+        <div class="mp-row"><div class="mp-dot green-d"></div><span>बैंक और P&L डैशबोर्ड</span><span class="mp-badge b-live">Live</span></div>
+        <div class="mp-row"><div class="mp-dot green-d"></div><span>AI-Powered Lime ERP</span><span class="mp-badge b-live">Live</span></div>
+        <div class="mp-row"><div class="mp-dot green-d"></div><span>Petcoke ITC ट्रैकर</span><span class="mp-badge b-live">Live</span></div>
+        <hr class="mp-divider"/>
+        <div class="mp-row"><div class="mp-dot amber-d"></div><span>TDS ट्रैकिंग</span><span class="mp-badge b-phase">चरण 4</span></div>
+        <div class="mp-row"><div class="mp-dot amber-d"></div><span>उन्नत GST रिपोर्ट</span><span class="mp-badge b-phase">चरण 4</span></div>
+        <div class="mp-row"><div class="mp-dot blue-d"></div><span>मल्टी-फैक्ट्री सपोर्ट</span><span class="mp-badge" style="background:rgba(59,130,246,.15);color:var(--blue)">योजनाबद्ध</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ AI ═══ -->
+<section id="ai">
+  <div class="container">
+    <div class="tag"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M8 8V5a4 4 0 0 1 8 0v3"/><circle cx="9" cy="14" r="1" fill="currentColor"/><circle cx="15" cy="14" r="1" fill="currentColor"/><path d="M12 3v2M3 12H1M23 12h-2"/></svg> AI शक्ति</div>
+    <h2 class="sec-title c">AI-Powered Lime ERP द्वारा संचालित</h2>
+    <p class="sec-sub c">AI केवल सहायता नहीं करता — यह संचालन को चलाता है, महंगी गलतियों को रोकता है और हर दिन घंटों का काम बचाता है।</p>
+    <div class="ai-grid">
+      <div class="ai-card"><div class="ai-card-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>️</div><h4>चालान ऑटो-फिल</h4><p>पार्टी की जानकारी पढ़कर सभी चालान फ़ील्ड अपने-आप भरता है। कोई टाइपिंग नहीं।</p></div>
+      <div class="ai-card"><div class="ai-card-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><h4>GST प्रकार पहचान</h4><p>खरीदार के राज्य के आधार पर IGST और CGST/SGST अपने-आप पहचानता है।</p></div>
+      <div class="ai-card"><div class="ai-card-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><h4>एंट्री सत्यापन</h4><p>सबमिट से पहले हर चालान की जाँच करता है। गलतियाँ पकड़ता है — जुर्माना नहीं।</p></div>
+      <div class="ai-card"><div class="ai-card-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>️</div><h4>HSN कोड सुझाव</h4><p>चूने के उत्पादों के लिए सही HSN कोड स्वचालित रूप से सुझाता है।</p></div>
+      <div class="ai-card"><div class="ai-card-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></div><h4>GST रिपोर्ट जनरेटर</h4><p>GSTR-1 और GSTR-3B सारांश अपने-आप बनाता है। मिनटों में रिटर्न फ़ाइल करें।</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ BENEFITS ═══ -->
+<section id="benefits">
+  <div class="container">
+    <div class="tag"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> लाभ</div>
+    <h2 class="sec-title c">पहले दिन से मापने योग्य परिणाम</h2>
+    <p class="sec-sub c">हर फ़ीचर वास्तविक और मापने योग्य बचत देता है।</p>
+    <div class="ben-grid">
+      <div class="ben-card"><div class="ben-num">70%</div><h4>समय की बचत</h4><p>AI ऑटोमेशन से बिलिंग, रिपोर्टिंग और संचालन में 70% समय बचता है।</p></div>
+      <div class="ben-card"><div class="ben-num">0</div><h4>मैन्युअल गलतियाँ</h4><p>AI सत्यापन से डेटा एंट्री की गलतियाँ GST पोर्टल तक पहुँचने से पहले ही पकड़ी जाती हैं।</p></div>
+      <div class="ben-card"><div class="ben-num">Live</div><h4>लाभ की जानकारी</h4><p>रियल-टाइम P&L — हर बैच का मार्जिन हर दिन जानें।</p></div>
+      <div class="ben-card"><div class="ben-num">360°</div><h4>पूर्ण एकीकरण</h4><p>कारखाने से वित्त तक — हर विभाग एक जुड़े हुए सिस्टम में।</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ ROADMAP ═══ -->
+<section id="roadmap">
+  <div class="container">
+    <div class="tag"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> रोडमैप</div>
+    <h2 class="sec-title c">चरणों में निर्मित। तुरंत मूल्य देने वाला।</h2>
+    <p class="sec-sub c">एक व्यवस्थित रोलआउट जो पहले सप्ताह से ही रिटर्न देता है।</p>
+    <div class="road-grid">
+      <div class="road-step"><div class="rs-num">1</div><div class="rs-phase">चरण 1 · पूर्ण</div><h4>आंतरिक संचालन</h4><p>बिक्री, किलन ट्रैकिंग, मजदूर प्रबंधन, बैंक लेजर और हाजिरी।</p></div>
+      <div class="road-step"><div class="rs-num">2</div><div class="rs-phase">चरण 2 · पूर्ण</div><h4>GST बिलिंग मॉड्यूल</h4><p>पूर्ण GST-अनुपालन बिलिंग, पार्टी प्रबंधन और Petcoke ITC ट्रैकिंग।</p></div>
+      <div class="road-step"><div class="rs-num">3</div><div class="rs-phase">चरण 3 · प्रगति में</div><h4>E-Invoice + E-Way API</h4><p>IRN, QR कोड और E-Way बिल के लिए GST पोर्टल API से सीधा एकीकरण।</p></div>
+      <div class="road-step"><div class="rs-num">4</div><div class="rs-phase">चरण 4 · आगामी</div><h4>TDS + उन्नत रिपोर्ट</h4><p>TDS ट्रैकिंग और एंटरप्राइज़-ग्रेड वित्तीय रिपोर्टिंग के साथ पूर्ण टैक्स अनुपालन।</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CONTACT ═══ -->
+<section id="contact">
+  <div class="container">
+    <div class="tag"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg> हमसे संपर्क करें</div>
+    <h2 class="sec-title">हमारे कार्यालय और संपर्क</h2>
+    <p class="sec-sub">भारत और UAE में हमारी उपस्थिति। किसी भी प्रश्न के लिए हमसे संपर्क करें।</p>
+    <div class="contact-wrap">
+      <div class="contact-info">
+        <div class="office-card">
+          <div class="oc-flag"><span class="flag-badge">UAE</span></div>
+          <div class="oc-country">UAE कार्यालय</div>
+          <div class="oc-name">Dubai Internet City</div>
+          <div class="oc-address">Dubai Internet City<br/>Dubai, United Arab Emirates</div>
+          <a href="tel:+971506542744" class="oc-phone"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.81 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.74 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> +971 50 654 2744</a>
+        </div>
+        <div class="office-card">
+          <div class="oc-flag"><span class="flag-badge">IND</span></div>
+          <div class="oc-country">भारत कार्यालय</div>
+          <div class="oc-name">G-11, Crown Plaza</div>
+          <div class="oc-address">Amrapali Circle, Vaishali Nagar<br/>Jaipur, Rajasthan — INDIA</div>
+          <a href="tel:+918875020202" class="oc-phone"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.81 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.74 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> +91 88750 20202</a>
+        </div>
+        <div class="office-card">
+          <div class="oc-flag"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg></div>
+          <div class="oc-country">ईमेल और वेबसाइट</div>
+          <div class="oc-address" style="margin-bottom:6px;"><a href="mailto:info@deshwaliminerals.com" style="color:var(--p);font-weight:600;text-decoration:none;">info@deshwaliminerals.com</a></div>
+          <div class="oc-address"><a href="https://deshwali-minerals.vercel.app/" target="_blank" style="color:var(--p);font-weight:600;text-decoration:none;"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> deshwali-minerals.vercel.app</a></div>
+        </div>
+      </div>
+      <div class="contact-form">
+        <h3>संदेश भेजें</h3>
+        <div id="cf-msg" class="form-msg"></div>
+        <form id="contactForm" onsubmit="submitContact(event)">
+        <div class="form-row">
+          <div class="form-group"><label>आपका नाम</label><input id="cf-name" type="text" placeholder="पूरा नाम" required/></div>
+          <div class="form-group"><label>मोबाइल नंबर</label><input id="cf-phone" type="tel" placeholder="+91 XXXXX XXXXX" required/></div>
+        </div>
+        <div class="form-group"><label>ईमेल</label><input id="cf-email" type="email" placeholder="email@example.com"/></div>
+        <div class="form-group">
+          <label>आप क्या हैं?</label>
+          <select id="cf-role"><option>चूने का कारोबारी (Early Adopter)</option><option>निवेशक (Investor)</option><option>उद्योग भागीदार</option><option>टेक पार्टनर</option></select>
+        </div>
+        <div class="form-group"><label>कंपनी / व्यवसाय का नाम</label><input id="cf-company" type="text" placeholder="आपकी कंपनी"/></div>
+        <div class="form-group"><label>संदेश</label><textarea id="cf-message" placeholder="अपनी जरूरत या सवाल यहाँ लिखें..."></textarea></div>
+        <button type="submit" class="submit-btn" id="cf-btn">संदेश भेजें →</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ OPPORTUNITY ═══ -->
+<section id="opportunity">
+  <div class="container">
+    <div class="tag" style="background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.3);color:#A78BFA;"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> अवसर</div>
+    <h2>लाइम उद्योग का भविष्य बनाएं</h2>
+    <p class="lead">हम ऐसे निवेशकों, उद्योग भागीदारों और शुरुआती उपयोगकर्ताओं की तलाश कर रहे हैं जो भारत में चूने के कारोबारियों के लिए पहला AI-संचालित ERP बनाने में साथ आएं।</p>
+    <div class="opp-cards">
+      <div class="opp-card"><div class="opp-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div><h4>निवेशक</h4><p>₹50,000 करोड़ के उद्योग में AI-ERP के लिए निवेश करें</p></div>
+      <div class="opp-card"><div class="opp-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><h4>उद्योग भागीदार</h4><p>अपनी सेवाएं हमारे प्लेटफ़ॉर्म से जोड़ें</p></div>
+      <div class="opp-card"><div class="opp-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="1"/><path d="M16 7V3H8v4"/><path d="M8 11h4M8 15h4M16 11h.01M16 15h.01"/></svg></div><h4>शुरुआती उपयोगकर्ता</h4><p>चूने के कारोबारी — प्राथमिकता पहुँच और को-बिल्ड अधिकार पाएं</p></div>
+      <div class="opp-card"><div class="opp-ico"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>‍<svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><h4>टेक पार्टनर</h4><p>हमारे API पर इंटीग्रेशन बनाएं</p></div>
+    </div>
+    <div class="cta-group">
+      <a href="https://deshwali-minerals.vercel.app/" class="btn-white" target="_blank">Live App देखें →</a>
+      <a href="#contact" class="btn-outline-w">संपर्क करें</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer>
+  <div class="footer-main">
+    <!-- Brand -->
+    <div class="footer-brand">
+      <div class="fb-logo">
+        <div class="fb-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="12,2 21,8 21,16 12,22 3,16 3,8" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.55)" stroke-width="1.4" stroke-linejoin="round"/>
+            <polygon points="12,2 21,8 12,12 3,8" fill="rgba(255,255,255,0.22)"/>
+            <line x1="3" y1="8" x2="21" y2="8" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+            <line x1="12" y1="12" x2="12" y2="22" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="fb-text">
+          <span class="fb-name">देशवाली</span>
+          <span class="fb-sub">Minerals</span>
+        </div>
+      </div>
+      <p>भारत का पहला AI-संचालित लाइम इंडस्ट्री ERP। GST बिलिंग, किलन ट्रैकिंग, ट्रांसपोर्ट और AI — सब एक जगह।</p>
+      <div class="social-row">
+        <!-- Instagram -->
+        <a href="https://instagram.com/deshwaliminerals" target="_blank" class="social-btn" title="Instagram">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".5" fill="currentColor" stroke="none"/></svg>
+        </a>
+        <!-- Facebook -->
+        <a href="https://facebook.com/deshwaliminerals" target="_blank" class="social-btn" title="Facebook">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/></svg>
+        </a>
+        <!-- LinkedIn -->
+        <a href="https://linkedin.com/company/deshwaliminerals" target="_blank" class="social-btn" title="LinkedIn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></svg>
+        </a>
+        <!-- YouTube -->
+        <a href="https://youtube.com/@deshwaliminerals" target="_blank" class="social-btn" title="YouTube">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 001.46 6.42 29 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.96A29 29 0 0023 12a29 29 0 00-.46-5.58z"/><polygon points="9.75,15.02 15.5,12 9.75,8.98 9.75,15.02" fill="#0F0A1E"/></svg>
+        </a>
+      </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="footer-col">
+      <h4>त्वरित लिंक</h4>
+      <ul>
+        <li><a href="#problem">समस्या</a></li>
+        <li><a href="#solution">समाधान</a></li>
+        <li><a href="#ai">AI शक्ति</a></li>
+        <li><a href="#benefits">लाभ</a></li>
+        <li><a href="#roadmap">रोडमैप</a></li>
+        <li><a href="#contact">संपर्क</a></li>
+      </ul>
+    </div>
+
+    <!-- Product -->
+    <div class="footer-col">
+      <h4>उत्पाद</h4>
+      <ul>
+        <li><a href="#">GST बिलिंग</a></li>
+        <li><a href="#">E-Way बिल</a></li>
+        <li><a href="#">किलन ट्रैकर</a></li>
+        <li><a href="#">मजदूर प्रबंधन</a></li>
+        <li><a href="#">P&L डैशबोर्ड</a></li>
+        <li><a href="#">Petcoke ITC</a></li>
+        <li><a href="https://deshwali-minerals.vercel.app/" target="_blank">Live App →</a></li>
+      </ul>
+    </div>
+
+    <!-- Offices -->
+    <div class="footer-col">
+      <h4>हमारे कार्यालय</h4>
+      <div class="footer-office">
+        <div class="fo-country"><span class="flag-badge">UAE</span> UAE</div>
+        <div class="fo-address">Dubai Internet City<br/>Dubai, UAE</div>
+        <a href="tel:+971506542744" class="fo-phone">+971 50 654 2744</a>
+      </div>
+      <div class="footer-office">
+        <div class="fo-country"><span class="flag-badge">IND</span> INDIA</div>
+        <div class="fo-address">G-11, Crown Plaza, Amrapali Circle<br/>Vaishali Nagar, Jaipur</div>
+        <a href="tel:+918875020202" class="fo-phone">+91 88750 20202</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <p>© 2026 देशवाली मिनरल्स। सर्वाधिकार सुरक्षित।</p>
+    <div class="footer-bottom-links">
+      <a href="privacy_policy.html">गोपनीयता नीति</a>
+      <a href="terms_and_conditions.html">नियम और शर्तें</a>
+      <a href="deshwali_minerals_landing.html">English</a>
+    </div>
+  </div>
+</footer>
+
+<!-- GET LISTED MODAL -->
+<div id="listModal" class="modal-overlay" onclick="if(event.target===this)closeListed()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeListed()"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <div class="modal-title"><svg class="icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg> मुफ़्त में सूचीबद्ध हों</div>
+    <p class="modal-sub">देशवाली मिनरल्स डायरेक्टरी में शामिल हों — भारत और UAE के खरीदारों से जुड़ें। सभी सत्यापित लाइम निर्माताओं के लिए 100% मुफ़्त।</p>
+    <div id="lf-msg" class="form-msg"></div>
+    <form id="listingForm" onsubmit="submitListing(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label>कंपनी / फर्म का नाम</label>
+          <input id="lf-company" type="text" placeholder="जैसे: राज लाइम इंडस्ट्रीज़" required/>
+        </div>
+        <div class="form-group">
+          <label>संपर्क व्यक्ति</label>
+          <input id="lf-person" type="text" placeholder="मालिक / मैनेजर का नाम" required/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>मोबाइल नंबर</label>
+          <input id="lf-phone" type="tel" placeholder="+91 XXXXX XXXXX" required/>
+        </div>
+        <div class="form-group">
+          <label>GST नंबर</label>
+          <input id="lf-gst" type="text" placeholder="22AAAAA0000A1Z5" maxlength="15" style="text-transform:uppercase;letter-spacing:.5px;"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>उत्पाद प्रकार</label>
+          <select id="lf-product">
+            <option>क्विक लाइम</option>
+            <option>हाइड्रेटेड लाइम</option>
+            <option>लाइमस्टोन</option>
+            <option>क्विक + हाइड्रेटेड लाइम</option>
+            <option>सभी उत्पाद</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>स्थान / जिला</label>
+          <input id="lf-location" type="text" placeholder="जैसे: गोतन, नागौर" required/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>वार्षिक उत्पादन क्षमता (MT)</label>
+        <input id="lf-capacity" type="text" placeholder="जैसे: 5000 MT / वर्ष"/>
+      </div>
+      <div class="form-group">
+        <label>अतिरिक्त जानकारी</label>
+        <textarea id="lf-message" placeholder="अपने व्यवसाय, प्रमाणपत्र, बाज़ार के बारे में बताएं…" style="height:80px;"></textarea>
+      </div>
+      <button type="submit" class="modal-submit" id="lf-btn">लिस्टिंग जमा करें →</button>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ── SUPABASE CONFIG ── अपने प्रोजेक्ट की values यहाँ डालें ── */
+const SB_URL  = 'https://iteaawedfmaujujyrqdu.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0ZWFhd2VkZm1hdWp1anlycWR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NDcxMjMsImV4cCI6MjA5MjAyMzEyM30.13zzs_qkn51wMm-ZC84FhruuLtPlYLpuDdJvMj8AP-Y';
+
+async function sbInsert(table, data){
+  const r = await fetch(`${SB_URL}/rest/v1/${table}`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'},
+    body:JSON.stringify(data)
+  });
+  if(!r.ok) throw new Error(await r.text());
+}
+
+async function submitContact(e){
+  e.preventDefault();
+  const btn=document.getElementById('cf-btn');
+    btn.disabled=true; btn.textContent='भेज रहे हैं…';
+  try{
+    await sbInsert('contact_inquiries',{
+      name:    document.getElementById('cf-name').value.trim(),
+      phone:   document.getElementById('cf-phone').value.trim(),
+      email:   document.getElementById('cf-email').value.trim(),
+      role:    document.getElementById('cf-role').value,
+      company: document.getElementById('cf-company').value.trim(),
+      message: document.getElementById('cf-message').value.trim(),
+      source:  'Hindi Landing Page'
+    });
+    showToast('success','संदेश भेज दिया गया!','हम जल्द आपसे संपर्क करेंगे।');
+    document.getElementById('contactForm').reset();
+  }catch(err){
+    showToast('error','त्रुटि हुई','कुछ गलत हुआ। कृपया सीधे कॉल करें।');
+  }
+  btn.disabled=false; btn.textContent='संदेश भेजें →';
+}
+
+async function submitListing(e){
+  e.preventDefault();
+  const btn=document.getElementById('lf-btn');
+    btn.disabled=true; btn.textContent='जमा हो रहा है…';
+  try{
+    await sbInsert('business_listings',{
+      company_name:   document.getElementById('lf-company').value.trim(),
+      contact_person: document.getElementById('lf-person').value.trim(),
+      phone:          document.getElementById('lf-phone').value.trim(),
+      gst_number:     document.getElementById('lf-gst').value.trim().toUpperCase(),
+      product_type:   document.getElementById('lf-product').value,
+      location:       document.getElementById('lf-location').value.trim(),
+      capacity:       document.getElementById('lf-capacity').value.trim(),
+      message:        document.getElementById('lf-message').value.trim(),
+      source:         'Hindi Landing Page'
+    });
+    showToast('success','लिस्टिंग जमा!','24 घंटे में समीक्षा करके प्रकाशित करेंगे।');
+    document.getElementById('listingForm').reset();
+    setTimeout(closeListed, 3000);
+  }catch(err){
+    showToast('error','जमा नहीं हुआ','दोबारा कोशिश करें।');
+  }
+  btn.disabled=false; btn.textContent='लिस्टिंग जमा करें →';
+}
+
+function openListed(){document.getElementById('listModal').classList.add('open');document.body.style.overflow='hidden';}
+function closeListed(){document.getElementById('listModal').classList.remove('open');document.body.style.overflow='';}
+
+/* ── TOAST SYSTEM ── */
+(function(){
+  function getContainer(){
+    let c=document.getElementById('toast-container');
+    if(!c){c=document.createElement('div');c.id='toast-container';document.body.appendChild(c);}
+    return c;
+  }
+  window.showToast=function(type,title,msg,duration){
+    duration=duration||4500;
+    const icons={
+      success:'<svg class="toast-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      error:'<svg class="toast-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      info:'<svg class="toast-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+    };
+    const t=document.createElement('div');
+    t.className='toast toast-'+type;
+    t.innerHTML=`${icons[type]||icons.info}<div class="toast-body"><div class="toast-title">${title}</div>${msg?`<div class="toast-msg">${msg}</div>`:''}</div><button class="toast-close" onclick="this.parentElement.remove()">&#x2715;</button>`;
+    getContainer().appendChild(t);
+    const timer=setTimeout(()=>{t.classList.add('hide');setTimeout(()=>t.remove(),280);},duration);
+    t.querySelector('.toast-close').addEventListener('click',()=>clearTimeout(timer));
+  };
+})();
+
+</script>
+</body>
+</html>

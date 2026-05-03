@@ -5,26 +5,25 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>QuickLime Portal — Deshwali Minerals</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --p1:#0058B8;--p2:#0073EC;--p3:#2A8DF2;--p4:#7DB7F6;--p5:#E5F0FD;--p6:#F2F7FE;
-  --g1:linear-gradient(160deg,#0073EC 0%,#0058B8 50%,#2A8DF2 100%);
-  --g:#0073EC;--g2:#0058B8;--g3:#3730a3;--gl:#2A8DF2;
-  --gs:#F2F7FE;--gb:#E5F0FD;--gm:#c7c6f8;
-  --ink:#0d0c22;--ink2:#1a1940;--ink3:#4b4a72;--ink4:#9491b8;
-  --green:#10b981;--green2:#d1fae5;--red:#f43f5e;--red2:#ffe4e6;
-  --white:#fff;--bg:#eef0fb;--bg2:#e4e6f5;--border:1px solid #e8eaf5;
+  --g:#16a34a;--g2:#15803d;--g3:#166534;--gl:#84cc16;
+  --gs:#f0fdf4;--gb:#dcfce7;--gm:#bbf7d0;
+  --ink:#111827;--ink2:#374151;--ink3:#6b7280;--ink4:#9ca3af;
+  --white:#fff;--bg:#f9fafb;--border:1px solid #e5e7eb;
   --card:#fff;--r:14px;--r2:10px;
   --shadow:0 1px 4px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
-  --shadow2:0 8px 24px rgba(0,115,236,.15);
+  --shadow2:0 8px 24px rgba(22,163,74,.15);
 }
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
 
-/* ═══ LOGIN PAGE (legacy reset) ═══ */
-#login-page{position:fixed;inset:0;z-index:1000;}
+/* ═══ LOGIN PAGE ═══ */
+#login-page{
+  display:flex;min-height:100vh;
+  background:linear-gradient(145deg,#052e16 0%,#14532d 40%,#166534 100%);
+}
 .login-left{
   flex:1;display:flex;align-items:center;justify-content:center;padding:40px;
   position:relative;overflow:hidden;
@@ -49,7 +48,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .login-brand p{font-size:15px;color:rgba(255,255,255,.6);line-height:1.7;margin-bottom:36px}
 .feature-list{display:flex;flex-direction:column;gap:12px}
 .feat-item{display:flex;align-items:center;gap:12px}
-.feat-icon{width:38px;height:38px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.3);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.feat-icon{width:36px;height:36px;background:rgba(132,204,22,.15);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .feat-text{font-size:13px;color:rgba(255,255,255,.75);font-weight:500}
 
 .login-right{
@@ -99,9 +98,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .nav-item{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:500;color:var(--ink3);border:none;background:transparent;width:100%;text-align:left;font-family:'Inter',sans-serif;transition:.12s}
 .nav-item:hover{background:var(--gs);color:var(--g)}
 .nav-item.active{background:var(--g);color:#fff;font-weight:700}
-.nav-item .ni{width:28px;height:28px;border-radius:7px;background:var(--gs);border:1.5px solid var(--gm);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:.12s}
-.nav-item:hover .ni{background:var(--gb);border-color:var(--p2)}
-.nav-item.active .ni{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.35)}
+.nav-item .ni{font-size:16px;flex-shrink:0}
 .nav-badge{margin-left:auto;background:#fef2f2;color:#dc2626;font-size:10px;font-weight:800;padding:2px 7px;border-radius:50px}
 .nav-badge.g{background:var(--gb);color:var(--g2)}
 
@@ -129,7 +126,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
 .kpi{background:var(--card);border:var(--border);border-radius:var(--r);padding:18px 20px}
 .kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.kpi-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;border:1.5px solid rgba(0,0,0,.08)}
+.kpi-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
 .kpi-trend{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px}
 .kpi-trend.up{background:var(--gb);color:var(--g2)}
 .kpi-trend.dn{background:#fef2f2;color:#dc2626}
@@ -156,13 +153,12 @@ table.t tbody td{padding:12px 14px;border-bottom:1px solid #f3f4f6;color:var(--i
 table.t tbody tr:hover td{background:#fafffe}
 table.t tbody tr:last-child td{border-bottom:none}
 .tr{text-align:right}
-.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1.5px solid}
-.b-green{background:#dcfce7;color:#15803d;border-color:#86efac}
-.b-amber{background:#fef3c7;color:#92400e;border-color:#fde68a}
-.b-red{background:#fee2e2;color:#dc2626;border-color:#fca5a5}
-.b-blue{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd}
-.b-gray{background:#f3f4f6;color:var(--ink3);border-color:#d1d5db}
-.badge-icon{width:16px;height:16px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;background:rgba(0,0,0,.08)}
+.badge{display:inline-block;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700}
+.b-green{background:var(--gb);color:var(--g3)}
+.b-amber{background:#fef3c7;color:#92400e}
+.b-red{background:#fee2e2;color:#dc2626}
+.b-blue{background:#dbeafe;color:#1d4ed8}
+.b-gray{background:#f3f4f6;color:var(--ink3)}
 
 /* ── PRICE TICKER ── */
 .price-ticker{display:flex;align-items:center;gap:6px;background:var(--gs);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--g3);font-weight:600}
@@ -198,7 +194,7 @@ table.t tbody tr:last-child td{border-bottom:none}
 /* ── PAYMENT STATUS ── */
 .pay-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f3f4f6}
 .pay-row:last-child{border-bottom:none}
-.pay-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;border:1.5px solid rgba(0,0,0,.08)}
+.pay-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .pay-info{flex:1}
 .pay-title{font-size:13px;font-weight:700;color:var(--ink)}
 .pay-sub{font-size:11px;color:var(--ink3);margin-top:1px}
@@ -224,71 +220,6 @@ table.t tbody tr:last-child td{border-bottom:none}
 @media(max-width:400px){
   .kpi-grid{grid-template-columns:1fr}
 }
-
-/* ── ICON BOXES ── */
-.ni i, .sb-item-icon i, .ic i, .kpi-icon i, .feat-icon i, .pay-icon i {
-  font-size: inherit;
-  line-height: 1;
-}
-.ic{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;font-size:13px;flex-shrink:0;vertical-align:middle;margin-right:4px}
-.ic-p{background:var(--gs);border:1.5px solid var(--gm)}
-.ic-g{background:#dcfce7;border:1.5px solid #86efac}
-.ic-r{background:#fee2e2;border:1.5px solid #fca5a5}
-.ic-b{background:#dbeafe;border:1.5px solid #93c5fd}
-.ic-y{background:#fef3c7;border:1.5px solid #fde68a}
-.ic-w{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35)}
-
-/* ── LOGIN SPLIT (IMZA-inspired) ── */
-.ls-wrap{position:fixed;inset:0;z-index:1000;background:#fff;display:flex;overflow:auto;}
-.ls-left{flex:0 0 45%;max-width:560px;display:flex;flex-direction:column;padding:48px 64px;background:#fff;}
-.ls-logo-bar img{height:44px;width:auto;display:block;}
-.ls-form-wrap{margin-top:48px;max-width:380px;width:100%;}
-.ls-h1{font-size:36px;font-weight:800;color:#111827;line-height:1.1;letter-spacing:-.5px;margin-bottom:8px;font-family:Inter,sans-serif;}
-.ls-sub{font-size:14px;color:#6b7280;margin-bottom:32px;font-family:Inter,sans-serif;}
-.ls-fld{margin-bottom:18px;}
-.ls-fld label{display:block;font-size:13px;font-weight:600;color:#111827;margin-bottom:8px;font-family:Inter,sans-serif;}
-.ls-input{width:100%;padding:14px 16px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:Inter,sans-serif;outline:none;transition:border .2s;background:#fff;color:#111827;}
-.ls-input:focus{border-color:#0073EC;}
-.ls-pw{position:relative;}
-.ls-pw .ls-input{padding-right:42px;}
-.ls-eye{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:#9ca3af;cursor:pointer;font-size:14px;padding:4px;}
-.ls-eye:hover{color:#374151;}
-.ls-forgot{display:inline-block;color:#0073EC;font-size:13px;font-weight:500;text-decoration:none;margin-bottom:24px;font-family:Inter,sans-serif;}
-.ls-forgot:hover{text-decoration:underline;}
-.ls-btn{width:100%;padding:16px;background:#0073EC;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;letter-spacing:.5px;cursor:pointer;transition:all .2s;font-family:Inter,sans-serif;}
-.ls-btn:hover{background:#0058B8;box-shadow:0 4px 20px rgba(0,115,236,.3);}
-.ls-err{color:#dc2626;font-size:13px;margin-bottom:12px;display:none;font-family:Inter,sans-serif;}
-.ls-err.show{display:block;}
-.ls-foot{font-size:12px;color:#9ca3af;margin-top:auto;padding-top:32px;font-family:Inter,sans-serif;}
-.ls-right{flex:1;background:#f8fafc;background-image:linear-gradient(rgba(0,115,236,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,115,236,.05) 1px,transparent 1px);background-size:40px 40px;position:relative;overflow:hidden;padding:64px 56px;display:flex;flex-direction:column;justify-content:center;}
-.ls-pill{display:inline-block;align-self:flex-start;background:#fff;color:#111827;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:24px;font-family:Inter,sans-serif;}
-.ls-headline{font-size:42px;font-weight:800;color:#111827;line-height:1.15;letter-spacing:-.8px;margin-bottom:40px;font-family:Inter,sans-serif;}
-.ls-headline span{color:#0073EC;}
-.ls-mock{background:#fff;border-radius:14px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.08);max-width:600px;width:100%;display:flex;flex-direction:column;gap:14px;position:relative;}
-.ls-mock-top{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid #f1f5f9;}
-.ls-mock-logo img{height:24px;width:auto;display:block;}
-.ls-mock-welcome{font-size:11px;color:#6b7280;font-family:Inter,sans-serif;}
-.ls-mock-live{position:absolute;top:-12px;right:-12px;background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:6px 14px;font-size:11px;font-weight:600;color:#111827;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,.08);font-family:Inter,sans-serif;}
-.ls-mock-live::before{content:'';width:7px;height:7px;border-radius:50%;background:#10b981;}
-.ls-mock-body{display:flex;gap:14px;}
-.ls-mock-nav{flex:0 0 110px;display:flex;flex-direction:column;gap:4px;}
-.ls-mock-nav-item{padding:8px 12px;border-radius:8px;font-size:12px;font-weight:500;color:#6b7280;font-family:Inter,sans-serif;}
-.ls-mock-nav-item.active{background:#E5F0FD;color:#0073EC;font-weight:600;}
-.ls-mock-content{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;}
-.ls-kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-.ls-kpi{background:#f8fafc;border-radius:8px;padding:10px 12px;}
-.ls-kpi-lbl{font-size:10px;color:#6b7280;font-weight:500;display:flex;align-items:center;gap:5px;margin-bottom:4px;font-family:Inter,sans-serif;}
-.ls-kpi-val{font-size:18px;font-weight:800;color:#111827;line-height:1;font-family:Inter,sans-serif;}
-.ls-recent{background:#f8fafc;border-radius:8px;padding:12px;}
-.ls-recent-title{font-size:11px;color:#6b7280;margin-bottom:8px;font-weight:500;font-family:Inter,sans-serif;}
-.ls-recent-list{display:flex;flex-direction:column;gap:8px;}
-.ls-recent-row{display:flex;align-items:center;gap:8px;font-size:11px;color:#374151;font-family:Inter,sans-serif;}
-.ls-recent-time{color:#9ca3af;min-width:36px;}
-.ls-recent-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
-@media(max-width:900px){
-  .ls-right{display:none;}
-  .ls-left{flex:1;max-width:none;padding:32px 24px;}
-}
 </style>
 </head>
 <body>
@@ -296,63 +227,62 @@ table.t tbody tr:last-child td{border-bottom:none}
 <!-- ═══════════════════════════════════════════════
      LOGIN PAGE
 ═══════════════════════════════════════════════ -->
-<div id="login-page" class="ls-wrap">
-  <div class="ls-left">
-    <div class="ls-logo-bar"><img src="assets/logo.png" alt="QuickLimes"></div>
-    <div class="ls-form-wrap">
-      <h1 class="ls-h1">Login to Portal</h1>
-      <p class="ls-sub">अपना Company ID और पासवर्ड डालें</p>
-      <div id="login-err" class="ls-err"><i class="fa-solid fa-circle-exclamation"></i> गलत ID या पासवर्ड। कृपया दोबारा कोशिश करें।</div>
-      <div class="ls-fld">
-        <label>Company ID / Username</label>
-        <input class="ls-input" id="login-user" type="text" placeholder="e.g. RAMKARAN2024" autocomplete="username">
+<div id="login-page">
+  <div class="login-left">
+    <div class="login-brand">
+      <div class="lb-badge">
+        <span>🍋</span>
+        <span>QUICKLIME PORTAL v1.0</span>
       </div>
-      <div class="ls-fld">
-        <label>Password</label>
-        <div class="ls-pw">
-          <input class="ls-input" id="login-pass" type="password" placeholder="Enter Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-          <button type="button" class="ls-eye" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.querySelector('i').className=i.type==='password'?'fa-solid fa-eye':'fa-solid fa-eye-slash';" aria-label="Toggle password"><i class="fa-solid fa-eye"></i></button>
+      <h1>अपने <em>चूना व्यापार</em> को आसान बनाएं</h1>
+      <p>Deshwali Minerals का एक्सक्लूसिव पोर्टल — अपने सभी ऑर्डर, भुगतान और डिलीवरी एक जगह ट्रैक करें।</p>
+      <div class="feature-list">
+        <div class="feat-item">
+          <div class="feat-icon">📦</div>
+          <div class="feat-text">ऑर्डर रियल-टाइम ट्रैकिंग — कब आएगा माल, सब दिखता है</div>
+        </div>
+        <div class="feat-item">
+          <div class="feat-icon">💳</div>
+          <div class="feat-text">भुगतान इतिहास और बकाया राशि — एक क्लिक में जानें</div>
+        </div>
+        <div class="feat-item">
+          <div class="feat-icon">🧾</div>
+          <div class="feat-text">सभी GST Invoice डाउनलोड करें — कहीं भी, कभी भी</div>
+        </div>
+        <div class="feat-item">
+          <div class="feat-icon">📊</div>
+          <div class="feat-text">महीनेवार खरीद रिपोर्ट — अपना खर्च समझें</div>
         </div>
       </div>
-      <a href="#" class="ls-forgot">Forgot Password?</a>
-      <button class="ls-btn" onclick="doLogin()">LOGIN</button>
-      <div class="ls-switch" style="text-align:center;margin-top:18px;font-size:13px;color:#6b7280;">Don't have an account? <a href="signup.html" style="color:#0073EC;font-weight:600;text-decoration:none;">Sign Up</a></div>
     </div>
-    <div class="ls-foot">© 2026 Deshwali Minerals · Demo: <b>RAMKARAN2024</b> / <b>lime@123</b></div>
   </div>
-  <div class="ls-right">
-    <div class="ls-pill">QuickLime Portal</div>
-    <h2 class="ls-headline">Track your orders<br><span>in real time</span></h2>
-    <div class="ls-mock">
-      <div class="ls-mock-live">3 orders live</div>
-      <div class="ls-mock-top">
-        <div class="ls-mock-logo"><img src="assets/logo.png" alt=""></div>
-        <div class="ls-mock-welcome">Welcome to Overview</div>
+
+  <div class="login-right">
+    <div class="login-box">
+      <div class="login-logo" style="flex-direction:column;align-items:flex-start;gap:6px;">
+        <img src="assets/logo.png" alt="QuickLimes" style="height:50px;width:auto;display:block;">
+        <div style="font-size:11px;font-weight:500;color:#6b7280;letter-spacing:.3px;">Portal · by Deshwali Minerals</div>
       </div>
-      <div class="ls-mock-body">
-        <div class="ls-mock-nav">
-          <div class="ls-mock-nav-item active">Overview</div>
-          <div class="ls-mock-nav-item">My Orders</div>
-          <div class="ls-mock-nav-item">Payments</div>
-          <div class="ls-mock-nav-item">Invoices</div>
-          <div class="ls-mock-nav-item">Reports</div>
-        </div>
-        <div class="ls-mock-content">
-          <div class="ls-kpi-row">
-            <div class="ls-kpi"><div class="ls-kpi-lbl"><i class="fa-solid fa-box"></i> Active orders</div><div class="ls-kpi-val">3</div></div>
-            <div class="ls-kpi"><div class="ls-kpi-lbl"><i class="fa-solid fa-credit-card"></i> Pending</div><div class="ls-kpi-val">₹48K</div></div>
-            <div class="ls-kpi"><div class="ls-kpi-lbl"><i class="fa-solid fa-truck"></i> Delivered</div><div class="ls-kpi-val">22 MT</div></div>
-          </div>
-          <div class="ls-recent">
-            <div class="ls-recent-title">Recent activity</div>
-            <div class="ls-recent-list">
-              <div class="ls-recent-row"><span class="ls-recent-time">14:02</span><span class="ls-recent-icon" style="color:#10b981"><i class="fa-solid fa-truck"></i></span>Delivery confirmed — 5 MT Quick Lime</div>
-              <div class="ls-recent-row"><span class="ls-recent-time">13:48</span><span class="ls-recent-icon" style="color:#0073EC"><i class="fa-solid fa-file-invoice"></i></span>GST invoice ready — INV-4172</div>
-              <div class="ls-recent-row"><span class="ls-recent-time">11:30</span><span class="ls-recent-icon" style="color:#f59e0b"><i class="fa-solid fa-clock"></i></span>Order #4180 dispatched</div>
-              <div class="ls-recent-row"><span class="ls-recent-time">10:15</span><span class="ls-recent-icon" style="color:#10b981"><i class="fa-solid fa-circle-check"></i></span>Payment received — ₹62,400</div>
-            </div>
-          </div>
-        </div>
+      <h2>लॉगिन करें</h2>
+      <p>अपना कंपनी ID और पासवर्ड डालें</p>
+      <div class="login-error" id="login-err">❌ गलत ID या पासवर्ड। कृपया दोबारा कोशिश करें।</div>
+      <div class="fld">
+        <label>Company ID / Username</label>
+        <input type="text" id="login-user" placeholder="e.g. RAMKARAN2024" autocomplete="username"/>
+      </div>
+      <div class="fld">
+        <label>पासवर्ड</label>
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <button class="btn-login" onclick="doLogin()">🔐 लॉगिन करें</button>
+      <div class="login-hint">
+        <strong>Demo Access</strong>
+        ID: <strong>RAMKARAN2024</strong> &nbsp;|&nbsp; Password: <strong>lime@123</strong><br>
+        ID: <strong>SHIV_LIME</strong> &nbsp;|&nbsp; Password: <strong>lime@456</strong>
+      </div>
+      <div class="login-footer">
+        © 2026 Deshwali Minerals · Merta City<br>
+        <span style="color:#9ca3af">सहायता: 9460034743</span>
       </div>
     </div>
   </div>
@@ -366,7 +296,7 @@ table.t tbody tr:last-child td{border-bottom:none}
   <!-- TOPBAR -->
   <div class="app-top">
     <div class="at-logo">
-      <div class="at-logo-icon"><i class="fa-solid fa-lemon"></i></div>
+      <div class="at-logo-icon">🍋</div>
       <div class="at-logo-name">QuickLime Portal</div>
     </div>
     <div class="at-right">
@@ -384,39 +314,39 @@ table.t tbody tr:last-child td{border-bottom:none}
     <!-- SIDEBAR -->
     <nav class="sidebar">
       <button class="nav-item active" onclick="goPage('dashboard',this)">
-        <span class="ni"><i class="fa-solid fa-chart-bar"></i></span> डैशबोर्ड
+        <span class="ni">🏠</span> डैशबोर्ड
       </button>
       <div class="nav-sec">ऑर्डर</div>
       <button class="nav-item" onclick="goPage('orders',this)">
-        <span class="ni"><i class="fa-solid fa-box"></i></span> मेरे ऑर्डर
+        <span class="ni">📦</span> मेरे ऑर्डर
         <span class="nav-badge g">3</span>
       </button>
       <button class="nav-item" onclick="goPage('neworder',this)">
-        <span class="ni"><i class="fa-solid fa-plus"></i></span> नया ऑर्डर
+        <span class="ni">➕</span> नया ऑर्डर
       </button>
       <button class="nav-item" onclick="goPage('tracking',this)">
-        <span class="ni"><i class="fa-solid fa-truck"></i></span> डिलीवरी ट्रैक
+        <span class="ni">🚚</span> डिलीवरी ट्रैक
       </button>
       <div class="nav-sec">हिसाब-किताब</div>
       <button class="nav-item" onclick="goPage('invoices',this)">
-        <span class="ni"><i class="fa-solid fa-file-invoice"></i></span> Invoice
+        <span class="ni">🧾</span> Invoice
       </button>
       <button class="nav-item" onclick="goPage('payments',this)">
-        <span class="ni"><i class="fa-solid fa-credit-card"></i></span> भुगतान
+        <span class="ni">💳</span> भुगतान
         <span class="nav-badge">1</span>
       </button>
       <button class="nav-item" onclick="goPage('ledger',this)">
-        <span class="ni"><i class="fa-solid fa-book"></i></span> खाता बही
+        <span class="ni">📒</span> खाता बही
       </button>
       <div class="nav-sec">अन्य</div>
       <button class="nav-item" onclick="goPage('prices',this)">
-        <span class="ni"><i class="fa-solid fa-chart-line"></i></span> भाव सूची
+        <span class="ni">📈</span> भाव सूची
       </button>
       <button class="nav-item" onclick="goPage('profile',this)">
-        <span class="ni"><i class="fa-solid fa-building"></i></span> मेरी कंपनी
+        <span class="ni">🏢</span> मेरी कंपनी
       </button>
       <button class="nav-item" onclick="goPage('support',this)">
-        <span class="ni"><i class="fa-solid fa-headset"></i></span> सहायता
+        <span class="ni">🤝</span> सहायता
       </button>
     </nav>
 
@@ -427,15 +357,15 @@ table.t tbody tr:last-child td{border-bottom:none}
       <div class="page active" id="page-dashboard">
         <div class="ph">
           <div class="ph-left">
-            <h2>नमस्ते, <span id="dash-name">Ramkaran Ji</span></h2>
+            <h2>नमस्ते, <span id="dash-name">Ramkaran Ji</span> 🙏</h2>
             <p id="dash-date">आज का दिन: शनिवार, 29 अप्रैल 2026</p>
           </div>
-          <button class="btn btn-primary" onclick="goPage('neworder',document.querySelector('.nav-item:nth-child(4))'))"><span class="ic ic-w"><i class="fa-solid fa-plus"></i></span> नया ऑर्डर</button>
+          <button class="btn btn-primary" onclick="goPage('neworder',document.querySelector('.nav-item:nth-child(4))'))">➕ नया ऑर्डर</button>
         </div>
 
         <!-- Alert -->
         <div class="alert-banner" id="dash-alert">
-          <span class="ic ic-r"><i class="fa-solid fa-triangle-exclamation"></i></span> <strong>बकाया भुगतान:</strong> ₹45,000 — कृपया 5 मई 2026 से पहले जमा करें।
+          ⚠️ <strong>बकाया भुगतान:</strong> ₹45,000 — कृपया 5 मई 2026 से पहले जमा करें।
           <button onclick="goPage('payments',null)" style="margin-left:auto;background:var(--g);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">भुगतान करें →</button>
         </div>
 
@@ -443,7 +373,7 @@ table.t tbody tr:last-child td{border-bottom:none}
         <div class="kpi-grid">
           <div class="kpi">
             <div class="kpi-top">
-              <div class="kpi-icon" style="background:#dcfce7"><i class="fa-solid fa-boxes-stacked"></i></div>
+              <div class="kpi-icon" style="background:#dcfce7">📦</div>
               <div class="kpi-trend up">▲ 12%</div>
             </div>
             <div class="kpi-label">इस महीने ऑर्डर</div>
@@ -452,7 +382,7 @@ table.t tbody tr:last-child td{border-bottom:none}
           </div>
           <div class="kpi">
             <div class="kpi-top">
-              <div class="kpi-icon" style="background:#fef3c7"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+              <div class="kpi-icon" style="background:#fef3c7">💰</div>
               <div class="kpi-trend up">▲ 8%</div>
             </div>
             <div class="kpi-label">कुल खरीद (2026)</div>
@@ -461,7 +391,7 @@ table.t tbody tr:last-child td{border-bottom:none}
           </div>
           <div class="kpi">
             <div class="kpi-top">
-              <div class="kpi-icon" style="background:#fee2e2"><i class="fa-solid fa-triangle-exclamation"></i></div>
+              <div class="kpi-icon" style="background:#fee2e2">⚠️</div>
               <div class="kpi-trend dn">बकाया</div>
             </div>
             <div class="kpi-label">बकाया राशि</div>
@@ -470,7 +400,7 @@ table.t tbody tr:last-child td{border-bottom:none}
           </div>
           <div class="kpi">
             <div class="kpi-top">
-              <div class="kpi-icon" style="background:#dbeafe"><i class="fa-solid fa-truck-moving"></i></div>
+              <div class="kpi-icon" style="background:#dbeafe">🚚</div>
               <div class="kpi-trend na">चल रहा है</div>
             </div>
             <div class="kpi-label">अगली डिलीवरी</div>
@@ -483,7 +413,7 @@ table.t tbody tr:last-child td{border-bottom:none}
         <div class="grid13" style="margin-bottom:16px">
           <div class="card">
             <div class="card-head">
-              <div class="card-title"><span class="ic ic-p"><i class="fa-solid fa-chart-line"></i></span> मासिक खरीद (MT)</div>
+              <div class="card-title">📊 मासिक खरीद (MT)</div>
               <select style="font-size:11px;border:var(--border);border-radius:6px;padding:3px 8px;outline:none">
                 <option>2026</option><option>2025</option>
               </select>
@@ -493,12 +423,12 @@ table.t tbody tr:last-child td{border-bottom:none}
             </div>
           </div>
           <div class="card">
-            <div class="card-head"><div class="card-title"><span class="ic ic-b"><i class="fa-solid fa-truck"></i></span> ताज़ा ऑर्डर स्थिति</div></div>
+            <div class="card-head"><div class="card-title">🚚 ताज़ा ऑर्डर स्थिति</div></div>
             <div class="card-body">
               <div style="margin-bottom:16px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                   <div style="font-size:13px;font-weight:700">ORD-2026-047</div>
-                  <span class="badge b-amber"><span class="badge-icon"><i class="fa-solid fa-truck"></i></span>ट्रांजिट में</span>
+                  <span class="badge b-amber">ट्रांजिट में</span>
                 </div>
                 <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">100 MT Quick Lime · RJ14CX2891</div>
                 <div class="tracker">
@@ -511,11 +441,11 @@ table.t tbody tr:last-child td{border-bottom:none}
                     <div class="tr-label">तैयार</div>
                   </div>
                   <div class="tr-step active">
-                    <div class="tr-dot active"><i class="fa-solid fa-truck"></i></div>
+                    <div class="tr-dot active">🚚</div>
                     <div class="tr-label">रास्ते में</div>
                   </div>
                   <div class="tr-step wait">
-                    <div class="tr-dot wait"><i class="fa-solid fa-location-dot"></i></div>
+                    <div class="tr-dot wait">📍</div>
                     <div class="tr-label">पहुंचा</div>
                   </div>
                 </div>
@@ -536,7 +466,7 @@ table.t tbody tr:last-child td{border-bottom:none}
         <div class="grid2">
           <div class="card">
             <div class="card-head">
-              <div class="card-title"><span class="ic ic-p"><i class="fa-solid fa-list-check"></i></span> पिछले ऑर्डर</div>
+              <div class="card-title">📋 पिछले ऑर्डर</div>
               <button class="btn btn-outline" style="font-size:11px;padding:5px 10px" onclick="goPage('orders',null)">सब देखें</button>
             </div>
             <div class="card-body" style="padding:0">
@@ -544,32 +474,32 @@ table.t tbody tr:last-child td{border-bottom:none}
                 <table class="t">
                   <thead><tr><th>ऑर्डर</th><th>माल (MT)</th><th class="tr">राशि</th><th>स्थिति</th></tr></thead>
                   <tbody>
-                    <tr><td><strong>ORD-047</strong><br><span style="font-size:10px;color:var(--ink3)">28 अप्रैल</span></td><td>100</td><td class="tr">₹71,500</td><td><span class="badge b-amber"><span class="badge-icon"><i class="fa-solid fa-truck"></i></span>ट्रांजिट</span></td></tr>
-                    <tr><td><strong>ORD-046</strong><br><span style="font-size:10px;color:var(--ink3)">20 अप्रैल</span></td><td>150</td><td class="tr">₹1,07,250</td><td><span class="badge b-green"><span class="badge-icon"><i class="fa-solid fa-check"></i></span>पहुंचा</span></td></tr>
-                    <tr><td><strong>ORD-045</strong><br><span style="font-size:10px;color:var(--ink3)">10 अप्रैल</span></td><td>90</td><td class="tr">₹64,350</td><td><span class="badge b-green"><span class="badge-icon"><i class="fa-solid fa-check"></i></span>पहुंचा</span></td></tr>
-                    <tr><td><strong>ORD-044</strong><br><span style="font-size:10px;color:var(--ink3)">2 अप्रैल</span></td><td>120</td><td class="tr">₹85,800</td><td><span class="badge b-red"><span class="badge-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>बकाया</span></td></tr>
+                    <tr><td><strong>ORD-047</strong><br><span style="font-size:10px;color:var(--ink3)">28 अप्रैल</span></td><td>100</td><td class="tr">₹71,500</td><td><span class="badge b-amber">ट्रांजिट</span></td></tr>
+                    <tr><td><strong>ORD-046</strong><br><span style="font-size:10px;color:var(--ink3)">20 अप्रैल</span></td><td>150</td><td class="tr">₹1,07,250</td><td><span class="badge b-green">पहुंचा</span></td></tr>
+                    <tr><td><strong>ORD-045</strong><br><span style="font-size:10px;color:var(--ink3)">10 अप्रैल</span></td><td>90</td><td class="tr">₹64,350</td><td><span class="badge b-green">पहुंचा</span></td></tr>
+                    <tr><td><strong>ORD-044</strong><br><span style="font-size:10px;color:var(--ink3)">2 अप्रैल</span></td><td>120</td><td class="tr">₹85,800</td><td><span class="badge b-red">बकाया</span></td></tr>
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
           <div class="card">
-            <div class="card-head"><div class="card-title"><span class="ic ic-y"><i class="fa-solid fa-bolt"></i></span> त्वरित कार्य</div></div>
+            <div class="card-head"><div class="card-title">⚡ त्वरित कार्य</div></div>
             <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
               <button onclick="goPage('neworder',null)" style="width:100%;padding:13px;background:var(--gs);border:1.5px solid var(--gm);border-radius:10px;text-align:left;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:12px">
-                <span class="ic ic-g" style="width:40px;height:40px;font-size:20px"><i class="fa-solid fa-box"></i></span>
+                <span style="font-size:22px">📦</span>
                 <div><div style="font-size:13px;font-weight:700;color:var(--g)">नया ऑर्डर करें</div><div style="font-size:11px;color:var(--ink3)">Quick Lime मंगाएं</div></div>
               </button>
               <button onclick="goPage('invoices',null)" style="width:100%;padding:13px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;text-align:left;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:12px">
-                <span class="ic ic-y" style="width:40px;height:40px;font-size:20px"><i class="fa-solid fa-file-invoice"></i></span>
+                <span style="font-size:22px">🧾</span>
                 <div><div style="font-size:13px;font-weight:700;color:#92400e">Invoice डाउनलोड</div><div style="font-size:11px;color:var(--ink3)">GST Invoice लें</div></div>
               </button>
               <button onclick="goPage('payments',null)" style="width:100%;padding:13px;background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;text-align:left;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:12px">
-                <span class="ic ic-r" style="width:40px;height:40px;font-size:20px"><i class="fa-solid fa-credit-card"></i></span>
+                <span style="font-size:22px">💳</span>
                 <div><div style="font-size:13px;font-weight:700;color:#dc2626">बकाया चुकाएं</div><div style="font-size:11px;color:var(--ink3)">₹45,000 बाकी है</div></div>
               </button>
               <button onclick="goPage('support',null)" style="width:100%;padding:13px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;text-align:left;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:12px">
-                <span class="ic ic-b" style="width:40px;height:40px;font-size:20px"><i class="fa-solid fa-phone"></i></span>
+                <span style="font-size:22px">📞</span>
                 <div><div style="font-size:13px;font-weight:700;color:#1d4ed8">सहायता लें</div><div style="font-size:11px;color:var(--ink3)">9460034743 पर कॉल</div></div>
               </button>
             </div>
@@ -580,12 +510,12 @@ table.t tbody tr:last-child td{border-bottom:none}
       <!-- ═══ ORDERS ═══ -->
       <div class="page" id="page-orders">
         <div class="ph">
-          <div class="ph-left"><h2><span class="ic ic-g"><i class="fa-solid fa-box"></i></span> मेरे ऑर्डर</h2><p>सभी ऑर्डर की सूची</p></div>
-          <button class="btn btn-primary" onclick="goPage('neworder',null)"><span class="ic ic-w"><i class="fa-solid fa-plus"></i></span> नया ऑर्डर</button>
+          <div class="ph-left"><h2>📦 मेरे ऑर्डर</h2><p>सभी ऑर्डर की सूची</p></div>
+          <button class="btn btn-primary" onclick="goPage('neworder',null)">➕ नया ऑर्डर</button>
         </div>
         <div class="card">
           <div class="card-head">
-            <div class="card-title"><span class="ic ic-p"><i class="fa-solid fa-list-check"></i></span> ऑर्डर इतिहास</div>
+            <div class="card-title">ऑर्डर इतिहास</div>
             <select style="font-size:12px;border:var(--border);border-radius:7px;padding:5px 10px;outline:none" onchange="filterOrders(this.value)">
               <option value="">सभी</option>
               <option value="transit">ट्रांजिट</option>
@@ -598,11 +528,11 @@ table.t tbody tr:last-child td{border-bottom:none}
               <table class="t" id="orders-table">
                 <thead><tr><th>ऑर्डर नं.</th><th>तारीख</th><th>माल (MT)</th><th class="tr">भाव/MT</th><th class="tr">कुल राशि</th><th>वाहन</th><th>स्थिति</th><th>Invoice</th></tr></thead>
                 <tbody>
-                  <tr><td><strong style="color:var(--g)">ORD-2026-047</strong></td><td>28 Apr 2026</td><td>100</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹71,500</td><td style="font-size:11px">RJ14CX2891</td><td><span class="badge b-amber"><span class="badge-icon"><i class="fa-solid fa-truck"></i></span>ट्रांजिट में</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer"><i class="fa-solid fa-file"></i> देखें</button></td></tr>
-                  <tr><td><strong style="color:var(--g)">ORD-2026-046</strong></td><td>20 Apr 2026</td><td>150</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹1,07,250</td><td style="font-size:11px">RJ14GH4521</td><td><span class="badge b-green"><span class="badge-icon"><i class="fa-solid fa-check"></i></span>पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer"><i class="fa-solid fa-file"></i> देखें</button></td></tr>
-                  <tr><td><strong style="color:var(--g)">ORD-2026-045</strong></td><td>10 Apr 2026</td><td>90</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹64,350</td><td style="font-size:11px">RJ14AB1234</td><td><span class="badge b-green"><span class="badge-icon"><i class="fa-solid fa-check"></i></span>पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer"><i class="fa-solid fa-file"></i> देखें</button></td></tr>
-                  <tr><td><strong style="color:var(--g)">ORD-2026-044</strong></td><td>2 Apr 2026</td><td>120</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹85,800</td><td style="font-size:11px">RJ14KL9876</td><td><span class="badge b-red"><span class="badge-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>बकाया</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer"><i class="fa-solid fa-file"></i> देखें</button></td></tr>
-                  <tr><td><strong style="color:var(--g)">ORD-2026-038</strong></td><td>15 Mar 2026</td><td>200</td><td class="tr">₹700</td><td class="tr" style="font-weight:700">₹1,40,000</td><td style="font-size:11px">RJ14MN5566</td><td><span class="badge b-green"><span class="badge-icon"><i class="fa-solid fa-check"></i></span>पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer"><i class="fa-solid fa-file"></i> देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-047</strong></td><td>28 Apr 2026</td><td>100</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹71,500</td><td style="font-size:11px">RJ14CX2891</td><td><span class="badge b-amber">ट्रांजिट में</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-046</strong></td><td>20 Apr 2026</td><td>150</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹1,07,250</td><td style="font-size:11px">RJ14GH4521</td><td><span class="badge b-green">✓ पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-045</strong></td><td>10 Apr 2026</td><td>90</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹64,350</td><td style="font-size:11px">RJ14AB1234</td><td><span class="badge b-green">✓ पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-044</strong></td><td>2 Apr 2026</td><td>120</td><td class="tr">₹715</td><td class="tr" style="font-weight:700">₹85,800</td><td style="font-size:11px">RJ14KL9876</td><td><span class="badge b-red">⚠ बकाया</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
+                  <tr><td><strong style="color:var(--g)">ORD-2026-038</strong></td><td>15 Mar 2026</td><td>200</td><td class="tr">₹700</td><td class="tr" style="font-weight:700">₹1,40,000</td><td style="font-size:11px">RJ14MN5566</td><td><span class="badge b-green">✓ पहुंचा</span></td><td><button style="background:var(--gs);border:1px solid var(--gm);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--g);cursor:pointer">📄 देखें</button></td></tr>
                 </tbody>
               </table>
             </div>
@@ -613,16 +543,16 @@ table.t tbody tr:last-child td{border-bottom:none}
       <!-- ═══ NEW ORDER ═══ -->
       <div class="page" id="page-neworder">
         <div class="ph">
-          <div class="ph-left"><h2><span class="ic ic-p"><i class="fa-solid fa-plus"></i></span> नया ऑर्डर</h2><p>Quick Lime का ऑर्डर दें</p></div>
+          <div class="ph-left"><h2>➕ नया ऑर्डर</h2><p>Quick Lime का ऑर्डर दें</p></div>
         </div>
         <div class="grid2">
           <div class="card">
-            <div class="card-head"><div class="card-title"><span class="ic ic-p"><i class="fa-solid fa-list"></i></span> ऑर्डर विवरण</div></div>
+            <div class="card-head"><div class="card-title">📝 ऑर्डर विवरण</div></div>
             <div class="card-body">
               <div class="order-form">
                 <div class="of-fld" style="grid-column:span 2">
                   <label>माल</label>
-                  <select><option>Quick Lime (चूना)</option><option>Hydrated Lime (बुझा चूना)</option></select>
+                  <select><option>🍋 Quick Lime (चूना)</option><option>💧 Hydrated Lime (बुझा चूना)</option></select>
                 </div>
                 <div class="of-fld">
                   <label>मात्रा (MT में)</label>
@@ -651,12 +581,12 @@ table.t tbody tr:last-child td{border-bottom:none}
                 <div class="stat-row"><span class="stat-label">GST (5%)</span><span class="stat-val" id="oc-gst">—</span></div>
                 <div class="stat-row" style="border-top:2px solid var(--gm);padding-top:10px;margin-top:4px"><span style="font-size:14px;font-weight:800;color:var(--g)">कुल राशि</span><span style="font-size:18px;font-weight:800;color:var(--g)" id="oc-total">—</span></div>
               </div>
-              <button class="btn btn-primary" style="width:100%;margin-top:16px;padding:13px;font-size:15px;border-radius:10px;justify-content:center" onclick="placeOrder()"><span class="ic ic-w"><i class="fa-solid fa-box"></i></span> ऑर्डर दें</button>
+              <button class="btn btn-primary" style="width:100%;margin-top:16px;padding:13px;font-size:15px;border-radius:10px;justify-content:center" onclick="placeOrder()">📦 ऑर्डर दें</button>
             </div>
           </div>
           <div style="display:flex;flex-direction:column;gap:16px">
             <div class="card">
-              <div class="card-head"><div class="card-title"><span class="ic ic-y"><i class="fa-solid fa-tag"></i></span> वर्तमान भाव</div></div>
+              <div class="card-head"><div class="card-title">💰 वर्तमान भाव</div></div>
               <div class="card-body">
                 <div style="text-align:center;padding:10px 0">
                   <div style="font-size:11px;color:var(--ink3);margin-bottom:4px">Quick Lime (प्रति MT)</div>
@@ -670,7 +600,7 @@ table.t tbody tr:last-child td{border-bottom:none}
               </div>
             </div>
             <div class="card">
-              <div class="card-head"><div class="card-title"><span class="ic ic-b"><i class="fa-solid fa-building-columns"></i></span> भुगतान जानकारी</div></div>
+              <div class="card-head"><div class="card-title">🏦 भुगतान जानकारी</div></div>
               <div class="card-body" style="font-size:13px">
                 <div class="stat-row"><span class="stat-label">बैंक</span><span class="stat-val">HDFC Bank</span></div>
                 <div class="stat-row"><span class="stat-label">A/C नं.</span><span class="stat-val" style="font-family:monospace">50200089605146</span></div>
@@ -684,18 +614,18 @@ table.t tbody tr:last-child td{border-bottom:none}
 
       <!-- ═══ INVOICES ═══ -->
       <div class="page" id="page-invoices">
-        <div class="ph"><div class="ph-left"><h2><span class="ic ic-y"><i class="fa-solid fa-file-invoice"></i></span> Invoice</h2><p>सभी GST Invoice डाउनलोड करें</p></div></div>
+        <div class="ph"><div class="ph-left"><h2>🧾 Invoice</h2><p>सभी GST Invoice डाउनलोड करें</p></div></div>
         <div class="card">
-          <div class="card-head"><div class="card-title"><span class="ic ic-y"><i class="fa-solid fa-file-invoice"></i></span> Invoice सूची</div></div>
+          <div class="card-head"><div class="card-title">Invoice सूची</div></div>
           <div class="card-body" style="padding:0">
             <div class="tbl-wrap">
               <table class="t">
                 <thead><tr><th>Invoice नं.</th><th>तारीख</th><th>माल (MT)</th><th class="tr">राशि</th><th class="tr">GST</th><th class="tr">कुल</th><th>भुगतान</th><th>Download</th></tr></thead>
                 <tbody>
-                  <tr><td><strong>INV-047</strong></td><td>28 Apr 26</td><td>100</td><td class="tr">₹71,500</td><td class="tr">₹3,575</td><td class="tr" style="font-weight:700">₹75,075</td><td><span class="badge b-amber"><span class="badge-icon"><i class="fa-solid fa-clock"></i></span>बाकी</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer"><i class="fa-solid fa-download"></i> PDF</button></td></tr>
-                  <tr><td><strong>INV-046</strong></td><td>20 Apr 26</td><td>150</td><td class="tr">₹1,07,250</td><td class="tr">₹5,363</td><td class="tr" style="font-weight:700">₹1,12,613</td><td><span class="badge b-green"><span class="badge-icon"><i class="fa-solid fa-check"></i></span>पूरा</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer"><i class="fa-solid fa-download"></i> PDF</button></td></tr>
-                  <tr><td><strong>INV-045</strong></td><td>10 Apr 26</td><td>90</td><td class="tr">₹64,350</td><td class="tr">₹3,218</td><td class="tr" style="font-weight:700">₹67,568</td><td><span class="badge b-green"><span class="badge-icon"><i class="fa-solid fa-check"></i></span>पूरा</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer"><i class="fa-solid fa-download"></i> PDF</button></td></tr>
-                  <tr><td><strong>INV-044</strong></td><td>2 Apr 26</td><td>120</td><td class="tr">₹85,800</td><td class="tr">₹4,290</td><td class="tr" style="font-weight:700">₹90,090</td><td><span class="badge b-red"><span class="badge-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>बकाया</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer"><i class="fa-solid fa-download"></i> PDF</button></td></tr>
+                  <tr><td><strong>INV-047</strong></td><td>28 Apr 26</td><td>100</td><td class="tr">₹71,500</td><td class="tr">₹3,575</td><td class="tr" style="font-weight:700">₹75,075</td><td><span class="badge b-amber">बाकी</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
+                  <tr><td><strong>INV-046</strong></td><td>20 Apr 26</td><td>150</td><td class="tr">₹1,07,250</td><td class="tr">₹5,363</td><td class="tr" style="font-weight:700">₹1,12,613</td><td><span class="badge b-green">✓ पूरा</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
+                  <tr><td><strong>INV-045</strong></td><td>10 Apr 26</td><td>90</td><td class="tr">₹64,350</td><td class="tr">₹3,218</td><td class="tr" style="font-weight:700">₹67,568</td><td><span class="badge b-green">✓ पूरा</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
+                  <tr><td><strong>INV-044</strong></td><td>2 Apr 26</td><td>120</td><td class="tr">₹85,800</td><td class="tr">₹4,290</td><td class="tr" style="font-weight:700">₹90,090</td><td><span class="badge b-red">⚠ बकाया</span></td><td><button style="background:var(--g);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ PDF</button></td></tr>
                 </tbody>
               </table>
             </div>
@@ -705,11 +635,11 @@ table.t tbody tr:last-child td{border-bottom:none}
 
       <!-- ═══ PAYMENTS ═══ -->
       <div class="page" id="page-payments">
-        <div class="ph"><div class="ph-left"><h2><span class="ic ic-y"><i class="fa-solid fa-credit-card"></i></span> भुगतान</h2><p>भुगतान इतिहास और बकाया</p></div></div>
+        <div class="ph"><div class="ph-left"><h2>💳 भुगतान</h2><p>भुगतान इतिहास और बकाया</p></div></div>
         <div class="grid2" style="margin-bottom:16px">
           <div class="card" style="border:2px solid #fecaca">
             <div class="card-body" style="display:flex;align-items:center;gap:16px">
-              <div style="width:52px;height:52px;background:#fee2e2;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px"><i class="fa-solid fa-triangle-exclamation" style="color:#dc2626"></i></div>
+              <div style="width:52px;height:52px;background:#fee2e2;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px">⚠️</div>
               <div>
                 <div style="font-size:12px;color:#dc2626;font-weight:700;text-transform:uppercase;letter-spacing:.5px">बकाया राशि</div>
                 <div style="font-size:32px;font-weight:800;color:#dc2626">₹45,000</div>
@@ -719,7 +649,7 @@ table.t tbody tr:last-child td{border-bottom:none}
           </div>
           <div class="card" style="border:2px solid var(--gm)">
             <div class="card-body" style="display:flex;align-items:center;gap:16px">
-              <div style="width:52px;height:52px;background:var(--gb);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px"><i class="fa-solid fa-circle-check" style="color:#15803d"></i></div>
+              <div style="width:52px;height:52px;background:var(--gb);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px">✅</div>
               <div>
                 <div style="font-size:12px;color:var(--g2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">कुल भुगतान (2026)</div>
                 <div style="font-size:32px;font-weight:800;color:var(--g)">₹2,88,531</div>
@@ -729,25 +659,25 @@ table.t tbody tr:last-child td{border-bottom:none}
           </div>
         </div>
         <div class="card">
-          <div class="card-head"><div class="card-title"><span class="ic ic-g"><i class="fa-solid fa-credit-card"></i></span> भुगतान इतिहास</div></div>
+          <div class="card-head"><div class="card-title">भुगतान इतिहास</div></div>
           <div class="card-body">
             <div class="pay-row">
-              <div class="pay-icon" style="background:#fee2e2"><i class="fa-solid fa-triangle-exclamation" style="color:#dc2626"></i></div>
+              <div class="pay-icon" style="background:#fee2e2">⚠️</div>
               <div class="pay-info"><div class="pay-title">ORD-044 बकाया</div><div class="pay-sub">2 Apr 2026 · NEFT/UPI · INV-044</div></div>
               <div class="pay-amt" style="color:#dc2626">₹45,000<br><span style="font-size:10px;font-weight:500">बकाया</span></div>
             </div>
             <div class="pay-row">
-              <div class="pay-icon" style="background:var(--gb)"><i class="fa-solid fa-circle-check" style="color:#15803d"></i></div>
+              <div class="pay-icon" style="background:var(--gb)">✅</div>
               <div class="pay-info"><div class="pay-title">ORD-046 भुगतान</div><div class="pay-sub">22 Apr 2026 · NEFT · INV-046</div></div>
               <div class="pay-amt" style="color:var(--g)">₹1,12,613<br><span style="font-size:10px;font-weight:500">पूरा</span></div>
             </div>
             <div class="pay-row">
-              <div class="pay-icon" style="background:var(--gb)"><i class="fa-solid fa-circle-check" style="color:#15803d"></i></div>
+              <div class="pay-icon" style="background:var(--gb)">✅</div>
               <div class="pay-info"><div class="pay-title">ORD-045 भुगतान</div><div class="pay-sub">12 Apr 2026 · UPI · INV-045</div></div>
               <div class="pay-amt" style="color:var(--g)">₹67,568<br><span style="font-size:10px;font-weight:500">पूरा</span></div>
             </div>
             <div class="pay-row">
-              <div class="pay-icon" style="background:var(--gb)"><i class="fa-solid fa-circle-check" style="color:#15803d"></i></div>
+              <div class="pay-icon" style="background:var(--gb)">✅</div>
               <div class="pay-info"><div class="pay-title">ORD-038 भुगतान</div><div class="pay-sub">18 Mar 2026 · NEFT · INV-038</div></div>
               <div class="pay-amt" style="color:var(--g)">₹1,47,000<br><span style="font-size:10px;font-weight:500">पूरा</span></div>
             </div>
@@ -757,21 +687,21 @@ table.t tbody tr:last-child td{border-bottom:none}
 
       <!-- ═══ PRICES ═══ -->
       <div class="page" id="page-prices">
-        <div class="ph"><div class="ph-left"><h2><span class="ic ic-g"><i class="fa-solid fa-chart-line"></i></span> भाव सूची</h2><p>Quick Lime के वर्तमान और पिछले भाव</p></div></div>
+        <div class="ph"><div class="ph-left"><h2>📈 भाव सूची</h2><p>Quick Lime के वर्तमान और पिछले भाव</p></div></div>
         <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
-          <div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:var(--gb)"><i class="fa-solid fa-lemon"></i></div><div class="kpi-trend up">▲ ₹15</div></div><div class="kpi-label">Quick Lime / MT</div><div class="kpi-val" style="color:var(--g)">₹715</div><div class="kpi-sub">April 2026</div></div>
-          <div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:#dbeafe"><i class="fa-solid fa-droplet"></i></div><div class="kpi-trend up">▲ ₹10</div></div><div class="kpi-label">Hydrated Lime / MT</div><div class="kpi-val" style="color:#1d4ed8">₹850</div><div class="kpi-sub">April 2026</div></div>
-          <div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:#fef3c7"><i class="fa-solid fa-mountain"></i></div><div class="kpi-trend na">Same</div></div><div class="kpi-label">Lime Stone / MT</div><div class="kpi-val">₹720</div><div class="kpi-sub">April 2026</div></div>
+          <div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:var(--gb)">🍋</div><div class="kpi-trend up">▲ ₹15</div></div><div class="kpi-label">Quick Lime / MT</div><div class="kpi-val" style="color:var(--g)">₹715</div><div class="kpi-sub">April 2026</div></div>
+          <div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:#dbeafe">💧</div><div class="kpi-trend up">▲ ₹10</div></div><div class="kpi-label">Hydrated Lime / MT</div><div class="kpi-val" style="color:#1d4ed8">₹850</div><div class="kpi-sub">April 2026</div></div>
+          <div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:#fef3c7">🏗️</div><div class="kpi-trend na">Same</div></div><div class="kpi-label">Lime Stone / MT</div><div class="kpi-val">₹720</div><div class="kpi-sub">April 2026</div></div>
         </div>
         <div class="card">
-          <div class="card-head"><div class="card-title"><span class="ic ic-b"><i class="fa-solid fa-chart-line"></i></span> भाव का इतिहास</div></div>
+          <div class="card-head"><div class="card-title">भाव का इतिहास</div></div>
           <div class="card-body"><canvas id="chartPrice" height="200"></canvas></div>
         </div>
       </div>
 
       <!-- ═══ PROFILE ═══ -->
       <div class="page" id="page-profile">
-        <div class="ph"><div class="ph-left"><h2><span class="ic ic-p"><i class="fa-solid fa-building"></i></span> मेरी कंपनी</h2><p>कंपनी की जानकारी</p></div></div>
+        <div class="ph"><div class="ph-left"><h2>🏢 मेरी कंपनी</h2><p>कंपनी की जानकारी</p></div></div>
         <div class="grid2">
           <div class="card">
             <div class="card-head"><div class="card-title">कंपनी विवरण</div></div>
@@ -787,14 +717,14 @@ table.t tbody tr:last-child td{border-bottom:none}
             <div class="card-head"><div class="card-title">आपूर्तिकर्ता जानकारी</div></div>
             <div class="card-body">
               <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-                <div style="width:46px;height:46px;background:linear-gradient(135deg,#16a34a,#84cc16);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff"><i class="fa-solid fa-industry"></i></div>
+                <div style="width:46px;height:46px;background:linear-gradient(135deg,#16a34a,#84cc16);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px">🏭</div>
                 <div><div style="font-weight:800;font-size:15px">Deshwali Minerals</div><div style="font-size:12px;color:var(--ink3)">Merta City, Nagaur</div></div>
               </div>
               <div class="stat-row"><span class="stat-label">GSTIN</span><span class="stat-val" style="font-family:monospace;font-size:12px">08NLIPS9801K1Z5</span></div>
               <div class="stat-row"><span class="stat-label">बैंक</span><span class="stat-val">HDFC Bank, Merta City</span></div>
               <div class="stat-row"><span class="stat-label">A/C</span><span class="stat-val" style="font-family:monospace">50200089605146</span></div>
               <div class="stat-row"><span class="stat-label">IFSC</span><span class="stat-val" style="font-family:monospace">HDFC0002670</span></div>
-              <div style="margin-top:14px"><a href="tel:9460034743" style="display:flex;align-items:center;gap:8px;background:var(--g);color:#fff;text-decoration:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700"><span class="ic ic-w"><i class="fa-solid fa-phone"></i></span>9460034743 पर कॉल करें</a></div>
+              <div style="margin-top:14px"><a href="tel:9460034743" style="display:flex;align-items:center;gap:8px;background:var(--g);color:#fff;text-decoration:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700"><span>📞</span>9460034743 पर कॉल करें</a></div>
             </div>
           </div>
         </div>
@@ -802,30 +732,30 @@ table.t tbody tr:last-child td{border-bottom:none}
 
       <!-- ═══ SUPPORT ═══ -->
       <div class="page" id="page-support">
-        <div class="ph"><div class="ph-left"><h2><span class="ic ic-g"><i class="fa-solid fa-headset"></i></span> सहायता</h2><p>हम यहाँ हैं — कभी भी संपर्क करें</p></div></div>
+        <div class="ph"><div class="ph-left"><h2>🤝 सहायता</h2><p>हम यहाँ हैं — कभी भी संपर्क करें</p></div></div>
         <div class="grid2">
           <div class="card">
             <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
               <a href="tel:9460034743" style="display:flex;align-items:center;gap:14px;background:var(--gs);border:1.5px solid var(--gm);border-radius:12px;padding:16px;text-decoration:none">
-                <span class="ic ic-g" style="width:40px;height:40px;font-size:20px"><i class="fa-solid fa-phone"></i></span>
+                <span style="font-size:28px">📞</span>
                 <div><div style="font-size:14px;font-weight:700;color:var(--g)">Phone / WhatsApp</div><div style="font-size:16px;font-weight:800;color:var(--ink)">9460034743</div><div style="font-size:11px;color:var(--ink3)">सुबह 9 – शाम 7</div></div>
               </a>
               <a href="tel:9610099006" style="display:flex;align-items:center;gap:14px;background:var(--gs);border:1.5px solid var(--gm);border-radius:12px;padding:16px;text-decoration:none">
-                <span class="ic ic-b" style="width:40px;height:40px;font-size:20px"><i class="fa-solid fa-phone"></i></span>
+                <span style="font-size:28px">📱</span>
                 <div><div style="font-size:14px;font-weight:700;color:var(--g)">वैकल्पिक नंबर</div><div style="font-size:16px;font-weight:800;color:var(--ink)">9610099006</div></div>
               </a>
               <div style="display:flex;align-items:center;gap:14px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:16px">
-                <span class="ic ic-y" style="width:40px;height:40px;font-size:20px"><i class="fa-solid fa-location-dot"></i></span>
+                <span style="font-size:28px">📍</span>
                 <div><div style="font-size:14px;font-weight:700;color:#92400e">कार्यालय पता</div><div style="font-size:13px;color:var(--ink2);margin-top:2px;line-height:1.5">Ground Floor, Kali Talai,<br>Near Hafiz Sahab Ki Dargah,<br><strong>Merta City, Nagaur — 341510</strong></div></div>
               </div>
             </div>
           </div>
           <div class="card">
-            <div class="card-head"><div class="card-title"><span class="ic ic-b"><i class="fa-solid fa-envelope"></i></span> संदेश भेजें</div></div>
+            <div class="card-head"><div class="card-title">📩 संदेश भेजें</div></div>
             <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
               <div class="of-fld"><label>विषय</label><input placeholder="जैसे: ऑर्डर में समस्या"/></div>
               <div class="of-fld"><label>संदेश</label><textarea placeholder="अपनी समस्या या सवाल लिखें..." style="width:100%;border:1.5px solid #e5e7eb;border-radius:9px;padding:10px 13px;font-size:13px;font-family:'Inter',sans-serif;resize:vertical;min-height:100px;outline:none"></textarea></div>
-              <button class="btn btn-primary" style="justify-content:center;padding:12px" onclick="alert('संदेश भेज दिया गया! हम जल्द संपर्क करेंगे।')"><span class="ic ic-w"><i class="fa-solid fa-paper-plane"></i></span> भेजें</button>
+              <button class="btn btn-primary" style="justify-content:center;padding:12px" onclick="alert('संदेश भेज दिया गया! हम जल्द संपर्क करेंगे।')">📤 भेजें</button>
             </div>
           </div>
         </div>
@@ -833,17 +763,17 @@ table.t tbody tr:last-child td{border-bottom:none}
 
       <!-- TRACKING / LEDGER pages (simple placeholders) -->
       <div class="page" id="page-tracking">
-        <div class="ph"><div class="ph-left"><h2><span class="ic ic-b"><i class="fa-solid fa-truck"></i></span> डिलीवरी ट्रैक</h2><p>वाहन की लाइव जानकारी</p></div></div>
+        <div class="ph"><div class="ph-left"><h2>🚚 डिलीवरी ट्रैक</h2><p>वाहन की लाइव जानकारी</p></div></div>
         <div class="card"><div class="card-body" style="text-align:center;padding:40px">
-          <div style="margin-bottom:16px"><span class="ic ic-b" style="width:64px;height:64px;font-size:32px"><i class="fa-solid fa-truck"></i></span></div>
+          <div style="font-size:48px;margin-bottom:16px">🚚</div>
           <div style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:8px">ORD-2026-047 — रास्ते में</div>
           <div style="font-size:14px;color:var(--ink3);margin-bottom:24px">वाहन: RJ14CX2891 · 100 MT Quick Lime</div>
           <div class="tracker" style="max-width:500px;margin:0 auto">
             <div class="tr-step done"><div class="tr-dot done">✓</div><div class="tr-label">ऑर्डर दिया</div></div>
             <div class="tr-step done"><div class="tr-dot done">✓</div><div class="tr-label">माल तैयार</div></div>
             <div class="tr-step done"><div class="tr-dot done">✓</div><div class="tr-label">लोडिंग</div></div>
-            <div class="tr-step active"><div class="tr-dot active"><i class="fa-solid fa-truck"></i></div><div class="tr-label">रास्ते में</div></div>
-            <div class="tr-step wait"><div class="tr-dot wait"><i class="fa-solid fa-location-dot"></i></div><div class="tr-label">पहुंचेगा</div></div>
+            <div class="tr-step active"><div class="tr-dot active">🚚</div><div class="tr-label">रास्ते में</div></div>
+            <div class="tr-step wait"><div class="tr-dot wait">📍</div><div class="tr-label">पहुंचेगा</div></div>
           </div>
           <div style="margin-top:24px;background:var(--gs);border-radius:12px;padding:16px;display:inline-block;text-align:left">
             <div style="font-size:13px;color:var(--ink3)">अनुमानित डिलीवरी</div>
@@ -852,7 +782,7 @@ table.t tbody tr:last-child td{border-bottom:none}
         </div></div>
       </div>
       <div class="page" id="page-ledger">
-        <div class="ph"><div class="ph-left"><h2><span class="ic ic-p"><i class="fa-solid fa-book"></i></span> खाता बही</h2><p>पूरा लेनदेन रिकॉर्ड</p></div></div>
+        <div class="ph"><div class="ph-left"><h2>📒 खाता बही</h2><p>पूरा लेनदेन रिकॉर्ड</p></div></div>
         <div class="card"><div class="card-body" style="padding:0">
           <div class="tbl-wrap"><table class="t">
             <thead><tr><th>तारीख</th><th>विवरण</th><th class="tr">उधार (Dr)</th><th class="tr">जमा (Cr)</th><th class="tr">बकाया</th></tr></thead>
@@ -884,11 +814,29 @@ function doLogin(){
   const err=document.getElementById('login-err');
   err.style.display='none';
   if(USERS[u]&&USERS[u].pass===p){
-    window.location.href='https://deshwali-minerals.vercel.app/';
-    return;
+    const usr=USERS[u];
+    document.getElementById('login-page').style.display='none';
+    document.getElementById('app').style.display='flex';
+    // Fill user info
+    document.getElementById('dash-name').textContent=usr.name;
+    document.getElementById('top-co').textContent=usr.company;
+    document.getElementById('top-avatar').textContent=usr.initials;
+    document.getElementById('top-uname').textContent=usr.name;
+    document.getElementById('prof-name').textContent=usr.company;
+    document.getElementById('prof-gstin').textContent=usr.gstin;
+    document.getElementById('prof-city').textContent=usr.city;
+    document.getElementById('prof-phone').textContent=usr.phone;
+    document.getElementById('prof-id').textContent=u;
+    // Alert based on due
+    const banner=document.getElementById('dash-alert');
+    if(usr.due===0){banner.className='alert-banner ok';banner.innerHTML='✅ सब ठीक है! कोई बकाया राशि नहीं। धन्यवाद!';}
+    // Date
+    document.getElementById('dash-date').textContent='आज: '+new Date().toLocaleDateString('hi-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    initCharts();
+  } else {
+    err.style.display='block';
+    document.getElementById('login-pass').value='';
   }
-  err.style.display='block';
-  document.getElementById('login-pass').value='';
 }
 function doLogout(){
   document.getElementById('app').style.display='none';

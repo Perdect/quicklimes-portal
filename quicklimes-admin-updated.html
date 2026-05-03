@@ -6,7 +6,6 @@
 <title>QuickLimes Admin — Management Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -21,8 +20,12 @@
 html,body{height:100%;overflow:hidden}
 body{font-family:Inter,sans-serif;color:var(--ink);background:var(--bg);display:flex}
 
-/* ── LOGIN (legacy reset) ── */
-#loginScreen{position:fixed;inset:0;z-index:1000;}
+/* ── LOGIN ── */
+#loginScreen{
+  position:fixed;inset:0;z-index:1000;
+  background:var(--g1);
+  display:flex;align-items:center;justify-content:center;
+}
 .login-box{
   background:#fff;border-radius:24px;padding:44px 40px;width:100%;max-width:400px;
   box-shadow:0 24px 80px rgba(0,0,0,.2);
@@ -65,7 +68,7 @@ body{font-family:Inter,sans-serif;color:var(--ink);background:var(--bg);display:
   display:flex;flex-direction:column;height:100%;overflow:hidden;
 }
 .sb-logo{padding:20px 18px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.12)}
-.sb-logo-icon{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.sb-logo-icon{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .sb-logo-text{font-size:16px;font-weight:800;color:#fff}
 .sb-logo-sub{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px}
 .sb-nav{flex:1;overflow-y:auto;padding:12px 10px}
@@ -77,9 +80,7 @@ body{font-family:Inter,sans-serif;color:var(--ink);background:var(--bg);display:
 }
 .sb-item:hover{background:rgba(255,255,255,.1);color:#fff}
 .sb-item.active{background:rgba(255,255,255,.2);color:#fff;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.15)}
-.sb-item-icon{width:30px;height:30px;border-radius:7px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:.15s}
-.sb-item:hover .sb-item-icon{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.35)}
-.sb-item.active .sb-item-icon{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.45)}
+.sb-item-icon{font-size:16px;flex-shrink:0;width:20px;text-align:center}
 .sb-user{padding:14px 16px;border-top:1px solid rgba(255,255,255,.12)}
 .sb-user-info{display:flex;align-items:center;gap:10px}
 .sb-user-avatar{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:13px;flex-shrink:0}
@@ -113,7 +114,7 @@ body{font-family:Inter,sans-serif;color:var(--ink);background:var(--bg);display:
 /* ── KPI GRID ── */
 .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
 .kpi{background:#fff;border-radius:var(--r);border:var(--border);padding:18px 20px;display:flex;align-items:center;gap:14px}
-.kpi-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:1.5px solid rgba(0,0,0,.08)}
+.kpi-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
 .kpi-label{font-size:12px;color:var(--ink3);font-weight:500;margin-bottom:3px}
 .kpi-val{font-size:22px;font-weight:800;color:var(--ink);line-height:1}
 .kpi-sub{font-size:11px;color:var(--g);font-weight:600;margin-top:3px}
@@ -127,12 +128,12 @@ tr:hover td{background:#f8fffe}
 tr:last-child td{border-bottom:none}
 
 /* ── BADGES ── */
-.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;border:1.5px solid}
-.badge-green{background:#dcfce7;color:#15803d;border-color:#86efac}
-.badge-amber{background:#fef3c7;color:#d97706;border-color:#fde68a}
-.badge-blue{background:var(--p5);color:var(--p1);border-color:#c7c6f8}
-.badge-red{background:var(--red2);color:var(--red);border-color:#fca5a5}
-.badge-gray{background:var(--bg2);color:var(--ink3);border-color:#d1d5db}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-green{background:var(--green2);color:#059669}
+.badge-amber{background:#fef3c7;color:#d97706}
+.badge-blue{background:var(--p5);color:var(--p1)}
+.badge-red{background:var(--red2);color:var(--red)}
+.badge-gray{background:var(--bg2);color:var(--ink3)}
 
 /* ── BUTTONS ── */
 .btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:Inter,sans-serif;transition:all .15s}
@@ -223,135 +224,25 @@ tr:last-child td{border-bottom:none}
   .price-grid{grid-template-columns:1fr 1fr}
   .form-grid{grid-template-columns:1fr}
 }
-
-/* ── ICON BOXES ── */
-.ni i, .sb-item-icon i, .ic i, .kpi-icon i, .feat-icon i, .pay-icon i {
-  font-size: inherit;
-  line-height: 1;
-}
-.ic{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;font-size:13px;flex-shrink:0;vertical-align:middle;margin-right:4px}
-.ic-p{background:var(--p6);border:1.5px solid var(--p5)}
-.ic-g{background:#dcfce7;border:1.5px solid #86efac}
-.ic-r{background:#fee2e2;border:1.5px solid #fca5a5}
-.ic-b{background:#dbeafe;border:1.5px solid #93c5fd}
-.ic-y{background:#fef3c7;border:1.5px solid #fde68a}
-.ic-w{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35)}
-
-/* ── LOGIN SPLIT (IMZA-inspired) ── */
-.ls-wrap{position:fixed;inset:0;z-index:1000;background:#fff;display:flex;overflow:auto;}
-.ls-left{flex:0 0 45%;max-width:560px;display:flex;flex-direction:column;padding:48px 64px;background:#fff;}
-.ls-logo-bar img{height:44px;width:auto;display:block;}
-.ls-form-wrap{margin-top:48px;max-width:380px;width:100%;}
-.ls-h1{font-size:36px;font-weight:800;color:#111827;line-height:1.1;letter-spacing:-.5px;margin-bottom:8px;font-family:Inter,sans-serif;}
-.ls-sub{font-size:14px;color:#6b7280;margin-bottom:32px;font-family:Inter,sans-serif;}
-.ls-fld{margin-bottom:18px;}
-.ls-fld label{display:block;font-size:13px;font-weight:600;color:#111827;margin-bottom:8px;font-family:Inter,sans-serif;}
-.ls-input{width:100%;padding:14px 16px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:Inter,sans-serif;outline:none;transition:border .2s;background:#fff;color:#111827;}
-.ls-input:focus{border-color:#0073EC;}
-.ls-pw{position:relative;}
-.ls-pw .ls-input{padding-right:42px;}
-.ls-eye{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:#9ca3af;cursor:pointer;font-size:14px;padding:4px;}
-.ls-eye:hover{color:#374151;}
-.ls-forgot{display:inline-block;color:#0073EC;font-size:13px;font-weight:500;text-decoration:none;margin-bottom:24px;font-family:Inter,sans-serif;}
-.ls-forgot:hover{text-decoration:underline;}
-.ls-btn{width:100%;padding:16px;background:#0073EC;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;letter-spacing:.5px;cursor:pointer;transition:all .2s;font-family:Inter,sans-serif;}
-.ls-btn:hover{background:#0058B8;box-shadow:0 4px 20px rgba(0,115,236,.3);}
-.ls-err{color:#dc2626;font-size:13px;margin-bottom:12px;display:none;font-family:Inter,sans-serif;}
-.ls-err.show{display:block;}
-.ls-foot{font-size:12px;color:#9ca3af;margin-top:auto;padding-top:32px;font-family:Inter,sans-serif;}
-.ls-right{flex:1;background:#f8fafc;background-image:linear-gradient(rgba(0,115,236,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,115,236,.05) 1px,transparent 1px);background-size:40px 40px;position:relative;overflow:hidden;padding:64px 56px;display:flex;flex-direction:column;justify-content:center;}
-.ls-pill{display:inline-block;align-self:flex-start;background:#fff;color:#111827;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:24px;font-family:Inter,sans-serif;}
-.ls-headline{font-size:42px;font-weight:800;color:#111827;line-height:1.15;letter-spacing:-.8px;margin-bottom:40px;font-family:Inter,sans-serif;}
-.ls-headline span{color:#0073EC;}
-.ls-mock{background:#fff;border-radius:14px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.08);max-width:600px;width:100%;display:flex;flex-direction:column;gap:14px;position:relative;}
-.ls-mock-top{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid #f1f5f9;}
-.ls-mock-logo img{height:24px;width:auto;display:block;}
-.ls-mock-welcome{font-size:11px;color:#6b7280;font-family:Inter,sans-serif;}
-.ls-mock-live{position:absolute;top:-12px;right:-12px;background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:6px 14px;font-size:11px;font-weight:600;color:#111827;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,.08);font-family:Inter,sans-serif;}
-.ls-mock-live::before{content:'';width:7px;height:7px;border-radius:50%;background:#10b981;}
-.ls-mock-body{display:flex;gap:14px;}
-.ls-mock-nav{flex:0 0 110px;display:flex;flex-direction:column;gap:4px;}
-.ls-mock-nav-item{padding:8px 12px;border-radius:8px;font-size:12px;font-weight:500;color:#6b7280;font-family:Inter,sans-serif;}
-.ls-mock-nav-item.active{background:#E5F0FD;color:#0073EC;font-weight:600;}
-.ls-mock-content{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;}
-.ls-kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-.ls-kpi{background:#f8fafc;border-radius:8px;padding:10px 12px;}
-.ls-kpi-lbl{font-size:10px;color:#6b7280;font-weight:500;display:flex;align-items:center;gap:5px;margin-bottom:4px;font-family:Inter,sans-serif;}
-.ls-kpi-val{font-size:18px;font-weight:800;color:#111827;line-height:1;font-family:Inter,sans-serif;}
-.ls-recent{background:#f8fafc;border-radius:8px;padding:12px;}
-.ls-recent-title{font-size:11px;color:#6b7280;margin-bottom:8px;font-weight:500;font-family:Inter,sans-serif;}
-.ls-recent-list{display:flex;flex-direction:column;gap:8px;}
-.ls-recent-row{display:flex;align-items:center;gap:8px;font-size:11px;color:#374151;font-family:Inter,sans-serif;}
-.ls-recent-time{color:#9ca3af;min-width:36px;}
-.ls-recent-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
-@media(max-width:900px){
-  .ls-right{display:none;}
-  .ls-left{flex:1;max-width:none;padding:32px 24px;}
-}
 </style>
 </head>
 <body>
 
 <!-- LOGIN -->
-<div id="loginScreen" class="ls-wrap">
-  <div class="ls-left">
-    <div class="ls-logo-bar"><img src="assets/logo.png" alt="QuickLimes"></div>
-    <div class="ls-form-wrap">
-      <h1 class="ls-h1">Login to Dashboard</h1>
-      <p class="ls-sub">Fill the below form to login</p>
-      <div id="loginError" class="ls-err"><i class="fa-solid fa-circle-exclamation"></i> गलत username या password</div>
-      <div class="ls-fld">
-        <label>Username</label>
-        <input class="ls-input" id="adminUser" type="text" placeholder="Enter admin username" autocomplete="username">
-      </div>
-      <div class="ls-fld">
-        <label>Password</label>
-        <div class="ls-pw">
-          <input class="ls-input" id="adminPass" type="password" placeholder="Enter Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doAdminLogin()">
-          <button type="button" class="ls-eye" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.querySelector('i').className=i.type==='password'?'fa-solid fa-eye':'fa-solid fa-eye-slash';" aria-label="Toggle password"><i class="fa-solid fa-eye"></i></button>
-        </div>
-      </div>
-      <a href="#" class="ls-forgot">Forgot Password?</a>
-      <button class="ls-btn" onclick="doAdminLogin()">LOGIN</button>
-      <div class="ls-switch" style="text-align:center;margin-top:18px;font-size:13px;color:#6b7280;">Don't have an account? <a href="signup.html" style="color:#0073EC;font-weight:600;text-decoration:none;">Sign Up</a></div>
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo" style="flex-direction:column;gap:6px;">
+      <img src="assets/logo.png" alt="QuickLimes" style="height:60px;width:auto;display:block;">
+      <div style="font-size:10px;color:#6b7280;text-align:center;letter-spacing:.5px;">ADMIN PANEL</div>
     </div>
-    <div class="ls-foot">© 2026 QuickLimes • Admin Panel · Demo: <b>QLADMIN</b> / <b>quicklimes@2026</b></div>
-  </div>
-  <div class="ls-right">
-    <div class="ls-pill">QuickLimes Intelligence</div>
-    <h2 class="ls-headline">Manage your lime plant<br><span>more profitably</span></h2>
-    <div class="ls-mock">
-      <div class="ls-mock-live">6 plants live</div>
-      <div class="ls-mock-top">
-        <div class="ls-mock-logo"><img src="assets/logo.png" alt=""></div>
-        <div class="ls-mock-welcome">Welcome to Overview</div>
-      </div>
-      <div class="ls-mock-body">
-        <div class="ls-mock-nav">
-          <div class="ls-mock-nav-item active">Overview</div>
-          <div class="ls-mock-nav-item">Clients</div>
-          <div class="ls-mock-nav-item">Orders</div>
-          <div class="ls-mock-nav-item">Kilns</div>
-          <div class="ls-mock-nav-item">Reports</div>
-        </div>
-        <div class="ls-mock-content">
-          <div class="ls-kpi-row">
-            <div class="ls-kpi"><div class="ls-kpi-lbl"><i class="fa-solid fa-users"></i> Clients</div><div class="ls-kpi-val">6</div></div>
-            <div class="ls-kpi"><div class="ls-kpi-lbl"><i class="fa-solid fa-truck"></i> Orders today</div><div class="ls-kpi-val">184</div></div>
-            <div class="ls-kpi"><div class="ls-kpi-lbl"><i class="fa-solid fa-chart-line"></i> Compliance</div><div class="ls-kpi-val">100%</div></div>
-          </div>
-          <div class="ls-recent">
-            <div class="ls-recent-title">Recent activity</div>
-            <div class="ls-recent-list">
-              <div class="ls-recent-row"><span class="ls-recent-time">14:02</span><span class="ls-recent-icon" style="color:#10b981"><i class="fa-solid fa-circle-check"></i></span>Order placed — Deshwali Minerals</div>
-              <div class="ls-recent-row"><span class="ls-recent-time">13:48</span><span class="ls-recent-icon" style="color:#0073EC"><i class="fa-solid fa-file-invoice"></i></span>GST invoice — ₹2.4L</div>
-              <div class="ls-recent-row"><span class="ls-recent-time">13:11</span><span class="ls-recent-icon" style="color:#f59e0b"><i class="fa-solid fa-arrow-right-arrow-left"></i></span>Sales Purchase</div>
-              <div class="ls-recent-row"><span class="ls-recent-time">12:30</span><span class="ls-recent-icon" style="color:#0073EC"><i class="fa-solid fa-arrow-up"></i></span>Stage → Delivery #4172</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <p class="login-subtitle">प्रशासक लॉगिन — Management Dashboard</p>
+    <div id="loginError" class="login-error">❌ गलत username या password</div>
+    <label class="login-label">Username</label>
+    <input class="login-input" id="adminUser" type="text" placeholder="admin username" autocomplete="off">
+    <label class="login-label">Password</label>
+    <input class="login-input" id="adminPass" type="password" placeholder="••••••••">
+    <button class="login-btn" onclick="doAdminLogin()">लॉगिन करें →</button>
+    <div class="login-badge">🔐 Admin: <b>QLADMIN</b> · Pass: <b>quicklimes@2026</b></div>
   </div>
 </div>
 
@@ -366,15 +257,15 @@ tr:last-child td{border-bottom:none}
     </div>
     <nav class="sb-nav">
       <div class="sb-section">मुख्य</div>
-      <button class="sb-item active" onclick="goPage('dashboard',this)"><span class="sb-item-icon"><i class="fa-solid fa-chart-bar"></i></span>डैशबोर्ड</button>
-      <button class="sb-item" onclick="goPage('orders',this)"><span class="sb-item-icon"><i class="fa-solid fa-box"></i></span>सभी ऑर्डर</button>
-      <button class="sb-item" onclick="goPage('clients',this)"><span class="sb-item-icon"><i class="fa-solid fa-users"></i></span>क्लाइंट्स</button>
-      <button class="sb-item" onclick="goPage('invoices',this)"><span class="sb-item-icon"><i class="fa-solid fa-file-invoice"></i></span>इनवॉइस</button>
-      <button class="sb-item" onclick="goPage('payments',this)"><span class="sb-item-icon"><i class="fa-solid fa-credit-card"></i></span>भुगतान</button>
+      <button class="sb-item active" onclick="goPage('dashboard',this)"><span class="sb-item-icon">📊</span>डैशबोर्ड</button>
+      <button class="sb-item" onclick="goPage('orders',this)"><span class="sb-item-icon">📦</span>सभी ऑर्डर</button>
+      <button class="sb-item" onclick="goPage('clients',this)"><span class="sb-item-icon">👥</span>क्लाइंट्स</button>
+      <button class="sb-item" onclick="goPage('invoices',this)"><span class="sb-item-icon">🧾</span>इनवॉइस</button>
+      <button class="sb-item" onclick="goPage('payments',this)"><span class="sb-item-icon">💳</span>भुगतान</button>
       <div class="sb-section">सेटिंग्स</div>
-      <button class="sb-item" onclick="goPage('prices',this)"><span class="sb-item-icon"><i class="fa-solid fa-indian-rupee-sign"></i></span>रेट मैनेजर</button>
-      <button class="sb-item" onclick="goPage('addclient',this)"><span class="sb-item-icon"><i class="fa-solid fa-plus"></i></span>नया क्लाइंट</button>
-      <button class="sb-item" onclick="goPage('settings',this)"><span class="sb-item-icon"><i class="fa-solid fa-gear"></i></span>सेटिंग्स</button>
+      <button class="sb-item" onclick="goPage('prices',this)"><span class="sb-item-icon">💰</span>रेट मैनेजर</button>
+      <button class="sb-item" onclick="goPage('addclient',this)"><span class="sb-item-icon">➕</span>नया क्लाइंट</button>
+      <button class="sb-item" onclick="goPage('settings',this)"><span class="sb-item-icon">⚙️</span>सेटिंग्स</button>
     </nav>
     <div class="sb-user">
       <div class="sb-user-info">
@@ -384,7 +275,7 @@ tr:last-child td{border-bottom:none}
           <div class="sb-user-role">Super Admin</div>
         </div>
       </div>
-      <button class="sb-logout" onclick="doLogout()"><span class="ic ic-w"><i class="fa-solid fa-right-from-bracket"></i></span> लॉगआउट</button>
+      <button class="sb-logout" onclick="doLogout()">🚪 लॉगआउट</button>
     </div>
   </div>
 
@@ -393,7 +284,7 @@ tr:last-child td{border-bottom:none}
     <div class="topbar">
       <div class="topbar-title" id="pageTitle">डैशबोर्ड</div>
       <div class="topbar-right">
-        <div class="tb-badge"><span class="ic ic-g"><i class="fa-solid fa-circle" style="color:#22c55e;font-size:8px"></i></span> Live</div>
+        <div class="tb-badge">🟢 Live</div>
         <div style="font-size:13px;color:var(--ink3)" id="todayDate"></div>
       </div>
     </div>
@@ -404,19 +295,19 @@ tr:last-child td{border-bottom:none}
       <div class="page active" id="pg-dashboard">
         <div class="kpi-grid">
           <div class="kpi">
-            <div class="kpi-icon" style="background:#dcfce7"><i class="fa-solid fa-users"></i></div>
+            <div class="kpi-icon" style="background:#dcfce7">👥</div>
             <div><div class="kpi-label">कुल क्लाइंट्स</div><div class="kpi-val" id="kpi-clients">6</div><div class="kpi-sub">+2 इस महीने</div></div>
           </div>
           <div class="kpi">
-            <div class="kpi-icon" style="background:#dbeafe"><i class="fa-solid fa-boxes-stacked"></i></div>
+            <div class="kpi-icon" style="background:#dbeafe">📦</div>
             <div><div class="kpi-label">कुल ऑर्डर</div><div class="kpi-val" id="kpi-orders">48</div><div class="kpi-sub">+12 इस सप्ताह</div></div>
           </div>
           <div class="kpi">
-            <div class="kpi-icon" style="background:#fef9c3"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+            <div class="kpi-icon" style="background:#fef9c3">💰</div>
             <div><div class="kpi-label">कुल राजस्व</div><div class="kpi-val" id="kpi-revenue">₹18.4L</div><div class="kpi-sub">इस महीने</div></div>
           </div>
           <div class="kpi">
-            <div class="kpi-icon" style="background:#fee2e2"><i class="fa-solid fa-clock"></i></div>
+            <div class="kpi-icon" style="background:#fee2e2">⏳</div>
             <div><div class="kpi-label">बकाया</div><div class="kpi-val" id="kpi-pending">₹2.8L</div><div class="kpi-sub">5 क्लाइंट से</div></div>
           </div>
         </div>
@@ -434,7 +325,7 @@ tr:last-child td{border-bottom:none}
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
           <div class="card">
-            <div class="card-title"><span class="ic ic-p"><i class="fa-solid fa-list-check"></i></span> हाल के ऑर्डर <button class="btn btn-outline btn-sm" onclick="goPage('orders',null)">सभी देखें</button></div>
+            <div class="card-title">हाल के ऑर्डर <button class="btn btn-outline btn-sm" onclick="goPage('orders',null)">सभी देखें</button></div>
             <div class="table-wrap">
               <table>
                 <thead><tr><th>क्लाइंट</th><th>मात्रा</th><th>राशि</th><th>स्थिति</th></tr></thead>
@@ -443,7 +334,7 @@ tr:last-child td{border-bottom:none}
             </div>
           </div>
           <div class="card">
-            <div class="card-title"><span class="ic ic-r"><i class="fa-solid fa-triangle-exclamation"></i></span> बकाया भुगतान <button class="btn btn-outline btn-sm" onclick="goPage('payments',null)">सभी देखें</button></div>
+            <div class="card-title">बकाया भुगतान <button class="btn btn-outline btn-sm" onclick="goPage('payments',null)">सभी देखें</button></div>
             <div class="table-wrap">
               <table>
                 <thead><tr><th>क्लाइंट</th><th>बकाया</th><th>देय तिथि</th></tr></thead>
@@ -508,12 +399,12 @@ tr:last-child td{border-bottom:none}
       <!-- PAYMENTS PAGE -->
       <div class="page" id="pg-payments">
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px">
-          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dcfce7"><i class="fa-solid fa-circle-check"></i></div><div><div class="kpi-label">प्राप्त</div><div class="kpi-val">₹15.6L</div></div></div>
-          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#fef3c7"><i class="fa-solid fa-clock"></i></div><div><div class="kpi-label">बकाया</div><div class="kpi-val">₹2.8L</div></div></div>
-          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dbeafe"><i class="fa-solid fa-calendar-days"></i></div><div><div class="kpi-label">इस माह</div><div class="kpi-val">₹4.2L</div></div></div>
+          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dcfce7">✅</div><div><div class="kpi-label">प्राप्त</div><div class="kpi-val">₹15.6L</div></div></div>
+          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#fef3c7">⏳</div><div><div class="kpi-label">बकाया</div><div class="kpi-val">₹2.8L</div></div></div>
+          <div class="kpi" style="border:var(--border);border-radius:var(--r)"><div class="kpi-icon" style="background:#dbeafe">📅</div><div><div class="kpi-label">इस माह</div><div class="kpi-val">₹4.2L</div></div></div>
         </div>
         <div class="card">
-          <div class="card-title"><span class="ic ic-y"><i class="fa-solid fa-credit-card"></i></span> भुगतान इतिहास <button class="btn btn-green btn-sm" onclick="openRecordPaymentModal()">+ भुगतान दर्ज करें</button></div>
+          <div class="card-title">भुगतान इतिहास <button class="btn btn-green btn-sm" onclick="openRecordPaymentModal()">+ भुगतान दर्ज करें</button></div>
           <div class="table-wrap">
             <table>
               <thead><tr><th>क्लाइंट</th><th>राशि</th><th>माध्यम</th><th>तिथि</th><th>सन्दर्भ</th><th>स्थिति</th></tr></thead>
@@ -526,12 +417,12 @@ tr:last-child td{border-bottom:none}
       <!-- PRICES PAGE -->
       <div class="page" id="pg-prices">
         <div class="card" style="margin-bottom:16px">
-          <div class="card-title"><span class="ic ic-g"><i class="fa-solid fa-indian-rupee-sign"></i></span> लाइव रेट — अभी अपडेट करें</div>
+          <div class="card-title">लाइव रेट — अभी अपडेट करें</div>
           <div class="price-grid" id="priceGrid"></div>
-          <button class="btn btn-green" onclick="openPriceEditModal()"><span class="ic ic-w"><i class="fa-solid fa-pen"></i></span> रेट अपडेट करें</button>
+          <button class="btn btn-green" onclick="openPriceEditModal()">✏️ रेट अपडेट करें</button>
         </div>
         <div class="card">
-          <div class="card-title"><span class="ic ic-b"><i class="fa-solid fa-file-invoice"></i></span> GST सेटिंग</div>
+          <div class="card-title">GST सेटिंग</div>
           <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
             <div>
               <div class="form-label" style="margin-bottom:6px">CGST %</div>
@@ -551,7 +442,7 @@ tr:last-child td{border-bottom:none}
       <!-- ADD CLIENT PAGE -->
       <div class="page" id="pg-addclient">
         <div class="card" style="max-width:700px">
-          <div class="card-title"><span class="ic ic-g"><i class="fa-solid fa-user-plus"></i></span> नया क्लाइंट जोड़ें</div>
+          <div class="card-title">नया क्लाइंट जोड़ें</div>
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label">कंपनी का नाम *</label>
@@ -582,7 +473,7 @@ tr:last-child td{border-bottom:none}
               <input class="form-input" id="nc-address" placeholder="पूरा पता">
             </div>
             <div class="form-group" style="border-top:var(--border);padding-top:14px;grid-column:1/-1">
-              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px"><span class="ic ic-p"><i class="fa-solid fa-lock"></i></span> पोर्टल लॉगिन क्रेडेंशियल्स</div>
+              <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px">🔐 पोर्टल लॉगिन क्रेडेंशियल्स</div>
             </div>
             <div class="form-group">
               <label class="form-label">Username *</label>
@@ -608,8 +499,8 @@ tr:last-child td{border-bottom:none}
             </div>
           </div>
           <div style="display:flex;gap:10px;margin-top:20px">
-            <button class="btn btn-green" onclick="addNewClient()" style="padding:11px 24px"><span class="ic ic-w"><i class="fa-solid fa-circle-check"></i></span> क्लाइंट जोड़ें</button>
-            <button class="btn btn-outline" onclick="clearClientForm()"><span class="ic ic-r"><i class="fa-solid fa-trash"></i></span> फॉर्म साफ़ करें</button>
+            <button class="btn btn-green" onclick="addNewClient()" style="padding:11px 24px">✅ क्लाइंट जोड़ें</button>
+            <button class="btn btn-outline" onclick="clearClientForm()">🗑 फॉर्म साफ़ करें</button>
           </div>
           <div id="addClientMsg" style="margin-top:12px;font-size:13px;font-weight:600;display:none"></div>
         </div>
@@ -618,7 +509,7 @@ tr:last-child td{border-bottom:none}
       <!-- SETTINGS PAGE -->
       <div class="page" id="pg-settings">
         <div class="card" style="max-width:600px;margin-bottom:16px">
-          <div class="card-title"><span class="ic ic-p"><i class="fa-solid fa-building"></i></span> कंपनी की जानकारी</div>
+          <div class="card-title">कंपनी की जानकारी</div>
           <div class="form-grid">
             <div class="form-group form-full">
               <label class="form-label">कंपनी नाम</label>
@@ -640,7 +531,7 @@ tr:last-child td{border-bottom:none}
           <button class="btn btn-green" style="margin-top:14px">सेव करें</button>
         </div>
         <div class="card" style="max-width:600px">
-          <div class="card-title"><span class="ic ic-r"><i class="fa-solid fa-lock"></i></span> Admin Password बदलें</div>
+          <div class="card-title">Admin Password बदलें</div>
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label">नया Password</label>
@@ -662,7 +553,7 @@ tr:last-child td{border-bottom:none}
 <!-- ORDER STATUS MODAL -->
 <div class="modal-overlay" id="orderStatusModal">
   <div class="modal">
-    <div class="modal-title"><span class="ic ic-b"><i class="fa-solid fa-box"></i></span> ऑर्डर स्थिति अपडेट करें</div>
+    <div class="modal-title">ऑर्डर स्थिति अपडेट करें</div>
     <input type="hidden" id="editOrderId">
     <div class="form-group" style="margin-bottom:14px">
       <label class="form-label">नई स्थिति</label>
@@ -688,7 +579,7 @@ tr:last-child td{border-bottom:none}
 <!-- NEW ORDER MODAL -->
 <div class="modal-overlay" id="newOrderModal">
   <div class="modal">
-    <div class="modal-title"><span class="ic ic-g"><i class="fa-solid fa-plus"></i></span> नया ऑर्डर बनाएं</div>
+    <div class="modal-title">नया ऑर्डर बनाएं</div>
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">क्लाइंट</label>
@@ -725,7 +616,7 @@ tr:last-child td{border-bottom:none}
 <!-- PRICE EDIT MODAL -->
 <div class="modal-overlay" id="priceModal">
   <div class="modal">
-    <div class="modal-title"><span class="ic ic-y"><i class="fa-solid fa-indian-rupee-sign"></i></span> रेट अपडेट करें</div>
+    <div class="modal-title">रेट अपडेट करें</div>
     <div id="priceFormFields"></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal('priceModal')">रद्द</button>
@@ -737,7 +628,7 @@ tr:last-child td{border-bottom:none}
 <!-- RECORD PAYMENT MODAL -->
 <div class="modal-overlay" id="recordPaymentModal">
   <div class="modal">
-    <div class="modal-title"><span class="ic ic-y"><i class="fa-solid fa-credit-card"></i></span> भुगतान दर्ज करें</div>
+    <div class="modal-title">भुगतान दर्ज करें</div>
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">क्लाइंट</label>
@@ -830,7 +721,9 @@ function doAdminLogin(){
   const u=document.getElementById('adminUser').value.trim();
   const p=document.getElementById('adminPass').value;
   if(u===ADMIN.user && p===ADMIN.pass){
-    window.location.href='https://deshwali-minerals.vercel.app/';
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    initApp();
   } else {
     const el=document.getElementById('loginError');
     el.style.display='block';
@@ -898,7 +791,7 @@ function renderDashboard(){
       <td><strong>${c.company.split(' ')[0]}</strong></td>
       <td style="color:#dc2626;font-weight:700">₹${c.balance.toLocaleString('hi-IN')}</td>
       <td><span class="badge badge-amber">चालू</span></td>
-    </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:20px"><i class="fa-solid fa-circle-check" style="color:#22c55e"></i> कोई बकाया नहीं</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:20px">✅ कोई बकाया नहीं</td></tr>';
 
   // Charts
   setTimeout(()=>{
@@ -931,7 +824,7 @@ function renderOrders(orders){
       <td>${o.date}</td>
       <td>${statusBadge(o.status)}</td>
       <td>
-        <button class="btn btn-outline btn-sm" onclick="openEditOrder('${o.id}')"><i class="fa-solid fa-pen"></i> स्थिति</button>
+        <button class="btn btn-outline btn-sm" onclick="openEditOrder('${o.id}')">✏️ स्थिति</button>
       </td>
     </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#6b7280">कोई ऑर्डर नहीं</td></tr>';
 }
@@ -996,20 +889,20 @@ function renderClients(clients){
           <div class="cc-avatar">${c.company[0]}</div>
           <div>
             <div class="cc-name">${c.company}</div>
-            <div class="cc-location"><i class="fa-solid fa-location-dot"></i> ${c.city}</div>
+            <div class="cc-location">📍 ${c.city}</div>
           </div>
         </div>
         <span class="badge ${c.status==='active'?'badge-green':'badge-gray'}">${c.status==='active'?'सक्रिय':'निष्क्रिय'}</span>
       </div>
-      <div style="font-size:12px;color:var(--ink3);margin-bottom:8px"><i class="fa-solid fa-user"></i> ${c.owner} · <i class="fa-solid fa-phone"></i> ${c.phone}</div>
-      <div style="font-size:12px;color:var(--ink3);margin-bottom:10px"><i class="fa-solid fa-key"></i> ${c.username} · <i class="fa-solid fa-credit-card"></i> क्रेडिट: ₹${(c.credit/1000).toFixed(0)}K</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">👤 ${c.owner} · 📱 ${c.phone}</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:10px">🔑 ${c.username} · 💳 क्रेडिट: ₹${(c.credit/1000).toFixed(0)}K</div>
       <div class="cc-stats">
         <div class="cc-stat"><div class="cc-stat-label">कुल ऑर्डर</div><div class="cc-stat-val">${c.totalOrders||0}</div></div>
         <div class="cc-stat"><div class="cc-stat-label">बकाया</div><div class="cc-stat-val" style="${c.balance>0?'color:#dc2626':'color:var(--g)'}">₹${(c.balance||0).toLocaleString('hi-IN')}</div></div>
       </div>
       <div class="cc-actions">
-        <button class="btn btn-outline btn-sm" onclick="editClient('${c.id}')"><i class="fa-solid fa-pen"></i> संपादन</button>
-        <button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8" onclick="viewClientOrders('${c.id}')"><i class="fa-solid fa-box"></i> ऑर्डर</button>
+        <button class="btn btn-outline btn-sm" onclick="editClient('${c.id}')">✏️ संपादन</button>
+        <button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8" onclick="viewClientOrders('${c.id}')">📦 ऑर्डर</button>
         <button class="btn btn-sm" style="background:${c.status==='active'?'#fee2e2':'#dcfce7'};color:${c.status==='active'?'#dc2626':'#15803d'}" onclick="toggleClientStatus('${c.id}')">${c.status==='active'?'⏸ रोकें':'▶ चालू'}</button>
       </div>
     </div>`).join('') || '<div style="text-align:center;color:#6b7280;padding:40px;grid-column:1/-1">कोई क्लाइंट नहीं मिला</div>';
@@ -1095,9 +988,9 @@ function renderInvoices(){
       <td>₹${inv.gst.toLocaleString('hi-IN')}</td>
       <td><strong>₹${inv.total.toLocaleString('hi-IN')}</strong></td>
       <td>${inv.date}</td>
-      <td>${inv.status==='paid'?'<span class="badge badge-green"><i class="fa-solid fa-check"></i> भुगतान हुआ</span>':'<span class="badge badge-amber"><i class="fa-solid fa-clock"></i> बकाया</span>'}</td>
+      <td>${inv.status==='paid'?'<span class="badge badge-green">भुगतान हुआ</span>':'<span class="badge badge-amber">बकाया</span>'}</td>
       <td>
-        <button class="btn btn-outline btn-sm" onclick="toggleInvoiceStatus('${inv.id}')">${inv.status==='paid'?'↩ बकाया':'<i class="fa-solid fa-check"></i> भुगतान'}</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleInvoiceStatus('${inv.id}')">${inv.status==='paid'?'↩ बकाया':'✅ भुगतान'}</button>
       </td>
     </tr>`).join('');
 }
@@ -1178,7 +1071,7 @@ function saveGST(){
 
 // ══ HELPERS ══
 function statusBadge(s){
-  const map={pending:'<span class="badge badge-gray"><i class="fa-solid fa-clock"></i> प्रतीक्षा</span>',processing:'<span class="badge badge-amber"><i class="fa-solid fa-rotate"></i> प्रोसेस</span>',transit:'<span class="badge badge-blue"><i class="fa-solid fa-truck"></i> रास्ते में</span>',delivered:'<span class="badge badge-green"><i class="fa-solid fa-check"></i> डिलीवर</span>',cancelled:'<span class="badge badge-red"><i class="fa-solid fa-xmark"></i> रद्द</span>'};
+  const map={pending:'<span class="badge badge-gray">प्रतीक्षा</span>',processing:'<span class="badge badge-amber">प्रोसेस</span>',transit:'<span class="badge badge-blue">रास्ते में</span>',delivered:'<span class="badge badge-green">डिलीवर</span>',cancelled:'<span class="badge badge-red">रद्द</span>'};
   return map[s]||s;
 }
 function closeModal(id){document.getElementById(id).classList.remove('open')}

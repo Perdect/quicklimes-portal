@@ -7,6 +7,7 @@
     { "source": "/privacy",   "destination": "/privacy_policy.html" },
     { "source": "/terms",     "destination": "/terms_and_conditions.html" },
     { "source": "/dashboard", "destination": "/deshwali_dashboard.html" },
-    { "source": "/portal", "destination": "/quicklime" }
+    { "source": "/portal", "destination": "/quicklime" },
+    { "source": "/signup", "destination": "/signup.html" }
   ]
 }

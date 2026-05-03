@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign Up — QuickLimes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --p:#0073EC;--p2:#0058B8;--pl:#E5F0FD;--pd:#003F85;
+  --ink:#111827;--ink2:#374151;--ink3:#6b7280;--ink4:#9ca3af;
+  --green:#10b981;--red:#dc2626;--amber:#f59e0b;
+  --bg:#f9fafb;--border:#e5e7eb;
+}
+html,body{height:100%;font-family:'Inter',sans-serif;color:var(--ink);background:#fff;}
+
+/* ── LOGIN SPLIT ── */
+.ls-wrap{position:fixed;inset:0;z-index:1000;background:#fff;display:flex;overflow:auto;}
+.ls-left{flex:0 0 45%;max-width:560px;display:flex;flex-direction:column;padding:48px 64px;background:#fff;}
+.ls-logo-bar img{height:44px;width:auto;display:block;}
+.ls-form-wrap{margin-top:48px;max-width:380px;width:100%;}
+.ls-h1{font-size:36px;font-weight:800;color:var(--ink);line-height:1.1;letter-spacing:-.5px;margin-bottom:8px;}
+.ls-sub{font-size:14px;color:var(--ink3);margin-bottom:32px;}
+.ls-fld{margin-bottom:18px;}
+.ls-fld label{display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px;}
+.ls-input,.ls-select{width:100%;padding:14px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;transition:border .2s;background:#fff;color:var(--ink);}
+.ls-input:focus,.ls-select:focus{border-color:var(--p);}
+.ls-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.ls-pw{position:relative;}
+.ls-pw .ls-input{padding-right:42px;}
+.ls-eye{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--ink4);cursor:pointer;font-size:14px;padding:4px;}
+.ls-eye:hover{color:var(--ink2);}
+.ls-terms{display:flex;align-items:flex-start;gap:8px;margin:14px 0 18px;font-size:13px;color:var(--ink2);line-height:1.5;}
+.ls-terms input{margin-top:3px;accent-color:var(--p);cursor:pointer;}
+.ls-terms a{color:var(--p);text-decoration:none;}
+.ls-terms a:hover{text-decoration:underline;}
+.ls-btn{width:100%;padding:16px;background:var(--p);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;letter-spacing:.5px;cursor:pointer;transition:all .2s;font-family:inherit;}
+.ls-btn:hover{background:var(--p2);box-shadow:0 4px 20px rgba(0,115,236,.3);}
+.ls-btn:disabled{background:#cbd5e1;cursor:not-allowed;box-shadow:none;}
+.ls-err{color:var(--red);font-size:13px;margin-bottom:12px;display:none;}
+.ls-err.show{display:block;}
+.ls-success{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:10px;padding:14px;font-size:13px;margin-bottom:12px;display:none;}
+.ls-success.show{display:block;}
+.ls-switch{text-align:center;margin-top:18px;font-size:13px;color:var(--ink3);}
+.ls-switch a{color:var(--p);font-weight:600;text-decoration:none;}
+.ls-switch a:hover{text-decoration:underline;}
+.ls-foot{font-size:12px;color:var(--ink4);margin-top:auto;padding-top:24px;}
+
+/* ── RIGHT PANEL ── */
+.ls-right{flex:1;background:#f8fafc;background-image:linear-gradient(rgba(0,115,236,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,115,236,.05) 1px,transparent 1px);background-size:40px 40px;position:relative;overflow:hidden;padding:64px 56px;display:flex;flex-direction:column;justify-content:center;}
+.ls-pill{display:inline-block;align-self:flex-start;background:#fff;color:var(--ink);padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:24px;}
+.ls-headline{font-size:42px;font-weight:800;color:var(--ink);line-height:1.15;letter-spacing:-.8px;margin-bottom:32px;}
+.ls-headline span{color:var(--p);}
+.ls-bullets{display:flex;flex-direction:column;gap:14px;margin-bottom:36px;max-width:560px;}
+.ls-bullet{display:flex;align-items:flex-start;gap:12px;}
+.ls-bullet-icon{width:36px;height:36px;border-radius:10px;background:var(--pl);color:var(--p);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.ls-bullet-text{font-size:14px;color:var(--ink2);line-height:1.45;}
+.ls-bullet-text b{display:block;font-weight:700;color:var(--ink);margin-bottom:2px;font-size:14px;}
+.ls-stats{display:flex;gap:32px;padding-top:24px;border-top:1px solid #e5e7eb;max-width:560px;}
+.ls-stat-num{font-size:24px;font-weight:800;color:var(--p);line-height:1;}
+.ls-stat-lbl{font-size:12px;color:var(--ink3);font-weight:500;margin-top:4px;}
+
+@media(max-width:900px){
+  .ls-right{display:none;}
+  .ls-left{flex:1;max-width:none;padding:32px 24px;}
+}
+</style>
+</head>
+<body>
+
+<div id="signupScreen" class="ls-wrap">
+  <!-- LEFT: form -->
+  <div class="ls-left">
+    <div class="ls-logo-bar"><img src="assets/logo.png" alt="QuickLimes"></div>
+    <div class="ls-form-wrap">
+      <h1 class="ls-h1">Create your account</h1>
+      <p class="ls-sub">Start your 1 month free trial. Enjoy 🎉</p>
+
+      <div id="signupError" class="ls-err"><i class="fa-solid fa-circle-exclamation"></i> <span id="signupErrorMsg">Please fill in all required fields.</span></div>
+      <div id="signupSuccess" class="ls-success"><i class="fa-solid fa-circle-check"></i> Account request submitted — our team will reach out within 24 hours.</div>
+
+      <div class="ls-fld">
+        <label>Company / Plant Name</label>
+        <input class="ls-input" id="su-company" type="text" placeholder="e.g. Deshwali Minerals" autocomplete="organization">
+      </div>
+      <div class="ls-fld">
+        <label>Phone</label>
+        <input class="ls-input" id="su-phone" type="tel" placeholder="9460034743" autocomplete="tel">
+      </div>
+      <div class="ls-fld">
+        <label>Plant Type</label>
+        <select class="ls-select" id="su-plant">
+          <option value="">Select your business type</option>
+          <option value="quicklime">Quick Lime Manufacturer</option>
+          <option value="hydrated">Hydrated Lime Plant</option>
+          <option value="trader">Lime Trader / Distributor</option>
+          <option value="both">Both Quick &amp; Hydrated Lime</option>
+        </select>
+      </div>
+      <div class="ls-fld">
+        <label>Password</label>
+        <div class="ls-pw">
+          <input class="ls-input" id="su-pass" type="password" placeholder="Create a strong password" autocomplete="new-password">
+          <button type="button" class="ls-eye" onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.querySelector('i').className=i.type==='password'?'fa-solid fa-eye':'fa-solid fa-eye-slash';" aria-label="Toggle password"><i class="fa-solid fa-eye"></i></button>
+        </div>
+      </div>
+      <label class="ls-terms">
+        <input type="checkbox" id="su-terms">
+        <span>I agree to the <a href="terms_and_conditions.html" target="_blank">Terms</a> and <a href="privacy_policy.html" target="_blank">Privacy Policy</a>.</span>
+      </label>
+      <button class="ls-btn" onclick="doSignup()">CREATE ACCOUNT</button>
+      <div class="ls-switch">Already have an account? <a href="quicklime.html">Login</a></div>
+    </div>
+    <div class="ls-foot">© 2026 QuickLimes • AI Management for Lime Plants</div>
+  </div>
+
+  <!-- RIGHT: marketing panel -->
+  <div class="ls-right">
+    <div class="ls-pill">QuickLimes Intelligence</div>
+    <h2 class="ls-headline">Run your lime plant<br><span>more profitably</span></h2>
+    <div class="ls-bullets">
+      <div class="ls-bullet">
+        <div class="ls-bullet-icon"><i class="fa-solid fa-bolt"></i></div>
+        <div class="ls-bullet-text"><b>Live in 24 hours</b>GST billing, kiln tracking, labour wages — fully set up by our team.</div>
+      </div>
+      <div class="ls-bullet">
+        <div class="ls-bullet-icon"><i class="fa-solid fa-rupee-sign"></i></div>
+        <div class="ls-bullet-text"><b>Real-time P&amp;L</b>See your daily margin per MT — across kilns, products and clients.</div>
+      </div>
+      <div class="ls-bullet">
+        <div class="ls-bullet-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div class="ls-bullet-text"><b>100% GST compliant</b>Auto e-invoice, e-way bill, GSTR-1 — never miss a filing.</div>
+      </div>
+      <div class="ls-bullet">
+        <div class="ls-bullet-icon"><i class="fa-solid fa-headset"></i></div>
+        <div class="ls-bullet-text"><b>Hindi support</b>Onboarding and helpdesk in Hindi — no language friction for your team.</div>
+      </div>
+    </div>
+    <div class="ls-stats">
+      <div>
+        <div class="ls-stat-num">2</div>
+        <div class="ls-stat-lbl">Live plants</div>
+      </div>
+      <div>
+        <div class="ls-stat-num">₹10L+</div>
+        <div class="ls-stat-lbl">Revenue managed</div>
+      </div>
+      <div>
+        <div class="ls-stat-num">100%</div>
+        <div class="ls-stat-lbl">GST compliant</div>
+      </div>
+      <div>
+        <div class="ls-stat-num">24hr</div>
+        <div class="ls-stat-lbl">Go-live time</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function doSignup(){
+  const f = {
+    company: document.getElementById('su-company').value.trim(),
+    phone: document.getElementById('su-phone').value.trim(),
+    plant: document.getElementById('su-plant').value,
+    pass: document.getElementById('su-pass').value,
+    terms: document.getElementById('su-terms').checked,
+  };
+  const err = document.getElementById('signupError');
+  const errMsg = document.getElementById('signupErrorMsg');
+  const ok = document.getElementById('signupSuccess');
+  err.classList.remove('show'); ok.classList.remove('show');
+
+  if(!f.company || !f.phone || !f.plant || !f.pass){
+    errMsg.textContent = 'Please fill in all required fields.';
+    err.classList.add('show'); return;
+  }
+  if(f.pass.length < 8){
+    errMsg.textContent = 'Password must be at least 8 characters.';
+    err.classList.add('show'); return;
+  }
+  if(!f.terms){
+    errMsg.textContent = 'Please accept the Terms and Privacy Policy.';
+    err.classList.add('show'); return;
+  }
+
+  // Demo: brief success state, then redirect to dashboard
+  ok.classList.add('show');
+  document.querySelector('.ls-btn').disabled = true;
+  document.querySelector('.ls-btn').textContent = 'REDIRECTING...';
+  setTimeout(()=>{ window.location.href = 'https://deshwali-minerals.vercel.app/'; }, 800);
+}
+document.getElementById('su-pass').addEventListener('keydown', e => { if(e.key==='Enter') doSignup(); });
+</script>
+</body>
+</html>

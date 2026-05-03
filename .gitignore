@@ -1,2 +1,21 @@
 .vercel
 deploy/
+
+# Local Claude Code config
+.claude/
+
+# WhatsApp data and proxy (sensitive)
+whatsapp_messages.json
+whatsapp_raw.json
+whatsapp_proxy.py
+proxy.log
+
+# Internal AI / workflow assets
+IMZA AI.pdf
+IMZA_iMatch_n8n_Workflow.json
+
+# OS
+.DS_Store
+
+# Backups
+*.bak
