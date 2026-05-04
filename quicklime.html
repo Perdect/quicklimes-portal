@@ -877,6 +877,58 @@ const SUPA_URL = 'https://iteaawedfmaujujyrqdu.supabase.co';
 const SUPA_KEY = 'sb_publishable_9MNYdrZ_ddJKTLL97amK4w_85iF6vlU';
 const DB = supabase.createClient(SUPA_URL, SUPA_KEY);
 
+// ═══ Auth overlay (success popup) ═══
+function _qlAuthOverlay({color,bg,title,sub,kind}){
+  if(document.getElementById('ql-auth-overlay')) return;
+  const isSuccess = kind!=='logout';
+  const iconSvg = isSuccess
+    ? `<svg class="ql-auth-stroke" width="44" height="44" viewBox="0 0 52 52"><circle class="ql-auth-circle" cx="26" cy="26" r="22" fill="none" stroke="${color}" stroke-width="3" stroke-opacity=".25"/><path class="ql-auth-check" fill="none" stroke="${color}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" d="M14 27 l9 9 l16 -18"/></svg>`
+    : `<svg class="ql-auth-stroke" width="44" height="44" viewBox="0 0 52 52"><circle class="ql-auth-circle" cx="26" cy="26" r="22" fill="none" stroke="${color}" stroke-width="3" stroke-opacity=".25"/><path class="ql-auth-check" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M22 38 H14 a3 3 0 0 1 -3 -3 V17 a3 3 0 0 1 3 -3 h8 M33 33 l8 -7 l-8 -7 M41 26 H22"/></svg>`;
+  const sparkles = isSuccess
+    ? Array.from({length:8}).map((_,i)=>`<span class="ql-auth-spark" style="--i:${i};--c:${color}"></span>`).join('')
+    : '';
+  const wrap=document.createElement('div');
+  wrap.id='ql-auth-overlay';
+  wrap.innerHTML=`
+    <style>
+      #ql-auth-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;animation:qlAuthFade .22s ease-out}
+      #ql-auth-overlay .ql-auth-card{position:relative;background:linear-gradient(180deg,#fff,#fafbfd);border-radius:26px;padding:32px 40px 28px;display:flex;flex-direction:column;align-items:center;gap:14px;min-width:280px;max-width:90vw;box-shadow:0 30px 80px rgba(15,23,42,.30),0 4px 16px rgba(0,115,236,.12),inset 0 1px 0 rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.6);animation:qlAuthPop .55s cubic-bezier(.16,1.3,.3,1) both;overflow:visible}
+      #ql-auth-overlay .ql-auth-ring{position:absolute;border-radius:50%;border:2px solid ${color};width:96px;height:96px;left:50%;top:32px;transform:translate(-50%,0) scale(.9);opacity:0;pointer-events:none}
+      #ql-auth-overlay .ql-auth-ring.r1{animation:qlAuthRing 1.6s ease-out .25s 2}
+      #ql-auth-overlay .ql-auth-ring.r2{animation:qlAuthRing 1.6s ease-out .55s 2}
+      @keyframes qlAuthRing{0%{opacity:.55;transform:translate(-50%,0) scale(.55)}100%{opacity:0;transform:translate(-50%,0) scale(1.55)}}
+      #ql-auth-overlay .ql-auth-ic{position:relative;width:96px;height:96px;border-radius:50%;background:radial-gradient(circle at 30% 25%, ${bg}, ${bg} 60%, ${bg}cc);color:${color};display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px ${color}33,inset 0 0 0 1px ${color}22;animation:qlAuthIcIn .55s cubic-bezier(.34,1.56,.64,1) both}
+      @keyframes qlAuthIcIn{0%{transform:scale(.3) rotate(-18deg);opacity:0}65%{transform:scale(1.12) rotate(4deg);opacity:1}100%{transform:scale(1) rotate(0)}}
+      #ql-auth-overlay .ql-auth-circle{stroke-dasharray:140;stroke-dashoffset:140;animation:qlAuthDraw .7s ease-out .15s forwards}
+      #ql-auth-overlay .ql-auth-check{stroke-dasharray:90;stroke-dashoffset:90;animation:qlAuthDraw .55s cubic-bezier(.65,0,.45,1) .55s forwards}
+      @keyframes qlAuthDraw{to{stroke-dashoffset:0}}
+      #ql-auth-overlay .ql-auth-spark{position:absolute;left:50%;top:78px;width:6px;height:6px;border-radius:50%;background:var(--c);opacity:0;pointer-events:none;--angle:calc(var(--i) * 45deg);animation:qlAuthSpark .9s cubic-bezier(.4,0,.6,1) .55s forwards}
+      @keyframes qlAuthSpark{0%{opacity:0;transform:translate(-50%,-50%) rotate(var(--angle)) translateY(0) scale(.4)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) rotate(var(--angle)) translateY(-46px) scale(.2)}}
+      #ql-auth-overlay .ql-auth-title{font-size:18px;font-weight:800;color:#0D1B2D;text-align:center;letter-spacing:-.2px;opacity:0;animation:qlAuthTextIn .4s ease-out .35s forwards}
+      #ql-auth-overlay .ql-auth-sub{font-size:13px;color:#6b7280;text-align:center;margin-top:-4px;font-weight:500;opacity:0;animation:qlAuthTextIn .4s ease-out .5s forwards;display:inline-flex;align-items:center;gap:2px}
+      @keyframes qlAuthTextIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+      #ql-auth-overlay .ql-auth-sub .qd{display:inline-block;animation:qlDot 1.2s infinite}
+      #ql-auth-overlay .ql-auth-sub .qd:nth-child(2){animation-delay:.15s}
+      #ql-auth-overlay .ql-auth-sub .qd:nth-child(3){animation-delay:.3s}
+      @keyframes qlDot{0%,80%,100%{opacity:.25}40%{opacity:1;transform:translateY(-2px)}}
+      #ql-auth-overlay .ql-auth-bar{width:130px;height:3px;border-radius:99px;background:#eef0fb;overflow:hidden;margin-top:6px;opacity:0;animation:qlAuthTextIn .4s ease-out .55s forwards}
+      #ql-auth-overlay .ql-auth-bar > i{display:block;height:100%;width:30%;background:linear-gradient(90deg,${color},${color}aa);border-radius:inherit;animation:qlAuthBar 1s cubic-bezier(.4,0,.2,1) infinite}
+      @keyframes qlAuthBar{0%{transform:translateX(-100%)}100%{transform:translateX(360%)}}
+      @keyframes qlAuthFade{from{opacity:0}to{opacity:1}}
+      @keyframes qlAuthPop{0%{transform:scale(.78) translateY(20px);opacity:0}60%{transform:scale(1.04) translateY(-2px);opacity:1}100%{transform:scale(1) translateY(0)}}
+      @media (prefers-reduced-motion: reduce){#ql-auth-overlay *{animation-duration:.001ms!important;animation-iteration-count:1!important}}
+    </style>
+    <div class="ql-auth-card">
+      <div class="ql-auth-ring r1"></div>
+      <div class="ql-auth-ring r2"></div>
+      <div class="ql-auth-ic">${iconSvg}${sparkles}</div>
+      <div class="ql-auth-title">${title}</div>
+      ${sub?`<div class="ql-auth-sub">${sub.replace(/\.\.\.$|…$/,'')}<span class="qd">.</span><span class="qd">.</span><span class="qd">.</span></div>`:''}
+      <div class="ql-auth-bar"><i></i></div>
+    </div>`;
+  document.body.appendChild(wrap);
+}
+
 // ═══ LOGIN ═══
 async function doLogin(){
   const u   = document.getElementById('login-user').value.trim();
@@ -912,10 +964,24 @@ async function doLogin(){
     if (data && data.success && data.plant) {
       // Stash plant info so the dashboard knows who's logged in
       localStorage.setItem('ql_plant', JSON.stringify(data.plant));
-      // Cross-subdomain handoff: app.quicklimes.com has its own localStorage,
-      // so pass the session via URL hash for the dashboard to pick up.
-      const handoff = btoa(unescape(encodeURIComponent(JSON.stringify(data.plant))));
-      window.location.href = 'https://app.quicklimes.com/#auth=' + handoff;
+      const plantName = (data.plant.plant_name || '').toString();
+      _qlAuthOverlay({
+        color:'#16a34a',
+        bg:'#dcfce7',
+        title: plantName ? `Welcome, ${plantName}` : 'Welcome back',
+        sub:'Loading your dashboard',
+        kind:'success'
+      });
+      const h = location.hostname;
+      const isLocal = h==='localhost' || h==='127.0.0.1' || h.endsWith('.local');
+      setTimeout(()=>{
+        if (isLocal) {
+          window.location.href = '/dashboard/';
+        } else {
+          const handoff = btoa(unescape(encodeURIComponent(JSON.stringify(data.plant))));
+          window.location.href = 'https://app.quicklimes.com/#auth=' + handoff;
+        }
+      }, 900);
       return;
     }
 
@@ -1012,19 +1078,44 @@ document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key===
 function showForgotHelp(){
   const phone = (document.getElementById('login-user')?.value || '').trim();
   const phoneLine = phone ? `\nMy registered phone number is: ${phone}` : '';
-  const waText = encodeURIComponent(`Hi QuickLimes, I forgot my password. Please help me reset it.${phoneLine}`);
-  const waUrl  = `https://wa.me/919469767676?text=${waText}`;
-  document.getElementById('fp-wa-link').href = waUrl;
+  const rawMsg = `Hi QuickLimes, I forgot my password. Please help me reset it.${phoneLine}`;
+  const waUrl  = `https://wa.me/919469767676?text=${encodeURIComponent(rawMsg)}`;
+  const link = document.getElementById('fp-wa-link');
+  link.href = waUrl;
+  link.dataset.rawMsg = rawMsg;
   const tip = document.getElementById('fp-tip');
   if (tip) tip.style.display = phone ? 'none' : 'block';
   document.getElementById('forgotModal').classList.add('open');
 }
 function closeForgotModal(){ document.getElementById('forgotModal').classList.remove('open'); }
+// Dev shim: in the Claude Preview pane wa.me is blocked. On localhost, copy the
+// message to clipboard and show a toast so you can paste it into WhatsApp manually.
+function _isLocalHost(){
+  const h = location.hostname;
+  return h==='localhost' || h==='127.0.0.1' || h.endsWith('.local');
+}
+document.addEventListener('click', function(e){
+  const link = e.target.closest && e.target.closest('#fp-wa-link');
+  if (!link || !_isLocalHost()) return;
+  e.preventDefault();
+  const msg = link.dataset.rawMsg || '';
+  const phone = '+91 94697 67676';
+  navigator.clipboard?.writeText(msg).catch(()=>{});
+  closeForgotModal();
+  _qlAuthOverlay({
+    color:'#0073EC',
+    bg:'#dbeafe',
+    title:'Message copied',
+    sub:`Paste it into WhatsApp ${phone}`,
+    kind:'success'
+  });
+  setTimeout(()=>{document.getElementById('ql-auth-overlay')?.remove();}, 3500);
+});
 </script>
 
 <!-- FORGOT PASSWORD MODAL -->
 <div id="forgotModal" style="position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px);font-family:Inter,sans-serif">
-  <style>#forgotModal.open{display:flex}</style>
+  <style>#forgotModal.open{display:flex!important}</style>
   <div style="background:#fff;border-radius:16px;max-width:420px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.2);overflow:hidden">
     <div style="padding:20px 24px;border-bottom:1px solid #eef0f4;display:flex;align-items:center;justify-content:space-between">
       <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:#111827">
