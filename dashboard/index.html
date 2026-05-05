@@ -701,25 +701,41 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
     -webkit-overflow-scrolling:touch!important;
   }
   #salesTable,#purTable{display:block!important;}
-  table.t{min-width:520px;font-size:11px}
+  /* Tight min-width so horizontal scroll is minimal; auto layout sizes columns by content */
+  table.t{min-width:440px;font-size:11px;table-layout:auto}
   .t th{
     font-size:10px!important;font-weight:600!important;
     color:#94a3b8!important;text-transform:uppercase!important;
-    letter-spacing:.5px!important;padding:8px 10px!important;
+    letter-spacing:.5px!important;padding:8px 6px!important;
     background:#fafafe!important;border-bottom:1px solid #eef2f7!important;
   }
-  .t td{font-size:11px!important;padding:10px 10px!important;font-weight:500!important;color:#1a1a2e!important;border-bottom:1px solid #eef2f7!important}
-  .t tfoot td{padding:8px 10px!important;font-weight:700!important;font-size:11px!important}
+  .t td{font-size:11px!important;padding:9px 6px!important;font-weight:500!important;color:#1a1a2e!important;border-bottom:1px solid #eef2f7!important;word-break:break-word}
+  .t tfoot td{padding:8px 6px!important;font-weight:700!important;font-size:11px!important}
   .t tfoot{background:#fafafe!important;border-top:1px solid #eef2f7!important}
   /* hide extra columns on mobile so actions always visible */
   .hide-mob{display:none!important}
 
-  /* ── Action buttons — bigger tap targets ── */
-  .act-btn{width:36px!important;height:36px!important;padding:0!important;border-radius:8px!important}
-  .act-btns{gap:4px!important}
-  /* Sticky actions column (last visible) so always reachable */
-  .t td:last-child,.t th:last-child{position:sticky!important;right:0!important;background:#fff!important;z-index:3!important;box-shadow:-3px 0 8px rgba(0,0,0,.08)!important}
+  /* ── Action buttons — compact so the whole row fits the viewport ── */
+  .act-btn{width:26px!important;height:26px!important;padding:0!important;border-radius:6px!important}
+  .act-btn svg{width:12px!important;height:12px!important}
+  .act-btns{gap:1px!important;flex-wrap:nowrap!important}
+  /* Sticky actions column so editing is always reachable when content scrolls */
+  .t td:last-child,.t th:last-child{position:sticky!important;right:0!important;background:#fff!important;z-index:3!important;box-shadow:-3px 0 8px rgba(0,0,0,.08)!important;padding:6px 3px!important}
   .t thead th:last-child{background:#fafafe!important}
+  /* Truncate long party names with an ellipsis */
+  #salesTable td:nth-child(4),#purTable td:nth-child(4){
+    overflow:hidden!important;text-overflow:ellipsis!important;
+    white-space:nowrap!important;max-width:140px!important;
+  }
+  /* Month-group header cells: smaller font + wrap so they don't push the table wider than necessary */
+  #salesTable td[colspan],#purTable td[colspan]{padding:8px 10px!important;font-size:12px!important}
+  #salesTable td[colspan] > div,#purTable td[colspan] > div{flex-wrap:wrap!important;gap:6px!important}
+  /* Right-aligned numeric columns: nowrap so values aren't broken across lines */
+  .t td.tr,.t th.tr{white-space:nowrap!important}
+  /* Month-group header rows: let the inner flex wrap so the colspan cell doesn't push the table wider than the viewport */
+  #salesTable td[colspan],#purTable td[colspan]{max-width:0!important;padding:8px 10px!important;font-size:12px!important}
+  #salesTable td[colspan] > div,#purTable td[colspan] > div{flex-wrap:wrap!important;gap:6px!important}
+  #salesTable td[colspan] span[style*="font-size:14px"],#purTable td[colspan] span[style*="font-size:14px"]{font-size:13px!important}
 
   /* ── Forms — full width, app-native feel ── */
   .form-row{grid-template-columns:1fr!important}
@@ -3954,8 +3970,18 @@ function renderSales(){
     });
   });
   const _sfBar=document.getElementById('sales-filter-bar');if(_sfBar)_sfBar.innerHTML=monSel;
-  document.getElementById('salesTable').innerHTML=`<table class="t" style="width:100%"><thead><tr>
-    <th class="tc hide-mob" style="width:32px"><input type="checkbox" id="chk-all-sales" onchange="toggleSelectAll('sales',this.checked)" style="cursor:pointer;width:14px;height:14px"></th>
+  document.getElementById('salesTable').innerHTML=`<table class="t" style="width:100%"><colgroup>
+    <col class="hide-mob" style="width:32px">
+    <col style="width:54px">
+    <col class="hide-mob">
+    <col>
+    <col class="hide-mob">
+    <col style="width:60px">
+    <col style="width:64px">
+    <col class="hide-mob">
+    <col style="width:90px">
+  </colgroup><thead><tr>
+    <th class="tc hide-mob"><input type="checkbox" id="chk-all-sales" onchange="toggleSelectAll('sales',this.checked)" style="cursor:pointer;width:14px;height:14px"></th>
     <th>${t('th_invno')}</th>
     <th class="hide-mob">${t('th_date')}</th>
     <th>${t('th_party')}</th>
