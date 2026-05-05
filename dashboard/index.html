@@ -932,6 +932,49 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
 .al-msg{font-size:12px;color:#9ca3af;font-weight:500}
 @keyframes alSpin{to{transform:rotate(360deg)}}
 
+/* ══ COMPACT CASHBOOK BALANCE STRIP ══ */
+.cb-bal-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.cb-bal{
+  background:#fff;border:1px solid #eef0f4;border-radius:12px;
+  padding:10px 12px;display:flex;align-items:center;gap:10px;min-width:0;
+  box-shadow:0 1px 3px rgba(0,115,236,.04);
+  transition:transform .15s,box-shadow .15s;
+}
+.cb-bal:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,115,236,.10)}
+.cb-bal-ic{
+  width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;font-family:Inter,sans-serif;
+}
+.cb-bal-text{min-width:0;flex:1}
+.cb-bal-label{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+  margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.cb-bal-val{
+  font-size:17px;font-weight:800;line-height:1.1;letter-spacing:-.3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.cb-bal-cash{border-color:#bbf7d0}
+.cb-bal-cash .cb-bal-ic{background:#dcfce7;color:#15803d}
+.cb-bal-cash .cb-bal-label{color:#15803d}
+.cb-bal-cash .cb-bal-val{color:#15803d}
+.cb-bal-phonepe{border-color:#bfdbfe}
+.cb-bal-phonepe .cb-bal-ic{background:#dbeafe;color:#1d4ed8}
+.cb-bal-phonepe .cb-bal-label{color:#1d4ed8}
+.cb-bal-phonepe .cb-bal-val{color:#1d4ed8}
+.cb-bal-bank{border-color:#ddd6fe}
+.cb-bal-bank .cb-bal-ic{background:#E6F1FE;color:#005FCF}
+.cb-bal-bank .cb-bal-label{color:#005FCF}
+.cb-bal-bank .cb-bal-val{color:#005FCF}
+@media(max-width:480px){
+  .cb-bal-row{gap:6px}
+  .cb-bal{padding:8px 9px;gap:7px;border-radius:10px}
+  .cb-bal-ic{width:26px;height:26px;border-radius:7px}
+  .cb-bal-ic svg{width:13px;height:13px}
+  .cb-bal-label{font-size:8.5px;letter-spacing:.3px}
+  .cb-bal-val{font-size:14px}
+}
+
 /* ══ AI-SOFTWARE MICRO-ANIMATIONS ══ */
 /* Honor reduced-motion */
 @media (prefers-reduced-motion: reduce){
@@ -1833,7 +1876,7 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
     </div>
   </div>
   <!-- Balance summary cards -->
-  <div class="grid3" id="cb-summary" style="margin-bottom:16px"></div>
+  <div class="cb-bal-row" id="cb-summary"></div>
   <!-- Filter bar -->
   <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px">
     <select id="cb-flt-mon" class="sel-pill" onchange="renderCashBook()" style="flex-shrink:0;min-width:0;padding:6px 10px;font-size:12px"><!-- filled by JS --></select>
@@ -6798,25 +6841,25 @@ function renderCashBook(){
   });
   const sumEl=document.getElementById('cb-summary');
   if(sumEl)sumEl.innerHTML=`
-    <div style="background:#fff;border:2px solid #bbf7d0;border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px">
-      <div style="width:46px;height:46px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#15803d"><span style="font-size:20px;font-weight:800;line-height:1;font-family:Inter,sans-serif">₹</span></div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">${t('lbl_cash_balance')}</div>
-        <div style="font-size:26px;font-weight:800;color:#15803d;line-height:1">${fC(balances.cash)}</div>
+    <div class="cb-bal cb-bal-cash">
+      <div class="cb-bal-ic"><span style="font-size:15px;font-weight:800;line-height:1">₹</span></div>
+      <div class="cb-bal-text">
+        <div class="cb-bal-label">${t('lbl_cash_balance')}</div>
+        <div class="cb-bal-val">${fC(balances.cash)}</div>
       </div>
     </div>
-    <div style="background:#fff;border:2px solid #bfdbfe;border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px">
-      <div style="width:46px;height:46px;border-radius:12px;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📱</div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">${t('lbl_phonepay_balance')}</div>
-        <div style="font-size:26px;font-weight:800;color:#1d4ed8;line-height:1">${fC(balances.phonepay)}</div>
+    <div class="cb-bal cb-bal-phonepe">
+      <div class="cb-bal-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg></div>
+      <div class="cb-bal-text">
+        <div class="cb-bal-label">${t('lbl_phonepay_balance')}</div>
+        <div class="cb-bal-val">${fC(balances.phonepay)}</div>
       </div>
     </div>
-    <div style="background:#fff;border:2px solid #ddd6fe;border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px">
-      <div style="width:46px;height:46px;border-radius:12px;background:#E6F1FE;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🏦</div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#005FCF;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">${t('lbl_bank_balance')}</div>
-        <div style="font-size:26px;font-weight:800;color:#005FCF;line-height:1">${fC(balances.bank)}</div>
+    <div class="cb-bal cb-bal-bank">
+      <div class="cb-bal-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11"/><path d="M20 10v11"/><path d="M8 14v3"/><path d="M12 14v3"/><path d="M16 14v3"/></svg></div>
+      <div class="cb-bal-text">
+        <div class="cb-bal-label">${t('lbl_bank_balance')}</div>
+        <div class="cb-bal-val">${fC(balances.bank)}</div>
       </div>
     </div>
   `;
