@@ -2110,6 +2110,11 @@ h1 .icon,h2 .icon,h3 .icon{width:0.85em;height:0.85em;vertical-align:-0.1em;}
           </div>
           <div class="ci-divider"></div>
           <div class="ci-item">
+            <div class="ci-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="#25D366" style="vertical-align:-2px;margin-right:4px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0 0 20.464 3.488"/></svg>WhatsApp</div>
+            <a href="https://wa.me/919460767676?text=Hi%20QuickLimes%2C%20I%20need%20help" target="_blank" rel="noopener" class="ci-val">+91 94607 67676</a>
+          </div>
+          <div class="ci-divider"></div>
+          <div class="ci-item">
             <div class="ci-label">Email</div>
             <a href="mailto:hello@quicklimes.com" class="ci-val">hello@quicklimes.com</a>
           </div>
@@ -2126,8 +2131,8 @@ h1 .icon,h2 .icon,h3 .icon{width:0.85em;height:0.85em;vertical-align:-0.1em;}
         <form id="contactForm" onsubmit="submitContact(event)">
         <div class="form-row">
           <div class="form-group">
-            <label>Full Name</label>
-            <input id="cf-name" type="text" placeholder="Your full name" required/>
+            <label>Company / Business Name</label>
+            <input id="cf-company" type="text" placeholder="Your company name" required/>
           </div>
           <div class="form-group">
             <label>Mobile Number</label>
@@ -2349,12 +2354,12 @@ async function submitContact(e){
   const btn=document.getElementById('cf-btn');
     btn.disabled=true; btn.textContent='Sending…';
   try{
+    const _company = document.getElementById('cf-company').value.trim();
     await sbInsert('contact_inquiries',{
-      name:     document.getElementById('cf-name').value.trim(),
+      name:     _company,
       phone:    document.getElementById('cf-phone').value.trim(),
-
       role:     document.getElementById('cf-role').value,
-      company:  document.getElementById('cf-company').value.trim(),
+      company:  _company,
       message:  document.getElementById('cf-message').value.trim(),
       source:   'English Landing Page'
     });
@@ -2679,5 +2684,20 @@ document.addEventListener('click',function(e){
 })();
 
 </script>
+
+<!-- ═══ FLOATING WHATSAPP SUPPORT ═══ -->
+<a id="wa-support" href="https://wa.me/919460767676?text=Hi%20QuickLimes%2C%20I%20need%20help" target="_blank" rel="noopener" aria-label="Chat with us on WhatsApp" title="Chat with us on WhatsApp">
+  <svg width="30" height="30" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0 0 20.464 3.488"/></svg>
+  <span class="wa-support-pulse" aria-hidden="true"></span>
+</a>
+<style>
+#wa-support{position:fixed;right:20px;bottom:20px;z-index:9000;width:58px;height:58px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(37,211,102,.45),0 2px 6px rgba(0,0,0,.18);text-decoration:none;transition:transform .18s ease, box-shadow .18s ease}
+#wa-support:hover{transform:translateY(-2px) scale(1.05);box-shadow:0 10px 28px rgba(37,211,102,.55)}
+#wa-support:active{transform:scale(.95)}
+#wa-support .wa-support-pulse{position:absolute;inset:0;border-radius:50%;border:2px solid #25D366;pointer-events:none;animation:waSupportPulse 2.2s ease-out infinite}
+@keyframes waSupportPulse{0%{transform:scale(.85);opacity:.65}100%{transform:scale(1.6);opacity:0}}
+@media (max-width:600px){#wa-support{width:54px;height:54px;right:14px;bottom:14px}#wa-support svg{width:26px;height:26px}}
+@media (prefers-reduced-motion:reduce){#wa-support .wa-support-pulse{animation:none}}
+</style>
 </body>
 </html>
