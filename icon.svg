@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="115" fill="#0073EC"/>
+  <!-- Diamond / gem shape, white -->
+  <g fill="#ffffff">
+    <polygon points="96,200 160,128 352,128 416,200 256,400"/>
+  </g>
+  <!-- Subtle facet lines -->
+  <g stroke="#0073EC" stroke-opacity=".18" stroke-width="3" fill="none">
+    <line x1="96" y1="200" x2="416" y2="200"/>
+    <line x1="160" y1="128" x2="200" y2="200"/>
+    <line x1="256" y1="128" x2="200" y2="200"/>
+    <line x1="256" y1="128" x2="312" y2="200"/>
+    <line x1="352" y1="128" x2="312" y2="200"/>
+    <line x1="200" y1="200" x2="256" y2="400"/>
+    <line x1="312" y1="200" x2="256" y2="400"/>
+  </g>
+</svg>
