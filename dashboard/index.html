@@ -7556,7 +7556,11 @@ function toggleAIChat(){
 }
 
 function _aiGreet(){
-  _aiAddMsg('bot','Aslawalekum! I\'m your DM Business Assistant.\n\nAsk me anything about your sales, purchases, profit, GST, or labour — I\'ll give you instant answers from your live data!');
+  const c=(typeof CO==='function')?CO():null;
+  const plant=(c&&(c.short||c.name))||'';
+  const ownerName=(typeof QL_PLANT!=='undefined' && QL_PLANT?.owner_name)||'';
+  const hello = ownerName ? `Namaste ${ownerName}!` : (plant?`Namaste! Welcome to ${plant}.`:'Namaste!');
+  _aiAddMsg('bot',`${hello}\n\nI'm your QuickLimes AI Assistant. I know everything about your live business data — sales, purchases, profit, GST, labour, cash, top customers and more.\n\nTry asking:\n• "Sales summary"\n• "What's my profit?"\n• "Top customer"\n• "GST due"\n\nNeed a human? Type "support" any time.`);
 }
 
 function _aiAddMsg(role,text){
@@ -7595,6 +7599,20 @@ function sendAI(preset){
 
 function _aiRespond(q){
   const ql=q.toLowerCase();
+  const _co=(typeof CO==='function')?CO():null;
+  const _plant=(_co&&(_co.short||_co.name))||'your plant';
+
+  // Support / human help / contact — handled BEFORE data lookups so it always works
+  if(/support|help.*team|contact|call.*human|talk.*to|speak.*to|sahayata|reach.*out|customer.*care|complain|complaint|issue|problem.*with.*app|not.*working|bug/.test(ql)){
+    return `🤝 Need human support?\n\nReach our team directly — we usually reply within minutes.\n\n📞 Call: +91 94607 67676\n💬 WhatsApp: +91 94607 67676\n\nMon–Sat, 9 AM – 7 PM IST.`;
+  }
+
+  // Who am I / plant info
+  if(/who am i|my name|my plant|which plant|account info|profile info|whats my company|what is my company/.test(ql)){
+    const phone=(typeof QL_PLANT!=='undefined' && QL_PLANT?.owner_phone)||'—';
+    return `🏢 Account Info\n\nPlant: ${_plant}\nGSTIN: ${_co?.gstin||'—'}\nCity: ${_co?.city||'—'}\nPhone: ${phone}\nAddress: ${_co?.address||'—'}`;
+  }
+
   try{
     const ts=totS(),tp=totP(),tl=totL(),pl=getPL();
 
@@ -7602,7 +7620,7 @@ function _aiRespond(q){
     if(/sale|invoice|revenue|income|bikri|bikreee/.test(ql)){
       const top=[...SALES].sort((a,b)=>cS(b).tot-cS(a).tot)[0];
       const month=SALES.length?[...new Set(SALES.map(s=>(s.date||'').slice(0,7)))].sort().reverse()[0]:'—';
-      return `📊 Sales Summary\n\nTotal Revenue: ${fC(ts.tot)}\nTaxable Amount: ${fC(ts.tx)}\nGST Collected: ${fC(ts.cgst+ts.sgst)}\nTotal Invoices: ${SALES.length}\nLatest Month: ${_aiMonLabel(month)}\nTop Customer: ${top?top.party:'No data yet'}`;
+      return `📊 Sales Summary — ${_plant}\n\nTotal Revenue: ${fC(ts.tot)}\nTaxable Amount: ${fC(ts.tx)}\nGST Collected: ${fC(ts.cgst+ts.sgst)}\nTotal Invoices: ${SALES.length}\nLatest Month: ${_aiMonLabel(month)}\nTop Customer: ${top?top.party:'No data yet'}`;
     }
 
     // Purchase
@@ -7630,10 +7648,13 @@ function _aiRespond(q){
 
     // Cash / Balance
     if(/cash|balance|paisa|paise|naqad|wallet/.test(ql)){
-      const cashBal=CASHBOOK.filter(e=>e.acct==='Cash').reduce((s,e)=>e.dir==='in'?s+e.amt:s-e.amt,0);
-      const ppBal=CASHBOOK.filter(e=>e.acct==='PhonePe').reduce((s,e)=>e.dir==='in'?s+e.amt:s-e.amt,0);
-      const bankBal=CASHBOOK.filter(e=>e.acct==='Bank').reduce((s,e)=>e.dir==='in'?s+e.amt:s-e.amt,0);
-      return `💵 Cash Position\n\nCash in Hand: ${fC(cashBal)}\nPhonePe Balance: ${fC(ppBal)}\nBank Balance: ${fC(bankBal)}\nTotal: ${fC(cashBal+ppBal+bankBal)}\n\n${CASHBOOK.length} transactions recorded.`;
+      const _bal=mode=>{
+        const cr=CASHBOOK.filter(e=>e.mode===mode&&e.type==='credit').reduce((s,e)=>s+(e.amount||0),0);
+        const dr=CASHBOOK.filter(e=>e.mode===mode&&e.type==='debit' ).reduce((s,e)=>s+(e.amount||0),0);
+        return cr-dr;
+      };
+      const cashBal=_bal('cash'),ppBal=_bal('phonepay'),bankBal=_bal('bank');
+      return `💵 Cash Position — ${_plant}\n\nCash in Hand: ${fC(cashBal)}\nPhonePe: ${fC(ppBal)}\nBank: ${fC(bankBal)}\nTotal: ${fC(cashBal+ppBal+bankBal)}\n\n${CASHBOOK.length} transactions recorded.`;
     }
 
     // Top customer / party
@@ -7659,11 +7680,11 @@ function _aiRespond(q){
 
     // Help / what can you do
     if(/help|kya|what|can you|option/.test(ql)){
-      return`🤖 I can answer questions about:\n\n📊 Sales & Revenue\n🛒 Purchases & ITC\n💹 Profit & Loss\n🏛️ GST Summary\n👷 Labour & Wages\n💵 Cash Balance\n🏆 Top Customers\n🏭 Top Suppliers\n\nJust ask naturally, e.g.:\n"What's my profit this month?"\n"Who is my top customer?"\n"How much GST do I owe?"`;
+      return`🤖 I can answer questions about:\n\n📊 Sales & Revenue\n🛒 Purchases & ITC\n💹 Profit & Loss\n🏛️ GST Summary\n👷 Labour & Wages\n💵 Cash Balance\n🏆 Top Customers\n🏭 Top Suppliers\n🏢 Your account info\n\nJust ask naturally, e.g.:\n"What's my profit this month?"\n"Who is my top customer?"\n"How much GST do I owe?"\n\nNeed a human? Type "support" — I'll share contact details.`;
     }
 
     // Default
-    return`I'm not sure about that. Try asking:\n• "Sales summary"\n• "What is my profit?"\n• "GST due amount"\n• "Top customer"\n• "Cash balance"\n\nOr tap a quick chip below! 👇`;
+    return`I'm not sure about that. Try asking:\n• "Sales summary"\n• "What is my profit?"\n• "GST due amount"\n• "Top customer"\n• "Cash balance"\n• "Account info"\n\nOr type "support" to talk to a human. 📞 +91 94607 67676`;
   }catch(e){
     return'Sorry, I had trouble reading your data. Please try again.';
   }
