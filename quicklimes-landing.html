@@ -2130,6 +2130,10 @@ h1 .icon,h2 .icon,h3 .icon{width:0.85em;height:0.85em;vertical-align:-0.1em;}
         <div id="cf-msg" class="form-msg"></div>
         <form id="contactForm" onsubmit="submitContact(event)">
         <div class="form-group">
+          <label>Company / Business Name</label>
+          <input id="cf-company" type="text" placeholder="Your company name" required/>
+        </div>
+        <div class="form-group">
           <label>Mobile Number</label>
           <input id="cf-phone" type="tel" placeholder="+91 XXXXX XXXXX" required/>
         </div>
@@ -2344,11 +2348,12 @@ async function submitContact(e){
   const btn=document.getElementById('cf-btn');
     btn.disabled=true; btn.textContent='Sending…';
   try{
+    const _company = document.getElementById('cf-company').value.trim();
     await sbInsert('contact_inquiries',{
-      name:     '',
+      name:     _company,
       phone:    document.getElementById('cf-phone').value.trim(),
       role:     document.getElementById('cf-role').value,
-      company:  '',
+      company:  _company,
       message:  document.getElementById('cf-message').value.trim(),
       source:   'English Landing Page'
     });
