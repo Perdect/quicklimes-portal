@@ -324,8 +324,24 @@ h1 span{
 .rb-stat-val.has-rupee{font-size:1.6rem;}
 .rb-stat-lbl{font-size:.8rem;font-weight:700;color:#99C4F7;margin-bottom:.25rem;}
 .rb-stat-sub{font-size:.7rem;color:rgba(255,255,255,.4);}
-@media(max-width:900px){.rb-inner{grid-template-columns:1fr;}.rb-stats{grid-template-columns:1fr 1fr;}}
-@media(max-width:560px){.rb-stats{grid-template-columns:1fr 1fr;}}
+@media(max-width:900px){
+  #results-banner{padding:48px 0;}
+  .rb-inner{grid-template-columns:1fr;gap:1.75rem;}
+  .rb-left h2{font-size:1.7rem;line-height:1.18;margin:.6rem 0 .65rem;}
+  .rb-left p{font-size:.9rem;line-height:1.55;}
+  .rb-left .btn-primary{margin-top:1rem!important;}
+  .rb-stats{grid-template-columns:1fr 1fr;gap:12px;}
+  .rb-stat{padding:14px 14px;border-radius:14px;}
+  .rb-stat-val{font-size:1.5rem;margin-bottom:.25rem;}
+  .rb-stat-val.has-rupee{font-size:1.25rem;}
+  .rb-stat-lbl{font-size:.7rem;}
+  .rb-stat-sub{font-size:.62rem;line-height:1.35;}
+}
+@media(max-width:560px){
+  #results-banner{padding:40px 0;}
+  .rb-left h2{font-size:1.5rem;}
+  .rb-stats{gap:10px;}
+}
 
 /* ── CLIENTS SECTION ── */
 #clients{background:var(--bg);border-bottom:1.5px solid var(--border);}
