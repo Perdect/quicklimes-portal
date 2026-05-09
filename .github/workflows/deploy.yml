@@ -19,12 +19,16 @@ jobs:
 
           # ── ROOT (quicklimes.com) ──
           # Marketing site + signup + login + legal pages + assets
-          cp quicklimes-landing.html deploy/index.html
+          cp index.html              deploy/index.html
           cp signup.html             deploy/signup.html
           cp privacy_policy.html     deploy/privacy_policy.html
           cp terms_and_conditions.html deploy/terms_and_conditions.html
           cp quicklime.html          deploy/quicklime.html
           cp quicklimes-admin.html   deploy/quicklimes-admin.html
+          # Hindi marketing page (rewritten from /hi if .htaccess routes it)
+          cp deshwali_minerals_hindi.html deploy/deshwali_minerals_hindi.html
+          # Favicon at site root so the browser tab and link previews resolve it
+          cp icon.svg                deploy/icon.svg
           cp .htaccess               deploy/.htaccess
           cp -r assets               deploy/assets
 
@@ -51,10 +55,14 @@ jobs:
       - name: 🚀 Sync deploy/ to Hostinger via FTPS
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: 62.72.28.240
+          # Prefer a hostname secret (FTP_HOST) so we survive IP changes;
+          # fall back to the known Hostinger IP if the secret isn't set yet.
+          server: ${{ secrets.FTP_HOST != '' && secrets.FTP_HOST || '62.72.28.240' }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
+          port: 21
+          timeout: 60000
           local-dir: ./deploy/
           server-dir: /
           state-name: .ftp-deploy-sync-state.json
