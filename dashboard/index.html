@@ -6991,22 +6991,33 @@ function loadLocal(){
     });
   }catch(e){console.error('loadLocal failed:',e);}
 }
-// Switch company — save current, clear, load new
-function switchCompany(key){
+// Switch company — save current, clear, load new (local first for instant UI,
+// then refresh from cloud so a device with no local cache of the target plant
+// still populates without a manual reload).
+async function switchCompany(key){
   if(!COMPANIES[key]||key===ACTIVE_CO)return;
+  // 1. Persist whatever is on screen under the OLD active company
   saveLocal();
+  // Cancel any debounced cloud-save so it doesn't fire under the new active id
+  clearTimeout(_cloudSaveTimer);
+
+  // 2. Flip active company
   ACTIVE_CO=key;
   localStorage.setItem('dm_active_co',key);
-  loadLocal(); // loadLocal() clears arrays automatically before loading new company
+
+  // 3. Instantly render whatever we have locally for the new company
+  loadLocal();
   updateSidebarForCompany();
-  // Re-render current active page
-  const activePage=document.querySelector('.page.active');
-  if(activePage){
-    const pageId=activePage.id.replace('page-','');
-    const map={dashboard:renderDash,invoice:renderInvForm,sales:renderSales,purchase:renderPurchase,
-      bags:renderBags,labour:renderLabour,attendance:renderAtt,pl:renderPL,gst:renderGST,
-      tds:renderTDS,parties:renderParties,cashbook:renderCashBook,chunna:renderChunna};
-    if(map[pageId])map[pageId]();
+  _rerenderActivePage();
+
+  // 4. Then pull the authoritative cloud copy and re-render if it differs.
+  //    This populates the dashboard automatically when the new company's data
+  //    is only on the server (e.g. another device, or freshly added).
+  if(DB){
+    try{
+      const found = await loadFromCloud();
+      if(found) _rerenderActivePage();
+    }catch(_){/* offline — local copy is fine */}
   }
 }
 function updateSidebarForCompany(){
