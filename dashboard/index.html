@@ -563,6 +563,7 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
   .mob-avatar-item-wa .mob-avatar-item-ic{background:#dcfce7;color:#16a34a}
   .mob-avatar-item-call .mob-avatar-item-ic{background:#dbeafe;color:#0073EC}
   .mob-avatar-item-edit .mob-avatar-item-ic{background:#e0e7ff;color:#4f46e5}
+  .mob-avatar-item-switch .mob-avatar-item-ic{background:#fef3c7;color:#b45309}
   .mob-avatar-item-photo .mob-avatar-item-ic{background:#fef3c7;color:#d97706}
   .mob-avatar-item-key .mob-avatar-item-ic{background:#fce7f3;color:#db2777}
   .mob-avatar-item-danger{color:#dc2626}
@@ -1354,6 +1355,11 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
         </div>
       </div>
       <div class="mob-avatar-actions">
+        <button id="mob-switch-co-btn" class="mob-avatar-item mob-avatar-item-switch" onclick="closeMobAvatarMenu();openSwitchCompany()" hidden>
+          <span class="mob-avatar-item-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>
+          <span id="mob-switch-co-label">Switch Company</span>
+          <svg class="mob-avatar-item-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
         <button class="mob-avatar-item mob-avatar-item-photo" onclick="closeMobAvatarMenu();openProfilePicPicker()">
           <span class="mob-avatar-item-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
           Change Photo
@@ -2744,35 +2750,51 @@ let COMPANIES={
     dataKey:'dm_data_v2_gotan'
   }
 };
-// Multi-tenancy: each logged-in user sees ONLY their own company.
-// 1) If the user matches a legacy hardcoded entry by plant_name (e.g. the
-//    long-standing Deshwali/Gotan accounts), reuse that key so all the
-//    pre-filled GSTIN/address/bank info is preserved.
-// 2) Otherwise inject a generic entry keyed by their plant UUID.
-// 3) Strip every OTHER entry from COMPANIES so the switcher dropdown only
-//    shows one item (and the existing UI hides it when there's just one).
-let QL_DATA_KEY = QL_PLANT.id;
-const _qlNameUpper = (QL_PLANT.plant_name || '').trim().toUpperCase();
-const _matchedKey = Object.entries(COMPANIES).find(([_k, c]) =>
-  (c.name || '').trim().toUpperCase() === _qlNameUpper ||
-  (c.short || '').trim().toUpperCase() === _qlNameUpper
-)?.[0];
-if (_matchedKey) {
-  QL_DATA_KEY = _matchedKey;
-} else if (!COMPANIES[QL_DATA_KEY]) {
-  COMPANIES[QL_DATA_KEY] = {
-    key: QL_DATA_KEY,
-    name: (QL_PLANT.plant_name || 'Your Plant').toUpperCase(),
-    short: QL_PLANT.plant_name || 'Your Plant',
+// Multi-tenancy: build COMPANIES from the live plants[] array returned by
+// login_plant (primary + any child plants linked via parent_plant_id).
+//
+// Strategy:
+//  - For each plant the user has access to, create a COMPANIES entry
+//    keyed by the plant's UUID.
+//  - If a legacy hardcoded entry matches by plant_name (e.g. the long-standing
+//    Deshwali/Gotan defaults with pre-filled bank/GSTIN/address), reuse that
+//    config but rekey it to the plant UUID and overlay any live values.
+//  - Drop the legacy hardcoded entries that DON'T match any of the user's plants.
+const _qlPlants = Array.isArray(QL_PLANT.plants) && QL_PLANT.plants.length
+  ? QL_PLANT.plants
+  : [QL_PLANT];
+const _legacyByName = {};
+Object.entries(COMPANIES).forEach(([k, c]) => {
+  const up = (c.name || c.short || '').trim().toUpperCase();
+  if (up) _legacyByName[up] = { key: k, cfg: c };
+});
+const _newCompanies = {};
+_qlPlants.forEach(p => {
+  const nameUp = (p.plant_name || '').trim().toUpperCase();
+  const legacy = _legacyByName[nameUp];
+  const base = legacy ? legacy.cfg : {
     owner: '', address: '', city: '', state: 'Rajasthan (08)', pin: '',
     gstin: '', phone: '', bank: '', bankBranch: '', accNo: '', ifsc: '',
     product: 'Manufactures of Quick Lime and Hydrated Lime.',
     tan: '', jurisdiction: '',
-    dataKey: 'ql_data_' + QL_DATA_KEY
   };
+  _newCompanies[p.id] = {
+    ...base,
+    key: p.id,
+    name: (p.plant_name || base.name || 'Your Plant').toUpperCase(),
+    short: p.plant_name || base.short || 'Your Plant',
+    city: p.city || base.city || '',
+    gstin: p.gst_number || base.gstin || '',
+    dataKey: 'ql_data_' + p.id,
+    _isPrimary: !p.parent_plant_id
+  };
+});
+COMPANIES = _newCompanies;
+let QL_DATA_KEY = localStorage.getItem('dm_active_co');
+if (!QL_DATA_KEY || !COMPANIES[QL_DATA_KEY]) {
+  // Default to the primary (parent) plant on first load
+  QL_DATA_KEY = (Object.values(COMPANIES).find(c => c._isPrimary) || Object.values(COMPANIES)[0])?.key || QL_PLANT.id;
 }
-// Drop all entries that don't belong to this user
-Object.keys(COMPANIES).forEach(k => { if (k !== QL_DATA_KEY) delete COMPANIES[k]; });
 let ACTIVE_CO = QL_DATA_KEY;
 localStorage.setItem('dm_active_co', ACTIVE_CO);
 function CO(){return COMPANIES[ACTIVE_CO];}
@@ -7308,6 +7330,84 @@ function _mobAvatarSync(){
   const addrParts=[c.address, c.city, c.state ? c.state.replace(/\s*\(.*\)\s*$/,'') : ''].filter(Boolean);
   set('mob-avatar-head-addr', addrParts.join(', '));
   set('mob-avatar-head-phone', c.phone || (typeof QL_PLANT!=='undefined' && QL_PLANT?.owner_phone) || '');
+  // Toggle the "Switch Company" item: only show when the user has 2+ companies.
+  const switchBtn = document.getElementById('mob-switch-co-btn');
+  const switchLbl = document.getElementById('mob-switch-co-label');
+  const companyCount = Object.keys(COMPANIES).length;
+  if (switchBtn) switchBtn.hidden = companyCount < 2;
+  if (switchLbl && companyCount >= 2) {
+    switchLbl.textContent = `Switch Company (${companyCount})`;
+  }
+}
+
+// ── Switch Company picker (bottom sheet) ──
+function openSwitchCompany(){
+  // Lazy-build the picker container so it survives across calls
+  let wrap = document.getElementById('ql-switch-co');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'ql-switch-co';
+    wrap.innerHTML = `
+      <style>
+        #ql-switch-co{position:fixed;inset:0;z-index:8000;display:flex;align-items:flex-end;justify-content:center;font-family:Inter,sans-serif}
+        #ql-switch-co .qsc-back{position:absolute;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:qscFade .22s ease-out}
+        #ql-switch-co .qsc-sheet{position:relative;background:#fff;border-radius:22px 22px 0 0;width:100%;max-width:560px;padding:0 0 calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -12px 40px rgba(15,23,42,.18);animation:qscSlide .28s cubic-bezier(.32,.72,0,1)}
+        #ql-switch-co .qsc-grab{margin:8px auto 4px;width:38px;height:4px;background:#d4d8e0;border-radius:99px}
+        #ql-switch-co .qsc-head{padding:6px 22px 16px;text-align:center}
+        #ql-switch-co .qsc-title{font-size:17px;font-weight:800;color:#0D1B2D}
+        #ql-switch-co .qsc-sub{font-size:12.5px;color:#6b7280;margin-top:2px}
+        #ql-switch-co .qsc-list{padding:6px 12px 12px;display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow-y:auto}
+        #ql-switch-co .qsc-row{display:flex;align-items:center;gap:12px;padding:14px 14px;border:1.5px solid #eef0f4;border-radius:14px;background:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .12s,border-color .12s,transform .12s;text-align:left;font-family:inherit;width:100%}
+        #ql-switch-co .qsc-row:active{transform:scale(.985);background:#f8fafc}
+        #ql-switch-co .qsc-row.active{border-color:#0073EC;background:#eff6ff}
+        #ql-switch-co .qsc-pic{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#0073EC,#0058B8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0}
+        #ql-switch-co .qsc-text{flex:1;min-width:0}
+        #ql-switch-co .qsc-name{font-size:14px;font-weight:700;color:#0D1B2D;line-height:1.25;word-break:break-word}
+        #ql-switch-co .qsc-meta{font-size:11.5px;color:#6b7280;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+        #ql-switch-co .qsc-tag{font-size:9.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:2px 7px;border-radius:99px;background:#dbeafe;color:#1d4ed8}
+        #ql-switch-co .qsc-tick{margin-left:auto;color:#0073EC;flex-shrink:0}
+        #ql-switch-co .qsc-tick[hidden]{display:none}
+        @keyframes qscFade{from{opacity:0}to{opacity:1}}
+        @keyframes qscSlide{from{transform:translateY(100%)}to{transform:translateY(0)}}
+      </style>
+      <div class="qsc-back" onclick="closeSwitchCompany()"></div>
+      <div class="qsc-sheet">
+        <div class="qsc-grab"></div>
+        <div class="qsc-head">
+          <div class="qsc-title">Switch Company</div>
+          <div class="qsc-sub">Pick which plant to view. Your data stays separate per plant.</div>
+        </div>
+        <div class="qsc-list" id="qsc-list"></div>
+      </div>`;
+    document.body.appendChild(wrap);
+  }
+  // Populate list each time so active state stays fresh
+  const list = wrap.querySelector('#qsc-list');
+  list.innerHTML = Object.values(COMPANIES).map(co=>{
+    const initial = (co.short||co.name||'?').trim().charAt(0).toUpperCase();
+    const isActive = co.key === ACTIVE_CO;
+    const tag = co._isPrimary ? 'Primary' : 'Linked';
+    const meta = [co.city, co.gstin].filter(Boolean).join(' · ');
+    return `<button class="qsc-row${isActive?' active':''}" onclick="_pickCompany('${co.key}')">
+      <span class="qsc-pic">${initial}</span>
+      <span class="qsc-text">
+        <div class="qsc-name">${co.short||co.name||'Plant'}</div>
+        <div class="qsc-meta"><span class="qsc-tag">${tag}</span>${meta?'<span>'+meta+'</span>':''}</div>
+      </span>
+      <svg class="qsc-tick"${isActive?'':' hidden'} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </button>`;
+  }).join('');
+  wrap.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeSwitchCompany(){
+  const wrap = document.getElementById('ql-switch-co');
+  if (wrap) wrap.style.display = 'none';
+  document.body.style.overflow = '';
+}
+function _pickCompany(key){
+  if (key !== ACTIVE_CO) switchCompany(key);
+  closeSwitchCompany();
 }
 function toggleMobAvatarMenu(e){
   if(e) e.stopPropagation();

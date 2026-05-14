@@ -988,8 +988,11 @@ async function doLogin(){
     }
 
     if (data && data.success && data.plant) {
-      // Stash plant info so the dashboard knows who's logged in
-      localStorage.setItem('ql_plant', JSON.stringify(data.plant));
+      // Stash plant info so the dashboard knows who's logged in.
+      // Embed the full plants[] array (primary + child plants) on the
+      // primary plant object so the dashboard can build a company switcher.
+      const _primary = { ...data.plant, plants: data.plants || [data.plant], plan_limit: data.plan_limit };
+      localStorage.setItem('ql_plant', JSON.stringify(_primary));
       const plantName = (data.plant.plant_name || '').toString();
       _qlAuthOverlay({
         color:'#16a34a',
@@ -1004,7 +1007,7 @@ async function doLogin(){
         if (isLocal) {
           window.location.href = '/dashboard/';
         } else {
-          const handoff = btoa(unescape(encodeURIComponent(JSON.stringify(data.plant))));
+          const handoff = btoa(unescape(encodeURIComponent(JSON.stringify(_primary))));
           window.location.href = 'https://app.quicklimes.com/#auth=' + handoff;
         }
       }, 900);
