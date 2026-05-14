@@ -6422,30 +6422,21 @@ function saveLocalAndCloud(){
 async function loadFromCloud(){
   if(!DB)return false;
   try{
-    // Scoped to plant_id via the get_my_data RPC, then pick the active row
+    // Scoped to plant_id via the get_my_data RPC, then pick the row that
+    // matches the CURRENT active company. Critically: do NOT fall back to
+    // another row if the active company has no data yet — that would leak
+    // one company's data into another's namespace.
     const{data:rows,error}=await DB.rpc('get_my_data',{p_plant_id:QL_PLANT.id});
     if(error||!rows||!rows.length)return false;
-    const row=rows.find(r=>r.id===ACTIVE_CO)||rows[0];
-    if(!row||!row.data)return false;
-    // If active row id changed (e.g. tenant whose row is keyed by their UUID), align ACTIVE_CO
-    if(row.id!==ACTIVE_CO){
-      ACTIVE_CO=row.id;
-      localStorage.setItem('dm_active_co',ACTIVE_CO);
+    const row=rows.find(r=>r.id===ACTIVE_CO);
+    if(!row||!row.data){
+      // No cloud data for THIS company. Clear any stale arrays so the page
+      // re-renders empty for the freshly-switched company instead of keeping
+      // whatever was in memory from the previous one.
+      _clearArrays();
+      saveLocal(); // persist the empty state under this company's local key
+      return true;
     }
-    // Make sure every row owned by this plant is in COMPANIES (so the switcher works)
-    rows.forEach(r=>{
-      if(!COMPANIES[r.id]){
-        COMPANIES[r.id]={
-          key:r.id,
-          name:(QL_PLANT.plant_name||r.id).toUpperCase(),
-          short:QL_PLANT.plant_name||r.id,
-          owner:'',address:'',city:'',state:'Rajasthan (08)',pin:'',
-          gstin:'',phone:'',bank:'',bankBranch:'',accNo:'',ifsc:'',
-          product:'Manufactures of Quick Lime and Hydrated Lime.',
-          tan:'',jurisdiction:'',dataKey:'ql_data_'+r.id
-        };
-      }
-    });
     const d=row.data;
     _clearArrays();
     if(d.sales)SALES.push(...d.sales.map(s=>({...s,party:cleanName(s.party||''),status:s.status||'pending'})));
