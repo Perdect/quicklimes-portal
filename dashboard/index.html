@@ -8226,15 +8226,71 @@ function deleteInstalment(loanIdx,instIdx){
   showToast('Installment deleted','error');
 }
 
-function _saveLoansToDB(){
-  // Persist to localStorage as fallback; Supabase sync can be added later
-  try{localStorage.setItem('dm_loans',JSON.stringify(LOANS));}catch(e){}
+// Migrate legacy string company keys ('gotan','deshwali') → live plant UUIDs.
+// Matches the legacy short-key to the COMPANIES entry whose .short matches the
+// hardcoded name. Idempotent — running it twice does nothing.
+function _migrateLegacyLoanKeys(){
+  if(!Array.isArray(LOANS)||!LOANS.length) return;
+  const _legacyMap={
+    'gotan':    Object.values(COMPANIES).find(c=>(c.short||'').toUpperCase()==='GOTAN LIME INDUSTRIES'),
+    'deshwali': Object.values(COMPANIES).find(c=>(c.short||'').toUpperCase()==='DESHWALI MINERALS')
+  };
+  let changed=false;
+  LOANS.forEach(l=>{
+    if(l && l.company && _legacyMap[l.company]){
+      l.company = _legacyMap[l.company].key;
+      changed=true;
+    }
+  });
+  if(changed) _saveLoansToDB();
 }
+function _saveLoansToDB(){
+  // Local first (instant + offline-safe)
+  try{localStorage.setItem('dm_loans',JSON.stringify(LOANS));}catch(e){}
+  // Then cloud-sync to a per-user fixed id so loans survive device switches.
+  // The id is derived from the primary plant_id so each account gets its own
+  // row and they never collide.
+  if(typeof DB!=='undefined' && DB && typeof QL_PLANT!=='undefined' && QL_PLANT?.id){
+    clearTimeout(_loansCloudTimer);
+    _loansCloudTimer=setTimeout(async()=>{
+      try{
+        await DB.rpc('save_my_data',{
+          p_plant_id: QL_PLANT.id,
+          p_id: 'loans_'+QL_PLANT.id,
+          p_data: { loans: LOANS, _kind:'loans' }
+        });
+      }catch(e){console.warn('Loans cloud save failed:',e);}
+    }, 400);
+  }
+}
+let _loansCloudTimer;
 function _loadLoansFromDB(){
+  // 1) Hydrate from localStorage immediately (fast path, offline-safe)
   try{
     const saved=localStorage.getItem('dm_loans');
     if(saved){const arr=JSON.parse(saved);if(Array.isArray(arr)&&arr.length) LOANS=arr;}
   }catch(e){}
+  _migrateLegacyLoanKeys();
+  // 2) Then refresh from cloud (only when DB is available) so a fresh device
+  //    pulls the latest loan list automatically.
+  if(typeof DB!=='undefined' && DB && typeof QL_PLANT!=='undefined' && QL_PLANT?.id){
+    (async()=>{
+      try{
+        const {data:rows,error}=await DB.rpc('get_my_data',{p_plant_id:QL_PLANT.id});
+        if(error||!rows) return;
+        const row=rows.find(r=>r.id==='loans_'+QL_PLANT.id);
+        if(row && row.data && Array.isArray(row.data.loans)){
+          LOANS = row.data.loans;
+          _migrateLegacyLoanKeys();
+          try{localStorage.setItem('dm_loans',JSON.stringify(LOANS));}catch(_){}
+          _updateLoanBadge();
+          // If the loans page is currently visible, re-render
+          const lp=document.querySelector('.page.active#page-loans');
+          if(lp && typeof renderLoans==='function') renderLoans();
+        }
+      }catch(e){console.warn('Loans cloud load failed:',e);}
+    })();
+  }
 }
 // Load persisted data on startup (after pre-populated defaults)
 _loadLoansFromDB();
