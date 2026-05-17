@@ -39,6 +39,8 @@ jobs:
           cp dashboard/manifest.json      deploy/app/manifest.json
           cp dashboard/icon.svg           deploy/app/icon.svg
           cp dashboard/quick-limes-logo.png deploy/app/quick-limes-logo.png
+          # SPA fallback — any non-file path (/gst, /sales, etc.) → index.html
+          cp dashboard/.htaccess          deploy/app/.htaccess
           cp -r "dashboard/Deshwali Minerals — Business Suite_files" deploy/app/
           # Make the brand logo also accessible inside /app for any header reuse
           cp -r assets deploy/app/assets
