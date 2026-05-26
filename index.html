@@ -748,7 +748,8 @@ h1 span{
 footer{background:#0a1f3d;padding:0;}
 .footer-main{max-width:1120px;margin:0 auto;padding:56px 6% 36px;display:grid;grid-template-columns:2fr 1fr 1fr 1.2fr;gap:3rem;}
 .footer-brand .fb-logo{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
-.fb-icon{width:40px;height:40px;border-radius:11px;background:linear-gradient(145deg,#15803D 0%,#22C55E 55%,#4ADE80 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(34,197,94,.5),inset 0 1px 0 rgba(255,255,255,.15);flex-shrink:0;}
+.fb-icon{width:42px;height:42px;border-radius:11px;background:linear-gradient(145deg,#0073EC 0%,#3B91F0 55%,#7FB6F5 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(0,115,236,.55),inset 0 1px 0 rgba(255,255,255,.2);flex-shrink:0;}
+.fb-icon svg{width:22px;height:22px;fill:#fff;display:block;}
 .fb-text{display:flex;flex-direction:column;gap:0;}
 .fb-name{color:#fff;font-size:1rem;font-weight:800;letter-spacing:-.2px;line-height:1.2;}
 .fb-sub{font-size:.55rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#99C4F7;line-height:1;}
@@ -2290,7 +2291,13 @@ h1 .icon,h2 .icon,h3 .icon{width:0.85em;height:0.85em;vertical-align:-0.1em;}
     <!-- Brand -->
     <div class="footer-brand">
       <div class="fb-logo">
-        <img src="assets/logo.png" alt="QuickLimes — Auto Management Software" style="height:44px;width:auto;display:block;filter:brightness(0) invert(1);">
+        <div class="fb-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><polygon points="4,9 7,5.5 17,5.5 20,9 12,19"/></svg>
+        </div>
+        <div class="fb-text">
+          <span class="fb-name">QUICK LIMES</span>
+          <span class="fb-sub">Auto Management Software</span>
+        </div>
       </div>
       <p>India's first AI-powered ERP built exclusively for lime manufacturers and hydrated lime plants. GST billing, kiln tracking, labour, loans, and P&amp;L — all in one platform.</p>
       <div class="social-row">
