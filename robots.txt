@@ -1,0 +1,15 @@
+# QuickLimes — robots policy
+# Public site is fully crawlable. Authenticated dashboard subdomain
+# (app.quicklimes.com) has nothing useful for crawlers and is excluded
+# from indexation via its own robots / noindex tags.
+
+User-agent: *
+Allow: /
+
+# Don't waste crawl budget on transient/non-content paths
+Disallow: /admin/
+Disallow: /dashboard
+Disallow: /*?cache_bust=
+Disallow: /*?v=
+
+Sitemap: https://quicklimes.com/sitemap.xml

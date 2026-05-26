@@ -27,6 +27,10 @@ jobs:
           cp quicklimes-admin.html   deploy/quicklimes-admin.html
           # Hindi marketing page (rewritten from /hi if .htaccess routes it)
           cp deshwali_minerals_hindi.html deploy/deshwali_minerals_hindi.html
+          # Branded 404 + crawler discovery
+          cp 404.html                deploy/404.html
+          cp sitemap.xml             deploy/sitemap.xml
+          cp robots.txt              deploy/robots.txt
           # Favicon at site root so the browser tab and link previews resolve it
           cp icon.svg                deploy/icon.svg
           cp .htaccess               deploy/.htaccess
