@@ -174,6 +174,7 @@ button { font-family: inherit; cursor: pointer; }
 .sb-upgrade-btn:hover { background: var(--ql-neutral-800); }
 
 .sb-profile {
+  position: relative;
   display: flex; align-items: center; gap: var(--ql-space-2);
   width: 100%; padding: var(--ql-space-2);
   background: transparent; border: 1px solid transparent;
@@ -193,6 +194,122 @@ button { font-family: inherit; cursor: pointer; }
 .sb-profile-role { display: block; font-size: var(--ql-text-2xs); color: var(--ql-text-secondary);
                    margin-top: 1px; }
 .sb-profile svg { width: 14px; height: 14px; color: var(--ql-text-muted); flex-shrink: 0; }
+
+/* ── PROFILE PHOTO ── shared across all avatars ──────────────── */
+.has-photo {
+  background-image: var(--ql-photo) !important;
+  background-size: cover; background-position: center;
+  color: transparent !important;  /* hide initials when photo loaded */
+}
+.sb-profile-av, .tb-avatar { position: relative; overflow: visible; }
+.sb-profile-av::after, .tb-avatar::after {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: rgba(15, 23, 42, 0.55) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>') center/14px no-repeat;
+  opacity: 0; transition: opacity var(--ql-duration-fast) var(--ql-ease-out);
+  pointer-events: none;
+}
+.sb-profile:hover .sb-profile-av::after,
+.tb-avatar:hover::after { opacity: 1; }
+
+/* ── PROFILE DROPDOWN MENU ───────────────────────────────────── */
+.profile-menu {
+  position: fixed;
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-xl); box-shadow: var(--ql-shadow-lg);
+  padding: var(--ql-space-2); z-index: var(--ql-z-dropdown);
+  width: 240px;
+  display: none; flex-direction: column; gap: 1px;
+  animation: pPop var(--ql-duration-base) var(--ql-ease-out);
+}
+.profile-menu.open { display: flex; }
+.profile-menu-head {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-3); border-bottom: 1px solid var(--ql-divider);
+  margin-bottom: var(--ql-space-2);
+}
+.profile-menu-av {
+  width: 38px; height: 38px; border-radius: var(--ql-radius-pill);
+  background: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-700));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: var(--ql-weight-bold); font-size: var(--ql-text-md); flex-shrink: 0;
+  background-size: cover; background-position: center;
+}
+.profile-menu-text { flex: 1; min-width: 0; }
+.profile-menu-name { font-size: var(--ql-text-md); font-weight: var(--ql-weight-semibold);
+                     color: var(--ql-text); line-height: var(--ql-leading-tight); }
+.profile-menu-email { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin-top: 2px;
+                      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.profile-menu-item {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-2) var(--ql-space-3); border-radius: var(--ql-radius-md);
+  background: transparent; border: none; color: var(--ql-text);
+  font-size: var(--ql-text-md); text-align: left; text-decoration: none;
+  font-family: inherit;
+}
+.profile-menu-item:hover { background: var(--ql-neutral-50); }
+.profile-menu-item svg { width: 16px; height: 16px; color: var(--ql-text-secondary); flex-shrink: 0; }
+.profile-menu-item:hover svg { color: var(--ql-text); }
+.profile-menu-item-danger { color: var(--ql-danger-600); }
+.profile-menu-item-danger svg { color: var(--ql-danger-500); }
+.profile-menu-item-danger:hover { background: var(--ql-danger-50); }
+.profile-menu-sep { height: 1px; background: var(--ql-divider); margin: var(--ql-space-1) var(--ql-space-2); }
+
+/* ── PHOTO CROP MODAL ────────────────────────────────────────── */
+.photo-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  z-index: var(--ql-z-modal);
+  display: none; align-items: center; justify-content: center;
+  padding: var(--ql-space-4);
+}
+.photo-backdrop.open { display: flex; }
+.photo-modal {
+  background: var(--ql-card);
+  border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-2xl);
+  box-shadow: var(--ql-shadow-xl);
+  width: min(440px, 100%);
+  padding: var(--ql-space-5);
+  display: flex; flex-direction: column; gap: var(--ql-space-4);
+  animation: pPop var(--ql-duration-base) var(--ql-ease-out);
+}
+.photo-modal h3 {
+  margin: 0; font-size: var(--ql-text-xl); font-weight: var(--ql-weight-bold);
+  letter-spacing: var(--ql-tracking-tight);
+}
+.photo-stage {
+  position: relative; aspect-ratio: 1; width: 100%;
+  background: var(--ql-neutral-900);
+  border-radius: var(--ql-radius-xl); overflow: hidden;
+  cursor: grab; user-select: none; touch-action: none;
+}
+.photo-stage:active { cursor: grabbing; }
+.photo-stage canvas { display: block; width: 100%; height: 100%; }
+.photo-mask {
+  position: absolute; inset: 0;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.5);
+  border-radius: 50%;
+  margin: 5%;
+  pointer-events: none;
+}
+.photo-zoom { display: flex; align-items: center; gap: var(--ql-space-3); }
+.photo-zoom-ic { color: var(--ql-text-secondary); display: flex; align-items: center; }
+.photo-zoom-ic svg { width: 16px; height: 16px; }
+.photo-zoom input { flex: 1; accent-color: var(--ql-brand-600); }
+.photo-actions { display: flex; gap: var(--ql-space-3); justify-content: flex-end; }
+.photo-empty {
+  display: flex; flex-direction: column; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-8);
+  border: 1.5px dashed var(--ql-border-strong);
+  border-radius: var(--ql-radius-xl);
+  text-align: center; color: var(--ql-text-secondary);
+  font-size: var(--ql-text-sm);
+}
+.photo-empty svg { width: 32px; height: 32px; color: var(--ql-text-muted); }
+.photo-pick-btn { margin-top: var(--ql-space-2); }
 
 /* Sidebar collapsed-state overrides */
 [data-collapsed="true"] .workspace-text,
@@ -604,8 +721,8 @@ button { font-family: inherit; cursor: pointer; }
         <div class="sb-upgrade-text">Upgrade to unlock production analytics, AI insights and unlimited child plants.</div>
         <button class="sb-upgrade-btn">Upgrade plan</button>
       </div>
-      <button class="sb-profile">
-        <span class="sb-profile-av">S</span>
+      <button class="sb-profile" id="sbProfile" data-profile-trigger>
+        <span class="sb-profile-av" data-avatar>S</span>
         <span class="sb-profile-text">
           <span class="sb-profile-name">Sameer Kayyum</span>
           <span class="sb-profile-role">Owner</span>
@@ -651,8 +768,69 @@ button { font-family: inherit; cursor: pointer; }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9 12 2"/></svg>
     </button>
 
-    <button class="tb-avatar">S</button>
+    <button class="tb-avatar" id="tbAvatar" data-profile-trigger data-avatar>S</button>
   </header>
+
+  <!-- ═════ PROFILE MENU (shared by sidebar chip + topbar avatar) ═════ -->
+  <div class="profile-menu" id="profileMenu" role="menu">
+    <div class="profile-menu-head">
+      <div class="profile-menu-av" data-avatar>S</div>
+      <div class="profile-menu-text">
+        <div class="profile-menu-name">Sameer Kayyum</div>
+        <div class="profile-menu-email">hajikayyum@gmail.com</div>
+      </div>
+    </div>
+    <button class="profile-menu-item" id="pmChangePhoto">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span>Change photo</span>
+    </button>
+    <button class="profile-menu-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Edit profile</span>
+    </button>
+    <button class="profile-menu-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06A2 2 0 1 1 4.29 16.96l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Account settings</span>
+    </button>
+    <div class="profile-menu-sep"></div>
+    <button class="profile-menu-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span>Help & support</span>
+    </button>
+    <button class="profile-menu-item profile-menu-item-danger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span>Sign out</span>
+    </button>
+  </div>
+
+  <!-- ═════ PHOTO CROP MODAL ═════ -->
+  <input type="file" id="photoInput" accept="image/*" style="display:none" />
+  <div class="photo-backdrop" id="photoBack" onclick="if(event.target===this)closePhotoModal()">
+    <div class="photo-modal" role="dialog" aria-label="Change profile photo">
+      <h3>Change profile photo</h3>
+      <div id="photoEmpty" class="photo-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span>Pick a square photo — at least 256×256.</span>
+        <button class="ql-btn ql-btn-primary photo-pick-btn" onclick="document.getElementById('photoInput').click()">Choose image</button>
+      </div>
+      <div id="photoCropUI" style="display:none;flex-direction:column;gap:var(--ql-space-4)">
+        <div class="photo-stage" id="photoStage">
+          <canvas id="photoCanvas" width="280" height="280"></canvas>
+          <div class="photo-mask"></div>
+        </div>
+        <div class="photo-zoom">
+          <span class="photo-zoom-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></span>
+          <input type="range" id="photoZoom" min="1" max="3" step="0.01" value="1" />
+        </div>
+        <div class="photo-actions">
+          <button class="ql-btn ql-btn-ghost" onclick="document.getElementById('photoInput').click()">Change image</button>
+          <button class="ql-btn ql-btn-secondary" id="photoRemoveBtn" onclick="removePhoto()">Remove</button>
+          <button class="ql-btn ql-btn-secondary" onclick="closePhotoModal()">Cancel</button>
+          <button class="ql-btn ql-btn-primary" onclick="savePhoto()">Save photo</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ═════ MAIN ═════ -->
   <main class="main">
@@ -854,6 +1032,190 @@ document.getElementById('paletteList').addEventListener('click', e => {
 
 /* ── Initial paint ───────────────────────────────────────────── */
 renderPalette('');
+
+/* ─────────────────────────────────────────────────────────────
+   PROFILE MENU + PHOTO UPLOAD
+   ───────────────────────────────────────────────────────────── */
+const PHOTO_KEY = 'ql_v2_profile_photo';
+const profileMenu = document.getElementById('profileMenu');
+
+function applyAvatarPhoto(dataUrl){
+  if (dataUrl) {
+    document.querySelectorAll('[data-avatar]').forEach(el => {
+      el.style.setProperty('--ql-photo', `url('${dataUrl}')`);
+      el.classList.add('has-photo');
+    });
+  } else {
+    document.querySelectorAll('[data-avatar]').forEach(el => {
+      el.style.removeProperty('--ql-photo');
+      el.classList.remove('has-photo');
+    });
+  }
+}
+
+function loadStoredPhoto(){
+  const saved = localStorage.getItem(PHOTO_KEY);
+  if (saved) applyAvatarPhoto(saved);
+}
+loadStoredPhoto();
+
+/* Open/close profile menu, positioned relative to the trigger */
+function openProfileMenu(triggerEl){
+  const r = triggerEl.getBoundingClientRect();
+  // Decide whether to anchor below (topbar) or above (sidebar chip)
+  const isTop = triggerEl.classList.contains('tb-avatar');
+  if (isTop) {
+    profileMenu.style.top = (r.bottom + 8) + 'px';
+    profileMenu.style.left = (r.right - 240) + 'px';
+  } else {
+    profileMenu.style.top = (r.top - 8 - profileMenu.offsetHeight) + 'px';
+    profileMenu.style.left = r.left + 'px';
+    // After it has dimensions
+    requestAnimationFrame(() => {
+      profileMenu.style.top = (r.top - 8 - profileMenu.offsetHeight) + 'px';
+    });
+  }
+  profileMenu.classList.add('open');
+}
+function closeProfileMenu(){ profileMenu.classList.remove('open'); }
+
+document.querySelectorAll('[data-profile-trigger]').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (profileMenu.classList.contains('open')) {
+      closeProfileMenu();
+    } else {
+      openProfileMenu(btn);
+    }
+  });
+});
+document.addEventListener('click', e => {
+  if (!profileMenu.contains(e.target) && !e.target.closest('[data-profile-trigger]')) {
+    closeProfileMenu();
+  }
+});
+
+/* ── Photo modal ─────────────────────────────────────────────── */
+const photoInput  = document.getElementById('photoInput');
+const photoBack   = document.getElementById('photoBack');
+const photoEmpty  = document.getElementById('photoEmpty');
+const photoCropUI = document.getElementById('photoCropUI');
+const photoStage  = document.getElementById('photoStage');
+const photoCanvas = document.getElementById('photoCanvas');
+const photoZoom   = document.getElementById('photoZoom');
+const photoRemoveBtn = document.getElementById('photoRemoveBtn');
+
+const cropState = { img: null, scale: 1, baseScale: 1, dx: 0, dy: 0 };
+
+document.getElementById('pmChangePhoto').addEventListener('click', () => {
+  closeProfileMenu();
+  photoBack.classList.add('open');
+  // Show/hide remove button based on existing photo
+  photoRemoveBtn.style.display = localStorage.getItem(PHOTO_KEY) ? '' : 'none';
+  if (cropState.img) {
+    photoEmpty.style.display = 'none';
+    photoCropUI.style.display = 'flex';
+  } else {
+    photoEmpty.style.display = 'flex';
+    photoCropUI.style.display = 'none';
+  }
+});
+
+function closePhotoModal(){ photoBack.classList.remove('open'); }
+
+photoInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      cropState.img = img;
+      // Base scale so the smaller image dimension fills the 280px stage
+      cropState.baseScale = Math.max(280 / img.width, 280 / img.height);
+      cropState.scale = 1;
+      cropState.dx = 0; cropState.dy = 0;
+      photoZoom.value = 1;
+      photoEmpty.style.display = 'none';
+      photoCropUI.style.display = 'flex';
+      drawCrop();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  photoInput.value = '';
+});
+
+function drawCrop(){
+  if (!cropState.img) return;
+  const ctx = photoCanvas.getContext('2d');
+  const size = 280;
+  ctx.fillStyle = '#0F172A';
+  ctx.fillRect(0, 0, size, size);
+  const s = cropState.baseScale * cropState.scale;
+  const dw = cropState.img.width  * s;
+  const dh = cropState.img.height * s;
+  // Centre + drag offset, clamped so the image always covers the circle
+  const cx = (size - dw) / 2 + cropState.dx;
+  const cy = (size - dh) / 2 + cropState.dy;
+  // Clamp
+  const minX = size - dw, minY = size - dh;
+  cropState.dx = Math.min(0, Math.max(minX - (size - dw) / 2, cropState.dx));
+  cropState.dy = Math.min(0, Math.max(minY - (size - dh) / 2, cropState.dy));
+  // (Above clamp simplified — recompute cx/cy after clamp)
+  const fx = (size - dw) / 2 + cropState.dx;
+  const fy = (size - dh) / 2 + cropState.dy;
+  ctx.drawImage(cropState.img, fx, fy, dw, dh);
+}
+
+photoZoom.addEventListener('input', e => {
+  cropState.scale = parseFloat(e.target.value);
+  drawCrop();
+});
+
+/* Drag to reposition */
+let dragStart = null;
+function onPointerDown(e){
+  dragStart = { x: e.clientX || e.touches?.[0]?.clientX, y: e.clientY || e.touches?.[0]?.clientY, dx: cropState.dx, dy: cropState.dy };
+}
+function onPointerMove(e){
+  if (!dragStart) return;
+  const cx = e.clientX || e.touches?.[0]?.clientX;
+  const cy = e.clientY || e.touches?.[0]?.clientY;
+  cropState.dx = dragStart.dx + (cx - dragStart.x);
+  cropState.dy = dragStart.dy + (cy - dragStart.y);
+  drawCrop();
+}
+function onPointerUp(){ dragStart = null; }
+photoStage.addEventListener('pointerdown', onPointerDown);
+window.addEventListener('pointermove', onPointerMove);
+window.addEventListener('pointerup', onPointerUp);
+
+function savePhoto(){
+  if (!cropState.img) { closePhotoModal(); return; }
+  // Render the visible 280px stage to a square data URL (200px target)
+  const out = document.createElement('canvas');
+  out.width = out.height = 200;
+  const octx = out.getContext('2d');
+  octx.drawImage(photoCanvas, 0, 0, 280, 280, 0, 0, 200, 200);
+  const dataUrl = out.toDataURL('image/jpeg', 0.88);
+  localStorage.setItem(PHOTO_KEY, dataUrl);
+  applyAvatarPhoto(dataUrl);
+  closePhotoModal();
+}
+
+function removePhoto(){
+  localStorage.removeItem(PHOTO_KEY);
+  cropState.img = null;
+  applyAvatarPhoto(null);
+  closePhotoModal();
+}
+
+/* Close photo modal on Escape (in addition to palette) */
+const _existingEsc = document.onkeydown;
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && photoBack.classList.contains('open')) closePhotoModal();
+});
 </script>
 </body>
 </html>
