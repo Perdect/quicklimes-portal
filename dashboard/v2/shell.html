@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuickLimes v2 — App Shell</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css">
+
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   v2 SHELL — built entirely on tokens.css
+   ═══════════════════════════════════════════════════════════════ */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--ql-bg); color: var(--ql-text); font-family: var(--ql-font-sans); }
+button { font-family: inherit; cursor: pointer; }
+
+/* ── LAYOUT GRID ─────────────────────────────────────────────── */
+.shell {
+  display: grid;
+  grid-template-columns: var(--ql-sidebar-w) 1fr;
+  grid-template-rows: var(--ql-topbar-h) 1fr;
+  grid-template-areas: "sidebar topbar" "sidebar main";
+  height: 100vh;
+  overflow: hidden;
+  transition: grid-template-columns var(--ql-duration-base) var(--ql-ease-out);
+}
+.shell[data-collapsed="true"] { grid-template-columns: var(--ql-sidebar-w-collapsed) 1fr; }
+
+/* ── SIDEBAR ─────────────────────────────────────────────────── */
+.sidebar {
+  grid-area: sidebar;
+  background: var(--ql-bg-elevated);
+  border-right: 1px solid var(--ql-border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sb-head { padding: var(--ql-space-3); border-bottom: 1px solid var(--ql-border); }
+
+/* Workspace switcher */
+.workspace {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  width: 100%; padding: var(--ql-space-2) var(--ql-space-3);
+  background: transparent; border: 1px solid transparent; border-radius: var(--ql-radius-lg);
+  color: var(--ql-text); text-align: left;
+  transition: background var(--ql-duration-fast) var(--ql-ease-out),
+              border-color var(--ql-duration-fast) var(--ql-ease-out);
+}
+.workspace:hover { background: var(--ql-neutral-50); border-color: var(--ql-border); }
+.workspace-avatar {
+  width: 32px; height: 32px; flex-shrink: 0;
+  border-radius: var(--ql-radius-md);
+  background: linear-gradient(140deg, var(--ql-brand-500), var(--ql-brand-700));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: var(--ql-weight-bold); font-size: var(--ql-text-md);
+  box-shadow: var(--ql-shadow-sm);
+}
+.workspace-text { flex: 1; min-width: 0; }
+.workspace-name { display: block; font-size: var(--ql-text-md); font-weight: var(--ql-weight-semibold);
+                  color: var(--ql-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                  line-height: var(--ql-leading-tight); }
+.workspace-meta { display: block; font-size: var(--ql-text-2xs); color: var(--ql-text-secondary);
+                  text-transform: uppercase; letter-spacing: var(--ql-tracking-wide);
+                  margin-top: 2px; }
+.workspace-chev { width: 14px; height: 14px; color: var(--ql-text-muted); flex-shrink: 0; }
+
+/* Search hint button — opens command palette */
+.sb-search {
+  display: flex; align-items: center; gap: var(--ql-space-2);
+  width: 100%; margin-top: var(--ql-space-3);
+  padding: var(--ql-space-2) var(--ql-space-3);
+  background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg);
+  color: var(--ql-text-secondary); font-size: var(--ql-text-sm);
+  transition: border-color var(--ql-duration-fast) var(--ql-ease-out),
+              background var(--ql-duration-fast) var(--ql-ease-out);
+}
+.sb-search:hover { border-color: var(--ql-border-strong); background: var(--ql-neutral-50); }
+.sb-search svg { width: 14px; height: 14px; color: var(--ql-text-muted); }
+.sb-search-text { flex: 1; text-align: left; }
+.sb-search-kbd {
+  font-family: var(--ql-font-mono); font-size: var(--ql-text-2xs);
+  padding: 2px 6px; border-radius: var(--ql-radius-sm);
+  background: var(--ql-neutral-100); color: var(--ql-text-secondary);
+  border: 1px solid var(--ql-border);
+}
+
+/* Nav body */
+.sb-nav {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: var(--ql-space-3) var(--ql-space-2);
+  scrollbar-width: thin;
+}
+.sb-nav::-webkit-scrollbar { width: 4px; }
+.sb-nav::-webkit-scrollbar-thumb { background: var(--ql-neutral-200); border-radius: var(--ql-radius-pill); }
+
+/* Nav group */
+.sb-group { margin-bottom: var(--ql-space-2); }
+.sb-group-title {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: var(--ql-space-2) var(--ql-space-3);
+  background: transparent; border: none;
+  font-size: var(--ql-text-2xs); font-weight: var(--ql-weight-bold);
+  letter-spacing: var(--ql-tracking-widest); text-transform: uppercase;
+  color: var(--ql-text-muted);
+}
+.sb-group-title svg { width: 12px; height: 12px; transition: transform var(--ql-duration-fast) var(--ql-ease-out); }
+.sb-group.collapsed .sb-group-title svg { transform: rotate(-90deg); }
+.sb-group.collapsed .sb-group-body { display: none; }
+.sb-group-body { display: flex; flex-direction: column; gap: 1px; }
+
+/* Nav link */
+.sb-link {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-2) var(--ql-space-3);
+  border-radius: var(--ql-radius-md);
+  font-size: var(--ql-text-md); font-weight: var(--ql-weight-medium);
+  color: var(--ql-text-secondary); text-decoration: none;
+  transition: background var(--ql-duration-fast) var(--ql-ease-out),
+              color var(--ql-duration-fast) var(--ql-ease-out);
+  position: relative;
+}
+.sb-link:hover { background: var(--ql-neutral-50); color: var(--ql-text); }
+.sb-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+.sb-link-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-link-badge {
+  margin-left: auto;
+  font-size: var(--ql-text-2xs); font-weight: var(--ql-weight-bold);
+  padding: 1px 6px; border-radius: var(--ql-radius-pill);
+  background: var(--ql-warning-100); color: var(--ql-warning-700);
+}
+.sb-link.active {
+  background: var(--ql-brand-50);
+  color: var(--ql-brand-700);
+  font-weight: var(--ql-weight-semibold);
+}
+.sb-link.active::before {
+  content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px;
+  background: var(--ql-brand-600); border-radius: 0 var(--ql-radius-sm) var(--ql-radius-sm) 0;
+}
+
+/* Solo links (Dashboard, Settings) */
+.sb-solo { margin-bottom: var(--ql-space-1); padding: 0 var(--ql-space-1); }
+
+/* Footer chip */
+.sb-foot {
+  padding: var(--ql-space-3);
+  border-top: 1px solid var(--ql-border);
+  display: flex; flex-direction: column; gap: var(--ql-space-2);
+}
+.sb-upgrade {
+  background: linear-gradient(160deg, var(--ql-brand-50), var(--ql-card));
+  border: 1px solid var(--ql-brand-100);
+  border-radius: var(--ql-radius-xl);
+  padding: var(--ql-space-3);
+  display: flex; flex-direction: column; gap: var(--ql-space-2);
+}
+.sb-upgrade-title { font-size: var(--ql-text-sm); font-weight: var(--ql-weight-semibold);
+                    color: var(--ql-text); display: flex; align-items: center; gap: var(--ql-space-2); }
+.sb-upgrade-title svg { width: 14px; height: 14px; color: var(--ql-brand-600); }
+.sb-upgrade-text { font-size: var(--ql-text-xs); color: var(--ql-text-secondary);
+                   line-height: var(--ql-leading-snug); }
+.sb-upgrade-btn {
+  background: var(--ql-neutral-900); color: #fff;
+  border: none; border-radius: var(--ql-radius-md);
+  padding: var(--ql-space-2) var(--ql-space-3);
+  font-size: var(--ql-text-sm); font-weight: var(--ql-weight-semibold);
+}
+.sb-upgrade-btn:hover { background: var(--ql-neutral-800); }
+
+.sb-profile {
+  display: flex; align-items: center; gap: var(--ql-space-2);
+  width: 100%; padding: var(--ql-space-2);
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--ql-radius-lg); color: var(--ql-text); text-align: left;
+}
+.sb-profile:hover { background: var(--ql-neutral-50); border-color: var(--ql-border); }
+.sb-profile-av {
+  width: 30px; height: 30px; border-radius: var(--ql-radius-pill);
+  background: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-700));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: var(--ql-weight-bold); font-size: var(--ql-text-sm); flex-shrink: 0;
+}
+.sb-profile-text { flex: 1; min-width: 0; }
+.sb-profile-name { display: block; font-size: var(--ql-text-sm); font-weight: var(--ql-weight-semibold);
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                   line-height: var(--ql-leading-tight); }
+.sb-profile-role { display: block; font-size: var(--ql-text-2xs); color: var(--ql-text-secondary);
+                   margin-top: 1px; }
+.sb-profile svg { width: 14px; height: 14px; color: var(--ql-text-muted); flex-shrink: 0; }
+
+/* Sidebar collapsed-state overrides */
+[data-collapsed="true"] .workspace-text,
+[data-collapsed="true"] .workspace-chev,
+[data-collapsed="true"] .sb-search-text,
+[data-collapsed="true"] .sb-search-kbd,
+[data-collapsed="true"] .sb-group-title,
+[data-collapsed="true"] .sb-link-text,
+[data-collapsed="true"] .sb-link-badge,
+[data-collapsed="true"] .sb-upgrade-text,
+[data-collapsed="true"] .sb-upgrade-btn,
+[data-collapsed="true"] .sb-upgrade-title span,
+[data-collapsed="true"] .sb-profile-text,
+[data-collapsed="true"] .sb-profile > svg:last-child { display: none; }
+[data-collapsed="true"] .sidebar { padding: 0; }
+[data-collapsed="true"] .sb-link, [data-collapsed="true"] .workspace, [data-collapsed="true"] .sb-search,
+[data-collapsed="true"] .sb-profile { justify-content: center; padding: var(--ql-space-2); }
+[data-collapsed="true"] .sb-link.active::before { left: -8px; }
+[data-collapsed="true"] .sb-upgrade { padding: var(--ql-space-2); }
+
+/* ── TOP BAR ─────────────────────────────────────────────────── */
+.topbar {
+  grid-area: topbar;
+  background: var(--ql-bg-elevated);
+  border-bottom: 1px solid var(--ql-border);
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: 0 var(--ql-space-6);
+}
+.tb-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: var(--ql-radius-md);
+  background: transparent; border: 1px solid var(--ql-border); color: var(--ql-text-secondary);
+}
+.tb-toggle:hover { background: var(--ql-neutral-50); color: var(--ql-text); }
+.tb-toggle svg { width: 16px; height: 16px; }
+
+.tb-crumb { display: flex; align-items: center; gap: var(--ql-space-2); font-size: var(--ql-text-md);
+            color: var(--ql-text-secondary); }
+.tb-crumb-active { color: var(--ql-text); font-weight: var(--ql-weight-semibold); }
+.tb-crumb svg { width: 12px; height: 12px; color: var(--ql-text-muted); }
+
+.tb-spacer { flex: 1; }
+
+.tb-search-bar {
+  display: flex; align-items: center; gap: var(--ql-space-2);
+  width: 320px;
+  padding: var(--ql-space-2) var(--ql-space-3);
+  background: var(--ql-bg);
+  border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg);
+  color: var(--ql-text-secondary); font-size: var(--ql-text-sm);
+  transition: border-color var(--ql-duration-fast) var(--ql-ease-out);
+}
+.tb-search-bar:hover { border-color: var(--ql-border-strong); }
+.tb-search-bar svg { width: 14px; height: 14px; color: var(--ql-text-muted); }
+.tb-search-bar span { flex: 1; text-align: left; }
+
+.tb-action {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: var(--ql-radius-lg);
+  background: transparent; border: 1px solid transparent;
+  color: var(--ql-text-secondary);
+  transition: background var(--ql-duration-fast) var(--ql-ease-out),
+              color var(--ql-duration-fast) var(--ql-ease-out),
+              border-color var(--ql-duration-fast) var(--ql-ease-out);
+}
+.tb-action:hover { background: var(--ql-neutral-50); border-color: var(--ql-border); color: var(--ql-text); }
+.tb-action svg { width: 16px; height: 16px; }
+.tb-action-dot {
+  position: absolute; top: 6px; right: 8px;
+  width: 8px; height: 8px; border-radius: var(--ql-radius-pill);
+  background: var(--ql-danger-500);
+  border: 2px solid var(--ql-bg-elevated);
+}
+.tb-action.is-ai { color: var(--ql-brand-600); }
+.tb-action.is-ai:hover { background: var(--ql-brand-50); border-color: var(--ql-brand-100); }
+
+.tb-avatar {
+  width: 36px; height: 36px; border-radius: var(--ql-radius-pill);
+  background: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-700));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: var(--ql-weight-bold); font-size: var(--ql-text-sm);
+  border: 1.5px solid var(--ql-card);
+  box-shadow: var(--ql-shadow-sm);
+}
+.tb-avatar:hover { transform: translateY(-1px); }
+
+/* ── MAIN CANVAS (placeholder) ───────────────────────────────── */
+.main {
+  grid-area: main;
+  background: var(--ql-bg);
+  overflow-y: auto;
+  padding: var(--ql-space-6);
+}
+.placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--ql-space-4);
+  height: 100%;
+  text-align: center;
+  background: var(--ql-card);
+  border: 1.5px dashed var(--ql-border-strong);
+  border-radius: var(--ql-radius-2xl);
+  padding: var(--ql-space-12);
+  color: var(--ql-text-secondary);
+}
+.placeholder-icon {
+  width: 56px; height: 56px; border-radius: var(--ql-radius-xl);
+  background: var(--ql-brand-50); color: var(--ql-brand-600);
+  display: flex; align-items: center; justify-content: center;
+}
+.placeholder-icon svg { width: 28px; height: 28px; }
+.placeholder h2 { font-size: var(--ql-text-xl); font-weight: var(--ql-weight-bold);
+                  color: var(--ql-text); margin: 0; letter-spacing: var(--ql-tracking-tight); }
+.placeholder p { margin: 0; max-width: 460px; line-height: var(--ql-leading-snug); }
+.placeholder .ql-btn-primary { margin-top: var(--ql-space-2); }
+
+/* ── COMMAND PALETTE ──────────────────────────────────────────── */
+.palette-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  z-index: var(--ql-z-modal);
+  display: none; align-items: flex-start; justify-content: center;
+  padding-top: 12vh;
+}
+.palette-backdrop.open { display: flex; animation: pFade var(--ql-duration-base) var(--ql-ease-out); }
+@keyframes pFade { from { opacity: 0; } to { opacity: 1; } }
+.palette {
+  width: min(640px, 92vw);
+  background: var(--ql-card);
+  border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-2xl);
+  box-shadow: var(--ql-shadow-xl);
+  overflow: hidden;
+  animation: pPop var(--ql-duration-base) var(--ql-ease-out);
+}
+@keyframes pPop { from { transform: translateY(-8px) scale(.98); opacity: 0; }
+                  to   { transform: translateY(0)    scale(1);  opacity: 1; } }
+.palette-input-wrap {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-4); border-bottom: 1px solid var(--ql-border);
+}
+.palette-input-wrap svg { width: 18px; height: 18px; color: var(--ql-text-muted); flex-shrink: 0; }
+.palette-input {
+  flex: 1; border: none; background: transparent; outline: none;
+  font-family: inherit; font-size: var(--ql-text-md); color: var(--ql-text);
+}
+.palette-input::placeholder { color: var(--ql-text-muted); }
+.palette-input-kbd {
+  font-family: var(--ql-font-mono); font-size: var(--ql-text-xs);
+  padding: 3px 8px; border-radius: var(--ql-radius-sm);
+  background: var(--ql-neutral-100); color: var(--ql-text-secondary);
+  border: 1px solid var(--ql-border);
+}
+.palette-list { max-height: 60vh; overflow-y: auto; padding: var(--ql-space-2); }
+.palette-group-title {
+  font-size: var(--ql-text-2xs); font-weight: var(--ql-weight-bold);
+  letter-spacing: var(--ql-tracking-widest); text-transform: uppercase;
+  color: var(--ql-text-muted);
+  padding: var(--ql-space-3) var(--ql-space-3) var(--ql-space-1);
+}
+.palette-row {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-3); border-radius: var(--ql-radius-md);
+  color: var(--ql-text); text-decoration: none;
+  font-size: var(--ql-text-md);
+  cursor: pointer;
+}
+.palette-row:hover, .palette-row.is-focused { background: var(--ql-brand-50); }
+.palette-row-ic {
+  width: 32px; height: 32px; flex-shrink: 0;
+  border-radius: var(--ql-radius-md); background: var(--ql-neutral-100); color: var(--ql-text-secondary);
+  display: flex; align-items: center; justify-content: center;
+}
+.palette-row-ic svg { width: 16px; height: 16px; }
+.palette-row-body { flex: 1; min-width: 0; }
+.palette-row-title { font-size: var(--ql-text-md); font-weight: var(--ql-weight-medium); color: var(--ql-text);
+                     line-height: var(--ql-leading-tight); }
+.palette-row-meta { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin-top: 2px; }
+.palette-row-shortcut {
+  font-family: var(--ql-font-mono); font-size: var(--ql-text-2xs);
+  padding: 2px 7px; border-radius: var(--ql-radius-sm);
+  background: var(--ql-neutral-100); color: var(--ql-text-secondary);
+  border: 1px solid var(--ql-border);
+}
+.palette-foot {
+  display: flex; align-items: center; gap: var(--ql-space-4);
+  padding: var(--ql-space-3) var(--ql-space-4);
+  border-top: 1px solid var(--ql-border);
+  font-size: var(--ql-text-xs); color: var(--ql-text-muted);
+}
+.palette-foot kbd {
+  font-family: var(--ql-font-mono);
+  padding: 1px 5px; border-radius: var(--ql-radius-xs);
+  background: var(--ql-neutral-100); color: var(--ql-text-secondary);
+  border: 1px solid var(--ql-border);
+  margin-right: 4px;
+}
+
+/* ── WORKSPACE DROPDOWN ──────────────────────────────────────── */
+.ws-menu {
+  position: absolute; left: var(--ql-space-3); right: var(--ql-space-3); top: 64px;
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-xl); box-shadow: var(--ql-shadow-lg);
+  padding: var(--ql-space-2); z-index: var(--ql-z-dropdown);
+  display: none; flex-direction: column; gap: 1px;
+  animation: pPop var(--ql-duration-base) var(--ql-ease-out);
+}
+.ws-menu.open { display: flex; }
+.ws-row {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-2) var(--ql-space-3); border-radius: var(--ql-radius-md);
+  background: transparent; border: none; color: var(--ql-text);
+  font-size: var(--ql-text-md); text-align: left; text-decoration: none;
+}
+.ws-row:hover { background: var(--ql-neutral-50); }
+.ws-row.active { background: var(--ql-brand-50); color: var(--ql-brand-700); font-weight: var(--ql-weight-semibold); }
+.ws-row-av {
+  width: 28px; height: 28px; border-radius: var(--ql-radius-sm); flex-shrink: 0;
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: var(--ql-weight-bold); font-size: var(--ql-text-sm);
+}
+.ws-add { color: var(--ql-text-secondary); }
+.ws-add .ws-row-av { background: var(--ql-neutral-100); color: var(--ql-text-secondary); }
+
+/* ── RESPONSIVE ──────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .tb-search-bar { display: none; }
+}
+@media (max-width: 768px) {
+  .shell { grid-template-columns: 1fr; grid-template-areas: "topbar" "main"; }
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 88vw; max-width: 320px;
+    z-index: var(--ql-z-overlay);
+    transform: translateX(-100%);
+    transition: transform var(--ql-duration-base) var(--ql-ease-out);
+    border-right: 1px solid var(--ql-border);
+    box-shadow: var(--ql-shadow-xl);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .mobile-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: calc(var(--ql-z-overlay) - 1);
+    display: none;
+  }
+  .mobile-backdrop.open { display: block; }
+  .main { padding: var(--ql-space-4); }
+  .topbar { padding: 0 var(--ql-space-4); }
+}
+</style>
+</head>
+
+<body class="ql-v2">
+<div class="shell" data-collapsed="false" id="shell">
+
+  <!-- ═════ SIDEBAR ═════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-head">
+      <button class="workspace" id="wsBtn" aria-expanded="false">
+        <span class="workspace-avatar">D</span>
+        <span class="workspace-text">
+          <span class="workspace-name">Deshwali Minerals</span>
+          <span class="workspace-meta">Quick Lime · Enterprise</span>
+        </span>
+        <svg class="workspace-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="ws-menu" id="wsMenu">
+        <button class="ws-row active">
+          <span class="ws-row-av" style="background:linear-gradient(135deg,var(--ql-brand-500),var(--ql-brand-700))">D</span>
+          <span>Deshwali Minerals</span>
+          <svg style="margin-left:auto;width:14px;height:14px;color:var(--ql-brand-600)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+        <button class="ws-row">
+          <span class="ws-row-av" style="background:linear-gradient(135deg,#F59E0B,#D97706)">G</span>
+          <span>Gotan Lime Industries</span>
+        </button>
+        <div style="height:1px;background:var(--ql-border);margin:var(--ql-space-1) var(--ql-space-2)"></div>
+        <button class="ws-row ws-add">
+          <span class="ws-row-av"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+          <span>Add company</span>
+        </button>
+      </div>
+
+      <button class="sb-search" onclick="openPalette()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="sb-search-text">Search</span>
+        <span class="sb-search-kbd">⌘K</span>
+      </button>
+    </div>
+
+    <nav class="sb-nav">
+
+      <!-- Solo: Dashboard -->
+      <div class="sb-solo">
+        <a class="sb-link active" href="#" data-page="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span class="sb-link-text">Dashboard</span>
+        </a>
+      </div>
+
+      <!-- SALES -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>Sales</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span class="sb-link-text">GST Invoice</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span class="sb-link-text">Sales Register</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span class="sb-link-text">Collections</span><span class="sb-link-badge">9</span></a>
+        </div>
+      </div>
+
+      <!-- PURCHASES -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>Purchases</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><span class="sb-link-text">Purchase Register</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8.5a1 1 0 0 1 .5-.87L12 4l6.5 3.63a1 1 0 0 1 .5.87V21M9 9v12M15 9v12M9 13h6"/></svg><span class="sb-link-text">Suppliers</span></a>
+        </div>
+      </div>
+
+      <!-- PRODUCTION -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>Production</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg><span class="sb-link-text">Quick Lime Production</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13V8h14v5a7 7 0 0 1-7 7Z"/><line x1="9" y1="3" x2="9" y2="6"/><line x1="13" y1="3" x2="13" y2="6"/></svg><span class="sb-link-text">Chunna Production</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V12M9 21V8M13 21V4M17 21V11M21 21V14"/></svg><span class="sb-link-text">Kiln Management</span><span class="sb-link-badge" style="background:var(--ql-success-100);color:var(--ql-success-700)">3</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="sb-link-text">Daily Production</span></a>
+        </div>
+      </div>
+
+      <!-- INVENTORY -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>Inventory</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5z"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg><span class="sb-link-text">Raw Material</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span class="sb-link-text">Stock Management</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg><span class="sb-link-text">Dispatch</span></a>
+        </div>
+      </div>
+
+      <!-- FINANCE -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>Finance</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg><span class="sb-link-text">Expenses</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="21" width="18" height="0"/><path d="M3 10h18M3 8l9-6 9 6M6 14v4M10 14v4M14 14v4M18 14v4M3 21h18"/></svg><span class="sb-link-text">Loans</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7"/><polyline points="14 14 14 19 19 19"/></svg><span class="sb-link-text">GST</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg><span class="sb-link-text">Profit & Loss</span></a>
+        </div>
+      </div>
+
+      <!-- PEOPLE -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>People</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="sb-link-text">Labour</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="sb-link-text">Attendance</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20M7 15h2M13 15h4"/></svg><span class="sb-link-text">Payroll</span></a>
+        </div>
+      </div>
+
+      <!-- REPORTS -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>Reports</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="sb-link-text">Business Analytics</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span class="sb-link-text">Production Analytics</span></a>
+        </div>
+      </div>
+
+      <!-- Solo: Settings -->
+      <div class="sb-solo" style="margin-top:var(--ql-space-2)">
+        <a class="sb-link" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="sb-link-text">Settings</span>
+        </a>
+      </div>
+
+    </nav>
+
+    <div class="sb-foot">
+      <div class="sb-upgrade">
+        <div class="sb-upgrade-title">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 9 9 2 9.5l5 5L5.5 22 12 18l6.5 4-1.5-7.5 5-5L15 9z"/></svg>
+          <span>Trial · 14 days left</span>
+        </div>
+        <div class="sb-upgrade-text">Upgrade to unlock production analytics, AI insights and unlimited child plants.</div>
+        <button class="sb-upgrade-btn">Upgrade plan</button>
+      </div>
+      <button class="sb-profile">
+        <span class="sb-profile-av">S</span>
+        <span class="sb-profile-text">
+          <span class="sb-profile-name">Sameer Kayyum</span>
+          <span class="sb-profile-role">Owner</span>
+        </span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- mobile backdrop -->
+  <div class="mobile-backdrop" id="mobBack" onclick="toggleMobileSidebar(false)"></div>
+
+  <!-- ═════ TOP BAR ═════ -->
+  <header class="topbar">
+    <button class="tb-toggle" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+
+    <nav class="tb-crumb" aria-label="Breadcrumb">
+      <span>QuickLimes</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <span class="tb-crumb-active">Dashboard</span>
+    </nav>
+
+    <div class="tb-spacer"></div>
+
+    <button class="tb-search-bar" onclick="openPalette()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span>Search anything…</span>
+      <span class="sb-search-kbd">⌘K</span>
+    </button>
+
+    <button class="tb-action" title="New (N)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+
+    <button class="tb-action" title="Notifications">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="tb-action-dot"></span>
+    </button>
+
+    <button class="tb-action is-ai" title="Ask AI">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9 12 2"/></svg>
+    </button>
+
+    <button class="tb-avatar">S</button>
+  </header>
+
+  <!-- ═════ MAIN ═════ -->
+  <main class="main">
+    <div class="placeholder">
+      <div class="placeholder-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      </div>
+      <h2>App shell ready</h2>
+      <p>This is the new QuickLimes v2 shell — sidebar, top bar, workspace switcher and ⌘K palette are wired and compose entirely from the design tokens. The dashboard content (KPIs, charts, collections, production) will be built here in the next phase.</p>
+      <div style="display:flex;gap:var(--ql-space-3)">
+        <button class="ql-btn ql-btn-primary" onclick="openPalette()">Try ⌘K</button>
+        <button class="ql-btn ql-btn-secondary" onclick="toggleSidebar()">Collapse sidebar</button>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<!-- ═════ COMMAND PALETTE ═════ -->
+<div class="palette-backdrop" id="paletteBack" onclick="if(event.target===this)closePalette()">
+  <div class="palette" id="palette" role="dialog" aria-label="Command palette">
+    <div class="palette-input-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="palette-input" id="paletteInput" placeholder="Search invoices, parties, suppliers, labour or actions…" />
+      <span class="palette-input-kbd">ESC</span>
+    </div>
+    <div class="palette-list" id="paletteList"></div>
+    <div class="palette-foot">
+      <span><kbd>↑↓</kbd> navigate</span>
+      <span><kbd>↵</kbd> select</span>
+      <span><kbd>ESC</kbd> close</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Sidebar toggle ───────────────────────────────────────────── */
+const shell   = document.getElementById('shell');
+const sidebar = document.getElementById('sidebar');
+const mobBack = document.getElementById('mobBack');
+const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+
+function toggleSidebar(){
+  if (isMobile()) {
+    toggleMobileSidebar();
+  } else {
+    shell.dataset.collapsed = shell.dataset.collapsed === 'true' ? 'false' : 'true';
+  }
+}
+function toggleMobileSidebar(force){
+  const open = (typeof force === 'boolean') ? force : !sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', open);
+  mobBack.classList.toggle('open', open);
+}
+
+/* ── Group expand/collapse ───────────────────────────────────── */
+function toggleGroup(btn){ btn.parentElement.classList.toggle('collapsed'); }
+
+/* ── Sidebar nav active state ────────────────────────────────── */
+document.querySelectorAll('.sb-link').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('.sb-link.active').forEach(a => a.classList.remove('active'));
+    link.classList.add('active');
+    // Update breadcrumb
+    const crumb = link.querySelector('.sb-link-text')?.textContent || 'Dashboard';
+    document.querySelector('.tb-crumb-active').textContent = crumb;
+    if (isMobile()) toggleMobileSidebar(false);
+  });
+});
+
+/* ── Workspace dropdown ──────────────────────────────────────── */
+const wsBtn  = document.getElementById('wsBtn');
+const wsMenu = document.getElementById('wsMenu');
+wsBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  const open = wsMenu.classList.toggle('open');
+  wsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+});
+document.addEventListener('click', e => {
+  if (!wsMenu.contains(e.target) && e.target !== wsBtn) wsMenu.classList.remove('open');
+});
+document.querySelectorAll('.ws-row').forEach(row => {
+  row.addEventListener('click', () => {
+    document.querySelectorAll('.ws-row').forEach(r => r.classList.remove('active'));
+    row.classList.add('active');
+    // Reflect on the workspace switcher button
+    const av = row.querySelector('.ws-row-av');
+    const nm = row.querySelector('span:not(.ws-row-av)');
+    if (av && nm) {
+      const newAv = wsBtn.querySelector('.workspace-avatar');
+      const newNm = wsBtn.querySelector('.workspace-name');
+      newAv.textContent = av.textContent;
+      newAv.style.background = av.style.background;
+      newNm.textContent = nm.textContent;
+    }
+    wsMenu.classList.remove('open');
+  });
+});
+
+/* ── Command palette ─────────────────────────────────────────── */
+const ITEMS = [
+  { group: 'Quick actions', icon: 'plus',  title: 'New GST invoice',      meta: 'Create a sales invoice',  shortcut: 'N I' },
+  { group: 'Quick actions', icon: 'truck', title: 'Record dispatch',      meta: 'Log outgoing material',   shortcut: 'N D' },
+  { group: 'Quick actions', icon: 'flame', title: 'Start kiln run',       meta: 'Log a new production batch' },
+  { group: 'Navigation',    icon: 'grid',  title: 'Go to Dashboard',       meta: 'Overview · KPIs',     shortcut: 'G D' },
+  { group: 'Navigation',    icon: 'chart', title: 'Go to Sales Register',  meta: 'All invoices',       shortcut: 'G S' },
+  { group: 'Navigation',    icon: 'cube',  title: 'Go to Stock Management',meta: 'Inventory levels',   shortcut: 'G M' },
+  { group: 'Navigation',    icon: 'users', title: 'Go to Labour',          meta: 'Workers + attendance',shortcut: 'G L' },
+  { group: 'Find',          icon: 'user',  title: 'KIRTI LIME PRODUCTS',   meta: 'Customer · 9 outstanding' },
+  { group: 'Find',          icon: 'user',  title: 'AMAN LIME PRODUCTS',    meta: 'Customer · 13 outstanding' },
+  { group: 'Find',          icon: 'user',  title: 'Mateshwari Mines',      meta: 'Supplier · ₹6,72,985 due' },
+  { group: 'AI',            icon: 'spark', title: 'How is production trending?', meta: 'Ask AI for an analysis' },
+  { group: 'AI',            icon: 'spark', title: 'Top 5 overdue collections',   meta: 'Ranked by days outstanding' },
+];
+
+const ICONS = {
+  plus:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  truck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
+  flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>',
+  grid:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+  chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+  cube:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
+  user:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  spark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9 12 2"/></svg>',
+};
+
+let focusedIndex = 0;
+function renderPalette(query=''){
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? ITEMS.filter(it => (it.title + ' ' + it.meta + ' ' + it.group).toLowerCase().includes(q))
+    : ITEMS;
+  const grouped = filtered.reduce((acc, it) => { (acc[it.group] = acc[it.group] || []).push(it); return acc; }, {});
+  const list = document.getElementById('paletteList');
+  let html = '';
+  let idx = 0;
+  for (const group of Object.keys(grouped)) {
+    html += `<div class="palette-group-title">${group}</div>`;
+    for (const it of grouped[group]) {
+      html += `<a class="palette-row${idx===focusedIndex?' is-focused':''}" data-idx="${idx}" tabindex="-1">
+        <span class="palette-row-ic">${ICONS[it.icon]||''}</span>
+        <span class="palette-row-body">
+          <div class="palette-row-title">${escapeHTML(it.title)}</div>
+          <div class="palette-row-meta">${escapeHTML(it.meta)}</div>
+        </span>
+        ${it.shortcut?`<span class="palette-row-shortcut">${it.shortcut}</span>`:''}
+      </a>`;
+      idx++;
+    }
+  }
+  if (!filtered.length) {
+    html = `<div style="padding:var(--ql-space-6);text-align:center;color:var(--ql-text-muted);font-size:var(--ql-text-md)">No results for "${escapeHTML(query)}"</div>`;
+  }
+  list.innerHTML = html;
+}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]));}
+
+function openPalette(){
+  focusedIndex = 0;
+  document.getElementById('paletteBack').classList.add('open');
+  renderPalette('');
+  setTimeout(() => document.getElementById('paletteInput').focus(), 0);
+}
+function closePalette(){
+  document.getElementById('paletteBack').classList.remove('open');
+  document.getElementById('paletteInput').value = '';
+}
+
+document.getElementById('paletteInput').addEventListener('input', e => {
+  focusedIndex = 0;
+  renderPalette(e.target.value);
+});
+document.getElementById('paletteInput').addEventListener('keydown', e => {
+  const rows = [...document.querySelectorAll('.palette-row')];
+  if (e.key === 'ArrowDown') { e.preventDefault(); focusedIndex = Math.min(focusedIndex+1, rows.length-1); updateFocus(rows); }
+  if (e.key === 'ArrowUp')   { e.preventDefault(); focusedIndex = Math.max(focusedIndex-1, 0); updateFocus(rows); }
+  if (e.key === 'Enter')     { e.preventDefault(); rows[focusedIndex]?.click(); }
+});
+function updateFocus(rows){
+  rows.forEach((r,i) => r.classList.toggle('is-focused', i===focusedIndex));
+  rows[focusedIndex]?.scrollIntoView({block:'nearest'});
+}
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if ((e.metaKey || e.ctrlKey) && k === 'k') { e.preventDefault(); openPalette(); }
+  if (k === 'escape') closePalette();
+});
+
+document.getElementById('paletteList').addEventListener('click', e => {
+  const row = e.target.closest('.palette-row');
+  if (row) {
+    // Stub action — in real app this would route. For now, close palette.
+    closePalette();
+  }
+});
+
+/* ── Initial paint ───────────────────────────────────────────── */
+renderPalette('');
+</script>
+</body>
+</html>
