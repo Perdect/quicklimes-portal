@@ -1,0 +1,246 @@
+/* ═══════════════════════════════════════════════════════════════
+   QuickLimes v2 — Design Tokens
+   The single source of truth for colour, type, spacing, radius,
+   and shadow. Every component in v2 should compose from these.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── BRAND COLOUR ──────────────────────────────────────────── */
+  --ql-brand-50:  #EFF6FF;
+  --ql-brand-100: #DBEAFE;
+  --ql-brand-200: #BFDBFE;
+  --ql-brand-300: #93C5FD;
+  --ql-brand-400: #60A5FA;
+  --ql-brand-500: #3B82F6;
+  --ql-brand-600: #2563EB;   /* primary action */
+  --ql-brand-700: #1D4ED8;
+  --ql-brand-800: #1E40AF;
+  --ql-brand-900: #1E3A8A;
+
+  /* ── SEMANTIC ─────────────────────────────────────────────── */
+  --ql-success-50:  #F0FDF4;
+  --ql-success-100: #DCFCE7;
+  --ql-success-500: #22C55E;
+  --ql-success-600: #16A34A;
+  --ql-success-700: #15803D;
+
+  --ql-warning-50:  #FFFBEB;
+  --ql-warning-100: #FEF3C7;
+  --ql-warning-500: #F59E0B;
+  --ql-warning-600: #D97706;
+  --ql-warning-700: #B45309;
+
+  --ql-danger-50:  #FEF2F2;
+  --ql-danger-100: #FEE2E2;
+  --ql-danger-500: #EF4444;
+  --ql-danger-600: #DC2626;
+  --ql-danger-700: #B91C1C;
+
+  /* ── NEUTRAL (Slate) ──────────────────────────────────────── */
+  --ql-neutral-0:   #FFFFFF;
+  --ql-neutral-50:  #F8FAFC;   /* page background */
+  --ql-neutral-100: #F1F5F9;
+  --ql-neutral-200: #E2E8F0;   /* hairline border */
+  --ql-neutral-300: #CBD5E1;
+  --ql-neutral-400: #94A3B8;
+  --ql-neutral-500: #64748B;
+  --ql-neutral-600: #475569;
+  --ql-neutral-700: #334155;
+  --ql-neutral-800: #1E293B;
+  --ql-neutral-900: #0F172A;   /* primary text */
+
+  /* ── SURFACE & STRUCTURE ──────────────────────────────────── */
+  --ql-bg:           var(--ql-neutral-50);
+  --ql-bg-elevated: var(--ql-neutral-0);
+  --ql-card:        var(--ql-neutral-0);
+  --ql-border:      var(--ql-neutral-200);
+  --ql-border-strong: var(--ql-neutral-300);
+  --ql-divider:     var(--ql-neutral-100);
+
+  --ql-text:        var(--ql-neutral-900);
+  --ql-text-secondary: var(--ql-neutral-500);
+  --ql-text-muted:  var(--ql-neutral-400);
+  --ql-text-inverted: var(--ql-neutral-0);
+
+  --ql-link:        var(--ql-brand-600);
+  --ql-link-hover:  var(--ql-brand-700);
+
+  /* ── TYPOGRAPHY ───────────────────────────────────────────── */
+  --ql-font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+                  'Helvetica Neue', Arial, sans-serif;
+  --ql-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+
+  /* Type scale (matches Tailwind/Inter conventions) */
+  --ql-text-2xs:  10px;     /* labels, badges */
+  --ql-text-xs:   11px;
+  --ql-text-sm:   12px;
+  --ql-text-base: 13px;     /* body in dense ERP UIs */
+  --ql-text-md:   14px;
+  --ql-text-lg:   16px;
+  --ql-text-xl:   18px;
+  --ql-text-2xl:  22px;     /* card values */
+  --ql-text-3xl:  28px;     /* page H1 */
+  --ql-text-4xl:  32px;     /* hero */
+
+  --ql-leading-tight: 1.2;
+  --ql-leading-snug:  1.35;
+  --ql-leading-base:  1.5;
+  --ql-leading-loose: 1.7;
+
+  --ql-tracking-tight:  -0.02em;
+  --ql-tracking-base:    0;
+  --ql-tracking-wide:    0.04em;
+  --ql-tracking-widest:  0.12em;
+
+  --ql-weight-regular: 400;
+  --ql-weight-medium:  500;
+  --ql-weight-semibold:600;
+  --ql-weight-bold:    700;
+  --ql-weight-black:   800;
+
+  /* ── SPACING (8px grid, half-step at 4px) ─────────────────── */
+  --ql-space-0:   0;
+  --ql-space-1:   4px;
+  --ql-space-2:   8px;
+  --ql-space-3:   12px;
+  --ql-space-4:   16px;
+  --ql-space-5:   20px;
+  --ql-space-6:   24px;
+  --ql-space-8:   32px;
+  --ql-space-10:  40px;
+  --ql-space-12:  48px;
+  --ql-space-14:  56px;
+  --ql-space-16:  64px;
+
+  /* ── RADIUS ───────────────────────────────────────────────── */
+  --ql-radius-xs:  4px;
+  --ql-radius-sm:  6px;
+  --ql-radius-md:  8px;
+  --ql-radius-lg:  10px;
+  --ql-radius-xl:  12px;
+  --ql-radius-2xl: 16px;
+  --ql-radius-3xl: 20px;
+  --ql-radius-pill: 9999px;
+
+  /* ── SHADOW (soft, layered, never harsh) ──────────────────── */
+  --ql-shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --ql-shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.05),
+                  0 1px 2px 0 rgba(15, 23, 42, 0.03);
+  --ql-shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.06),
+                  0 2px 4px -1px rgba(15, 23, 42, 0.04);
+  --ql-shadow-lg: 0 12px 24px -4px rgba(15, 23, 42, 0.08),
+                  0 4px 8px -2px rgba(15, 23, 42, 0.04);
+  --ql-shadow-xl: 0 24px 48px -8px rgba(15, 23, 42, 0.12),
+                  0 8px 16px -4px rgba(15, 23, 42, 0.06);
+  --ql-shadow-ring: 0 0 0 3px rgba(37, 99, 235, 0.12);   /* focus ring */
+  --ql-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  /* ── MOTION ───────────────────────────────────────────────── */
+  --ql-ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ql-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ql-duration-fast:   120ms;
+  --ql-duration-base:   180ms;
+  --ql-duration-slow:   280ms;
+
+  /* ── LAYOUT ───────────────────────────────────────────────── */
+  --ql-sidebar-w:        264px;
+  --ql-sidebar-w-collapsed: 64px;
+  --ql-topbar-h:         60px;
+  --ql-container-max:    1440px;
+
+  /* ── Z-INDEX SCALE ────────────────────────────────────────── */
+  --ql-z-base:     1;
+  --ql-z-sticky:   100;
+  --ql-z-dropdown: 200;
+  --ql-z-overlay:  300;
+  --ql-z-modal:    400;
+  --ql-z-toast:    500;
+  --ql-z-tooltip:  600;
+}
+
+/* ── DARK MODE (token swap only — components reference vars) ── */
+[data-theme="dark"] {
+  --ql-bg:           #020617;
+  --ql-bg-elevated: #0F172A;
+  --ql-card:        #0F172A;
+  --ql-border:      #1E293B;
+  --ql-border-strong: #334155;
+  --ql-divider:     #1E293B;
+
+  --ql-text:        #F1F5F9;
+  --ql-text-secondary: #94A3B8;
+  --ql-text-muted:  #64748B;
+
+  --ql-shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.30);
+  --ql-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.40);
+  --ql-shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.45);
+  --ql-shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.50);
+  --ql-shadow-xl: 0 24px 48px -8px rgba(0, 0, 0, 0.60);
+}
+
+/* ── RESETS / NORMALISATION FOR v2 SCOPE ─────────────────────── */
+.ql-v2,
+.ql-v2 *,
+.ql-v2 *::before,
+.ql-v2 *::after {
+  box-sizing: border-box;
+}
+.ql-v2 {
+  font-family: var(--ql-font-sans);
+  font-size: var(--ql-text-base);
+  line-height: var(--ql-leading-base);
+  color: var(--ql-text);
+  background: var(--ql-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11', 'ss03';
+}
+
+/* ── UTILITY: PRIMARY BUTTON (reference implementation) ─────── */
+.ql-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ql-space-2);
+  padding: var(--ql-space-2) var(--ql-space-4);
+  border-radius: var(--ql-radius-lg);
+  font-family: var(--ql-font-sans);
+  font-size: var(--ql-text-md);
+  font-weight: var(--ql-weight-semibold);
+  line-height: 1;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background var(--ql-duration-fast) var(--ql-ease-out),
+              border-color var(--ql-duration-fast) var(--ql-ease-out),
+              color var(--ql-duration-fast) var(--ql-ease-out),
+              box-shadow var(--ql-duration-fast) var(--ql-ease-out),
+              transform var(--ql-duration-fast) var(--ql-ease-out);
+}
+.ql-btn:focus-visible { outline: none; box-shadow: var(--ql-shadow-ring); }
+.ql-btn:active        { transform: scale(0.985); }
+
+.ql-btn-primary {
+  background: var(--ql-brand-600);
+  color: var(--ql-text-inverted);
+}
+.ql-btn-primary:hover { background: var(--ql-brand-700); }
+
+.ql-btn-secondary {
+  background: var(--ql-card);
+  color: var(--ql-text);
+  border-color: var(--ql-border);
+}
+.ql-btn-secondary:hover { background: var(--ql-neutral-50); border-color: var(--ql-border-strong); }
+
+.ql-btn-ghost {
+  background: transparent;
+  color: var(--ql-text-secondary);
+}
+.ql-btn-ghost:hover { background: var(--ql-neutral-100); color: var(--ql-text); }
+
+.ql-btn-danger {
+  background: var(--ql-danger-50);
+  color: var(--ql-danger-600);
+  border-color: var(--ql-danger-100);
+}
+.ql-btn-danger:hover { background: var(--ql-danger-100); color: var(--ql-danger-700); }
