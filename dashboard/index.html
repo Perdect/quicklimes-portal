@@ -1195,6 +1195,72 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
 .imp-pdf-text{background:#f8fafc;border-radius:8px;padding:8px 12px;font-size:10px;max-height:80px;overflow-y:auto;color:var(--ink4);white-space:pre-wrap;word-break:break-all;margin-bottom:10px;display:none}
 .imp-ok{background:var(--green2);border-radius:12px;padding:20px;text-align:center;color:var(--green);font-weight:700;font-size:15px;margin:8px 0}
 
+/* ══ TOPBAR v2 — search + notifications ══ */
+.app-topbar{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+/* Page headers need clearance for the search+bell+avatar cluster (desktop only) */
+@media(min-width:769px){.ph{padding-right:160px}}
+.tb2-btn{position:relative;width:40px;height:40px;border-radius:50%;background:#fff;border:1.5px solid #e8eaf5;color:#6b7280;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .12s,color .12s,box-shadow .15s;box-shadow:0 2px 8px rgba(15,23,42,.05)}
+.tb2-btn:hover{border-color:#bbd6f7;color:var(--p2);box-shadow:0 4px 14px rgba(0,115,236,.12)}
+.tb2-dot{position:absolute;top:7px;right:8px;min-width:9px;height:9px;border-radius:50%;background:#ef4444;border:2px solid #fff}
+/* Global search modal */
+#gsearch-back{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:3000;display:none;align-items:flex-start;justify-content:center;padding:10vh 16px 16px}
+#gsearch-back.open{display:flex}
+#gsearch{width:min(620px,100%);background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.28);overflow:hidden;animation:slideUp .22s cubic-bezier(.32,.72,0,1)}
+.gs-head{display:flex;align-items:center;gap:11px;padding:15px 18px;border-bottom:1px solid #eef0f4}
+.gs-head svg{color:#9ca3af;flex-shrink:0}
+.gs-head input{flex:1;border:none;outline:none;font-size:14.5px;font-family:Inter,sans-serif;color:#0D1B2D;background:transparent;min-width:0}
+.gs-kbd{font-size:10px;font-weight:700;color:#9ca3af;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;padding:2px 7px;font-family:ui-monospace,monospace}
+.gs-list{max-height:54vh;overflow-y:auto;padding:7px}
+.gs-group{font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#9ca3af;padding:10px 12px 4px}
+.gs-row{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer}
+.gs-row:hover,.gs-row.focused{background:var(--p6)}
+.gs-row-ic{width:34px;height:34px;border-radius:9px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;color:#6b7280}
+.gs-row-t{font-size:13px;font-weight:600;color:#0D1B2D;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gs-row-s{font-size:11px;color:#9ca3af;margin-top:1px}
+/* Notifications dropdown */
+#notif-menu{position:fixed;width:330px;max-width:calc(100vw - 24px);background:#fff;border:1px solid #eef0f4;border-radius:16px;box-shadow:0 18px 50px rgba(15,23,42,.16);z-index:2500;display:none;flex-direction:column;overflow:hidden;animation:slideUp .2s cubic-bezier(.32,.72,0,1)}
+#notif-menu.open{display:flex}
+.nf-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid #f1f3f8;font-size:13.5px;font-weight:800;color:#0D1B2D}
+.nf-count{font-size:10px;font-weight:800;background:#fee2e2;color:#dc2626;border-radius:50px;padding:2px 8px}
+.nf-list{max-height:50vh;overflow-y:auto;padding:6px}
+.nf-row{display:flex;gap:11px;padding:11px 12px;border-radius:10px;cursor:pointer;align-items:flex-start}
+.nf-row:hover{background:#f8fafc}
+.nf-ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
+.nf-ic.danger{background:#fee2e2}
+.nf-ic.warning{background:#fef3c7}
+.nf-ic.info{background:#E6F1FE}
+.nf-t{font-size:12.5px;font-weight:700;color:#0D1B2D;line-height:1.3}
+.nf-s{font-size:11px;color:#6b7280;margin-top:2px}
+.nf-empty{padding:34px 20px;text-align:center;color:#9ca3af;font-size:12.5px}
+
+/* ══ PARTIES — contacts-style table ══ */
+.pseg{display:inline-flex;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:4px;gap:2px}
+.pseg-btn{padding:7px 16px;border-radius:9px;border:none;background:transparent;color:#6b7280;font-size:12.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;transition:background .12s,color .12s}
+.pseg-btn:hover{color:#0D1B2D}
+.pt-search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:8px 14px;min-width:220px;flex:0 1 300px;margin-left:auto;transition:border-color .12s}
+.pt-search:focus-within{border-color:var(--p4)}
+.pt-search input{border:none;outline:none;font-size:12.5px;font-family:Inter,sans-serif;flex:1;background:transparent;color:#0D1B2D;min-width:0}
+.pt-search svg{color:#9ca3af;flex-shrink:0}
+.pt-row td{padding:13px 16px!important;border-bottom:1px solid #f1f3f8}
+.pt-row:hover td{background:#fafbfd}
+.pt-party{display:flex;align-items:center;gap:12px;min-width:0}
+.pt-av{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff}
+.pt-name{font-weight:700;color:#0D1B2D;font-size:13px;line-height:1.25}
+.pt-gstin{font-size:11px;color:#9ca3af;margin-top:2px;letter-spacing:.3px}
+.pt-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:4px 11px;border-radius:50px;white-space:nowrap}
+.pt-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.pt-muted{font-size:12px;color:#6b7280}
+.pt-kebab{width:32px;height:32px;border-radius:8px;border:none;background:transparent;cursor:pointer;color:#9ca3af;display:inline-flex;align-items:center;justify-content:center;transition:background .12s,color .12s}
+.pt-kebab:hover{background:#f3f4f6;color:#374151}
+#party-menu{position:fixed;background:#fff;border:1px solid #eef0f4;border-radius:12px;box-shadow:0 12px 32px rgba(15,23,42,.14);padding:5px;z-index:1500;min-width:160px;display:none;flex-direction:column;gap:1px}
+#party-menu.open{display:flex}
+#party-menu button{display:flex;align-items:center;gap:9px;padding:9px 11px;border:none;background:none;border-radius:8px;font-size:12.5px;font-weight:600;color:#374151;cursor:pointer;font-family:Inter,sans-serif;text-align:left}
+#party-menu button:hover{background:#f8fafc}
+#party-menu button svg{color:#9ca3af;flex-shrink:0}
+#party-menu button.danger{color:#dc2626}
+#party-menu button.danger svg{color:#dc2626}
+#party-menu button.danger:hover{background:#fef2f2}
+
 /* ══ CRUD ACTION BUTTONS ══ */
 .act-btns{display:flex;gap:2px;justify-content:center;align-items:center;white-space:nowrap}
 .act-btn{width:30px;height:30px;border-radius:6px;border:none;background:transparent;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0}
@@ -1311,18 +1377,7 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
     </button>
   </div>
 
-  <div class="sb-footer">
-    <!-- Language toggle -->
-    <div style="display:flex;gap:6px;margin-bottom:10px">
-      <button id="lang-en" data-lang="en" onclick="setLang('en')" class="lang-btn" style="flex:1;padding:7px;border-radius:8px;border:1.5px solid var(--p4);background:var(--p2);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">EN English</button>
-      <button id="lang-hi" data-lang="hi" onclick="setLang('hi')" class="lang-btn" style="flex:1;padding:7px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:var(--ink3);font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">हिं Hindi</button>
-    </div>
-    <!-- Log out (essential for mobile where the topbar profile is hard to reach) -->
-    <button onclick="qlLogout()" style="width:100%;padding:10px 12px;border-radius:9px;border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;font-size:12.5px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .12s,border-color .12s">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      Log out
-    </button>
-  </div>
+  <!-- Footer removed — Language + Log out now live in the profile menu -->
 </nav>
 
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
@@ -1368,6 +1423,13 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
     <div class="mob-header-page" id="mob-header-page">Dashboard</div>
     <div class="mob-header-co" id="mob-header-co">&nbsp;</div>
   </div>
+  <button class="mob-header-ham" onclick="openGSearch()" aria-label="Search">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+  </button>
+  <button class="mob-header-ham" style="position:relative" onclick="toggleNotifMenu(event)" aria-label="Notifications">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    <span class="tb2-dot" id="notif-dot-m" hidden style="top:6px;right:7px;border-color:rgba(255,255,255,.9)"></span>
+  </button>
   <div class="mob-avatar-wrap">
     <div class="mob-header-avatar" id="mob-header-avatar" onclick="toggleMobAvatarMenu(event)" title="Profile">DM</div>
     <div class="mob-avatar-backdrop" id="mob-avatar-backdrop" hidden onclick="closeMobAvatarMenu()"></div>
@@ -1440,6 +1502,14 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
           Call Support
           <svg class="mob-avatar-item-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </a>
+        <div class="mob-avatar-item" style="cursor:default">
+          <span class="mob-avatar-item-ic" style="background:#e0f2fe;color:#0369a1"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+          Language
+          <span style="margin-left:auto;display:flex;gap:6px">
+            <button class="lang-btn" data-lang="en" onclick="event.stopPropagation();setLang('en')" style="padding:6px 12px;border-radius:8px;border:1.5px solid var(--p4);background:var(--p2);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">EN</button>
+            <button class="lang-btn" data-lang="hi" onclick="event.stopPropagation();setLang('hi')" style="padding:6px 12px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:var(--ink3);font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">हिं</button>
+          </span>
+        </div>
         <div class="mob-avatar-divider"></div>
         <button class="mob-avatar-item mob-avatar-item-danger" onclick="qlLogout()">
           <span class="mob-avatar-item-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
@@ -1482,6 +1552,13 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
   <!-- App top bar (with profile icon) -->
   <header class="app-topbar">
     <div class="app-topbar-spacer"></div>
+    <button class="tb2-btn" onclick="openGSearch()" title="Search (Ctrl+K)" aria-label="Search">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+    <button class="tb2-btn" id="notifBell" onclick="toggleNotifMenu(event)" title="Notifications" aria-label="Notifications">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="tb2-dot" id="notif-dot" hidden></span>
+    </button>
     <div class="app-topbar-profile">
       <button id="app-profile-btn" class="app-profile-btn" onclick="toggleAppProfileMenu(event)" aria-label="Profile">
         <span id="app-profile-avatar">D</span>
@@ -1533,6 +1610,14 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
             <span class="app-profile-item-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
             Call Support · +91 94607 67676
           </a>
+          <div class="app-profile-item" style="cursor:default">
+            <span class="app-profile-item-ic" style="background:#e0f2fe;color:#0369a1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+            Language
+            <span style="margin-left:auto;display:flex;gap:5px">
+              <button class="lang-btn" data-lang="en" onclick="event.stopPropagation();setLang('en')" style="padding:4px 10px;border-radius:7px;border:1.5px solid var(--p4);background:var(--p2);color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">EN</button>
+              <button class="lang-btn" data-lang="hi" onclick="event.stopPropagation();setLang('hi')" style="padding:4px 10px;border-radius:7px;border:1.5px solid #e5e7eb;background:#fff;color:var(--ink3);font-size:11px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">हिं</button>
+            </span>
+          </div>
           <div class="app-profile-divider"></div>
           <button class="app-profile-item app-profile-item-danger" onclick="qlLogout()">
             <span class="app-profile-item-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
@@ -1548,6 +1633,27 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
     <div id="db-status"></div>
     <input id="topSearch">
     <div id="searchDrop"></div>
+  </div>
+
+  <!-- ══ GLOBAL SEARCH (Ctrl/⌘+K) ══ -->
+  <div id="gsearch-back" onclick="if(event.target===this)closeGSearch()">
+    <div id="gsearch" role="dialog" aria-label="Search">
+      <div class="gs-head">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="gsearch-input" placeholder="Search invoices, parties, suppliers, labour…" autocomplete="off">
+        <span class="gs-kbd">ESC</span>
+      </div>
+      <div class="gs-list" id="gsearch-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ NOTIFICATIONS DROPDOWN ══ -->
+  <div id="notif-menu">
+    <div class="nf-head"><span>Notifications</span><span class="nf-count" id="nf-count" hidden>0</span></div>
+    <div class="nf-list" id="nf-list"></div>
+  </div>
+
+  <div style="display:none">
     <button id="lang-en-stub" onclick="setLang('en')" style="display:none"></button>
     <button id="lang-hi-stub" onclick="setLang('hi')" style="display:none"></button>
     <div id="tb-avatar" onclick="toggleProfileMenu()"></div>
@@ -1904,12 +2010,17 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
       <button class="btn btn-primary" onclick="openPartyModal()" data-i18n="btn_add_party">+ Add Party</button>
     </div>
   </div>
-  <!-- Filter tabs -->
-  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-    <button class="btn btn-ghost" id="pflt-all" style="font-size:12px;padding:6px 14px;background:var(--p5);color:var(--p2);font-weight:700" onclick="setPFlt('')" data-i18n="flt_all">All</button>
-    <button class="btn btn-ghost" id="pflt-customer" style="font-size:12px;padding:6px 14px;display:inline-flex;align-items:center;gap:5px" onclick="setPFlt('customer')" data-i18n="flt_customers"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Customers</button>
-    <button class="btn btn-ghost" id="pflt-supplier" style="font-size:12px;padding:6px 14px;display:inline-flex;align-items:center;gap:5px" onclick="setPFlt('supplier')" data-i18n="flt_suppliers"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Suppliers</button>
-    <input id="partySearch" placeholder="🔍 Search party name, GSTIN…" oninput="renderParties()" style="margin-left:auto;padding:7px 14px;border:var(--border);border-radius:50px;font-size:12px;outline:none;min-width:200px">
+  <!-- Filter tabs — contacts-style segmented control + inline search -->
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+    <div class="pseg">
+      <button class="pseg-btn" id="pflt-all" style="background:var(--p5);color:var(--p2);font-weight:700" onclick="setPFlt('')" data-i18n="flt_all">All</button>
+      <button class="pseg-btn" id="pflt-customer" onclick="setPFlt('customer')" data-i18n="flt_customers">Customers</button>
+      <button class="pseg-btn" id="pflt-supplier" onclick="setPFlt('supplier')" data-i18n="flt_suppliers">Suppliers</button>
+    </div>
+    <div class="pt-search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="partySearch" placeholder="Search party name, GSTIN…" oninput="renderParties()">
+    </div>
   </div>
   <div class="card">
     <div class="card-body-np tbl-wrap"><div id="partiesTable"></div></div>
@@ -3072,7 +3183,7 @@ const TR = {
     mr_no_sales:'No sales this month', mr_no_pur:'No purchases this month',
     mr_margin:'margin', mr_status:'Status',
     // Parties search
-    party_search:'🔍 Search party name, GSTIN…',
+    party_search:'Search party name, GSTIN…',
     // Bags page KPIs
     lbl_entries:'entries', lbl_plastic_bags:'Plastic Bags',
     lbl_bags_pieces:'Bags / Pieces', lbl_units:'Units',
@@ -3260,7 +3371,7 @@ const TR = {
     mr_no_sales:'इस माह कोई बिक्री नहीं', mr_no_pur:'इस माह कोई खरीद नहीं',
     mr_margin:'मार्जिन', mr_status:'स्थिति',
     // Parties search
-    party_search:'🔍 पार्टी नाम, GSTIN खोजें…',
+    party_search:'पार्टी नाम, GSTIN खोजें…',
     // Bags page KPIs
     lbl_entries:'प्रविष्टियां', lbl_plastic_bags:'प्लास्टिक बोरी',
     lbl_bags_pieces:'बोरी / पीस', lbl_units:'इकाई',
@@ -3488,6 +3599,162 @@ function goToSearch(page){
 function closeSearch(){
   document.getElementById('searchDrop').style.display='none';
 }
+
+// ══ GLOBAL SEARCH MODAL (Ctrl/⌘+K) ══
+let _gsFocus=0;
+const _GS_PAGES=[
+  {label:'Dashboard',icon:'📊',page:'dashboard'},
+  {label:'GST Invoice',icon:'🧮',page:'invoice'},
+  {label:'Sales Register',icon:'📤',page:'sales'},
+  {label:'Purchase Register',icon:'🧾',page:'purchase'},
+  {label:'All Parties',icon:'👥',page:'parties'},
+  {label:'Daily Labour',icon:'👷',page:'labour'},
+  {label:'Cash Book',icon:'💵',page:'cashbook'},
+  {label:'P&L Statement',icon:'📈',page:'pl'},
+  {label:'GST Returns',icon:'🏛️',page:'gst'},
+  {label:'Loans',icon:'🏦',page:'loans'}
+];
+function openGSearch(){
+  _gsFocus=0;
+  document.getElementById('gsearch-back').classList.add('open');
+  const inp=document.getElementById('gsearch-input');
+  inp.value='';
+  renderGSearch('');
+  setTimeout(()=>inp.focus(),30);
+}
+function closeGSearch(){document.getElementById('gsearch-back').classList.remove('open');}
+function _gsGo(page){
+  closeGSearch();
+  goTo(page,document.getElementById('si-'+page));
+}
+function renderGSearch(q){
+  const list=document.getElementById('gsearch-list');
+  q=(q||'').trim().toLowerCase();
+  let html='';
+  let results=[];
+  if(!q){
+    results=_GS_PAGES.map(p=>({group:'Go to',icon:p.icon,t:p.label,s:'Page',page:p.page}));
+  }else{
+    // Pages
+    _GS_PAGES.forEach(p=>{if(p.label.toLowerCase().includes(q))results.push({group:'Go to',icon:p.icon,t:p.label,s:'Page',page:p.page});});
+    // Parties
+    PARTIES.forEach(p=>{
+      if((p.name+' '+(p.gstin||'')+' '+(p.phone||'')).toLowerCase().includes(q))
+        results.push({group:'Parties',icon:'👥',t:p.name,s:(p.type||'party')+(p.gstin?' · '+p.gstin:''),page:'parties'});
+    });
+    // Sales
+    SALES.forEach(s=>{
+      if((s.inv+' '+s.party+' '+(s.gstin||'')).toLowerCase().includes(q))
+        results.push({group:'Sales',icon:'📤',t:s.inv+' — '+s.party,s:fDS(s.date)+' · '+fC(cS(s).tot),page:'sales'});
+    });
+    // Purchases
+    PURCHASES.forEach(p=>{
+      if((p.bill+' '+p.sup+' '+(p.gstin||'')).toLowerCase().includes(q))
+        results.push({group:'Purchases',icon:'🧾',t:p.bill+' — '+p.sup,s:fDS(p.date)+' · '+fC(p.taxable),page:'purchase'});
+    });
+    // Workers
+    WORKERS.forEach(w=>{
+      if((w.name+' '+(w.desig||'')).toLowerCase().includes(q))
+        results.push({group:'Labour',icon:'👷',t:w.name,s:(w.desig||'')+' · ₹'+w.wage+'/day',page:'labour'});
+    });
+    results=results.slice(0,18);
+  }
+  if(!results.length){
+    list.innerHTML=`<div style="padding:32px 16px;text-align:center;color:#9ca3af;font-size:13px">No results for "${q.replace(/</g,'&lt;')}"</div>`;
+    return;
+  }
+  let lastGroup='';
+  results.forEach((r,i)=>{
+    if(r.group!==lastGroup){html+=`<div class="gs-group">${r.group}</div>`;lastGroup=r.group;}
+    html+=`<div class="gs-row${i===_gsFocus?' focused':''}" data-i="${i}" onclick="_gsGo('${r.page}')">
+      <span class="gs-row-ic">${r.icon}</span>
+      <div style="min-width:0"><div class="gs-row-t">${r.t}</div><div class="gs-row-s">${r.s}</div></div>
+    </div>`;
+  });
+  list.innerHTML=html;
+  list._results=results;
+}
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openGSearch();return;}
+  const back=document.getElementById('gsearch-back');
+  if(!back||!back.classList.contains('open'))return;
+  if(e.key==='Escape'){closeGSearch();return;}
+  const list=document.getElementById('gsearch-list');
+  const rows=[...list.querySelectorAll('.gs-row')];
+  if(e.key==='ArrowDown'){e.preventDefault();_gsFocus=Math.min(_gsFocus+1,rows.length-1);}
+  else if(e.key==='ArrowUp'){e.preventDefault();_gsFocus=Math.max(_gsFocus-1,0);}
+  else if(e.key==='Enter'){e.preventDefault();rows[_gsFocus]?.click();return;}
+  else return;
+  rows.forEach((r,i)=>r.classList.toggle('focused',i===_gsFocus));
+  rows[_gsFocus]?.scrollIntoView({block:'nearest'});
+});
+
+// ══ NOTIFICATIONS ══
+function _qlAlerts(){
+  const out=[];
+  const now=Date.now();
+  const daysAgo=d=>Math.floor((now-new Date(d).getTime())/86400000);
+  // Overdue collections — pending sales older than 30 days, grouped by party
+  try{
+    const over={};
+    SALES.forEach(s=>{
+      if((s.status||'pending')==='pending'&&s.date&&daysAgo(s.date)>30){
+        over[s.party]=over[s.party]||{amt:0,oldest:0};
+        over[s.party].amt+=cS(s).tot;
+        over[s.party].oldest=Math.max(over[s.party].oldest,daysAgo(s.date));
+      }
+    });
+    Object.entries(over).sort((a,b)=>b[1].amt-a[1].amt).slice(0,4).forEach(([party,v])=>
+      out.push({tone:'danger',icon:'⏰',t:party,s:`Payment overdue ${v.oldest}d · ${fC(v.amt)}`,page:'sales'}));
+  }catch(_){}
+  // Pending supplier payments
+  try{
+    const pend=PURCHASES.filter(p=>(p.status||'pending')==='pending');
+    if(pend.length){
+      const tot=pend.reduce((s,p)=>s+(p.taxable||0),0);
+      out.push({tone:'warning',icon:'🧾',t:`${pend.length} supplier bill${pend.length>1?'s':''} unpaid`,s:`${fC(tot)} pending payment`,page:'purchase'});
+    }
+  }catch(_){}
+  // Loan EMIs — unpaid installments due within 7 days or overdue
+  try{
+    LOANS.forEach(l=>{(l.installments||[]).forEach(inst=>{
+      if(inst.paid||!inst.dueDate)return;
+      const d=daysAgo(inst.dueDate);
+      if(d>=-7)out.push({tone:d>0?'danger':'warning',icon:'🏦',t:l.name||l.bank||'Loan EMI',s:d>0?`EMI overdue ${d}d · ${fC(inst.amount)}`:`EMI due in ${-d}d · ${fC(inst.amount)}`,page:'loans'});
+    });});
+  }catch(_){}
+  return out.slice(0,8);
+}
+function updateNotifBell(){
+  const alerts=_qlAlerts();
+  ['notif-dot','notif-dot-m'].forEach(id=>{const el=document.getElementById(id);if(el)el.hidden=!alerts.length;});
+  const c=document.getElementById('nf-count');
+  if(c){c.hidden=!alerts.length;c.textContent=alerts.length;}
+  return alerts;
+}
+function toggleNotifMenu(e){
+  e.stopPropagation();
+  const m=document.getElementById('notif-menu');
+  if(m.classList.contains('open')){m.classList.remove('open');return;}
+  const alerts=updateNotifBell();
+  document.getElementById('nf-list').innerHTML=alerts.length?alerts.map(a=>`
+    <div class="nf-row" onclick="document.getElementById('notif-menu').classList.remove('open');goTo('${a.page}',document.getElementById('si-${a.page}'))">
+      <span class="nf-ic ${a.tone}">${a.icon}</span>
+      <div style="min-width:0"><div class="nf-t">${a.t}</div><div class="nf-s">${a.s}</div></div>
+    </div>`).join(''):`<div class="nf-empty">🎉 All clear — no pending alerts</div>`;
+  const r=e.currentTarget.getBoundingClientRect();
+  m.style.top=(r.bottom+8)+'px';
+  m.style.left=Math.max(12,Math.min(window.innerWidth-342,r.right-330))+'px';
+  m.classList.add('open');
+}
+document.addEventListener('click',e=>{
+  const m=document.getElementById('notif-menu');
+  if(m&&m.classList.contains('open')&&!m.contains(e.target))m.classList.remove('open');
+});
+const _gsInputBind=setInterval(()=>{
+  const inp=document.getElementById('gsearch-input');
+  if(inp){clearInterval(_gsInputBind);inp.addEventListener('input',()=>{_gsFocus=0;renderGSearch(inp.value);});}
+},200);
 
 // ══ DASHBOARD ══
 function renderDash(){
@@ -6763,24 +7030,65 @@ function renderParties(){
     if(q&&!(p.name.toLowerCase().includes(q)||(p.gstin||'').toLowerCase().includes(q)||(p.phone||'').includes(q)))return false;
     return true;
   });
-  const tbody=arr.length?arr.map((p,i)=>{
+  // Deterministic avatar gradient per party name
+  const AV=[['#2563EB','#1D4ED8'],['#16A34A','#15803D'],['#F59E0B','#B45309'],['#7C3AED','#5B21B6'],['#DB2777','#9D174D'],['#0891B2','#155E75']];
+  const PILL={
+    customer:{bg:'#ECFDF5',fg:'#047857',dot:'#10B981',label:'Customer'},
+    supplier:{bg:'#EFF6FF',fg:'#1D4ED8',dot:'#3B82F6',label:'Supplier'},
+    both:    {bg:'#FFFBEB',fg:'#B45309',dot:'#F59E0B',label:'Both'}
+  };
+  const tbody=arr.length?arr.map(p=>{
     const realIdx=PARTIES.indexOf(p);
-    const badge=p.type==='customer'?'<span style="background:#d1fae5;color:#065f46;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px">Customer</span>':p.type==='supplier'?'<span style="background:#E6F1FE;color:#003F94;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px">Supplier</span>':'<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px">Both</span>';
-    return`<tr>
-      <td><strong>${p.name}</strong><br><span style="font-size:11px;color:var(--ink4)">${p.gstin||'—'}</span></td>
-      <td>${badge}</td>
-      <td style="font-size:12px">${p.phone||'—'}</td>
-      <td style="font-size:11px;color:var(--ink3);max-width:180px;word-break:break-word">${p.address||'—'}</td>
-      <td style="font-size:11px;color:var(--ink4)">${p.state||'—'}</td>
-      <td style="font-size:11px;color:var(--ink4)">${p.notes||''}</td>
-      <td><div class="act-btns">
-        <button class="act-btn act-edit" onclick="openPartyModal(${realIdx})">✏</button>
-        <button class="act-btn act-del" onclick="deleteParty(${realIdx})">✕</button>
+    const c=AV[(p.name.charCodeAt(0)+p.name.length)%AV.length];
+    const pl=PILL[p.type]||PILL.both;
+    const notesLine=p.notes?`<div style="font-size:10.5px;color:#b6bcc8;margin-top:2px">${p.notes}</div>`:'';
+    return`<tr class="pt-row">
+      <td><div class="pt-party">
+        <div class="pt-av" style="background:linear-gradient(135deg,${c[0]},${c[1]})">${(p.name||'?').trim().charAt(0).toUpperCase()}</div>
+        <div style="min-width:0">
+          <div class="pt-name">${p.name}</div>
+          <div class="pt-gstin">${p.gstin||'—'}</div>
+        </div>
       </div></td>
+      <td><span class="pt-pill" style="background:${pl.bg};color:${pl.fg}"><span class="pt-dot" style="background:${pl.dot}"></span>${pl.label}</span></td>
+      <td class="pt-muted">${p.phone||'—'}</td>
+      <td class="pt-muted hide-mob" style="max-width:200px;word-break:break-word">${p.address||'—'}${notesLine}</td>
+      <td class="pt-muted hide-mob">${p.state||'—'}</td>
+      <td class="tc"><button class="pt-kebab" onclick="openPartyMenu(event,${realIdx})" aria-label="Actions"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button></td>
     </tr>`;
-  }).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--ink4);padding:32px">No parties yet — they auto-save when you add purchase or sales bills, or click + Add Party</td></tr>`;
-  document.getElementById('partiesTable').innerHTML=`<table class="t" style="width:100%"><thead><tr><th>${t('th_name_gstin')}</th><th>${t('th_type')}</th><th>${t('th_phone')}</th><th>${t('th_address')}</th><th>${t('th_state')}</th><th>${t('th_notes')}</th><th class="tc">${t('th_actions')}</th></tr></thead><tbody>${tbody}</tbody></table>
+  }).join(''):`<tr><td colspan="6" style="text-align:center;color:var(--ink4);padding:48px 24px">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <div style="font-weight:600;color:#6b7280;margin-bottom:4px">No parties yet</div>
+    <div style="font-size:12px">They auto-save when you add purchase or sales bills, or click + Add Party</div>
+  </td></tr>`;
+  document.getElementById('partiesTable').innerHTML=`<table class="t" style="width:100%"><thead><tr><th>${t('th_name_gstin')}</th><th>${t('th_type')}</th><th>${t('th_phone')}</th><th class="hide-mob">${t('th_address')}</th><th class="hide-mob">${t('th_state')}</th><th class="tc">${t('th_actions')}</th></tr></thead><tbody>${tbody}</tbody></table>
   <div style="margin-top:10px;padding:6px 16px;font-size:12px;color:var(--ink4)">${arr.length} of ${PARTIES.length} parties</div>`;
+}
+
+// ── Kebab action menu for party rows (one shared element) ──
+function openPartyMenu(e,idx){
+  e.stopPropagation();
+  let m=document.getElementById('party-menu');
+  if(!m){
+    m=document.createElement('div');
+    m.id='party-menu';
+    document.body.appendChild(m);
+    document.addEventListener('click',ev=>{if(!m.contains(ev.target)&&!ev.target.closest('.pt-kebab'))m.classList.remove('open');});
+    window.addEventListener('scroll',()=>m.classList.remove('open'),true);
+  }
+  m.innerHTML=`
+    <button onclick="document.getElementById('party-menu').classList.remove('open');openPartyModal(${idx})">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Edit party
+    </button>
+    <button class="danger" onclick="document.getElementById('party-menu').classList.remove('open');deleteParty(${idx})">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+      Delete
+    </button>`;
+  const r=e.currentTarget.getBoundingClientRect();
+  m.style.top=(r.bottom+6)+'px';
+  m.style.left=Math.max(8,r.right-160)+'px';
+  m.classList.add('open');
 }
 
 function openPartyModal(idx=-1){
@@ -7045,6 +7353,7 @@ function loadLocal(){
       });
     });
   }catch(e){console.error('loadLocal failed:',e);}
+  try{updateNotifBell();}catch(_){/* DOM not ready at first boot pass */}
 }
 // Switch company — save current, clear, load new (local first for instant UI,
 // then refresh from cloud so a device with no local cache of the target plant
@@ -7165,8 +7474,15 @@ function _appProfileSync(){
   if(!c) return;
   const initials=(c.short||c.name||'?').trim().charAt(0).toUpperCase();
   const set=(id,val)=>{const el=document.getElementById(id);if(!el)return;const has=val&&String(val).trim()&&val!=='—';el.textContent=has?val:'Not set';el.style.color=has?'#0D1B2D':'#9ca3af';el.style.fontStyle=has?'normal':'italic';};
-  const av=document.getElementById('app-profile-avatar');if(av)av.textContent=initials;
-  const ah=document.getElementById('app-profile-head-avatar');if(ah)ah.textContent=initials;
+  // Don't overwrite a saved profile photo with initials.
+  const savedPic = localStorage.getItem('dm_profile_pic');
+  if (!savedPic) {
+    const av=document.getElementById('app-profile-avatar');if(av)av.textContent=initials;
+    const ah=document.getElementById('app-profile-head-avatar');if(ah)ah.textContent=initials;
+  } else {
+    // Re-apply in case anything else touched the styles in the meantime.
+    _applyProfilePic(savedPic);
+  }
   const nm=document.getElementById('app-profile-head-name');if(nm)nm.textContent=c.short||c.name||'Owner';
   set('app-profile-phone', c.phone || (typeof QL_PLANT!=='undefined' && QL_PLANT?.owner_phone) || '');
   set('app-profile-gstin', c.gstin || '');
@@ -7603,21 +7919,36 @@ function _cropConfirm(){
   if(DB)saveToCloud();
 }
 function _applyProfilePic(src){
-  const a=document.getElementById('mob-header-avatar');
-  if(!a)return;
-  if(src){
-    a.style.backgroundImage=`url(${src})`;
-    a.style.backgroundSize='cover';
-    a.style.backgroundPosition='center';
-    a.style.backgroundRepeat='no-repeat';
-    a.style.border='2.5px solid rgba(255,255,255,.8)';
-    a.textContent='';
-    a.setAttribute('title','Tap to change photo');
-  }else{
-    a.style.backgroundImage='';
-    a.style.border='2px solid rgba(255,255,255,.4)';
-    a.textContent=(CO().short||CO().name||'DM').slice(0,2).toUpperCase();
-  }
+  // Each avatar surface — mobile header top-right, the big avatar
+  // inside the profile sheet, the desktop topbar button, and the
+  // desktop profile-menu head. The topbar avatar is special: the
+  // circular styling lives on the parent button (#app-profile-btn),
+  // and the visible "D" sits in an inner <span id="app-profile-avatar">.
+  const targets = [
+    { id: 'mob-header-avatar',        useParent: false, isHeader: true  },
+    { id: 'mob-avatar-head-pic',      useParent: false, isHeader: false },
+    { id: 'app-profile-avatar',       useParent: true,  isHeader: false }, // parent #app-profile-btn carries the circle
+    { id: 'app-profile-head-avatar',  useParent: false, isHeader: false }
+  ];
+  const initials = (CO().short || CO().name || 'DM').slice(0,2).toUpperCase();
+  targets.forEach(t => {
+    const node = document.getElementById(t.id);
+    if (!node) return;
+    const el = t.useParent ? node.parentElement : node;
+    if (src) {
+      el.style.backgroundImage = `url(${src})`;
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
+      el.style.backgroundRepeat = 'no-repeat';
+      node.textContent = '';
+      el.setAttribute('title','Tap to change photo');
+      if (t.isHeader) el.style.border = '2.5px solid rgba(255,255,255,.8)';
+    } else {
+      el.style.backgroundImage = '';
+      node.textContent = initials;
+      if (t.isHeader) el.style.border = '2px solid rgba(255,255,255,.4)';
+    }
+  });
 }
 
 function _updateMobHeader(page){
@@ -7645,6 +7976,8 @@ function boot(){
   if(typeof Chart==='undefined'){setTimeout(boot,80);return;}
   // Always sync LANG from storage at boot (defensive — avoids stale cached value)
   LANG=localStorage.getItem('dm_lang')||'en';
+  // Reflect saved language on the toggle pills (they hardcode EN-active in markup)
+  document.querySelectorAll('.lang-btn').forEach(b=>{const a=b.dataset.lang===LANG;b.style.background=a?'var(--p2)':'#fff';b.style.color=a?'#fff':'var(--ink3)';b.style.borderColor=a?'var(--p4)':'#e5e7eb';});
   // Safety net: always hide loader after 8s even if something crashes
   const _loaderFallback=setTimeout(()=>_hideLoader(),8000);
   try{loadLocal();}catch(e){console.error('loadLocal error:',e);}
