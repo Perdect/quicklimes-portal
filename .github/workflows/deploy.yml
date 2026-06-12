@@ -58,7 +58,13 @@ jobs:
           echo "── deploy tree ──"
           find deploy -maxdepth 3 -type f | sort
 
-      - name: 🚀 Sync deploy/ to Hostinger via FTPS
+      # Hostinger intermittently times out the FTPS control socket for
+      # GitHub-runner IPs (seen 2026-05-09 and 2026-06-12). The host itself
+      # stays reachable, so a second attempt after a cool-down almost always
+      # lands. Attempt 1 is allowed to fail; attempt 2 only runs if needed.
+      - name: 🚀 Sync deploy/ to Hostinger via FTPS (attempt 1)
+        id: ftp1
+        continue-on-error: true
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           # Prefer a hostname secret (FTP_HOST) so we survive IP changes;
@@ -68,10 +74,30 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           port: 21
-          timeout: 60000
+          timeout: 120000
           local-dir: ./deploy/
           server-dir: /
           state-name: .ftp-deploy-sync-state.json
           log-level: minimal
           # Don't delete other files on the server (keeps anything outside deploy/)
+          dangerous-clean-slate: false
+
+      - name: ⏲️ Cool down before retry
+        if: steps.ftp1.outcome == 'failure'
+        run: sleep 60
+
+      - name: 🚀 Sync deploy/ to Hostinger via FTPS (attempt 2)
+        if: steps.ftp1.outcome == 'failure'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST != '' && secrets.FTP_HOST || '62.72.28.240' }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          timeout: 120000
+          local-dir: ./deploy/
+          server-dir: /
+          state-name: .ftp-deploy-sync-state.json
+          log-level: minimal
           dangerous-clean-slate: false
