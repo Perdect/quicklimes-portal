@@ -7165,8 +7165,15 @@ function _appProfileSync(){
   if(!c) return;
   const initials=(c.short||c.name||'?').trim().charAt(0).toUpperCase();
   const set=(id,val)=>{const el=document.getElementById(id);if(!el)return;const has=val&&String(val).trim()&&val!=='—';el.textContent=has?val:'Not set';el.style.color=has?'#0D1B2D':'#9ca3af';el.style.fontStyle=has?'normal':'italic';};
-  const av=document.getElementById('app-profile-avatar');if(av)av.textContent=initials;
-  const ah=document.getElementById('app-profile-head-avatar');if(ah)ah.textContent=initials;
+  // Don't overwrite a saved profile photo with initials.
+  const savedPic = localStorage.getItem('dm_profile_pic');
+  if (!savedPic) {
+    const av=document.getElementById('app-profile-avatar');if(av)av.textContent=initials;
+    const ah=document.getElementById('app-profile-head-avatar');if(ah)ah.textContent=initials;
+  } else {
+    // Re-apply in case anything else touched the styles in the meantime.
+    _applyProfilePic(savedPic);
+  }
   const nm=document.getElementById('app-profile-head-name');if(nm)nm.textContent=c.short||c.name||'Owner';
   set('app-profile-phone', c.phone || (typeof QL_PLANT!=='undefined' && QL_PLANT?.owner_phone) || '');
   set('app-profile-gstin', c.gstin || '');
@@ -7603,21 +7610,36 @@ function _cropConfirm(){
   if(DB)saveToCloud();
 }
 function _applyProfilePic(src){
-  const a=document.getElementById('mob-header-avatar');
-  if(!a)return;
-  if(src){
-    a.style.backgroundImage=`url(${src})`;
-    a.style.backgroundSize='cover';
-    a.style.backgroundPosition='center';
-    a.style.backgroundRepeat='no-repeat';
-    a.style.border='2.5px solid rgba(255,255,255,.8)';
-    a.textContent='';
-    a.setAttribute('title','Tap to change photo');
-  }else{
-    a.style.backgroundImage='';
-    a.style.border='2px solid rgba(255,255,255,.4)';
-    a.textContent=(CO().short||CO().name||'DM').slice(0,2).toUpperCase();
-  }
+  // Each avatar surface — mobile header top-right, the big avatar
+  // inside the profile sheet, the desktop topbar button, and the
+  // desktop profile-menu head. The topbar avatar is special: the
+  // circular styling lives on the parent button (#app-profile-btn),
+  // and the visible "D" sits in an inner <span id="app-profile-avatar">.
+  const targets = [
+    { id: 'mob-header-avatar',        useParent: false, isHeader: true  },
+    { id: 'mob-avatar-head-pic',      useParent: false, isHeader: false },
+    { id: 'app-profile-avatar',       useParent: true,  isHeader: false }, // parent #app-profile-btn carries the circle
+    { id: 'app-profile-head-avatar',  useParent: false, isHeader: false }
+  ];
+  const initials = (CO().short || CO().name || 'DM').slice(0,2).toUpperCase();
+  targets.forEach(t => {
+    const node = document.getElementById(t.id);
+    if (!node) return;
+    const el = t.useParent ? node.parentElement : node;
+    if (src) {
+      el.style.backgroundImage = `url(${src})`;
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
+      el.style.backgroundRepeat = 'no-repeat';
+      node.textContent = '';
+      el.setAttribute('title','Tap to change photo');
+      if (t.isHeader) el.style.border = '2.5px solid rgba(255,255,255,.8)';
+    } else {
+      el.style.backgroundImage = '';
+      node.textContent = initials;
+      if (t.isHeader) el.style.border = '2px solid rgba(255,255,255,.4)';
+    }
+  });
 }
 
 function _updateMobHeader(page){
