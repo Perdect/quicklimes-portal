@@ -1195,6 +1195,44 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
 .imp-pdf-text{background:#f8fafc;border-radius:8px;padding:8px 12px;font-size:10px;max-height:80px;overflow-y:auto;color:var(--ink4);white-space:pre-wrap;word-break:break-all;margin-bottom:10px;display:none}
 .imp-ok{background:var(--green2);border-radius:12px;padding:20px;text-align:center;color:var(--green);font-weight:700;font-size:15px;margin:8px 0}
 
+/* ══ TOPBAR v2 — search + notifications ══ */
+.app-topbar{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+/* Page headers need clearance for the search+bell+avatar cluster (desktop only) */
+@media(min-width:769px){.ph{padding-right:160px}}
+.tb2-btn{position:relative;width:40px;height:40px;border-radius:50%;background:#fff;border:1.5px solid #e8eaf5;color:#6b7280;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .12s,color .12s,box-shadow .15s;box-shadow:0 2px 8px rgba(15,23,42,.05)}
+.tb2-btn:hover{border-color:#bbd6f7;color:var(--p2);box-shadow:0 4px 14px rgba(0,115,236,.12)}
+.tb2-dot{position:absolute;top:7px;right:8px;min-width:9px;height:9px;border-radius:50%;background:#ef4444;border:2px solid #fff}
+/* Global search modal */
+#gsearch-back{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:3000;display:none;align-items:flex-start;justify-content:center;padding:10vh 16px 16px}
+#gsearch-back.open{display:flex}
+#gsearch{width:min(620px,100%);background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.28);overflow:hidden;animation:slideUp .22s cubic-bezier(.32,.72,0,1)}
+.gs-head{display:flex;align-items:center;gap:11px;padding:15px 18px;border-bottom:1px solid #eef0f4}
+.gs-head svg{color:#9ca3af;flex-shrink:0}
+.gs-head input{flex:1;border:none;outline:none;font-size:14.5px;font-family:Inter,sans-serif;color:#0D1B2D;background:transparent;min-width:0}
+.gs-kbd{font-size:10px;font-weight:700;color:#9ca3af;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;padding:2px 7px;font-family:ui-monospace,monospace}
+.gs-list{max-height:54vh;overflow-y:auto;padding:7px}
+.gs-group{font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#9ca3af;padding:10px 12px 4px}
+.gs-row{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer}
+.gs-row:hover,.gs-row.focused{background:var(--p6)}
+.gs-row-ic{width:34px;height:34px;border-radius:9px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;color:#6b7280}
+.gs-row-t{font-size:13px;font-weight:600;color:#0D1B2D;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gs-row-s{font-size:11px;color:#9ca3af;margin-top:1px}
+/* Notifications dropdown */
+#notif-menu{position:fixed;width:330px;max-width:calc(100vw - 24px);background:#fff;border:1px solid #eef0f4;border-radius:16px;box-shadow:0 18px 50px rgba(15,23,42,.16);z-index:2500;display:none;flex-direction:column;overflow:hidden;animation:slideUp .2s cubic-bezier(.32,.72,0,1)}
+#notif-menu.open{display:flex}
+.nf-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid #f1f3f8;font-size:13.5px;font-weight:800;color:#0D1B2D}
+.nf-count{font-size:10px;font-weight:800;background:#fee2e2;color:#dc2626;border-radius:50px;padding:2px 8px}
+.nf-list{max-height:50vh;overflow-y:auto;padding:6px}
+.nf-row{display:flex;gap:11px;padding:11px 12px;border-radius:10px;cursor:pointer;align-items:flex-start}
+.nf-row:hover{background:#f8fafc}
+.nf-ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
+.nf-ic.danger{background:#fee2e2}
+.nf-ic.warning{background:#fef3c7}
+.nf-ic.info{background:#E6F1FE}
+.nf-t{font-size:12.5px;font-weight:700;color:#0D1B2D;line-height:1.3}
+.nf-s{font-size:11px;color:#6b7280;margin-top:2px}
+.nf-empty{padding:34px 20px;text-align:center;color:#9ca3af;font-size:12.5px}
+
 /* ══ PARTIES — contacts-style table ══ */
 .pseg{display:inline-flex;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:4px;gap:2px}
 .pseg-btn{padding:7px 16px;border-radius:9px;border:none;background:transparent;color:#6b7280;font-size:12.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;transition:background .12s,color .12s}
@@ -1385,6 +1423,13 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
     <div class="mob-header-page" id="mob-header-page">Dashboard</div>
     <div class="mob-header-co" id="mob-header-co">&nbsp;</div>
   </div>
+  <button class="mob-header-ham" onclick="openGSearch()" aria-label="Search">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+  </button>
+  <button class="mob-header-ham" style="position:relative" onclick="toggleNotifMenu(event)" aria-label="Notifications">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    <span class="tb2-dot" id="notif-dot-m" hidden style="top:6px;right:7px;border-color:rgba(255,255,255,.9)"></span>
+  </button>
   <div class="mob-avatar-wrap">
     <div class="mob-header-avatar" id="mob-header-avatar" onclick="toggleMobAvatarMenu(event)" title="Profile">DM</div>
     <div class="mob-avatar-backdrop" id="mob-avatar-backdrop" hidden onclick="closeMobAvatarMenu()"></div>
@@ -1507,6 +1552,13 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
   <!-- App top bar (with profile icon) -->
   <header class="app-topbar">
     <div class="app-topbar-spacer"></div>
+    <button class="tb2-btn" onclick="openGSearch()" title="Search (Ctrl+K)" aria-label="Search">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+    <button class="tb2-btn" id="notifBell" onclick="toggleNotifMenu(event)" title="Notifications" aria-label="Notifications">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="tb2-dot" id="notif-dot" hidden></span>
+    </button>
     <div class="app-topbar-profile">
       <button id="app-profile-btn" class="app-profile-btn" onclick="toggleAppProfileMenu(event)" aria-label="Profile">
         <span id="app-profile-avatar">D</span>
@@ -1581,6 +1633,27 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
     <div id="db-status"></div>
     <input id="topSearch">
     <div id="searchDrop"></div>
+  </div>
+
+  <!-- ══ GLOBAL SEARCH (Ctrl/⌘+K) ══ -->
+  <div id="gsearch-back" onclick="if(event.target===this)closeGSearch()">
+    <div id="gsearch" role="dialog" aria-label="Search">
+      <div class="gs-head">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="gsearch-input" placeholder="Search invoices, parties, suppliers, labour…" autocomplete="off">
+        <span class="gs-kbd">ESC</span>
+      </div>
+      <div class="gs-list" id="gsearch-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ NOTIFICATIONS DROPDOWN ══ -->
+  <div id="notif-menu">
+    <div class="nf-head"><span>Notifications</span><span class="nf-count" id="nf-count" hidden>0</span></div>
+    <div class="nf-list" id="nf-list"></div>
+  </div>
+
+  <div style="display:none">
     <button id="lang-en-stub" onclick="setLang('en')" style="display:none"></button>
     <button id="lang-hi-stub" onclick="setLang('hi')" style="display:none"></button>
     <div id="tb-avatar" onclick="toggleProfileMenu()"></div>
@@ -3526,6 +3599,162 @@ function goToSearch(page){
 function closeSearch(){
   document.getElementById('searchDrop').style.display='none';
 }
+
+// ══ GLOBAL SEARCH MODAL (Ctrl/⌘+K) ══
+let _gsFocus=0;
+const _GS_PAGES=[
+  {label:'Dashboard',icon:'📊',page:'dashboard'},
+  {label:'GST Invoice',icon:'🧮',page:'invoice'},
+  {label:'Sales Register',icon:'📤',page:'sales'},
+  {label:'Purchase Register',icon:'🧾',page:'purchase'},
+  {label:'All Parties',icon:'👥',page:'parties'},
+  {label:'Daily Labour',icon:'👷',page:'labour'},
+  {label:'Cash Book',icon:'💵',page:'cashbook'},
+  {label:'P&L Statement',icon:'📈',page:'pl'},
+  {label:'GST Returns',icon:'🏛️',page:'gst'},
+  {label:'Loans',icon:'🏦',page:'loans'}
+];
+function openGSearch(){
+  _gsFocus=0;
+  document.getElementById('gsearch-back').classList.add('open');
+  const inp=document.getElementById('gsearch-input');
+  inp.value='';
+  renderGSearch('');
+  setTimeout(()=>inp.focus(),30);
+}
+function closeGSearch(){document.getElementById('gsearch-back').classList.remove('open');}
+function _gsGo(page){
+  closeGSearch();
+  goTo(page,document.getElementById('si-'+page));
+}
+function renderGSearch(q){
+  const list=document.getElementById('gsearch-list');
+  q=(q||'').trim().toLowerCase();
+  let html='';
+  let results=[];
+  if(!q){
+    results=_GS_PAGES.map(p=>({group:'Go to',icon:p.icon,t:p.label,s:'Page',page:p.page}));
+  }else{
+    // Pages
+    _GS_PAGES.forEach(p=>{if(p.label.toLowerCase().includes(q))results.push({group:'Go to',icon:p.icon,t:p.label,s:'Page',page:p.page});});
+    // Parties
+    PARTIES.forEach(p=>{
+      if((p.name+' '+(p.gstin||'')+' '+(p.phone||'')).toLowerCase().includes(q))
+        results.push({group:'Parties',icon:'👥',t:p.name,s:(p.type||'party')+(p.gstin?' · '+p.gstin:''),page:'parties'});
+    });
+    // Sales
+    SALES.forEach(s=>{
+      if((s.inv+' '+s.party+' '+(s.gstin||'')).toLowerCase().includes(q))
+        results.push({group:'Sales',icon:'📤',t:s.inv+' — '+s.party,s:fDS(s.date)+' · '+fC(cS(s).tot),page:'sales'});
+    });
+    // Purchases
+    PURCHASES.forEach(p=>{
+      if((p.bill+' '+p.sup+' '+(p.gstin||'')).toLowerCase().includes(q))
+        results.push({group:'Purchases',icon:'🧾',t:p.bill+' — '+p.sup,s:fDS(p.date)+' · '+fC(p.taxable),page:'purchase'});
+    });
+    // Workers
+    WORKERS.forEach(w=>{
+      if((w.name+' '+(w.desig||'')).toLowerCase().includes(q))
+        results.push({group:'Labour',icon:'👷',t:w.name,s:(w.desig||'')+' · ₹'+w.wage+'/day',page:'labour'});
+    });
+    results=results.slice(0,18);
+  }
+  if(!results.length){
+    list.innerHTML=`<div style="padding:32px 16px;text-align:center;color:#9ca3af;font-size:13px">No results for "${q.replace(/</g,'&lt;')}"</div>`;
+    return;
+  }
+  let lastGroup='';
+  results.forEach((r,i)=>{
+    if(r.group!==lastGroup){html+=`<div class="gs-group">${r.group}</div>`;lastGroup=r.group;}
+    html+=`<div class="gs-row${i===_gsFocus?' focused':''}" data-i="${i}" onclick="_gsGo('${r.page}')">
+      <span class="gs-row-ic">${r.icon}</span>
+      <div style="min-width:0"><div class="gs-row-t">${r.t}</div><div class="gs-row-s">${r.s}</div></div>
+    </div>`;
+  });
+  list.innerHTML=html;
+  list._results=results;
+}
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openGSearch();return;}
+  const back=document.getElementById('gsearch-back');
+  if(!back||!back.classList.contains('open'))return;
+  if(e.key==='Escape'){closeGSearch();return;}
+  const list=document.getElementById('gsearch-list');
+  const rows=[...list.querySelectorAll('.gs-row')];
+  if(e.key==='ArrowDown'){e.preventDefault();_gsFocus=Math.min(_gsFocus+1,rows.length-1);}
+  else if(e.key==='ArrowUp'){e.preventDefault();_gsFocus=Math.max(_gsFocus-1,0);}
+  else if(e.key==='Enter'){e.preventDefault();rows[_gsFocus]?.click();return;}
+  else return;
+  rows.forEach((r,i)=>r.classList.toggle('focused',i===_gsFocus));
+  rows[_gsFocus]?.scrollIntoView({block:'nearest'});
+});
+
+// ══ NOTIFICATIONS ══
+function _qlAlerts(){
+  const out=[];
+  const now=Date.now();
+  const daysAgo=d=>Math.floor((now-new Date(d).getTime())/86400000);
+  // Overdue collections — pending sales older than 30 days, grouped by party
+  try{
+    const over={};
+    SALES.forEach(s=>{
+      if((s.status||'pending')==='pending'&&s.date&&daysAgo(s.date)>30){
+        over[s.party]=over[s.party]||{amt:0,oldest:0};
+        over[s.party].amt+=cS(s).tot;
+        over[s.party].oldest=Math.max(over[s.party].oldest,daysAgo(s.date));
+      }
+    });
+    Object.entries(over).sort((a,b)=>b[1].amt-a[1].amt).slice(0,4).forEach(([party,v])=>
+      out.push({tone:'danger',icon:'⏰',t:party,s:`Payment overdue ${v.oldest}d · ${fC(v.amt)}`,page:'sales'}));
+  }catch(_){}
+  // Pending supplier payments
+  try{
+    const pend=PURCHASES.filter(p=>(p.status||'pending')==='pending');
+    if(pend.length){
+      const tot=pend.reduce((s,p)=>s+(p.taxable||0),0);
+      out.push({tone:'warning',icon:'🧾',t:`${pend.length} supplier bill${pend.length>1?'s':''} unpaid`,s:`${fC(tot)} pending payment`,page:'purchase'});
+    }
+  }catch(_){}
+  // Loan EMIs — unpaid installments due within 7 days or overdue
+  try{
+    LOANS.forEach(l=>{(l.installments||[]).forEach(inst=>{
+      if(inst.paid||!inst.dueDate)return;
+      const d=daysAgo(inst.dueDate);
+      if(d>=-7)out.push({tone:d>0?'danger':'warning',icon:'🏦',t:l.name||l.bank||'Loan EMI',s:d>0?`EMI overdue ${d}d · ${fC(inst.amount)}`:`EMI due in ${-d}d · ${fC(inst.amount)}`,page:'loans'});
+    });});
+  }catch(_){}
+  return out.slice(0,8);
+}
+function updateNotifBell(){
+  const alerts=_qlAlerts();
+  ['notif-dot','notif-dot-m'].forEach(id=>{const el=document.getElementById(id);if(el)el.hidden=!alerts.length;});
+  const c=document.getElementById('nf-count');
+  if(c){c.hidden=!alerts.length;c.textContent=alerts.length;}
+  return alerts;
+}
+function toggleNotifMenu(e){
+  e.stopPropagation();
+  const m=document.getElementById('notif-menu');
+  if(m.classList.contains('open')){m.classList.remove('open');return;}
+  const alerts=updateNotifBell();
+  document.getElementById('nf-list').innerHTML=alerts.length?alerts.map(a=>`
+    <div class="nf-row" onclick="document.getElementById('notif-menu').classList.remove('open');goTo('${a.page}',document.getElementById('si-${a.page}'))">
+      <span class="nf-ic ${a.tone}">${a.icon}</span>
+      <div style="min-width:0"><div class="nf-t">${a.t}</div><div class="nf-s">${a.s}</div></div>
+    </div>`).join(''):`<div class="nf-empty">🎉 All clear — no pending alerts</div>`;
+  const r=e.currentTarget.getBoundingClientRect();
+  m.style.top=(r.bottom+8)+'px';
+  m.style.left=Math.max(12,Math.min(window.innerWidth-342,r.right-330))+'px';
+  m.classList.add('open');
+}
+document.addEventListener('click',e=>{
+  const m=document.getElementById('notif-menu');
+  if(m&&m.classList.contains('open')&&!m.contains(e.target))m.classList.remove('open');
+});
+const _gsInputBind=setInterval(()=>{
+  const inp=document.getElementById('gsearch-input');
+  if(inp){clearInterval(_gsInputBind);inp.addEventListener('input',()=>{_gsFocus=0;renderGSearch(inp.value);});}
+},200);
 
 // ══ DASHBOARD ══
 function renderDash(){
@@ -7124,6 +7353,7 @@ function loadLocal(){
       });
     });
   }catch(e){console.error('loadLocal failed:',e);}
+  try{updateNotifBell();}catch(_){/* DOM not ready at first boot pass */}
 }
 // Switch company — save current, clear, load new (local first for instant UI,
 // then refresh from cloud so a device with no local cache of the target plant
