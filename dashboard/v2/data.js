@@ -1,0 +1,293 @@
+/* ═══════════════════════════════════════════════════════════════
+   QuickLimes v2 — Data Layer (QLD)
+   Ports the v1 production data logic into a clean module the v2
+   pages consume: auth guard, multi-plant companies, local+cloud
+   persistence, calculation helpers and dashboard aggregates.
+   Depends on supabase-js (CDN) being loaded first.
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  /* ── Supabase (same project + publishable key as v1) ────────── */
+  const SUPA_URL = 'https://iteaawedfmaujujyrqdu.supabase.co';
+  const SUPA_KEY = 'sb_publishable_9MNYdrZ_ddJKTLL97amK4w_85iF6vlU';
+
+  /* ── Auth guard — identical contract to v1 ──────────────────── */
+  let QL_PLANT = null;
+  try { QL_PLANT = JSON.parse(localStorage.getItem('ql_plant') || 'null'); } catch (_) {}
+  // Cross-subdomain handoff (#auth=base64) — same as v1 login flow
+  if (!QL_PLANT && location.hash.startsWith('#auth=')) {
+    try {
+      QL_PLANT = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(6)))));
+      localStorage.setItem('ql_plant', JSON.stringify(QL_PLANT));
+      history.replaceState(null, '', location.pathname);
+    } catch (_) {}
+  }
+  if (!QL_PLANT || !QL_PLANT.id) {
+    const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.endsWith('.local');
+    location.replace(isLocal ? '/quicklime.html' : 'https://quicklimes.com/portal');
+    throw new Error('ql_v2_no_session');
+  }
+
+  /* ── Companies from the plants[] array (parent + children) ──── */
+  const plants = (Array.isArray(QL_PLANT.plants) && QL_PLANT.plants.length) ? QL_PLANT.plants : [QL_PLANT];
+  const COMPANIES = {};
+  plants.forEach(p => {
+    COMPANIES[p.id] = {
+      key: p.id,
+      name: (p.plant_name || 'Your Plant').toUpperCase(),
+      short: p.plant_name || 'Your Plant',
+      city: p.city || '',
+      gstin: p.gst_number || '',
+      isPrimary: !p.parent_plant_id,
+      dataKey: 'ql_data_' + p.id
+    };
+  });
+  let ACTIVE_CO = localStorage.getItem('dm_active_co');
+  if (!ACTIVE_CO || !COMPANIES[ACTIVE_CO]) {
+    ACTIVE_CO = (Object.values(COMPANIES).find(c => c.isPrimary) || Object.values(COMPANIES)[0]).key;
+  }
+  localStorage.setItem('dm_active_co', ACTIVE_CO);
+
+  /* ── State ───────────────────────────────────────────────────── */
+  const S = {
+    SALES: [], PURCHASES: [], WORKERS: [], WORK_LOG: [], ATT: {},
+    TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: []
+  };
+  let DB = null;
+
+  /* ── Format helpers (ported) ─────────────────────────────────── */
+  const fmt = (n, d = 0) => Number(n == null ? 0 : n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const fC = n => '₹' + fmt(n);
+  const fL = n => '₹' + fmt(n / 100000, n >= 10000000 ? 2 : 1) + 'L';           // lakhs, compact
+  const parseD = s => { if (!s) return null; const [y, m, d] = (s + '').split('T')[0].split('-').map(Number); return new Date(y, m - 1, d); };
+  const fDS = s => s ? (parseD(s) || new Date()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '';
+  const ymOf = s => (s || '').slice(0, 7);
+  const daysAgo = s => { const d = parseD(s); return d ? Math.floor((Date.now() - d.getTime()) / 86400000) : 0; };
+
+  /* ── Business calc (ported from v1) ──────────────────────────── */
+  const cS = s => { const tx = s.qty * s.rate, g = tx * s.gstR / 100; return { tx, cgst: g / 2, sgst: g / 2, tot: tx + g }; };
+  const cP = p => { const g = p.taxable * p.grate / 100, itc = (p.itc === 'Eligible' || p.itc === 'RCM') ? g : 0; return { g, tot: p.taxable + g, itc }; };
+  const cW = w => {
+    const days = Object.values(S.ATT[w.id] || {}).filter(v => v === 'P' || v === 'H').length;
+    const gross = w.freq === 'monthly' ? w.wage : w.wage * days, ded = w.adv || 0;
+    return { days, gross, ded, net: gross - ded, cost: gross };
+  };
+  const totS = () => S.SALES.reduce((a, x) => { const c = cS(x); return { tx: a.tx + c.tx, cgst: a.cgst + c.cgst, sgst: a.sgst + c.sgst, tot: a.tot + c.tot }; }, { tx: 0, cgst: 0, sgst: 0, tot: 0 });
+  const totP = () => S.PURCHASES.reduce((a, x) => { const c = cP(x); return { tx: a.tx + x.taxable, g: a.g + c.g, tot: a.tot + c.tot, itc: a.itc + c.itc }; }, { tx: 0, g: 0, tot: 0, itc: 0 });
+  const totL = () => S.WORKERS.reduce((a, w) => { const c = cW(w); return { gross: a.gross + c.gross, net: a.net + c.net, cost: a.cost + c.cost }; }, { gross: 0, net: 0, cost: 0 });
+  function getPL() {
+    const ts = totS(), tp = totP(), tl = totL();
+    const rev = ts.tx;
+    const cogs = S.PURCHASES.reduce((s, p) => s + p.taxable, 0);
+    const gp = rev - cogs;
+    const labour = tl.cost, ebitda = gp - labour;
+    const outGST = ts.cgst + ts.sgst, netGST = Math.max(0, outGST - tp.itc), np = ebitda - netGST;
+    return { rev, cogs, gp, labour, ebitda, netGST, np, outGST, itc: tp.itc, gpm: rev ? gp / rev * 100 : 0, npm: rev ? np / rev * 100 : 0 };
+  }
+
+  /* ── Persistence (port of v1 loadLocal / cloud pull) ─────────── */
+  function clearState() {
+    S.SALES.length = 0; S.PURCHASES.length = 0; S.WORKERS.length = 0; S.WORK_LOG.length = 0;
+    S.TDS.length = 0; S.CHALLANS.length = 0; S.PARTIES.length = 0; S.CASHBOOK.length = 0;
+    S.LOANS.length = 0; S.CHUNNA.length = 0;
+    Object.keys(S.ATT).forEach(k => delete S.ATT[k]);
+  }
+  function hydrate(d) {
+    if (!d) return;
+    if (d.sales)     S.SALES.push(...d.sales.map(s => ({ ...s, status: s.status || 'pending' })));
+    if (d.purchases) S.PURCHASES.push(...d.purchases.map(p => ({ ...p, status: p.status || 'pending' })));
+    if (d.workers)   S.WORKERS.push(...d.workers);
+    if (d.workLog)   S.WORK_LOG.push(...d.workLog);
+    if (d.att)       Object.assign(S.ATT, d.att);
+    if (d.tds)       S.TDS.push(...d.tds);
+    if (d.challans)  S.CHALLANS.push(...d.challans);
+    if (d.parties)   S.PARTIES.push(...d.parties);
+    if (d.cashbook)  S.CASHBOOK.push(...d.cashbook);
+    if (d.loans)     S.LOANS.push(...d.loans);
+    if (d.chunna)    S.CHUNNA.push(...d.chunna);
+  }
+  function loadLocal() {
+    clearState();
+    try {
+      const raw = localStorage.getItem(COMPANIES[ACTIVE_CO].dataKey);
+      if (raw) hydrate(JSON.parse(raw));
+    } catch (e) { console.warn('v2 loadLocal failed', e); }
+  }
+  async function pullCloud() {
+    if (!DB) return false;
+    try {
+      const { data: rows, error } = await DB.rpc('get_my_data', { p_plant_id: QL_PLANT.id });
+      if (error || !rows || !rows.length) return false;
+      const row = rows.find(r => r.id === ACTIVE_CO);
+      if (!row || !row.data) { clearState(); return true; }   // no data for this company yet
+      clearState(); hydrate(row.data);
+      try { localStorage.setItem(COMPANIES[ACTIVE_CO].dataKey, JSON.stringify(row.data)); } catch (_) {}
+      if (row.data.profile_pic) { try { localStorage.setItem('dm_profile_pic', row.data.profile_pic); } catch (_) {} }
+      return true;
+    } catch (e) { console.warn('v2 cloud pull failed', e); return false; }
+  }
+
+  /* ── Aggregates for the dashboard ────────────────────────────── */
+  function monthSeries(nMonths = 7) {
+    const out = [];
+    const now = new Date();
+    for (let i = nMonths - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      const sal = S.SALES.filter(s => ymOf(s.date) === ym);
+      const pur = S.PURCHASES.filter(p => ymOf(p.date) === ym);
+      const sTot = sal.reduce((a, s) => a + cS(s).tot, 0);
+      const sTx  = sal.reduce((a, s) => a + cS(s).tx, 0);
+      const pTx  = pur.reduce((a, p) => a + p.taxable, 0);
+      out.push({
+        ym, m: d.toLocaleDateString('en-IN', { month: 'short' }),
+        sales: sTot, purchases: pTx, profit: sTx - pTx,
+        qty: sal.reduce((a, s) => a + (s.qty || 0), 0),
+        invoices: sal.length
+      });
+    }
+    return out;
+  }
+  const mom = (cur, prev) => (prev > 0 ? (cur - prev) / prev * 100 : null);
+
+  function kpis() {
+    const ser = monthSeries(2);
+    const cur = ser[1] || { sales: 0, purchases: 0, profit: 0, qty: 0, invoices: 0 };
+    const prev = ser[0] || { sales: 0, purchases: 0, profit: 0, qty: 0, invoices: 0 };
+    const ts = totS(), pl = getPL();
+    const pendSales = S.SALES.filter(s => (s.status || 'pending') === 'pending');
+    const pendParties = [...new Set(pendSales.map(s => s.party))];
+    const overdueParties = [...new Set(pendSales.filter(s => daysAgo(s.date) > 30).map(s => s.party))];
+    const pendPur = S.PURCHASES.filter(p => (p.status || 'pending') === 'pending');
+    const totQty = S.SALES.reduce((a, s) => a + (s.qty || 0), 0);
+    return {
+      sales:       { v: fC(ts.tot), trend: mom(cur.sales, prev.sales), meta: S.SALES.length + ' invoices · all time' },
+      profit:      { v: fC(pl.np), trend: mom(cur.profit, prev.profit), meta: 'Margin ' + pl.npm.toFixed(1) + '%' },
+      production:  { v: fmt(totQty, 1) + ' T', trend: mom(cur.qty, prev.qty), meta: 'Total lime dispatched' },
+      dispatch:    { v: fmt(cur.qty, 1) + ' T', trend: mom(cur.qty, prev.qty), meta: cur.invoices + ' invoices this month' },
+      collections: { v: fC(pendSales.reduce((a, s) => a + cS(s).tot, 0)), trend: null, meta: pendParties.length + ' parties · ' + overdueParties.length + ' overdue' },
+      payments:    { v: fC(pendPur.reduce((a, p) => a + cP(p).tot, 0)), trend: null, meta: [...new Set(pendPur.map(p => p.sup))].length + ' suppliers' }
+    };
+  }
+
+  function collections(filter = 'all') {
+    const pend = S.SALES.filter(s => (s.status || 'pending') === 'pending');
+    const byParty = {};
+    pend.forEach(s => {
+      const k = s.party || '—';
+      byParty[k] = byParty[k] || { party: k, bills: 0, total: 0, oldest: s.date };
+      byParty[k].bills++; byParty[k].total += cS(s).tot;
+      if (s.date < byParty[k].oldest) byParty[k].oldest = s.date;
+    });
+    let rows = Object.values(byParty).map(r => ({ ...r, days: daysAgo(r.oldest) }));
+    if (filter === 'overdue') rows = rows.filter(r => r.days > 30);
+    if (filter === 'week')    rows = rows.filter(r => r.days <= 7);
+    if (filter === 'month')   rows = rows.filter(r => r.days <= 31);
+    return {
+      rows: rows.sort((a, b) => b.total - a.total),
+      total: Object.values(byParty).reduce((a, r) => a + r.total, 0),
+      parties: Object.keys(byParty).length,
+      overdue: Object.values(byParty).filter(r => daysAgo(r.oldest) > 30).length
+    };
+  }
+
+  function insights() {
+    const out = [];
+    const ser = monthSeries(2);
+    const sMoM = mom(ser[1].sales, ser[0].sales);
+    if (sMoM != null) out.push({
+      tone: sMoM >= 0 ? 'success' : 'danger', icon: sMoM >= 0 ? 'up' : 'down',
+      t: `Sales ${sMoM >= 0 ? 'up' : 'down'} ${Math.abs(sMoM).toFixed(1)}% vs last month.`,
+      s: `${fL(ser[1].sales)} this month vs ${fL(ser[0].sales)} previous.`
+    });
+    const coll = collections().rows[0];
+    if (coll && coll.days > 30) out.push({
+      tone: 'danger', icon: 'alert',
+      t: `${coll.party} has ${fC(coll.total)} outstanding for ${coll.days} days.`,
+      s: 'Highest overdue.', cta: 'View collections →', page: 'collections'
+    });
+    const pendPur = S.PURCHASES.filter(p => (p.status || 'pending') === 'pending');
+    if (pendPur.length) out.push({
+      tone: 'warning', icon: 'bill',
+      t: `${pendPur.length} supplier bill${pendPur.length > 1 ? 's' : ''} awaiting payment.`,
+      s: fC(pendPur.reduce((a, p) => a + cP(p).tot, 0)) + ' total.'
+    });
+    if (ser[1].profit > 0) out.push({
+      tone: 'info', icon: 'trend',
+      t: `Estimated gross profit this month: ${fL(ser[1].profit)}.`,
+      s: ser[0].profit > 0 ? `${ser[1].profit >= ser[0].profit ? '+' : ''}${fL(ser[1].profit - ser[0].profit)} vs last month.` : 'Based on sales minus purchases.'
+    });
+    return out.slice(0, 4);
+  }
+
+  function production() {
+    const today = new Date(); const tISO = today.toISOString().slice(0, 10);
+    const qtyIn = f => S.SALES.filter(f).reduce((a, s) => a + (s.qty || 0), 0);
+    const ymNow = tISO.slice(0, 7);
+    return {
+      today: qtyIn(s => s.date === tISO),
+      week:  qtyIn(s => daysAgo(s.date) <= 7),
+      month: qtyIn(s => ymOf(s.date) === ymNow),
+      chunnaMonth: S.CHUNNA.filter(c => ymOf(c.date) === ymNow).reduce((a, c) => a + (parseFloat(c.qty) || 0), 0)
+    };
+  }
+
+  function topProducts() {
+    const ts = totS();
+    const qty = S.SALES.reduce((a, s) => a + (s.qty || 0), 0);
+    const rows = [{
+      icon: '⚪', name: 'Quick Lime', sub: 'GST invoiced dispatches',
+      qty: fmt(qty, 1) + ' T', avg: qty ? fC(ts.tx / qty) : '—', rev: fC(ts.tot)
+    }];
+    const cQty = S.CHUNNA.reduce((a, c) => a + (parseFloat(c.qty) || 0), 0);
+    const cTot = S.CHUNNA.reduce((a, c) => a + (parseFloat(c.total) || 0), 0);
+    if (cQty || cTot) rows.push({
+      icon: '🧱', name: 'Chunna', sub: 'Cash + PhonePe sales',
+      qty: fmt(cQty, 1) + ' T', avg: cQty ? fC(cTot / cQty) : '—', rev: fC(cTot)
+    });
+    return rows;
+  }
+
+  function activity() {
+    const ev = [];
+    S.SALES.forEach(s => {
+      ev.push({ d: s.date, tone: 'brand', icon: 'invoice', t: `Invoice ${s.inv} — ${s.party}`, s: fmt(s.qty, 1) + ' T · ' + fC(cS(s).tot) });
+      if (s.status === 'paid' && s.paidDate) ev.push({ d: s.paidDate, tone: 'success', icon: 'paid', t: `${s.party} paid ${fC(cS(s).tot)}`, s: 'Invoice ' + s.inv + (s.paidMode ? ' · ' + s.paidMode : '') });
+    });
+    S.PURCHASES.forEach(p => ev.push({ d: p.date, tone: 'warning', icon: 'bill', t: `Bill ${p.bill} — ${p.sup}`, s: fC(p.taxable) + ' · ' + (p.cat || 'Purchase') }));
+    S.CHUNNA.forEach(c => ev.push({ d: c.date, tone: 'indigo', icon: 'chunna', t: `Chunna sale — ${c.customer || 'cash'}`, s: fmt(c.qty, 1) + ' T · ' + fC(c.total) }));
+    return ev.filter(e => e.d).sort((a, b) => b.d.localeCompare(a.d)).slice(0, 6)
+             .map(e => ({ ...e, when: fDS(e.d) }));
+  }
+
+  /* ── Public API ──────────────────────────────────────────────── */
+  window.QLD = {
+    plant: QL_PLANT, COMPANIES,
+    get activeCo() { return ACTIVE_CO; },
+    get co() { return COMPANIES[ACTIVE_CO]; },
+    state: S,
+    fmt, fC, fL, fDS, daysAgo,
+    kpis, monthSeries, collections, insights, production, topProducts, activity,
+
+    async init(render) {
+      loadLocal();
+      render();                                   // instant paint from local cache
+      try {
+        DB = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+        const ok = await pullCloud();
+        if (ok) render();                         // refresh with authoritative data
+      } catch (e) { console.warn('v2 supabase init failed', e); }
+    },
+
+    async switchCompany(id, render) {
+      if (!COMPANIES[id] || id === ACTIVE_CO) return;
+      ACTIVE_CO = id;
+      localStorage.setItem('dm_active_co', id);
+      loadLocal();
+      render();
+      const ok = await pullCloud();
+      if (ok) render();
+    }
+  };
+})();

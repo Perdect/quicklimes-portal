@@ -10,6 +10,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./tokens.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
@@ -981,7 +983,7 @@ button { font-family: inherit; cursor: pointer; }
 
     <button class="tb-action" title="Notifications">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      <span class="tb-action-dot"></span>
+      <span class="tb-action-dot" id="tbNotifDot" style="display:none"></span>
     </button>
 
     <button class="tb-action is-ai" title="Ask AI">
@@ -1059,8 +1061,8 @@ button { font-family: inherit; cursor: pointer; }
       <!-- ─── PAGE HEAD ─── -->
       <div class="page-head">
         <div>
-          <h1 class="page-title">Welcome back, Sameer 👋</h1>
-          <div class="page-sub">Here's what's happening at Deshwali Minerals today.</div>
+          <h1 class="page-title" id="dashGreeting">Welcome back 👋</h1>
+          <div class="page-sub" id="dashSub">Loading your data…</div>
         </div>
         <div class="page-actions">
           <div class="period-tabs">
@@ -1080,80 +1082,8 @@ button { font-family: inherit; cursor: pointer; }
         </div>
       </div>
 
-      <!-- ─── KPI STRIP (6 cards) ─── -->
-      <div class="kpi-strip">
-        <div class="kpi-tile">
-          <div class="kpi-head">
-            <div class="kpi-ic" style="background:var(--ql-brand-50);color:var(--ql-brand-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l2 13h11l2-8H6"/></svg></div>
-            <span class="kpi-trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg> 12.4%</span>
-          </div>
-          <div>
-            <div class="kpi-label">Total Sales</div>
-            <div class="kpi-val">₹28,11,821</div>
-            <div class="kpi-meta">vs ₹25,01,540 last month</div>
-          </div>
-        </div>
-
-        <div class="kpi-tile">
-          <div class="kpi-head">
-            <div class="kpi-ic" style="background:var(--ql-success-50);color:var(--ql-success-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M5 12l7-7 7 7"/></svg></div>
-            <span class="kpi-trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg> 8.7%</span>
-          </div>
-          <div>
-            <div class="kpi-label">Net Profit</div>
-            <div class="kpi-val">₹4,82,103</div>
-            <div class="kpi-meta">Margin 17.1%</div>
-          </div>
-        </div>
-
-        <div class="kpi-tile">
-          <div class="kpi-head">
-            <div class="kpi-ic" style="background:var(--ql-warning-50);color:var(--ql-warning-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V12M9 21V8M13 21V4M17 21V11M21 21V14"/></svg></div>
-            <span class="kpi-trend down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg> 2.1%</span>
-          </div>
-          <div>
-            <div class="kpi-label">Production</div>
-            <div class="kpi-val">634.4 T</div>
-            <div class="kpi-meta">Target 700 T · 90.6%</div>
-          </div>
-        </div>
-
-        <div class="kpi-tile">
-          <div class="kpi-head">
-            <div class="kpi-ic" style="background:#EEF2FF;color:#4F46E5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
-            <span class="kpi-trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg> 5.4%</span>
-          </div>
-          <div>
-            <div class="kpi-label">Dispatch</div>
-            <div class="kpi-val">587.2 T</div>
-            <div class="kpi-meta">31 lorries · 92.6%</div>
-          </div>
-        </div>
-
-        <div class="kpi-tile">
-          <div class="kpi-head">
-            <div class="kpi-ic" style="background:var(--ql-danger-50);color:var(--ql-danger-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg></div>
-            <span class="kpi-trend down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg> 4.5%</span>
-          </div>
-          <div>
-            <div class="kpi-label">Pending Collections</div>
-            <div class="kpi-val">₹28,03,479</div>
-            <div class="kpi-meta">9 parties · 4 overdue</div>
-          </div>
-        </div>
-
-        <div class="kpi-tile">
-          <div class="kpi-head">
-            <div class="kpi-ic" style="background:#F3F4F6;color:#374151"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg></div>
-            <span class="kpi-trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg> 1.2%</span>
-          </div>
-          <div>
-            <div class="kpi-label">Pending Payments</div>
-            <div class="kpi-val">₹7,74,141</div>
-            <div class="kpi-meta">2 suppliers</div>
-          </div>
-        </div>
-      </div>
+      <!-- ─── KPI STRIP (live) ─── -->
+      <div class="kpi-strip" id="kpiStrip"></div>
 
       <!-- ─── REVENUE CHART + AI INSIGHTS ─── -->
       <div class="row-2">
@@ -1161,19 +1091,14 @@ button { font-family: inherit; cursor: pointer; }
           <div class="card-head">
             <div>
               <h3 class="card-title">Revenue analytics</h3>
-              <div class="card-sub">Sales, purchases and profit · last 7 months</div>
-            </div>
-            <div class="card-tabs">
-              <button class="card-tab">Weekly</button>
-              <button class="card-tab active">Monthly</button>
-              <button class="card-tab">Yearly</button>
+              <div class="card-sub">Sales, purchases and gross profit · last 7 months</div>
             </div>
           </div>
           <div class="chart" id="chartRev"></div>
           <div class="chart-legend">
             <span><i class="legend-dot" style="background:var(--ql-brand-500)"></i> Sales</span>
             <span><i class="legend-dot" style="background:var(--ql-brand-200)"></i> Purchases</span>
-            <span><i class="legend-dot" style="background:var(--ql-success-500)"></i> Net profit</span>
+            <span><i class="legend-dot" style="background:var(--ql-success-500)"></i> Gross profit</span>
           </div>
         </div>
 
@@ -1182,163 +1107,41 @@ button { font-family: inherit; cursor: pointer; }
             <div class="ai-spark"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9"/></svg></div>
             <div>
               <h3 class="card-title">AI insights</h3>
-              <div class="card-sub">Findings based on your live data</div>
+              <div class="card-sub">Findings from your live data</div>
             </div>
           </div>
-          <div class="ai-list">
-            <div class="ai-item tone-success">
-              <div class="ai-item-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></div>
-              <div class="ai-item-text">
-                <div class="ai-item-headline">Sales up 12.4% vs last month — your best run since Feb.</div>
-                <div class="ai-item-meta">Driven by Kirti Lime &amp; Aman repeat orders.</div>
-              </div>
-            </div>
-            <div class="ai-item tone-danger">
-              <div class="ai-item-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg></div>
-              <div class="ai-item-text">
-                <div class="ai-item-headline">KIRTI LIME PRODUCTS has ₹8.65L outstanding for 42 days.</div>
-                <div class="ai-item-meta">Highest overdue. <a class="ai-item-cta" href="#">Send reminder →</a></div>
-              </div>
-            </div>
-            <div class="ai-item tone-warning">
-              <div class="ai-item-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V12M9 21V8M13 21V4M17 21V11M21 21V14"/></svg></div>
-              <div class="ai-item-text">
-                <div class="ai-item-headline">Production efficiency dropped 5% this week.</div>
-                <div class="ai-item-meta">Likely Kiln #2 fuel ratio. <a class="ai-item-cta" href="#">Check kiln →</a></div>
-              </div>
-            </div>
-            <div class="ai-item tone-info">
-              <div class="ai-item-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M5 12l7-7 7 7"/></svg></div>
-              <div class="ai-item-text">
-                <div class="ai-item-headline">Estimated monthly profit ₹4.8L if trend holds.</div>
-                <div class="ai-item-meta">+₹38K vs last month.</div>
-              </div>
-            </div>
-          </div>
+          <div class="ai-list" id="aiList"></div>
         </div>
       </div>
 
-      <!-- ─── COLLECTIONS + PRODUCTION SNAPSHOT ─── -->
+      <!-- ─── COLLECTIONS + PRODUCTION ─── -->
       <div class="row-2">
         <div class="card">
           <div class="card-head">
             <div>
               <h3 class="card-title">Pending collections</h3>
-              <div class="card-sub">9 parties · ₹28,03,479 outstanding</div>
-            </div>
-            <a class="ai-item-cta" href="#">View all →</a>
-          </div>
-          <div class="filter-chips">
-            <button class="chip active">All</button>
-            <button class="chip">Overdue (4)</button>
-            <button class="chip">This week</button>
-            <button class="chip">This month</button>
-          </div>
-          <div class="coll-list">
-            <div class="coll-row">
-              <div class="coll-av" style="background:linear-gradient(135deg,#F59E0B,#D97706)">K</div>
-              <div class="coll-body">
-                <div class="coll-name">KIRTI LIME PRODUCTS</div>
-                <div class="coll-meta">6 bills · since 26 Jan <span class="coll-pill overdue">42d overdue</span></div>
-              </div>
-              <div class="coll-amount">
-                <div class="coll-amount-val">₹8,65,489</div>
-                <div class="coll-amount-sub">Due 04 Mar</div>
-              </div>
-              <button class="coll-action" title="Send reminder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
-            </div>
-            <div class="coll-row">
-              <div class="coll-av" style="background:linear-gradient(135deg,var(--ql-brand-500),var(--ql-brand-700))">D</div>
-              <div class="coll-body">
-                <div class="coll-name">DESHWALI LIME INDUSTRIES</div>
-                <div class="coll-meta">4 bills · since 06 Feb <span class="coll-pill overdue">31d overdue</span></div>
-              </div>
-              <div class="coll-amount">
-                <div class="coll-amount-val">₹4,99,349</div>
-                <div class="coll-amount-sub">Due 13 Mar</div>
-              </div>
-              <button class="coll-action" title="Send reminder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
-            </div>
-            <div class="coll-row">
-              <div class="coll-av" style="background:linear-gradient(135deg,var(--ql-success-500),var(--ql-success-700))">A</div>
-              <div class="coll-body">
-                <div class="coll-name">AMAN LIME PRODUCTS</div>
-                <div class="coll-meta">13 bills · since 14 Feb <span class="coll-pill due">5d to due</span></div>
-              </div>
-              <div class="coll-amount">
-                <div class="coll-amount-val">₹4,99,125</div>
-                <div class="coll-amount-sub">Due 18 Mar</div>
-              </div>
-              <button class="coll-action" title="Send reminder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
-            </div>
-            <div class="coll-row">
-              <div class="coll-av" style="background:linear-gradient(135deg,#A855F7,#7E22CE)">S</div>
-              <div class="coll-body">
-                <div class="coll-name">SUNIL LIME PRODUCTS</div>
-                <div class="coll-meta">3 bills · since 03 Jan <span class="coll-pill overdue">68d overdue</span></div>
-              </div>
-              <div class="coll-amount">
-                <div class="coll-amount-val">₹2,29,693</div>
-                <div class="coll-amount-sub">Due 03 Feb</div>
-              </div>
-              <button class="coll-action" title="Send reminder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+              <div class="card-sub" id="collSub">—</div>
             </div>
           </div>
+          <div class="filter-chips" id="collChips">
+            <button class="chip active" data-f="all">All</button>
+            <button class="chip" data-f="overdue">Overdue (<span id="chipOverdueN">0</span>)</button>
+            <button class="chip" data-f="week">This week</button>
+            <button class="chip" data-f="month">This month</button>
+          </div>
+          <div class="coll-list" id="collList"></div>
         </div>
 
         <div class="card">
           <div class="card-head">
             <div>
-              <h3 class="card-title">Production · today</h3>
-              <div class="card-sub">Live kiln readings · 5 minutes ago</div>
+              <h3 class="card-title">Production &amp; dispatch</h3>
+              <div class="card-sub">From your live sales + chunna records</div>
             </div>
           </div>
-          <div class="prod-stats">
-            <div class="prod-stat">
-              <div class="prod-stat-label">Today</div>
-              <div class="prod-stat-val">22.4 T</div>
-              <div class="prod-stat-meta">+4% vs avg</div>
-            </div>
-            <div class="prod-stat">
-              <div class="prod-stat-label">This week</div>
-              <div class="prod-stat-val">156 T</div>
-              <div class="prod-stat-meta">7 day total</div>
-            </div>
-            <div class="prod-stat">
-              <div class="prod-stat-label">This month</div>
-              <div class="prod-stat-val">634 T</div>
-              <div class="prod-stat-meta">90.6% of target</div>
-            </div>
-          </div>
-          <div class="target">
-            <div class="target-head"><span>Monthly target</span><strong>634 / 700 T</strong></div>
-            <div class="target-bar"><i style="width:90.6%"></i></div>
-            <div class="card-sub" style="margin-top:2px">65 T to go · 11 days left</div>
-          </div>
-          <div class="kiln-row">
-            <span class="kiln-pulse"></span>
-            <div class="kiln-body">
-              <div class="kiln-name">Kiln #1 · Running</div>
-              <div class="kiln-meta">Batch 042 · 18.2 T · 7h 22m</div>
-            </div>
-            <div class="kiln-eff">94%</div>
-          </div>
-          <div class="kiln-row">
-            <span class="kiln-pulse" style="background:var(--ql-warning-500);box-shadow:0 0 0 4px rgba(245,158,11,.18)"></span>
-            <div class="kiln-body">
-              <div class="kiln-name">Kiln #2 · Running</div>
-              <div class="kiln-meta">Batch 043 · 4.2 T · 1h 48m</div>
-            </div>
-            <div class="kiln-eff" style="color:var(--ql-warning-700)">82%</div>
-          </div>
-          <div class="kiln-row" style="opacity:.6">
-            <span class="kiln-pulse" style="background:var(--ql-neutral-400);box-shadow:none;animation:none"></span>
-            <div class="kiln-body">
-              <div class="kiln-name">Kiln #3 · Idle</div>
-              <div class="kiln-meta">Last run 22 Feb</div>
-            </div>
-            <div class="kiln-eff" style="color:var(--ql-text-muted)">—</div>
-          </div>
+          <div class="prod-stats" id="prodStats"></div>
+          <div class="target" id="prodTarget"></div>
+          <div id="prodRows" style="display:flex;flex-direction:column;gap:var(--ql-space-3)"></div>
         </div>
       </div>
 
@@ -1347,43 +1150,15 @@ button { font-family: inherit; cursor: pointer; }
         <div class="card">
           <div class="card-head">
             <div>
-              <h3 class="card-title">Top products</h3>
-              <div class="card-sub">By revenue this month</div>
+              <h3 class="card-title">Products</h3>
+              <div class="card-sub">Revenue by product line · all time</div>
             </div>
-            <button class="ql-btn ql-btn-ghost" style="font-size:var(--ql-text-sm);padding:6px 10px">
-              Filter
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-            </button>
           </div>
           <table class="tbl">
             <thead>
-              <tr>
-                <th>Product</th>
-                <th class="num">Qty</th>
-                <th class="num">Avg ₹/T</th>
-                <th class="num">Revenue</th>
-              </tr>
+              <tr><th>Product</th><th class="num">Qty</th><th class="num">Avg ₹/T</th><th class="num">Revenue</th></tr>
             </thead>
-            <tbody>
-              <tr>
-                <td><div class="tbl-prod"><div class="tbl-prod-ic">⚪</div><div><div class="tbl-prod-name">Quick Lime · CL</div><div class="tbl-prod-sub">90%+ purity</div></div></div></td>
-                <td class="num">412.8 T</td>
-                <td class="num">₹4,440</td>
-                <td class="num">₹18,33,028</td>
-              </tr>
-              <tr>
-                <td><div class="tbl-prod"><div class="tbl-prod-ic">💎</div><div><div class="tbl-prod-name">Hydrated Lime</div><div class="tbl-prod-sub">Slaked Ca(OH)₂</div></div></div></td>
-                <td class="num">144.6 T</td>
-                <td class="num">₹4,810</td>
-                <td class="num">₹6,95,521</td>
-              </tr>
-              <tr>
-                <td><div class="tbl-prod"><div class="tbl-prod-ic">🧱</div><div><div class="tbl-prod-name">Chunna · grade A</div><div class="tbl-prod-sub">Industrial</div></div></div></td>
-                <td class="num">77 T</td>
-                <td class="num">₹4,200</td>
-                <td class="num">₹3,23,400</td>
-              </tr>
-            </tbody>
+            <tbody id="tpBody"></tbody>
           </table>
         </div>
 
@@ -1391,37 +1166,10 @@ button { font-family: inherit; cursor: pointer; }
           <div class="card-head">
             <div>
               <h3 class="card-title">Recent activity</h3>
-              <div class="card-sub">Last 24h</div>
-            </div>
-            <a class="ai-item-cta" href="#">See all →</a>
-          </div>
-          <div class="feed">
-            <div class="feed-row">
-              <div class="feed-ic" style="background:var(--ql-success-50);color:var(--ql-success-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-              <div><div class="feed-text"><strong>Aman Lime Products</strong> paid ₹1,24,800</div><div class="feed-meta">Bill #SAL-2026-041 · UPI</div></div>
-              <div class="feed-time">2m ago</div>
-            </div>
-            <div class="feed-row">
-              <div class="feed-ic" style="background:var(--ql-brand-50);color:var(--ql-brand-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-              <div><div class="feed-text"><strong>Invoice #SAL-2026-042</strong> created for Kirti Lime</div><div class="feed-meta">22.4 T · ₹99,456</div></div>
-              <div class="feed-time">38m ago</div>
-            </div>
-            <div class="feed-row">
-              <div class="feed-ic" style="background:var(--ql-warning-50);color:var(--ql-warning-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V12M9 21V8M13 21V4M17 21V11M21 21V14"/></svg></div>
-              <div><div class="feed-text"><strong>Kiln #2</strong> batch 043 started</div><div class="feed-meta">Petcoke 240 kg loaded</div></div>
-              <div class="feed-time">1h ago</div>
-            </div>
-            <div class="feed-row">
-              <div class="feed-ic" style="background:#EEF2FF;color:#4F46E5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
-              <div><div class="feed-text">Dispatch <strong>DSP-2026-031</strong> · 18.6 T to Aman Lime</div><div class="feed-meta">Lorry RJ-21-GA-4421</div></div>
-              <div class="feed-time">3h ago</div>
-            </div>
-            <div class="feed-row">
-              <div class="feed-ic" style="background:var(--ql-danger-50);color:var(--ql-danger-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
-              <div><div class="feed-text"><strong>3 collections</strong> are 30+ days overdue</div><div class="feed-meta">AI flagged · review collections</div></div>
-              <div class="feed-time">8h ago</div>
+              <div class="card-sub">Latest entries</div>
             </div>
           </div>
+          <div class="feed" id="feedList"></div>
         </div>
       </div>
 
@@ -1635,7 +1383,7 @@ function applyAvatarPhoto(dataUrl){
 }
 
 function loadStoredPhoto(){
-  const saved = localStorage.getItem(PHOTO_KEY);
+  const saved = localStorage.getItem('dm_profile_pic') || localStorage.getItem(PHOTO_KEY);
   if (saved) applyAvatarPhoto(saved);
 }
 loadStoredPhoto();
@@ -1801,22 +1549,19 @@ document.addEventListener('keydown', e => {
 /* ─────────────────────────────────────────────────────────────
    REVENUE CHART — pure SVG, composes from tokens
    ───────────────────────────────────────────────────────────── */
-(function renderRevenueChart(){
+function renderRevenueChart(series){
   const host = document.getElementById('chartRev');
   if (!host) return;
 
   const css = getComputedStyle(document.documentElement);
   const v   = n => css.getPropertyValue(n).trim();
 
-  const data = [
-    { m: 'Jan', sales: 18.4, purchases: 12.0, profit: 3.1 },
-    { m: 'Feb', sales: 22.1, purchases: 13.6, profit: 4.0 },
-    { m: 'Mar', sales: 19.8, purchases: 11.2, profit: 3.4 },
-    { m: 'Apr', sales: 24.7, purchases: 14.8, profit: 4.2 },
-    { m: 'May', sales: 26.5, purchases: 15.1, profit: 4.6 },
-    { m: 'Jun', sales: 23.9, purchases: 13.4, profit: 4.1 },
-    { m: 'Jul', sales: 28.1, purchases: 15.9, profit: 4.8 },
-  ];
+  const data = series.map(d => ({
+    m: d.m,
+    sales:     +(d.sales     / 100000).toFixed(2),
+    purchases: +(d.purchases / 100000).toFixed(2),
+    profit:    +(Math.max(0, d.profit) / 100000).toFixed(2)
+  }));
 
   const W = 760, H = 260;
   const P = { l: 44, r: 16, t: 16, b: 28 };  // padding
@@ -1894,7 +1639,7 @@ document.addEventListener('keydown', e => {
       ${xLabels}
     </svg>
   `;
-})();
+}
 
 /* Period tabs (page-level) + filter chips toggle (UI only for now) */
 document.querySelectorAll('.period-tab').forEach(tab => {
@@ -1926,6 +1671,180 @@ const dashLink = document.querySelector('.sb-link[data-page="dashboard"]');
 if (dashLink) dashLink.classList.add('active');
 const crumb = document.querySelector('.tb-crumb-active');
 if (crumb) crumb.textContent = 'Dashboard';
+
+/* ─────────────────────────────────────────────────────────────
+   LIVE DATA BOOT — renders everything from QLD (data.js)
+   ───────────────────────────────────────────────────────────── */
+const KICONS = {
+  sales:      {bg:'var(--ql-brand-50)',  fg:'var(--ql-brand-600)',  svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l2 13h11l2-8H6"/></svg>'},
+  profit:     {bg:'var(--ql-success-50)',fg:'var(--ql-success-600)',svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M5 12l7-7 7 7"/></svg>'},
+  production: {bg:'var(--ql-warning-50)',fg:'var(--ql-warning-600)',svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V12M9 21V8M13 21V4M17 21V11M21 21V14"/></svg>'},
+  dispatch:   {bg:'#EEF2FF',             fg:'#4F46E5',              svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>'},
+  collections:{bg:'var(--ql-danger-50)', fg:'var(--ql-danger-600)', svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>'},
+  payments:   {bg:'#F3F4F6',             fg:'#374151',              svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>'}
+};
+const KLABELS = {sales:'Total Sales',profit:'Net Profit',production:'Production',dispatch:'Dispatch · month',collections:'Pending Collections',payments:'Pending Payments'};
+function trendPill(t){
+  if (t == null || !isFinite(t)) return '';
+  const up = t >= 0;
+  return `<span class="kpi-trend ${up?'up':'down'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="${up?'18 15 12 9 6 15':'6 9 12 15 18 9'}"/></svg> ${Math.abs(t).toFixed(1)}%</span>`;
+}
+const AI_IC = {
+  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+  alert:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>',
+  bill:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+  trend:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M5 12l7-7 7 7"/></svg>'
+};
+const FEED_IC = {
+  paid:{bg:'var(--ql-success-50)',fg:'var(--ql-success-600)',svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'},
+  invoice:{bg:'var(--ql-brand-50)',fg:'var(--ql-brand-600)',svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'},
+  bill:{bg:'var(--ql-warning-50)',fg:'var(--ql-warning-600)',svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>'},
+  chunna:{bg:'#EEF2FF',fg:'#4F46E5',svg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>'}
+};
+const AVG = ['#2563EB,#1D4ED8','#16A34A,#15803D','#F59E0B,#B45309','#7C3AED,#5B21B6','#DB2777,#9D174D','#0891B2,#155E75'];
+let collFilter = 'all';
+
+function renderAll(){
+  const co = QLD.co;
+  document.getElementById('dashGreeting').textContent = `Welcome back, ${co.short} 👋`;
+  document.getElementById('dashSub').textContent = `Here's what's happening at ${co.short} today.`;
+
+  /* workspace switcher */
+  const wsAv = document.querySelector('#wsBtn .workspace-avatar');
+  const wsNm = document.querySelector('#wsBtn .workspace-name');
+  const wsMeta = document.querySelector('#wsBtn .workspace-meta');
+  if (wsAv) wsAv.textContent = co.short.charAt(0).toUpperCase();
+  if (wsNm) wsNm.textContent = co.short;
+  if (wsMeta) wsMeta.textContent = (co.isPrimary ? 'Primary' : 'Linked') + ' · Quick Lime';
+  const wsMenu = document.getElementById('wsMenu');
+  if (wsMenu) {
+    wsMenu.innerHTML = Object.values(QLD.COMPANIES).map((c,i) => `
+      <button class="ws-row ${c.key===QLD.activeCo?'active':''}" data-co="${c.key}">
+        <span class="ws-row-av" style="background:linear-gradient(135deg,${AVG[i%AVG.length]})">${c.short.charAt(0).toUpperCase()}</span>
+        <span>${c.short}</span>
+        ${c.key===QLD.activeCo?'<svg style="margin-left:auto;width:14px;height:14px;color:var(--ql-brand-600)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}
+      </button>`).join('');
+    wsMenu.querySelectorAll('.ws-row').forEach(row => row.addEventListener('click', () => {
+      wsMenu.classList.remove('open');
+      QLD.switchCompany(row.dataset.co, renderAll);
+    }));
+  }
+  const sbName = document.querySelector('.sb-profile-name');
+  if (sbName) sbName.textContent = co.short;
+
+  /* KPIs */
+  const k = QLD.kpis();
+  document.getElementById('kpiStrip').innerHTML = Object.keys(KLABELS).map(key => `
+    <div class="kpi-tile">
+      <div class="kpi-head">
+        <div class="kpi-ic" style="background:${KICONS[key].bg};color:${KICONS[key].fg}">${KICONS[key].svg}</div>
+        ${trendPill(k[key].trend)}
+      </div>
+      <div>
+        <div class="kpi-label">${KLABELS[key]}</div>
+        <div class="kpi-val">${k[key].v}</div>
+        <div class="kpi-meta">${k[key].meta}</div>
+      </div>
+    </div>`).join('');
+
+  /* chart */
+  renderRevenueChart(QLD.monthSeries(7));
+
+  /* AI insights */
+  const ins = QLD.insights();
+  document.getElementById('aiList').innerHTML = ins.length ? ins.map(i => `
+    <div class="ai-item tone-${i.tone}">
+      <div class="ai-item-ic">${AI_IC[i.icon]||AI_IC.trend}</div>
+      <div class="ai-item-text">
+        <div class="ai-item-headline">${i.t}</div>
+        <div class="ai-item-meta">${i.s||''}</div>
+      </div>
+    </div>`).join('') : '<div class="ai-item tone-info"><div class="ai-item-ic">'+AI_IC.trend+'</div><div class="ai-item-text"><div class="ai-item-headline">Add sales and purchases to see insights.</div></div></div>';
+
+  /* collections */
+  renderCollections();
+
+  /* production */
+  const pr = QLD.production();
+  document.getElementById('prodStats').innerHTML = `
+    <div class="prod-stat"><div class="prod-stat-label">Today</div><div class="prod-stat-val">${QLD.fmt(pr.today,1)} T</div><div class="prod-stat-meta">dispatched</div></div>
+    <div class="prod-stat"><div class="prod-stat-label">This week</div><div class="prod-stat-val">${QLD.fmt(pr.week,1)} T</div><div class="prod-stat-meta">7-day total</div></div>
+    <div class="prod-stat"><div class="prod-stat-label">This month</div><div class="prod-stat-val">${QLD.fmt(pr.month,1)} T</div><div class="prod-stat-meta">month to date</div></div>`;
+  const target = 700;
+  const pct = Math.min(100, pr.month / target * 100);
+  document.getElementById('prodTarget').innerHTML = `
+    <div class="target-head"><span>Monthly target</span><strong>${QLD.fmt(pr.month,0)} / ${target} T</strong></div>
+    <div class="target-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+    <div class="card-sub" style="margin-top:2px">${pct>=100?'Target hit 🎉':QLD.fmt(target-pr.month,0)+' T to go'}</div>`;
+  document.getElementById('prodRows').innerHTML = `
+    <div class="kiln-row">
+      <span class="kiln-pulse"></span>
+      <div class="kiln-body"><div class="kiln-name">Quick Lime dispatch</div><div class="kiln-meta">${QLD.fmt(pr.month,1)} T this month</div></div>
+      <div class="kiln-eff">live</div>
+    </div>
+    <div class="kiln-row">
+      <span class="kiln-pulse" style="background:var(--ql-warning-500);box-shadow:0 0 0 4px rgba(245,158,11,.18)"></span>
+      <div class="kiln-body"><div class="kiln-name">Chunna sales</div><div class="kiln-meta">${QLD.fmt(pr.chunnaMonth,1)} T this month</div></div>
+      <div class="kiln-eff" style="color:var(--ql-warning-700)">live</div>
+    </div>
+    <div class="kiln-row" style="opacity:.55">
+      <span class="kiln-pulse" style="background:var(--ql-neutral-400);box-shadow:none;animation:none"></span>
+      <div class="kiln-body"><div class="kiln-name">Kiln tracking</div><div class="kiln-meta">Coming soon — log batches &amp; fuel</div></div>
+      <div class="kiln-eff" style="color:var(--ql-text-muted)">—</div>
+    </div>`;
+
+  /* products */
+  document.getElementById('tpBody').innerHTML = QLD.topProducts().map(r => `
+    <tr>
+      <td><div class="tbl-prod"><div class="tbl-prod-ic">${r.icon}</div><div><div class="tbl-prod-name">${r.name}</div><div class="tbl-prod-sub">${r.sub}</div></div></div></td>
+      <td class="num">${r.qty}</td><td class="num">${r.avg}</td><td class="num">${r.rev}</td>
+    </tr>`).join('');
+
+  /* activity */
+  const ev = QLD.activity();
+  document.getElementById('feedList').innerHTML = ev.length ? ev.map(e => {
+    const ic = FEED_IC[e.icon] || FEED_IC.invoice;
+    return `<div class="feed-row">
+      <div class="feed-ic" style="background:${ic.bg};color:${ic.fg}">${ic.svg}</div>
+      <div><div class="feed-text">${e.t}</div><div class="feed-meta">${e.s}</div></div>
+      <div class="feed-time">${e.when}</div>
+    </div>`;
+  }).join('') : '<div class="card-sub">No entries yet.</div>';
+
+  /* notif dot — danger/warning insights present */
+  const dot = document.getElementById('tbNotifDot');
+  if (dot) dot.style.display = ins.some(i => i.tone==='danger'||i.tone==='warning') ? '' : 'none';
+}
+
+function renderCollections(){
+  const c = QLD.collections(collFilter);
+  document.getElementById('collSub').textContent = `${c.parties} parties · ${QLD.fC(c.total)} outstanding`;
+  document.getElementById('chipOverdueN').textContent = c.overdue;
+  document.getElementById('collList').innerHTML = c.rows.length ? c.rows.slice(0,6).map((r,i) => {
+    const pill = r.days>30 ? `<span class="coll-pill overdue">${r.days}d overdue</span>`
+               : r.days>7  ? `<span class="coll-pill due">${r.days}d pending</span>`
+               :             `<span class="coll-pill ok">recent</span>`;
+    return `<div class="coll-row">
+      <div class="coll-av" style="background:linear-gradient(135deg,${AVG[(r.party.charCodeAt(0)+i)%AVG.length]})">${r.party.charAt(0).toUpperCase()}</div>
+      <div class="coll-body">
+        <div class="coll-name">${r.party}</div>
+        <div class="coll-meta">${r.bills} bill${r.bills>1?'s':''} · since ${QLD.fDS(r.oldest)} ${pill}</div>
+      </div>
+      <div class="coll-amount">
+        <div class="coll-amount-val">${QLD.fC(r.total)}</div>
+        <div class="coll-amount-sub">oldest ${r.days}d</div>
+      </div>
+      <button class="coll-action" title="Open sales register" onclick="location.hash='sales'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    </div>`;
+  }).join('') : '<div class="card-sub" style="padding:18px 4px">Nothing pending in this view 🎉</div>';
+}
+document.querySelectorAll('#collChips .chip').forEach(ch => ch.addEventListener('click', () => {
+  collFilter = ch.dataset.f;
+  renderCollections();
+}));
+
+QLD.init(renderAll);
 </script>
 </body>
 </html>
