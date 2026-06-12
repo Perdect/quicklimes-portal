@@ -1,0 +1,1931 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css">
+
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   v2 SHELL — built entirely on tokens.css
+   ═══════════════════════════════════════════════════════════════ */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--ql-bg); color: var(--ql-text); font-family: var(--ql-font-sans); }
+button { font-family: inherit; cursor: pointer; }
+
+/* ── LAYOUT GRID ─────────────────────────────────────────────── */
+.shell {
+  display: grid;
+  grid-template-columns: var(--ql-sidebar-w) 1fr;
+  grid-template-rows: var(--ql-topbar-h) 1fr;
+  grid-template-areas: "sidebar topbar" "sidebar main";
+  height: 100vh;
+  overflow: hidden;
+  transition: grid-template-columns var(--ql-duration-base) var(--ql-ease-out);
+}
+.shell[data-collapsed="true"] { grid-template-columns: var(--ql-sidebar-w-collapsed) 1fr; }
+
+/* ── SIDEBAR ─────────────────────────────────────────────────── */
+.sidebar {
+  grid-area: sidebar;
+  background: var(--ql-bg-elevated);
+  border-right: 1px solid var(--ql-border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sb-head { padding: var(--ql-space-3); border-bottom: 1px solid var(--ql-border); }
+
+/* Workspace switcher */
+.workspace {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  width: 100%; padding: var(--ql-space-2) var(--ql-space-3);
+  background: transparent; border: 1px solid transparent; border-radius: var(--ql-radius-lg);
+  color: var(--ql-text); text-align: left;
+  transition: background var(--ql-duration-fast) var(--ql-ease-out),
+              border-color var(--ql-duration-fast) var(--ql-ease-out);
+}
+.workspace:hover { background: var(--ql-neutral-50); border-color: var(--ql-border); }
+.workspace-avatar {
+  width: 32px; height: 32px; flex-shrink: 0;
+  border-radius: var(--ql-radius-md);
+  background: linear-gradient(140deg, var(--ql-brand-500), var(--ql-brand-700));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: var(--ql-weight-bold); font-size: var(--ql-text-md);
+  box-shadow: var(--ql-shadow-sm);
+}
+.workspace-text { flex: 1; min-width: 0; }
+.workspace-name { display: block; font-size: var(--ql-text-md); font-weight: var(--ql-weight-semibold);
+                  color: var(--ql-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                  line-height: var(--ql-leading-tight); }
+.workspace-meta { display: block; font-size: var(--ql-text-2xs); color: var(--ql-text-secondary);
+                  text-transform: uppercase; letter-spacing: var(--ql-tracking-wide);
+                  margin-top: 2px; }
+.workspace-chev { width: 14px; height: 14px; color: var(--ql-text-muted); flex-shrink: 0; }
+
+/* Search hint button — opens command palette */
+.sb-search {
+  display: flex; align-items: center; gap: var(--ql-space-2);
+  width: 100%; margin-top: var(--ql-space-3);
+  padding: var(--ql-space-2) var(--ql-space-3);
+  background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg);
+  color: var(--ql-text-secondary); font-size: var(--ql-text-sm);
+  transition: border-color var(--ql-duration-fast) var(--ql-ease-out),
+              background var(--ql-duration-fast) var(--ql-ease-out);
+}
+.sb-search:hover { border-color: var(--ql-border-strong); background: var(--ql-neutral-50); }
+.sb-search svg { width: 14px; height: 14px; color: var(--ql-text-muted); }
+.sb-search-text { flex: 1; text-align: left; }
+.sb-search-kbd {
+  font-family: var(--ql-font-mono); font-size: var(--ql-text-2xs);
+  padding: 2px 6px; border-radius: var(--ql-radius-sm);
+  background: var(--ql-neutral-100); color: var(--ql-text-secondary);
+  border: 1px solid var(--ql-border);
+}
+
+/* Nav body */
+.sb-nav {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: var(--ql-space-3) var(--ql-space-2);
+  scrollbar-width: thin;
+}
+.sb-nav::-webkit-scrollbar { width: 4px; }
+.sb-nav::-webkit-scrollbar-thumb { background: var(--ql-neutral-200); border-radius: var(--ql-radius-pill); }
+
+/* Nav group */
+.sb-group { margin-bottom: var(--ql-space-2); }
+.sb-group-title {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: var(--ql-space-2) var(--ql-space-3);
+  background: transparent; border: none;
+  font-size: var(--ql-text-2xs); font-weight: var(--ql-weight-bold);
+  letter-spacing: var(--ql-tracking-widest); text-transform: uppercase;
+  color: var(--ql-text-muted);
+}
+.sb-group-title svg { width: 12px; height: 12px; transition: transform var(--ql-duration-fast) var(--ql-ease-out); }
+.sb-group.collapsed .sb-group-title svg { transform: rotate(-90deg); }
+.sb-group.collapsed .sb-group-body { display: none; }
+.sb-group-body { display: flex; flex-direction: column; gap: 1px; }
+
+/* Nav link */
+.sb-link {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-2) var(--ql-space-3);
+  border-radius: var(--ql-radius-md);
+  font-size: var(--ql-text-md); font-weight: var(--ql-weight-medium);
+  color: var(--ql-text-secondary); text-decoration: none;
+  transition: background var(--ql-duration-fast) var(--ql-ease-out),
+              color var(--ql-duration-fast) var(--ql-ease-out);
+  position: relative;
+}
+.sb-link:hover { background: var(--ql-neutral-50); color: var(--ql-text); }
+.sb-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+.sb-link-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-link-badge {
+  margin-left: auto;
+  font-size: var(--ql-text-2xs); font-weight: var(--ql-weight-bold);
+  padding: 1px 6px; border-radius: var(--ql-radius-pill);
+  background: var(--ql-warning-100); color: var(--ql-warning-700);
+}
+.sb-link.active {
+  background: var(--ql-brand-50);
+  color: var(--ql-brand-700);
+  font-weight: var(--ql-weight-semibold);
+}
+.sb-link.active::before {
+  content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px;
+  background: var(--ql-brand-600); border-radius: 0 var(--ql-radius-sm) var(--ql-radius-sm) 0;
+}
+
+/* Solo links (Dashboard, Settings) */
+.sb-solo { margin-bottom: var(--ql-space-1); padding: 0 var(--ql-space-1); }
+
+/* Footer chip */
+.sb-foot {
+  padding: var(--ql-space-3);
+  border-top: 1px solid var(--ql-border);
+  display: flex; flex-direction: column; gap: var(--ql-space-2);
+}
+.sb-upgrade {
+  background: linear-gradient(160deg, var(--ql-brand-50), var(--ql-card));
+  border: 1px solid var(--ql-brand-100);
+  border-radius: var(--ql-radius-xl);
+  padding: var(--ql-space-3);
+  display: flex; flex-direction: column; gap: var(--ql-space-2);
+}
+.sb-upgrade-title { font-size: var(--ql-text-sm); font-weight: var(--ql-weight-semibold);
+                    color: var(--ql-text); display: flex; align-items: center; gap: var(--ql-space-2); }
+.sb-upgrade-title svg { width: 14px; height: 14px; color: var(--ql-brand-600); }
+.sb-upgrade-text { font-size: var(--ql-text-xs); color: var(--ql-text-secondary);
+                   line-height: var(--ql-leading-snug); }
+.sb-upgrade-btn {
+  background: var(--ql-neutral-900); color: #fff;
+  border: none; border-radius: var(--ql-radius-md);
+  padding: var(--ql-space-2) var(--ql-space-3);
+  font-size: var(--ql-text-sm); font-weight: var(--ql-weight-semibold);
+}
+.sb-upgrade-btn:hover { background: var(--ql-neutral-800); }
+
+.sb-profile {
+  position: relative;
+  display: flex; align-items: center; gap: var(--ql-space-2);
+  width: 100%; padding: var(--ql-space-2);
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--ql-radius-lg); color: var(--ql-text); text-align: left;
+}
+.sb-profile:hover { background: var(--ql-neutral-50); border-color: var(--ql-border); }
+.sb-profile-av {
+  width: 30px; height: 30px; border-radius: var(--ql-radius-pill);
+  background: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-700));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: var(--ql-weight-bold); font-size: var(--ql-text-sm); flex-shrink: 0;
+}
+.sb-profile-text { flex: 1; min-width: 0; }
+.sb-profile-name { display: block; font-size: var(--ql-text-sm); font-weight: var(--ql-weight-semibold);
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                   line-height: var(--ql-leading-tight); }
+.sb-profile-role { display: block; font-size: var(--ql-text-2xs); color: var(--ql-text-secondary);
+                   margin-top: 1px; }
+.sb-profile svg { width: 14px; height: 14px; color: var(--ql-text-muted); flex-shrink: 0; }
+
+/* ── PROFILE PHOTO ── shared across all avatars ──────────────── */
+.has-photo {
+  background-image: var(--ql-photo) !important;
+  background-size: cover; background-position: center;
+  color: transparent !important;  /* hide initials when photo loaded */
+}
+.sb-profile-av, .tb-avatar { position: relative; overflow: visible; }
+.sb-profile-av::after, .tb-avatar::after {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: rgba(15, 23, 42, 0.55) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>') center/14px no-repeat;
+  opacity: 0; transition: opacity var(--ql-duration-fast) var(--ql-ease-out);
+  pointer-events: none;
+}
+.sb-profile:hover .sb-profile-av::after,
+.tb-avatar:hover::after { opacity: 1; }
+
+/* ── PROFILE DROPDOWN MENU ───────────────────────────────────── */
+.profile-menu {
+  position: fixed;
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-xl); box-shadow: var(--ql-shadow-lg);
+  padding: var(--ql-space-2); z-index: var(--ql-z-dropdown);
+  width: 240px;
+  display: none; flex-direction: column; gap: 1px;
+  animation: pPop var(--ql-duration-base) var(--ql-ease-out);
+}
+.profile-menu.open { display: flex; }
+.profile-menu-head {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-3); border-bottom: 1px solid var(--ql-divider);
+  margin-bottom: var(--ql-space-2);
+}
+.profile-menu-av {
+  width: 38px; height: 38px; border-radius: var(--ql-radius-pill);
+  background: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-700));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: var(--ql-weight-bold); font-size: var(--ql-text-md); flex-shrink: 0;
+  background-size: cover; background-position: center;
+}
+.profile-menu-text { flex: 1; min-width: 0; }
+.profile-menu-name { font-size: var(--ql-text-md); font-weight: var(--ql-weight-semibold);
+                     color: var(--ql-text); line-height: var(--ql-leading-tight); }
+.profile-menu-email { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin-top: 2px;
+                      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.profile-menu-item {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-2) var(--ql-space-3); border-radius: var(--ql-radius-md);
+  background: transparent; border: none; color: var(--ql-text);
+  font-size: var(--ql-text-md); text-align: left; text-decoration: none;
+  font-family: inherit;
+}
+.profile-menu-item:hover { background: var(--ql-neutral-50); }
+.profile-menu-item svg { width: 16px; height: 16px; color: var(--ql-text-secondary); flex-shrink: 0; }
+.profile-menu-item:hover svg { color: var(--ql-text); }
+.profile-menu-item-danger { color: var(--ql-danger-600); }
+.profile-menu-item-danger svg { color: var(--ql-danger-500); }
+.profile-menu-item-danger:hover { background: var(--ql-danger-50); }
+.profile-menu-sep { height: 1px; background: var(--ql-divider); margin: var(--ql-space-1) var(--ql-space-2); }
+
+/* ── PHOTO CROP MODAL ────────────────────────────────────────── */
+.photo-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  z-index: var(--ql-z-modal);
+  display: none; align-items: center; justify-content: center;
+  padding: var(--ql-space-4);
+}
+.photo-backdrop.open { display: flex; }
+.photo-modal {
+  background: var(--ql-card);
+  border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-2xl);
+  box-shadow: var(--ql-shadow-xl);
+  width: min(440px, 100%);
+  padding: var(--ql-space-5);
+  display: flex; flex-direction: column; gap: var(--ql-space-4);
+  animation: pPop var(--ql-duration-base) var(--ql-ease-out);
+}
+.photo-modal h3 {
+  margin: 0; font-size: var(--ql-text-xl); font-weight: var(--ql-weight-bold);
+  letter-spacing: var(--ql-tracking-tight);
+}
+.photo-stage {
+  position: relative; aspect-ratio: 1; width: 100%;
+  background: var(--ql-neutral-900);
+  border-radius: var(--ql-radius-xl); overflow: hidden;
+  cursor: grab; user-select: none; touch-action: none;
+}
+.photo-stage:active { cursor: grabbing; }
+.photo-stage canvas { display: block; width: 100%; height: 100%; }
+.photo-mask {
+  position: absolute; inset: 0;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.5);
+  border-radius: 50%;
+  margin: 5%;
+  pointer-events: none;
+}
+.photo-zoom { display: flex; align-items: center; gap: var(--ql-space-3); }
+.photo-zoom-ic { color: var(--ql-text-secondary); display: flex; align-items: center; }
+.photo-zoom-ic svg { width: 16px; height: 16px; }
+.photo-zoom input { flex: 1; accent-color: var(--ql-brand-600); }
+.photo-actions { display: flex; gap: var(--ql-space-3); justify-content: flex-end; }
+.photo-empty {
+  display: flex; flex-direction: column; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-8);
+  border: 1.5px dashed var(--ql-border-strong);
+  border-radius: var(--ql-radius-xl);
+  text-align: center; color: var(--ql-text-secondary);
+  font-size: var(--ql-text-sm);
+}
+.photo-empty svg { width: 32px; height: 32px; color: var(--ql-text-muted); }
+.photo-pick-btn { margin-top: var(--ql-space-2); }
+
+/* Sidebar collapsed-state overrides */
+[data-collapsed="true"] .workspace-text,
+[data-collapsed="true"] .workspace-chev,
+[data-collapsed="true"] .sb-search-text,
+[data-collapsed="true"] .sb-search-kbd,
+[data-collapsed="true"] .sb-group-title,
+[data-collapsed="true"] .sb-link-text,
+[data-collapsed="true"] .sb-link-badge,
+[data-collapsed="true"] .sb-upgrade-text,
+[data-collapsed="true"] .sb-upgrade-btn,
+[data-collapsed="true"] .sb-upgrade-title span,
+[data-collapsed="true"] .sb-profile-text,
+[data-collapsed="true"] .sb-profile > svg:last-child { display: none; }
+[data-collapsed="true"] .sidebar { padding: 0; }
+[data-collapsed="true"] .sb-link, [data-collapsed="true"] .workspace, [data-collapsed="true"] .sb-search,
+[data-collapsed="true"] .sb-profile { justify-content: center; padding: var(--ql-space-2); }
+[data-collapsed="true"] .sb-link.active::before { left: -8px; }
+[data-collapsed="true"] .sb-upgrade { padding: var(--ql-space-2); }
+
+/* ── TOP BAR ─────────────────────────────────────────────────── */
+.topbar {
+  grid-area: topbar;
+  background: var(--ql-bg-elevated);
+  border-bottom: 1px solid var(--ql-border);
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: 0 var(--ql-space-6);
+}
+.tb-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: var(--ql-radius-md);
+  background: transparent; border: 1px solid var(--ql-border); color: var(--ql-text-secondary);
+}
+.tb-toggle:hover { background: var(--ql-neutral-50); color: var(--ql-text); }
+.tb-toggle svg { width: 16px; height: 16px; }
+
+.tb-crumb { display: flex; align-items: center; gap: var(--ql-space-2); font-size: var(--ql-text-md);
+            color: var(--ql-text-secondary); }
+.tb-crumb-active { color: var(--ql-text); font-weight: var(--ql-weight-semibold); }
+.tb-crumb svg { width: 12px; height: 12px; color: var(--ql-text-muted); }
+
+.tb-spacer { flex: 1; }
+
+.tb-search-bar {
+  display: flex; align-items: center; gap: var(--ql-space-2);
+  width: 320px;
+  padding: var(--ql-space-2) var(--ql-space-3);
+  background: var(--ql-bg);
+  border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg);
+  color: var(--ql-text-secondary); font-size: var(--ql-text-sm);
+  transition: border-color var(--ql-duration-fast) var(--ql-ease-out);
+}
+.tb-search-bar:hover { border-color: var(--ql-border-strong); }
+.tb-search-bar svg { width: 14px; height: 14px; color: var(--ql-text-muted); }
+.tb-search-bar span { flex: 1; text-align: left; }
+
+.tb-action {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: var(--ql-radius-lg);
+  background: transparent; border: 1px solid transparent;
+  color: var(--ql-text-secondary);
+  transition: background var(--ql-duration-fast) var(--ql-ease-out),
+              color var(--ql-duration-fast) var(--ql-ease-out),
+              border-color var(--ql-duration-fast) var(--ql-ease-out);
+}
+.tb-action:hover { background: var(--ql-neutral-50); border-color: var(--ql-border); color: var(--ql-text); }
+.tb-action svg { width: 16px; height: 16px; }
+.tb-action-dot {
+  position: absolute; top: 6px; right: 8px;
+  width: 8px; height: 8px; border-radius: var(--ql-radius-pill);
+  background: var(--ql-danger-500);
+  border: 2px solid var(--ql-bg-elevated);
+}
+.tb-action.is-ai { color: var(--ql-brand-600); }
+.tb-action.is-ai:hover { background: var(--ql-brand-50); border-color: var(--ql-brand-100); }
+
+.tb-avatar {
+  width: 36px; height: 36px; border-radius: var(--ql-radius-pill);
+  background: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-700));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: var(--ql-weight-bold); font-size: var(--ql-text-sm);
+  border: 1.5px solid var(--ql-card);
+  box-shadow: var(--ql-shadow-sm);
+}
+.tb-avatar:hover { transform: translateY(-1px); }
+
+/* ── MAIN CANVAS (placeholder) ───────────────────────────────── */
+.main {
+  grid-area: main;
+  background: var(--ql-bg);
+  overflow-y: auto;
+  padding: var(--ql-space-6);
+}
+.placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--ql-space-4);
+  height: 100%;
+  text-align: center;
+  background: var(--ql-card);
+  border: 1.5px dashed var(--ql-border-strong);
+  border-radius: var(--ql-radius-2xl);
+  padding: var(--ql-space-12);
+  color: var(--ql-text-secondary);
+}
+.placeholder-icon {
+  width: 56px; height: 56px; border-radius: var(--ql-radius-xl);
+  background: var(--ql-brand-50); color: var(--ql-brand-600);
+  display: flex; align-items: center; justify-content: center;
+}
+.placeholder-icon svg { width: 28px; height: 28px; }
+.placeholder h2 { font-size: var(--ql-text-xl); font-weight: var(--ql-weight-bold);
+                  color: var(--ql-text); margin: 0; letter-spacing: var(--ql-tracking-tight); }
+.placeholder p { margin: 0; max-width: 460px; line-height: var(--ql-leading-snug); }
+.placeholder .ql-btn-primary { margin-top: var(--ql-space-2); }
+
+/* ═══════════════════════════════════════════════════════════════
+   DASHBOARD PAGE
+   ═══════════════════════════════════════════════════════════════ */
+.dash { display: flex; flex-direction: column; gap: var(--ql-space-6); }
+
+/* Page header */
+.page-head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: var(--ql-space-4);
+  flex-wrap: wrap;
+}
+.page-title { margin: 0; font-size: var(--ql-text-3xl); font-weight: var(--ql-weight-black);
+              color: var(--ql-text); letter-spacing: -0.025em; line-height: 1.1; }
+.page-sub   { margin-top: var(--ql-space-1); font-size: var(--ql-text-md); color: var(--ql-text-secondary); }
+.page-actions { display: flex; align-items: center; gap: var(--ql-space-2); }
+
+.period-tabs { display: inline-flex; padding: 3px; border: 1px solid var(--ql-border);
+               border-radius: var(--ql-radius-lg); background: var(--ql-bg-elevated); }
+.period-tab  { padding: 6px 12px; font-size: var(--ql-text-sm); font-weight: var(--ql-weight-semibold);
+               color: var(--ql-text-secondary); border: none; background: transparent;
+               border-radius: var(--ql-radius-md); cursor: pointer; }
+.period-tab.active { background: var(--ql-brand-50); color: var(--ql-brand-700); }
+
+/* ── KPI strip ─────────────────────────────────────────────── */
+.kpi-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--ql-space-3); }
+@media (max-width: 1320px) { .kpi-strip { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 720px)  { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+
+.kpi-tile {
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-xl); padding: var(--ql-space-4);
+  display: flex; flex-direction: column; gap: var(--ql-space-3);
+  transition: border-color var(--ql-duration-fast) var(--ql-ease-out),
+              box-shadow var(--ql-duration-fast) var(--ql-ease-out);
+}
+.kpi-tile:hover { border-color: var(--ql-border-strong); box-shadow: var(--ql-shadow-sm); }
+.kpi-head { display: flex; align-items: flex-start; justify-content: space-between; }
+.kpi-ic   { width: 34px; height: 34px; border-radius: var(--ql-radius-md);
+            display: flex; align-items: center; justify-content: center; }
+.kpi-ic svg { width: 16px; height: 16px; }
+.kpi-trend {
+  display: inline-flex; align-items: center; gap: 3px; font-size: var(--ql-text-xs);
+  font-weight: var(--ql-weight-semibold); padding: 2px 7px; border-radius: var(--ql-radius-pill);
+}
+.kpi-trend.up   { background: var(--ql-success-50); color: var(--ql-success-700); }
+.kpi-trend.down { background: var(--ql-danger-50);  color: var(--ql-danger-700); }
+.kpi-trend svg { width: 10px; height: 10px; }
+.kpi-tile .kpi-label { font-size: var(--ql-text-xs); color: var(--ql-text-secondary);
+                       font-weight: var(--ql-weight-medium); margin-top: 0; }
+.kpi-tile .kpi-val   { font-size: var(--ql-text-2xl); font-weight: var(--ql-weight-black);
+                       color: var(--ql-text); letter-spacing: -0.02em; line-height: 1.1;
+                       margin-top: 2px; }
+.kpi-meta { font-size: var(--ql-text-xs); color: var(--ql-text-muted); margin-top: 2px; }
+
+/* ── Two-column row layout (chart + side card) ──────────────── */
+.row-2 { display: grid; grid-template-columns: 1.6fr 1fr; gap: var(--ql-space-4); }
+@media (max-width: 1100px) { .row-2 { grid-template-columns: 1fr; } }
+
+/* Card primitive */
+.card { background: var(--ql-card); border: 1px solid var(--ql-border);
+        border-radius: var(--ql-radius-2xl); padding: var(--ql-space-5);
+        display: flex; flex-direction: column; gap: var(--ql-space-4); }
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--ql-space-3); }
+.card-title { margin: 0; font-size: var(--ql-text-lg); font-weight: var(--ql-weight-bold);
+              color: var(--ql-text); letter-spacing: -0.015em; }
+.card-sub   { font-size: var(--ql-text-sm); color: var(--ql-text-secondary); margin-top: 3px; }
+.card-actions { display: flex; align-items: center; gap: var(--ql-space-2); }
+
+/* Mini tabs inside a card */
+.card-tabs { display: inline-flex; gap: 1px; background: var(--ql-bg); border: 1px solid var(--ql-border);
+             border-radius: var(--ql-radius-md); padding: 3px; }
+.card-tab { padding: 4px 10px; font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold);
+            color: var(--ql-text-secondary); border: none; background: transparent;
+            border-radius: var(--ql-radius-sm); cursor: pointer; }
+.card-tab.active { background: var(--ql-card); color: var(--ql-text); box-shadow: var(--ql-shadow-xs); }
+
+/* ── Chart canvas ─────────────────────────────────────────── */
+.chart-wrap { width: 100%; }
+.chart svg { width: 100%; height: 260px; display: block; }
+.chart-legend { display: flex; gap: var(--ql-space-4); flex-wrap: wrap; font-size: var(--ql-text-sm);
+                color: var(--ql-text-secondary); }
+.chart-legend > span { display: inline-flex; align-items: center; gap: var(--ql-space-1); }
+.legend-dot { width: 10px; height: 10px; border-radius: var(--ql-radius-pill); flex-shrink: 0; }
+
+/* ── AI Insights panel ────────────────────────────────────── */
+.ai-card { background: linear-gradient(160deg, var(--ql-card), var(--ql-brand-50)); }
+.ai-head { display: flex; align-items: center; gap: var(--ql-space-3); }
+.ai-spark {
+  width: 36px; height: 36px; border-radius: var(--ql-radius-lg);
+  background: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-700));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--ql-shadow-md);
+}
+.ai-spark svg { width: 18px; height: 18px; }
+.ai-list { display: flex; flex-direction: column; gap: var(--ql-space-3); }
+.ai-item {
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-xl); padding: var(--ql-space-3);
+  display: flex; gap: var(--ql-space-3); align-items: flex-start;
+}
+.ai-item-ic { width: 28px; height: 28px; border-radius: var(--ql-radius-md);
+              display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ai-item-ic svg { width: 14px; height: 14px; }
+.ai-item-text { flex: 1; min-width: 0; }
+.ai-item-headline { font-size: var(--ql-text-md); font-weight: var(--ql-weight-semibold);
+                    color: var(--ql-text); line-height: 1.35; }
+.ai-item-meta { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin-top: 3px; }
+.ai-item-cta { font-size: var(--ql-text-xs); color: var(--ql-brand-600);
+               font-weight: var(--ql-weight-semibold); text-decoration: none; }
+.ai-item-cta:hover { color: var(--ql-brand-700); text-decoration: underline; }
+
+/* tone variants */
+.tone-success .ai-item-ic { background: var(--ql-success-50); color: var(--ql-success-600); }
+.tone-warning .ai-item-ic { background: var(--ql-warning-50); color: var(--ql-warning-600); }
+.tone-danger  .ai-item-ic { background: var(--ql-danger-50);  color: var(--ql-danger-600);  }
+.tone-info    .ai-item-ic { background: var(--ql-brand-50);   color: var(--ql-brand-600);   }
+
+/* ── Collections cards ────────────────────────────────────── */
+.filter-chips { display: flex; gap: var(--ql-space-2); flex-wrap: wrap; }
+.chip { padding: 5px 12px; font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold);
+        background: var(--ql-bg); border: 1px solid var(--ql-border);
+        border-radius: var(--ql-radius-pill); color: var(--ql-text-secondary); cursor: pointer; }
+.chip:hover { color: var(--ql-text); border-color: var(--ql-border-strong); }
+.chip.active { background: var(--ql-brand-50); border-color: var(--ql-brand-200); color: var(--ql-brand-700); }
+
+.coll-list { display: flex; flex-direction: column; gap: var(--ql-space-2); }
+.coll-row {
+  display: grid; grid-template-columns: 36px 1fr auto auto; align-items: center;
+  gap: var(--ql-space-3);
+  background: var(--ql-bg); border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-lg); padding: var(--ql-space-3);
+  transition: border-color var(--ql-duration-fast) var(--ql-ease-out),
+              background var(--ql-duration-fast) var(--ql-ease-out);
+}
+.coll-row:hover { border-color: var(--ql-border-strong); background: var(--ql-card); }
+.coll-av { width: 36px; height: 36px; border-radius: var(--ql-radius-pill); flex-shrink: 0;
+           display: flex; align-items: center; justify-content: center;
+           font-weight: var(--ql-weight-bold); font-size: var(--ql-text-sm); color: #fff; }
+.coll-body { min-width: 0; }
+.coll-name { font-size: var(--ql-text-md); font-weight: var(--ql-weight-semibold);
+             color: var(--ql-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.coll-meta { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin-top: 2px;
+             display: flex; align-items: center; gap: var(--ql-space-2); flex-wrap: wrap; }
+.coll-pill { padding: 2px 7px; border-radius: var(--ql-radius-pill); font-weight: var(--ql-weight-semibold); }
+.coll-pill.overdue { background: var(--ql-danger-50);  color: var(--ql-danger-700); }
+.coll-pill.due     { background: var(--ql-warning-50); color: var(--ql-warning-700); }
+.coll-pill.ok      { background: var(--ql-success-50); color: var(--ql-success-700); }
+.coll-amount { text-align: right; }
+.coll-amount-val { font-size: var(--ql-text-md); font-weight: var(--ql-weight-bold);
+                   color: var(--ql-text); }
+.coll-amount-sub { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); }
+.coll-action {
+  width: 32px; height: 32px; border-radius: var(--ql-radius-md);
+  background: transparent; border: 1px solid var(--ql-border); color: var(--ql-text-secondary);
+  display: flex; align-items: center; justify-content: center;
+}
+.coll-action:hover { background: var(--ql-brand-50); border-color: var(--ql-brand-200); color: var(--ql-brand-700); }
+.coll-action svg { width: 14px; height: 14px; }
+
+/* ── Production widget ─────────────────────────────────────── */
+.prod-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--ql-space-3); }
+.prod-stat  { padding: var(--ql-space-3); background: var(--ql-bg); border: 1px solid var(--ql-border);
+              border-radius: var(--ql-radius-lg); }
+.prod-stat-label { font-size: var(--ql-text-xs); color: var(--ql-text-secondary);
+                   font-weight: var(--ql-weight-medium); }
+.prod-stat-val   { font-size: var(--ql-text-xl); font-weight: var(--ql-weight-black);
+                   color: var(--ql-text); margin-top: 2px; letter-spacing: -0.02em; }
+.prod-stat-meta  { font-size: var(--ql-text-xs); color: var(--ql-text-muted); margin-top: 2px; }
+
+.target { display: flex; flex-direction: column; gap: var(--ql-space-2);
+          padding: var(--ql-space-3); background: var(--ql-bg); border: 1px solid var(--ql-border);
+          border-radius: var(--ql-radius-lg); }
+.target-head { display: flex; align-items: center; justify-content: space-between;
+               font-size: var(--ql-text-sm); color: var(--ql-text-secondary); }
+.target-head strong { color: var(--ql-text); font-weight: var(--ql-weight-bold); font-size: var(--ql-text-md); }
+.target-bar { height: 8px; background: var(--ql-neutral-100); border-radius: var(--ql-radius-pill);
+              overflow: hidden; }
+.target-bar > i { display: block; height: 100%;
+                  background: linear-gradient(90deg, var(--ql-brand-500), var(--ql-brand-700));
+                  border-radius: inherit; }
+
+.kiln-row { display: flex; align-items: center; gap: var(--ql-space-3);
+            padding: var(--ql-space-3); background: var(--ql-bg);
+            border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); }
+.kiln-pulse { width: 8px; height: 8px; border-radius: var(--ql-radius-pill);
+              background: var(--ql-success-500); box-shadow: 0 0 0 4px rgba(34,197,94,.18);
+              flex-shrink: 0; animation: kp 1.8s ease-in-out infinite; }
+@keyframes kp { 50% { box-shadow: 0 0 0 6px rgba(34,197,94,.08); } }
+.kiln-body { flex: 1; min-width: 0; }
+.kiln-name { font-size: var(--ql-text-md); font-weight: var(--ql-weight-semibold); color: var(--ql-text); }
+.kiln-meta { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin-top: 2px; }
+.kiln-eff  { font-size: var(--ql-text-sm); font-weight: var(--ql-weight-bold); color: var(--ql-success-700); }
+
+/* ── Activity feed ─────────────────────────────────────────── */
+.feed { display: flex; flex-direction: column; gap: var(--ql-space-3); }
+.feed-row { display: grid; grid-template-columns: 32px 1fr auto; gap: var(--ql-space-3); align-items: center; }
+.feed-ic { width: 32px; height: 32px; border-radius: var(--ql-radius-md);
+           display: flex; align-items: center; justify-content: center; }
+.feed-ic svg { width: 15px; height: 15px; }
+.feed-text { font-size: var(--ql-text-md); color: var(--ql-text); line-height: 1.35; }
+.feed-text strong { font-weight: var(--ql-weight-semibold); }
+.feed-meta { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin-top: 2px; }
+.feed-time { font-size: var(--ql-text-xs); color: var(--ql-text-muted); white-space: nowrap; }
+
+/* ── Top products table ───────────────────────────────────── */
+.tbl { width: 100%; border-collapse: collapse; font-size: var(--ql-text-sm); }
+.tbl thead th { text-align: left; font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold);
+                color: var(--ql-text-muted); text-transform: uppercase; letter-spacing: var(--ql-tracking-wide);
+                padding: var(--ql-space-2) var(--ql-space-3); border-bottom: 1px solid var(--ql-border); }
+.tbl tbody td { padding: var(--ql-space-3); border-bottom: 1px solid var(--ql-divider);
+                color: var(--ql-text); }
+.tbl tbody tr:last-child td { border-bottom: none; }
+.tbl tbody tr:hover td { background: var(--ql-neutral-50); }
+.tbl-prod { display: flex; align-items: center; gap: var(--ql-space-3); }
+.tbl-prod-ic { width: 34px; height: 34px; border-radius: var(--ql-radius-md);
+               background: var(--ql-bg); border: 1px solid var(--ql-border);
+               display: flex; align-items: center; justify-content: center; font-size: var(--ql-text-md); }
+.tbl-prod-name { font-weight: var(--ql-weight-semibold); }
+.tbl-prod-sub  { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); }
+.tbl .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: var(--ql-weight-semibold); }
+
+/* ── COMMAND PALETTE ──────────────────────────────────────────── */
+.palette-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  z-index: var(--ql-z-modal);
+  display: none; align-items: flex-start; justify-content: center;
+  padding-top: 12vh;
+}
+.palette-backdrop.open { display: flex; animation: pFade var(--ql-duration-base) var(--ql-ease-out); }
+@keyframes pFade { from { opacity: 0; } to { opacity: 1; } }
+.palette {
+  width: min(640px, 92vw);
+  background: var(--ql-card);
+  border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-2xl);
+  box-shadow: var(--ql-shadow-xl);
+  overflow: hidden;
+  animation: pPop var(--ql-duration-base) var(--ql-ease-out);
+}
+@keyframes pPop { from { transform: translateY(-8px) scale(.98); opacity: 0; }
+                  to   { transform: translateY(0)    scale(1);  opacity: 1; } }
+.palette-input-wrap {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-4); border-bottom: 1px solid var(--ql-border);
+}
+.palette-input-wrap svg { width: 18px; height: 18px; color: var(--ql-text-muted); flex-shrink: 0; }
+.palette-input {
+  flex: 1; border: none; background: transparent; outline: none;
+  font-family: inherit; font-size: var(--ql-text-md); color: var(--ql-text);
+}
+.palette-input::placeholder { color: var(--ql-text-muted); }
+.palette-input-kbd {
+  font-family: var(--ql-font-mono); font-size: var(--ql-text-xs);
+  padding: 3px 8px; border-radius: var(--ql-radius-sm);
+  background: var(--ql-neutral-100); color: var(--ql-text-secondary);
+  border: 1px solid var(--ql-border);
+}
+.palette-list { max-height: 60vh; overflow-y: auto; padding: var(--ql-space-2); }
+.palette-group-title {
+  font-size: var(--ql-text-2xs); font-weight: var(--ql-weight-bold);
+  letter-spacing: var(--ql-tracking-widest); text-transform: uppercase;
+  color: var(--ql-text-muted);
+  padding: var(--ql-space-3) var(--ql-space-3) var(--ql-space-1);
+}
+.palette-row {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-3); border-radius: var(--ql-radius-md);
+  color: var(--ql-text); text-decoration: none;
+  font-size: var(--ql-text-md);
+  cursor: pointer;
+}
+.palette-row:hover, .palette-row.is-focused { background: var(--ql-brand-50); }
+.palette-row-ic {
+  width: 32px; height: 32px; flex-shrink: 0;
+  border-radius: var(--ql-radius-md); background: var(--ql-neutral-100); color: var(--ql-text-secondary);
+  display: flex; align-items: center; justify-content: center;
+}
+.palette-row-ic svg { width: 16px; height: 16px; }
+.palette-row-body { flex: 1; min-width: 0; }
+.palette-row-title { font-size: var(--ql-text-md); font-weight: var(--ql-weight-medium); color: var(--ql-text);
+                     line-height: var(--ql-leading-tight); }
+.palette-row-meta { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin-top: 2px; }
+.palette-row-shortcut {
+  font-family: var(--ql-font-mono); font-size: var(--ql-text-2xs);
+  padding: 2px 7px; border-radius: var(--ql-radius-sm);
+  background: var(--ql-neutral-100); color: var(--ql-text-secondary);
+  border: 1px solid var(--ql-border);
+}
+.palette-foot {
+  display: flex; align-items: center; gap: var(--ql-space-4);
+  padding: var(--ql-space-3) var(--ql-space-4);
+  border-top: 1px solid var(--ql-border);
+  font-size: var(--ql-text-xs); color: var(--ql-text-muted);
+}
+.palette-foot kbd {
+  font-family: var(--ql-font-mono);
+  padding: 1px 5px; border-radius: var(--ql-radius-xs);
+  background: var(--ql-neutral-100); color: var(--ql-text-secondary);
+  border: 1px solid var(--ql-border);
+  margin-right: 4px;
+}
+
+/* ── WORKSPACE DROPDOWN ──────────────────────────────────────── */
+.ws-menu {
+  position: absolute; left: var(--ql-space-3); right: var(--ql-space-3); top: 64px;
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-xl); box-shadow: var(--ql-shadow-lg);
+  padding: var(--ql-space-2); z-index: var(--ql-z-dropdown);
+  display: none; flex-direction: column; gap: 1px;
+  animation: pPop var(--ql-duration-base) var(--ql-ease-out);
+}
+.ws-menu.open { display: flex; }
+.ws-row {
+  display: flex; align-items: center; gap: var(--ql-space-3);
+  padding: var(--ql-space-2) var(--ql-space-3); border-radius: var(--ql-radius-md);
+  background: transparent; border: none; color: var(--ql-text);
+  font-size: var(--ql-text-md); text-align: left; text-decoration: none;
+}
+.ws-row:hover { background: var(--ql-neutral-50); }
+.ws-row.active { background: var(--ql-brand-50); color: var(--ql-brand-700); font-weight: var(--ql-weight-semibold); }
+.ws-row-av {
+  width: 28px; height: 28px; border-radius: var(--ql-radius-sm); flex-shrink: 0;
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: var(--ql-weight-bold); font-size: var(--ql-text-sm);
+}
+.ws-add { color: var(--ql-text-secondary); }
+.ws-add .ws-row-av { background: var(--ql-neutral-100); color: var(--ql-text-secondary); }
+
+/* ── RESPONSIVE ──────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .tb-search-bar { display: none; }
+}
+@media (max-width: 768px) {
+  .shell { grid-template-columns: 1fr; grid-template-areas: "topbar" "main"; }
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 88vw; max-width: 320px;
+    z-index: var(--ql-z-overlay);
+    transform: translateX(-100%);
+    transition: transform var(--ql-duration-base) var(--ql-ease-out);
+    border-right: 1px solid var(--ql-border);
+    box-shadow: var(--ql-shadow-xl);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .mobile-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: calc(var(--ql-z-overlay) - 1);
+    display: none;
+  }
+  .mobile-backdrop.open { display: block; }
+  .main { padding: var(--ql-space-4); }
+  .topbar { padding: 0 var(--ql-space-4); }
+}
+</style>
+</head>
+
+<body class="ql-v2">
+<div class="shell" data-collapsed="false" id="shell">
+
+  <!-- ═════ SIDEBAR ═════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-head">
+      <button class="workspace" id="wsBtn" aria-expanded="false">
+        <span class="workspace-avatar">D</span>
+        <span class="workspace-text">
+          <span class="workspace-name">Deshwali Minerals</span>
+          <span class="workspace-meta">Quick Lime · Enterprise</span>
+        </span>
+        <svg class="workspace-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="ws-menu" id="wsMenu">
+        <button class="ws-row active">
+          <span class="ws-row-av" style="background:linear-gradient(135deg,var(--ql-brand-500),var(--ql-brand-700))">D</span>
+          <span>Deshwali Minerals</span>
+          <svg style="margin-left:auto;width:14px;height:14px;color:var(--ql-brand-600)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+        <button class="ws-row">
+          <span class="ws-row-av" style="background:linear-gradient(135deg,#F59E0B,#D97706)">G</span>
+          <span>Gotan Lime Industries</span>
+        </button>
+        <div style="height:1px;background:var(--ql-border);margin:var(--ql-space-1) var(--ql-space-2)"></div>
+        <button class="ws-row ws-add">
+          <span class="ws-row-av"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+          <span>Add company</span>
+        </button>
+      </div>
+
+      <button class="sb-search" onclick="openPalette()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="sb-search-text">Search</span>
+        <span class="sb-search-kbd">⌘K</span>
+      </button>
+    </div>
+
+    <nav class="sb-nav">
+
+      <!-- Solo: Dashboard -->
+      <div class="sb-solo">
+        <a class="sb-link active" href="#" data-page="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span class="sb-link-text">Dashboard</span>
+        </a>
+      </div>
+
+      <!-- SALES -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>Sales</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span class="sb-link-text">GST Invoice</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span class="sb-link-text">Sales Register</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span class="sb-link-text">Collections</span><span class="sb-link-badge">9</span></a>
+        </div>
+      </div>
+
+      <!-- PURCHASES -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>Purchases</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><span class="sb-link-text">Purchase Register</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8.5a1 1 0 0 1 .5-.87L12 4l6.5 3.63a1 1 0 0 1 .5.87V21M9 9v12M15 9v12M9 13h6"/></svg><span class="sb-link-text">Suppliers</span></a>
+        </div>
+      </div>
+
+      <!-- PRODUCTION -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>Production</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg><span class="sb-link-text">Quick Lime Production</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13V8h14v5a7 7 0 0 1-7 7Z"/><line x1="9" y1="3" x2="9" y2="6"/><line x1="13" y1="3" x2="13" y2="6"/></svg><span class="sb-link-text">Chunna Production</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V12M9 21V8M13 21V4M17 21V11M21 21V14"/></svg><span class="sb-link-text">Kiln Management</span><span class="sb-link-badge" style="background:var(--ql-success-100);color:var(--ql-success-700)">3</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="sb-link-text">Daily Production</span></a>
+        </div>
+      </div>
+
+      <!-- INVENTORY -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>Inventory</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5z"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg><span class="sb-link-text">Raw Material</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span class="sb-link-text">Stock Management</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg><span class="sb-link-text">Dispatch</span></a>
+        </div>
+      </div>
+
+      <!-- FINANCE -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>Finance</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg><span class="sb-link-text">Expenses</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="21" width="18" height="0"/><path d="M3 10h18M3 8l9-6 9 6M6 14v4M10 14v4M14 14v4M18 14v4M3 21h18"/></svg><span class="sb-link-text">Loans</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7"/><polyline points="14 14 14 19 19 19"/></svg><span class="sb-link-text">GST</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg><span class="sb-link-text">Profit & Loss</span></a>
+        </div>
+      </div>
+
+      <!-- PEOPLE -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>People</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="sb-link-text">Labour</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="sb-link-text">Attendance</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20M7 15h2M13 15h4"/></svg><span class="sb-link-text">Payroll</span></a>
+        </div>
+      </div>
+
+      <!-- REPORTS -->
+      <div class="sb-group">
+        <button class="sb-group-title" onclick="toggleGroup(this)">
+          <span>Reports</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sb-group-body">
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="sb-link-text">Business Analytics</span></a>
+          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span class="sb-link-text">Production Analytics</span></a>
+        </div>
+      </div>
+
+      <!-- Solo: Settings -->
+      <div class="sb-solo" style="margin-top:var(--ql-space-2)">
+        <a class="sb-link" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="sb-link-text">Settings</span>
+        </a>
+      </div>
+
+    </nav>
+
+    <div class="sb-foot">
+      <div class="sb-upgrade">
+        <div class="sb-upgrade-title">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 9 9 2 9.5l5 5L5.5 22 12 18l6.5 4-1.5-7.5 5-5L15 9z"/></svg>
+          <span>Trial · 14 days left</span>
+        </div>
+        <div class="sb-upgrade-text">Upgrade to unlock production analytics, AI insights and unlimited child plants.</div>
+        <button class="sb-upgrade-btn">Upgrade plan</button>
+      </div>
+      <button class="sb-profile" id="sbProfile" data-profile-trigger>
+        <span class="sb-profile-av" data-avatar>S</span>
+        <span class="sb-profile-text">
+          <span class="sb-profile-name">Sameer Kayyum</span>
+          <span class="sb-profile-role">Owner</span>
+        </span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- mobile backdrop -->
+  <div class="mobile-backdrop" id="mobBack" onclick="toggleMobileSidebar(false)"></div>
+
+  <!-- ═════ TOP BAR ═════ -->
+  <header class="topbar">
+    <button class="tb-toggle" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+
+    <nav class="tb-crumb" aria-label="Breadcrumb">
+      <span>QuickLimes</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <span class="tb-crumb-active">Dashboard</span>
+    </nav>
+
+    <div class="tb-spacer"></div>
+
+    <button class="tb-search-bar" onclick="openPalette()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span>Search anything…</span>
+      <span class="sb-search-kbd">⌘K</span>
+    </button>
+
+    <button class="tb-action" title="New (N)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+
+    <button class="tb-action" title="Notifications">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="tb-action-dot"></span>
+    </button>
+
+    <button class="tb-action is-ai" title="Ask AI">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9 12 2"/></svg>
+    </button>
+
+    <button class="tb-avatar" id="tbAvatar" data-profile-trigger data-avatar>S</button>
+  </header>
+
+  <!-- ═════ PROFILE MENU (shared by sidebar chip + topbar avatar) ═════ -->
+  <div class="profile-menu" id="profileMenu" role="menu">
+    <div class="profile-menu-head">
+      <div class="profile-menu-av" data-avatar>S</div>
+      <div class="profile-menu-text">
+        <div class="profile-menu-name">Sameer Kayyum</div>
+        <div class="profile-menu-email">hajikayyum@gmail.com</div>
+      </div>
+    </div>
+    <button class="profile-menu-item" id="pmChangePhoto">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span>Change photo</span>
+    </button>
+    <button class="profile-menu-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Edit profile</span>
+    </button>
+    <button class="profile-menu-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06A2 2 0 1 1 4.29 16.96l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Account settings</span>
+    </button>
+    <div class="profile-menu-sep"></div>
+    <button class="profile-menu-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span>Help & support</span>
+    </button>
+    <button class="profile-menu-item profile-menu-item-danger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span>Sign out</span>
+    </button>
+  </div>
+
+  <!-- ═════ PHOTO CROP MODAL ═════ -->
+  <input type="file" id="photoInput" accept="image/*" style="display:none" />
+  <div class="photo-backdrop" id="photoBack" onclick="if(event.target===this)closePhotoModal()">
+    <div class="photo-modal" role="dialog" aria-label="Change profile photo">
+      <h3>Change profile photo</h3>
+      <div id="photoEmpty" class="photo-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span>Pick a square photo — at least 256×256.</span>
+        <button class="ql-btn ql-btn-primary photo-pick-btn" onclick="document.getElementById('photoInput').click()">Choose image</button>
+      </div>
+      <div id="photoCropUI" style="display:none;flex-direction:column;gap:var(--ql-space-4)">
+        <div class="photo-stage" id="photoStage">
+          <canvas id="photoCanvas" width="280" height="280"></canvas>
+          <div class="photo-mask"></div>
+        </div>
+        <div class="photo-zoom">
+          <span class="photo-zoom-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></span>
+          <input type="range" id="photoZoom" min="1" max="3" step="0.01" value="1" />
+        </div>
+        <div class="photo-actions">
+          <button class="ql-btn ql-btn-ghost" onclick="document.getElementById('photoInput').click()">Change image</button>
+          <button class="ql-btn ql-btn-secondary" id="photoRemoveBtn" onclick="removePhoto()">Remove</button>
+          <button class="ql-btn ql-btn-secondary" onclick="closePhotoModal()">Cancel</button>
+          <button class="ql-btn ql-btn-primary" onclick="savePhoto()">Save photo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════ MAIN ═════ -->
+  <main class="main">
+    <div class="dash">
+
+      <!-- ─── PAGE HEAD ─── -->
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Welcome back, Sameer 👋</h1>
+          <div class="page-sub">Here's what's happening at Deshwali Minerals today.</div>
+        </div>
+        <div class="page-actions">
+          <div class="period-tabs">
+            <button class="period-tab">Day</button>
+            <button class="period-tab">Week</button>
+            <button class="period-tab active">Month</button>
+            <button class="period-tab">Year</button>
+          </div>
+          <button class="ql-btn ql-btn-secondary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+          <button class="ql-btn ql-btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New invoice
+          </button>
+        </div>
+      </div>
+
+      <!-- ─── KPI STRIP (6 cards) ─── -->
+      <div class="kpi-strip">
+        <div class="kpi-tile">
+          <div class="kpi-head">
+            <div class="kpi-ic" style="background:var(--ql-brand-50);color:var(--ql-brand-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l2 13h11l2-8H6"/></svg></div>
+            <span class="kpi-trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg> 12.4%</span>
+          </div>
+          <div>
+            <div class="kpi-label">Total Sales</div>
+            <div class="kpi-val">₹28,11,821</div>
+            <div class="kpi-meta">vs ₹25,01,540 last month</div>
+          </div>
+        </div>
+
+        <div class="kpi-tile">
+          <div class="kpi-head">
+            <div class="kpi-ic" style="background:var(--ql-success-50);color:var(--ql-success-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M5 12l7-7 7 7"/></svg></div>
+            <span class="kpi-trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg> 8.7%</span>
+          </div>
+          <div>
+            <div class="kpi-label">Net Profit</div>
+            <div class="kpi-val">₹4,82,103</div>
+            <div class="kpi-meta">Margin 17.1%</div>
+          </div>
+        </div>
+
+        <div class="kpi-tile">
+          <div class="kpi-head">
+            <div class="kpi-ic" style="background:var(--ql-warning-50);color:var(--ql-warning-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V12M9 21V8M13 21V4M17 21V11M21 21V14"/></svg></div>
+            <span class="kpi-trend down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg> 2.1%</span>
+          </div>
+          <div>
+            <div class="kpi-label">Production</div>
+            <div class="kpi-val">634.4 T</div>
+            <div class="kpi-meta">Target 700 T · 90.6%</div>
+          </div>
+        </div>
+
+        <div class="kpi-tile">
+          <div class="kpi-head">
+            <div class="kpi-ic" style="background:#EEF2FF;color:#4F46E5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
+            <span class="kpi-trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg> 5.4%</span>
+          </div>
+          <div>
+            <div class="kpi-label">Dispatch</div>
+            <div class="kpi-val">587.2 T</div>
+            <div class="kpi-meta">31 lorries · 92.6%</div>
+          </div>
+        </div>
+
+        <div class="kpi-tile">
+          <div class="kpi-head">
+            <div class="kpi-ic" style="background:var(--ql-danger-50);color:var(--ql-danger-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg></div>
+            <span class="kpi-trend down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg> 4.5%</span>
+          </div>
+          <div>
+            <div class="kpi-label">Pending Collections</div>
+            <div class="kpi-val">₹28,03,479</div>
+            <div class="kpi-meta">9 parties · 4 overdue</div>
+          </div>
+        </div>
+
+        <div class="kpi-tile">
+          <div class="kpi-head">
+            <div class="kpi-ic" style="background:#F3F4F6;color:#374151"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <span class="kpi-trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg> 1.2%</span>
+          </div>
+          <div>
+            <div class="kpi-label">Pending Payments</div>
+            <div class="kpi-val">₹7,74,141</div>
+            <div class="kpi-meta">2 suppliers</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── REVENUE CHART + AI INSIGHTS ─── -->
+      <div class="row-2">
+        <div class="card chart-wrap">
+          <div class="card-head">
+            <div>
+              <h3 class="card-title">Revenue analytics</h3>
+              <div class="card-sub">Sales, purchases and profit · last 7 months</div>
+            </div>
+            <div class="card-tabs">
+              <button class="card-tab">Weekly</button>
+              <button class="card-tab active">Monthly</button>
+              <button class="card-tab">Yearly</button>
+            </div>
+          </div>
+          <div class="chart" id="chartRev"></div>
+          <div class="chart-legend">
+            <span><i class="legend-dot" style="background:var(--ql-brand-500)"></i> Sales</span>
+            <span><i class="legend-dot" style="background:var(--ql-brand-200)"></i> Purchases</span>
+            <span><i class="legend-dot" style="background:var(--ql-success-500)"></i> Net profit</span>
+          </div>
+        </div>
+
+        <div class="card ai-card">
+          <div class="ai-head">
+            <div class="ai-spark"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9"/></svg></div>
+            <div>
+              <h3 class="card-title">AI insights</h3>
+              <div class="card-sub">Findings based on your live data</div>
+            </div>
+          </div>
+          <div class="ai-list">
+            <div class="ai-item tone-success">
+              <div class="ai-item-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></div>
+              <div class="ai-item-text">
+                <div class="ai-item-headline">Sales up 12.4% vs last month — your best run since Feb.</div>
+                <div class="ai-item-meta">Driven by Kirti Lime &amp; Aman repeat orders.</div>
+              </div>
+            </div>
+            <div class="ai-item tone-danger">
+              <div class="ai-item-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg></div>
+              <div class="ai-item-text">
+                <div class="ai-item-headline">KIRTI LIME PRODUCTS has ₹8.65L outstanding for 42 days.</div>
+                <div class="ai-item-meta">Highest overdue. <a class="ai-item-cta" href="#">Send reminder →</a></div>
+              </div>
+            </div>
+            <div class="ai-item tone-warning">
+              <div class="ai-item-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V12M9 21V8M13 21V4M17 21V11M21 21V14"/></svg></div>
+              <div class="ai-item-text">
+                <div class="ai-item-headline">Production efficiency dropped 5% this week.</div>
+                <div class="ai-item-meta">Likely Kiln #2 fuel ratio. <a class="ai-item-cta" href="#">Check kiln →</a></div>
+              </div>
+            </div>
+            <div class="ai-item tone-info">
+              <div class="ai-item-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M5 12l7-7 7 7"/></svg></div>
+              <div class="ai-item-text">
+                <div class="ai-item-headline">Estimated monthly profit ₹4.8L if trend holds.</div>
+                <div class="ai-item-meta">+₹38K vs last month.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── COLLECTIONS + PRODUCTION SNAPSHOT ─── -->
+      <div class="row-2">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3 class="card-title">Pending collections</h3>
+              <div class="card-sub">9 parties · ₹28,03,479 outstanding</div>
+            </div>
+            <a class="ai-item-cta" href="#">View all →</a>
+          </div>
+          <div class="filter-chips">
+            <button class="chip active">All</button>
+            <button class="chip">Overdue (4)</button>
+            <button class="chip">This week</button>
+            <button class="chip">This month</button>
+          </div>
+          <div class="coll-list">
+            <div class="coll-row">
+              <div class="coll-av" style="background:linear-gradient(135deg,#F59E0B,#D97706)">K</div>
+              <div class="coll-body">
+                <div class="coll-name">KIRTI LIME PRODUCTS</div>
+                <div class="coll-meta">6 bills · since 26 Jan <span class="coll-pill overdue">42d overdue</span></div>
+              </div>
+              <div class="coll-amount">
+                <div class="coll-amount-val">₹8,65,489</div>
+                <div class="coll-amount-sub">Due 04 Mar</div>
+              </div>
+              <button class="coll-action" title="Send reminder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+            </div>
+            <div class="coll-row">
+              <div class="coll-av" style="background:linear-gradient(135deg,var(--ql-brand-500),var(--ql-brand-700))">D</div>
+              <div class="coll-body">
+                <div class="coll-name">DESHWALI LIME INDUSTRIES</div>
+                <div class="coll-meta">4 bills · since 06 Feb <span class="coll-pill overdue">31d overdue</span></div>
+              </div>
+              <div class="coll-amount">
+                <div class="coll-amount-val">₹4,99,349</div>
+                <div class="coll-amount-sub">Due 13 Mar</div>
+              </div>
+              <button class="coll-action" title="Send reminder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+            </div>
+            <div class="coll-row">
+              <div class="coll-av" style="background:linear-gradient(135deg,var(--ql-success-500),var(--ql-success-700))">A</div>
+              <div class="coll-body">
+                <div class="coll-name">AMAN LIME PRODUCTS</div>
+                <div class="coll-meta">13 bills · since 14 Feb <span class="coll-pill due">5d to due</span></div>
+              </div>
+              <div class="coll-amount">
+                <div class="coll-amount-val">₹4,99,125</div>
+                <div class="coll-amount-sub">Due 18 Mar</div>
+              </div>
+              <button class="coll-action" title="Send reminder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+            </div>
+            <div class="coll-row">
+              <div class="coll-av" style="background:linear-gradient(135deg,#A855F7,#7E22CE)">S</div>
+              <div class="coll-body">
+                <div class="coll-name">SUNIL LIME PRODUCTS</div>
+                <div class="coll-meta">3 bills · since 03 Jan <span class="coll-pill overdue">68d overdue</span></div>
+              </div>
+              <div class="coll-amount">
+                <div class="coll-amount-val">₹2,29,693</div>
+                <div class="coll-amount-sub">Due 03 Feb</div>
+              </div>
+              <button class="coll-action" title="Send reminder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3 class="card-title">Production · today</h3>
+              <div class="card-sub">Live kiln readings · 5 minutes ago</div>
+            </div>
+          </div>
+          <div class="prod-stats">
+            <div class="prod-stat">
+              <div class="prod-stat-label">Today</div>
+              <div class="prod-stat-val">22.4 T</div>
+              <div class="prod-stat-meta">+4% vs avg</div>
+            </div>
+            <div class="prod-stat">
+              <div class="prod-stat-label">This week</div>
+              <div class="prod-stat-val">156 T</div>
+              <div class="prod-stat-meta">7 day total</div>
+            </div>
+            <div class="prod-stat">
+              <div class="prod-stat-label">This month</div>
+              <div class="prod-stat-val">634 T</div>
+              <div class="prod-stat-meta">90.6% of target</div>
+            </div>
+          </div>
+          <div class="target">
+            <div class="target-head"><span>Monthly target</span><strong>634 / 700 T</strong></div>
+            <div class="target-bar"><i style="width:90.6%"></i></div>
+            <div class="card-sub" style="margin-top:2px">65 T to go · 11 days left</div>
+          </div>
+          <div class="kiln-row">
+            <span class="kiln-pulse"></span>
+            <div class="kiln-body">
+              <div class="kiln-name">Kiln #1 · Running</div>
+              <div class="kiln-meta">Batch 042 · 18.2 T · 7h 22m</div>
+            </div>
+            <div class="kiln-eff">94%</div>
+          </div>
+          <div class="kiln-row">
+            <span class="kiln-pulse" style="background:var(--ql-warning-500);box-shadow:0 0 0 4px rgba(245,158,11,.18)"></span>
+            <div class="kiln-body">
+              <div class="kiln-name">Kiln #2 · Running</div>
+              <div class="kiln-meta">Batch 043 · 4.2 T · 1h 48m</div>
+            </div>
+            <div class="kiln-eff" style="color:var(--ql-warning-700)">82%</div>
+          </div>
+          <div class="kiln-row" style="opacity:.6">
+            <span class="kiln-pulse" style="background:var(--ql-neutral-400);box-shadow:none;animation:none"></span>
+            <div class="kiln-body">
+              <div class="kiln-name">Kiln #3 · Idle</div>
+              <div class="kiln-meta">Last run 22 Feb</div>
+            </div>
+            <div class="kiln-eff" style="color:var(--ql-text-muted)">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── TOP PRODUCTS + RECENT ACTIVITY ─── -->
+      <div class="row-2">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3 class="card-title">Top products</h3>
+              <div class="card-sub">By revenue this month</div>
+            </div>
+            <button class="ql-btn ql-btn-ghost" style="font-size:var(--ql-text-sm);padding:6px 10px">
+              Filter
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            </button>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th class="num">Qty</th>
+                <th class="num">Avg ₹/T</th>
+                <th class="num">Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div class="tbl-prod"><div class="tbl-prod-ic">⚪</div><div><div class="tbl-prod-name">Quick Lime · CL</div><div class="tbl-prod-sub">90%+ purity</div></div></div></td>
+                <td class="num">412.8 T</td>
+                <td class="num">₹4,440</td>
+                <td class="num">₹18,33,028</td>
+              </tr>
+              <tr>
+                <td><div class="tbl-prod"><div class="tbl-prod-ic">💎</div><div><div class="tbl-prod-name">Hydrated Lime</div><div class="tbl-prod-sub">Slaked Ca(OH)₂</div></div></div></td>
+                <td class="num">144.6 T</td>
+                <td class="num">₹4,810</td>
+                <td class="num">₹6,95,521</td>
+              </tr>
+              <tr>
+                <td><div class="tbl-prod"><div class="tbl-prod-ic">🧱</div><div><div class="tbl-prod-name">Chunna · grade A</div><div class="tbl-prod-sub">Industrial</div></div></div></td>
+                <td class="num">77 T</td>
+                <td class="num">₹4,200</td>
+                <td class="num">₹3,23,400</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3 class="card-title">Recent activity</h3>
+              <div class="card-sub">Last 24h</div>
+            </div>
+            <a class="ai-item-cta" href="#">See all →</a>
+          </div>
+          <div class="feed">
+            <div class="feed-row">
+              <div class="feed-ic" style="background:var(--ql-success-50);color:var(--ql-success-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div><div class="feed-text"><strong>Aman Lime Products</strong> paid ₹1,24,800</div><div class="feed-meta">Bill #SAL-2026-041 · UPI</div></div>
+              <div class="feed-time">2m ago</div>
+            </div>
+            <div class="feed-row">
+              <div class="feed-ic" style="background:var(--ql-brand-50);color:var(--ql-brand-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <div><div class="feed-text"><strong>Invoice #SAL-2026-042</strong> created for Kirti Lime</div><div class="feed-meta">22.4 T · ₹99,456</div></div>
+              <div class="feed-time">38m ago</div>
+            </div>
+            <div class="feed-row">
+              <div class="feed-ic" style="background:var(--ql-warning-50);color:var(--ql-warning-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V12M9 21V8M13 21V4M17 21V11M21 21V14"/></svg></div>
+              <div><div class="feed-text"><strong>Kiln #2</strong> batch 043 started</div><div class="feed-meta">Petcoke 240 kg loaded</div></div>
+              <div class="feed-time">1h ago</div>
+            </div>
+            <div class="feed-row">
+              <div class="feed-ic" style="background:#EEF2FF;color:#4F46E5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
+              <div><div class="feed-text">Dispatch <strong>DSP-2026-031</strong> · 18.6 T to Aman Lime</div><div class="feed-meta">Lorry RJ-21-GA-4421</div></div>
+              <div class="feed-time">3h ago</div>
+            </div>
+            <div class="feed-row">
+              <div class="feed-ic" style="background:var(--ql-danger-50);color:var(--ql-danger-600)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+              <div><div class="feed-text"><strong>3 collections</strong> are 30+ days overdue</div><div class="feed-meta">AI flagged · review collections</div></div>
+              <div class="feed-time">8h ago</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<!-- ═════ COMMAND PALETTE ═════ -->
+<div class="palette-backdrop" id="paletteBack" onclick="if(event.target===this)closePalette()">
+  <div class="palette" id="palette" role="dialog" aria-label="Command palette">
+    <div class="palette-input-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="palette-input" id="paletteInput" placeholder="Search invoices, parties, suppliers, labour or actions…" />
+      <span class="palette-input-kbd">ESC</span>
+    </div>
+    <div class="palette-list" id="paletteList"></div>
+    <div class="palette-foot">
+      <span><kbd>↑↓</kbd> navigate</span>
+      <span><kbd>↵</kbd> select</span>
+      <span><kbd>ESC</kbd> close</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Sidebar toggle ───────────────────────────────────────────── */
+const shell   = document.getElementById('shell');
+const sidebar = document.getElementById('sidebar');
+const mobBack = document.getElementById('mobBack');
+const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+
+function toggleSidebar(){
+  if (isMobile()) {
+    toggleMobileSidebar();
+  } else {
+    shell.dataset.collapsed = shell.dataset.collapsed === 'true' ? 'false' : 'true';
+  }
+}
+function toggleMobileSidebar(force){
+  const open = (typeof force === 'boolean') ? force : !sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', open);
+  mobBack.classList.toggle('open', open);
+}
+
+/* ── Group expand/collapse ───────────────────────────────────── */
+function toggleGroup(btn){ btn.parentElement.classList.toggle('collapsed'); }
+
+/* ── Sidebar nav active state ────────────────────────────────── */
+document.querySelectorAll('.sb-link').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('.sb-link.active').forEach(a => a.classList.remove('active'));
+    link.classList.add('active');
+    // Update breadcrumb
+    const crumb = link.querySelector('.sb-link-text')?.textContent || 'Dashboard';
+    document.querySelector('.tb-crumb-active').textContent = crumb;
+    if (isMobile()) toggleMobileSidebar(false);
+  });
+});
+
+/* ── Workspace dropdown ──────────────────────────────────────── */
+const wsBtn  = document.getElementById('wsBtn');
+const wsMenu = document.getElementById('wsMenu');
+wsBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  const open = wsMenu.classList.toggle('open');
+  wsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+});
+document.addEventListener('click', e => {
+  if (!wsMenu.contains(e.target) && e.target !== wsBtn) wsMenu.classList.remove('open');
+});
+document.querySelectorAll('.ws-row').forEach(row => {
+  row.addEventListener('click', () => {
+    document.querySelectorAll('.ws-row').forEach(r => r.classList.remove('active'));
+    row.classList.add('active');
+    // Reflect on the workspace switcher button
+    const av = row.querySelector('.ws-row-av');
+    const nm = row.querySelector('span:not(.ws-row-av)');
+    if (av && nm) {
+      const newAv = wsBtn.querySelector('.workspace-avatar');
+      const newNm = wsBtn.querySelector('.workspace-name');
+      newAv.textContent = av.textContent;
+      newAv.style.background = av.style.background;
+      newNm.textContent = nm.textContent;
+    }
+    wsMenu.classList.remove('open');
+  });
+});
+
+/* ── Command palette ─────────────────────────────────────────── */
+const ITEMS = [
+  { group: 'Quick actions', icon: 'plus',  title: 'New GST invoice',      meta: 'Create a sales invoice',  shortcut: 'N I' },
+  { group: 'Quick actions', icon: 'truck', title: 'Record dispatch',      meta: 'Log outgoing material',   shortcut: 'N D' },
+  { group: 'Quick actions', icon: 'flame', title: 'Start kiln run',       meta: 'Log a new production batch' },
+  { group: 'Navigation',    icon: 'grid',  title: 'Go to Dashboard',       meta: 'Overview · KPIs',     shortcut: 'G D' },
+  { group: 'Navigation',    icon: 'chart', title: 'Go to Sales Register',  meta: 'All invoices',       shortcut: 'G S' },
+  { group: 'Navigation',    icon: 'cube',  title: 'Go to Stock Management',meta: 'Inventory levels',   shortcut: 'G M' },
+  { group: 'Navigation',    icon: 'users', title: 'Go to Labour',          meta: 'Workers + attendance',shortcut: 'G L' },
+  { group: 'Find',          icon: 'user',  title: 'KIRTI LIME PRODUCTS',   meta: 'Customer · 9 outstanding' },
+  { group: 'Find',          icon: 'user',  title: 'AMAN LIME PRODUCTS',    meta: 'Customer · 13 outstanding' },
+  { group: 'Find',          icon: 'user',  title: 'Mateshwari Mines',      meta: 'Supplier · ₹6,72,985 due' },
+  { group: 'AI',            icon: 'spark', title: 'How is production trending?', meta: 'Ask AI for an analysis' },
+  { group: 'AI',            icon: 'spark', title: 'Top 5 overdue collections',   meta: 'Ranked by days outstanding' },
+];
+
+const ICONS = {
+  plus:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  truck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
+  flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>',
+  grid:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+  chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+  cube:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
+  user:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  spark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9 12 2"/></svg>',
+};
+
+let focusedIndex = 0;
+function renderPalette(query=''){
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? ITEMS.filter(it => (it.title + ' ' + it.meta + ' ' + it.group).toLowerCase().includes(q))
+    : ITEMS;
+  const grouped = filtered.reduce((acc, it) => { (acc[it.group] = acc[it.group] || []).push(it); return acc; }, {});
+  const list = document.getElementById('paletteList');
+  let html = '';
+  let idx = 0;
+  for (const group of Object.keys(grouped)) {
+    html += `<div class="palette-group-title">${group}</div>`;
+    for (const it of grouped[group]) {
+      html += `<a class="palette-row${idx===focusedIndex?' is-focused':''}" data-idx="${idx}" tabindex="-1">
+        <span class="palette-row-ic">${ICONS[it.icon]||''}</span>
+        <span class="palette-row-body">
+          <div class="palette-row-title">${escapeHTML(it.title)}</div>
+          <div class="palette-row-meta">${escapeHTML(it.meta)}</div>
+        </span>
+        ${it.shortcut?`<span class="palette-row-shortcut">${it.shortcut}</span>`:''}
+      </a>`;
+      idx++;
+    }
+  }
+  if (!filtered.length) {
+    html = `<div style="padding:var(--ql-space-6);text-align:center;color:var(--ql-text-muted);font-size:var(--ql-text-md)">No results for "${escapeHTML(query)}"</div>`;
+  }
+  list.innerHTML = html;
+}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]));}
+
+function openPalette(){
+  focusedIndex = 0;
+  document.getElementById('paletteBack').classList.add('open');
+  renderPalette('');
+  setTimeout(() => document.getElementById('paletteInput').focus(), 0);
+}
+function closePalette(){
+  document.getElementById('paletteBack').classList.remove('open');
+  document.getElementById('paletteInput').value = '';
+}
+
+document.getElementById('paletteInput').addEventListener('input', e => {
+  focusedIndex = 0;
+  renderPalette(e.target.value);
+});
+document.getElementById('paletteInput').addEventListener('keydown', e => {
+  const rows = [...document.querySelectorAll('.palette-row')];
+  if (e.key === 'ArrowDown') { e.preventDefault(); focusedIndex = Math.min(focusedIndex+1, rows.length-1); updateFocus(rows); }
+  if (e.key === 'ArrowUp')   { e.preventDefault(); focusedIndex = Math.max(focusedIndex-1, 0); updateFocus(rows); }
+  if (e.key === 'Enter')     { e.preventDefault(); rows[focusedIndex]?.click(); }
+});
+function updateFocus(rows){
+  rows.forEach((r,i) => r.classList.toggle('is-focused', i===focusedIndex));
+  rows[focusedIndex]?.scrollIntoView({block:'nearest'});
+}
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if ((e.metaKey || e.ctrlKey) && k === 'k') { e.preventDefault(); openPalette(); }
+  if (k === 'escape') closePalette();
+});
+
+document.getElementById('paletteList').addEventListener('click', e => {
+  const row = e.target.closest('.palette-row');
+  if (row) {
+    // Stub action — in real app this would route. For now, close palette.
+    closePalette();
+  }
+});
+
+/* ── Initial paint ───────────────────────────────────────────── */
+renderPalette('');
+
+/* ─────────────────────────────────────────────────────────────
+   PROFILE MENU + PHOTO UPLOAD
+   ───────────────────────────────────────────────────────────── */
+const PHOTO_KEY = 'ql_v2_profile_photo';
+const profileMenu = document.getElementById('profileMenu');
+
+function applyAvatarPhoto(dataUrl){
+  if (dataUrl) {
+    document.querySelectorAll('[data-avatar]').forEach(el => {
+      el.style.setProperty('--ql-photo', `url('${dataUrl}')`);
+      el.classList.add('has-photo');
+    });
+  } else {
+    document.querySelectorAll('[data-avatar]').forEach(el => {
+      el.style.removeProperty('--ql-photo');
+      el.classList.remove('has-photo');
+    });
+  }
+}
+
+function loadStoredPhoto(){
+  const saved = localStorage.getItem(PHOTO_KEY);
+  if (saved) applyAvatarPhoto(saved);
+}
+loadStoredPhoto();
+
+/* Open/close profile menu, positioned relative to the trigger */
+function openProfileMenu(triggerEl){
+  const r = triggerEl.getBoundingClientRect();
+  // Decide whether to anchor below (topbar) or above (sidebar chip)
+  const isTop = triggerEl.classList.contains('tb-avatar');
+  if (isTop) {
+    profileMenu.style.top = (r.bottom + 8) + 'px';
+    profileMenu.style.left = (r.right - 240) + 'px';
+  } else {
+    profileMenu.style.top = (r.top - 8 - profileMenu.offsetHeight) + 'px';
+    profileMenu.style.left = r.left + 'px';
+    // After it has dimensions
+    requestAnimationFrame(() => {
+      profileMenu.style.top = (r.top - 8 - profileMenu.offsetHeight) + 'px';
+    });
+  }
+  profileMenu.classList.add('open');
+}
+function closeProfileMenu(){ profileMenu.classList.remove('open'); }
+
+document.querySelectorAll('[data-profile-trigger]').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (profileMenu.classList.contains('open')) {
+      closeProfileMenu();
+    } else {
+      openProfileMenu(btn);
+    }
+  });
+});
+document.addEventListener('click', e => {
+  if (!profileMenu.contains(e.target) && !e.target.closest('[data-profile-trigger]')) {
+    closeProfileMenu();
+  }
+});
+
+/* ── Photo modal ─────────────────────────────────────────────── */
+const photoInput  = document.getElementById('photoInput');
+const photoBack   = document.getElementById('photoBack');
+const photoEmpty  = document.getElementById('photoEmpty');
+const photoCropUI = document.getElementById('photoCropUI');
+const photoStage  = document.getElementById('photoStage');
+const photoCanvas = document.getElementById('photoCanvas');
+const photoZoom   = document.getElementById('photoZoom');
+const photoRemoveBtn = document.getElementById('photoRemoveBtn');
+
+const cropState = { img: null, scale: 1, baseScale: 1, dx: 0, dy: 0 };
+
+document.getElementById('pmChangePhoto').addEventListener('click', () => {
+  closeProfileMenu();
+  photoBack.classList.add('open');
+  // Show/hide remove button based on existing photo
+  photoRemoveBtn.style.display = localStorage.getItem(PHOTO_KEY) ? '' : 'none';
+  if (cropState.img) {
+    photoEmpty.style.display = 'none';
+    photoCropUI.style.display = 'flex';
+  } else {
+    photoEmpty.style.display = 'flex';
+    photoCropUI.style.display = 'none';
+  }
+});
+
+function closePhotoModal(){ photoBack.classList.remove('open'); }
+
+photoInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      cropState.img = img;
+      // Base scale so the smaller image dimension fills the 280px stage
+      cropState.baseScale = Math.max(280 / img.width, 280 / img.height);
+      cropState.scale = 1;
+      cropState.dx = 0; cropState.dy = 0;
+      photoZoom.value = 1;
+      photoEmpty.style.display = 'none';
+      photoCropUI.style.display = 'flex';
+      drawCrop();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  photoInput.value = '';
+});
+
+function drawCrop(){
+  if (!cropState.img) return;
+  const ctx = photoCanvas.getContext('2d');
+  const size = 280;
+  ctx.fillStyle = '#0F172A';
+  ctx.fillRect(0, 0, size, size);
+  const s = cropState.baseScale * cropState.scale;
+  const dw = cropState.img.width  * s;
+  const dh = cropState.img.height * s;
+  // Centre + drag offset, clamped so the image always covers the circle
+  const cx = (size - dw) / 2 + cropState.dx;
+  const cy = (size - dh) / 2 + cropState.dy;
+  // Clamp
+  const minX = size - dw, minY = size - dh;
+  cropState.dx = Math.min(0, Math.max(minX - (size - dw) / 2, cropState.dx));
+  cropState.dy = Math.min(0, Math.max(minY - (size - dh) / 2, cropState.dy));
+  // (Above clamp simplified — recompute cx/cy after clamp)
+  const fx = (size - dw) / 2 + cropState.dx;
+  const fy = (size - dh) / 2 + cropState.dy;
+  ctx.drawImage(cropState.img, fx, fy, dw, dh);
+}
+
+photoZoom.addEventListener('input', e => {
+  cropState.scale = parseFloat(e.target.value);
+  drawCrop();
+});
+
+/* Drag to reposition */
+let dragStart = null;
+function onPointerDown(e){
+  dragStart = { x: e.clientX || e.touches?.[0]?.clientX, y: e.clientY || e.touches?.[0]?.clientY, dx: cropState.dx, dy: cropState.dy };
+}
+function onPointerMove(e){
+  if (!dragStart) return;
+  const cx = e.clientX || e.touches?.[0]?.clientX;
+  const cy = e.clientY || e.touches?.[0]?.clientY;
+  cropState.dx = dragStart.dx + (cx - dragStart.x);
+  cropState.dy = dragStart.dy + (cy - dragStart.y);
+  drawCrop();
+}
+function onPointerUp(){ dragStart = null; }
+photoStage.addEventListener('pointerdown', onPointerDown);
+window.addEventListener('pointermove', onPointerMove);
+window.addEventListener('pointerup', onPointerUp);
+
+function savePhoto(){
+  if (!cropState.img) { closePhotoModal(); return; }
+  // Render the visible 280px stage to a square data URL (200px target)
+  const out = document.createElement('canvas');
+  out.width = out.height = 200;
+  const octx = out.getContext('2d');
+  octx.drawImage(photoCanvas, 0, 0, 280, 280, 0, 0, 200, 200);
+  const dataUrl = out.toDataURL('image/jpeg', 0.88);
+  localStorage.setItem(PHOTO_KEY, dataUrl);
+  applyAvatarPhoto(dataUrl);
+  closePhotoModal();
+}
+
+function removePhoto(){
+  localStorage.removeItem(PHOTO_KEY);
+  cropState.img = null;
+  applyAvatarPhoto(null);
+  closePhotoModal();
+}
+
+/* Close photo modal on Escape (in addition to palette) */
+const _existingEsc = document.onkeydown;
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && photoBack.classList.contains('open')) closePhotoModal();
+});
+
+/* ─────────────────────────────────────────────────────────────
+   REVENUE CHART — pure SVG, composes from tokens
+   ───────────────────────────────────────────────────────────── */
+(function renderRevenueChart(){
+  const host = document.getElementById('chartRev');
+  if (!host) return;
+
+  const css = getComputedStyle(document.documentElement);
+  const v   = n => css.getPropertyValue(n).trim();
+
+  const data = [
+    { m: 'Jan', sales: 18.4, purchases: 12.0, profit: 3.1 },
+    { m: 'Feb', sales: 22.1, purchases: 13.6, profit: 4.0 },
+    { m: 'Mar', sales: 19.8, purchases: 11.2, profit: 3.4 },
+    { m: 'Apr', sales: 24.7, purchases: 14.8, profit: 4.2 },
+    { m: 'May', sales: 26.5, purchases: 15.1, profit: 4.6 },
+    { m: 'Jun', sales: 23.9, purchases: 13.4, profit: 4.1 },
+    { m: 'Jul', sales: 28.1, purchases: 15.9, profit: 4.8 },
+  ];
+
+  const W = 760, H = 260;
+  const P = { l: 44, r: 16, t: 16, b: 28 };  // padding
+  const innerW = W - P.l - P.r;
+  const innerH = H - P.t - P.b;
+
+  const maxV = Math.max(...data.flatMap(d => [d.sales, d.purchases, d.profit])) * 1.15;
+  const barGroupW = innerW / data.length;
+  const barW = Math.min(14, barGroupW * 0.22);
+  const gap  = 4;
+
+  const y = val => P.t + innerH - (val / maxV) * innerH;
+  const x = i   => P.l + barGroupW * i + barGroupW / 2;
+
+  // Y-axis gridlines (5 lines)
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(t => {
+    const yPos = P.t + innerH - t * innerH;
+    const label = (maxV * t).toFixed(0) + 'L';
+    return `
+      <line x1="${P.l}" y1="${yPos}" x2="${W - P.r}" y2="${yPos}"
+            stroke="${v('--ql-divider')}" stroke-dasharray="3 4" />
+      <text x="${P.l - 8}" y="${yPos + 4}" text-anchor="end"
+            font-family="${v('--ql-font-sans')}" font-size="10"
+            fill="${v('--ql-text-muted')}">${label}</text>
+    `;
+  }).join('');
+
+  // Bars
+  const bars = data.map((d, i) => {
+    const cx = x(i);
+    const salesX     = cx - barW - gap / 2;
+    const purchasesX = cx + gap / 2;
+    return `
+      <rect x="${salesX}" y="${y(d.sales)}" width="${barW}" height="${P.t + innerH - y(d.sales)}"
+            rx="3" fill="${v('--ql-brand-500')}" opacity="0.95">
+        <title>${d.m} sales · ₹${d.sales}L</title>
+      </rect>
+      <rect x="${purchasesX}" y="${y(d.purchases)}" width="${barW}" height="${P.t + innerH - y(d.purchases)}"
+            rx="3" fill="${v('--ql-brand-200')}">
+        <title>${d.m} purchases · ₹${d.purchases}L</title>
+      </rect>
+    `;
+  }).join('');
+
+  // Profit line + dots
+  const linePoints = data.map((d, i) => `${x(i)},${y(d.profit)}`).join(' ');
+  const areaPoints = `${P.l},${P.t + innerH} ` + linePoints + ` ${W - P.r},${P.t + innerH}`;
+  const dots = data.map((d, i) =>
+    `<circle cx="${x(i)}" cy="${y(d.profit)}" r="4" fill="#fff"
+             stroke="${v('--ql-success-500')}" stroke-width="2.5">
+       <title>${d.m} profit · ₹${d.profit}L</title>
+     </circle>`).join('');
+
+  // X-axis labels
+  const xLabels = data.map((d, i) =>
+    `<text x="${x(i)}" y="${H - 8}" text-anchor="middle"
+           font-family="${v('--ql-font-sans')}" font-size="11"
+           fill="${v('--ql-text-secondary')}">${d.m}</text>`).join('');
+
+  host.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Revenue analytics chart">
+      <defs>
+        <linearGradient id="profitArea" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%"  stop-color="${v('--ql-success-500')}" stop-opacity="0.18"/>
+          <stop offset="100%" stop-color="${v('--ql-success-500')}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${gridLines}
+      ${bars}
+      <polyline points="${areaPoints}" fill="url(#profitArea)" stroke="none" />
+      <polyline points="${linePoints}" fill="none"
+                stroke="${v('--ql-success-600')}" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round" />
+      ${dots}
+      ${xLabels}
+    </svg>
+  `;
+})();
+
+/* Period tabs (page-level) + filter chips toggle (UI only for now) */
+document.querySelectorAll('.period-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    tab.parentElement.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  });
+});
+document.querySelectorAll('.card-tabs').forEach(group => {
+  group.querySelectorAll('.card-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      group.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+});
+document.querySelectorAll('.filter-chips').forEach(group => {
+  group.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      group.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+    });
+  });
+});
+
+/* Mark dashboard nav link as active + breadcrumb */
+document.querySelectorAll('.sb-link.active').forEach(l => l.classList.remove('active'));
+const dashLink = document.querySelector('.sb-link[data-page="dashboard"]');
+if (dashLink) dashLink.classList.add('active');
+const crumb = document.querySelector('.tb-crumb-active');
+if (crumb) crumb.textContent = 'Dashboard';
+</script>
+</body>
+</html>
