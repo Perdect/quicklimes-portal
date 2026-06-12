@@ -1195,6 +1195,34 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
 .imp-pdf-text{background:#f8fafc;border-radius:8px;padding:8px 12px;font-size:10px;max-height:80px;overflow-y:auto;color:var(--ink4);white-space:pre-wrap;word-break:break-all;margin-bottom:10px;display:none}
 .imp-ok{background:var(--green2);border-radius:12px;padding:20px;text-align:center;color:var(--green);font-weight:700;font-size:15px;margin:8px 0}
 
+/* ══ PARTIES — contacts-style table ══ */
+.pseg{display:inline-flex;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:4px;gap:2px}
+.pseg-btn{padding:7px 16px;border-radius:9px;border:none;background:transparent;color:#6b7280;font-size:12.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;transition:background .12s,color .12s}
+.pseg-btn:hover{color:#0D1B2D}
+.pt-search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:8px 14px;min-width:220px;flex:0 1 300px;margin-left:auto;transition:border-color .12s}
+.pt-search:focus-within{border-color:var(--p4)}
+.pt-search input{border:none;outline:none;font-size:12.5px;font-family:Inter,sans-serif;flex:1;background:transparent;color:#0D1B2D;min-width:0}
+.pt-search svg{color:#9ca3af;flex-shrink:0}
+.pt-row td{padding:13px 16px!important;border-bottom:1px solid #f1f3f8}
+.pt-row:hover td{background:#fafbfd}
+.pt-party{display:flex;align-items:center;gap:12px;min-width:0}
+.pt-av{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff}
+.pt-name{font-weight:700;color:#0D1B2D;font-size:13px;line-height:1.25}
+.pt-gstin{font-size:11px;color:#9ca3af;margin-top:2px;letter-spacing:.3px}
+.pt-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:4px 11px;border-radius:50px;white-space:nowrap}
+.pt-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.pt-muted{font-size:12px;color:#6b7280}
+.pt-kebab{width:32px;height:32px;border-radius:8px;border:none;background:transparent;cursor:pointer;color:#9ca3af;display:inline-flex;align-items:center;justify-content:center;transition:background .12s,color .12s}
+.pt-kebab:hover{background:#f3f4f6;color:#374151}
+#party-menu{position:fixed;background:#fff;border:1px solid #eef0f4;border-radius:12px;box-shadow:0 12px 32px rgba(15,23,42,.14);padding:5px;z-index:1500;min-width:160px;display:none;flex-direction:column;gap:1px}
+#party-menu.open{display:flex}
+#party-menu button{display:flex;align-items:center;gap:9px;padding:9px 11px;border:none;background:none;border-radius:8px;font-size:12.5px;font-weight:600;color:#374151;cursor:pointer;font-family:Inter,sans-serif;text-align:left}
+#party-menu button:hover{background:#f8fafc}
+#party-menu button svg{color:#9ca3af;flex-shrink:0}
+#party-menu button.danger{color:#dc2626}
+#party-menu button.danger svg{color:#dc2626}
+#party-menu button.danger:hover{background:#fef2f2}
+
 /* ══ CRUD ACTION BUTTONS ══ */
 .act-btns{display:flex;gap:2px;justify-content:center;align-items:center;white-space:nowrap}
 .act-btn{width:30px;height:30px;border-radius:6px;border:none;background:transparent;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0}
@@ -1909,12 +1937,17 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
       <button class="btn btn-primary" onclick="openPartyModal()" data-i18n="btn_add_party">+ Add Party</button>
     </div>
   </div>
-  <!-- Filter tabs -->
-  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-    <button class="btn btn-ghost" id="pflt-all" style="font-size:12px;padding:6px 14px;background:var(--p5);color:var(--p2);font-weight:700" onclick="setPFlt('')" data-i18n="flt_all">All</button>
-    <button class="btn btn-ghost" id="pflt-customer" style="font-size:12px;padding:6px 14px;display:inline-flex;align-items:center;gap:5px" onclick="setPFlt('customer')" data-i18n="flt_customers"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Customers</button>
-    <button class="btn btn-ghost" id="pflt-supplier" style="font-size:12px;padding:6px 14px;display:inline-flex;align-items:center;gap:5px" onclick="setPFlt('supplier')" data-i18n="flt_suppliers"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Suppliers</button>
-    <input id="partySearch" placeholder="🔍 Search party name, GSTIN…" oninput="renderParties()" style="margin-left:auto;padding:7px 14px;border:var(--border);border-radius:50px;font-size:12px;outline:none;min-width:200px">
+  <!-- Filter tabs — contacts-style segmented control + inline search -->
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+    <div class="pseg">
+      <button class="pseg-btn" id="pflt-all" style="background:var(--p5);color:var(--p2);font-weight:700" onclick="setPFlt('')" data-i18n="flt_all">All</button>
+      <button class="pseg-btn" id="pflt-customer" onclick="setPFlt('customer')" data-i18n="flt_customers">Customers</button>
+      <button class="pseg-btn" id="pflt-supplier" onclick="setPFlt('supplier')" data-i18n="flt_suppliers">Suppliers</button>
+    </div>
+    <div class="pt-search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="partySearch" placeholder="Search party name, GSTIN…" oninput="renderParties()">
+    </div>
   </div>
   <div class="card">
     <div class="card-body-np tbl-wrap"><div id="partiesTable"></div></div>
@@ -3077,7 +3110,7 @@ const TR = {
     mr_no_sales:'No sales this month', mr_no_pur:'No purchases this month',
     mr_margin:'margin', mr_status:'Status',
     // Parties search
-    party_search:'🔍 Search party name, GSTIN…',
+    party_search:'Search party name, GSTIN…',
     // Bags page KPIs
     lbl_entries:'entries', lbl_plastic_bags:'Plastic Bags',
     lbl_bags_pieces:'Bags / Pieces', lbl_units:'Units',
@@ -3265,7 +3298,7 @@ const TR = {
     mr_no_sales:'इस माह कोई बिक्री नहीं', mr_no_pur:'इस माह कोई खरीद नहीं',
     mr_margin:'मार्जिन', mr_status:'स्थिति',
     // Parties search
-    party_search:'🔍 पार्टी नाम, GSTIN खोजें…',
+    party_search:'पार्टी नाम, GSTIN खोजें…',
     // Bags page KPIs
     lbl_entries:'प्रविष्टियां', lbl_plastic_bags:'प्लास्टिक बोरी',
     lbl_bags_pieces:'बोरी / पीस', lbl_units:'इकाई',
@@ -6768,24 +6801,65 @@ function renderParties(){
     if(q&&!(p.name.toLowerCase().includes(q)||(p.gstin||'').toLowerCase().includes(q)||(p.phone||'').includes(q)))return false;
     return true;
   });
-  const tbody=arr.length?arr.map((p,i)=>{
+  // Deterministic avatar gradient per party name
+  const AV=[['#2563EB','#1D4ED8'],['#16A34A','#15803D'],['#F59E0B','#B45309'],['#7C3AED','#5B21B6'],['#DB2777','#9D174D'],['#0891B2','#155E75']];
+  const PILL={
+    customer:{bg:'#ECFDF5',fg:'#047857',dot:'#10B981',label:'Customer'},
+    supplier:{bg:'#EFF6FF',fg:'#1D4ED8',dot:'#3B82F6',label:'Supplier'},
+    both:    {bg:'#FFFBEB',fg:'#B45309',dot:'#F59E0B',label:'Both'}
+  };
+  const tbody=arr.length?arr.map(p=>{
     const realIdx=PARTIES.indexOf(p);
-    const badge=p.type==='customer'?'<span style="background:#d1fae5;color:#065f46;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px">Customer</span>':p.type==='supplier'?'<span style="background:#E6F1FE;color:#003F94;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px">Supplier</span>':'<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px">Both</span>';
-    return`<tr>
-      <td><strong>${p.name}</strong><br><span style="font-size:11px;color:var(--ink4)">${p.gstin||'—'}</span></td>
-      <td>${badge}</td>
-      <td style="font-size:12px">${p.phone||'—'}</td>
-      <td style="font-size:11px;color:var(--ink3);max-width:180px;word-break:break-word">${p.address||'—'}</td>
-      <td style="font-size:11px;color:var(--ink4)">${p.state||'—'}</td>
-      <td style="font-size:11px;color:var(--ink4)">${p.notes||''}</td>
-      <td><div class="act-btns">
-        <button class="act-btn act-edit" onclick="openPartyModal(${realIdx})">✏</button>
-        <button class="act-btn act-del" onclick="deleteParty(${realIdx})">✕</button>
+    const c=AV[(p.name.charCodeAt(0)+p.name.length)%AV.length];
+    const pl=PILL[p.type]||PILL.both;
+    const notesLine=p.notes?`<div style="font-size:10.5px;color:#b6bcc8;margin-top:2px">${p.notes}</div>`:'';
+    return`<tr class="pt-row">
+      <td><div class="pt-party">
+        <div class="pt-av" style="background:linear-gradient(135deg,${c[0]},${c[1]})">${(p.name||'?').trim().charAt(0).toUpperCase()}</div>
+        <div style="min-width:0">
+          <div class="pt-name">${p.name}</div>
+          <div class="pt-gstin">${p.gstin||'—'}</div>
+        </div>
       </div></td>
+      <td><span class="pt-pill" style="background:${pl.bg};color:${pl.fg}"><span class="pt-dot" style="background:${pl.dot}"></span>${pl.label}</span></td>
+      <td class="pt-muted">${p.phone||'—'}</td>
+      <td class="pt-muted hide-mob" style="max-width:200px;word-break:break-word">${p.address||'—'}${notesLine}</td>
+      <td class="pt-muted hide-mob">${p.state||'—'}</td>
+      <td class="tc"><button class="pt-kebab" onclick="openPartyMenu(event,${realIdx})" aria-label="Actions"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button></td>
     </tr>`;
-  }).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--ink4);padding:32px">No parties yet — they auto-save when you add purchase or sales bills, or click + Add Party</td></tr>`;
-  document.getElementById('partiesTable').innerHTML=`<table class="t" style="width:100%"><thead><tr><th>${t('th_name_gstin')}</th><th>${t('th_type')}</th><th>${t('th_phone')}</th><th>${t('th_address')}</th><th>${t('th_state')}</th><th>${t('th_notes')}</th><th class="tc">${t('th_actions')}</th></tr></thead><tbody>${tbody}</tbody></table>
+  }).join(''):`<tr><td colspan="6" style="text-align:center;color:var(--ink4);padding:48px 24px">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <div style="font-weight:600;color:#6b7280;margin-bottom:4px">No parties yet</div>
+    <div style="font-size:12px">They auto-save when you add purchase or sales bills, or click + Add Party</div>
+  </td></tr>`;
+  document.getElementById('partiesTable').innerHTML=`<table class="t" style="width:100%"><thead><tr><th>${t('th_name_gstin')}</th><th>${t('th_type')}</th><th>${t('th_phone')}</th><th class="hide-mob">${t('th_address')}</th><th class="hide-mob">${t('th_state')}</th><th class="tc">${t('th_actions')}</th></tr></thead><tbody>${tbody}</tbody></table>
   <div style="margin-top:10px;padding:6px 16px;font-size:12px;color:var(--ink4)">${arr.length} of ${PARTIES.length} parties</div>`;
+}
+
+// ── Kebab action menu for party rows (one shared element) ──
+function openPartyMenu(e,idx){
+  e.stopPropagation();
+  let m=document.getElementById('party-menu');
+  if(!m){
+    m=document.createElement('div');
+    m.id='party-menu';
+    document.body.appendChild(m);
+    document.addEventListener('click',ev=>{if(!m.contains(ev.target)&&!ev.target.closest('.pt-kebab'))m.classList.remove('open');});
+    window.addEventListener('scroll',()=>m.classList.remove('open'),true);
+  }
+  m.innerHTML=`
+    <button onclick="document.getElementById('party-menu').classList.remove('open');openPartyModal(${idx})">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Edit party
+    </button>
+    <button class="danger" onclick="document.getElementById('party-menu').classList.remove('open');deleteParty(${idx})">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+      Delete
+    </button>`;
+  const r=e.currentTarget.getBoundingClientRect();
+  m.style.top=(r.bottom+6)+'px';
+  m.style.left=Math.max(8,r.right-160)+'px';
+  m.classList.add('open');
 }
 
 function openPartyModal(idx=-1){
