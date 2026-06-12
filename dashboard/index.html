@@ -1311,18 +1311,7 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
     </button>
   </div>
 
-  <div class="sb-footer">
-    <!-- Language toggle -->
-    <div style="display:flex;gap:6px;margin-bottom:10px">
-      <button id="lang-en" data-lang="en" onclick="setLang('en')" class="lang-btn" style="flex:1;padding:7px;border-radius:8px;border:1.5px solid var(--p4);background:var(--p2);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">EN English</button>
-      <button id="lang-hi" data-lang="hi" onclick="setLang('hi')" class="lang-btn" style="flex:1;padding:7px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:var(--ink3);font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">हिं Hindi</button>
-    </div>
-    <!-- Log out (essential for mobile where the topbar profile is hard to reach) -->
-    <button onclick="qlLogout()" style="width:100%;padding:10px 12px;border-radius:9px;border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;font-size:12.5px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .12s,border-color .12s">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      Log out
-    </button>
-  </div>
+  <!-- Footer removed — Language + Log out now live in the profile menu -->
 </nav>
 
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
@@ -1440,6 +1429,14 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
           Call Support
           <svg class="mob-avatar-item-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </a>
+        <div class="mob-avatar-item" style="cursor:default">
+          <span class="mob-avatar-item-ic" style="background:#e0f2fe;color:#0369a1"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+          Language
+          <span style="margin-left:auto;display:flex;gap:6px">
+            <button class="lang-btn" data-lang="en" onclick="event.stopPropagation();setLang('en')" style="padding:6px 12px;border-radius:8px;border:1.5px solid var(--p4);background:var(--p2);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">EN</button>
+            <button class="lang-btn" data-lang="hi" onclick="event.stopPropagation();setLang('hi')" style="padding:6px 12px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:var(--ink3);font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">हिं</button>
+          </span>
+        </div>
         <div class="mob-avatar-divider"></div>
         <button class="mob-avatar-item mob-avatar-item-danger" onclick="qlLogout()">
           <span class="mob-avatar-item-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
@@ -1533,6 +1530,14 @@ table.att{width:100%;border-collapse:collapse;font-size:10px;min-width:960px}
             <span class="app-profile-item-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
             Call Support · +91 94607 67676
           </a>
+          <div class="app-profile-item" style="cursor:default">
+            <span class="app-profile-item-ic" style="background:#e0f2fe;color:#0369a1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+            Language
+            <span style="margin-left:auto;display:flex;gap:5px">
+              <button class="lang-btn" data-lang="en" onclick="event.stopPropagation();setLang('en')" style="padding:4px 10px;border-radius:7px;border:1.5px solid var(--p4);background:var(--p2);color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">EN</button>
+              <button class="lang-btn" data-lang="hi" onclick="event.stopPropagation();setLang('hi')" style="padding:4px 10px;border-radius:7px;border:1.5px solid #e5e7eb;background:#fff;color:var(--ink3);font-size:11px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">हिं</button>
+            </span>
+          </div>
           <div class="app-profile-divider"></div>
           <button class="app-profile-item app-profile-item-danger" onclick="qlLogout()">
             <span class="app-profile-item-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
@@ -7667,6 +7672,8 @@ function boot(){
   if(typeof Chart==='undefined'){setTimeout(boot,80);return;}
   // Always sync LANG from storage at boot (defensive — avoids stale cached value)
   LANG=localStorage.getItem('dm_lang')||'en';
+  // Reflect saved language on the toggle pills (they hardcode EN-active in markup)
+  document.querySelectorAll('.lang-btn').forEach(b=>{const a=b.dataset.lang===LANG;b.style.background=a?'var(--p2)':'#fff';b.style.color=a?'#fff':'var(--ink3)';b.style.borderColor=a?'var(--p4)':'#e5e7eb';});
   // Safety net: always hide loader after 8s even if something crashes
   const _loaderFallback=setTimeout(()=>_hideLoader(),8000);
   try{loadLocal();}catch(e){console.error('loadLocal error:',e);}
