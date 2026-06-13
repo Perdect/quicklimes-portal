@@ -25,7 +25,9 @@
 /* ── KPI strip ─────────────────────────────────────────────── */
 .kpi-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--ql-space-3); }
 @media (max-width: 1320px) { .kpi-strip { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 720px)  { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+/* Force 2-up on phones — beats the inline grid-template-columns the
+   register/summary pages set for their 3- and 4-KPI strips. */
+@media (max-width: 720px)  { .kpi-strip { grid-template-columns: repeat(2, 1fr) !important; } .kpi-tile { min-width: 0; } .kpi-tile .kpi-val { font-size: var(--ql-text-xl); } }
 
 .kpi-tile {
   background: var(--ql-card); border: 1px solid var(--ql-border);
@@ -334,7 +336,9 @@
   .tb-search-bar { display: none; }
 }
 @media (max-width: 768px) {
-  .shell { grid-template-columns: 1fr; grid-template-areas: "topbar" "main"; }
+  /* Single-column grid; min-width:0 lets the 1fr track shrink below its
+     content's intrinsic width (grid items default to min-width:auto). */
+  .shell { grid-template-columns: minmax(0, 1fr); grid-template-areas: "topbar" "main"; }
   .sidebar {
     position: fixed; left: 0; top: 0; bottom: 0; width: 88vw; max-width: 320px;
     z-index: var(--ql-z-overlay);
@@ -351,8 +355,9 @@
     display: none;
   }
   .mobile-backdrop.open { display: block; }
-  .main { padding: var(--ql-space-4); }
-  .topbar { padding: 0 var(--ql-space-4); }
+  .main { padding: var(--ql-space-4); min-width: 0; overflow-x: hidden; }
+  .topbar { padding: 0 var(--ql-space-4); min-width: 0; }
+  .page-actions { flex-wrap: wrap; }
 }
 
 /* ═══ REGISTER TABLE COMPONENTS (sales · purchase · parties · labour · cashbook · loans) ═══ */
