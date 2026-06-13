@@ -77,7 +77,7 @@
     { type: 'group', label: 'People', items: [
       { id: 'parties',    label: 'All Parties', href: 'parties.html', icon: I.users },
       { id: 'labour',     label: 'Labour',      href: 'labour.html',  icon: I.users },
-      { id: 'attendance', label: 'Attendance',  href: SOON, icon: I.check }
+      { id: 'attendance', label: 'Attendance',  href: 'attendance.html', icon: I.check }
     ]},
     { type: 'group', label: 'Reports', items: [
       { id: 'biz-an',  label: 'Business Analytics',   href: SOON, icon: I.dl },

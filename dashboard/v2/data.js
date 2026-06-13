@@ -434,6 +434,44 @@
     return { count: r.length, gross: r.reduce((a, x) => a + x.gross, 0), adv: r.reduce((a, x) => a + x.adv, 0), net: r.reduce((a, x) => a + x.net, 0) };
   }
 
+  /* ── Attendance ──────────────────────────────────────────────────
+     ATT[workerId][dayNumber] ∈ P(resent) A(bsent) H(alf) L(eave) S(unday).
+     Day-keyed (not date-keyed) — a single month grid, same model as v1.
+     Unmarked weekday displays as P, Sunday as S (display default only). */
+  const DOW = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  function attendanceData(ym) {
+    const now = new Date();
+    const y = ym ? +ym.slice(0, 4) : now.getFullYear();
+    const m = ym ? +ym.slice(5, 7) - 1 : now.getMonth();
+    const dim = new Date(y, m + 1, 0).getDate();
+    const days = [];
+    for (let d = 1; d <= dim; d++) { const dow = new Date(y, m, d).getDay(); days.push({ d, dow, dl: DOW[dow], isSun: dow === 0, isSat: dow === 6 }); }
+    const monthLabel = new Date(y, m, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    const rows = S.WORKERS.map((w, i) => {
+      const at = S.ATT[w.id] || {};
+      const cells = days.map(({ d, dow, isSun }) => ({ d, isSun, status: at[d] || (dow === 0 ? 'S' : 'P') }));
+      return {
+        idx: i, id: w.id, name: w.name, desig: w.desig || 'Worker',
+        cells,
+        present: cells.filter(c => c.status === 'P' || c.status === 'H').length,
+        leave: cells.filter(c => c.status === 'L').length,
+        absent: cells.filter(c => c.status === 'A').length
+      };
+    });
+    return { ym: `${y}-${String(m + 1).padStart(2, '0')}`, monthLabel, days, rows };
+  }
+  function setAtt(wid, day, status) { S.ATT[wid] = S.ATT[wid] || {}; S.ATT[wid][day] = status; commit(); }
+  function cycleAtt(wid, day, curStatus) {        // curStatus = the cell's displayed status
+    S.ATT[wid] = S.ATT[wid] || {};
+    const nxt = { P: 'A', A: 'H', H: 'L', L: 'P', S: 'S' };
+    S.ATT[wid][day] = nxt[curStatus] || 'P';
+    commit();
+  }
+  function markAllAtt(status, dayNumbers) {
+    S.WORKERS.forEach(w => { S.ATT[w.id] = S.ATT[w.id] || {}; dayNumbers.forEach(d => { S.ATT[w.id][d] = status; }); });
+    commit();
+  }
+
   /* ── Cashbook helpers ────────────────────────────────────────── */
   function cashbookRows() {
     return S.CASHBOOK.map((e, i) => ({ idx: i, date: e.date, type: e.type, mode: e.mode, category: e.category || '', party: e.party || '', amount: e.amount || 0, ref: e.ref || '', notes: e.notes || '' }))
@@ -520,7 +558,7 @@
     purchaseRows, purchaseSummary, partyRows, partySummary,
     labourRows, labourSummary, cashbookRows, cashbookBalances,
     loanRows, loanSummary, gstSummary,
-    getPL, chunnaRows, chunnaSummary,
+    getPL, chunnaRows, chunnaSummary, attendanceData,
 
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal,
@@ -530,6 +568,7 @@
     addWorker, updateWorker, deleteWorker,
     addCashEntry, deleteCashEntry,
     addChunna, deleteChunna,
+    setAtt, cycleAtt, markAllAtt,
 
     async init(render) {
       loadLocal();

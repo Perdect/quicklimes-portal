@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attendance — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div><h1 class="page-title">Attendance</h1><div class="page-sub" id="atSub">Mark daily attendance · click a cell to cycle</div></div>
+      <div class="page-actions">
+        <input type="month" id="atMonth" class="qlf-input" style="width:auto">
+        <button class="ql-btn ql-btn-secondary" onclick="markAll('P')">Mark all present</button>
+        <button class="ql-btn ql-btn-secondary" onclick="markAll('A')">Mark all absent</button>
+      </div>
+    </div>
+    <div class="kpi-strip" id="atKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="att-legend" id="atLegend"></div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="att-wrap"><table class="att" id="atTable"></table></div>
+    </div>
+  </div>
+</div>
+<script src="./shell.js"></script>
+<script>
+QLShell.mount({ active: 'attendance', title: 'Attendance' });
+const LBL = { P: 'Present', A: 'Absent', H: 'Half day', L: 'Leave', S: 'Sunday' };
+let atYm = '';
+function render() {
+  const co = QLD.co;
+  const mp = document.getElementById('atMonth');
+  if (!atYm) atYm = new Date().toISOString().slice(0, 7);
+  if (mp && mp.value !== atYm) mp.value = atYm;
+  const A = QLD.attendanceData(atYm);
+  // KPIs
+  const totPresent = A.rows.reduce((a, r) => a + r.present, 0);
+  const totLeave = A.rows.reduce((a, r) => a + r.leave, 0);
+  const totAbsent = A.rows.reduce((a, r) => a + r.absent, 0);
+  const K = [
+    { label: 'Workers', v: A.rows.length, meta: A.monthLabel, bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>' },
+    { label: 'Present days', v: totPresent, meta: 'P + half', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' },
+    { label: 'Absent days', v: totAbsent, meta: 'this month', bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' },
+    { label: 'On leave', v: totLeave, meta: 'L marks', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8.5a1 1 0 0 1 .5-.87L12 4l6.5 3.63a1 1 0 0 1 .5.87V21"/></svg>' }
+  ];
+  document.getElementById('atKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
+  document.getElementById('atSub').textContent = `${co.short} · ${A.monthLabel} · ${A.rows.length} workers`;
+  document.getElementById('atLegend').innerHTML = Object.keys(LBL).map(s => `<span class="att-leg"><span class="day-cell day-${s}" style="cursor:default">${s}</span>${LBL[s]}</span>`).join('');
+  // Table
+  let head = `<thead><tr><th class="att-name-h">Worker</th>`;
+  A.days.forEach(d => { head += `<th class="att-day-h ${d.isSun ? 'sun' : ''} ${d.isSat ? 'sat' : ''}"><div class="att-dow">${d.dl}</div><div class="att-dnum">${d.d}</div></th>`; });
+  head += `<th class="att-tot-h">Days</th><th class="att-tot-h">Leave</th></tr></thead>`;
+  let bodyHtml = '<tbody>';
+  if (!A.rows.length) {
+    bodyHtml += `<tr><td colspan="${A.days.length + 3}"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No workers yet — add them on the Labour page</div></div></td></tr>`;
+  } else {
+    A.rows.forEach(r => {
+      bodyHtml += `<tr><td class="att-name"><div style="font-weight:700;color:var(--ql-text)">${r.name}</div><div style="font-size:var(--ql-text-xs);color:var(--ql-text-secondary)">${r.desig}</div></td>`;
+      r.cells.forEach(c => { bodyHtml += `<td class="att-cell-td ${c.isSun ? 'sun' : ''}"><button class="day-cell day-${c.status}" onclick="QLD.cycleAtt('${r.id}',${c.d},'${c.status}');render()">${c.status}</button></td>`; });
+      bodyHtml += `<td class="att-tot"><span class="att-badge present">${r.present}</span></td><td class="att-tot"><span class="att-badge leave">${r.leave || '—'}</span></td></tr>`;
+    });
+  }
+  bodyHtml += '</tbody>';
+  document.getElementById('atTable').innerHTML = head + bodyHtml;
+  QLShell.paintWorkspace();
+}
+function markAll(status) {
+  const A = QLD.attendanceData(atYm);
+  const days = status === 'A' ? A.days.filter(d => !d.isSun).map(d => d.d) : A.days.map(d => d.isSun ? null : d.d).filter(Boolean);
+  QLD.markAllAtt(status, days);
+  render();
+  QLShell.toast(status === 'P' ? 'All marked present' : 'All marked absent');
+}
+document.getElementById('atMonth').addEventListener('change', e => { atYm = e.target.value || atYm; render(); });
+window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+window.__qlRefresh = render;
+QLD.init(render);
+</script>
+</body>
+</html>
