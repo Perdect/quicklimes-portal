@@ -59,7 +59,7 @@
     ]},
     { type: 'group', label: 'Production', items: [
       { id: 'ql-prod',  label: 'Quick Lime Production', href: SOON, icon: I.clock },
-      { id: 'chunna',   label: 'Chunna Production',     href: SOON, icon: I.flame },
+      { id: 'chunna',   label: 'Chunna Production',     href: 'chunna.html', icon: I.flame },
       { id: 'kiln',     label: 'Kiln Management',       href: SOON, icon: I.bars, badge: { text: 'soon', tone: 'info' } },
       { id: 'daily',    label: 'Daily Production',      href: SOON, icon: I.cal }
     ]},
@@ -72,7 +72,7 @@
       { id: 'cashbook', label: 'Cash Book',     href: 'cashbook.html', icon: I.card },
       { id: 'loans',    label: 'Loans',         href: 'loans.html',    icon: I.bank },
       { id: 'gst',      label: 'GST',           href: 'gst.html',      icon: I.receipt },
-      { id: 'pl',       label: 'Profit & Loss', href: SOON,            icon: I.chart }
+      { id: 'pl',       label: 'Profit & Loss', href: 'pl.html',       icon: I.chart }
     ]},
     { type: 'group', label: 'People', items: [
       { id: 'parties',    label: 'All Parties', href: 'parties.html', icon: I.users },
@@ -632,6 +632,23 @@
     });
   }
 
+  /* ── Chunna sale ─────────────────────────────────────────────── */
+  const CHUNNA_SPECS = [
+    { k: 'date', label: 'Date', type: 'date', req: true },
+    { k: 'customer', label: 'Customer', ph: 'Walk-in', full: true },
+    { k: 'qty', label: 'Qty (T)', type: 'number', req: true, reqNonZero: true },
+    { k: 'rate', label: 'Rate (₹/T)', type: 'number', req: true, reqNonZero: true },
+    { k: 'mode', label: 'Mode', type: 'select', opts: [['cash', 'Cash'], ['phonepay', 'PhonePe'], ['bank', 'Bank']] }
+  ];
+  function openChunnaForm() {
+    openForm({
+      title: 'New chunna sale', sub: 'Cash / PhonePe sale',
+      specs: CHUNNA_SPECS, saveLabel: 'Add sale',
+      initial: { date: today(), mode: 'cash' },
+      onSave(v) { v.customer = v.customer || 'Walk-in'; window.QLD.addChunna(v); refresh('Chunna sale added'); }
+    });
+  }
+
   /* ── Payment (mark a sale/purchase paid) ─────────────────────── */
   function openPaymentForm(kind, idx) {
     const Q = window.QLD;
@@ -672,6 +689,7 @@
     if (type === 'party') { const r = Q.state.PARTIES[idx]; return [{ label: 'Edit party', icon: RICO.edit, onClick: () => openPartyForm(idx) }, del('Delete party ' + r.name + '?', () => Q.deleteParty(idx))]; }
     if (type === 'worker') { const r = Q.state.WORKERS[idx]; return [{ label: 'Edit worker', icon: RICO.edit, onClick: () => openWorkerForm(idx) }, del('Delete worker ' + r.name + '?', () => Q.deleteWorker(idx))]; }
     if (type === 'cash') { return [del('Delete this entry?', () => Q.deleteCashEntry(idx))]; }
+    if (type === 'chunna') { return [del('Delete this chunna sale?', () => Q.deleteChunna(idx))]; }
     return [];
   }
   function rowMenu(ev, type, idx) {
@@ -704,7 +722,7 @@
     setBreadcrumb(label) { const c = document.querySelector('.tb-crumb-active'); if (c) c.textContent = label; },
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
     // form modals + row action menus
-    closeModal, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openPaymentForm,
+    closeModal, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openPaymentForm,
     rowMenu,
 
     mount(opts) {

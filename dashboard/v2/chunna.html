@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chunna Sales — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div><h1 class="page-title">Chunna Sales</h1><div class="page-sub" id="chSub">Cash &amp; PhonePe lime-powder sales</div></div>
+      <div class="page-actions">
+        <button class="ql-btn ql-btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
+        <button class="ql-btn ql-btn-primary" onclick="QLShell.openChunnaForm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New sale</button>
+      </div>
+    </div>
+    <div class="kpi-strip" id="chKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="card" style="gap:var(--ql-space-4)">
+      <div class="sr-toolbar">
+        <div class="sr-tabs" id="chTabs">
+          <button class="sr-tab active" data-f="all">All</button>
+          <button class="sr-tab" data-f="cash">Cash</button>
+          <button class="sr-tab" data-f="phonepay">PhonePe</button>
+        </div>
+        <div class="sr-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="chSearch" placeholder="Search customer…"></div>
+      </div>
+      <div class="sr-table-wrap"><table class="sr"><thead><tr id="chHead"></tr></thead><tbody id="chBody"></tbody></table></div>
+      <div class="sr-foot"><span id="chCount">—</span><div class="sr-pager"><button id="chPrev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><span id="chPage" style="font-size:var(--ql-text-sm)">1</span><button id="chNext"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></div></div>
+    </div>
+  </div>
+</div>
+<script src="./shell.js"></script>
+<script>
+QLShell.mount({ active: 'chunna', title: 'Chunna Sales' });
+const AVG = ['#7C3AED,#5B21B6','#16A34A,#15803D','#F59E0B,#B45309','#2563EB,#1D4ED8','#DB2777,#9D174D','#0891B2,#155E75'];
+const PER = 14;
+let chFilter = 'all', chQuery = '', chSort = { key: 'date', dir: 'desc' }, chPage = 1;
+const MODE = { cash: 'Cash', phonepay: 'PhonePe', bank: 'Bank' };
+const COLS = [
+  { key: 'date', label: 'Date', sortable: true },
+  { key: 'customer', label: 'Customer', sortable: true },
+  { key: 'qty', label: 'Qty (T)', sortable: true, num: true },
+  { key: 'rate', label: 'Rate (₹/T)', sortable: true, num: true },
+  { key: 'total', label: 'Total', sortable: true, num: true },
+  { key: 'mode', label: 'Mode', sortable: true }
+];
+function filtered() {
+  let r = QLD.chunnaRows();
+  if (chFilter !== 'all') r = r.filter(x => x.mode === chFilter);
+  if (chQuery) { const q = chQuery.toLowerCase(); r = r.filter(x => (x.customer || '').toLowerCase().includes(q)); }
+  r.sort((a, b) => { let x = a[chSort.key], y = b[chSort.key]; if (typeof x === 'string') { x = x.toLowerCase(); y = (y || '').toLowerCase(); } return x < y ? (chSort.dir === 'asc' ? -1 : 1) : x > y ? (chSort.dir === 'asc' ? 1 : -1) : 0; });
+  return r;
+}
+function render() {
+  const co = QLD.co, s = QLD.chunnaSummary();
+  const K = [
+    { label: 'Total Sales', v: s.count, meta: 'entries', bg: '#F3E8FF', fg: '#7C3AED', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13V8h14v5a7 7 0 0 1-7 7Z"/><line x1="9" y1="3" x2="9" y2="6"/><line x1="13" y1="3" x2="13" y2="6"/></svg>' },
+    { label: 'Quantity', v: QLD.fmt(s.qty, 1) + ' T', meta: 'dispatched', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>' },
+    { label: 'Revenue', v: QLD.fC(s.total), meta: 'all time', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
+    { label: 'This Month', v: QLD.fC(s.monthTotal), meta: 'current month', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' }
+  ];
+  document.getElementById('chKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
+  document.getElementById('chSub').textContent = `${co.short} · ${s.count} sales · ${QLD.fC(s.total)} · ${QLD.fmt(s.qty,1)} T`;
+  document.getElementById('chHead').innerHTML = COLS.map(c => { const st = chSort.key === c.key; return `<th class="${st ? 'sorted' : ''} ${c.num ? 'sr-num' : ''}" data-sort="${c.key}">${c.label}<span class="sort-ic">${st ? (chSort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></th>`; }).join('') + '<th class="no-sort"></th>';
+  document.querySelectorAll('#chHead th[data-sort]').forEach(th => th.addEventListener('click', () => { const k = th.dataset.sort; if (chSort.key === k) chSort.dir = chSort.dir === 'asc' ? 'desc' : 'asc'; else { chSort.key = k; chSort.dir = 'asc'; } chPage = 1; render(); }));
+  const rows = filtered(), pages = Math.max(1, Math.ceil(rows.length / PER)); chPage = Math.min(chPage, pages);
+  const slice = rows.slice((chPage - 1) * PER, chPage * PER);
+  document.getElementById('chBody').innerHTML = slice.length ? slice.map(r => {
+    const c = AVG[((r.customer || 'W').charCodeAt(0) + (r.customer || '').length) % AVG.length];
+    return `<tr>
+      <td class="pt-muted">${QLD.fDS(r.date)}</td>
+      <td><div class="sr-party"><div class="sr-av" style="background:linear-gradient(135deg,${c})">${(r.customer || 'W').charAt(0).toUpperCase()}</div><div style="font-weight:600;color:var(--ql-text)">${r.customer}</div></div></td>
+      <td class="sr-num">${QLD.fmt(r.qty, 2)}</td>
+      <td class="sr-num pt-muted">${QLD.fC(r.rate)}</td>
+      <td class="sr-num" style="font-weight:700">${QLD.fC(r.total)}</td>
+      <td><span class="sr-pill ${r.mode === 'phonepay' ? 'both' : 'credit'}"><span class="dot"></span>${MODE[r.mode] || r.mode}</span></td>
+      <td class="sr-num"><button class="sr-kebab" onclick="QLShell.rowMenu(event,'chunna',${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="7"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13V8h14v5a7 7 0 0 1-7 7Z"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No chunna sales in this view</div></div></td></tr>`;
+  document.getElementById('chCount').textContent = rows.length ? `Showing ${(chPage - 1) * PER + 1}–${Math.min(chPage * PER, rows.length)} of ${rows.length}` : '0 sales';
+  document.getElementById('chPage').textContent = `${chPage} / ${pages}`;
+  document.getElementById('chPrev').disabled = chPage <= 1; document.getElementById('chNext').disabled = chPage >= pages;
+  QLShell.paintWorkspace();
+}
+document.querySelectorAll('#chTabs .sr-tab').forEach(t => t.addEventListener('click', () => { document.querySelectorAll('#chTabs .sr-tab').forEach(x => x.classList.remove('active')); t.classList.add('active'); chFilter = t.dataset.f; chPage = 1; render(); }));
+document.getElementById('chSearch').addEventListener('input', e => { chQuery = e.target.value; chPage = 1; render(); });
+document.getElementById('chPrev').addEventListener('click', () => { if (chPage > 1) { chPage--; render(); } });
+document.getElementById('chNext').addEventListener('click', () => { chPage++; render(); });
+window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+window.__qlRefresh = render;
+QLD.init(render);
+</script>
+</body>
+</html>

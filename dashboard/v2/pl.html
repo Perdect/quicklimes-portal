@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profit &amp; Loss — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div><h1 class="page-title">Profit &amp; Loss</h1><div class="page-sub" id="plSub">Revenue · costs · net profit</div></div>
+      <div class="page-actions">
+        <button class="ql-btn ql-btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
+      </div>
+    </div>
+    <div class="kpi-strip" id="plKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="gst-grid">
+      <div class="card gst-liab">
+        <div class="card-head"><div><div class="card-title">Income statement</div><div class="card-sub">All-time, derived from your sales, purchases &amp; labour</div></div></div>
+        <div class="gst-rows" id="plRows"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">Margins &amp; tax</div><div class="card-sub">Profitability ratios</div></div></div>
+        <div class="gst-rows" id="plMargins"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="./shell.js"></script>
+<script>
+QLShell.mount({ active: 'pl', title: 'Profit & Loss' });
+function render() {
+  const co = QLD.co, p = QLD.getPL();
+  const K = [
+    { label: 'Revenue', v: QLD.fC(p.rev), meta: 'taxable sales', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-5"/></svg>' },
+    { label: 'Gross Profit', v: QLD.fC(p.gp), meta: p.gpm.toFixed(1) + '% margin', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M5 12l7-7 7 7"/></svg>' },
+    { label: 'EBITDA', v: QLD.fC(p.ebitda), meta: 'after labour', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>' },
+    { label: 'Net Profit', v: QLD.fC(p.np), meta: p.npm.toFixed(1) + '% margin', bg: p.np >= 0 ? 'var(--ql-success-50)' : 'var(--ql-danger-50)', fg: p.np >= 0 ? 'var(--ql-success-600)' : 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>' }
+  ];
+  document.getElementById('plKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
+  document.getElementById('plSub').textContent = `${co.short} · Net profit ${QLD.fC(p.np)} (${p.npm.toFixed(1)}%)`;
+  const rows = [
+    { l: 'Revenue (taxable sales)', v: p.rev, sign: '' },
+    { l: 'Less: Cost of materials', v: p.cogs, sign: '−', neg: true },
+    { l: 'Gross profit', v: p.gp, strong: true },
+    { l: 'Less: Labour cost', v: p.labour, sign: '−', neg: true },
+    { l: 'EBITDA', v: p.ebitda, strong: true },
+    { l: 'Less: Net GST payable', v: p.netGST, sign: '−', neg: true },
+    { l: 'Net profit', v: p.np, total: true }
+  ];
+  document.getElementById('plRows').innerHTML = rows.map(r => `<div class="gst-row ${r.total ? 'gst-row-total' : ''} ${r.strong ? 'gst-row-strong' : ''}"><span class="gst-row-l">${r.l}</span><span class="gst-row-v" style="${r.neg ? 'color:var(--ql-danger-600)' : r.total ? (p.np >= 0 ? 'color:var(--ql-success-700)' : 'color:var(--ql-danger-600)') : ''}">${r.sign || ''}${QLD.fC(r.v)}</span></div>`).join('');
+  const margins = [
+    { l: 'Gross margin', v: p.gpm.toFixed(1) + '%' },
+    { l: 'Net margin', v: p.npm.toFixed(1) + '%' },
+    { l: 'Output GST', v: QLD.fC(p.outGST) },
+    { l: 'Input tax credit', v: QLD.fC(p.itc) },
+    { l: 'Net GST payable', v: QLD.fC(p.netGST), total: true }
+  ];
+  document.getElementById('plMargins').innerHTML = margins.map(r => `<div class="gst-row ${r.total ? 'gst-row-total' : ''}"><span class="gst-row-l">${r.l}</span><span class="gst-row-v">${r.v}</span></div>`).join('');
+  QLShell.paintWorkspace();
+}
+window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+window.__qlRefresh = render;
+QLD.init(render);
+</script>
+</body>
+</html>

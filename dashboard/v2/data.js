@@ -449,6 +449,34 @@
     return { cash, phonepay, bank, total: cash + phonepay + bank, count: S.CASHBOOK.length };
   }
 
+  /* ── Chunna (cash/PhonePe lime-powder sales) ─────────────────── */
+  function chunnaRows() {
+    return S.CHUNNA.map((c, i) => ({
+      idx: i, date: c.date, customer: c.customer || 'Walk-in',
+      qty: parseFloat(c.qty) || 0, rate: parseFloat(c.rate) || 0,
+      total: parseFloat(c.total) || (parseFloat(c.qty) || 0) * (parseFloat(c.rate) || 0),
+      mode: c.mode || 'cash'
+    })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }
+  function chunnaSummary() {
+    const r = chunnaRows();
+    const ym = new Date().toISOString().slice(0, 7);
+    return {
+      count: r.length,
+      qty: r.reduce((a, x) => a + x.qty, 0),
+      total: r.reduce((a, x) => a + x.total, 0),
+      monthTotal: r.filter(x => (x.date || '').slice(0, 7) === ym).reduce((a, x) => a + x.total, 0),
+      cash: r.filter(x => x.mode === 'cash').reduce((a, x) => a + x.total, 0),
+      phonepay: r.filter(x => x.mode === 'phonepay').reduce((a, x) => a + x.total, 0)
+    };
+  }
+  function addChunna(e) {
+    const qty = parseFloat(e.qty) || 0, rate = parseFloat(e.rate) || 0;
+    S.CHUNNA.push({ id: 'CS' + idStamp(), date: e.date, customer: e.customer || 'Walk-in', qty, rate, total: +(qty * rate).toFixed(2), mode: e.mode || 'cash', photo: '' });
+    commit();
+  }
+  function deleteChunna(i) { if (S.CHUNNA[i]) { S.CHUNNA.splice(i, 1); commit(); } }
+
   /* ── Loans helpers ───────────────────────────────────────────── */
   function loanRows() {
     return ALL_LOANS.filter(l => l.company === ACTIVE_CO).map((l, i) => {
@@ -492,6 +520,7 @@
     purchaseRows, purchaseSummary, partyRows, partySummary,
     labourRows, labourSummary, cashbookRows, cashbookBalances,
     loanRows, loanSummary, gstSummary,
+    getPL, chunnaRows, chunnaSummary,
 
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal,
@@ -500,6 +529,7 @@
     addPurchase, updatePurchase, deletePurchase, setPurchaseStatus,
     addWorker, updateWorker, deleteWorker,
     addCashEntry, deleteCashEntry,
+    addChunna, deleteChunna,
 
     async init(render) {
       loadLocal();
