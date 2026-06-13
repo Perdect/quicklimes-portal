@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loans — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div><h1 class="page-title">Loans</h1><div class="page-sub" id="loSub">EMIs · Outstanding · Repayment schedule</div></div>
+      <div class="page-actions">
+        <button class="ql-btn ql-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add loan</button>
+      </div>
+    </div>
+    <div class="kpi-strip" id="loKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="card" style="gap:var(--ql-space-4)">
+      <div class="sr-toolbar">
+        <div class="sr-tabs" id="loTabs">
+          <button class="sr-tab active" data-f="all">All</button>
+          <button class="sr-tab" data-f="active">Active</button>
+          <button class="sr-tab" data-f="closed">Closed</button>
+        </div>
+        <div class="sr-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="loSearch" placeholder="Search loan or bank…"></div>
+      </div>
+      <div class="sr-table-wrap"><table class="sr"><thead><tr id="loHead"></tr></thead><tbody id="loBody"></tbody></table></div>
+      <div class="sr-foot"><span id="loCount">—</span><div class="sr-pager"><button id="loPrev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><span id="loPage" style="font-size:var(--ql-text-sm)">1</span><button id="loNext"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></div></div>
+    </div>
+  </div>
+</div>
+<script src="./shell.js"></script>
+<script>
+QLShell.mount({ active: 'loans', title: 'Loans' });
+const AVG = ['#2563EB,#1D4ED8','#7C3AED,#5B21B6','#0891B2,#155E75','#16A34A,#15803D','#DB2777,#9D174D','#F59E0B,#B45309'];
+const PER = 12;
+let oFilter = 'all', oQuery = '', oSort = { key: 'outstanding', dir: 'desc' }, oPage = 1;
+const COLS = [
+  { key: 'name', label: 'Loan', sortable: true },
+  { key: 'principal', label: 'Principal', sortable: true, num: true },
+  { key: 'emi', label: 'EMI', sortable: true, num: true },
+  { key: 'paid', label: 'Progress', sortable: true },
+  { key: 'outstanding', label: 'Outstanding', sortable: true, num: true },
+  { key: 'nextDue', label: 'Next Due', sortable: true }
+];
+function filtered() {
+  let r = QLD.loanRows();
+  if (oFilter === 'active') r = r.filter(x => x.outstanding > 0);
+  else if (oFilter === 'closed') r = r.filter(x => x.outstanding <= 0);
+  if (oQuery) { const q = oQuery.toLowerCase(); r = r.filter(x => (x.name + ' ' + x.bank).toLowerCase().includes(q)); }
+  r.sort((a, b) => { let x = a[oSort.key], y = b[oSort.key]; if (typeof x === 'string') { x = x.toLowerCase(); y = (y || '').toLowerCase(); } if (x == null) x = ''; if (y == null) y = ''; return x < y ? (oSort.dir === 'asc' ? -1 : 1) : x > y ? (oSort.dir === 'asc' ? 1 : -1) : 0; });
+  return r;
+}
+function render() {
+  const co = QLD.co, s = QLD.loanSummary();
+  const K = [
+    { label: 'Active Loans', v: s.count, meta: 'on books', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8.5a1 1 0 0 1 .5-.87L12 4l6.5 3.63a1 1 0 0 1 .5.87V21"/></svg>' },
+    { label: 'Total Principal', v: QLD.fC(s.principal), meta: 'borrowed', bg: '#EEF2FF', fg: '#4F46E5', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
+    { label: 'Outstanding', v: QLD.fC(s.outstanding), meta: 'yet to repay', bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>' },
+    { label: 'Monthly EMI', v: QLD.fC(s.monthlyEmi), meta: 'per month', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' }
+  ];
+  document.getElementById('loKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
+  document.getElementById('loSub').textContent = `${co.short} · ${s.count} loans · ${QLD.fC(s.outstanding)} outstanding`;
+  document.getElementById('loHead').innerHTML = COLS.map(c => { const st = oSort.key === c.key; return `<th class="${st ? 'sorted' : ''} ${c.num ? 'sr-num' : ''}" data-sort="${c.key}">${c.label}<span class="sort-ic">${st ? (oSort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></th>`; }).join('') + '<th class="no-sort"></th>';
+  document.querySelectorAll('#loHead th[data-sort]').forEach(th => th.addEventListener('click', () => { const k = th.dataset.sort; if (oSort.key === k) oSort.dir = oSort.dir === 'asc' ? 'desc' : 'asc'; else { oSort.key = k; oSort.dir = 'asc'; } oPage = 1; render(); }));
+  const rows = filtered(), pages = Math.max(1, Math.ceil(rows.length / PER)); oPage = Math.min(oPage, pages);
+  const slice = rows.slice((oPage - 1) * PER, oPage * PER);
+  document.getElementById('loBody').innerHTML = slice.length ? slice.map(r => {
+    const c = AVG[(r.name.charCodeAt(0) + r.name.length) % AVG.length];
+    const pct = r.total ? Math.round(r.paid / r.total * 100) : 0;
+    const closed = r.outstanding <= 0;
+    const dueCls = r.nextDays != null && r.nextDays > 0 ? 'var(--ql-danger-600)' : 'var(--ql-text-secondary)';
+    return `<tr>
+      <td><div class="sr-party"><div class="sr-av" style="background:linear-gradient(135deg,${c})">${(r.name || 'L').charAt(0).toUpperCase()}</div><div><div style="font-weight:700;color:var(--ql-text)">${r.name}</div><div style="font-size:var(--ql-text-xs);color:var(--ql-text-secondary)">${r.bank || '—'}</div></div></div></td>
+      <td class="sr-num pt-muted">${QLD.fC(r.principal)}</td>
+      <td class="sr-num">${QLD.fC(r.emi)}</td>
+      <td><div class="lo-prog"><div class="lo-bar"><span style="width:${pct}%"></span></div><span class="lo-pct">${r.paid}/${r.total}</span></div></td>
+      <td class="sr-num" style="font-weight:700;color:${closed ? 'var(--ql-success-700)' : 'var(--ql-danger-600)'}">${closed ? 'Cleared' : QLD.fC(r.outstanding)}</td>
+      <td>${closed ? '<span class="sr-pill paid"><span class="dot"></span>Closed</span>' : (r.nextDue ? `<div style="font-weight:600">${QLD.fDS(r.nextDue)}</div><div style="font-size:var(--ql-text-xs);color:${dueCls}">${QLD.fC(r.nextAmt)}</div>` : '<span class="pt-muted">—</span>')}</td>
+      <td class="sr-num"><button class="sr-kebab"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="7"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8.5a1 1 0 0 1 .5-.87L12 4l6.5 3.63a1 1 0 0 1 .5.87V21"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No loans in this view</div></div></td></tr>`;
+  document.getElementById('loCount').textContent = rows.length ? `Showing ${(oPage - 1) * PER + 1}–${Math.min(oPage * PER, rows.length)} of ${rows.length}` : '0 loans';
+  document.getElementById('loPage').textContent = `${oPage} / ${pages}`;
+  document.getElementById('loPrev').disabled = oPage <= 1; document.getElementById('loNext').disabled = oPage >= pages;
+  QLShell.paintWorkspace();
+}
+document.querySelectorAll('#loTabs .sr-tab').forEach(t => t.addEventListener('click', () => { document.querySelectorAll('#loTabs .sr-tab').forEach(x => x.classList.remove('active')); t.classList.add('active'); oFilter = t.dataset.f; oPage = 1; render(); }));
+document.getElementById('loSearch').addEventListener('input', e => { oQuery = e.target.value; oPage = 1; render(); });
+document.getElementById('loPrev').addEventListener('click', () => { if (oPage > 1) { oPage--; render(); } });
+document.getElementById('loNext').addEventListener('click', () => { oPage++; render(); });
+window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+QLD.init(render);
+</script>
+</body>
+</html>

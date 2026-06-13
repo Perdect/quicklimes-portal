@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Purchase Register — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div><h1 class="page-title">Purchase Register</h1><div class="page-sub" id="prSub">Loading bills…</div></div>
+      <div class="page-actions">
+        <button class="ql-btn ql-btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
+        <button class="ql-btn ql-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add bill</button>
+      </div>
+    </div>
+    <div class="kpi-strip" id="prKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="card" style="gap:var(--ql-space-4)">
+      <div class="sr-toolbar">
+        <div class="sr-tabs" id="prTabs">
+          <button class="sr-tab active" data-f="all">All</button>
+          <button class="sr-tab" data-f="pending">Pending</button>
+          <button class="sr-tab" data-f="paid">Paid</button>
+        </div>
+        <div class="sr-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="prSearch" placeholder="Search bill no or supplier…"></div>
+      </div>
+      <div class="sr-table-wrap"><table class="sr"><thead><tr id="prHead"></tr></thead><tbody id="prBody"></tbody></table></div>
+      <div class="sr-foot"><span id="prCount">—</span><div class="sr-pager"><button id="prPrev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><span id="prPage" style="font-size:var(--ql-text-sm)">1</span><button id="prNext"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></div></div>
+    </div>
+  </div>
+</div>
+<script src="./shell.js"></script>
+<script>
+QLShell.mount({ active: 'purchase', title: 'Purchase Register' });
+const AVG = ['#0891B2,#155E75','#7C3AED,#5B21B6','#16A34A,#15803D','#F59E0B,#B45309','#DB2777,#9D174D','#2563EB,#1D4ED8'];
+const PER = 12;
+let pFilter = 'all', pQuery = '', pSort = { key: 'date', dir: 'desc' }, pPage = 1;
+const COLS = [
+  { key: 'bill', label: 'Bill', sortable: true },
+  { key: 'date', label: 'Date', sortable: true },
+  { key: 'sup', label: 'Supplier', sortable: true },
+  { key: 'cat', label: 'Category', sortable: true },
+  { key: 'taxable', label: 'Taxable', sortable: true, num: true },
+  { key: 'gst', label: 'GST', sortable: true, num: true },
+  { key: 'itc', label: 'ITC', sortable: true, num: true },
+  { key: 'total', label: 'Total', sortable: true, num: true },
+  { key: 'status', label: 'Status', sortable: true }
+];
+function filtered() {
+  let r = QLD.purchaseRows();
+  if (pFilter !== 'all') r = r.filter(x => x.status === pFilter);
+  if (pQuery) { const q = pQuery.toLowerCase(); r = r.filter(x => (x.bill + ' ' + x.sup + ' ' + x.cat + ' ' + x.gstin).toLowerCase().includes(q)); }
+  r.sort((a, b) => { let x = a[pSort.key], y = b[pSort.key]; if (typeof x === 'string') { x = x.toLowerCase(); y = (y || '').toLowerCase(); } return x < y ? (pSort.dir === 'asc' ? -1 : 1) : x > y ? (pSort.dir === 'asc' ? 1 : -1) : 0; });
+  return r;
+}
+function render() {
+  const co = QLD.co, s = QLD.purchaseSummary();
+  const K = [
+    { label: 'Total Bills', v: s.count, meta: 'recorded', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>' },
+    { label: 'Total Purchases', v: QLD.fC(s.total), meta: 'excl. GST', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' },
+    { label: 'ITC Available', v: QLD.fC(s.itc), meta: 'input tax credit', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8.5a1 1 0 0 1 .5-.87L12 4l6.5 3.63a1 1 0 0 1 .5.87V21"/></svg>' },
+    { label: 'Pending Payment', v: QLD.fC(s.pending), meta: 'to suppliers', bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>' }
+  ];
+  document.getElementById('prKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
+  document.getElementById('prSub').textContent = `${co.short} · ${s.count} bills · ${QLD.fC(s.total)} purchased`;
+  document.getElementById('prHead').innerHTML = COLS.map(c => { const st = pSort.key === c.key; return `<th class="${st ? 'sorted' : ''} ${c.num ? 'sr-num' : ''}" data-sort="${c.key}">${c.label}<span class="sort-ic">${st ? (pSort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></th>`; }).join('') + '<th class="no-sort"></th>';
+  document.querySelectorAll('#prHead th[data-sort]').forEach(th => th.addEventListener('click', () => { const k = th.dataset.sort; if (pSort.key === k) pSort.dir = pSort.dir === 'asc' ? 'desc' : 'asc'; else { pSort.key = k; pSort.dir = 'asc'; } pPage = 1; render(); }));
+  const rows = filtered(), pages = Math.max(1, Math.ceil(rows.length / PER)); pPage = Math.min(pPage, pages);
+  const slice = rows.slice((pPage - 1) * PER, pPage * PER);
+  const PILL = { paid: 'Paid', pending: 'Pending' };
+  const body = document.getElementById('prBody');
+  body.innerHTML = slice.length ? slice.map(r => {
+    const c = AVG[(r.sup.charCodeAt(0) + r.sup.length) % AVG.length];
+    const od = r.status === 'pending' && r.days > 30 ? ` · <span style="color:var(--ql-danger-600);font-weight:600">${r.days}d</span>` : '';
+    return `<tr>
+      <td><span class="sr-inv">${r.bill}</span></td>
+      <td class="pt-muted">${QLD.fDS(r.date)}</td>
+      <td><div class="sr-party"><div class="sr-av" style="background:linear-gradient(135deg,${c})">${r.sup.charAt(0).toUpperCase()}</div><div><div style="font-weight:600">${r.sup}</div><div style="font-size:var(--ql-text-xs);color:var(--ql-text-secondary)">${r.gstin || '—'}${od}</div></div></div></td>
+      <td><span class="sr-pill neutral">${r.cat}</span></td>
+      <td class="sr-num">${QLD.fC(r.taxable)}</td>
+      <td class="sr-num pt-muted">${QLD.fC(r.gst)}</td>
+      <td class="sr-num" style="color:${r.itc ? 'var(--ql-success-700)' : 'var(--ql-text-muted)'}">${r.itc ? QLD.fC(r.itc) : '—'}</td>
+      <td class="sr-num" style="font-weight:700">${QLD.fC(r.total)}</td>
+      <td><span class="sr-pill ${r.status}"><span class="dot"></span>${PILL[r.status] || r.status}</span></td>
+      <td class="sr-num"><button class="sr-kebab"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="10"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No bills in this view</div></div></td></tr>`;
+  document.getElementById('prCount').textContent = rows.length ? `Showing ${(pPage - 1) * PER + 1}–${Math.min(pPage * PER, rows.length)} of ${rows.length}` : '0 bills';
+  document.getElementById('prPage').textContent = `${pPage} / ${pages}`;
+  document.getElementById('prPrev').disabled = pPage <= 1; document.getElementById('prNext').disabled = pPage >= pages;
+  QLShell.paintWorkspace();
+}
+document.querySelectorAll('#prTabs .sr-tab').forEach(t => t.addEventListener('click', () => { document.querySelectorAll('#prTabs .sr-tab').forEach(x => x.classList.remove('active')); t.classList.add('active'); pFilter = t.dataset.f; pPage = 1; render(); }));
+document.getElementById('prSearch').addEventListener('input', e => { pQuery = e.target.value; pPage = 1; render(); });
+document.getElementById('prPrev').addEventListener('click', () => { if (pPage > 1) { pPage--; render(); } });
+document.getElementById('prNext').addEventListener('click', () => { pPage++; render(); });
+window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+QLD.init(render);
+</script>
+</body>
+</html>

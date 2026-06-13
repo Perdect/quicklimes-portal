@@ -354,3 +354,65 @@
   .main { padding: var(--ql-space-4); }
   .topbar { padding: 0 var(--ql-space-4); }
 }
+
+/* ═══ REGISTER TABLE COMPONENTS (sales · purchase · parties · labour · cashbook · loans) ═══ */
+.sr-toolbar { display: flex; align-items: center; gap: var(--ql-space-3); flex-wrap: wrap; }
+.sr-tabs { display: inline-flex; background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); padding: 3px; }
+.sr-tab { padding: 6px 14px; font-size: var(--ql-text-sm); font-weight: var(--ql-weight-semibold); color: var(--ql-text-secondary); border: none; background: transparent; border-radius: var(--ql-radius-md); cursor: pointer; }
+.sr-tab.active { background: var(--ql-card); color: var(--ql-text); box-shadow: var(--ql-shadow-xs); }
+.sr-search { display: flex; align-items: center; gap: var(--ql-space-2); background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); padding: 8px 13px; flex: 1; min-width: 200px; max-width: 340px; }
+.sr-search:focus-within { border-color: var(--ql-brand-300); }
+.sr-search input { border: none; outline: none; background: transparent; font-family: inherit; font-size: var(--ql-text-sm); color: var(--ql-text); flex: 1; min-width: 0; }
+.sr-search svg { width: 15px; height: 15px; color: var(--ql-text-muted); flex-shrink: 0; }
+.sr-table-wrap { overflow-x: auto; }
+table.sr { width: 100%; border-collapse: collapse; font-size: var(--ql-text-sm); }
+table.sr thead th { text-align: left; font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold); color: var(--ql-text-muted); text-transform: uppercase; letter-spacing: var(--ql-tracking-wide); padding: var(--ql-space-3); border-bottom: 1px solid var(--ql-border); white-space: nowrap; background: var(--ql-card); cursor: pointer; user-select: none; }
+table.sr thead th.no-sort { cursor: default; }
+table.sr thead th .sort-ic { display: inline-block; width: 10px; opacity: .4; margin-left: 3px; }
+table.sr thead th.sorted .sort-ic { opacity: 1; color: var(--ql-brand-600); }
+table.sr td { padding: var(--ql-space-3); border-bottom: 1px solid var(--ql-divider); color: var(--ql-text); white-space: nowrap; }
+table.sr tbody tr:last-child td { border-bottom: none; }
+table.sr tbody tr:hover td { background: var(--ql-neutral-50); }
+.sr-num { text-align: right; font-variant-numeric: tabular-nums; }
+.sr-inv { font-weight: var(--ql-weight-bold); color: var(--ql-text); }
+.sr-party { display: flex; align-items: center; gap: var(--ql-space-3); }
+.sr-av { width: 32px; height: 32px; border-radius: var(--ql-radius-pill); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: var(--ql-weight-bold); font-size: var(--ql-text-xs); }
+.sr-pill { display: inline-flex; align-items: center; gap: 6px; font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold); padding: 3px 10px; border-radius: var(--ql-radius-pill); }
+.sr-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.sr-pill.paid, .sr-pill.credit, .sr-pill.customer { background: var(--ql-success-50); color: var(--ql-success-700); }
+.sr-pill.pending, .sr-pill.both { background: var(--ql-warning-50); color: var(--ql-warning-700); }
+.sr-pill.cash, .sr-pill.supplier { background: var(--ql-brand-50); color: var(--ql-brand-700); }
+.sr-pill.debit { background: var(--ql-danger-50); color: var(--ql-danger-700); }
+.sr-pill.neutral { background: var(--ql-neutral-100); color: var(--ql-neutral-600); }
+.sr-foot { display: flex; align-items: center; justify-content: space-between; padding: var(--ql-space-3) var(--ql-space-1) 0; font-size: var(--ql-text-sm); color: var(--ql-text-secondary); }
+.sr-pager { display: flex; align-items: center; gap: var(--ql-space-2); }
+.sr-pager button { width: 30px; height: 30px; border-radius: var(--ql-radius-md); border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-text-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.sr-pager button:hover:not(:disabled) { border-color: var(--ql-border-strong); color: var(--ql-text); }
+.sr-pager button:disabled { opacity: .4; cursor: default; }
+.sr-empty { text-align: center; padding: var(--ql-space-12) var(--ql-space-6); color: var(--ql-text-secondary); }
+.sr-empty svg { width: 36px; height: 36px; color: var(--ql-neutral-300); margin-bottom: var(--ql-space-3); }
+.sr-kebab { width: 30px; height: 30px; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); background: transparent; color: var(--ql-text-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.sr-kebab:hover { border-color: var(--ql-brand-200); background: var(--ql-brand-50); color: var(--ql-brand-600); }
+
+/* ── Muted table cell ───────────────────────────────────────────── */
+.pt-muted { color: var(--ql-text-secondary); }
+
+/* ── Loans: repayment progress bar ──────────────────────────────── */
+.lo-prog { display: flex; align-items: center; gap: var(--ql-space-2); min-width: 120px; }
+.lo-bar { flex: 1; height: 6px; border-radius: var(--ql-radius-pill); background: var(--ql-neutral-100); overflow: hidden; }
+.lo-bar span { display: block; height: 100%; border-radius: var(--ql-radius-pill); background: linear-gradient(90deg, var(--ql-brand-500), var(--ql-brand-600)); }
+.lo-pct { font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold); color: var(--ql-text-secondary); white-space: nowrap; }
+
+/* ── GST summary layout ─────────────────────────────────────────── */
+.gst-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--ql-space-5); align-items: start; }
+@media (max-width: 980px) { .gst-grid { grid-template-columns: 1fr; } }
+.gst-rows { display: flex; flex-direction: column; margin-top: var(--ql-space-2); }
+.gst-row { display: flex; align-items: center; justify-content: space-between; gap: var(--ql-space-4); padding: 13px 2px; border-bottom: 1px solid var(--ql-border); }
+.gst-row:last-child { border-bottom: 0; }
+.gst-row-l { font-size: var(--ql-text-sm); color: var(--ql-text-secondary); }
+.gst-row-v { font-size: var(--ql-text-md); font-weight: var(--ql-weight-bold); color: var(--ql-text); font-variant-numeric: tabular-nums; }
+.gst-row-strong .gst-row-l { color: var(--ql-text); font-weight: var(--ql-weight-semibold); }
+.gst-row-total { margin-top: var(--ql-space-1); padding-top: 16px; border-top: 2px solid var(--ql-border-strong); border-bottom: 0; }
+.gst-row-total .gst-row-l { font-size: var(--ql-text-md); font-weight: var(--ql-weight-bold); color: var(--ql-text); }
+.gst-row-total .gst-row-v { font-size: var(--ql-text-xl); }
+.gst-liab { background: linear-gradient(180deg, var(--ql-brand-50), var(--ql-surface) 60%); }

@@ -55,6 +55,7 @@
     TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: []
   };
   let DB = null;
+  let ALL_LOANS = [];   // global across companies (v1 stores loans in `dm_loans`, tagged by .company)
 
   /* ── Format helpers (ported) ─────────────────────────────────── */
   const fmt = (n, d = 0) => Number(n == null ? 0 : n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -113,6 +114,29 @@
       const raw = localStorage.getItem(COMPANIES[ACTIVE_CO].dataKey);
       if (raw) hydrate(JSON.parse(raw));
     } catch (e) { console.warn('v2 loadLocal failed', e); }
+  }
+  // Loans live in a single global `dm_loans` array (all companies), each tagged
+  // with a `.company` = plant id — identical contract to v1.
+  function loadLoansLocal() {
+    try {
+      const saved = localStorage.getItem('dm_loans');
+      const arr = saved ? JSON.parse(saved) : [];
+      ALL_LOANS = Array.isArray(arr) ? arr : [];
+    } catch (_) { ALL_LOANS = []; }
+  }
+  async function pullLoansCloud() {
+    if (!DB) return false;
+    try {
+      const { data: rows, error } = await DB.rpc('get_my_data', { p_plant_id: QL_PLANT.id });
+      if (error || !rows) return false;
+      const row = rows.find(r => r.id === 'loans_' + QL_PLANT.id);
+      if (row && row.data && Array.isArray(row.data.loans)) {
+        ALL_LOANS = row.data.loans;
+        try { localStorage.setItem('dm_loans', JSON.stringify(ALL_LOANS)); } catch (_) {}
+        return true;
+      }
+    } catch (e) { console.warn('v2 loans cloud pull failed', e); }
+    return false;
   }
   async function pullCloud() {
     if (!DB) return false;
@@ -286,6 +310,103 @@
     };
   }
 
+  /* ── Purchase register helpers ───────────────────────────────── */
+  function purchaseRows() {
+    return S.PURCHASES.map((p, i) => {
+      const c = cP(p);
+      return {
+        idx: i, bill: p.bill, date: p.date, sup: p.sup || '—', cat: p.cat || 'Other',
+        taxable: p.taxable, gst: c.g, itc: c.itc, total: c.tot,
+        status: p.status || 'pending', gstin: p.gstin || '', days: daysAgo(p.date)
+      };
+    });
+  }
+  function purchaseSummary() {
+    const r = purchaseRows();
+    const pend = r.filter(x => x.status === 'pending');
+    return {
+      count: r.length,
+      total: r.reduce((a, x) => a + x.taxable, 0),
+      itc: r.reduce((a, x) => a + x.itc, 0),
+      pending: pend.reduce((a, x) => a + x.total, 0),
+      gst: r.reduce((a, x) => a + x.gst, 0)
+    };
+  }
+
+  /* ── Parties helpers ─────────────────────────────────────────── */
+  function partyRows() {
+    return S.PARTIES.map((p, i) => ({
+      idx: i, name: p.name, gstin: p.gstin || '', phone: p.phone || '',
+      address: p.address || '', state: p.state || '', type: p.type || 'customer', notes: p.notes || ''
+    }));
+  }
+  function partySummary() {
+    const r = partyRows();
+    return {
+      count: r.length,
+      customers: r.filter(x => x.type === 'customer' || x.type === 'both').length,
+      suppliers: r.filter(x => x.type === 'supplier' || x.type === 'both').length
+    };
+  }
+
+  /* ── Labour helpers ──────────────────────────────────────────── */
+  function labourRows() {
+    return S.WORKERS.map((w, i) => {
+      const c = cW(w);
+      return { idx: i, name: w.name, desig: w.desig || '', wage: w.wage, freq: w.freq || 'daily', days: c.days, gross: c.gross, adv: w.adv || 0, net: c.net };
+    });
+  }
+  function labourSummary() {
+    const r = labourRows();
+    return { count: r.length, gross: r.reduce((a, x) => a + x.gross, 0), adv: r.reduce((a, x) => a + x.adv, 0), net: r.reduce((a, x) => a + x.net, 0) };
+  }
+
+  /* ── Cashbook helpers ────────────────────────────────────────── */
+  function cashbookRows() {
+    return S.CASHBOOK.map((e, i) => ({ idx: i, date: e.date, type: e.type, mode: e.mode, category: e.category || '', party: e.party || '', amount: e.amount || 0, ref: e.ref || '', notes: e.notes || '' }))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }
+  function cashbookBalances() {
+    const bal = m => {
+      const cr = S.CASHBOOK.filter(e => e.mode === m && e.type === 'credit').reduce((s, e) => s + (e.amount || 0), 0);
+      const dr = S.CASHBOOK.filter(e => e.mode === m && e.type === 'debit').reduce((s, e) => s + (e.amount || 0), 0);
+      return cr - dr;
+    };
+    const cash = bal('cash'), phonepay = bal('phonepay'), bank = bal('bank');
+    return { cash, phonepay, bank, total: cash + phonepay + bank, count: S.CASHBOOK.length };
+  }
+
+  /* ── Loans helpers ───────────────────────────────────────────── */
+  function loanRows() {
+    return ALL_LOANS.filter(l => l.company === ACTIVE_CO).map((l, i) => {
+      const insts = l.installments || [];
+      const paid = insts.filter(x => x.paid).length;
+      const nextDue = insts.find(x => !x.paid);
+      const outstanding = insts.filter(x => !x.paid).reduce((s, x) => s + (x.amount || 0), 0);
+      return {
+        idx: i, name: l.name || l.bank || 'Loan', bank: l.bank || '', principal: l.principal || 0, emi: l.emi || 0,
+        paid, total: insts.length, outstanding,
+        nextDue: nextDue ? nextDue.dueDate : null, nextAmt: nextDue ? nextDue.amount : 0,
+        nextDays: nextDue && nextDue.dueDate ? daysAgo(nextDue.dueDate) : null
+      };
+    });
+  }
+  function loanSummary() {
+    const r = loanRows();
+    return {
+      count: r.length,
+      principal: r.reduce((a, x) => a + x.principal, 0),
+      outstanding: r.reduce((a, x) => a + x.outstanding, 0),
+      monthlyEmi: r.reduce((a, x) => a + x.emi, 0)
+    };
+  }
+
+  /* ── GST summary ─────────────────────────────────────────────── */
+  function gstSummary() {
+    const ts = totS(), tp = totP();
+    return { outGST: ts.cgst + ts.sgst, cgst: ts.cgst, sgst: ts.sgst, itc: tp.itc, net: Math.max(0, (ts.cgst + ts.sgst) - tp.itc), taxable: ts.tx, purchaseTaxable: tp.tx };
+  }
+
   /* ── Public API ──────────────────────────────────────────────── */
   window.QLD = {
     plant: QL_PLANT, COMPANIES,
@@ -295,14 +416,18 @@
     fmt, fC, fL, fDS, daysAgo, cS,
     kpis, monthSeries, collections, insights, production, topProducts, activity,
     salesRows, salesSummary,
+    purchaseRows, purchaseSummary, partyRows, partySummary,
+    labourRows, labourSummary, cashbookRows, cashbookBalances,
+    loanRows, loanSummary, gstSummary,
 
     async init(render) {
       loadLocal();
+      loadLoansLocal();
       render();                                   // instant paint from local cache
       try {
         DB = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-        const ok = await pullCloud();
-        if (ok) render();                         // refresh with authoritative data
+        const [okData, okLoans] = await Promise.all([pullCloud(), pullLoansCloud()]);
+        if (okData || okLoans) render();          // refresh with authoritative data
       } catch (e) { console.warn('v2 supabase init failed', e); }
     },
 
@@ -311,7 +436,7 @@
       ACTIVE_CO = id;
       localStorage.setItem('dm_active_co', id);
       loadLocal();
-      render();
+      render();                                   // loans are global; just re-filter by company
       const ok = await pullCloud();
       if (ok) render();
     }

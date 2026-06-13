@@ -14,43 +14,7 @@
 <link rel="stylesheet" href="./pages.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./data.js"></script>
-<style>
-/* Sales-register-specific bits (composes from tokens) */
-.sr-toolbar { display: flex; align-items: center; gap: var(--ql-space-3); flex-wrap: wrap; }
-.sr-tabs { display: inline-flex; background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); padding: 3px; }
-.sr-tab { padding: 6px 14px; font-size: var(--ql-text-sm); font-weight: var(--ql-weight-semibold); color: var(--ql-text-secondary); border: none; background: transparent; border-radius: var(--ql-radius-md); cursor: pointer; }
-.sr-tab.active { background: var(--ql-card); color: var(--ql-text); box-shadow: var(--ql-shadow-xs); }
-.sr-search { display: flex; align-items: center; gap: var(--ql-space-2); background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); padding: 8px 13px; flex: 1; min-width: 200px; max-width: 320px; }
-.sr-search:focus-within { border-color: var(--ql-brand-300); }
-.sr-search input { border: none; outline: none; background: transparent; font-family: inherit; font-size: var(--ql-text-sm); color: var(--ql-text); flex: 1; min-width: 0; }
-.sr-search svg { width: 15px; height: 15px; color: var(--ql-text-muted); flex-shrink: 0; }
-
-.sr-table-wrap { overflow-x: auto; }
-table.sr { width: 100%; border-collapse: collapse; font-size: var(--ql-text-sm); }
-table.sr thead th { text-align: left; font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold); color: var(--ql-text-muted); text-transform: uppercase; letter-spacing: var(--ql-tracking-wide); padding: var(--ql-space-3); border-bottom: 1px solid var(--ql-border); white-space: nowrap; position: sticky; top: 0; background: var(--ql-card); cursor: pointer; user-select: none; }
-table.sr thead th.no-sort { cursor: default; }
-table.sr thead th .sort-ic { display: inline-block; width: 10px; opacity: .4; margin-left: 3px; }
-table.sr thead th.sorted .sort-ic { opacity: 1; color: var(--ql-brand-600); }
-table.sr td { padding: var(--ql-space-3); border-bottom: 1px solid var(--ql-divider); color: var(--ql-text); white-space: nowrap; }
-table.sr tbody tr:last-child td { border-bottom: none; }
-table.sr tbody tr:hover td { background: var(--ql-neutral-50); }
-.sr-num { text-align: right; font-variant-numeric: tabular-nums; }
-.sr-inv { font-weight: var(--ql-weight-bold); color: var(--ql-text); }
-.sr-party { display: flex; align-items: center; gap: var(--ql-space-3); }
-.sr-av { width: 32px; height: 32px; border-radius: var(--ql-radius-pill); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: var(--ql-weight-bold); font-size: var(--ql-text-xs); }
-.sr-pill { display: inline-flex; align-items: center; gap: 6px; font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold); padding: 3px 10px; border-radius: var(--ql-radius-pill); }
-.sr-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
-.sr-pill.paid { background: var(--ql-success-50); color: var(--ql-success-700); }
-.sr-pill.pending { background: var(--ql-warning-50); color: var(--ql-warning-700); }
-.sr-pill.cash { background: var(--ql-brand-50); color: var(--ql-brand-700); }
-.sr-foot { display: flex; align-items: center; justify-content: space-between; padding: var(--ql-space-3) var(--ql-space-1) 0; font-size: var(--ql-text-sm); color: var(--ql-text-secondary); }
-.sr-pager { display: flex; align-items: center; gap: var(--ql-space-2); }
-.sr-pager button { width: 30px; height: 30px; border-radius: var(--ql-radius-md); border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-text-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
-.sr-pager button:hover:not(:disabled) { border-color: var(--ql-border-strong); color: var(--ql-text); }
-.sr-pager button:disabled { opacity: .4; cursor: default; }
-.sr-empty { text-align: center; padding: var(--ql-space-12) var(--ql-space-6); color: var(--ql-text-secondary); }
-.sr-empty svg { width: 36px; height: 36px; color: var(--ql-neutral-300); margin-bottom: var(--ql-space-3); }
-</style>
+<!-- register table styles now live in pages.css -->
 </head>
 
 <body class="ql-v2">

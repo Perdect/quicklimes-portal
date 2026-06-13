@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GST — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div><h1 class="page-title">GST Summary</h1><div class="page-sub" id="gsSub">Output tax · Input credit · Net liability</div></div>
+      <div class="page-actions">
+        <button class="ql-btn ql-btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> GSTR report</button>
+      </div>
+    </div>
+    <div class="kpi-strip" id="gsKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="gst-grid">
+      <div class="card gst-liab">
+        <div class="card-head"><div><div class="card-title">Net GST Liability</div><div class="card-sub">Output tax payable minus input tax credit</div></div></div>
+        <div class="gst-rows" id="gsLiab"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">Taxable Value</div><div class="card-sub">Net of GST</div></div></div>
+        <div class="gst-rows" id="gsTax"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="./shell.js"></script>
+<script>
+QLShell.mount({ active: 'gst', title: 'GST Summary' });
+function render() {
+  const co = QLD.co, g = QLD.gstSummary();
+  const K = [
+    { label: 'Output GST', v: QLD.fC(g.outGST), meta: 'collected on sales', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>' },
+    { label: 'Input Tax Credit', v: QLD.fC(g.itc), meta: 'paid on purchases', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>' },
+    { label: 'Net Payable', v: QLD.fC(g.net), meta: 'to government', bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>' },
+    { label: 'Taxable Sales', v: QLD.fC(g.taxable), meta: 'net of GST', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-5"/></svg>' }
+  ];
+  document.getElementById('gsKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
+  document.getElementById('gsSub').textContent = `${co.short} · Net payable ${QLD.fC(g.net)}`;
+  const liab = [
+    { l: 'CGST (output)', v: g.cgst, sign: '+' },
+    { l: 'SGST (output)', v: g.sgst, sign: '+' },
+    { l: 'Total output tax', v: g.outGST, strong: true },
+    { l: 'Less: Input tax credit', v: g.itc, sign: '−', credit: true },
+    { l: 'Net GST payable', v: g.net, total: true }
+  ];
+  document.getElementById('gsLiab').innerHTML = liab.map(r => `<div class="gst-row ${r.total ? 'gst-row-total' : ''} ${r.strong ? 'gst-row-strong' : ''}"><span class="gst-row-l">${r.l}</span><span class="gst-row-v" style="${r.credit ? 'color:var(--ql-success-700)' : r.total ? 'color:var(--ql-danger-600)' : ''}">${r.sign || ''}${QLD.fC(r.v)}</span></div>`).join('');
+  const tax = [
+    { l: 'Taxable sales', v: g.taxable },
+    { l: 'Taxable purchases', v: g.purchaseTaxable },
+    { l: 'Net value added', v: Math.max(0, g.taxable - g.purchaseTaxable), total: true }
+  ];
+  document.getElementById('gsTax').innerHTML = tax.map(r => `<div class="gst-row ${r.total ? 'gst-row-total' : ''}"><span class="gst-row-l">${r.l}</span><span class="gst-row-v">${QLD.fC(r.v)}</span></div>`).join('');
+  QLShell.paintWorkspace();
+}
+window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+QLD.init(render);
+</script>
+</body>
+</html>

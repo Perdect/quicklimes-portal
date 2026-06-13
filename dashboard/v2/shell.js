@@ -54,8 +54,8 @@
       { id: 'collections', label: 'Collections',     href: 'sales.html?filter=pending', icon: I.coll, badgeKey: 'collections' }
     ]},
     { type: 'group', label: 'Purchases', items: [
-      { id: 'purchase',  label: 'Purchase Register', href: SOON, icon: I.bag },
-      { id: 'suppliers', label: 'Suppliers',         href: SOON, icon: I.factory }
+      { id: 'purchase',  label: 'Purchase Register', href: 'purchase.html', icon: I.bag },
+      { id: 'suppliers', label: 'Suppliers',         href: 'parties.html?type=supplier', icon: I.factory }
     ]},
     { type: 'group', label: 'Production', items: [
       { id: 'ql-prod',  label: 'Quick Lime Production', href: SOON, icon: I.clock },
@@ -69,15 +69,15 @@
       { id: 'dispatch', label: 'Dispatch',         href: SOON, icon: I.truck }
     ]},
     { type: 'group', label: 'Finance', items: [
-      { id: 'expenses', label: 'Expenses',      href: SOON, icon: I.card },
-      { id: 'loans',    label: 'Loans',         href: SOON, icon: I.bank },
-      { id: 'gst',      label: 'GST',           href: SOON, icon: I.receipt },
-      { id: 'pl',       label: 'Profit & Loss', href: SOON, icon: I.chart }
+      { id: 'cashbook', label: 'Cash Book',     href: 'cashbook.html', icon: I.card },
+      { id: 'loans',    label: 'Loans',         href: 'loans.html',    icon: I.bank },
+      { id: 'gst',      label: 'GST',           href: 'gst.html',      icon: I.receipt },
+      { id: 'pl',       label: 'Profit & Loss', href: SOON,            icon: I.chart }
     ]},
     { type: 'group', label: 'People', items: [
-      { id: 'labour',     label: 'Labour',     href: SOON, icon: I.users },
-      { id: 'attendance', label: 'Attendance', href: SOON, icon: I.check },
-      { id: 'payroll',    label: 'Payroll',    href: SOON, icon: I.wallet }
+      { id: 'parties',    label: 'All Parties', href: 'parties.html', icon: I.users },
+      { id: 'labour',     label: 'Labour',      href: 'labour.html',  icon: I.users },
+      { id: 'attendance', label: 'Attendance',  href: SOON, icon: I.check }
     ]},
     { type: 'group', label: 'Reports', items: [
       { id: 'biz-an',  label: 'Business Analytics',   href: SOON, icon: I.dl },
@@ -334,7 +334,9 @@
     const Q = window.QLD;
     const res = [];
     // pages always
-    [['Dashboard', 'dashboard.html', 'grid'], ['Sales Register', 'sales.html', 'sales'], ['Collections', 'sales.html?filter=pending', 'sales']]
+    [['Dashboard', 'dashboard.html', 'grid'], ['Sales Register', 'sales.html', 'sales'], ['Collections', 'sales.html?filter=pending', 'sales'],
+     ['Purchase Register', 'purchase.html', 'bag'], ['All Parties', 'parties.html', 'users'], ['Labour', 'labour.html', 'users'],
+     ['Cash Book', 'cashbook.html', 'grid'], ['Loans', 'loans.html', 'grid'], ['GST', 'gst.html', 'grid']]
       .forEach(([t, href, ic]) => { if (!q || t.toLowerCase().includes(q)) res.push({ group: 'Go to', icon: ic, t, s: 'Page', href }); });
     if (Q && q) {
       const ql = q;
