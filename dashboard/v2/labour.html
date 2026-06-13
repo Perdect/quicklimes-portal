@@ -83,7 +83,7 @@ function render() {
       <td class="sr-num">${QLD.fC(r.gross)}</td>
       <td class="sr-num" style="color:${r.adv ? 'var(--ql-danger-600)' : 'var(--ql-text-muted)'}">${r.adv ? '−' + QLD.fC(r.adv) : '—'}</td>
       <td class="sr-num" style="font-weight:700;color:var(--ql-success-700)">${QLD.fC(r.net)}</td>
-      <td class="sr-num"><button class="sr-kebab"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
+      <td class="sr-num"><button class="sr-kebab" onclick="QLShell.rowMenu(event,'worker',${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
     </tr>`;
   }).join('') : `<tr><td colspan="8"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No workers in this view</div></div></td></tr>`;
   document.getElementById('lbCount').textContent = rows.length ? `Showing ${(lPage - 1) * PER + 1}–${Math.min(lPage * PER, rows.length)} of ${rows.length}` : '0 workers';

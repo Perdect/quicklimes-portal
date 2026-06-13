@@ -455,3 +455,15 @@ table.sr tbody tr:hover td { background: var(--ql-neutral-50); }
 .qlf-input:focus { outline: none; border-color: var(--ql-brand-400); box-shadow: 0 0 0 3px var(--ql-brand-50); background: var(--ql-card); }
 textarea.qlf-input { resize: vertical; min-height: 40px; }
 @media (max-width: 560px) { .qlf-grid { grid-template-columns: 1fr; } .ql-modal-backdrop { padding-top: 3vh; } }
+
+/* Row action menu (table kebabs) */
+.ql-rowmenu { position: fixed; z-index: 1100; min-width: 172px; background: var(--ql-card);
+  border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); box-shadow: var(--ql-shadow-lg);
+  padding: 5px; display: flex; flex-direction: column; gap: 2px; animation: qlModalIn .12s var(--ql-ease-out); }
+.ql-rowmenu-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 10px; border: none;
+  background: transparent; border-radius: var(--ql-radius-md); font-family: inherit; font-size: var(--ql-text-sm);
+  font-weight: var(--ql-weight-medium); color: var(--ql-text); cursor: pointer; text-align: left; }
+.ql-rowmenu-item:hover { background: var(--ql-neutral-100); }
+.ql-rowmenu-item.danger { color: var(--ql-danger-600); }
+.ql-rowmenu-item.danger:hover { background: var(--ql-danger-50); }
+.ql-rowmenu-item svg { width: 15px; height: 15px; flex-shrink: 0; }

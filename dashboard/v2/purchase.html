@@ -90,7 +90,7 @@ function render() {
       <td class="sr-num" style="color:${r.itc ? 'var(--ql-success-700)' : 'var(--ql-text-muted)'}">${r.itc ? QLD.fC(r.itc) : '—'}</td>
       <td class="sr-num" style="font-weight:700">${QLD.fC(r.total)}</td>
       <td><span class="sr-pill ${r.status}"><span class="dot"></span>${PILL[r.status] || r.status}</span></td>
-      <td class="sr-num"><button class="sr-kebab"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
+      <td class="sr-num"><button class="sr-kebab" onclick="QLShell.rowMenu(event,'purchase',${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
     </tr>`;
   }).join('') : `<tr><td colspan="10"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No bills in this view</div></div></td></tr>`;
   document.getElementById('prCount').textContent = rows.length ? `Showing ${(pPage - 1) * PER + 1}–${Math.min(pPage * PER, rows.length)} of ${rows.length}` : '0 bills';

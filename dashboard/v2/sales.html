@@ -178,7 +178,7 @@ function renderSales() {
         <td class="sr-num pt-muted">${QLD.fC(r.gst)}</td>
         <td class="sr-num" style="font-weight:700">${QLD.fC(r.total)}</td>
         <td><span class="sr-pill ${r.status}"><span class="dot" style="background:currentColor"></span>${PILL[r.status] || r.status}</span></td>
-        <td class="sr-num"><button class="coll-action" style="width:30px;height:30px;border:1px solid var(--ql-border);border-radius:var(--ql-radius-md);background:transparent;color:var(--ql-text-secondary);cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
+        <td class="sr-num"><button class="sr-kebab" onclick="QLShell.rowMenu(event,'sale',${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
       </tr>`;
     }).join('');
   }

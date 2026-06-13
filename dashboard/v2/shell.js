@@ -657,6 +657,44 @@
     });
   }
 
+  /* ── Row action menu (table kebabs) ──────────────────────────── */
+  const RICO = {
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>',
+    pay: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+    del: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
+  };
+  let _rowMenu = null;
+  function closeRowMenu() { if (_rowMenu) { _rowMenu.remove(); _rowMenu = null; } }
+  function rowItems(type, idx) {
+    const Q = window.QLD, del = (msg, fn) => ({ label: 'Delete', icon: RICO.del, danger: true, onClick() { if (confirm(msg)) { fn(); refresh('Deleted'); } } });
+    if (type === 'sale') { const r = Q.state.SALES[idx]; const it = [{ label: 'Edit invoice', icon: RICO.edit, onClick: () => openSaleForm(idx) }]; if ((r.status || 'pending') !== 'paid') it.push({ label: 'Mark paid', icon: RICO.pay, onClick: () => openPaymentForm('sale', idx) }); it.push(del('Delete invoice ' + r.inv + '?', () => Q.deleteSale(idx))); return it; }
+    if (type === 'purchase') { const r = Q.state.PURCHASES[idx]; const it = [{ label: 'Edit bill', icon: RICO.edit, onClick: () => openPurchaseForm(idx) }]; if ((r.status || 'pending') !== 'paid') it.push({ label: 'Mark paid', icon: RICO.pay, onClick: () => openPaymentForm('purchase', idx) }); it.push(del('Delete bill ' + r.bill + '?', () => Q.deletePurchase(idx))); return it; }
+    if (type === 'party') { const r = Q.state.PARTIES[idx]; return [{ label: 'Edit party', icon: RICO.edit, onClick: () => openPartyForm(idx) }, del('Delete party ' + r.name + '?', () => Q.deleteParty(idx))]; }
+    if (type === 'worker') { const r = Q.state.WORKERS[idx]; return [{ label: 'Edit worker', icon: RICO.edit, onClick: () => openWorkerForm(idx) }, del('Delete worker ' + r.name + '?', () => Q.deleteWorker(idx))]; }
+    if (type === 'cash') { return [del('Delete this entry?', () => Q.deleteCashEntry(idx))]; }
+    return [];
+  }
+  function rowMenu(ev, type, idx) {
+    ev.stopPropagation();
+    const wasFor = _rowMenu && _rowMenu._key === type + idx;
+    closeRowMenu();
+    if (wasFor) return;                               // toggle off if same kebab
+    const items = rowItems(type, idx); if (!items.length) return;
+    const menu = document.createElement('div');
+    menu.className = 'ql-rowmenu'; menu._key = type + idx;
+    menu.innerHTML = items.map((it, i) => `<button class="ql-rowmenu-item ${it.danger ? 'danger' : ''}" data-i="${i}">${it.icon}<span>${esc(it.label)}</span></button>`).join('');
+    document.body.appendChild(menu);
+    const r = ev.currentTarget.getBoundingClientRect();
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    menu.style.top = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - mh - 8)) + 'px';
+    // right-align to the kebab, but never let it run off either edge
+    menu.style.left = Math.min(Math.max(8, r.right - mw), window.innerWidth - mw - 8) + 'px';
+    menu.querySelectorAll('.ql-rowmenu-item').forEach((b, i) => b.addEventListener('click', () => { closeRowMenu(); items[i].onClick(); }));
+    _rowMenu = menu;
+    setTimeout(() => document.addEventListener('click', closeRowMenu, { once: true }), 0);
+    window.addEventListener('resize', closeRowMenu, { once: true });
+  }
+
   /* ════════════════════════ PUBLIC API ══════════════════════════ */
   window.QLShell = {
     toggleSidebar, toggleMobileSidebar, toggleGroup, openPalette, closePalette, toast,
@@ -665,8 +703,9 @@
     paintWorkspace,
     setBreadcrumb(label) { const c = document.querySelector('.tb-crumb-active'); if (c) c.textContent = label; },
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
-    // form modals
+    // form modals + row action menus
     closeModal, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openPaymentForm,
+    rowMenu,
 
     mount(opts) {
       opts = opts || {};

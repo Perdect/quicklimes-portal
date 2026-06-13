@@ -82,7 +82,7 @@ function render() {
       <td class="pt-muted">${MODE[r.mode] || r.mode || '—'}</td>
       <td><span class="sr-pill ${cr ? 'credit' : 'debit'}"><span class="dot"></span>${cr ? 'In' : 'Out'}</span></td>
       <td class="sr-num" style="font-weight:700;color:${cr ? 'var(--ql-success-700)' : 'var(--ql-danger-600)'}">${cr ? '+' : '−'}${QLD.fC(r.amount)}</td>
-      <td class="sr-num"><button class="sr-kebab"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
+      <td class="sr-num"><button class="sr-kebab" onclick="QLShell.rowMenu(event,'cash',${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
     </tr>`;
   }).join('') : `<tr><td colspan="7"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No entries in this view</div></div></td></tr>`;
   document.getElementById('cbCount').textContent = rows.length ? `Showing ${(cPage - 1) * PER + 1}–${Math.min(cPage * PER, rows.length)} of ${rows.length}` : '0 entries';
