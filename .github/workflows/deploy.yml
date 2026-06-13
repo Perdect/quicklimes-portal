@@ -46,6 +46,9 @@ jobs:
           # SPA fallback — any non-file path (/gst, /sales, etc.) → index.html
           cp dashboard/.htaccess          deploy/app/.htaccess
           cp -r "dashboard/Deshwali Minerals — Business Suite_files" deploy/app/
+          # v2 redesign (beta) — multi-page app reachable at app.quicklimes.com/v2/
+          # Real .html files, so the SPA fallback above won't intercept them.
+          cp -r dashboard/v2              deploy/app/v2
           # Make the brand logo also accessible inside /app for any header reuse
           cp -r assets deploy/app/assets
 
