@@ -420,4 +420,38 @@ table.sr tbody tr:hover td { background: var(--ql-neutral-50); }
 .gst-row-total { margin-top: var(--ql-space-1); padding-top: 16px; border-top: 2px solid var(--ql-border-strong); border-bottom: 0; }
 .gst-row-total .gst-row-l { font-size: var(--ql-text-md); font-weight: var(--ql-weight-bold); color: var(--ql-text); }
 .gst-row-total .gst-row-v { font-size: var(--ql-text-xl); }
-.gst-liab { background: linear-gradient(180deg, var(--ql-brand-50), var(--ql-surface) 60%); }
+.gst-liab { background: linear-gradient(180deg, var(--ql-brand-50), var(--ql-card) 60%); }
+
+/* ═══ FORM MODAL (new sale / purchase / party / worker / cashbook / payment) ═══ */
+.ql-modal-backdrop {
+  position: fixed; inset: 0; z-index: var(--ql-z-modal, 1000);
+  background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(2px);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: 7vh var(--ql-space-4) var(--ql-space-6); overflow-y: auto;
+}
+.ql-modal-backdrop.open { display: flex; }
+.ql-modal {
+  width: 100%; max-width: 560px; background: var(--ql-card);
+  border: 1px solid var(--ql-border); border-radius: var(--ql-radius-2xl);
+  box-shadow: var(--ql-shadow-xl); padding: var(--ql-space-6);
+  display: flex; flex-direction: column; gap: var(--ql-space-5);
+  animation: qlModalIn .16s var(--ql-ease-out);
+}
+@keyframes qlModalIn { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: none; } }
+.ql-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--ql-space-3); }
+.ql-modal-title { margin: 0; font-size: var(--ql-text-xl); font-weight: var(--ql-weight-bold); color: var(--ql-text); letter-spacing: -0.015em; }
+.ql-modal-sub { font-size: var(--ql-text-sm); color: var(--ql-text-secondary); margin-top: 3px; }
+.ql-modal-x { width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); background: transparent; color: var(--ql-text-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.ql-modal-x:hover { background: var(--ql-neutral-100); color: var(--ql-text); }
+.ql-modal-note { font-size: var(--ql-text-sm); color: var(--ql-text-secondary); background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); padding: var(--ql-space-3); }
+.ql-modal-foot { display: flex; justify-content: flex-end; gap: var(--ql-space-2); }
+.qlf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ql-space-4); }
+.qlf-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.qlf-full { grid-column: 1 / -1; }
+.qlf-label { font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold); color: var(--ql-text-secondary); }
+.qlf-req { color: var(--ql-danger-600); }
+.qlf-input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: var(--ql-text-sm); color: var(--ql-text);
+  background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); padding: 9px 11px; }
+.qlf-input:focus { outline: none; border-color: var(--ql-brand-400); box-shadow: 0 0 0 3px var(--ql-brand-50); background: var(--ql-card); }
+textarea.qlf-input { resize: vertical; min-height: 40px; }
+@media (max-width: 560px) { .qlf-grid { grid-template-columns: 1fr; } .ql-modal-backdrop { padding-top: 3vh; } }

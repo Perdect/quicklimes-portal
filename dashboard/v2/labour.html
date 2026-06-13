@@ -19,7 +19,7 @@
       <div><h1 class="page-title">Labour</h1><div class="page-sub" id="lbSub">Workers · Wages · Attendance</div></div>
       <div class="page-actions">
         <button class="ql-btn ql-btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
-        <button class="ql-btn ql-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add worker</button>
+        <button class="ql-btn ql-btn-primary" onclick="QLShell.openWorkerForm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add worker</button>
       </div>
     </div>
     <div class="kpi-strip" id="lbKpis" style="grid-template-columns:repeat(4,1fr)"></div>
@@ -96,6 +96,7 @@ document.getElementById('lbSearch').addEventListener('input', e => { lQuery = e.
 document.getElementById('lbPrev').addEventListener('click', () => { if (lPage > 1) { lPage--; render(); } });
 document.getElementById('lbNext').addEventListener('click', () => { lPage++; render(); });
 window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+window.__qlRefresh = render;
 QLD.init(render);
 </script>
 </body>

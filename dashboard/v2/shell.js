@@ -228,6 +228,11 @@
     <div class="palette-list" id="paletteList"></div>
     <div class="palette-foot"><span><kbd>↑↓</kbd> navigate</span><span><kbd>↵</kbd> select</span><span><kbd>ESC</kbd> close</span></div>
   </div>
+</div>
+
+<!-- generic form modal (new sale / purchase / party / worker / cashbook / payment) -->
+<div class="ql-modal-backdrop" id="qlModalBack" onclick="if(event.target===this)QLShell.closeModal()">
+  <div class="ql-modal" id="qlModal" role="dialog" aria-modal="true"></div>
 </div>`;
   }
 
@@ -451,6 +456,207 @@
     };
   }
 
+  /* ════════════════════════ FORM MODALS ═════════════════════════
+     Generic spec-driven forms. Each field: {k,label,type,req,ph,opts,
+     half,full}. On save we read+parse values and hand a plain object to
+     the caller's onSave, which routes to a QLD mutation. After a save we
+     fire window.__qlRefresh() so the active page re-renders. */
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  function fieldHTML(f, v) {
+    const id = 'qf_' + f.k;
+    const val = v == null ? '' : v;
+    const lbl = `<label class="qlf-label" for="${id}">${f.label}${f.req ? ' <span class="qlf-req">*</span>' : ''}</label>`;
+    let ctrl;
+    if (f.type === 'select') {
+      ctrl = `<select class="qlf-input" id="${id}">${f.opts.map(o => { const ov = Array.isArray(o) ? o[0] : o, ol = Array.isArray(o) ? o[1] : o; return `<option value="${esc(ov)}" ${String(ov) === String(val) ? 'selected' : ''}>${esc(ol)}</option>`; }).join('')}</select>`;
+    } else if (f.type === 'textarea') {
+      ctrl = `<textarea class="qlf-input" id="${id}" rows="2" placeholder="${esc(f.ph || '')}">${esc(val)}</textarea>`;
+    } else {
+      ctrl = `<input class="qlf-input" id="${id}" type="${f.type || 'text'}" value="${esc(val)}" placeholder="${esc(f.ph || '')}" ${f.type === 'number' ? 'inputmode="decimal" step="any"' : ''}>`;
+    }
+    return `<div class="qlf-field ${f.full ? 'qlf-full' : ''}">${lbl}${ctrl}</div>`;
+  }
+  function readForm(specs) {
+    const out = {};
+    for (const f of specs) {
+      const el = $('qf_' + f.k); if (!el) continue;
+      let val = el.value;
+      if (f.type === 'number') val = parseFloat(val) || 0;
+      else val = (val || '').trim();
+      if (f.upper && typeof val === 'string') val = val.toUpperCase();
+      out[f.k] = val;
+    }
+    return out;
+  }
+  function openForm(cfg) {
+    const specs = cfg.specs, init = cfg.initial || {};
+    const grid = specs.map(f => fieldHTML(f, init[f.k])).join('');
+    $('qlModal').innerHTML = `
+      <div class="ql-modal-head">
+        <div><h3 class="ql-modal-title">${esc(cfg.title)}</h3>${cfg.sub ? `<div class="ql-modal-sub">${esc(cfg.sub)}</div>` : ''}</div>
+        <button class="ql-modal-x" onclick="QLShell.closeModal()" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div class="qlf-grid">${grid}</div>
+      ${cfg.note ? `<div class="ql-modal-note" id="qlModalNote">${cfg.note}</div>` : ''}
+      <div class="ql-modal-foot">
+        <button class="ql-btn ql-btn-secondary" onclick="QLShell.closeModal()">Cancel</button>
+        <button class="ql-btn ql-btn-primary" id="qlModalSave">${esc(cfg.saveLabel || 'Save')}</button>
+      </div>`;
+    const save = $('qlModalSave');
+    save.onclick = () => {
+      const v = readForm(specs);
+      const miss = specs.find(f => f.req && (v[f.k] === '' || v[f.k] === 0 && f.reqNonZero));
+      if (miss) { toast(miss.label + ' is required'); $('qf_' + miss.k).focus(); return; }
+      const ok = cfg.onSave(v);
+      if (ok !== false) closeModal();
+    };
+    if (cfg.onRender) cfg.onRender();
+    $('qlModalBack').classList.add('open');
+    const first = $('qlModal').querySelector('.qlf-input'); if (first) setTimeout(() => first.focus(), 30);
+  }
+  function closeModal() { $('qlModalBack').classList.remove('open'); }
+  function refresh(msg) { if (msg) toast(msg); if (typeof window.__qlRefresh === 'function') window.__qlRefresh(); }
+  const GST_OPTS = [[0, 'GST 0%'], [5, 'GST 5%'], [12, 'GST 12%'], [18, 'GST 18%'], [28, 'GST 28%']];
+
+  /* ── Sale / GST invoice ──────────────────────────────────────── */
+  const SALE_SPECS = [
+    { k: 'inv', label: 'Invoice No.', req: true, ph: 'e.g. 142', upper: true },
+    { k: 'date', label: 'Date', type: 'date', req: true },
+    { k: 'party', label: 'Party', req: true, ph: 'Customer name', upper: true, full: true },
+    { k: 'gstin', label: 'GSTIN', ph: '08AAAAA0000A1Z5', upper: true },
+    { k: 'product', label: 'Product', ph: 'Quick Lime' },
+    { k: 'qty', label: 'Qty (T)', type: 'number', req: true, reqNonZero: true },
+    { k: 'rate', label: 'Rate (₹/T)', type: 'number', req: true, reqNonZero: true },
+    { k: 'gstR', label: 'GST rate', type: 'select', opts: GST_OPTS },
+    { k: 'veh', label: 'Vehicle No.', upper: true },
+    { k: 'eway', label: 'E-way bill' }
+  ];
+  function openSaleForm(idx) {
+    const editing = idx != null && idx >= 0;
+    const row = editing ? window.QLD.state.SALES[idx] : null;
+    openForm({
+      title: editing ? 'Edit invoice' : 'New GST invoice', sub: 'Sales register',
+      specs: SALE_SPECS, saveLabel: editing ? 'Save changes' : 'Create invoice',
+      initial: row || { date: today(), product: 'Quick Lime', gstR: 5 },
+      onSave(v) { v.product = v.product || 'Quick Lime'; if (editing) window.QLD.updateSale(idx, v); else window.QLD.addSale(v); refresh(editing ? 'Invoice updated' : 'Invoice created'); }
+    });
+  }
+
+  /* ── Purchase bill ───────────────────────────────────────────── */
+  const PUR_SPECS = [
+    { k: 'bill', label: 'Bill No.', req: true, ph: 'e.g. 328' },
+    { k: 'date', label: 'Date', type: 'date', req: true },
+    { k: 'sup', label: 'Supplier', req: true, ph: 'Supplier name', upper: true, full: true },
+    { k: 'gstin', label: 'GSTIN', upper: true },
+    { k: 'cat', label: 'Category', type: 'select', opts: ['Raw Material', 'Petcoke', 'Transport', 'Packing', 'Electricity', 'Repair', 'Other'] },
+    { k: 'desc', label: 'Description', ph: 'e.g. Lime Stone' },
+    { k: 'qty', label: 'Qty', type: 'number' },
+    { k: 'unit', label: 'Unit', ph: 'MT' },
+    { k: 'rate', label: 'Rate', type: 'number' },
+    { k: 'taxable', label: 'Taxable (₹)', type: 'number', req: true, reqNonZero: true },
+    { k: 'grate', label: 'GST rate', type: 'select', opts: GST_OPTS },
+    { k: 'itc', label: 'ITC', type: 'select', opts: [['Eligible', 'ITC Eligible'], ['Ineligible', 'ITC Ineligible'], ['RCM', 'RCM']] }
+  ];
+  function openPurchaseForm(idx) {
+    const editing = idx != null && idx >= 0;
+    const row = editing ? window.QLD.state.PURCHASES[idx] : null;
+    openForm({
+      title: editing ? 'Edit bill' : 'New purchase bill', sub: 'Purchase register',
+      specs: PUR_SPECS, saveLabel: editing ? 'Save changes' : 'Add bill',
+      initial: row || { date: today(), cat: 'Raw Material', grate: 5, itc: 'Eligible', unit: 'MT' },
+      onSave(v) { if (editing) window.QLD.updatePurchase(idx, v); else window.QLD.addPurchase(v); refresh(editing ? 'Bill updated' : 'Bill added'); }
+    });
+  }
+
+  /* ── Party ───────────────────────────────────────────────────── */
+  const PARTY_SPECS = [
+    { k: 'name', label: 'Name', req: true, ph: 'Party name', full: true },
+    { k: 'type', label: 'Type', type: 'select', opts: [['customer', 'Customer'], ['supplier', 'Supplier'], ['both', 'Both']] },
+    { k: 'gstin', label: 'GSTIN', upper: true },
+    { k: 'phone', label: 'Phone' },
+    { k: 'state', label: 'State' },
+    { k: 'address', label: 'Address', type: 'textarea', full: true },
+    { k: 'notes', label: 'Notes', type: 'textarea', full: true }
+  ];
+  function openPartyForm(idx) {
+    const editing = idx != null && idx >= 0;
+    const row = editing ? window.QLD.state.PARTIES[idx] : null;
+    openForm({
+      title: editing ? 'Edit party' : 'Add party', sub: 'Contact directory',
+      specs: PARTY_SPECS, saveLabel: editing ? 'Save changes' : 'Add party',
+      initial: row || { type: 'customer' },
+      onSave(v) {
+        if (editing) { Object.assign(window.QLD.state.PARTIES[idx], v); window.QLD.commit(); }
+        else window.QLD.upsertParty(v.name, v.gstin, v.phone, v.address, v.state, v.type);
+        refresh(editing ? 'Party updated' : 'Party added');
+      }
+    });
+  }
+
+  /* ── Worker ──────────────────────────────────────────────────── */
+  const WORKER_SPECS = [
+    { k: 'name', label: 'Name', req: true, full: true },
+    { k: 'desig', label: 'Designation', ph: 'Worker' },
+    { k: 'freq', label: 'Pay type', type: 'select', opts: [['daily', 'Daily wage'], ['monthly', 'Monthly salary']] },
+    { k: 'wage', label: 'Wage / Salary (₹)', type: 'number', req: true, reqNonZero: true },
+    { k: 'adv', label: 'Advance (₹)', type: 'number' }
+  ];
+  function openWorkerForm(idx) {
+    const editing = idx != null && idx >= 0;
+    const row = editing ? window.QLD.state.WORKERS[idx] : null;
+    openForm({
+      title: editing ? 'Edit worker' : 'Add worker', sub: 'Labour',
+      specs: WORKER_SPECS, saveLabel: editing ? 'Save changes' : 'Add worker',
+      initial: row || { freq: 'daily', desig: 'Worker' },
+      onSave(v) { v.desig = v.desig || 'Worker'; if (editing) window.QLD.updateWorker(idx, v); else window.QLD.addWorker(v); refresh(editing ? 'Worker updated' : 'Worker added'); }
+    });
+  }
+
+  /* ── Cashbook entry ──────────────────────────────────────────── */
+  const CASH_SPECS = [
+    { k: 'date', label: 'Date', type: 'date', req: true },
+    { k: 'type', label: 'Direction', type: 'select', opts: [['credit', 'Money In'], ['debit', 'Money Out']] },
+    { k: 'mode', label: 'Mode', type: 'select', opts: [['cash', 'Cash'], ['phonepay', 'PhonePe'], ['bank', 'Bank']] },
+    { k: 'amount', label: 'Amount (₹)', type: 'number', req: true, reqNonZero: true },
+    { k: 'category', label: 'Category', ph: 'e.g. Sales Receipt' },
+    { k: 'party', label: 'Party / Note', full: true },
+    { k: 'ref', label: 'Reference' }
+  ];
+  function openCashForm() {
+    openForm({
+      title: 'New cash entry', sub: 'Cash book',
+      specs: CASH_SPECS, saveLabel: 'Add entry',
+      initial: { date: today(), type: 'credit', mode: 'cash' },
+      onSave(v) { window.QLD.addCashEntry(v); refresh('Entry added'); }
+    });
+  }
+
+  /* ── Payment (mark a sale/purchase paid) ─────────────────────── */
+  function openPaymentForm(kind, idx) {
+    const Q = window.QLD;
+    const row = kind === 'sale' ? Q.state.SALES[idx] : Q.state.PURCHASES[idx];
+    if (!row) return;
+    const tot = kind === 'sale' ? Q.cS(row).tot : (row.taxable + row.taxable * (row.grate || 0) / 100);
+    const billNo = kind === 'sale' ? row.inv : row.bill;
+    const who = kind === 'sale' ? row.party : row.sup;
+    openForm({
+      title: 'Record payment', sub: billNo + ' · ' + who + ' · ' + Q.fC(tot),
+      specs: [
+        { k: 'paidDate', label: 'Payment date', type: 'date', req: true },
+        { k: 'paidAmt', label: 'Amount (₹)', type: 'number', req: true, reqNonZero: true },
+        { k: 'paidMode', label: 'Mode', type: 'select', opts: ['Bank Transfer', 'Cash', 'PhonePe', 'Cheque', 'UPI'] },
+        { k: 'paidRef', label: 'Reference', full: true }
+      ],
+      saveLabel: 'Mark paid',
+      initial: { paidDate: today(), paidAmt: Number(tot.toFixed(2)), paidMode: 'Bank Transfer' },
+      onSave(v) {
+        if (kind === 'sale') Q.setSaleStatus(idx, 'paid', v); else Q.setPurchaseStatus(idx, 'paid', v);
+        refresh('Payment recorded');
+      }
+    });
+  }
+
   /* ════════════════════════ PUBLIC API ══════════════════════════ */
   window.QLShell = {
     toggleSidebar, toggleMobileSidebar, toggleGroup, openPalette, closePalette, toast,
@@ -459,6 +665,8 @@
     paintWorkspace,
     setBreadcrumb(label) { const c = document.querySelector('.tb-crumb-active'); if (c) c.textContent = label; },
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
+    // form modals
+    closeModal, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openPaymentForm,
 
     mount(opts) {
       opts = opts || {};

@@ -152,6 +152,79 @@
     } catch (e) { console.warn('v2 cloud pull failed', e); return false; }
   }
 
+  /* ── Persistence: WRITE (mirror of v1 saveLocal / saveToCloud) ───
+     CRITICAL: save_my_data REPLACES the whole company row, so we always
+     write back EVERY field we hydrated — including ones v2 doesn't yet
+     display (tds, challans, chunna, workLog, att) — or they'd be wiped.
+     Loans are NOT part of this blob (separate dm_loans row), exactly
+     like v1.  profile_pic is included in the cloud blob only. */
+  function blob(includePic) {
+    const b = {
+      sales: S.SALES, purchases: S.PURCHASES, workers: S.WORKERS, workLog: S.WORK_LOG,
+      att: S.ATT, tds: S.TDS, challans: S.CHALLANS, parties: S.PARTIES,
+      cashbook: S.CASHBOOK, chunna: S.CHUNNA
+    };
+    if (includePic) b.profile_pic = localStorage.getItem('dm_profile_pic') || null;
+    return b;
+  }
+  function saveLocal() {
+    try { localStorage.setItem(COMPANIES[ACTIVE_CO].dataKey, JSON.stringify(blob(false))); }
+    catch (e) { console.error('v2 saveLocal failed', e); }
+  }
+  let _cloudTimer = null;
+  async function saveCloudNow() {
+    if (!DB) return;
+    try {
+      const { error } = await DB.rpc('save_my_data', { p_plant_id: QL_PLANT.id, p_id: ACTIVE_CO, p_data: blob(true) });
+      if (error) throw error;
+    } catch (e) { console.warn('v2 cloud save failed', e); }
+  }
+  function commit() {                         // local now, cloud debounced (coalesce rapid edits)
+    saveLocal();
+    if (DB) { clearTimeout(_cloudTimer); _cloudTimer = setTimeout(saveCloudNow, 300); }
+  }
+
+  /* ── Mutations (each updates S.* then persists) ──────────────── */
+  const upper = s => (s || '').toString().trim().toUpperCase();
+  // Party auto-create/merge — same merge rules as v1 autoSaveParty.
+  function upsertParty(name, gstin, phone, address, state, type) {
+    if (!name || name.trim().length < 2) return;
+    const nm = upper(name);
+    const idx = S.PARTIES.findIndex(p => upper(p.name) === nm || (gstin && p.gstin && upper(p.gstin) === upper(gstin)));
+    if (idx >= 0) {
+      const p = S.PARTIES[idx];
+      if (gstin && !p.gstin) p.gstin = upper(gstin);
+      if (phone && !p.phone) p.phone = phone;
+      if (address && (!p.address || address.length > (p.address || '').length)) p.address = address;
+      if (state && !p.state) p.state = state;
+      if (type && p.type !== type && p.type !== 'both') p.type = type;
+    } else {
+      S.PARTIES.push({ id: 'p' + idStamp(), name: name.trim(), gstin: upper(gstin), phone: phone || '', address: address || '', state: state || '', type: type || 'customer', notes: '' });
+    }
+    commit();
+  }
+  // Sales
+  function addSale(e) { S.SALES.push({ ...e, status: e.status || 'pending' }); if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); else commit(); }
+  function updateSale(i, e) { if (S.SALES[i]) { S.SALES[i] = { ...S.SALES[i], ...e }; if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); else commit(); } }
+  function deleteSale(i) { if (S.SALES[i]) { S.SALES.splice(i, 1); commit(); } }
+  function setSaleStatus(i, st, pay) { if (S.SALES[i]) { Object.assign(S.SALES[i], { status: st }, pay || {}); commit(); } }
+  // Purchases
+  function addPurchase(e) { S.PURCHASES.push({ ...e, status: e.status || 'pending' }); if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); else commit(); }
+  function updatePurchase(i, e) { if (S.PURCHASES[i]) { S.PURCHASES[i] = { ...S.PURCHASES[i], ...e }; if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); else commit(); } }
+  function deletePurchase(i) { if (S.PURCHASES[i]) { S.PURCHASES.splice(i, 1); commit(); } }
+  function setPurchaseStatus(i, st, pay) { if (S.PURCHASES[i]) { Object.assign(S.PURCHASES[i], { status: st }, pay || {}); commit(); } }
+  // Workers
+  function addWorker(e) { S.WORKERS.push({ id: 'W' + idStamp(), ...e }); commit(); }
+  function updateWorker(i, e) { if (S.WORKERS[i]) { S.WORKERS[i] = { ...S.WORKERS[i], ...e }; commit(); } }
+  function deleteWorker(i) { if (S.WORKERS[i]) { S.WORKERS.splice(i, 1); commit(); } }
+  // Cashbook
+  function addCashEntry(e) { S.CASHBOOK.push({ id: 'cb' + idStamp(), ...e }); commit(); }
+  function deleteCashEntry(i) { if (S.CASHBOOK[i]) { S.CASHBOOK.splice(i, 1); commit(); } }
+  // Party direct edit/delete (by index into partyRows == index into S.PARTIES)
+  function deleteParty(i) { if (S.PARTIES[i]) { S.PARTIES.splice(i, 1); commit(); } }
+  let _seq = 0;
+  function idStamp() { return Date.now() + '' + (_seq++); }   // unique even within the same millisecond
+
   /* ── Aggregates for the dashboard ────────────────────────────── */
   function monthSeries(nMonths = 7) {
     const out = [];
@@ -419,6 +492,14 @@
     purchaseRows, purchaseSummary, partyRows, partySummary,
     labourRows, labourSummary, cashbookRows, cashbookBalances,
     loanRows, loanSummary, gstSummary,
+
+    // ── Writes (persist local immediately + cloud debounced) ──
+    commit, saveLocal,
+    upsertParty, deleteParty,
+    addSale, updateSale, deleteSale, setSaleStatus,
+    addPurchase, updatePurchase, deletePurchase, setPurchaseStatus,
+    addWorker, updateWorker, deleteWorker,
+    addCashEntry, deleteCashEntry,
 
     async init(render) {
       loadLocal();

@@ -18,7 +18,7 @@
     <div class="page-head">
       <div><h1 class="page-title">All Parties</h1><div class="page-sub" id="paSub">Customers · Suppliers · Contact directory</div></div>
       <div class="page-actions">
-        <button class="ql-btn ql-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add party</button>
+        <button class="ql-btn ql-btn-primary" onclick="QLShell.openPartyForm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add party</button>
       </div>
     </div>
     <div class="kpi-strip" id="paKpis" style="grid-template-columns:repeat(3,1fr)"></div>
@@ -90,6 +90,7 @@ document.getElementById('paSearch').addEventListener('input', e => { paQuery = e
 document.getElementById('paPrev').addEventListener('click', () => { if (paPage > 1) { paPage--; render(); } });
 document.getElementById('paNext').addEventListener('click', () => { paPage++; render(); });
 window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+window.__qlRefresh = render;
 QLD.init(render);
 </script>
 </body>
