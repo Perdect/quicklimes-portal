@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuickLimes v2 — Design System</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css">
+<style>
+  body { margin: 0; padding: 0; background: var(--ql-bg); color: var(--ql-text);
+         font-family: var(--ql-font-sans); }
+  .ds-wrap { max-width: 1120px; margin: 0 auto; padding: var(--ql-space-10) var(--ql-space-6) var(--ql-space-16); }
+  .ds-head { display: flex; align-items: center; justify-content: space-between;
+             padding-bottom: var(--ql-space-6); border-bottom: 1px solid var(--ql-border);
+             margin-bottom: var(--ql-space-8); }
+  .ds-brand { display: flex; align-items: center; gap: var(--ql-space-3); }
+  .ds-brand-mark { width: 38px; height: 38px; border-radius: var(--ql-radius-lg);
+                   background: linear-gradient(140deg, var(--ql-brand-500), var(--ql-brand-700));
+                   display: flex; align-items: center; justify-content: center;
+                   box-shadow: var(--ql-shadow-md); }
+  .ds-brand-mark svg { width: 20px; height: 20px; fill: #fff; }
+  .ds-brand-name { font-size: var(--ql-text-md); font-weight: var(--ql-weight-bold);
+                   letter-spacing: var(--ql-tracking-tight); }
+  .ds-brand-sub { font-size: var(--ql-text-xs); color: var(--ql-text-secondary);
+                  text-transform: uppercase; letter-spacing: var(--ql-tracking-wide); }
+  .ds-theme-toggle { display: flex; align-items: center; gap: var(--ql-space-2);
+                     padding: var(--ql-space-2) var(--ql-space-3);
+                     background: var(--ql-card); border: 1px solid var(--ql-border);
+                     border-radius: var(--ql-radius-lg); font-size: var(--ql-text-sm);
+                     color: var(--ql-text-secondary); cursor: pointer; }
+  .ds-theme-toggle:hover { color: var(--ql-text); }
+
+  h1.ds-title { font-size: var(--ql-text-3xl); font-weight: var(--ql-weight-black);
+                letter-spacing: var(--ql-tracking-tight); margin: 0 0 var(--ql-space-2); }
+  .ds-lede { font-size: var(--ql-text-md); color: var(--ql-text-secondary);
+             line-height: var(--ql-leading-snug); max-width: 600px; margin: 0; }
+
+  section { margin-top: var(--ql-space-12); }
+  h2.ds-section-title { font-size: var(--ql-text-xs); font-weight: var(--ql-weight-bold);
+                        letter-spacing: var(--ql-tracking-widest); text-transform: uppercase;
+                        color: var(--ql-text-muted); margin: 0 0 var(--ql-space-4); }
+  h3.ds-group-title { font-size: var(--ql-text-md); font-weight: var(--ql-weight-semibold);
+                      margin: 0 0 var(--ql-space-3); color: var(--ql-text); }
+
+  .ds-grid { display: grid; gap: var(--ql-space-3); }
+  .ds-grid-12 { grid-template-columns: repeat(12, 1fr); }
+  .ds-grid-6  { grid-template-columns: repeat(6, 1fr); }
+  .ds-grid-4  { grid-template-columns: repeat(4, 1fr); }
+  .ds-grid-3  { grid-template-columns: repeat(3, 1fr); }
+
+  /* COLOUR SWATCHES */
+  .ds-swatch { display: flex; flex-direction: column; gap: var(--ql-space-1); }
+  .ds-swatch-chip { aspect-ratio: 4 / 3; border-radius: var(--ql-radius-lg);
+                    border: 1px solid var(--ql-border); }
+  .ds-swatch-name { font-size: var(--ql-text-sm); font-weight: var(--ql-weight-semibold);
+                    color: var(--ql-text); margin-top: var(--ql-space-1); }
+  .ds-swatch-hex { font-family: var(--ql-font-mono); font-size: var(--ql-text-xs);
+                   color: var(--ql-text-secondary); }
+
+  /* TYPE SCALE */
+  .ds-type-row { display: grid; grid-template-columns: 70px 1fr; align-items: baseline;
+                 padding: var(--ql-space-3) 0; border-bottom: 1px solid var(--ql-divider); }
+  .ds-type-label { font-size: var(--ql-text-xs); color: var(--ql-text-muted);
+                   font-family: var(--ql-font-mono); }
+  .ds-type-sample { color: var(--ql-text); }
+
+  /* SPACING / RADIUS / SHADOW */
+  .ds-box-card { background: var(--ql-card); border: 1px solid var(--ql-border);
+                 border-radius: var(--ql-radius-xl); padding: var(--ql-space-4);
+                 display: flex; flex-direction: column; align-items: center;
+                 gap: var(--ql-space-2); }
+  .ds-box-card .ds-meta { font-size: var(--ql-text-xs); color: var(--ql-text-secondary);
+                          font-family: var(--ql-font-mono); }
+  .ds-spacer-line { background: var(--ql-brand-100); border-radius: var(--ql-radius-sm); height: 16px; }
+  .ds-radius-block { background: var(--ql-brand-100); width: 56px; height: 56px; }
+  .ds-shadow-block { width: 100%; aspect-ratio: 2/1; background: var(--ql-card);
+                     border-radius: var(--ql-radius-xl); border: 1px solid var(--ql-border); }
+
+  /* BUTTONS */
+  .ds-button-row { display: flex; flex-wrap: wrap; gap: var(--ql-space-3); align-items: center; }
+
+  /* PREVIEW CARD (example KPI) */
+  .ds-preview-card { background: var(--ql-card); border: 1px solid var(--ql-border);
+                     border-radius: var(--ql-radius-xl); padding: var(--ql-space-5);
+                     box-shadow: var(--ql-shadow-xs); }
+  .ds-preview-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--ql-space-4); }
+  .ds-kpi-head { display: flex; align-items: flex-start; justify-content: space-between; }
+  .ds-kpi-ic   { width: 34px; height: 34px; border-radius: var(--ql-radius-md);
+                 display: flex; align-items: center; justify-content: center; }
+  .ds-kpi-label{ font-size: var(--ql-text-xs); color: var(--ql-text-secondary);
+                 font-weight: var(--ql-weight-medium); margin-top: var(--ql-space-3); }
+  .ds-kpi-val  { font-size: var(--ql-text-2xl); font-weight: var(--ql-weight-black);
+                 letter-spacing: var(--ql-tracking-tight); margin-top: var(--ql-space-1); }
+  .ds-kpi-trend { display: inline-flex; align-items: center; gap: 4px; font-size: var(--ql-text-xs);
+                  font-weight: var(--ql-weight-semibold); padding: 2px 7px;
+                  border-radius: var(--ql-radius-pill); margin-top: var(--ql-space-2); }
+  .ds-kpi-trend-up   { background: var(--ql-success-50); color: var(--ql-success-700); }
+  .ds-kpi-trend-down { background: var(--ql-danger-50);  color: var(--ql-danger-700); }
+</style>
+</head>
+<body class="ql-v2">
+<div class="ds-wrap">
+
+  <header class="ds-head">
+    <div class="ds-brand">
+      <div class="ds-brand-mark">
+        <svg viewBox="0 0 24 24"><polygon points="4,9 7,5.5 17,5.5 20,9 12,19"/></svg>
+      </div>
+      <div>
+        <div class="ds-brand-name">QuickLimes v2</div>
+        <div class="ds-brand-sub">Design System · Foundation</div>
+      </div>
+    </div>
+    <button class="ds-theme-toggle" id="themeToggle">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <span id="themeLabel">Light</span>
+    </button>
+  </header>
+
+  <div>
+    <h1 class="ds-title">Foundation</h1>
+    <p class="ds-lede">Single source of truth for every colour, type size, spacing step, radius, and shadow used in QuickLimes v2. Every component composes from these tokens — change a value here and it propagates across the dashboard.</p>
+  </div>
+
+  <!-- COLOUR ─────────────────────────────────────────────── -->
+  <section>
+    <h2 class="ds-section-title">Colour</h2>
+
+    <h3 class="ds-group-title">Brand</h3>
+    <div class="ds-grid ds-grid-6" id="brand-swatches"></div>
+
+    <h3 class="ds-group-title" style="margin-top:var(--ql-space-6)">Semantic</h3>
+    <div class="ds-grid ds-grid-6" id="semantic-swatches"></div>
+
+    <h3 class="ds-group-title" style="margin-top:var(--ql-space-6)">Neutral</h3>
+    <div class="ds-grid ds-grid-6" id="neutral-swatches"></div>
+  </section>
+
+  <!-- TYPE SCALE ─────────────────────────────────────────── -->
+  <section>
+    <h2 class="ds-section-title">Typography</h2>
+    <p class="ds-lede" style="margin-bottom:var(--ql-space-4)">Inter — variable, antialiased, OpenType cv11 + ss03 enabled for clean digits in financial values.</p>
+    <div id="type-scale"></div>
+  </section>
+
+  <!-- SPACING ─────────────────────────────────────────────── -->
+  <section>
+    <h2 class="ds-section-title">Spacing · 8px grid</h2>
+    <div class="ds-grid ds-grid-6" id="spacing-grid"></div>
+  </section>
+
+  <!-- RADIUS ──────────────────────────────────────────────── -->
+  <section>
+    <h2 class="ds-section-title">Radius</h2>
+    <div class="ds-grid ds-grid-6" id="radius-grid"></div>
+  </section>
+
+  <!-- SHADOW ──────────────────────────────────────────────── -->
+  <section>
+    <h2 class="ds-section-title">Shadow</h2>
+    <div class="ds-grid ds-grid-3" id="shadow-grid"></div>
+  </section>
+
+  <!-- BUTTONS ─────────────────────────────────────────────── -->
+  <section>
+    <h2 class="ds-section-title">Buttons</h2>
+    <div class="ds-button-row">
+      <button class="ql-btn ql-btn-primary">Primary action</button>
+      <button class="ql-btn ql-btn-secondary">Secondary</button>
+      <button class="ql-btn ql-btn-ghost">Ghost</button>
+      <button class="ql-btn ql-btn-danger">Delete</button>
+    </div>
+  </section>
+
+  <!-- KPI PREVIEW ─────────────────────────────────────────── -->
+  <section>
+    <h2 class="ds-section-title">KPI Card · preview</h2>
+    <p class="ds-lede" style="margin-bottom:var(--ql-space-4)">Composing real KPI tiles from the tokens. This is how every metric in the redesigned dashboard will look.</p>
+    <div class="ds-preview-row" id="kpi-preview"></div>
+  </section>
+
+</div>
+
+<script>
+/* ── Generators (data → DOM) ─────────────────────────────── */
+
+const brandShades    = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
+const semanticGroups = [
+  { name: 'success', shades: [50, 100, 500, 600, 700] },
+  { name: 'warning', shades: [50, 100, 500, 600, 700] },
+  { name: 'danger',  shades: [50, 100, 500, 600, 700] }
+];
+const neutralShades = [0, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
+
+function readVar(name){return getComputedStyle(document.documentElement).getPropertyValue(name).trim();}
+function chip(label, varName){
+  const hex = readVar(varName);
+  return `<div class="ds-swatch">
+    <div class="ds-swatch-chip" style="background:${hex || 'transparent'}"></div>
+    <div class="ds-swatch-name">${label}</div>
+    <div class="ds-swatch-hex">${hex.toUpperCase() || '—'}</div>
+  </div>`;
+}
+
+/* Brand swatches */
+document.getElementById('brand-swatches').innerHTML =
+  brandShades.map(s => chip('brand-' + s, '--ql-brand-' + s)).join('');
+
+/* Semantic swatches */
+document.getElementById('semantic-swatches').innerHTML =
+  semanticGroups.flatMap(g => g.shades.map(s => chip(g.name + '-' + s, '--ql-' + g.name + '-' + s))).join('');
+
+/* Neutral swatches */
+document.getElementById('neutral-swatches').innerHTML =
+  neutralShades.map(s => chip('neutral-' + s, '--ql-neutral-' + s)).join('');
+
+/* Type scale */
+const typeSteps = [
+  { key:'2xs',  label:'Label',      sample:'Sales register'   },
+  { key:'xs',   label:'Caption',    sample:'Updated 2 min ago'},
+  { key:'sm',   label:'Small',      sample:'PARTY · GSTIN · STATE'},
+  { key:'base', label:'Body',       sample:'Total Revenue for May 2026'},
+  { key:'md',   label:'Body-md',    sample:'Manage sales, purchases, GST and labour' },
+  { key:'lg',   label:'Lead',       sample:'How much did we produce this week?' },
+  { key:'xl',   label:'Subhead',    sample:'Production overview' },
+  { key:'2xl',  label:'Card value', sample:'₹28,11,821' },
+  { key:'3xl',  label:'Page H1',    sample:'Dashboard' },
+  { key:'4xl',  label:'Hero',       sample:'Run your plant smarter' }
+];
+document.getElementById('type-scale').innerHTML = typeSteps.map(t => `
+  <div class="ds-type-row">
+    <div class="ds-type-label">${t.key}</div>
+    <div>
+      <div class="ds-type-sample" style="font-size:var(--ql-text-${t.key});font-weight:600;letter-spacing:var(--ql-tracking-tight);line-height:1.15">${t.sample}</div>
+      <div class="ds-swatch-hex">${t.label} · var(--ql-text-${t.key})</div>
+    </div>
+  </div>
+`).join('');
+
+/* Spacing */
+const spaceSteps = [1,2,3,4,5,6,8,10,12];
+document.getElementById('spacing-grid').innerHTML = spaceSteps.map(s => `
+  <div class="ds-box-card">
+    <div class="ds-spacer-line" style="width:calc(var(--ql-space-${s}) * 2);"></div>
+    <div class="ds-meta">space-${s} · var(--ql-space-${s})</div>
+  </div>
+`).join('');
+
+/* Radius */
+const radSteps = ['xs','sm','md','lg','xl','2xl','3xl','pill'];
+document.getElementById('radius-grid').innerHTML = radSteps.map(r => `
+  <div class="ds-box-card">
+    <div class="ds-radius-block" style="border-radius:var(--ql-radius-${r});"></div>
+    <div class="ds-meta">radius-${r}</div>
+  </div>
+`).join('');
+
+/* Shadow */
+const shadows = ['xs','sm','md','lg','xl'];
+document.getElementById('shadow-grid').innerHTML = shadows.map(s => `
+  <div class="ds-box-card" style="background:transparent;border:none;padding:var(--ql-space-6) 0">
+    <div class="ds-shadow-block" style="box-shadow:var(--ql-shadow-${s});"></div>
+    <div class="ds-meta">shadow-${s}</div>
+  </div>
+`).join('');
+
+/* KPI preview */
+const kpis = [
+  { label:'Total Sales',     value:'₹28,11,821', trend:+12.4, ic:'₹',   tone:'brand'   },
+  { label:'Net Profit',      value:'₹26,71,230', trend:+8.7,  ic:'★',   tone:'success' },
+  { label:'Production',      value:'634.4 T',    trend:-2.1,  ic:'⚙',   tone:'warning' },
+  { label:'Pending Collections', value:'₹28,03,479', trend:-4.5, ic:'⌛', tone:'danger'  }
+];
+const toneBg = { brand:'var(--ql-brand-50)', success:'var(--ql-success-50)',
+                 warning:'var(--ql-warning-50)', danger:'var(--ql-danger-50)' };
+const toneFg = { brand:'var(--ql-brand-600)', success:'var(--ql-success-600)',
+                 warning:'var(--ql-warning-600)', danger:'var(--ql-danger-600)' };
+document.getElementById('kpi-preview').innerHTML = kpis.map(k => `
+  <div class="ds-preview-card">
+    <div class="ds-kpi-head">
+      <div class="ds-kpi-ic" style="background:${toneBg[k.tone]};color:${toneFg[k.tone]};font-weight:800">${k.ic}</div>
+      <span class="ds-kpi-trend ${k.trend>=0?'ds-kpi-trend-up':'ds-kpi-trend-down'}">${k.trend>=0?'↑':'↓'} ${Math.abs(k.trend)}%</span>
+    </div>
+    <div class="ds-kpi-label">${k.label}</div>
+    <div class="ds-kpi-val">${k.value}</div>
+    <div class="ds-swatch-hex" style="margin-top:var(--ql-space-2)">vs last month</div>
+  </div>
+`).join('');
+
+/* Theme toggle */
+const root = document.documentElement;
+const lbl  = document.getElementById('themeLabel');
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+  root.dataset.theme = next;
+  lbl.textContent = next.charAt(0).toUpperCase() + next.slice(1);
+});
+</script>
+</body>
+</html>
