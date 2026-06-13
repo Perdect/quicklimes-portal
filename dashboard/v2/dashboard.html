@@ -841,8 +841,8 @@ button { font-family: inherit; cursor: pointer; }
         </button>
         <div class="sb-group-body">
           <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span class="sb-link-text">GST Invoice</span></a>
-          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span class="sb-link-text">Sales Register</span></a>
-          <a class="sb-link" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span class="sb-link-text">Collections</span><span class="sb-link-badge">9</span></a>
+          <a class="sb-link" href="sales.html" data-page="sales"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span class="sb-link-text">Sales Register</span></a>
+          <a class="sb-link" href="sales.html?filter=pending" data-page="collections"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span class="sb-link-text">Collections</span><span class="sb-link-badge">9</span></a>
         </div>
       </div>
 
@@ -1221,12 +1221,19 @@ function toggleGroup(btn){ btn.parentElement.classList.toggle('collapsed'); }
 /* ── Sidebar nav active state ────────────────────────────────── */
 document.querySelectorAll('.sb-link').forEach(link => {
   link.addEventListener('click', e => {
-    e.preventDefault();
-    document.querySelectorAll('.sb-link.active').forEach(a => a.classList.remove('active'));
-    link.classList.add('active');
-    // Update breadcrumb
-    const crumb = link.querySelector('.sb-link-text')?.textContent || 'Dashboard';
-    document.querySelector('.tb-crumb-active').textContent = crumb;
+    const href = link.getAttribute('href');
+    // Real page link → let it navigate. Placeholder (#) → show a toast and stay.
+    if (!href || href === '#' || href === '#soon') {
+      e.preventDefault();
+      const label = link.querySelector('.sb-link-text')?.textContent || 'This page';
+      if (label !== 'Dashboard') {
+        let t = document.getElementById('ql-toast');
+        if (!t) { t = document.createElement('div'); t.id = 'ql-toast'; t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ql-neutral-900);color:#fff;padding:11px 18px;border-radius:12px;font-size:13px;font-weight:600;font-family:Inter,sans-serif;box-shadow:var(--ql-shadow-lg);z-index:9999;opacity:0;transition:opacity .2s'; document.body.appendChild(t); }
+        t.textContent = label + ' — coming soon in v2';
+        requestAnimationFrame(()=>t.style.opacity='1');
+        clearTimeout(window.__qlT); window.__qlT = setTimeout(()=>t.style.opacity='0', 2200);
+      }
+    }
     if (isMobile()) toggleMobileSidebar(false);
   });
 });

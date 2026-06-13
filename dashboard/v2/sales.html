@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sales Register — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./shell.css">
+<link rel="stylesheet" href="./pages.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
+<style>
+/* Sales-register-specific bits (composes from tokens) */
+.sr-toolbar { display: flex; align-items: center; gap: var(--ql-space-3); flex-wrap: wrap; }
+.sr-tabs { display: inline-flex; background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); padding: 3px; }
+.sr-tab { padding: 6px 14px; font-size: var(--ql-text-sm); font-weight: var(--ql-weight-semibold); color: var(--ql-text-secondary); border: none; background: transparent; border-radius: var(--ql-radius-md); cursor: pointer; }
+.sr-tab.active { background: var(--ql-card); color: var(--ql-text); box-shadow: var(--ql-shadow-xs); }
+.sr-search { display: flex; align-items: center; gap: var(--ql-space-2); background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); padding: 8px 13px; flex: 1; min-width: 200px; max-width: 320px; }
+.sr-search:focus-within { border-color: var(--ql-brand-300); }
+.sr-search input { border: none; outline: none; background: transparent; font-family: inherit; font-size: var(--ql-text-sm); color: var(--ql-text); flex: 1; min-width: 0; }
+.sr-search svg { width: 15px; height: 15px; color: var(--ql-text-muted); flex-shrink: 0; }
+
+.sr-table-wrap { overflow-x: auto; }
+table.sr { width: 100%; border-collapse: collapse; font-size: var(--ql-text-sm); }
+table.sr thead th { text-align: left; font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold); color: var(--ql-text-muted); text-transform: uppercase; letter-spacing: var(--ql-tracking-wide); padding: var(--ql-space-3); border-bottom: 1px solid var(--ql-border); white-space: nowrap; position: sticky; top: 0; background: var(--ql-card); cursor: pointer; user-select: none; }
+table.sr thead th.no-sort { cursor: default; }
+table.sr thead th .sort-ic { display: inline-block; width: 10px; opacity: .4; margin-left: 3px; }
+table.sr thead th.sorted .sort-ic { opacity: 1; color: var(--ql-brand-600); }
+table.sr td { padding: var(--ql-space-3); border-bottom: 1px solid var(--ql-divider); color: var(--ql-text); white-space: nowrap; }
+table.sr tbody tr:last-child td { border-bottom: none; }
+table.sr tbody tr:hover td { background: var(--ql-neutral-50); }
+.sr-num { text-align: right; font-variant-numeric: tabular-nums; }
+.sr-inv { font-weight: var(--ql-weight-bold); color: var(--ql-text); }
+.sr-party { display: flex; align-items: center; gap: var(--ql-space-3); }
+.sr-av { width: 32px; height: 32px; border-radius: var(--ql-radius-pill); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: var(--ql-weight-bold); font-size: var(--ql-text-xs); }
+.sr-pill { display: inline-flex; align-items: center; gap: 6px; font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold); padding: 3px 10px; border-radius: var(--ql-radius-pill); }
+.sr-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+.sr-pill.paid { background: var(--ql-success-50); color: var(--ql-success-700); }
+.sr-pill.pending { background: var(--ql-warning-50); color: var(--ql-warning-700); }
+.sr-pill.cash { background: var(--ql-brand-50); color: var(--ql-brand-700); }
+.sr-foot { display: flex; align-items: center; justify-content: space-between; padding: var(--ql-space-3) var(--ql-space-1) 0; font-size: var(--ql-text-sm); color: var(--ql-text-secondary); }
+.sr-pager { display: flex; align-items: center; gap: var(--ql-space-2); }
+.sr-pager button { width: 30px; height: 30px; border-radius: var(--ql-radius-md); border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-text-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.sr-pager button:hover:not(:disabled) { border-color: var(--ql-border-strong); color: var(--ql-text); }
+.sr-pager button:disabled { opacity: .4; cursor: default; }
+.sr-empty { text-align: center; padding: var(--ql-space-12) var(--ql-space-6); color: var(--ql-text-secondary); }
+.sr-empty svg { width: 36px; height: 36px; color: var(--ql-neutral-300); margin-bottom: var(--ql-space-3); }
+</style>
+</head>
+
+<body class="ql-v2">
+<div id="ql-page">
+
+  <div class="dash">
+    <!-- page head -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Sales Register</h1>
+        <div class="page-sub" id="srSub">Loading invoices…</div>
+      </div>
+      <div class="page-actions">
+        <button class="ql-btn ql-btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+        <button class="ql-btn ql-btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New invoice
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI strip -->
+    <div class="kpi-strip" id="srKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+
+    <!-- table card -->
+    <div class="card" style="gap:var(--ql-space-4)">
+      <div class="sr-toolbar">
+        <div class="sr-tabs" id="srTabs">
+          <button class="sr-tab active" data-f="all">All</button>
+          <button class="sr-tab" data-f="pending">Pending</button>
+          <button class="sr-tab" data-f="paid">Paid</button>
+          <button class="sr-tab" data-f="cash">Cash</button>
+        </div>
+        <div class="sr-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="srSearch" placeholder="Search invoice no or party…">
+        </div>
+        <button class="ql-btn ql-btn-secondary" style="margin-left:auto" id="srSortBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4"/></svg>
+          Newest
+        </button>
+      </div>
+
+      <div class="sr-table-wrap">
+        <table class="sr" id="srTable">
+          <thead><tr id="srHead"></tr></thead>
+          <tbody id="srBody"></tbody>
+        </table>
+      </div>
+
+      <div class="sr-foot">
+        <span id="srCount">—</span>
+        <div class="sr-pager">
+          <button id="srPrev" aria-label="Previous"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <span id="srPage" style="font-size:var(--ql-text-sm)">1</span>
+          <button id="srNext" aria-label="Next"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="./shell.js"></script>
+<script>
+QLShell.mount({ active: 'sales', title: 'Sales Register' });
+
+/* ── Sales register state ──────────────────────────────────────── */
+const AVG = ['#2563EB,#1D4ED8','#16A34A,#15803D','#F59E0B,#B45309','#7C3AED,#5B21B6','#DB2777,#9D174D','#0891B2,#155E75'];
+const PER_PAGE = 12;
+let srFilter = new URLSearchParams(location.search).get('filter') || 'all';
+let srQuery = '';
+let srSort = { key: 'date', dir: 'desc' };
+let srPage = 1;
+
+const COLS = [
+  { key: 'inv',     label: 'Invoice',  sortable: true },
+  { key: 'date',    label: 'Date',     sortable: true },
+  { key: 'party',   label: 'Party',    sortable: true },
+  { key: 'qty',     label: 'Qty (T)',  sortable: true, num: true },
+  { key: 'taxable', label: 'Taxable',  sortable: true, num: true },
+  { key: 'gst',     label: 'GST',      sortable: true, num: true },
+  { key: 'total',   label: 'Total',    sortable: true, num: true },
+  { key: 'status',  label: 'Status',   sortable: true }
+];
+
+function srFiltered() {
+  let rows = QLD.salesRows();
+  if (srFilter !== 'all') rows = rows.filter(r => r.status === srFilter);
+  if (srQuery) {
+    const q = srQuery.toLowerCase();
+    rows = rows.filter(r => (r.inv + ' ' + r.party + ' ' + r.gstin).toLowerCase().includes(q));
+  }
+  rows.sort((a, b) => {
+    let x = a[srSort.key], y = b[srSort.key];
+    if (typeof x === 'string') { x = x.toLowerCase(); y = (y || '').toLowerCase(); }
+    if (x < y) return srSort.dir === 'asc' ? -1 : 1;
+    if (x > y) return srSort.dir === 'asc' ? 1 : -1;
+    return 0;
+  });
+  return rows;
+}
+
+function renderSales() {
+  const co = QLD.co;
+  /* KPI strip */
+  const s = QLD.salesSummary();
+  const K = [
+    { label: 'Total Invoices', v: s.count, meta: QLD.fmt(s.qty, 1) + ' T dispatched', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' },
+    { label: 'Total Revenue', v: QLD.fC(s.revenue), meta: 'incl. GST', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l2 13h11l2-8H6"/></svg>' },
+    { label: 'Collected', v: QLD.fC(s.collected), meta: 'paid + cash', bg: '#EEF2FF', fg: '#4F46E5', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' },
+    { label: 'Pending', v: QLD.fC(s.pending), meta: 'awaiting payment', bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>' }
+  ];
+  document.getElementById('srKpis').innerHTML = K.map(k => `
+    <div class="kpi-tile">
+      <div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div>
+      <div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div>
+    </div>`).join('');
+
+  document.getElementById('srSub').textContent = `${co.short} · ${s.count} invoices · ${QLD.fC(s.revenue)} total`;
+
+  /* header */
+  document.getElementById('srHead').innerHTML = COLS.map(c => {
+    const sorted = srSort.key === c.key;
+    const caret = sorted ? (srSort.dir === 'asc' ? '▲' : '▼') : '↕';
+    return `<th class="${c.sortable ? '' : 'no-sort'} ${sorted ? 'sorted' : ''} ${c.num ? 'sr-num' : ''}" ${c.sortable ? `data-sort="${c.key}"` : ''}>${c.label}${c.sortable ? `<span class="sort-ic">${caret}</span>` : ''}</th>`;
+  }).join('') + '<th class="no-sort"></th>';
+  document.querySelectorAll('#srHead th[data-sort]').forEach(th => th.addEventListener('click', () => {
+    const k = th.dataset.sort;
+    if (srSort.key === k) srSort.dir = srSort.dir === 'asc' ? 'desc' : 'asc';
+    else { srSort.key = k; srSort.dir = 'asc'; }
+    srPage = 1; renderSales();
+  }));
+
+  /* body */
+  const rows = srFiltered();
+  const pages = Math.max(1, Math.ceil(rows.length / PER_PAGE));
+  srPage = Math.min(srPage, pages);
+  const slice = rows.slice((srPage - 1) * PER_PAGE, srPage * PER_PAGE);
+  const PILL = { paid: 'Paid', pending: 'Pending', cash: 'Cash' };
+  const body = document.getElementById('srBody');
+  if (!slice.length) {
+    body.innerHTML = `<tr><td colspan="9"><div class="sr-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <div style="font-weight:600;color:var(--ql-text-secondary)">No invoices in this view</div>
+      <div style="font-size:var(--ql-text-sm);margin-top:2px">Try another filter or clear the search.</div>
+    </div></td></tr>`;
+  } else {
+    body.innerHTML = slice.map(r => {
+      const c = AVG[(r.party.charCodeAt(0) + r.party.length) % AVG.length];
+      const od = r.status === 'pending' && r.days > 30 ? ` · <span style="color:var(--ql-danger-600);font-weight:600">${r.days}d overdue</span>` : '';
+      return `<tr>
+        <td><span class="sr-inv">${r.inv}</span></td>
+        <td class="pt-muted">${QLD.fDS(r.date)}</td>
+        <td><div class="sr-party"><div class="sr-av" style="background:linear-gradient(135deg,${c})">${r.party.charAt(0).toUpperCase()}</div><div><div style="font-weight:600;color:var(--ql-text)">${r.party}</div><div style="font-size:var(--ql-text-xs);color:var(--ql-text-secondary)">${r.veh || r.gstin || '—'}${od}</div></div></div></td>
+        <td class="sr-num">${QLD.fmt(r.qty, 2)}</td>
+        <td class="sr-num">${QLD.fC(r.taxable)}</td>
+        <td class="sr-num pt-muted">${QLD.fC(r.gst)}</td>
+        <td class="sr-num" style="font-weight:700">${QLD.fC(r.total)}</td>
+        <td><span class="sr-pill ${r.status}"><span class="dot" style="background:currentColor"></span>${PILL[r.status] || r.status}</span></td>
+        <td class="sr-num"><button class="coll-action" style="width:30px;height:30px;border:1px solid var(--ql-border);border-radius:var(--ql-radius-md);background:transparent;color:var(--ql-text-secondary);cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  /* foot */
+  document.getElementById('srCount').textContent = rows.length
+    ? `Showing ${(srPage - 1) * PER_PAGE + 1}–${Math.min(srPage * PER_PAGE, rows.length)} of ${rows.length}`
+    : '0 invoices';
+  document.getElementById('srPage').textContent = `${srPage} / ${pages}`;
+  document.getElementById('srPrev').disabled = srPage <= 1;
+  document.getElementById('srNext').disabled = srPage >= pages;
+
+  /* breadcrumb + workspace (after data) */
+  QLShell.paintWorkspace();
+}
+
+/* ── Wiring ────────────────────────────────────────────────────── */
+document.querySelectorAll('#srTabs .sr-tab').forEach(tab => tab.addEventListener('click', () => {
+  document.querySelectorAll('#srTabs .sr-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active'); srFilter = tab.dataset.f; srPage = 1; renderSales();
+}));
+document.getElementById('srSearch').addEventListener('input', e => { srQuery = e.target.value; srPage = 1; renderSales(); });
+document.getElementById('srPrev').addEventListener('click', () => { if (srPage > 1) { srPage--; renderSales(); } });
+document.getElementById('srNext').addEventListener('click', () => { srPage++; renderSales(); });
+document.getElementById('srSortBtn').addEventListener('click', () => {
+  srSort = srSort.key === 'date' && srSort.dir === 'desc' ? { key: 'total', dir: 'desc' } : { key: 'date', dir: 'desc' };
+  document.getElementById('srSortBtn').lastChild.textContent = srSort.key === 'date' ? ' Newest' : ' Highest';
+  srPage = 1; renderSales();
+});
+
+/* reflect the active filter tab if arriving via ?filter= */
+if (srFilter !== 'all') {
+  document.querySelectorAll('#srTabs .sr-tab').forEach(t => t.classList.toggle('active', t.dataset.f === srFilter));
+}
+
+/* company switch hook for the shell's workspace menu */
+window.__qlOnSwitchCompany = function (id) { QLD.switchCompany(id, renderSales); };
+
+QLD.init(renderSales);
+</script>
+</body>
+</html>

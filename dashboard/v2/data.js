@@ -261,14 +261,40 @@
              .map(e => ({ ...e, when: fDS(e.d) }));
   }
 
+  /* ── Sales register helpers ──────────────────────────────────── */
+  function salesRows() {
+    return S.SALES.map((s, i) => {
+      const c = cS(s);
+      return {
+        idx: i, inv: s.inv, date: s.date, party: s.party || '—',
+        qty: s.qty || 0, taxable: c.tx, gst: c.cgst + c.sgst, total: c.tot,
+        status: s.status || 'pending', veh: s.veh || '', gstin: s.gstin || '',
+        days: daysAgo(s.date)
+      };
+    });
+  }
+  function salesSummary() {
+    const rows = salesRows();
+    const paid = rows.filter(r => r.status === 'paid' || r.status === 'cash');
+    return {
+      count: rows.length,
+      revenue: rows.reduce((a, r) => a + r.total, 0),
+      collected: paid.reduce((a, r) => a + r.total, 0),
+      pending: rows.filter(r => r.status === 'pending').reduce((a, r) => a + r.total, 0),
+      gst: rows.reduce((a, r) => a + r.gst, 0),
+      qty: rows.reduce((a, r) => a + r.qty, 0)
+    };
+  }
+
   /* ── Public API ──────────────────────────────────────────────── */
   window.QLD = {
     plant: QL_PLANT, COMPANIES,
     get activeCo() { return ACTIVE_CO; },
     get co() { return COMPANIES[ACTIVE_CO]; },
     state: S,
-    fmt, fC, fL, fDS, daysAgo,
+    fmt, fC, fL, fDS, daysAgo, cS,
     kpis, monthSeries, collections, insights, production, topProducts, activity,
+    salesRows, salesSummary,
 
     async init(render) {
       loadLocal();
