@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuickLimes</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<style>
+  html, body { margin: 0; height: 100%; background: #F8FAFC; }
+  .ld { height: 100%; display: flex; align-items: center; justify-content: center;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #64748B; }
+  .sp { width: 26px; height: 26px; border: 3px solid #E2E8F0; border-top-color: #2563EB;
+        border-radius: 50%; animation: sp .7s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+<script>
+  // App root → v2 dashboard, preserving the #auth= login handoff hash and
+  // any query string. v1 stays available at /classic.html as a backup.
+  location.replace('/v2/dashboard.html' + location.search + location.hash);
+</script>
+</head>
+<body>
+<div class="ld"><div class="sp"></div></div>
+</body>
+</html>

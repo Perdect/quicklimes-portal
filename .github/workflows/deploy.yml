@@ -37,16 +37,19 @@ jobs:
           cp -r assets               deploy/assets
 
           # ── APP SUBDOMAIN (app.quicklimes.com) ──
-          # The dashboard
+          # CUTOVER: v2 is now the default app. The root forwards into /v2/
+          # (preserving the #auth= login hash); the original v1 dashboard
+          # stays available as a backup at /classic.html.
           mkdir -p deploy/app
-          cp dashboard/index.html         deploy/app/index.html
+          cp dashboard/v2-redirect.html   deploy/app/index.html     # / → /v2/dashboard.html
+          cp dashboard/index.html         deploy/app/classic.html   # v1 backup
           cp dashboard/manifest.json      deploy/app/manifest.json
           cp dashboard/icon.svg           deploy/app/icon.svg
           cp dashboard/quick-limes-logo.png deploy/app/quick-limes-logo.png
-          # SPA fallback — any non-file path (/gst, /sales, etc.) → index.html
+          # SPA fallback — any non-file path → index.html (now the v2 redirect)
           cp dashboard/.htaccess          deploy/app/.htaccess
           cp -r "dashboard/Deshwali Minerals — Business Suite_files" deploy/app/
-          # v2 redesign (beta) — multi-page app reachable at app.quicklimes.com/v2/
+          # v2 redesign — multi-page app at app.quicklimes.com/v2/ (and now the default).
           # Real .html files, so the SPA fallback above won't intercept them.
           cp -r dashboard/v2              deploy/app/v2
           # Make the brand logo also accessible inside /app for any header reuse
