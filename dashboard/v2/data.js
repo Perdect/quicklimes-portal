@@ -546,6 +546,52 @@
     return { outGST: ts.cgst + ts.sgst, cgst: ts.cgst, sgst: ts.sgst, itc: tp.itc, net: Math.max(0, (ts.cgst + ts.sgst) - tp.itc), taxable: ts.tx, purchaseTaxable: tp.tx };
   }
 
+  /* ── TDS (tax deducted at source) ────────────────────────────── */
+  function tdsRows() {
+    return S.TDS.map((e, i) => {
+      const amount = +e.amount || 0, rate = +e.rate || 0;
+      const tds = e.tds != null ? +e.tds : +(amount * rate / 100).toFixed(2);
+      return { idx: i, date: e.date, party: e.party || '', pan: e.pan || '', sec: e.sec || e.secLabel || '—', rate, amount, tds, net: e.net != null ? +e.net : amount - tds, remarks: e.remarks || '' };
+    }).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }
+  function tdsSummary() {
+    const r = tdsRows();
+    return { count: r.length, amount: r.reduce((a, x) => a + x.amount, 0), tds: r.reduce((a, x) => a + x.tds, 0), net: r.reduce((a, x) => a + x.net, 0) };
+  }
+  function addTds(e) {
+    const amount = +e.amount || 0, rate = +e.rate || 0, tds = +(amount * rate / 100).toFixed(2);
+    S.TDS.push({ id: 'tds' + idStamp(), date: e.date, party: e.party || '', pan: (e.pan || '').toUpperCase(), sec: e.sec || '194C', secLabel: e.sec || '194C', rate, amount, tds, net: amount - tds, remarks: e.remarks || '' });
+    commit();
+  }
+  function updateTds(i, e) {
+    if (!S.TDS[i]) return;
+    const amount = +e.amount || 0, rate = +e.rate || 0, tds = +(amount * rate / 100).toFixed(2);
+    S.TDS[i] = { ...S.TDS[i], date: e.date, party: e.party, pan: (e.pan || '').toUpperCase(), sec: e.sec, secLabel: e.sec, rate, amount, tds, net: amount - tds, remarks: e.remarks || '' };
+    commit();
+  }
+  function deleteTds(i) { if (S.TDS[i]) { S.TDS.splice(i, 1); commit(); } }
+
+  /* ── Monthly register (combined sales + purchase by month) ───── */
+  function monthlyRegister() {
+    const months = [...new Set([...S.SALES.map(s => ymOf(s.date)), ...S.PURCHASES.map(p => ymOf(p.date))].filter(Boolean))].sort().reverse();
+    return months.map(ym => {
+      const sal = S.SALES.filter(s => ymOf(s.date) === ym);
+      const pur = S.PURCHASES.filter(p => ymOf(p.date) === ym);
+      const sTx = sal.reduce((a, s) => a + cS(s).tx, 0);
+      const sTot = sal.reduce((a, s) => a + cS(s).tot, 0);
+      const pTx = pur.reduce((a, p) => a + p.taxable, 0);
+      const qty = sal.reduce((a, s) => a + (s.qty || 0), 0);
+      const [y, m] = ym.split('-');
+      return {
+        ym, label: new Date(+y, +m - 1, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
+        invoices: sal.length, bills: pur.length, qty, salesTax: sTx, salesTotal: sTot, purchaseTax: pTx, profit: sTx - pTx
+      };
+    });
+  }
+  function monthlyRegisterTotals() {
+    return monthlyRegister().reduce((a, m) => ({ invoices: a.invoices + m.invoices, bills: a.bills + m.bills, qty: a.qty + m.qty, salesTotal: a.salesTotal + m.salesTotal, purchaseTax: a.purchaseTax + m.purchaseTax, profit: a.profit + m.profit }), { invoices: 0, bills: 0, qty: 0, salesTotal: 0, purchaseTax: 0, profit: 0 });
+  }
+
   /* ── Public API ──────────────────────────────────────────────── */
   window.QLD = {
     plant: QL_PLANT, COMPANIES,
@@ -559,6 +605,7 @@
     labourRows, labourSummary, cashbookRows, cashbookBalances,
     loanRows, loanSummary, gstSummary,
     getPL, chunnaRows, chunnaSummary, attendanceData,
+    tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
 
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal,
@@ -569,6 +616,7 @@
     addCashEntry, deleteCashEntry,
     addChunna, deleteChunna,
     setAtt, cycleAtt, markAllAtt,
+    addTds, updateTds, deleteTds,
 
     async init(render) {
       loadLocal();

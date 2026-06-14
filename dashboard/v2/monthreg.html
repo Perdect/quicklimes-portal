@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monthly Register — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div><h1 class="page-title">Monthly Register</h1><div class="page-sub" id="mrSub">Sales, purchases &amp; profit by month</div></div>
+      <div class="page-actions">
+        <button class="ql-btn ql-btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
+      </div>
+    </div>
+    <div class="kpi-strip" id="mrKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="card" style="gap:var(--ql-space-4)">
+      <div class="sr-table-wrap"><table class="sr"><thead><tr id="mrHead"></tr></thead><tbody id="mrBody"></tbody><tfoot id="mrFoot"></tfoot></table></div>
+    </div>
+  </div>
+</div>
+<script src="./shell.js"></script>
+<script>
+QLShell.mount({ active: 'monthreg', title: 'Monthly Register' });
+function render() {
+  const co = QLD.co, rows = QLD.monthlyRegister(), tot = QLD.monthlyRegisterTotals();
+  const K = [
+    { label: 'Months', v: rows.length, meta: 'with activity', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' },
+    { label: 'Total Sales', v: QLD.fC(tot.salesTotal), meta: tot.invoices + ' invoices', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>' },
+    { label: 'Total Purchases', v: QLD.fC(tot.purchaseTax), meta: tot.bills + ' bills', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' },
+    { label: 'Gross Profit', v: QLD.fC(tot.profit), meta: QLD.fmt(tot.qty, 1) + ' T sold', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M5 12l7-7 7 7"/></svg>' }
+  ];
+  document.getElementById('mrKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
+  document.getElementById('mrSub').textContent = `${co.short} · ${rows.length} months · ${QLD.fC(tot.profit)} gross profit`;
+  const COLS = ['Month', 'Invoices', 'Bills', 'Qty (T)', 'Sales', 'Purchases', 'Gross Profit'];
+  document.getElementById('mrHead').innerHTML = COLS.map((c, i) => `<th class="${i >= 1 ? 'sr-num' : ''}">${c}</th>`).join('');
+  document.getElementById('mrBody').innerHTML = rows.length ? rows.map(m => `
+    <tr>
+      <td style="font-weight:700;color:var(--ql-text)">${m.label}</td>
+      <td class="sr-num">${m.invoices}</td>
+      <td class="sr-num">${m.bills}</td>
+      <td class="sr-num pt-muted">${QLD.fmt(m.qty, 1)}</td>
+      <td class="sr-num" style="font-weight:600">${QLD.fC(m.salesTotal)}</td>
+      <td class="sr-num pt-muted">${QLD.fC(m.purchaseTax)}</td>
+      <td class="sr-num" style="font-weight:700;color:${m.profit >= 0 ? 'var(--ql-success-700)' : 'var(--ql-danger-600)'}">${QLD.fC(m.profit)}</td>
+    </tr>`).join('') : `<tr><td colspan="7"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No sales or purchases yet</div></div></td></tr>`;
+  document.getElementById('mrFoot').innerHTML = rows.length ? `<tr style="border-top:2px solid var(--ql-border-strong)">
+      <td style="font-weight:800;color:var(--ql-text)">Total</td>
+      <td class="sr-num" style="font-weight:700">${tot.invoices}</td>
+      <td class="sr-num" style="font-weight:700">${tot.bills}</td>
+      <td class="sr-num" style="font-weight:700">${QLD.fmt(tot.qty, 1)}</td>
+      <td class="sr-num" style="font-weight:800">${QLD.fC(tot.salesTotal)}</td>
+      <td class="sr-num" style="font-weight:700">${QLD.fC(tot.purchaseTax)}</td>
+      <td class="sr-num" style="font-weight:800;color:${tot.profit >= 0 ? 'var(--ql-success-700)' : 'var(--ql-danger-600)'}">${QLD.fC(tot.profit)}</td>
+    </tr>` : '';
+  QLShell.paintWorkspace();
+}
+window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+window.__qlRefresh = render;
+QLD.init(render);
+</script>
+</body>
+</html>

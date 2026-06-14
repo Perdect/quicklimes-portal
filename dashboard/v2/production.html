@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Production — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div><h1 class="page-title">Production</h1><div class="page-sub" id="prdSub">Quick Lime dispatch &amp; output</div></div>
+    </div>
+    <div class="kpi-strip" id="prdKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="row-2">
+      <div class="card chart-wrap">
+        <div class="card-head"><div><h3 class="card-title">Dispatch trend</h3><div class="card-sub">Tonnes dispatched · last 7 months</div></div></div>
+        <div class="chart" id="prdChart"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><h3 class="card-title">Output by product</h3><div class="card-sub">Revenue by line · all time</div></div></div>
+        <table class="tbl"><thead><tr><th>Product</th><th class="num">Qty</th><th class="num">Avg ₹/T</th><th class="num">Revenue</th></tr></thead><tbody id="prdProducts"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="./shell.js"></script>
+<script>
+QLShell.mount({ active: 'ql-prod', title: 'Production' });
+function bars(series) {
+  const host = document.getElementById('prdChart'); if (!host) return;
+  const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim();
+  const data = series.map(d => ({ m: d.m, qty: d.qty || 0 }));
+  const W = 760, H = 240, P = { l: 40, r: 14, t: 14, b: 26 };
+  const iW = W - P.l - P.r, iH = H - P.t - P.b;
+  const max = Math.max(1, ...data.map(d => d.qty)) * 1.15;
+  const bw = Math.min(38, iW / data.length * 0.55);
+  const x = i => P.l + iW / data.length * i + iW / data.length / 2;
+  const y = val => P.t + iH - (val / max) * iH;
+  const grid = [0, .25, .5, .75, 1].map(t => { const yp = P.t + iH - t * iH; return `<line x1="${P.l}" y1="${yp}" x2="${W - P.r}" y2="${yp}" stroke="${v('--ql-divider')}" stroke-dasharray="3 4"/><text x="${P.l - 7}" y="${yp + 4}" text-anchor="end" font-family="${v('--ql-font-sans')}" font-size="10" fill="${v('--ql-text-muted')}">${(max * t).toFixed(0)}</text>`; }).join('');
+  const rect = data.map((d, i) => `<rect x="${x(i) - bw / 2}" y="${y(d.qty)}" width="${bw}" height="${P.t + iH - y(d.qty)}" rx="4" fill="${v('--ql-brand-500')}"><title>${d.m}: ${d.qty.toFixed(1)} T</title></rect><text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-family="${v('--ql-font-sans')}" font-size="11" fill="${v('--ql-text-secondary')}">${d.m}</text>`).join('');
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Dispatch trend">${grid}${rect}</svg>`;
+}
+function render() {
+  const co = QLD.co, pr = QLD.production();
+  const K = [
+    { label: 'Today', v: QLD.fmt(pr.today, 1) + ' T', meta: 'dispatched', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>' },
+    { label: 'This Week', v: QLD.fmt(pr.week, 1) + ' T', meta: '7-day total', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' },
+    { label: 'This Month', v: QLD.fmt(pr.month, 1) + ' T', meta: 'month to date', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V12M9 21V8M13 21V4M17 21V11M21 21V14"/></svg>' },
+    { label: 'Chunna (month)', v: QLD.fmt(pr.chunnaMonth, 1) + ' T', meta: 'powder sales', bg: '#F3E8FF', fg: '#7C3AED', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13V8h14v5a7 7 0 0 1-7 7Z"/><line x1="9" y1="3" x2="9" y2="6"/><line x1="13" y1="3" x2="13" y2="6"/></svg>' }
+  ];
+  document.getElementById('prdKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
+  document.getElementById('prdSub').textContent = `${co.short} · ${QLD.fmt(pr.month,1)} T this month`;
+  bars(QLD.monthSeries(7));
+  document.getElementById('prdProducts').innerHTML = QLD.topProducts().map(r => `
+    <tr><td><div class="tbl-prod"><div class="tbl-prod-ic">${r.icon}</div><div><div class="tbl-prod-name">${r.name}</div><div class="tbl-prod-sub">${r.sub}</div></div></div></td>
+    <td class="num">${r.qty}</td><td class="num">${r.avg}</td><td class="num">${r.rev}</td></tr>`).join('');
+  QLShell.paintWorkspace();
+}
+window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+window.__qlRefresh = render;
+QLD.init(render);
+</script>
+</body>
+</html>

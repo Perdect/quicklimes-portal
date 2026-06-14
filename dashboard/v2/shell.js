@@ -51,14 +51,15 @@
     { type: 'group', label: 'Sales', items: [
       { id: 'invoice',     label: 'GST Invoice',     href: SOON,         icon: I.invoice },
       { id: 'sales',       label: 'Sales Register',  href: 'sales.html', icon: I.sales },
-      { id: 'collections', label: 'Collections',     href: 'sales.html?filter=pending', icon: I.coll, badgeKey: 'collections' }
+      { id: 'collections', label: 'Collections',     href: 'sales.html?filter=pending', icon: I.coll, badgeKey: 'collections' },
+      { id: 'monthreg',    label: 'Monthly Register', href: 'monthreg.html', icon: I.cal }
     ]},
     { type: 'group', label: 'Purchases', items: [
       { id: 'purchase',  label: 'Purchase Register', href: 'purchase.html', icon: I.bag },
       { id: 'suppliers', label: 'Suppliers',         href: 'parties.html?type=supplier', icon: I.factory }
     ]},
     { type: 'group', label: 'Production', items: [
-      { id: 'ql-prod',  label: 'Quick Lime Production', href: SOON, icon: I.clock },
+      { id: 'ql-prod',  label: 'Quick Lime Production', href: 'production.html', icon: I.clock },
       { id: 'chunna',   label: 'Chunna Production',     href: 'chunna.html', icon: I.flame },
       { id: 'kiln',     label: 'Kiln Management',       href: SOON, icon: I.bars, badge: { text: 'soon', tone: 'info' } },
       { id: 'daily',    label: 'Daily Production',      href: SOON, icon: I.cal }
@@ -72,6 +73,7 @@
       { id: 'cashbook', label: 'Cash Book',     href: 'cashbook.html', icon: I.card },
       { id: 'loans',    label: 'Loans',         href: 'loans.html',    icon: I.bank },
       { id: 'gst',      label: 'GST',           href: 'gst.html',      icon: I.receipt },
+      { id: 'tds',      label: 'TDS',           href: 'tds.html',      icon: I.receipt },
       { id: 'pl',       label: 'Profit & Loss', href: 'pl.html',       icon: I.chart }
     ]},
     { type: 'group', label: 'People', items: [
@@ -649,6 +651,28 @@
     });
   }
 
+  /* ── TDS entry ───────────────────────────────────────────────── */
+  const TDS_SPECS = [
+    { k: 'date', label: 'Date', type: 'date', req: true },
+    { k: 'party', label: 'Deductee / Party', req: true, full: true },
+    { k: 'pan', label: 'PAN', upper: true },
+    { k: 'sec', label: 'Section', type: 'select', opts: ['194C', '194Q', '194J', '194H', '194I', '206C', '194A'] },
+    { k: 'amount', label: 'Amount (₹)', type: 'number', req: true, reqNonZero: true },
+    { k: 'rate', label: 'TDS rate (%)', type: 'number', req: true, reqNonZero: true },
+    { k: 'remarks', label: 'Remarks', type: 'textarea', full: true }
+  ];
+  function openTdsForm(idx) {
+    const editing = idx != null && idx >= 0;
+    const row = editing ? window.QLD.state.TDS[idx] : null;
+    openForm({
+      title: editing ? 'Edit TDS entry' : 'New TDS entry', sub: 'Tax deducted at source',
+      specs: TDS_SPECS, saveLabel: editing ? 'Save changes' : 'Add entry',
+      initial: row || { date: today(), sec: '194C' },
+      note: 'TDS = Amount × rate%, computed on save.',
+      onSave(v) { if (editing) window.QLD.updateTds(idx, v); else window.QLD.addTds(v); refresh(editing ? 'TDS updated' : 'TDS entry added'); }
+    });
+  }
+
   /* ── Payment (mark a sale/purchase paid) ─────────────────────── */
   function openPaymentForm(kind, idx) {
     const Q = window.QLD;
@@ -690,6 +714,7 @@
     if (type === 'worker') { const r = Q.state.WORKERS[idx]; return [{ label: 'Edit worker', icon: RICO.edit, onClick: () => openWorkerForm(idx) }, del('Delete worker ' + r.name + '?', () => Q.deleteWorker(idx))]; }
     if (type === 'cash') { return [del('Delete this entry?', () => Q.deleteCashEntry(idx))]; }
     if (type === 'chunna') { return [del('Delete this chunna sale?', () => Q.deleteChunna(idx))]; }
+    if (type === 'tds') { return [{ label: 'Edit entry', icon: RICO.edit, onClick: () => openTdsForm(idx) }, del('Delete this TDS entry?', () => Q.deleteTds(idx))]; }
     return [];
   }
   function rowMenu(ev, type, idx) {
@@ -722,7 +747,7 @@
     setBreadcrumb(label) { const c = document.querySelector('.tb-crumb-active'); if (c) c.textContent = label; },
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
     // form modals + row action menus
-    closeModal, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openPaymentForm,
+    closeModal, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
     rowMenu,
 
     mount(opts) {
