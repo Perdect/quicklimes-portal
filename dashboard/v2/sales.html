@@ -127,7 +127,7 @@ function renderSales() {
   const s = QLD.salesSummary();
   const K = [
     { label: 'Total Invoices', v: s.count, meta: QLD.fmt(s.qty, 1) + ' T dispatched', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' },
-    { label: 'Total Revenue', v: QLD.fC(s.revenue), meta: 'incl. GST', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l2 13h11l2-8H6"/></svg>' },
+    { label: 'Total Sales', v: QLD.fC(s.taxable), meta: 'excl. GST', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l2 13h11l2-8H6"/></svg>' },
     { label: 'Collected', v: QLD.fC(s.collected), meta: 'paid + cash', bg: '#EEF2FF', fg: '#4F46E5', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' },
     { label: 'Pending', v: QLD.fC(s.pending), meta: 'awaiting payment', bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>' }
   ];
@@ -137,7 +137,7 @@ function renderSales() {
       <div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div>
     </div>`).join('');
 
-  document.getElementById('srSub').textContent = `${co.short} · ${s.count} invoices · ${QLD.fC(s.revenue)} total`;
+  document.getElementById('srSub').textContent = `${co.short} · ${s.count} invoices · ${QLD.fC(s.taxable)} sales`;
 
   /* header */
   document.getElementById('srHead').innerHTML = COLS.map(c => {

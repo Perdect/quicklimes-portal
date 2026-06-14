@@ -259,7 +259,7 @@
     const pendPur = S.PURCHASES.filter(p => (p.status || 'pending') === 'pending');
     const totQty = S.SALES.reduce((a, s) => a + (s.qty || 0), 0);
     return {
-      sales:       { v: fC(ts.tot), trend: mom(cur.sales, prev.sales), meta: S.SALES.length + ' invoices · all time' },
+      sales:       { v: fC(ts.tx), trend: mom(cur.sales, prev.sales), meta: S.SALES.length + ' invoices · excl. GST' },
       profit:      { v: fC(pl.np), trend: mom(cur.profit, prev.profit), meta: 'Margin ' + pl.npm.toFixed(1) + '%' },
       production:  { v: fmt(totQty, 1) + ' T', trend: mom(cur.qty, prev.qty), meta: 'Total lime dispatched' },
       dispatch:    { v: fmt(cur.qty, 1) + ' T', trend: mom(cur.qty, prev.qty), meta: cur.invoices + ' invoices this month' },
@@ -375,8 +375,9 @@
     const paid = rows.filter(r => r.status === 'paid' || r.status === 'cash');
     return {
       count: rows.length,
-      revenue: rows.reduce((a, r) => a + r.total, 0),
-      collected: paid.reduce((a, r) => a + r.total, 0),
+      taxable: rows.reduce((a, r) => a + r.taxable, 0),   // headline "sales" = taxable (matches v1)
+      revenue: rows.reduce((a, r) => a + r.total, 0),      // GST-inclusive (kept for any callers)
+      collected: paid.reduce((a, r) => a + r.total, 0),    // money received is GST-inclusive
       pending: rows.filter(r => r.status === 'pending').reduce((a, r) => a + r.total, 0),
       gst: rows.reduce((a, r) => a + r.gst, 0),
       qty: rows.reduce((a, r) => a + r.qty, 0)
