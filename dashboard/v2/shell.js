@@ -698,17 +698,92 @@
     });
   }
 
+  /* ── GST tax invoice (print / save as PDF) ───────────────────── */
+  function invoiceHTML(d) {
+    const Q = window.QLD, money = n => '₹' + Q.fmt(n, 2), s = d.seller, b = d.buyer;
+    const taxRows = d.interState
+      ? `<tr><td>IGST</td><td class="r">${d.gstR}%</td><td class="r">${money(d.igst)}</td></tr>`
+      : `<tr><td>CGST</td><td class="r">${d.gstR / 2}%</td><td class="r">${money(d.cgst)}</td></tr><tr><td>SGST</td><td class="r">${d.gstR / 2}%</td><td class="r">${money(d.sgst)}</td></tr>`;
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice ${esc(d.inv)} — ${esc(s.short)}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,Arial,sans-serif;color:#0f172a;font-size:12px;line-height:1.45;padding:24px;background:#fff}
+  .inv{max-width:780px;margin:0 auto;border:1px solid #cbd5e1}
+  .hd{display:flex;justify-content:space-between;gap:16px;padding:18px 20px;border-bottom:2px solid #2563EB}
+  .hd h1{font-size:20px;letter-spacing:.5px;color:#2563EB}
+  .hd .sub{font-size:11px;color:#475569;margin-top:2px}
+  .tag{align-self:flex-start;background:#2563EB;color:#fff;font-weight:700;font-size:11px;letter-spacing:1px;padding:5px 12px;border-radius:6px}
+  .meta{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e2e8f0}
+  .meta>div{padding:12px 20px}
+  .meta>div:first-child{border-right:1px solid #e2e8f0}
+  .lbl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#64748b;font-weight:700;margin-bottom:3px}
+  .v{font-weight:600}
+  table{width:100%;border-collapse:collapse}
+  .items th{background:#f1f5f9;text-align:left;padding:9px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#475569;border-bottom:1px solid #e2e8f0}
+  .items td{padding:11px 12px;border-bottom:1px solid #eef2f7}
+  .r{text-align:right}
+  .tax{width:280px;margin-left:auto}
+  .tax td{padding:6px 12px;font-size:12px}
+  .tax tr.grand td{border-top:2px solid #0f172a;font-weight:800;font-size:14px;padding-top:9px}
+  .words{padding:12px 20px;background:#f8fafc;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0}
+  .ft{display:flex;justify-content:space-between;gap:16px;padding:16px 20px}
+  .sign{text-align:right;min-width:200px}
+  .sign .line{margin-top:46px;border-top:1px solid #94a3b8;padding-top:4px;font-size:11px;color:#475569}
+  @media print{body{padding:0}.inv{border:none;max-width:none}.noprint{display:none}}
+  .bar{display:flex;justify-content:center;gap:10px;padding:14px}
+  .btn{padding:9px 18px;border-radius:8px;border:none;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit}
+  .btn-p{background:#2563EB;color:#fff}.btn-s{background:#e2e8f0;color:#0f172a}
+</style></head><body>
+<div class="bar noprint"><button class="btn btn-p" onclick="window.print()">Print / Save PDF</button><button class="btn btn-s" onclick="window.close()">Close</button></div>
+<div class="inv">
+  <div class="hd">
+    <div><h1>${esc(s.name)}</h1><div class="sub">${esc(s.address || '')}</div><div class="sub">GSTIN: <b>${esc(s.gstin || '—')}</b> · State: ${esc(s.state || '')} · Ph: ${esc(s.phone || '')}</div><div class="sub">${esc(s.product || '')}</div></div>
+    <span class="tag">TAX INVOICE</span>
+  </div>
+  <div class="meta">
+    <div><div class="lbl">Invoice No.</div><div class="v">${esc(d.inv)}</div><div class="lbl" style="margin-top:8px">Date</div><div class="v">${esc(Q.fDS(d.date))} ${(d.date || '').slice(0, 4)}</div>${d.veh ? `<div class="lbl" style="margin-top:8px">Vehicle</div><div class="v">${esc(d.veh)}</div>` : ''}${d.eway ? `<div class="lbl" style="margin-top:8px">E-way Bill</div><div class="v">${esc(d.eway)}</div>` : ''}</div>
+    <div><div class="lbl">Bill To</div><div class="v" style="font-size:14px">${esc(b.name)}</div>${b.address ? `<div style="color:#475569;margin-top:2px">${esc(b.address)}</div>` : ''}<div class="lbl" style="margin-top:8px">GSTIN</div><div class="v">${esc(b.gstin || 'Unregistered')}</div>${b.state ? `<div class="lbl" style="margin-top:8px">State</div><div class="v">${esc(b.state)}</div>` : ''}</div>
+  </div>
+  <table class="items">
+    <thead><tr><th style="width:30px">#</th><th>Description</th><th>HSN</th><th class="r">Qty (T)</th><th class="r">Rate</th><th class="r">Taxable</th></tr></thead>
+    <tbody><tr><td>1</td><td><b>${esc(d.product)}</b></td><td>${esc(d.hsn)}</td><td class="r">${Q.fmt(d.qty, 2)}</td><td class="r">${money(d.rate)}</td><td class="r">${money(d.taxable)}</td></tr></tbody>
+  </table>
+  <table class="tax">
+    <tr><td>Taxable Value</td><td></td><td class="r">${money(d.taxable)}</td></tr>
+    ${taxRows}
+    ${Math.abs(d.roundOff) > 0.001 ? `<tr><td>Round Off</td><td></td><td class="r">${money(d.roundOff)}</td></tr>` : ''}
+    <tr class="grand"><td>Grand Total</td><td></td><td class="r">₹${Q.fmt(d.grand, 0)}</td></tr>
+  </table>
+  <div class="words"><span class="lbl">Amount in words</span> <b>${esc(d.words)}</b></div>
+  <div class="ft">
+    <div><div class="lbl">Bank Details</div><div>${esc(s.bank || '—')}${s.bankBranch ? ', ' + esc(s.bankBranch) : ''}</div>${s.accNo ? `<div>A/c: <b>${esc(s.accNo)}</b> · IFSC: ${esc(s.ifsc || '')}</div>` : ''}<div style="margin-top:8px;color:#94a3b8;font-size:10px">This is a computer-generated invoice.</div></div>
+    <div class="sign"><div style="font-weight:700">For ${esc(s.short)}</div><div class="line">Authorised Signatory</div></div>
+  </div>
+</div>
+<script>setTimeout(function(){try{window.focus()}catch(e){}},50)</script>
+</body></html>`;
+  }
+  function printInvoice(idx) {
+    const d = window.QLD.invoiceData(idx);
+    if (!d) { toast('Invoice not found'); return; }
+    const w = window.open('', '_blank');
+    if (!w) { toast('Allow pop-ups to print the invoice'); return; }
+    w.document.write(invoiceHTML(d));
+    w.document.close();
+  }
+
   /* ── Row action menu (table kebabs) ──────────────────────────── */
   const RICO = {
     edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>',
     pay: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
-    del: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
+    del: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+    print: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>'
   };
   let _rowMenu = null;
   function closeRowMenu() { if (_rowMenu) { _rowMenu.remove(); _rowMenu = null; } }
   function rowItems(type, idx) {
     const Q = window.QLD, del = (msg, fn) => ({ label: 'Delete', icon: RICO.del, danger: true, onClick() { if (confirm(msg)) { fn(); refresh('Deleted'); } } });
-    if (type === 'sale') { const r = Q.state.SALES[idx]; const it = [{ label: 'Edit invoice', icon: RICO.edit, onClick: () => openSaleForm(idx) }]; if ((r.status || 'pending') !== 'paid') it.push({ label: 'Mark paid', icon: RICO.pay, onClick: () => openPaymentForm('sale', idx) }); it.push(del('Delete invoice ' + r.inv + '?', () => Q.deleteSale(idx))); return it; }
+    if (type === 'sale') { const r = Q.state.SALES[idx]; const it = [{ label: 'Print invoice', icon: RICO.print, onClick: () => printInvoice(idx) }, { label: 'Edit invoice', icon: RICO.edit, onClick: () => openSaleForm(idx) }]; if ((r.status || 'pending') !== 'paid') it.push({ label: 'Mark paid', icon: RICO.pay, onClick: () => openPaymentForm('sale', idx) }); it.push(del('Delete invoice ' + r.inv + '?', () => Q.deleteSale(idx))); return it; }
     if (type === 'purchase') { const r = Q.state.PURCHASES[idx]; const it = [{ label: 'Edit bill', icon: RICO.edit, onClick: () => openPurchaseForm(idx) }]; if ((r.status || 'pending') !== 'paid') it.push({ label: 'Mark paid', icon: RICO.pay, onClick: () => openPaymentForm('purchase', idx) }); it.push(del('Delete bill ' + r.bill + '?', () => Q.deletePurchase(idx))); return it; }
     if (type === 'party') { const r = Q.state.PARTIES[idx]; return [{ label: 'Edit party', icon: RICO.edit, onClick: () => openPartyForm(idx) }, del('Delete party ' + r.name + '?', () => Q.deleteParty(idx))]; }
     if (type === 'worker') { const r = Q.state.WORKERS[idx]; return [{ label: 'Edit worker', icon: RICO.edit, onClick: () => openWorkerForm(idx) }, del('Delete worker ' + r.name + '?', () => Q.deleteWorker(idx))]; }
@@ -748,7 +823,7 @@
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
     // form modals + row action menus
     closeModal, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
-    rowMenu,
+    rowMenu, printInvoice,
 
     mount(opts) {
       opts = opts || {};

@@ -29,16 +29,38 @@
     throw new Error('ql_v2_no_session');
   }
 
+  /* ── Seller details for tax invoices (ported from v1, keyed by name) ── */
+  const HSN = '25221000';   // Quick Lime / Hydrated Lime
+  const SELLER_DEFAULTS = {
+    'DESHWALI MINERALS': {
+      address: 'Ground Floor, Kali Talai, Near Hafiz Sahab Ki Dragha, Merta City, Nagaur, Rajasthan - 341510',
+      state: 'Rajasthan (08)', pin: '341510', gstin: '08NLIPS9801K1Z5', phone: '9610099006',
+      bank: 'HDFC Bank', bankBranch: 'Merta City', accNo: '50200089605146', ifsc: 'HDFC0002670',
+      product: 'Manufactures of Quick Lime and Hydrated Lime.', tan: 'JDPM00000D', jurisdiction: 'MERTA CITY'
+    },
+    'GOTAN LIME INDUSTRIES': {
+      address: 'BORUNDA, DISTRICT-NAGAUR, RAJASTHAN', state: 'Rajasthan (08)', pin: '342604',
+      gstin: '08BNAPM0488E1Z3', phone: '9460034743', bank: 'Bank of Baroda', bankBranch: 'Merta City',
+      accNo: '33580500001254', ifsc: 'BARB0MERTAC', product: 'Manufactures of Quick Lime and Hydrated Lime.',
+      tan: '', jurisdiction: 'NAGAUR'
+    }
+  };
+
   /* ── Companies from the plants[] array (parent + children) ──── */
   const plants = (Array.isArray(QL_PLANT.plants) && QL_PLANT.plants.length) ? QL_PLANT.plants : [QL_PLANT];
   const COMPANIES = {};
   plants.forEach(p => {
+    const nm = (p.plant_name || '').trim().toUpperCase();
+    const seller = SELLER_DEFAULTS[nm] || {};
     COMPANIES[p.id] = {
       key: p.id,
       name: (p.plant_name || 'Your Plant').toUpperCase(),
       short: p.plant_name || 'Your Plant',
       city: p.city || '',
-      gstin: p.gst_number || '',
+      gstin: p.gst_number || seller.gstin || '',
+      address: seller.address || '', state: seller.state || 'Rajasthan (08)', pin: seller.pin || '',
+      phone: seller.phone || (QL_PLANT.owner_phone || ''), bank: seller.bank || '', bankBranch: seller.bankBranch || '',
+      accNo: seller.accNo || '', ifsc: seller.ifsc || '', product: seller.product || '', hsn: HSN,
       isPrimary: !p.parent_plant_id,
       dataKey: 'ql_data_' + p.id
     };
@@ -541,6 +563,36 @@
     };
   }
 
+  /* ── Amount in words (Indian numbering — ported from v1 wn) ──── */
+  function amountInWords(n) {
+    n = Math.round(n);
+    const o = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const t = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const h = x => { let s = ''; if (x > 99) { s += o[Math.floor(x / 100)] + ' Hundred '; x %= 100; } if (x > 19) s += t[Math.floor(x / 10)] + ' ' + o[x % 10]; else s += o[x]; return s.trim(); };
+    let s = '', cr = Math.floor(n / 10000000), lk = Math.floor((n % 10000000) / 100000), th = Math.floor((n % 100000) / 1000), hu = n % 1000;
+    if (cr) s += h(cr) + ' Crore '; if (lk) s += h(lk) + ' Lakh '; if (th) s += h(th) + ' Thousand '; if (hu) s += h(hu);
+    return 'Rupees ' + (s.trim() || 'Zero') + ' Only';
+  }
+
+  /* ── Invoice data for a sale (everything a tax invoice needs) ── */
+  function invoiceData(idx) {
+    const s = S.SALES[idx]; if (!s) return null;
+    const seller = COMPANIES[ACTIVE_CO];
+    const taxable = (s.qty || 0) * (s.rate || 0);
+    const rate = s.gstR != null ? s.gstR : 5;
+    const cgst = taxable * rate / 200, sgst = taxable * rate / 200, total = taxable + cgst + sgst;
+    const interState = s.gstin && s.gstin.length >= 2 && s.gstin.slice(0, 2) !== '08';   // seller is 08 (Rajasthan)
+    return {
+      seller, hsn: seller.hsn || HSN,
+      buyer: { name: s.party || '', gstin: s.gstin || '', address: s.addr || '', state: s.state || '' },
+      inv: s.inv, date: s.date, product: s.product || 'Quick Lime', qty: s.qty || 0, rate: s.rate || 0,
+      veh: s.veh || '', eway: s.eway || '', gstR: rate,
+      taxable, cgst, sgst, igst: interState ? cgst + sgst : 0, interState,
+      total, roundOff: Math.round(total) - total, grand: Math.round(total),
+      words: amountInWords(Math.round(total))
+    };
+  }
+
   /* ── GST summary ─────────────────────────────────────────────── */
   function gstSummary() {
     const ts = totS(), tp = totP();
@@ -607,6 +659,7 @@
     loanRows, loanSummary, gstSummary,
     getPL, chunnaRows, chunnaSummary, attendanceData,
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
+    invoiceData, amountInWords,
 
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal,
