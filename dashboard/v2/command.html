@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command Center — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div><h1 class="page-title">Command Center</h1><div class="page-sub" id="ccSub">Your business at a glance</div></div>
+      <div class="page-actions">
+        <button class="ql-btn ql-btn-primary" onclick="QLShell.openAssistant()"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9"/></svg> Ask Copilot</button>
+      </div>
+    </div>
+    <div class="kpi-strip" id="ccKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="row-2">
+      <div class="card">
+        <div class="card-head"><div><h3 class="card-title">⚡ Urgent actions</h3><div class="card-sub">Needs your attention now</div></div></div>
+        <div class="cc-list" id="ccUrgent"></div>
+      </div>
+      <div class="card ai-card">
+        <div class="ai-head"><div class="ai-spark"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9"/></svg></div><div><h3 class="card-title">AI recommendations</h3><div class="card-sub">Smart next steps from your data</div></div></div>
+        <div class="cc-list" id="ccReco"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="./shell.js"></script>
+<script>
+QLShell.mount({ active: 'command', title: 'Command Center' });
+function render() {
+  const co = QLD.co, ym = new Date().toISOString().slice(0,10).slice(0,7), todayISO = new Date().toISOString().slice(0,10);
+  const sales = QLD.salesRows();
+  const salesToday = sales.filter(r => r.date === todayISO).reduce((a,r)=>a+r.total,0);
+  const salesMonth = sales.filter(r => (r.date||'').slice(0,7)===ym).reduce((a,r)=>a+r.taxable,0);
+  const pl = QLD.getPL(), coll = QLD.collections('all'), ps = QLD.purchaseSummary(), g = QLD.gstSummary(), pr = QLD.production(), cb = QLD.cashbookBalances();
+  const K = [
+    { label: 'Sales Today', v: QLD.fC(salesToday), meta: 'invoiced today', bg:'var(--ql-brand-50)', fg:'var(--ql-brand-600)', ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>' },
+    { label: 'Sales This Month', v: QLD.fC(salesMonth), meta: 'excl. GST', bg:'var(--ql-success-50)', fg:'var(--ql-success-600)', ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>' },
+    { label: 'Net Profit', v: QLD.fC(pl.np), meta: pl.npm.toFixed(1)+'% margin', bg:'var(--ql-success-50)', fg:'var(--ql-success-600)', ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M5 12l7-7 7 7"/></svg>' },
+    { label: 'Pending Collections', v: QLD.fC(coll.total), meta: coll.parties+' parties · '+coll.overdue+' overdue', bg:'var(--ql-danger-50)', fg:'var(--ql-danger-600)', ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>' },
+    { label: 'Supplier Dues', v: QLD.fC(ps.pending), meta: 'to pay', bg:'var(--ql-warning-50)', fg:'var(--ql-warning-600)', ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' },
+    { label: 'GST Liability', v: QLD.fC(g.net), meta: 'net payable', bg:'#EEF2FF', fg:'#4F46E5', ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8.5a1 1 0 0 1 .5-.87L12 4l6.5 3.63a1 1 0 0 1 .5.87V21"/></svg>' },
+    { label: 'Production (month)', v: QLD.fmt(pr.month,1)+' T', meta: QLD.fmt(pr.today,1)+' T today', bg:'var(--ql-warning-50)', fg:'var(--ql-warning-600)', ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V12M9 21V8M13 21V4M17 21V11M21 21V14"/></svg>' },
+    { label: 'Cash Balance', v: QLD.fC(cb.total), meta: 'cash+UPI+bank', bg: cb.total<0?'var(--ql-danger-50)':'var(--ql-brand-50)', fg: cb.total<0?'var(--ql-danger-600)':'var(--ql-brand-600)', ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>' }
+  ];
+  document.getElementById('ccKpis').innerHTML = K.map(k=>`<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val" style="${k.v.includes('-')?'color:var(--ql-danger-600)':''}">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
+  document.getElementById('ccSub').textContent = `${co.short} · ${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})}`;
+  // Urgent actions (high-priority notifications)
+  const urgent = QLD.notifications().filter(n=>n.priority==='high').slice(0,6);
+  document.getElementById('ccUrgent').innerHTML = urgent.length ? urgent.map(n=>{
+    const ph = n.phone ? `<button onclick="window.open('https://wa.me/'+('${n.phone}'.replace(/\\D/g,'').length===10?'91':'')+'${(n.phone||'').replace(/\\D/g,'')}','_blank')">WhatsApp</button>` : '';
+    const open = n.page ? `<button onclick="location.href='${n.page}'">Open</button>` : '';
+    return `<div class="cc-row"><div class="cc-row-l"><div class="cc-row-title">${n.title}</div><div class="cc-row-sub">${n.sub}</div></div><div class="cc-row-r"><div class="cc-row-amt">${n.amount?QLD.fC(n.amount):''}</div><div class="cc-row-acts">${open}${ph}</div></div></div>`;
+  }).join('') : `<div class="cc-empty">✅ Nothing urgent right now.</div>`;
+  // AI recommendations
+  const reco = QLD.recommendations();
+  document.getElementById('ccReco').innerHTML = reco.length ? reco.map(r=>`<div class="cc-reco tone-${r.tone}"><div class="cc-reco-ic">${r.icon}</div><div class="cc-reco-body"><div class="cc-reco-title">${r.title}</div><div class="cc-reco-detail">${r.detail}</div>${r.action?`<button class="cc-reco-btn" onclick="location.href='${r.action.page}'">${r.action.label} →</button>`:''}</div></div>`).join('') : `<div class="cc-empty">All clear 🎉</div>`;
+  QLShell.paintWorkspace();
+}
+window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+window.__qlRefresh = render;
+QLD.init(render);
+</script>
+</body>
+</html>

@@ -48,6 +48,7 @@
   const SOON = '#soon';
   const NAV = [
     { type: 'solo', id: 'dashboard', label: 'Dashboard', href: 'dashboard.html', icon: I.grid },
+    { type: 'solo', id: 'command', label: 'Command Center', href: 'command.html', icon: I.pulse },
     { type: 'group', label: 'Sales', items: [
       { id: 'invoice',     label: 'GST Invoice',     href: SOON,         icon: I.invoice },
       { id: 'sales',       label: 'Sales Register',  href: 'sales.html', icon: I.sales },
@@ -906,150 +907,255 @@
     });
   }
 
-  /* ── AI Business Assistant (rule-based NLU over live data) ────── */
-  const ASSIST_CHIPS = [
-    'Highest overdue party', 'Pending bills for KIRTI', 'Sales this month',
-    'Net profit & margin', 'Production & dispatch', 'Why is profit low?',
-    'Purchases last 30 days', 'Payment reminder for top overdue'
-  ];
+  /* ════════════════ AI BUSINESS COPILOT ════════════════════════
+     Rule-based NLU over live ERP data + manual-assist actions. */
   let _assistLog = [];
+  const RECENT_KEY = 'ql_ai_recent';
+  function aiRecent() { try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch (_) { return []; } }
+  function aiPushRecent(q) { let a = aiRecent().filter(x => x.toLowerCase() !== q.toLowerCase()); a.unshift(q); localStorage.setItem(RECENT_KEY, JSON.stringify(a.slice(0, 8))); }
+  function smartChips() {
+    const Q = window.QLD, out = [];
+    try { const top = Q.collections('all').rows[0]; if (top) out.push('Remind ' + top.party); } catch (_) {}
+    out.push("Today's sales", 'Top customers this month', 'Overdue above 90 days', 'Pending supplier payments', 'Predict next month', 'Compare monthly sales', 'Net profit & margin');
+    return out.slice(0, 8);
+  }
   function renderAssistant() {
-    const chips = ASSIST_CHIPS.map(c => `<button class="ql-ai-chip" onclick="QLShell.assistAsk(this.textContent)">${c}</button>`).join('');
+    const recent = aiRecent();
+    const chips = smartChips().map(c => `<button class="ql-ai-chip" onclick="QLShell.assistAsk(this.textContent)">${esc(c)}</button>`).join('');
+    const recentHtml = recent.length ? `<div class="ql-ai-recent"><span class="ql-ai-recent-h">Recent</span>${recent.slice(0, 5).map(c => `<button class="ql-ai-chip recent" onclick="QLShell.assistAsk(this.dataset.q)" data-q="${esc(c)}">${esc(c.length > 26 ? c.slice(0, 24) + '…' : c)}</button>`).join('')}</div>` : '';
     $('qlDrawerBody').innerHTML = `
       <div class="ql-ai-log" id="qlAiLog"></div>
+      ${recentHtml}
       <div class="ql-ai-chips" id="qlAiChips">${chips}</div>
-      <div class="ql-ai-input"><input id="qlAiInput" placeholder="Ask about your business…" autocomplete="off"
-        onkeydown="if(event.key==='Enter'){QLShell.assistAsk(this.value);this.value=''}">
-        <button onclick="var i=document.getElementById('qlAiInput');QLShell.assistAsk(i.value);i.value=''" aria-label="Send"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div>`;
+      <div class="ql-ai-input">
+        <button class="ql-ai-mic" id="qlAiMic" title="Speak" aria-label="Voice input"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+        <input id="qlAiInput" placeholder="Ask anything about your business…" autocomplete="off"
+          onkeydown="if(event.key==='Enter'){QLShell.assistAsk(this.value);this.value=''}">
+        <button class="ql-ai-send" onclick="var i=document.getElementById('qlAiInput');QLShell.assistAsk(i.value);i.value=''" aria-label="Send"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+      </div>`;
     const log = $('qlAiLog');
-    if (!_assistLog.length) _assistLog.push({ who: 'ai', html: `<p>Hi! I work on <b>${esc(window.QLD.co.short)}</b>'s live data. Ask me about collections, overdue parties, sales, purchases, profit, GST, production — or tap a suggestion below.</p>` });
+    if (!_assistLog.length) _assistLog.push({ who: 'ai', html: `<p>Hi 👋 I'm your business copilot for <b>${esc(window.QLD.co.short)}</b>. Ask me anything — invoices, a party's bills, overdue, top customers, supplier rates, profit, production, "predict next month" — or say <b>"create invoice"</b>, <b>"download invoice 142"</b>, <b>"export sales"</b>. Tap 🎤 to speak.</p>` });
     log.innerHTML = _assistLog.map(m => `<div class="ql-ai-msg ${m.who}">${m.html}</div>`).join('');
     log.scrollTop = log.scrollHeight;
+    wireVoice();
+  }
+  function wireVoice() {
+    const mic = $('qlAiMic'); if (!mic) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { mic.style.display = 'none'; return; }
+    let rec = null, on = false;
+    mic.onclick = () => {
+      if (on) { rec && rec.stop(); return; }
+      rec = new SR(); rec.lang = 'en-IN'; rec.interimResults = true; rec.continuous = false;
+      rec.onstart = () => { on = true; mic.classList.add('on'); $('qlAiInput').placeholder = 'Listening…'; };
+      rec.onresult = e => { $('qlAiInput').value = [...e.results].map(r => r[0].transcript).join(''); };
+      rec.onend = () => { on = false; mic.classList.remove('on'); const i = $('qlAiInput'); i.placeholder = 'Ask anything about your business…'; const v = (i.value || '').trim(); if (v) { assistAsk(v); i.value = ''; } };
+      rec.onerror = () => { on = false; mic.classList.remove('on'); $('qlAiInput').placeholder = 'Ask anything about your business…'; };
+      rec.start();
+    };
   }
   function assistAsk(q) {
     q = (q || '').trim(); if (!q) return;
+    aiPushRecent(q);
     _assistLog.push({ who: 'me', html: esc(q) });
-    let ans; try { ans = assistAnswer(q); } catch (e) { ans = `<p>Sorry, I hit an error answering that.</p>`; }
+    let ans; try { ans = assistAnswer(q); } catch (e) { ans = `<p>Sorry, I hit a snag answering that. Try rephrasing?</p>`; }
     _assistLog.push({ who: 'ai', html: ans });
     if (_assistLog.length > 40) _assistLog = _assistLog.slice(-40);
     const log = $('qlAiLog');
     if (log) { log.innerHTML = _assistLog.map(m => `<div class="ql-ai-msg ${m.who}">${m.html}</div>`).join(''); log.scrollTop = log.scrollHeight; }
+    else renderAssistant();
   }
   function findPartyInQuery(t) {
     const ps = window.QLD.partyRows(); let best = null;
     ps.forEach(p => { const nm = (p.name || '').toLowerCase(); if (nm && t.includes(nm.split(' ')[0]) && (!best || nm.length > best.name.length)) best = p; });
     return best;
   }
+  function parseAmount(t) {
+    let m = t.match(/([\d.,]+)\s*(crore|cr\b|lakh|lac|lk\b|l\b|k\b|thousand)/i);
+    if (m) { let n = parseFloat(m[1].replace(/,/g, '')); const u = m[2].toLowerCase(); if (/cr|crore/.test(u)) n *= 1e7; else if (/lakh|lac|lk|^l$/.test(u)) n *= 1e5; else n *= 1e3; return n; }
+    m = t.match(/(?:above|over|more than|greater than|exceeding|>|₹|rs\.?)\s*₹?\s*([\d,]{4,})/i);
+    if (m) return parseFloat(m[1].replace(/,/g, ''));
+    return null;
+  }
+  function exportCSV(name, headers, rows) {
+    const esc2 = c => `"${String(c == null ? '' : c).replace(/"/g, '""')}"`;
+    const csv = [headers.join(','), ...rows.map(r => r.map(esc2).join(','))].join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = name + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
   function assistAnswer(q) {
-    const Q = window.QLD, t = q.toLowerCase(), fc = Q.fC;
+    const Q = window.QLD, t = q.toLowerCase(), fc = Q.fC, ym = new Date().toISOString().slice(0, 7), todayISO = new Date().toISOString().slice(0, 10);
     const party = findPartyInQuery(t);
     const list = (rows, cols) => `<table class="ql-ai-tbl"><tbody>${rows.map(r => '<tr>' + cols.map(c => `<td${c.r ? ' class="r"' : ''}>${c.v(r)}</td>`).join('') + '</tr>').join('')}</tbody></table>`;
-    // why is profit low / explain
-    if (/(why|explain|low|down).*(profit|margin|loss)|profit.*(low|down|why)/.test(t)) {
-      const p = Q.getPL(), ser = Q.monthSeries(2);
-      const cur = ser[1] || {}, prev = ser[0] || {};
-      const bits = [];
-      bits.push(`Net profit is <b>${fc(p.np)}</b> at a <b>${p.npm.toFixed(1)}%</b> margin (gross ${p.gpm.toFixed(1)}%).`);
-      if (p.cogs) bits.push(`Material cost is ${fc(p.cogs)} (${(p.rev ? p.cogs / p.rev * 100 : 0).toFixed(0)}% of sales).`);
-      if (p.labour) bits.push(`Labour ${fc(p.labour)}, net GST ${fc(p.netGST)}.`);
-      if (cur.sales != null && prev.sales) { const mom = (cur.sales - prev.sales) / prev.sales * 100; bits.push(`Sales are <b>${mom >= 0 ? 'up' : 'down'} ${Math.abs(mom).toFixed(0)}%</b> vs last month.`); }
+    const acts = btns => `<div class="ql-ai-acts">${btns}</div>`;
+    const pPhone = nm => { const p = Q.partyRows().find(x => (x.name || '').toUpperCase() === (nm || '').toUpperCase()); return p ? p.phone : ''; };
+    const waBtn = (nm, amt, bills) => { const ph = pPhone(nm); if (!ph) return ''; const msg = `Dear ${nm},\nGentle reminder: ${fc(amt)} is pending with us${bills ? ` (${bills} bill${bills > 1 ? 's' : ''})` : ''}. Kindly arrange payment.\nThank you,\n${Q.co.short}`; return `<button onclick="window.open('${waLink(ph, msg)}','_blank')">WhatsApp ${esc(nm.split(' ')[0])}</button>`; };
+
+    /* ───── ACTIONS (manual-assist) ───── */
+    if (/\b(create|new|add|make|raise)\b.*(invoice|bill|sale)\b/.test(t)) { closeDrawer(); openSaleForm(); return `<p>Opening a new GST invoice form…</p>`; }
+    if (/\b(create|new|add)\b.*(supplier|vendor)\b/.test(t)) { closeDrawer(); openPartyForm(); return `<p>Opening the add-party form — set <b>Type: Supplier</b>.</p>`; }
+    if (/\b(create|new|add)\b.*(party|customer|client)\b/.test(t)) { closeDrawer(); openPartyForm(); return `<p>Opening the add-party form…</p>`; }
+    if (/\b(create|new|add|schedule|set)\b.*(reminder|renewal|follow.?up|task)/.test(t)) { addRenewal(); return `<p>Opening the reminder form — it'll show in your notifications.</p>`; }
+    if (/\b(download|get|print|pdf|open)\b.*(invoice|bill)\b|invoice\s*#?\s*\w*\d/.test(t) && /\b(download|get|print|pdf|open|show)\b/.test(t)) {
+      const m = q.match(/(?:invoice|bill|#)\s*#?\s*([A-Za-z0-9/\-]*\d[A-Za-z0-9/\-]*)/i);
+      if (m) { const row = Q.salesRows().find(r => (r.inv || '').toLowerCase() === m[1].toLowerCase() || (r.inv || '').toLowerCase().includes(m[1].toLowerCase())); if (row) { printInvoice(row.idx); return `<p>Generating the PDF for invoice <b>${esc(row.inv)}</b> — use Print / Save PDF in the new tab.</p>`; } return `<p>No invoice matching "${esc(m[1])}".</p>`; }
+    }
+    if (/\bexport\b|download.*(report|register|sheet|csv|excel|data)/.test(t)) {
+      if (/purchase|supplier/.test(t)) { const r = Q.purchaseRows(); exportCSV('purchases_' + Q.co.short, ['Bill', 'Date', 'Supplier', 'Category', 'Taxable', 'GST', 'Total', 'Status'], r.map(x => [x.bill, x.date, x.sup, x.cat, x.taxable, x.gst, x.total, x.status])); return `<p>Exported <b>${r.length}</b> purchase rows to CSV (opens in Excel).</p>`; }
+      const r = Q.salesRows(); exportCSV('sales_' + Q.co.short, ['Invoice', 'Date', 'Party', 'Qty', 'Taxable', 'GST', 'Total', 'Status'], r.map(x => [x.inv, x.date, x.party, x.qty, x.taxable, x.gst, x.total, x.status])); return `<p>Exported <b>${r.length}</b> sales rows to CSV (opens in Excel).</p>`;
+    }
+
+    /* ───── INSIGHTS / ANALYSIS ───── */
+    if (/(why|explain|reason).*(profit|margin|low|down|loss)|profit.*(low|down|why)/.test(t)) {
+      const p = Q.getPL(), ser = Q.monthSeries(2), cur = ser[1] || {}, prev = ser[0] || {}, bits = [];
+      bits.push(`Net profit is <b>${fc(p.np)}</b> at <b>${p.npm.toFixed(1)}%</b> (gross ${p.gpm.toFixed(1)}%).`);
+      if (p.cogs) bits.push(`Material cost ${fc(p.cogs)} = ${(p.rev ? p.cogs / p.rev * 100 : 0).toFixed(0)}% of sales.`);
+      bits.push(`Labour ${fc(p.labour)}, net GST ${fc(p.netGST)}.`);
+      if (cur.sales != null && prev.sales) { const mom = (cur.sales - prev.sales) / prev.sales * 100; bits.push(`Sales ${mom >= 0 ? 'up' : 'down'} <b>${Math.abs(mom).toFixed(0)}%</b> vs last month.`); }
       return `<p>${bits.join(' ')}</p><p class="ql-ai-tip">Biggest levers: collect overdue dues and watch material cost vs sale price.</p>`;
     }
-    // highest overdue
-    if (/(highest|most|top|biggest).*(overdue|pending|outstanding|due)|who.*(owe|overdue)/.test(t)) {
-      const rows = Q.collections('all').rows.slice(0, 6);
-      if (!rows.length) return `<p>No pending collections 🎉</p>`;
-      const top = rows[0];
-      return `<p><b>${esc(top.party)}</b> has the highest outstanding: <b>${fc(top.total)}</b> (${top.bills} bill${top.bills > 1 ? 's' : ''}, oldest ${top.days}d).</p>`
+    // predict next month
+    if (/(predict|forecast|projection|next month|expected|requirement)/.test(t)) {
+      const ser = Q.monthSeries(4).slice(0, 3), n = ser.length || 1;
+      const avgQty = ser.reduce((a, m) => a + (m.qty || 0), 0) / n, avgSales = ser.reduce((a, m) => a + (m.sales || 0), 0) / n, avgPur = ser.reduce((a, m) => a + (m.purchases || 0), 0) / n;
+      return `<p>Based on the last ${n} months' average, next month is likely:</p>`
+        + list([{ l: 'Dispatch / production', v: Q.fmt(avgQty, 1) + ' T' }, { l: 'Sales', v: fc(avgSales) }, { l: 'Material purchases', v: fc(avgPur) }, { l: 'Est. limestone needed', v: Q.fmt(avgQty * 1.8, 0) + ' T' }],
+          [{ v: r => r.l }, { r: 1, v: r => '<b>' + r.v + '</b>' }])
+        + `<p class="ql-ai-tip">Rough projection from trend — adjust for known orders.</p>`;
+    }
+
+    /* ───── COLLECTIONS / OVERDUE ───── */
+    const overDays = t.match(/(?:above|over|more than|older than|>)\s*(\d{2,3})\s*day/);
+    if (/(overdue|outstanding|pending|collection|receivable)/.test(t) && (overDays || /highest|most|top|biggest|above|over \d/.test(t)) && !party) {
+      let rows = Q.collections('all').rows;
+      if (overDays) rows = rows.filter(r => r.days > +overDays[1]);
+      const amt = parseAmount(t); if (amt && /\b(above|over|more)\b/.test(t) && !overDays) rows = rows.filter(r => r.total > amt);
+      rows = rows.slice(0, 10);
+      if (!rows.length) return `<p>No matching overdue collections 🎉</p>`;
+      const tot = rows.reduce((a, r) => a + r.total, 0);
+      return `<p><b>${rows.length}</b> ${overDays ? 'parties over ' + overDays[1] + ' days' : 'top overdue'} · <b>${fc(tot)}</b> total.</p>`
         + list(rows, [{ v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => r.days + 'd' }])
-        + `<div class="ql-ai-acts"><button onclick="QLShell.assistAsk('payment reminder for ${esc(top.party)}')">Draft reminder for ${esc(top.party)}</button></div>`;
+        + acts(`<button onclick="location.href='sales.html?filter=pending'">Open collections</button>${waBtn(rows[0].party, rows[0].total, rows[0].bills)}`);
     }
-    // payment reminder / whatsapp
-    if (/(remind|reminder|whatsapp|message|follow.?up)/.test(t)) {
-      const target = party || Q.collections('all').rows[0];
-      if (!target) return `<p>No overdue party to remind right now.</p>`;
-      const nm = target.name || target.party;
-      const coll = Q.collections('all').rows.find(r => (r.party || '').toUpperCase() === (nm || '').toUpperCase());
-      const amt = coll ? coll.total : 0;
+    if (/(remind|reminder|whatsapp|message|follow.?up|chase)/.test(t)) {
+      const tgt = party || Q.collections('all').rows[0];
+      if (!tgt) return `<p>No overdue party to remind right now 🎉</p>`;
+      const nm = tgt.name || tgt.party, coll = Q.collections('all').rows.find(r => (r.party || '').toUpperCase() === (nm || '').toUpperCase()), amt = coll ? coll.total : 0;
       const msg = `Dear ${nm},\nGentle reminder: ${fc(amt)} is pending with us${coll ? ` (${coll.bills} bill${coll.bills > 1 ? 's' : ''})` : ''}. Kindly arrange payment at your earliest.\nThank you,\n${Q.co.short}`;
-      const pr = Q.partyRows().find(p => (p.name || '').toUpperCase() === (nm || '').toUpperCase());
-      const wa = waLink(pr ? pr.phone : '', msg);
-      return `<p>Here's a reminder for <b>${esc(nm)}</b>${amt ? ` (${fc(amt)} pending)` : ''}:</p><div class="ql-ai-quote">${esc(msg).replace(/\n/g, '<br>')}</div>`
-        + `<div class="ql-ai-acts">${pr && pr.phone ? `<button onclick="window.open('${wa}','_blank')">Send on WhatsApp</button>` : '<span class="ql-ai-tip">No phone saved for this party.</span>'}</div>`;
+      return `<p>Reminder for <b>${esc(nm)}</b>${amt ? ` — ${fc(amt)} pending` : ''}:</p><div class="ql-ai-quote">${esc(msg).replace(/\n/g, '<br>')}</div>` + acts(waBtn(nm, amt, coll ? coll.bills : 0) || '<span class="ql-ai-tip">No phone saved for this party.</span>');
     }
-    // net profit / pl
-    if (/(net profit|profit|margin|p&l|p and l|income)/.test(t)) {
+
+    /* ───── PARTY-SPECIFIC ───── */
+    if (party) {
+      const nm = party.name, all = Q.salesRows().filter(r => (r.party || '').toUpperCase() === nm.toUpperCase());
+      // last month
+      if (/last month|previous month/.test(t)) {
+        const d = new Date(); const lm = new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().slice(0, 7);
+        const rows = all.filter(r => (r.date || '').slice(0, 7) === lm);
+        return `<p><b>${esc(nm)}</b> — ${rows.length} invoice${rows.length !== 1 ? 's' : ''} last month (${fc(rows.reduce((a, r) => a + r.total, 0))}).</p>` + (rows.length ? list(rows.slice(0, 8), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => Q.fDS(r.date) }, { r: 1, v: r => fc(r.total) }]) : '');
+      }
+      // highest value
+      if (/highest|biggest|largest|max|top value/.test(t)) {
+        if (!all.length) return `<p>No invoices for ${esc(nm)}.</p>`;
+        const top = all.slice().sort((a, b) => b.total - a.total)[0];
+        return `<p><b>${esc(nm)}</b>'s highest invoice: <b>${esc(top.inv)}</b> — ${fc(top.total)} (${Q.fDS(top.date)}, ${top.status}).</p>` + acts(`<button onclick="QLShell.printInvoice(${top.idx})">Download PDF</button>`);
+      }
+      // unpaid / ledger / all
+      const pend = all.filter(r => r.status === 'pending');
+      if (/unpaid|pending|outstanding|due/.test(t)) {
+        return `<p><b>${esc(nm)}</b> — <b>${pend.length} unpaid</b> (${fc(pend.reduce((a, r) => a + r.total, 0))}) of ${all.length} invoices.</p>` + (pend.length ? list(pend.slice(0, 8), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => Q.fDS(r.date) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => r.days + 'd' }]) : '') + acts(waBtn(nm, pend.reduce((a, r) => a + r.total, 0), pend.length));
+      }
+      if (/ledger|statement|account|history|all (bill|invoice)|all sales/.test(t)) {
+        const billed = all.reduce((a, r) => a + r.total, 0), pendT = pend.reduce((a, r) => a + r.total, 0);
+        return `<p><b>${esc(nm)}</b> ledger — ${all.length} invoices, ${fc(billed)} billed, <b>${fc(pendT)} outstanding</b>.</p>` + list(all.slice(0, 10), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => Q.fDS(r.date) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => '<span class="ql-ai-pill ' + r.status + '">' + r.status + '</span>' }]);
+      }
+      // default party summary
+      return `<p><b>${esc(nm)}</b> — ${all.length} invoice${all.length !== 1 ? 's' : ''}, ${fc(all.reduce((a, r) => a + r.total, 0))} billed, <b>${pend.length} pending</b> (${fc(pend.reduce((a, r) => a + r.total, 0))}).</p>` + (pend.length ? list(pend.slice(0, 6), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => Q.fDS(r.date) }, { r: 1, v: r => fc(r.total) }]) : '') + acts(waBtn(nm, pend.reduce((a, r) => a + r.total, 0), pend.length));
+    }
+
+    /* ───── TOP CUSTOMERS / SUPPLIERS ───── */
+    if (/top.*(customer|client|buyer|party)|best.*(customer|buyer)|biggest customer/.test(t)) {
+      let rows = Q.salesRows(); let scope = '';
+      if (/month/.test(t)) { rows = rows.filter(r => (r.date || '').slice(0, 7) === ym); scope = ' this month'; }
+      const by = {}; rows.forEach(r => { const k = r.party || '—'; by[k] = (by[k] || 0) + r.total; });
+      const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      if (!top.length) return `<p>No sales${scope} yet.</p>`;
+      return `<p>Top customers${scope}:</p>` + list(top, [{ v: r => esc(r[0]) }, { r: 1, v: r => fc(r[1]) }]);
+    }
+    if (/compare.*(supplier|vendor|rate|price)|supplier.*(rate|price|compare)/.test(t)) {
+      const by = {}; Q.state.PURCHASES.forEach(p => { const k = p.sup || '—'; const rate = p.rate || (p.qty ? p.taxable / p.qty : 0); if (!rate) return; by[k] = by[k] || { sum: 0, n: 0, cat: p.cat }; by[k].sum += rate; by[k].n++; });
+      const rows = Object.entries(by).map(([s, v]) => [s, v.sum / v.n]).sort((a, b) => a[1] - b[1]);
+      if (!rows.length) return `<p>Not enough purchase rate data to compare.</p>`;
+      return `<p>Average purchase rate by supplier (lowest first):</p>` + list(rows.slice(0, 10), [{ v: r => esc(r[0]) }, { r: 1, v: r => fc(Math.round(r[1])) + '/unit' }]);
+    }
+    if (/(supplier|vendor).*(payment|pending|due|pay|owe)|pending.*(supplier|payment)|pay.*supplier|accounts payable/.test(t)) {
+      const by = {}; Q.state.PURCHASES.filter(p => (p.status || 'pending') === 'pending').forEach(p => { const k = p.sup || '—'; by[k] = by[k] || { total: 0, bills: 0 }; by[k].total += Q.cS ? 0 : 0; });
+      const map = {}; Q.purchaseRows().filter(r => r.status === 'pending').forEach(r => { map[r.sup] = map[r.sup] || { total: 0, bills: 0 }; map[r.sup].total += r.total; map[r.sup].bills++; });
+      const rows = Object.entries(map).sort((a, b) => b[1].total - a[1].total);
+      if (!rows.length) return `<p>No pending supplier payments 🎉</p>`;
+      const tot = rows.reduce((a, r) => a + r[1].total, 0);
+      return `<p><b>${fc(tot)}</b> due to <b>${rows.length}</b> suppliers.</p>` + list(rows.slice(0, 8), [{ v: r => esc(r[0]) }, { r: 1, v: r => r[1].bills + ' bill' + (r[1].bills > 1 ? 's' : '') }, { r: 1, v: r => fc(r[1].total) }]) + acts(`<button onclick="location.href='purchase.html'">Open purchases</button>`);
+    }
+
+    /* ───── COMPARE / REPORTS ───── */
+    if (/compare.*(month|sales)|month.*(compar|by month|over month|wise)|monthly (sales|comparison|trend)/.test(t)) {
+      const ser = Q.monthSeries(6);
+      return `<p>Monthly comparison (sales · gross profit):</p>` + list(ser.slice().reverse(), [{ v: r => esc(r.m) }, { r: 1, v: r => fc(r.sales) }, { r: 1, v: r => fc(r.profit) }]);
+    }
+    if (/production|dispatch|output|tonn|capacity/.test(t)) {
+      const pr = Q.production(), ser = Q.monthSeries(4);
+      return list([{ l: 'Today', v: Q.fmt(pr.today, 1) + ' T' }, { l: 'This week', v: Q.fmt(pr.week, 1) + ' T' }, { l: 'This month', v: Q.fmt(pr.month, 1) + ' T' }, { l: 'Chunna (month)', v: Q.fmt(pr.chunnaMonth, 1) + ' T' }], [{ v: r => r.l }, { r: 1, v: r => '<b>' + r.v + '</b>' }])
+        + `<p style="margin-top:6px">Recent dispatch:</p>` + list(ser.slice().reverse(), [{ v: r => esc(r.m) }, { r: 1, v: r => Q.fmt(r.qty, 1) + ' T' }]) + acts(`<button onclick="location.href='production.html'">Open Production</button>`);
+    }
+
+    /* ───── FINANCE ───── */
+    if (/(net profit|profit|margin|p&l|p and l|income statement)/.test(t)) {
       const p = Q.getPL();
-      return list([
-        { l: 'Revenue (taxable)', v: fc(p.rev) }, { l: 'Material cost', v: '−' + fc(p.cogs) },
-        { l: 'Gross profit', v: fc(p.gp) + ` (${p.gpm.toFixed(1)}%)` }, { l: 'Labour', v: '−' + fc(p.labour) },
-        { l: 'Net GST', v: '−' + fc(p.netGST) }, { l: 'Net profit', v: '<b>' + fc(p.np) + `</b> (${p.npm.toFixed(1)}%)` }
-      ], [{ v: r => r.l }, { r: 1, v: r => r.v }]);
+      return list([{ l: 'Revenue (taxable)', v: fc(p.rev) }, { l: 'Material cost', v: '−' + fc(p.cogs) }, { l: 'Gross profit', v: fc(p.gp) + ` (${p.gpm.toFixed(1)}%)` }, { l: 'Labour', v: '−' + fc(p.labour) }, { l: 'Net GST', v: '−' + fc(p.netGST) }, { l: 'Net profit', v: '<b>' + fc(p.np) + `</b> (${p.npm.toFixed(1)}%)` }], [{ v: r => r.l }, { r: 1, v: r => r.v }]) + acts(`<button onclick="location.href='pl.html'">Open P&amp;L</button>`);
     }
-    // production / dispatch
-    if (/(production|dispatch|tonn|output|how much.*sold)/.test(t)) {
-      const pr = Q.production();
-      return list([
-        { l: 'Today', v: Q.fmt(pr.today, 1) + ' T' }, { l: 'This week', v: Q.fmt(pr.week, 1) + ' T' },
-        { l: 'This month', v: Q.fmt(pr.month, 1) + ' T' }, { l: 'Chunna (month)', v: Q.fmt(pr.chunnaMonth, 1) + ' T' }
-      ], [{ v: r => r.l }, { r: 1, v: r => r.v }]) + `<div class="ql-ai-acts"><button onclick="location.href='production.html'">Open Production</button></div>`;
-    }
-    // gst
     if (/\bgst\b|tax payable|gstr/.test(t)) {
       const g = Q.gstSummary();
-      return `<p>Output GST <b>${fc(g.outGST)}</b> − ITC ${fc(g.itc)} = <b>net payable ${fc(g.net)}</b>.</p><div class="ql-ai-acts"><button onclick="location.href='gst.html'">Open GST</button></div>`;
+      return `<p>Output GST <b>${fc(g.outGST)}</b> − ITC ${fc(g.itc)} = <b>net payable ${fc(g.net)}</b>.</p>` + acts(`<button onclick="location.href='gst.html'">Open GST</button>`);
     }
-    // collections
-    if (/(collection|receivable|to collect|pending.*(payment|amount)|who.*owe)/.test(t) && !party) {
+    if (/(collection|receivable|to collect|who.*owe)/.test(t)) {
       const c = Q.collections('all');
-      return `<p><b>${fc(c.total)}</b> pending across <b>${c.parties}</b> parties (${c.overdue} overdue 30d+).</p>`
-        + list(c.rows.slice(0, 6), [{ v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => r.days + 'd' }])
-        + `<div class="ql-ai-acts"><button onclick="location.href='sales.html?filter=pending'">Open collections</button></div>`;
+      return `<p><b>${fc(c.total)}</b> pending across <b>${c.parties}</b> parties (${c.overdue} overdue 30d+).</p>` + list(c.rows.slice(0, 7), [{ v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => r.days + 'd' }]) + acts(`<button onclick="location.href='sales.html?filter=pending'">Open collections</button>`);
     }
-    // find invoice / bill
-    if (/(find|search|show).*(invoice|bill)|invoice (no|number|#)|bill (no|number|#)/.test(t)) {
-      const numMatch = q.match(/([A-Za-z0-9/\-]*\d[A-Za-z0-9/\-]*)/);
+
+    /* ───── INVOICE SEARCH / FILTERS ───── */
+    const amtAbove = (/\b(above|over|more than|greater|exceeding|>)\b/.test(t)) ? parseAmount(t) : null;
+    if (amtAbove && /(invoice|bill|sale|order)/.test(t)) {
+      const rows = Q.salesRows().filter(r => r.total > amtAbove).sort((a, b) => b.total - a.total).slice(0, 12);
+      return `<p><b>${rows.length}</b> invoice${rows.length !== 1 ? 's' : ''} above ${fc(amtAbove)}:</p>` + list(rows, [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }]);
+    }
+    if (/today.*(sale|sales|invoice|bill)|sales today|today.*business/.test(t)) {
+      const rows = Q.salesRows().filter(r => r.date === todayISO);
+      return `<p><b>${rows.length}</b> invoice${rows.length !== 1 ? 's' : ''} today · <b>${fc(rows.reduce((a, r) => a + r.total, 0))}</b>.</p>` + (rows.length ? list(rows, [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }]) : '<p class="ql-ai-tip">No invoices recorded today yet.</p>');
+    }
+    if (/(find|search|show|locate).*(invoice|bill)|invoice (no|number|#)|bill (no|number|#)/.test(t)) {
+      const m = q.match(/([A-Za-z0-9/\-]*\d[A-Za-z0-9/\-]*)/);
       let rows = Q.salesRows();
-      if (party) rows = rows.filter(r => (r.party || '').toUpperCase() === (party.name || '').toUpperCase());
-      else if (numMatch) { const k = numMatch[1].toLowerCase(); rows = rows.filter(r => (r.inv || '').toLowerCase().includes(k)); }
+      if (m) { const k = m[1].toLowerCase(); rows = rows.filter(r => (r.inv || '').toLowerCase().includes(k)); }
       rows = rows.slice(0, 8);
       if (!rows.length) return `<p>No matching invoice found.</p>`;
-      return list(rows, [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => '<span class="ql-ai-pill ' + r.status + '">' + r.status + '</span>' }]);
+      return list(rows, [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => `<button class="ql-ai-mini" onclick="QLShell.printInvoice(${r.idx})">PDF</button>` }]);
     }
-    // purchases (register / last N days)
-    if (/purchase|supplier|bought|bill.*supplier/.test(t)) {
-      let rows = Q.purchaseRows();
-      const dm = t.match(/(\d+)\s*day/); if (dm) rows = rows.filter(r => r.days <= +dm[1]);
-      const tot = rows.reduce((a, r) => a + r.taxable, 0);
-      return `<p>${rows.length} purchase bill${rows.length !== 1 ? 's' : ''}${dm ? ` in last ${dm[1]} days` : ''} · <b>${fc(tot)}</b> taxable.</p>`
-        + list(rows.slice(0, 7), [{ v: r => '<b>' + esc(r.bill) + '</b>' }, { v: r => esc(r.sup) }, { r: 1, v: r => fc(r.taxable) }])
-        + `<div class="ql-ai-acts"><button onclick="location.href='purchase.html'">Open purchases</button></div>`;
-    }
-    // a specific party
-    if (party) {
-      const nm = party.name;
-      const sales = Q.salesRows().filter(r => (r.party || '').toUpperCase() === nm.toUpperCase());
-      const pend = sales.filter(r => r.status === 'pending');
-      const pendTot = pend.reduce((a, r) => a + r.total, 0), allTot = sales.reduce((a, r) => a + r.total, 0);
-      let h = `<p><b>${esc(nm)}</b> — ${sales.length} invoice${sales.length !== 1 ? 's' : ''}, ${fc(allTot)} billed. <b>${pend.length} pending</b> (${fc(pendTot)}).</p>`;
-      if (pend.length) h += list(pend.slice(0, 6), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => Q.fDS(r.date) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => r.days + 'd' }]);
-      if (party.phone && pendTot) h += `<div class="ql-ai-acts"><button onclick="QLShell.assistAsk('payment reminder for ${esc(nm)}')">Draft reminder</button></div>`;
-      return h;
-    }
-    // sales (register / this month / total)
-    if (/(sales|sale|revenue|invoice|turnover)/.test(t)) {
-      const s = Q.salesSummary();
-      let scope = '', rows = Q.salesRows();
-      if (/month/.test(t)) { const ym = new Date().toISOString().slice(0, 7); rows = rows.filter(r => (r.date || '').slice(0, 7) === ym); scope = ' this month'; }
-      const tx = rows.reduce((a, r) => a + r.taxable, 0);
-      return `<p>${rows.length} invoice${rows.length !== 1 ? 's' : ''}${scope} · <b>${fc(tx)}</b> sales (excl. GST). ${fc(s.pending)} still pending.</p>`
-        + list(rows.slice(0, 6), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }])
-        + `<div class="ql-ai-acts"><button onclick="location.href='sales.html'">Open sales register</button></div>`;
-    }
-    // fallback → capabilities
-    return `<p>I can help with: pending bills for a party, highest overdue, sales/purchase registers, net profit, production, GST, and payment reminders. Try one of the suggestions below 👇</p>`;
-  }
 
+    /* ───── PURCHASES / SALES (general) ───── */
+    if (/purchase|supplier|bought|raw material|petcoke/.test(t)) {
+      let rows = Q.purchaseRows(); const dm = t.match(/(\d+)\s*day/); if (dm) rows = rows.filter(r => r.days <= +dm[1]);
+      const tot = rows.reduce((a, r) => a + r.taxable, 0);
+      return `<p>${rows.length} purchase bill${rows.length !== 1 ? 's' : ''}${dm ? ` in last ${dm[1]} days` : ''} · <b>${fc(tot)}</b> taxable.</p>` + list(rows.slice(0, 7), [{ v: r => '<b>' + esc(r.bill) + '</b>' }, { v: r => esc(r.sup) }, { r: 1, v: r => fc(r.taxable) }]) + acts(`<button onclick="location.href='purchase.html'">Open purchases</button><button onclick="QLShell.assistAsk('export purchases')">Export CSV</button>`);
+    }
+    if (/(sales|sale|revenue|invoice|turnover|business)/.test(t)) {
+      const s = Q.salesSummary(); let rows = Q.salesRows(), scope = '';
+      if (/month/.test(t)) { rows = rows.filter(r => (r.date || '').slice(0, 7) === ym); scope = ' this month'; }
+      const tx = rows.reduce((a, r) => a + r.taxable, 0);
+      return `<p>${rows.length} invoice${rows.length !== 1 ? 's' : ''}${scope} · <b>${fc(tx)}</b> sales (excl. GST). ${fc(s.pending)} pending.</p>` + list(rows.slice(0, 6), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }]) + acts(`<button onclick="location.href='sales.html'">Open sales</button><button onclick="QLShell.assistAsk('export sales')">Export CSV</button>`);
+    }
+    /* ───── FALLBACK ───── */
+    return `<p>I can pull invoices, a party's bills/ledger, overdue & collections, top customers, supplier rates & payments, profit, GST, production, comparisons and forecasts — and create invoices/parties, draft reminders, download PDFs or export CSV. Try a suggestion below 👇</p>`;
+  }
   /* ════════════════════════ PUBLIC API ══════════════════════════ */
   window.QLShell = {
     toggleSidebar, toggleMobileSidebar, toggleGroup, openPalette, closePalette, toast,

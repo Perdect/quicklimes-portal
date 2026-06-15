@@ -697,6 +697,23 @@
     return out.sort((a, b) => rank[a.priority] - rank[b.priority] || (b.amount || 0) - (a.amount || 0));
   }
 
+  /* ── AI recommendations (Command Center) ─────────────────────── */
+  function recommendations() {
+    const out = [], coll = collections('all'), pl = getPL(), g = gstSummary();
+    const top = coll.rows[0];
+    if (top && top.days > 30) out.push({ tone: 'danger', icon: '💰', title: `Collect ${fC(top.total)} from ${top.party}`, detail: `${top.bills} bill${top.bills > 1 ? 's' : ''}, oldest ${top.days} days — send a reminder today.`, action: { label: 'Collections', page: 'sales.html?filter=pending' } });
+    if (g.net > 0) out.push({ tone: 'warning', icon: '🏛️', title: `Pay GST ${fC(g.net)} before the 20th`, detail: 'File GSTR-3B to stay compliant.', action: { label: 'GST', page: 'gst.html' } });
+    const pendPur = S.PURCHASES.filter(p => (p.status || 'pending') === 'pending');
+    if (pendPur.length) { const t = pendPur.reduce((a, p) => a + cP(p).tot, 0); out.push({ tone: 'info', icon: '🧾', title: `${fC(t)} due to suppliers`, detail: `${pendPur.length} bill${pendPur.length > 1 ? 's' : ''} pending payment.`, action: { label: 'Purchases', page: 'purchase.html' } }); }
+    const ser = monthSeries(2);
+    if (ser[1] && ser[0] && ser[0].sales > 0) { const mom = (ser[1].sales - ser[0].sales) / ser[0].sales * 100; if (mom < -10) out.push({ tone: 'danger', icon: '📉', title: `Sales down ${Math.abs(mom).toFixed(0)}% this month`, detail: `${fL(ser[1].sales)} vs ${fL(ser[0].sales)} last month — push dispatch & follow up orders.`, action: { label: 'Sales', page: 'sales.html' } }); }
+    const overdueLoan = loanRows().find(l => l.nextDays != null && l.nextDays >= -7 && l.outstanding > 0);
+    if (overdueLoan) out.push({ tone: 'warning', icon: '🏦', title: `Loan EMI ${fC(overdueLoan.nextAmt)} due`, detail: `${overdueLoan.name} · ${fDS(overdueLoan.nextDue)}`, action: { label: 'Loans', page: 'loans.html' } });
+    const cb = cashbookBalances(); if (cb.total < 50000) out.push({ tone: 'warning', icon: '💵', title: `Cash balance low: ${fC(cb.total)}`, detail: 'Prioritise collections to ease cash flow.', action: { label: 'Cash Book', page: 'cashbook.html' } });
+    if (pl.npm > 0) out.push({ tone: 'success', icon: '✅', title: `Healthy ${pl.npm.toFixed(0)}% net margin`, detail: `${fC(pl.np)} net profit on ${fC(pl.rev)} sales.`, action: { label: 'P&L', page: 'pl.html' } });
+    return out.slice(0, 6);
+  }
+
   /* ── Public API ──────────────────────────────────────────────── */
   window.QLD = {
     plant: QL_PLANT, COMPANIES,
@@ -712,7 +729,7 @@
     getPL, chunnaRows, chunnaSummary, attendanceData,
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
     invoiceData, amountInWords,
-    notifications, getRenewals, addRenewal, removeRenewal,
+    notifications, getRenewals, addRenewal, removeRenewal, recommendations,
 
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal,
