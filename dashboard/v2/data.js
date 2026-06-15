@@ -645,6 +645,58 @@
     return monthlyRegister().reduce((a, m) => ({ invoices: a.invoices + m.invoices, bills: a.bills + m.bills, qty: a.qty + m.qty, salesTotal: a.salesTotal + m.salesTotal, purchaseTax: a.purchaseTax + m.purchaseTax, profit: a.profit + m.profit }), { invoices: 0, bills: 0, qty: 0, salesTotal: 0, purchaseTax: 0, profit: 0 });
   }
 
+  /* ── Custom renewal reminders (localStorage, per plant) ──────── */
+  const RENEW_KEY = () => 'ql_renewals_' + ACTIVE_CO;
+  function getRenewals() { try { return JSON.parse(localStorage.getItem(RENEW_KEY()) || '[]'); } catch (_) { return []; } }
+  function addRenewal(r) { const a = getRenewals(); a.push({ id: idStamp(), title: r.title, date: r.date || '', amount: +r.amount || 0 }); localStorage.setItem(RENEW_KEY(), JSON.stringify(a)); }
+  function removeRenewal(id) { localStorage.setItem(RENEW_KEY(), JSON.stringify(getRenewals().filter(x => String(x.id) !== String(id)))); }
+
+  /* ── Notifications (business alerts derived from live data) ───── */
+  function notifications() {
+    const out = [], me = COMPANIES[ACTIVE_CO].short;
+    const phoneOf = nm => { const p = S.PARTIES.find(x => (x.name || '').toUpperCase() === (nm || '').toUpperCase()); return p ? (p.phone || '') : ''; };
+    // 1) Pending / overdue collections, grouped by party
+    collections('all').rows.forEach(r => {
+      if (r.days < 7) return;
+      const overdue = r.days > 30;
+      out.push({
+        id: 'coll:' + r.party, type: 'collection', priority: overdue ? 'high' : 'medium',
+        title: r.party, sub: `${r.bills} bill${r.bills > 1 ? 's' : ''} pending · oldest ${r.days}d`,
+        amount: r.total, party: r.party, due: r.oldest, days: r.days,
+        page: 'sales.html?filter=pending', phone: phoneOf(r.party),
+        wa: `Dear ${r.party},\nGentle reminder: ${fC(r.total)} (${r.bills} bill${r.bills > 1 ? 's' : ''}) is pending with us. Kindly arrange payment at your earliest.\nThank you,\n${me}`
+      });
+    });
+    // 2) Supplier payments due
+    const bySup = {};
+    S.PURCHASES.filter(p => (p.status || 'pending') === 'pending').forEach(p => {
+      const k = p.sup || '—'; bySup[k] = bySup[k] || { sup: k, total: 0, bills: 0, oldest: p.date };
+      bySup[k].total += cP(p).tot; bySup[k].bills++; if ((p.date || '') < bySup[k].oldest) bySup[k].oldest = p.date;
+    });
+    Object.values(bySup).forEach(s2 => out.push({
+      id: 'pay:' + s2.sup, type: 'payment', priority: 'medium',
+      title: 'Pay ' + s2.sup, sub: `${s2.bills} supplier bill${s2.bills > 1 ? 's' : ''} due`,
+      amount: s2.total, party: s2.sup, due: s2.oldest, days: daysAgo(s2.oldest),
+      page: 'purchase.html', phone: phoneOf(s2.sup)
+    }));
+    // 3) GST payable → GSTR-3B filing reminder
+    const g = gstSummary();
+    if (g.net > 0) out.push({ id: 'gst', type: 'gst', priority: 'high', title: 'GST payable ' + fC(g.net), sub: 'File GSTR-3B & pay before the 20th', amount: g.net, page: 'gst.html' });
+    // 4) Loan EMIs coming due / overdue
+    loanRows().forEach(l => {
+      if (!l.nextDue || l.outstanding <= 0) return;
+      const d = daysAgo(l.nextDue);
+      out.push({ id: 'loan:' + l.idx, type: 'loan', priority: d >= -7 ? 'high' : 'medium', title: 'EMI ' + fC(l.nextAmt), sub: `${l.name} · due ${fDS(l.nextDue)}`, amount: l.nextAmt, due: l.nextDue, days: d, page: 'loans.html' });
+    });
+    // 5) Custom renewals (domain / hosting / subscription)
+    getRenewals().forEach(r => {
+      const d = r.date ? daysAgo(r.date) : null;
+      out.push({ id: 'rem:' + r.id, type: 'renewal', priority: (d != null && d >= -10) ? 'high' : 'low', title: r.title, sub: r.date ? ('Renews ' + fDS(r.date)) : 'Reminder', amount: r.amount || 0, due: r.date, days: d, custom: true, rid: r.id });
+    });
+    const rank = { high: 0, medium: 1, low: 2 };
+    return out.sort((a, b) => rank[a.priority] - rank[b.priority] || (b.amount || 0) - (a.amount || 0));
+  }
+
   /* ── Public API ──────────────────────────────────────────────── */
   window.QLD = {
     plant: QL_PLANT, COMPANIES,
@@ -660,6 +712,7 @@
     getPL, chunnaRows, chunnaSummary, attendanceData,
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
     invoiceData, amountInWords,
+    notifications, getRenewals, addRenewal, removeRenewal,
 
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal,

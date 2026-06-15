@@ -169,11 +169,11 @@
     <button class="tb-action" title="New (N)" onclick="QLShell.openPalette()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
-    <button class="tb-action" title="Notifications" onclick="QLShell.openPalette()">
+    <button class="tb-action" title="Notifications" onclick="QLShell.openNotifications()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       <span class="tb-action-dot" id="tbNotifDot" style="display:none"></span>
     </button>
-    <button class="tb-action is-ai" title="Ask AI" onclick="QLShell.openPalette()">
+    <button class="tb-action is-ai" title="Ask AI" onclick="QLShell.openAssistant()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9 12 2"/></svg>
     </button>
     <button class="tb-avatar" id="tbAvatar" data-profile-trigger data-avatar>D</button>
@@ -236,6 +236,17 @@
 <!-- generic form modal (new sale / purchase / party / worker / cashbook / payment) -->
 <div class="ql-modal-backdrop" id="qlModalBack" onclick="if(event.target===this)QLShell.closeModal()">
   <div class="ql-modal" id="qlModal" role="dialog" aria-modal="true"></div>
+</div>
+
+<!-- right-side drawer (notifications + AI assistant) -->
+<div class="ql-drawer-backdrop" id="qlDrawerBack" onclick="if(event.target===this)QLShell.closeDrawer()">
+  <aside class="ql-drawer" id="qlDrawer" role="dialog" aria-modal="true">
+    <div class="ql-drawer-head">
+      <div class="ql-drawer-title" id="qlDrawerTitle">Notifications</div>
+      <button class="ql-drawer-x" onclick="QLShell.closeDrawer()" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="ql-drawer-body" id="qlDrawerBody"></div>
+  </aside>
 </div>`;
   }
 
@@ -323,6 +334,7 @@
         if (c.parties > 0) { b.hidden = false; b.textContent = c.parties; } else { b.hidden = true; }
       });
     } catch (_) {}
+    refreshNotifDot();   // light the bell when high-priority alerts exist
   }
   function wireWorkspace() {
     const wsBtn = $('wsBtn'), menu = $('wsMenu');
@@ -818,9 +830,231 @@
     window.addEventListener('resize', closeRowMenu, { once: true });
   }
 
+  /* ════════════════════ RIGHT-SIDE DRAWER ═══════════════════════
+     Shared slide-in panel hosting Notifications and the AI assistant. */
+  function openDrawer(mode) {
+    $('qlDrawer').dataset.mode = mode;
+    $('qlDrawerBack').classList.add('open');
+    if (mode === 'notif') { $('qlDrawerTitle').textContent = 'Notifications'; renderNotifications(); }
+    else { $('qlDrawerTitle').innerHTML = '<span class="ql-ai-dot"></span>Business Assistant'; renderAssistant(); }
+  }
+  function closeDrawer() { $('qlDrawerBack').classList.remove('open'); }
+  function openNotifications() { openDrawer('notif'); }
+  function openAssistant() { openDrawer('ai'); }
+
+  /* ── Notifications ───────────────────────────────────────────── */
+  const NOTIF_META = {
+    collection: { ic: '💰', label: 'Collection', cls: 'c-amber' },
+    payment: { ic: '🧾', label: 'Supplier payment', cls: 'c-blue' },
+    gst: { ic: '🏛️', label: 'GST', cls: 'c-red' },
+    loan: { ic: '🏦', label: 'Loan EMI', cls: 'c-red' },
+    renewal: { ic: '🔔', label: 'Renewal', cls: 'c-violet' }
+  };
+  let _notifById = {};
+  function notifState() { try { return JSON.parse(localStorage.getItem('ql_notif_state') || '{}'); } catch (_) { return {}; } }
+  function saveNotifState(s) { localStorage.setItem('ql_notif_state', JSON.stringify(s)); }
+  function notifActive() {
+    const st = notifState(), now = Date.now(), DONE_TTL = 7 * 864e5;
+    return window.QLD.notifications().filter(n => {
+      if (st.snooze && st.snooze[n.id] && now < st.snooze[n.id]) return false;
+      if (st.done && st.done[n.id] && (now - st.done[n.id]) < DONE_TTL) return false;
+      return true;
+    });
+  }
+  function waLink(phone, msg) {
+    let p = (phone || '').replace(/\D/g, '');
+    if (p.length === 10) p = '91' + p;
+    return 'https://wa.me/' + p + '?text=' + encodeURIComponent(msg || '');
+  }
+  function notifCard(n) {
+    const m = NOTIF_META[n.type] || { ic: '🔔', label: n.type, cls: 'c-grey' };
+    const amt = n.amount ? `<span class="ql-nc-amt">${window.QLD.fC(n.amount)}</span>` : '';
+    const overdue = n.days != null && n.days > 0 && (n.type === 'collection' || n.type === 'loan');
+    const dueBadge = n.days != null ? `<span class="ql-nc-due ${overdue ? 'over' : ''}">${overdue ? n.days + 'd overdue' : (n.due ? window.QLD.fDS(n.due) : '')}</span>` : '';
+    const acts = [];
+    if (n.page) acts.push(`<button onclick="QLShell.notifOpen('${esc(n.id)}')">Open</button>`);
+    if (n.phone) acts.push(`<button onclick="QLShell.notifWA('${esc(n.id)}')">WhatsApp</button>`);
+    acts.push(`<button onclick="QLShell.notifSnooze('${esc(n.id)}')">Snooze</button>`);
+    acts.push(`<button class="done" onclick="QLShell.notifDone('${esc(n.id)}')">✓ Done</button>`);
+    return `<div class="ql-nc prio-${n.priority}">
+      <div class="ql-nc-top"><span class="ql-nc-dot"></span><span class="ql-nc-ic ${m.cls}">${m.ic}</span>
+        <div class="ql-nc-body"><div class="ql-nc-title">${esc(n.title)}</div><div class="ql-nc-sub">${esc(n.sub)}</div></div>
+        <div class="ql-nc-right">${amt}${dueBadge}</div></div>
+      <div class="ql-nc-acts">${acts.join('')}</div></div>`;
+  }
+  function renderNotifications() {
+    const active = notifActive();
+    _notifById = {}; active.forEach(n => _notifById[n.id] = n);
+    const hi = active.filter(n => n.priority === 'high').length;
+    let html = `<div class="ql-notif-bar"><span>${active.length} active${hi ? ' · ' + hi + ' high priority' : ''}</span><button class="ql-notif-add" onclick="QLShell.addRenewal()">+ Reminder</button></div>`;
+    html += active.length ? active.map(notifCard).join('')
+      : `<div class="ql-drawer-empty"><div style="font-size:34px">✅</div><div style="font-weight:700;color:var(--ql-text)">All caught up</div><div>No pending alerts right now.</div></div>`;
+    $('qlDrawerBody').innerHTML = html;
+  }
+  function refreshNotifDot() { try { QLShell.setNotifDot(notifActive().some(n => n.priority === 'high')); } catch (_) {} }
+  // actions
+  function notifOpen(id) { const n = _notifById[id]; if (n && n.page) { closeDrawer(); location.href = n.page; } }
+  function notifWA(id) { const n = _notifById[id]; if (n) window.open(waLink(n.phone, n.wa || `Dear ${n.party || ''}, regarding ${window.QLD.fC(n.amount || 0)} — `), '_blank'); }
+  function notifDone(id) { const s = notifState(); s.done = s.done || {}; s.done[id] = Date.now(); saveNotifState(s); renderNotifications(); refreshNotifDot(); toast('Marked done'); }
+  function notifSnooze(id) { const s = notifState(); s.snooze = s.snooze || {}; s.snooze[id] = Date.now() + 3 * 864e5; saveNotifState(s); renderNotifications(); refreshNotifDot(); toast('Snoozed 3 days'); }
+  function addRenewal() {
+    openForm({
+      title: 'Add reminder', sub: 'Domain · hosting · subscription renewals',
+      specs: [{ k: 'title', label: 'What renews?', req: true, ph: 'e.g. Domain quicklimes.com', full: true }, { k: 'date', label: 'Renewal date', type: 'date' }, { k: 'amount', label: 'Amount (₹)', type: 'number' }],
+      saveLabel: 'Add reminder', initial: {},
+      onSave(v) { window.QLD.addRenewal(v); if ($('qlDrawerBack').classList.contains('open')) renderNotifications(); refreshNotifDot(); toast('Reminder added'); }
+    });
+  }
+
+  /* ── AI Business Assistant (rule-based NLU over live data) ────── */
+  const ASSIST_CHIPS = [
+    'Highest overdue party', 'Pending bills for KIRTI', 'Sales this month',
+    'Net profit & margin', 'Production & dispatch', 'Why is profit low?',
+    'Purchases last 30 days', 'Payment reminder for top overdue'
+  ];
+  let _assistLog = [];
+  function renderAssistant() {
+    const chips = ASSIST_CHIPS.map(c => `<button class="ql-ai-chip" onclick="QLShell.assistAsk(this.textContent)">${c}</button>`).join('');
+    $('qlDrawerBody').innerHTML = `
+      <div class="ql-ai-log" id="qlAiLog"></div>
+      <div class="ql-ai-chips" id="qlAiChips">${chips}</div>
+      <div class="ql-ai-input"><input id="qlAiInput" placeholder="Ask about your business…" autocomplete="off"
+        onkeydown="if(event.key==='Enter'){QLShell.assistAsk(this.value);this.value=''}">
+        <button onclick="var i=document.getElementById('qlAiInput');QLShell.assistAsk(i.value);i.value=''" aria-label="Send"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div>`;
+    const log = $('qlAiLog');
+    if (!_assistLog.length) _assistLog.push({ who: 'ai', html: `<p>Hi! I work on <b>${esc(window.QLD.co.short)}</b>'s live data. Ask me about collections, overdue parties, sales, purchases, profit, GST, production — or tap a suggestion below.</p>` });
+    log.innerHTML = _assistLog.map(m => `<div class="ql-ai-msg ${m.who}">${m.html}</div>`).join('');
+    log.scrollTop = log.scrollHeight;
+  }
+  function assistAsk(q) {
+    q = (q || '').trim(); if (!q) return;
+    _assistLog.push({ who: 'me', html: esc(q) });
+    let ans; try { ans = assistAnswer(q); } catch (e) { ans = `<p>Sorry, I hit an error answering that.</p>`; }
+    _assistLog.push({ who: 'ai', html: ans });
+    if (_assistLog.length > 40) _assistLog = _assistLog.slice(-40);
+    const log = $('qlAiLog');
+    if (log) { log.innerHTML = _assistLog.map(m => `<div class="ql-ai-msg ${m.who}">${m.html}</div>`).join(''); log.scrollTop = log.scrollHeight; }
+  }
+  function findPartyInQuery(t) {
+    const ps = window.QLD.partyRows(); let best = null;
+    ps.forEach(p => { const nm = (p.name || '').toLowerCase(); if (nm && t.includes(nm.split(' ')[0]) && (!best || nm.length > best.name.length)) best = p; });
+    return best;
+  }
+  function assistAnswer(q) {
+    const Q = window.QLD, t = q.toLowerCase(), fc = Q.fC;
+    const party = findPartyInQuery(t);
+    const list = (rows, cols) => `<table class="ql-ai-tbl"><tbody>${rows.map(r => '<tr>' + cols.map(c => `<td${c.r ? ' class="r"' : ''}>${c.v(r)}</td>`).join('') + '</tr>').join('')}</tbody></table>`;
+    // why is profit low / explain
+    if (/(why|explain|low|down).*(profit|margin|loss)|profit.*(low|down|why)/.test(t)) {
+      const p = Q.getPL(), ser = Q.monthSeries(2);
+      const cur = ser[1] || {}, prev = ser[0] || {};
+      const bits = [];
+      bits.push(`Net profit is <b>${fc(p.np)}</b> at a <b>${p.npm.toFixed(1)}%</b> margin (gross ${p.gpm.toFixed(1)}%).`);
+      if (p.cogs) bits.push(`Material cost is ${fc(p.cogs)} (${(p.rev ? p.cogs / p.rev * 100 : 0).toFixed(0)}% of sales).`);
+      if (p.labour) bits.push(`Labour ${fc(p.labour)}, net GST ${fc(p.netGST)}.`);
+      if (cur.sales != null && prev.sales) { const mom = (cur.sales - prev.sales) / prev.sales * 100; bits.push(`Sales are <b>${mom >= 0 ? 'up' : 'down'} ${Math.abs(mom).toFixed(0)}%</b> vs last month.`); }
+      return `<p>${bits.join(' ')}</p><p class="ql-ai-tip">Biggest levers: collect overdue dues and watch material cost vs sale price.</p>`;
+    }
+    // highest overdue
+    if (/(highest|most|top|biggest).*(overdue|pending|outstanding|due)|who.*(owe|overdue)/.test(t)) {
+      const rows = Q.collections('all').rows.slice(0, 6);
+      if (!rows.length) return `<p>No pending collections 🎉</p>`;
+      const top = rows[0];
+      return `<p><b>${esc(top.party)}</b> has the highest outstanding: <b>${fc(top.total)}</b> (${top.bills} bill${top.bills > 1 ? 's' : ''}, oldest ${top.days}d).</p>`
+        + list(rows, [{ v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => r.days + 'd' }])
+        + `<div class="ql-ai-acts"><button onclick="QLShell.assistAsk('payment reminder for ${esc(top.party)}')">Draft reminder for ${esc(top.party)}</button></div>`;
+    }
+    // payment reminder / whatsapp
+    if (/(remind|reminder|whatsapp|message|follow.?up)/.test(t)) {
+      const target = party || Q.collections('all').rows[0];
+      if (!target) return `<p>No overdue party to remind right now.</p>`;
+      const nm = target.name || target.party;
+      const coll = Q.collections('all').rows.find(r => (r.party || '').toUpperCase() === (nm || '').toUpperCase());
+      const amt = coll ? coll.total : 0;
+      const msg = `Dear ${nm},\nGentle reminder: ${fc(amt)} is pending with us${coll ? ` (${coll.bills} bill${coll.bills > 1 ? 's' : ''})` : ''}. Kindly arrange payment at your earliest.\nThank you,\n${Q.co.short}`;
+      const pr = Q.partyRows().find(p => (p.name || '').toUpperCase() === (nm || '').toUpperCase());
+      const wa = waLink(pr ? pr.phone : '', msg);
+      return `<p>Here's a reminder for <b>${esc(nm)}</b>${amt ? ` (${fc(amt)} pending)` : ''}:</p><div class="ql-ai-quote">${esc(msg).replace(/\n/g, '<br>')}</div>`
+        + `<div class="ql-ai-acts">${pr && pr.phone ? `<button onclick="window.open('${wa}','_blank')">Send on WhatsApp</button>` : '<span class="ql-ai-tip">No phone saved for this party.</span>'}</div>`;
+    }
+    // net profit / pl
+    if (/(net profit|profit|margin|p&l|p and l|income)/.test(t)) {
+      const p = Q.getPL();
+      return list([
+        { l: 'Revenue (taxable)', v: fc(p.rev) }, { l: 'Material cost', v: '−' + fc(p.cogs) },
+        { l: 'Gross profit', v: fc(p.gp) + ` (${p.gpm.toFixed(1)}%)` }, { l: 'Labour', v: '−' + fc(p.labour) },
+        { l: 'Net GST', v: '−' + fc(p.netGST) }, { l: 'Net profit', v: '<b>' + fc(p.np) + `</b> (${p.npm.toFixed(1)}%)` }
+      ], [{ v: r => r.l }, { r: 1, v: r => r.v }]);
+    }
+    // production / dispatch
+    if (/(production|dispatch|tonn|output|how much.*sold)/.test(t)) {
+      const pr = Q.production();
+      return list([
+        { l: 'Today', v: Q.fmt(pr.today, 1) + ' T' }, { l: 'This week', v: Q.fmt(pr.week, 1) + ' T' },
+        { l: 'This month', v: Q.fmt(pr.month, 1) + ' T' }, { l: 'Chunna (month)', v: Q.fmt(pr.chunnaMonth, 1) + ' T' }
+      ], [{ v: r => r.l }, { r: 1, v: r => r.v }]) + `<div class="ql-ai-acts"><button onclick="location.href='production.html'">Open Production</button></div>`;
+    }
+    // gst
+    if (/\bgst\b|tax payable|gstr/.test(t)) {
+      const g = Q.gstSummary();
+      return `<p>Output GST <b>${fc(g.outGST)}</b> − ITC ${fc(g.itc)} = <b>net payable ${fc(g.net)}</b>.</p><div class="ql-ai-acts"><button onclick="location.href='gst.html'">Open GST</button></div>`;
+    }
+    // collections
+    if (/(collection|receivable|to collect|pending.*(payment|amount)|who.*owe)/.test(t) && !party) {
+      const c = Q.collections('all');
+      return `<p><b>${fc(c.total)}</b> pending across <b>${c.parties}</b> parties (${c.overdue} overdue 30d+).</p>`
+        + list(c.rows.slice(0, 6), [{ v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => r.days + 'd' }])
+        + `<div class="ql-ai-acts"><button onclick="location.href='sales.html?filter=pending'">Open collections</button></div>`;
+    }
+    // find invoice / bill
+    if (/(find|search|show).*(invoice|bill)|invoice (no|number|#)|bill (no|number|#)/.test(t)) {
+      const numMatch = q.match(/([A-Za-z0-9/\-]*\d[A-Za-z0-9/\-]*)/);
+      let rows = Q.salesRows();
+      if (party) rows = rows.filter(r => (r.party || '').toUpperCase() === (party.name || '').toUpperCase());
+      else if (numMatch) { const k = numMatch[1].toLowerCase(); rows = rows.filter(r => (r.inv || '').toLowerCase().includes(k)); }
+      rows = rows.slice(0, 8);
+      if (!rows.length) return `<p>No matching invoice found.</p>`;
+      return list(rows, [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => '<span class="ql-ai-pill ' + r.status + '">' + r.status + '</span>' }]);
+    }
+    // purchases (register / last N days)
+    if (/purchase|supplier|bought|bill.*supplier/.test(t)) {
+      let rows = Q.purchaseRows();
+      const dm = t.match(/(\d+)\s*day/); if (dm) rows = rows.filter(r => r.days <= +dm[1]);
+      const tot = rows.reduce((a, r) => a + r.taxable, 0);
+      return `<p>${rows.length} purchase bill${rows.length !== 1 ? 's' : ''}${dm ? ` in last ${dm[1]} days` : ''} · <b>${fc(tot)}</b> taxable.</p>`
+        + list(rows.slice(0, 7), [{ v: r => '<b>' + esc(r.bill) + '</b>' }, { v: r => esc(r.sup) }, { r: 1, v: r => fc(r.taxable) }])
+        + `<div class="ql-ai-acts"><button onclick="location.href='purchase.html'">Open purchases</button></div>`;
+    }
+    // a specific party
+    if (party) {
+      const nm = party.name;
+      const sales = Q.salesRows().filter(r => (r.party || '').toUpperCase() === nm.toUpperCase());
+      const pend = sales.filter(r => r.status === 'pending');
+      const pendTot = pend.reduce((a, r) => a + r.total, 0), allTot = sales.reduce((a, r) => a + r.total, 0);
+      let h = `<p><b>${esc(nm)}</b> — ${sales.length} invoice${sales.length !== 1 ? 's' : ''}, ${fc(allTot)} billed. <b>${pend.length} pending</b> (${fc(pendTot)}).</p>`;
+      if (pend.length) h += list(pend.slice(0, 6), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => Q.fDS(r.date) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => r.days + 'd' }]);
+      if (party.phone && pendTot) h += `<div class="ql-ai-acts"><button onclick="QLShell.assistAsk('payment reminder for ${esc(nm)}')">Draft reminder</button></div>`;
+      return h;
+    }
+    // sales (register / this month / total)
+    if (/(sales|sale|revenue|invoice|turnover)/.test(t)) {
+      const s = Q.salesSummary();
+      let scope = '', rows = Q.salesRows();
+      if (/month/.test(t)) { const ym = new Date().toISOString().slice(0, 7); rows = rows.filter(r => (r.date || '').slice(0, 7) === ym); scope = ' this month'; }
+      const tx = rows.reduce((a, r) => a + r.taxable, 0);
+      return `<p>${rows.length} invoice${rows.length !== 1 ? 's' : ''}${scope} · <b>${fc(tx)}</b> sales (excl. GST). ${fc(s.pending)} still pending.</p>`
+        + list(rows.slice(0, 6), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }])
+        + `<div class="ql-ai-acts"><button onclick="location.href='sales.html'">Open sales register</button></div>`;
+    }
+    // fallback → capabilities
+    return `<p>I can help with: pending bills for a party, highest overdue, sales/purchase registers, net profit, production, GST, and payment reminders. Try one of the suggestions below 👇</p>`;
+  }
+
   /* ════════════════════════ PUBLIC API ══════════════════════════ */
   window.QLShell = {
     toggleSidebar, toggleMobileSidebar, toggleGroup, openPalette, closePalette, toast,
+    openNotifications, openAssistant, closeDrawer, assistAsk,
+    notifOpen, notifWA, notifDone, notifSnooze, addRenewal, refreshNotifDot,
     closePhotoModal() { $('photoBack').classList.remove('open'); },
     savePhoto() {}, removePhoto() {},
     paintWorkspace,
