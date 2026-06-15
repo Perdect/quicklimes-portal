@@ -41,7 +41,9 @@
 QLShell.mount({ active: 'parties', title: 'All Parties' });
 const AVG = ['#2563EB,#1D4ED8','#16A34A,#15803D','#F59E0B,#B45309','#7C3AED,#5B21B6','#DB2777,#9D174D','#0891B2,#155E75'];
 const PER = 14;
-let paFilter = new URLSearchParams(location.search).get('type') || 'all', paQuery = '', paSort = { key: 'name', dir: 'asc' }, paPage = 1;
+// Accept type from ?type= OR #hash (server-proof) — e.g. Suppliers = parties#supplier
+function _urlType() { const h = (location.hash || '').slice(1); const t = new URLSearchParams(location.search).get('type') || (['customer','supplier','both','all'].includes(h) ? h : null); return t || 'all'; }
+let paFilter = _urlType(), paQuery = '', paSort = { key: 'name', dir: 'asc' }, paPage = 1;
 const COLS = [
   { key: 'name', label: 'Name / GSTIN', sortable: true },
   { key: 'type', label: 'Type', sortable: true },
@@ -85,7 +87,8 @@ function render() {
   QLShell.paintWorkspace();
 }
 document.querySelectorAll('#paTabs .sr-tab').forEach(t => t.addEventListener('click', () => { document.querySelectorAll('#paTabs .sr-tab').forEach(x => x.classList.remove('active')); t.classList.add('active'); paFilter = t.dataset.f; paPage = 1; render(); }));
-if (paFilter !== 'all') document.querySelectorAll('#paTabs .sr-tab').forEach(t => t.classList.toggle('active', t.dataset.f === paFilter));
+document.querySelectorAll('#paTabs .sr-tab').forEach(t => t.classList.toggle('active', t.dataset.f === paFilter));
+window.addEventListener('hashchange', () => { paFilter = _urlType(); paPage = 1; document.querySelectorAll('#paTabs .sr-tab').forEach(t => t.classList.toggle('active', t.dataset.f === paFilter)); if (window.QLD && QLD.co) render(); });
 document.getElementById('paSearch').addEventListener('input', e => { paQuery = e.target.value; paPage = 1; render(); });
 document.getElementById('paPrev').addEventListener('click', () => { if (paPage > 1) { paPage--; render(); } });
 document.getElementById('paNext').addEventListener('click', () => { paPage++; render(); });

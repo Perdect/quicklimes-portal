@@ -52,12 +52,12 @@
     { type: 'group', label: 'Sales', items: [
       { id: 'invoice',     label: 'GST Invoice',     href: SOON,         icon: I.invoice },
       { id: 'sales',       label: 'Sales Register',  href: 'sales.html', icon: I.sales },
-      { id: 'collections', label: 'Collections',     href: 'sales.html?filter=pending', icon: I.coll, badgeKey: 'collections' },
+      { id: 'collections', label: 'Collections',     href: 'sales.html#pending', icon: I.coll, badgeKey: 'collections' },
       { id: 'monthreg',    label: 'Monthly Register', href: 'monthreg.html', icon: I.cal }
     ]},
     { type: 'group', label: 'Purchases', items: [
       { id: 'purchase',  label: 'Purchase Register', href: 'purchase.html', icon: I.bag },
-      { id: 'suppliers', label: 'Suppliers',         href: 'parties.html?type=supplier', icon: I.factory }
+      { id: 'suppliers', label: 'Suppliers',         href: 'parties.html#supplier', icon: I.factory }
     ]},
     { type: 'group', label: 'Production', items: [
       { id: 'ql-prod',  label: 'Quick Lime Production', href: 'production.html', icon: I.clock },

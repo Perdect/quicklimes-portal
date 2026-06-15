@@ -88,7 +88,9 @@ QLShell.mount({ active: 'sales', title: 'Sales Register' });
 /* ── Sales register state ──────────────────────────────────────── */
 const AVG = ['#2563EB,#1D4ED8','#16A34A,#15803D','#F59E0B,#B45309','#7C3AED,#5B21B6','#DB2777,#9D174D','#0891B2,#155E75'];
 const PER_PAGE = 12;
-let srFilter = new URLSearchParams(location.search).get('filter') || 'all';
+// Accept the filter from ?filter= (cross-page) OR #hash (server-proof) — e.g. Collections = sales#pending
+function _urlFilter() { const h = (location.hash || '').slice(1); const f = new URLSearchParams(location.search).get('filter') || (['pending','paid','cash','all'].includes(h) ? h : null); return f || 'all'; }
+let srFilter = _urlFilter();
 let srQuery = '';
 let srSort = { key: 'date', dir: 'desc' };
 let srPage = 1;
@@ -209,10 +211,14 @@ document.getElementById('srSortBtn').addEventListener('click', () => {
   srPage = 1; renderSales();
 });
 
-/* reflect the active filter tab if arriving via ?filter= */
-if (srFilter !== 'all') {
+/* reflect the active filter tab + react to hash changes (Collections click while already here) */
+function _syncFilterFromUrl() {
+  srFilter = _urlFilter(); srPage = 1;
   document.querySelectorAll('#srTabs .sr-tab').forEach(t => t.classList.toggle('active', t.dataset.f === srFilter));
+  if (window.QLD && QLD.co) renderSales();
 }
+document.querySelectorAll('#srTabs .sr-tab').forEach(t => t.classList.toggle('active', t.dataset.f === srFilter));
+window.addEventListener('hashchange', _syncFilterFromUrl);
 
 /* company switch hook for the shell's workspace menu */
 window.__qlOnSwitchCompany = function (id) { QLD.switchCompany(id, renderSales); };
