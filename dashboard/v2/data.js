@@ -693,6 +693,16 @@
       const d = r.date ? daysAgo(r.date) : null;
       out.push({ id: 'rem:' + r.id, type: 'renewal', priority: (d != null && d >= -10) ? 'high' : 'low', title: r.title, sub: r.date ? ('Renews ' + fDS(r.date)) : 'Reminder', amount: r.amount || 0, due: r.date, days: d, custom: true, rid: r.id });
     });
+    // 6) Scheduled reports that are due (reminder-based — tap to generate & send)
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      getSchedules().forEach(s => {
+        if (s.nextDue && s.nextDue <= today) {
+          const rt = (REPORT_TYPES.find(x => x.id === s.type) || {}).name || s.type;
+          out.push({ id: 'sched:' + s.id, type: 'renewal', priority: 'high', title: `Send ${rt} report`, sub: `${s.freq} report due — generate & share`, page: 'reports.html', due: s.nextDue });
+        }
+      });
+    } catch (_) {}
     const rank = { high: 0, medium: 1, low: 2 };
     return out.sort((a, b) => rank[a.priority] - rank[b.priority] || (b.amount || 0) - (a.amount || 0));
   }
@@ -714,6 +724,94 @@
     return out.slice(0, 6);
   }
 
+  /* ═══════════ REPORTING & AUTOMATION HUB ═══════════════════════ */
+  const REPORT_TYPES = [
+    { id: 'sales', name: 'Sales Summary', icon: '📈' },
+    { id: 'purchase', name: 'Purchase Summary', icon: '🛒' },
+    { id: 'collections', name: 'Pending Collections', icon: '💰' },
+    { id: 'outstanding', name: 'Outstanding Payments', icon: '⏳' },
+    { id: 'pl', name: 'Profit & Loss', icon: '📊' },
+    { id: 'gst', name: 'GST Summary', icon: '🏛️' },
+    { id: 'production', name: 'Production / Dispatch', icon: '🏭' },
+    { id: 'topcustomers', name: 'Top Customers', icon: '⭐' },
+    { id: 'topsuppliers', name: 'Top Suppliers', icon: '🚚' },
+    { id: 'cashflow', name: 'Cash Flow Summary', icon: '💵' }
+  ];
+  function buildReport(type, from, to) {
+    const inR = d => (!from || (d || '') >= from) && (!to || (d || '') <= to);
+    const period = from || to ? `${from ? fDS2(from) : 'start'} – ${to ? fDS2(to) : 'today'}` : 'All time';
+    const meta = REPORT_TYPES.find(r => r.id === type) || { name: type };
+    let headers = [], rows = [], totals = null, kpis = [];
+    if (type === 'sales') {
+      const r = salesRows().filter(x => inR(x.date));
+      headers = ['Invoice', 'Date', 'Party', 'Qty (T)', 'Taxable', 'GST', 'Total', 'Status'];
+      rows = r.map(x => [x.inv, x.date, x.party, x.qty, x.taxable, x.gst, x.total, x.status]);
+      const tx = r.reduce((a, x) => a + x.taxable, 0), gst = r.reduce((a, x) => a + x.gst, 0), tot = r.reduce((a, x) => a + x.total, 0);
+      totals = ['Total', '', r.length + ' inv', r.reduce((a, x) => a + x.qty, 0), tx, gst, tot, ''];
+      kpis = [['Invoices', r.length], ['Taxable sales', fC(tx)], ['GST', fC(gst)], ['Total', fC(tot)]];
+    } else if (type === 'purchase') {
+      const r = purchaseRows().filter(x => inR(x.date));
+      headers = ['Bill', 'Date', 'Supplier', 'Category', 'Taxable', 'GST', 'ITC', 'Total', 'Status'];
+      rows = r.map(x => [x.bill, x.date, x.sup, x.cat, x.taxable, x.gst, x.itc, x.total, x.status]);
+      const tx = r.reduce((a, x) => a + x.taxable, 0), itc = r.reduce((a, x) => a + x.itc, 0);
+      totals = ['Total', '', r.length + ' bills', '', tx, r.reduce((a, x) => a + x.gst, 0), itc, r.reduce((a, x) => a + x.total, 0), ''];
+      kpis = [['Bills', r.length], ['Taxable', fC(tx)], ['ITC', fC(itc)]];
+    } else if (type === 'collections' || type === 'outstanding') {
+      const c = collections('all');
+      headers = ['Party', 'Bills', 'Outstanding', 'Oldest', 'Days'];
+      rows = c.rows.map(x => [x.party, x.bills, x.total, x.oldest, x.days]);
+      totals = ['Total', '', c.total, '', ''];
+      kpis = [['Parties', c.parties], ['Outstanding', fC(c.total)], ['Overdue 30d+', c.overdue]];
+    } else if (type === 'pl') {
+      const p = getPL();
+      headers = ['Line', 'Amount'];
+      rows = [['Revenue (taxable)', p.rev], ['Less: Material cost', -p.cogs], ['Gross profit', p.gp], ['Less: Labour', -p.labour], ['EBITDA', p.ebitda], ['Less: Net GST', -p.netGST], ['Net profit', p.np]];
+      kpis = [['Revenue', fC(p.rev)], ['Gross profit', fC(p.gp) + ' (' + p.gpm.toFixed(1) + '%)'], ['Net profit', fC(p.np) + ' (' + p.npm.toFixed(1) + '%)']];
+    } else if (type === 'gst') {
+      const g = gstSummary();
+      headers = ['Particulars', 'Amount'];
+      rows = [['CGST (output)', g.cgst], ['SGST (output)', g.sgst], ['Total output GST', g.outGST], ['Less: Input tax credit', -g.itc], ['Net GST payable', g.net], ['Taxable sales', g.taxable], ['Taxable purchases', g.purchaseTaxable]];
+      kpis = [['Output GST', fC(g.outGST)], ['ITC', fC(g.itc)], ['Net payable', fC(g.net)]];
+    } else if (type === 'production') {
+      const pr = production(), ser = monthSeries(6);
+      headers = ['Month', 'Dispatch (T)', 'Invoices'];
+      rows = ser.slice().reverse().map(m => [m.m, +m.qty.toFixed(1), m.invoices]);
+      kpis = [['Today', fmt(pr.today, 1) + ' T'], ['This month', fmt(pr.month, 1) + ' T'], ['Chunna (month)', fmt(pr.chunnaMonth, 1) + ' T']];
+    } else if (type === 'topcustomers') {
+      const by = {}; salesRows().filter(x => inR(x.date)).forEach(x => { by[x.party] = (by[x.party] || 0) + x.total; });
+      const list = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 20);
+      headers = ['#', 'Customer', 'Total'];
+      rows = list.map((x, i) => [i + 1, x[0], x[1]]);
+      kpis = [['Customers', Object.keys(by).length], ['Top', list[0] ? list[0][0] : '—']];
+    } else if (type === 'topsuppliers') {
+      const by = {}; purchaseRows().filter(x => inR(x.date)).forEach(x => { by[x.sup] = (by[x.sup] || 0) + x.taxable; });
+      const list = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 20);
+      headers = ['#', 'Supplier', 'Taxable'];
+      rows = list.map((x, i) => [i + 1, x[0], x[1]]);
+      kpis = [['Suppliers', Object.keys(by).length], ['Top', list[0] ? list[0][0] : '—']];
+    } else if (type === 'cashflow') {
+      const b = cashbookBalances(), r = cashbookRows().filter(x => inR(x.date));
+      const inn = r.filter(x => x.type === 'credit').reduce((a, x) => a + x.amount, 0), out = r.filter(x => x.type === 'debit').reduce((a, x) => a + x.amount, 0);
+      headers = ['Date', 'Party / Note', 'Mode', 'In/Out', 'Amount'];
+      rows = r.map(x => [x.date, x.party || x.notes, x.mode, x.type === 'credit' ? 'In' : 'Out', x.amount]);
+      totals = ['', '', '', 'Net', inn - out];
+      kpis = [['Money in', fC(inn)], ['Money out', fC(out)], ['Balance', fC(b.total)]];
+    }
+    return { id: type, title: meta.name, icon: meta.icon, period, kpis, headers, rows, totals, count: rows.length };
+  }
+  function fDS2(s) { const d = parseD(s); return d ? d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : s; }
+
+  // Distribution groups (localStorage per plant)
+  const GROUP_KEY = () => 'ql_report_groups_' + ACTIVE_CO;
+  function defaultGroups() { return [{ id: 'ca', name: 'CA Group', members: [] }, { id: 'mgmt', name: 'Management', members: [] }, { id: 'sales', name: 'Sales Team', members: [] }]; }
+  function getGroups() { try { const g = JSON.parse(localStorage.getItem(GROUP_KEY()) || 'null'); return Array.isArray(g) && g.length ? g : defaultGroups(); } catch (_) { return defaultGroups(); } }
+  function saveGroups(g) { localStorage.setItem(GROUP_KEY(), JSON.stringify(g)); }
+
+  // Scheduled report configs (reminder-based, no server cron)
+  const SCHED_KEY = () => 'ql_report_sched_' + ACTIVE_CO;
+  function getSchedules() { try { return JSON.parse(localStorage.getItem(SCHED_KEY()) || '[]'); } catch (_) { return []; } }
+  function saveSchedules(s) { localStorage.setItem(SCHED_KEY(), JSON.stringify(s)); }
+
   /* ── Public API ──────────────────────────────────────────────── */
   window.QLD = {
     plant: QL_PLANT, COMPANIES,
@@ -730,6 +828,7 @@
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
     invoiceData, amountInWords,
     notifications, getRenewals, addRenewal, removeRenewal, recommendations,
+    REPORT_TYPES, buildReport, getGroups, saveGroups, getSchedules, saveSchedules,
 
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal,

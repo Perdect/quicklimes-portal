@@ -83,7 +83,8 @@
       { id: 'attendance', label: 'Attendance',  href: 'attendance.html', icon: I.check }
     ]},
     { type: 'group', label: 'Reports', items: [
-      { id: 'biz-an',  label: 'Business Analytics',   href: SOON, icon: I.dl },
+      { id: 'reports', label: 'Reports Hub',          href: 'reports.html', icon: I.dl },
+      { id: 'biz-an',  label: 'Business Analytics',   href: SOON, icon: I.pulse },
       { id: 'prod-an', label: 'Production Analytics', href: SOON, icon: I.pulse }
     ]},
     { type: 'solo', id: 'settings', label: 'Settings', href: SOON, icon: I.gear, soloTop: true }
@@ -1169,6 +1170,7 @@
     // form modals + row action menus
     closeModal, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
     rowMenu, printInvoice,
+    formPrompt(title, specs, onSave, sub) { openForm({ title, sub, specs, saveLabel: 'Save', initial: {}, onSave(v) { onSave(v); } }); },
 
     mount(opts) {
       opts = opts || {};

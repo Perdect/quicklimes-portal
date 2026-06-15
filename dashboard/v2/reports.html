@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reports Hub — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div><h1 class="page-title">Reports Hub</h1><div class="page-sub" id="rhSub">Generate · distribute · schedule — no manual file sharing</div></div>
+    </div>
+    <div class="card" style="gap:var(--ql-space-4)">
+      <div class="sr-toolbar">
+        <div class="sr-tabs" id="rhTabs">
+          <button class="sr-tab active" data-t="generate">Generate</button>
+          <button class="sr-tab" data-t="groups">Distribution Groups</button>
+          <button class="sr-tab" data-t="schedule">Scheduled</button>
+        </div>
+      </div>
+      <div id="rhBody"></div>
+    </div>
+  </div>
+</div>
+<script src="./shell.js"></script>
+<script>
+QLShell.mount({ active: 'reports', title: 'Reports Hub' });
+let tab = 'generate', selType = 'sales', range = 'month';
+
+function ranges() {
+  // Local Y-M-D (NOT toISOString — that shifts to UTC and breaks month edges in IST)
+  const now = new Date(), y = now.getFullYear(), m = now.getMonth(), iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const lm = new Date(y, m-1, 1);
+  return {
+    month:   { label: 'This month',  from: iso(new Date(y,m,1)),        to: iso(now) },
+    lastmon: { label: 'Last month',  from: iso(lm),                     to: iso(new Date(y,m,0)) },
+    quarter: { label: 'This quarter',from: iso(new Date(y, Math.floor(m/3)*3, 1)), to: iso(now) },
+    year:    { label: 'This year',   from: iso(new Date(y,0,1)),        to: iso(now) },
+    all:     { label: 'All time',    from: null,                        to: null }
+  };
+}
+function curRange(){ return ranges()[range]; }
+function money(n){ return '₹' + QLD.fmt(n); }
+function fmtCell(v){ return (typeof v === 'number' && Math.abs(v) >= 1000) ? money(v) : (v==null?'':v); }
+
+/* ── PDF (print) + Excel (CSV) export ── */
+function printReport(rep) {
+  const co = QLD.co, w = window.open('', '_blank'); if (!w) { QLShell.toast('Allow pop-ups to download'); return; }
+  const th = rep.headers.map(h => `<th>${h}</th>`).join('');
+  const tr = rep.rows.map(r => '<tr>' + r.map((c,i) => `<td class="${i>=2&&typeof c==='number'?'r':''}">${fmtCell(c)}</td>`).join('') + '</tr>').join('');
+  const tot = rep.totals ? '<tr class="tot">' + rep.totals.map((c,i)=>`<td class="${i>=2&&typeof c==='number'?'r':''}">${fmtCell(c)}</td>`).join('') + '</tr>' : '';
+  const kpis = rep.kpis.map(k => `<div class="k"><span>${k[0]}</span><b>${k[1]}</b></div>`).join('');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${rep.title} — ${co.short}</title><style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',Arial,sans-serif}body{padding:26px;color:#0f172a;font-size:12px}
+    .h{display:flex;justify-content:space-between;border-bottom:2px solid #2563EB;padding-bottom:12px;margin-bottom:14px}
+    .h h1{font-size:18px;color:#2563EB}.h .c{font-size:11px;color:#475569;text-align:right}
+    .meta{color:#64748b;margin-bottom:12px;font-size:11px}
+    .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.k{border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;min-width:120px}.k span{display:block;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px}.k b{font-size:15px}
+    table{width:100%;border-collapse:collapse}th{background:#f1f5f9;text-align:left;padding:7px 9px;font-size:10px;text-transform:uppercase;color:#475569;border-bottom:1px solid #cbd5e1}td{padding:6px 9px;border-bottom:1px solid #eef2f7}.r{text-align:right}.tot td{font-weight:800;border-top:2px solid #0f172a;background:#f8fafc}
+    .bar{display:flex;gap:8px;justify-content:center;padding:0 0 14px}.btn{padding:8px 16px;border:none;border-radius:7px;font-weight:600;cursor:pointer;font-family:inherit}.bp{background:#2563EB;color:#fff}.bs{background:#e2e8f0}
+    @media print{.bar{display:none}body{padding:0}}
+  </style></head><body>
+    <div class="bar"><button class="btn bp" onclick="window.print()">Print / Save PDF</button><button class="btn bs" onclick="window.close()">Close</button></div>
+    <div class="h"><div><h1>${rep.icon||''} ${rep.title}</h1></div><div class="c"><b>${co.name}</b><br>${co.gstin?'GSTIN: '+co.gstin:''}<br>${co.address||''}</div></div>
+    <div class="meta">Period: <b>${rep.period}</b> · ${rep.count} rows · generated ${new Date().toLocaleDateString('en-IN')}</div>
+    <div class="kpis">${kpis}</div>
+    <table><thead><tr>${th}</tr></thead><tbody>${tr}${tot}</tbody></table>
+  </body></html>`);
+  w.document.close();
+}
+function csvReport(rep) {
+  const esc = c => `"${String(c==null?'':c).replace(/"/g,'""')}"`;
+  const lines = [rep.headers.join(','), ...rep.rows.map(r => r.map(esc).join(',')), rep.totals ? rep.totals.map(esc).join(',') : ''].filter(Boolean);
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], {type:'text/csv;charset=utf-8'}));
+  a.download = `${rep.id}_${QLD.co.short}_${range}.csv`.replace(/\s+/g,'_'); a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function reportSummaryMsg(rep) {
+  const lines = rep.kpis.map(k => `• ${k[0]}: ${k[1]}`).join('\n');
+  return `${rep.icon||''} ${rep.title} — ${QLD.co.short}\nPeriod: ${rep.period}\n${lines}\n\n(Full report attached — generated from QuickLimes.)`;
+}
+function sendToGroup(groupId) {
+  const rep = QLD.buildReport(selType, curRange().from, curRange().to);
+  const g = QLD.getGroups().find(x => x.id === groupId);
+  if (!g || !g.members.length) { QLShell.toast('Add members to ' + (g?g.name:'this group') + ' first'); tab='groups'; render(); return; }
+  csvReport(rep);                       // download the file to attach
+  const msg = reportSummaryMsg(rep);
+  g.members.forEach(mem => {
+    if (mem.channel === 'email') window.open(`mailto:${mem.value}?subject=${encodeURIComponent(rep.title+' — '+QLD.co.short)}&body=${encodeURIComponent(msg)}`, '_blank');
+    else { let p = (mem.value||'').replace(/\D/g,''); if (p.length===10) p='91'+p; window.open(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`, '_blank'); }
+  });
+  QLShell.toast(`Report downloaded · opened ${g.members.length} message${g.members.length>1?'s':''}`);
+}
+
+/* ── Tab renderers ── */
+function genTab() {
+  const rep = QLD.buildReport(selType, curRange().from, curRange().to);
+  const rs = ranges();
+  const typeCards = QLD.REPORT_TYPES.map(t => `<button class="rh-type ${t.id===selType?'on':''}" onclick="selType='${t.id}';render()"><span>${t.icon}</span>${t.name}</button>`).join('');
+  const rangeBtns = Object.keys(rs).map(k => `<button class="sr-tab ${k===range?'active':''}" onclick="range='${k}';render()">${rs[k].label}</button>`).join('');
+  const groupOpts = QLD.getGroups().map(g => `<button class="ql-btn ql-btn-secondary" onclick="sendToGroup('${g.id}')">Send to ${g.name}</button>`).join('');
+  const th = rep.headers.map((h,i)=>`<th class="${i>=2?'sr-num':''}">${h}</th>`).join('');
+  const body = rep.rows.length ? rep.rows.slice(0,40).map(r=>'<tr>'+r.map((c,i)=>`<td class="${i>=2&&typeof c==='number'?'sr-num':''}">${fmtCell(c)}</td>`).join('')+'</tr>').join('') : `<tr><td colspan="${rep.headers.length}"><div class="sr-empty">No data for this period</div></td></tr>`;
+  const tot = rep.totals ? '<tr style="border-top:2px solid var(--ql-border-strong);font-weight:800">'+rep.totals.map((c,i)=>`<td class="${i>=2&&typeof c==='number'?'sr-num':''}">${fmtCell(c)}</td>`).join('')+'</tr>' : '';
+  return `
+    <div class="rh-grid">
+      <div class="rh-types">${typeCards}</div>
+      <div class="rh-preview">
+        <div class="sr-tabs" style="flex-wrap:wrap;margin-bottom:var(--ql-space-3)">${rangeBtns}</div>
+        <div class="rh-prev-head"><div><div style="font-weight:800;font-size:var(--ql-text-lg)">${rep.icon} ${rep.title}</div><div class="page-sub">${rep.period} · ${rep.count} rows</div></div>
+          <div class="page-actions"><button class="ql-btn ql-btn-secondary" onclick="__p()">📄 PDF</button><button class="ql-btn ql-btn-secondary" onclick="__x()">📊 Excel</button></div></div>
+        <div class="kpi-strip" style="grid-template-columns:repeat(${Math.min(4,rep.kpis.length)},1fr);margin:var(--ql-space-3) 0">${rep.kpis.map(k=>`<div class="kpi-tile"><div><div class="kpi-label">${k[0]}</div><div class="kpi-val" style="font-size:var(--ql-text-xl)">${k[1]}</div></div></div>`).join('')}</div>
+        <div class="sr-table-wrap"><table class="sr"><thead><tr>${th}</tr></thead><tbody>${body}${tot}</tbody></table></div>
+        ${rep.rows.length>40?`<div class="page-sub" style="margin-top:8px">Showing 40 of ${rep.count} — full set in the PDF/Excel.</div>`:''}
+        <div class="rh-send"><span class="rh-send-h">📤 Send report:</span>${groupOpts}</div>
+      </div>
+    </div>`;
+}
+function groupsTab() {
+  const groups = QLD.getGroups();
+  return `<div class="rh-groups">${groups.map(g => `
+    <div class="card" style="gap:var(--ql-space-3)">
+      <div class="card-head"><div class="card-title">${g.name}</div><button class="ql-btn ql-btn-primary" onclick="addMember('${g.id}')">+ Member</button></div>
+      ${g.members.length ? g.members.map((m,i)=>`<div class="rh-member"><div><b>${m.name}</b><div class="page-sub">${m.channel==='email'?'✉️ '+m.value:'📱 '+m.value}</div></div><button class="sr-kebab" onclick="delMember('${g.id}',${i})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></div>`).join('') : '<div class="page-sub">No members yet — add your CA / partners / team.</div>'}
+    </div>`).join('')}</div>`;
+}
+function schedTab() {
+  const sch = QLD.getSchedules(), groups = QLD.getGroups();
+  const gName = id => (groups.find(g=>g.id===id)||{}).name || id;
+  return `<div style="display:flex;flex-direction:column;gap:var(--ql-space-3)">
+    <div class="ql-modal-note">⏱️ Scheduled reports appear as a reminder in your 🔔 notifications when due — tap to generate &amp; send in one go. (Fully-automatic background sending needs the server add-on.)</div>
+    <button class="ql-btn ql-btn-primary" style="align-self:flex-start" onclick="addSchedule()">+ Schedule a report</button>
+    ${sch.length ? sch.map((s,i)=>`<div class="rh-member"><div><b>${(QLD.REPORT_TYPES.find(t=>t.id===s.type)||{}).name||s.type}</b> · ${s.freq} → ${gName(s.group)}<div class="page-sub">Next due ${s.nextDue?QLD.fDS(s.nextDue):'—'}</div></div><button class="sr-kebab" onclick="delSchedule(${i})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></div>`).join('') : '<div class="page-sub">No scheduled reports yet.</div>'}
+  </div>`;
+}
+function render() {
+  document.getElementById('rhSub').textContent = `${QLD.co.short} · ${QLD.REPORT_TYPES.length} report types · ${QLD.getGroups().reduce((a,g)=>a+g.members.length,0)} recipients`;
+  document.querySelectorAll('#rhTabs .sr-tab').forEach(t=>t.classList.toggle('active', t.dataset.t===tab));
+  document.getElementById('rhBody').innerHTML = tab==='generate'?genTab():tab==='groups'?groupsTab():schedTab();
+  // expose current-report export closures for the inline buttons
+  window.__p = () => printReport(QLD.buildReport(selType, curRange().from, curRange().to));
+  window.__x = () => csvReport(QLD.buildReport(selType, curRange().from, curRange().to));
+  QLShell.paintWorkspace();
+}
+window.addMember = (gid) => QLShell.formPrompt('Add recipient', [
+    {k:'name',label:'Name',req:true,full:true},
+    {k:'channel',label:'Channel',type:'select',opts:[['whatsapp','WhatsApp'],['email','Email']]},
+    {k:'value',label:'Phone or email',req:true,full:true}
+  ], v => { const g=QLD.getGroups(); g.find(x=>x.id===gid).members.push({name:v.name,channel:v.channel,value:v.value}); QLD.saveGroups(g); render(); });
+window.delMember = (gid,i) => { const g=QLD.getGroups(); g.find(x=>x.id===gid).members.splice(i,1); QLD.saveGroups(g); render(); };
+window.addSchedule = () => QLShell.formPrompt('Schedule a report', [
+    {k:'type',label:'Report',type:'select',opts:QLD.REPORT_TYPES.map(t=>[t.id,t.name]),full:true},
+    {k:'freq',label:'Frequency',type:'select',opts:['Daily','Weekly','Monthly','Quarterly','Yearly']},
+    {k:'group',label:'Send to',type:'select',opts:QLD.getGroups().map(g=>[g.id,g.name])}
+  ], v => { const s=QLD.getSchedules(); const d=new Date(); const next={Daily:1,Weekly:7,Monthly:30,Quarterly:91,Yearly:365}[v.freq]||30; d.setDate(d.getDate()+next); s.push({id:Date.now(),type:v.type,freq:v.freq,group:v.group,nextDue:d.toISOString().slice(0,10)}); QLD.saveSchedules(s); render(); QLShell.toast('Report scheduled'); });
+window.delSchedule = (i) => { const s=QLD.getSchedules(); s.splice(i,1); QLD.saveSchedules(s); render(); };
+window.sendToGroup = sendToGroup;
+document.querySelectorAll('#rhTabs .sr-tab').forEach(t => t.addEventListener('click', () => { tab=t.dataset.t; render(); }));
+window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+window.__qlRefresh = render;
+QLD.init(render);
+</script>
+</body>
+</html>
