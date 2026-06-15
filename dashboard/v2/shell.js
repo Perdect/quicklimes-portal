@@ -208,6 +208,7 @@
     </div>
     <div id="photoCropUI" style="display:none;flex-direction:column;gap:var(--ql-space-4)">
       <div class="photo-stage" id="photoStage"><canvas id="photoCanvas" width="280" height="280"></canvas><div class="photo-mask"></div></div>
+      <div style="text-align:center;font-size:var(--ql-text-xs);color:var(--ql-text-secondary);margin-top:calc(-1*var(--ql-space-2))">Drag the photo to reposition · slider to zoom</div>
       <div class="photo-zoom"><span class="photo-zoom-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></span><input type="range" id="photoZoom" min="1" max="3" step="0.01" value="1" /></div>
       <div class="photo-actions">
         <button class="ql-btn ql-btn-ghost" onclick="document.getElementById('photoInput').click()">Change image</button>
@@ -422,8 +423,11 @@
       const ctx = canvas.getContext('2d'), size = 280;
       ctx.fillStyle = '#0F172A'; ctx.fillRect(0, 0, size, size);
       const s = crop.base * crop.scale, dw = crop.img.width * s, dh = crop.img.height * s;
-      crop.dx = Math.min(0, Math.max(size - dw - (size - dw) / 2, crop.dx));
-      crop.dy = Math.min(0, Math.max(size - dh - (size - dh) / 2, crop.dy));
+      // Symmetric clamp: pan freely in BOTH directions while the image still
+      // covers the 280px frame (max offset = half the overflow on each axis).
+      const maxX = Math.max(0, (dw - size) / 2), maxY = Math.max(0, (dh - size) / 2);
+      crop.dx = Math.max(-maxX, Math.min(maxX, crop.dx));
+      crop.dy = Math.max(-maxY, Math.min(maxY, crop.dy));
       ctx.drawImage(crop.img, (size - dw) / 2 + crop.dx, (size - dh) / 2 + crop.dy, dw, dh);
     }
     $('pmChangePhoto').addEventListener('click', () => {
@@ -441,9 +445,10 @@
     });
     zoom.addEventListener('input', e => { crop.scale = parseFloat(e.target.value); draw(); });
     let drag = null;
-    stage.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, dx: crop.dx, dy: crop.dy }; });
+    stage.style.touchAction = 'none'; stage.style.cursor = 'grab';   // drag to reposition (no page-scroll on touch)
+    stage.addEventListener('pointerdown', e => { if (!crop.img) return; drag = { x: e.clientX, y: e.clientY, dx: crop.dx, dy: crop.dy }; stage.style.cursor = 'grabbing'; try { stage.setPointerCapture(e.pointerId); } catch (_) {} });
     window.addEventListener('pointermove', e => { if (!drag) return; crop.dx = drag.dx + (e.clientX - drag.x); crop.dy = drag.dy + (e.clientY - drag.y); draw(); });
-    window.addEventListener('pointerup', () => drag = null);
+    window.addEventListener('pointerup', () => { drag = null; stage.style.cursor = 'grab'; });
     QLShell.savePhoto = function () {
       if (!crop.img) { $('photoBack').classList.remove('open'); return; }
       const out = document.createElement('canvas'); out.width = out.height = 200;
