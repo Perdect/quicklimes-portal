@@ -144,11 +144,6 @@
         <div class="sb-upgrade-text">Upgrade to unlock production analytics, AI insights and unlimited child plants.</div>
         <button class="sb-upgrade-btn">Upgrade plan</button>
       </div>
-      <button class="sb-profile" id="sbProfile" data-profile-trigger>
-        <span class="sb-profile-av" data-avatar>D</span>
-        <span class="sb-profile-text"><span class="sb-profile-name">Owner</span><span class="sb-profile-role">Owner</span></span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
-      </button>
     </div>
   </aside>
 
