@@ -187,7 +187,11 @@ button { font-family: inherit; cursor: pointer; }
 /* ── PROFILE PHOTO ── shared across all avatars ──────────────── */
 .has-photo {
   background-image: var(--ql-photo) !important;
-  background-size: cover; background-position: center;
+  /* !important so a later element's `background:` shorthand (e.g. .tb-avatar's
+     gradient) can't reset size/position back to auto and break the fit */
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
   color: transparent !important;  /* hide initials when photo loaded */
 }
 .sb-profile-av, .tb-avatar { position: relative; overflow: visible; }
@@ -377,7 +381,7 @@ button { font-family: inherit; cursor: pointer; }
 .tb-action.is-ai:hover { background: var(--ql-brand-50); border-color: var(--ql-brand-100); }
 
 .tb-avatar {
-  width: 36px; height: 36px; border-radius: var(--ql-radius-pill);
+  width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--ql-radius-pill);
   background: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-700));
   color: #fff; display: flex; align-items: center; justify-content: center;
   font-weight: var(--ql-weight-bold); font-size: var(--ql-text-sm);
