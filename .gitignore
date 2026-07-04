@@ -19,3 +19,6 @@ IMZA_iMatch_n8n_Workflow.json
 
 # Backups
 *.bak
+
+# QuickLimes backend secrets — lives only on the Hostinger server, never committed
+dashboard/api/config.php

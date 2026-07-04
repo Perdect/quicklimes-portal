@@ -52,9 +52,16 @@ jobs:
           # v2 redesign — multi-page app at app.quicklimes.com/v2/ (and now the default).
           # Real .html files, so the SPA fallback above won't intercept them.
           cp -r dashboard/v2              deploy/app/v2
-          # PHP API (backend migration off Supabase → Hostinger MySQL)
+          # PHP API (backend migration off Supabase → Hostinger MySQL).
+          # Copy the whole folder (php + .htaccess + schema.sql) but NOT
+          # config.php — that holds the DB password and lives ONLY on the
+          # server (it's git-ignored, never in the checkout, and the deploy
+          # runs with clean-slate off so it is never overwritten).
           mkdir -p deploy/app/api
-          cp dashboard/api/*.php          deploy/app/api/ 2>/dev/null || true
+          cp -a dashboard/api/.           deploy/app/api/ 2>/dev/null || true
+          rm -f deploy/app/api/config.php
+          # One-time migration tool (localStorage → MySQL), served on the app subdomain.
+          cp dashboard/migrate.html       deploy/app/migrate.html
           # Make the brand logo also accessible inside /app for any header reuse
           cp -r assets deploy/app/assets
 

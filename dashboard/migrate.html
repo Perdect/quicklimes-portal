@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuickLimes — Move to Hostinger</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--b:#2563EB;--b2:#1D4ED8;--ink:#0D1B2D;--mut:#64748B;--line:#E2E8F0;--ok:#16A34A;--bad:#DC2626;--bg:#F1F5F9;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:20px;max-width:620px;width:100%;box-shadow:0 20px 60px rgba(15,23,42,.10);overflow:hidden}
+  .head{padding:26px 30px 20px;background:linear-gradient(135deg,#EFF6FF,#fff);border-bottom:1px solid var(--line)}
+  .badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--b2);background:#DBEAFE;padding:5px 11px;border-radius:99px;letter-spacing:.2px}
+  h1{font-size:22px;font-weight:800;letter-spacing:-.4px;margin:14px 0 6px}
+  .sub{font-size:14px;color:var(--mut);line-height:1.55}
+  .body{padding:24px 30px 28px}
+  .sect{margin-bottom:22px}
+  .lbl{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:8px;display:block;letter-spacing:.2px}
+  .det{background:#F8FAFC;border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:13.5px;line-height:1.7}
+  .det b{color:var(--ink)} .det .m{color:var(--mut)}
+  .pl{display:flex;align-items:center;gap:8px;padding:3px 0}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--b);flex:0 0 auto}
+  .dot.child{background:#94A3B8}
+  input[type=text],input[type=password]{width:100%;font:inherit;font-size:15px;padding:12px 14px;border:1.6px solid var(--line);border-radius:11px;outline:none;transition:border .15s;background:#fff}
+  input:focus{border-color:var(--b)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:480px){.row2{grid-template-columns:1fr}}
+  .hint{font-size:12px;color:var(--mut);margin-top:6px;line-height:1.5}
+  details{margin-top:10px}
+  summary{font-size:12.5px;color:var(--mut);cursor:pointer;font-weight:600}
+  .btn{width:100%;font:inherit;font-size:15px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--b),var(--b2));border:none;border-radius:12px;padding:14px;cursor:pointer;transition:filter .15s,transform .05s;box-shadow:0 8px 20px rgba(37,99,235,.28)}
+  .btn:hover{filter:brightness(1.05)} .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+  .err{display:none;background:#FEF2F2;border:1px solid #FECACA;color:var(--bad);font-size:13px;padding:11px 14px;border-radius:10px;margin-top:14px;font-weight:600}
+  .logwrap{display:none;margin-top:18px}
+  .log{background:#0B1220;border-radius:12px;padding:14px 16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.9;max-height:260px;overflow:auto;color:#CBD5E1}
+  .log .l{display:flex;gap:9px;align-items:flex-start}
+  .log .ic{flex:0 0 auto;width:15px;text-align:center}
+  .log .ok{color:#4ADE80} .log .bad{color:#F87171} .log .run{color:#FBBF24} .log .mut{color:#64748B}
+  .done{display:none;text-align:center;padding:8px 0 2px}
+  .done .ring{width:64px;height:64px;border-radius:50%;background:#DCFCE7;color:var(--ok);display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+  .done h2{font-size:19px;font-weight:800;margin-bottom:6px}
+  .done p{font-size:14px;color:var(--mut);line-height:1.6;margin-bottom:16px}
+  .golink{display:inline-block;font-weight:700;color:#fff;background:var(--ok);padding:12px 22px;border-radius:11px;text-decoration:none}
+  .warn{background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;font-size:12.5px;padding:11px 14px;border-radius:10px;line-height:1.55;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="head">
+    <span class="badge">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.2-8.5"/><polyline points="21 3 21 9 15 9"/></svg>
+      Backend migration
+    </span>
+    <h1>Move your data to Hostinger</h1>
+    <div class="sub">This one-time tool copies your QuickLimes data from this browser into your new Hostinger MySQL database, and sets your login password. Run it once, on the device where you normally use QuickLimes.</div>
+  </div>
+  <div class="body">
+
+    <div id="setup-view">
+      <div class="sect">
+        <span class="lbl">Detected account</span>
+        <div class="det" id="acct">Reading your saved data…</div>
+      </div>
+
+      <div class="sect">
+        <span class="lbl">Set your login password</span>
+        <div class="row2">
+          <input type="password" id="pw1" placeholder="New password" autocomplete="new-password">
+          <input type="password" id="pw2" placeholder="Confirm password" autocomplete="new-password">
+        </div>
+        <div class="hint">You'll use your phone number + this password to log in from now on. Choose something only you know (min 4 characters).</div>
+        <details>
+          <summary>Re-running this? (advanced)</summary>
+          <div style="margin-top:10px">
+            <input type="text" id="secret" placeholder="APP_SECRET (only needed if already set up once)">
+            <div class="hint">The first run needs nothing extra. If the database already has an account, paste the <b>APP_SECRET</b> from your <code>config.php</code> here to overwrite it.</div>
+          </div>
+        </details>
+      </div>
+
+      <button class="btn" id="go">Migrate my data →</button>
+      <div class="err" id="err"></div>
+
+      <div class="warn" id="cfgwarn">
+        <b>Before you click:</b> make sure you've created your MySQL database in hPanel and saved your credentials into <code>app/api/config.php</code> on the server (copy it from <code>config.example.php</code>). Without that, this can't connect.
+      </div>
+
+      <div class="logwrap" id="logwrap"><div class="log" id="log"></div></div>
+    </div>
+
+    <div class="done" id="done">
+      <div class="ring"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <h2>Migration complete 🎉</h2>
+      <p id="donemsg">Your data is now on Hostinger. Log in with your phone number and the password you just set.</p>
+      <a class="golink" href="https://quicklimes.com/quicklime.html">Go to login →</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var API = location.hostname === 'app.quicklimes.com' ? '/api/' : 'https://app.quicklimes.com/api/';
+
+  // ── Read the account the browser remembers from the last login ──
+  var plant = null;
+  try { plant = JSON.parse(localStorage.getItem('ql_plant') || 'null'); } catch (_) {}
+
+  var acctEl = document.getElementById('acct');
+  if (!plant || !plant.id) {
+    acctEl.innerHTML = '<b style="color:var(--bad)">No saved session found in this browser.</b><div class="m" style="margin-top:6px">Open QuickLimes on the device/browser you normally use (where your data lives), then reload this page. Migration reads the data cached there.</div>';
+    document.getElementById('go').disabled = true;
+  } else {
+    var plants = (Array.isArray(plant.plants) && plant.plants.length) ? plant.plants : [plant];
+    var listHtml = plants.map(function (p) {
+      var primary = !p.parent_plant_id;
+      return '<div class="pl"><span class="dot ' + (primary ? '' : 'child') + '"></span><b>' +
+        esc(p.plant_name || 'Plant') + '</b> <span class="m">' + (primary ? '· primary' : '· sub-plant') +
+        (p.gst_number ? ' · ' + esc(p.gst_number) : '') + '</span></div>';
+    }).join('');
+    acctEl.innerHTML = '<div class="pl" style="margin-bottom:6px"><span class="m">Phone</span>&nbsp;<b>' +
+      esc(plant.owner_phone || '—') + '</b></div>' + listHtml;
+  }
+
+  function esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  function showErr(m) { var e = document.getElementById('err'); e.textContent = m; e.style.display = 'block'; }
+  var logEl = document.getElementById('log');
+  function log(kind, msg) {
+    document.getElementById('logwrap').style.display = 'block';
+    document.getElementById('cfgwarn').style.display = 'none';
+    var ic = kind === 'ok' ? '✓' : kind === 'bad' ? '✕' : kind === 'run' ? '⟳' : '·';
+    var row = document.createElement('div'); row.className = 'l';
+    row.innerHTML = '<span class="ic ' + kind + '">' + ic + '</span><span>' + esc(msg) + '</span>';
+    logEl.appendChild(row); logEl.scrollTop = logEl.scrollHeight;
+    return row;
+  }
+  function mark(row, kind, msg) {
+    if (!row) return;
+    row.querySelector('.ic').className = 'ic ' + kind;
+    row.querySelector('.ic').textContent = kind === 'ok' ? '✓' : kind === 'bad' ? '✕' : '·';
+    if (msg) row.lastChild.textContent = msg;
+  }
+
+  async function post(path, body) {
+    var res = await fetch(API + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    var json; try { json = await res.json(); } catch (_) { json = null; }
+    return { ok: res.ok, status: res.status, json: json };
+  }
+
+  // ── Collect every data blob cached in this browser ──
+  function collectBlobs(primaryId) {
+    var out = [];   // { id, data }
+    var pic = localStorage.getItem('dm_profile_pic');
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      var m = /^ql_data_(.+)$/.exec(k);
+      if (!m) continue;
+      try {
+        var blob = JSON.parse(localStorage.getItem(k));
+        if (m[1] === primaryId && pic && !blob.profile_pic) blob.profile_pic = pic;
+        out.push({ id: m[1], data: blob, label: 'company ' + m[1].slice(0, 8) });
+      } catch (_) {}
+    }
+    // Global loans row (same key convention v1/v2 use on the cloud).
+    try {
+      var loans = JSON.parse(localStorage.getItem('dm_loans') || 'null');
+      if (Array.isArray(loans) && loans.length) {
+        out.push({ id: 'loans_' + primaryId, data: { loans: loans, _kind: 'loans' }, label: loans.length + ' loans' });
+      }
+    } catch (_) {}
+    return out;
+  }
+
+  document.getElementById('go').addEventListener('click', async function () {
+    var btn = this;
+    document.getElementById('err').style.display = 'none';
+    var pw1 = document.getElementById('pw1').value, pw2 = document.getElementById('pw2').value;
+    var secret = document.getElementById('secret').value.trim();
+    if (pw1.length < 4) return showErr('Password must be at least 4 characters.');
+    if (pw1 !== pw2) return showErr('The two passwords don’t match.');
+
+    btn.disabled = true; btn.textContent = 'Migrating…';
+    var plants = (Array.isArray(plant.plants) && plant.plants.length) ? plant.plants : [plant];
+
+    // 1) Bootstrap the account + tables.
+    var r1 = log('run', 'Creating account & tables…');
+    var s = await post('setup.php', {
+      owner_phone: plant.owner_phone, password: pw1, secret: secret,
+      plants: plants.map(function (p) {
+        return { id: p.id, plant_name: p.plant_name, gst_number: p.gst_number, city: p.city, address: p.address || null, parent_plant_id: p.parent_plant_id || null, plan_limit: plant.plan_limit || 2 };
+      })
+    });
+    if (!s.json || !s.json.success) {
+      mark(r1, 'bad', 'Setup failed');
+      showErr((s.json && s.json.error) || ('Setup failed (HTTP ' + s.status + '). Check that config.php exists on the server.'));
+      btn.disabled = false; btn.textContent = 'Migrate my data →'; return;
+    }
+    mark(r1, 'ok', 'Account & tables ready (' + s.json.plants + ' plant' + (s.json.plants === 1 ? '' : 's') + ')');
+
+    // 2) Log in to get a token.
+    var r2 = log('run', 'Logging in…');
+    var lg = await post('login.php', { p_owner_phone: plant.owner_phone, p_password: pw1 });
+    if (!lg.json || !lg.json.token) {
+      mark(r2, 'bad', 'Login failed');
+      showErr((lg.json && lg.json.error) || 'Could not log in after setup.');
+      btn.disabled = false; btn.textContent = 'Migrate my data →'; return;
+    }
+    mark(r2, 'ok', 'Logged in');
+    var token = lg.json.token, primaryId = lg.json.plant.id;
+
+    // 3) Upload every cached blob.
+    var blobs = collectBlobs(primaryId);
+    if (!blobs.length) log('mut', 'No cached business data found in this browser (nothing to upload).');
+    var uploaded = 0;
+    for (var i = 0; i < blobs.length; i++) {
+      var b = blobs[i];
+      var rr = log('run', 'Uploading ' + b.label + '…');
+      var up = await post('data.php', { p_plant_id: primaryId, p_id: b.id, p_data: b.data, token: token });
+      if (up.json && up.json.success) { mark(rr, 'ok', 'Uploaded ' + b.label); uploaded++; }
+      else { mark(rr, 'bad', 'Failed: ' + b.label + ((up.json && up.json.error) ? ' (' + up.json.error + ')' : '')); }
+    }
+
+    log('ok', 'Done — ' + uploaded + ' data set' + (uploaded === 1 ? '' : 's') + ' migrated.');
+    document.getElementById('donemsg').textContent =
+      'Your data is now on Hostinger (' + uploaded + ' data set' + (uploaded === 1 ? '' : 's') + ' + your account). Log in with ' + plant.owner_phone + ' and the password you just set.';
+    document.getElementById('setup-view').style.display = 'none';
+    document.getElementById('done').style.display = 'block';
+  });
+})();
+</script>
+</body>
+</html>

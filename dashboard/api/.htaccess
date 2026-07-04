@@ -1,0 +1,12 @@
+# QuickLimes API — never serve the secrets file or the SQL dump as plain text.
+<FilesMatch "^(config\.php|config\.example\.php|schema\.sql)$">
+  Require all denied
+</FilesMatch>
+
+# Pass the Authorization header through to PHP (LiteSpeed/CGI can strip it).
+# The API also accepts the token in the body / query, so this is belt-and-suspenders.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
