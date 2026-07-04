@@ -134,13 +134,6 @@
       <div class="ws-menu" id="wsMenu"></div>
     </div>
     <nav class="sb-nav">${navHTML(active)}</nav>
-    <div class="sb-foot">
-      <div class="sb-upgrade">
-        <div class="sb-upgrade-title"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 9 9 2 9.5l5 5L5.5 22 12 18l6.5 4-1.5-7.5 5-5L15 9z"/></svg><span>Trial · 14 days left</span></div>
-        <div class="sb-upgrade-text">Upgrade to unlock production analytics, AI insights and unlimited child plants.</div>
-        <button class="sb-upgrade-btn">Upgrade plan</button>
-      </div>
-    </div>
   </aside>
 
   <div class="mobile-backdrop" id="mobBack" onclick="QLShell.toggleMobileSidebar(false)"></div>
