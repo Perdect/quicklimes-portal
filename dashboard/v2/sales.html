@@ -218,13 +218,21 @@ function _syncFilterFromUrl() {
   if (window.QLD && QLD.co) renderSales();
 }
 document.querySelectorAll('#srTabs .sr-tab').forEach(t => t.classList.toggle('active', t.dataset.f === srFilter));
-window.addEventListener('hashchange', _syncFilterFromUrl);
+// "GST Invoice" sidebar link points here with #new → pop the invoice form open.
+function _maybeOpenNew() {
+  if ((location.hash || '') === '#new') {
+    history.replaceState(null, '', location.pathname);   // strip so a refresh won't reopen it
+    if (window.QLShell && QLShell.openSaleForm) QLShell.openSaleForm();
+  }
+}
+window.addEventListener('hashchange', () => { _syncFilterFromUrl(); _maybeOpenNew(); });
 
 /* company switch hook for the shell's workspace menu */
 window.__qlOnSwitchCompany = function (id) { QLD.switchCompany(id, renderSales); };
 window.__qlRefresh = renderSales;
 
 QLD.init(renderSales);
+_maybeOpenNew();   // opened via the GST Invoice sidebar link (sales.html#new)
 </script>
 </body>
 </html>

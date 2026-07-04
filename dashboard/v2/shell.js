@@ -50,7 +50,7 @@
     { type: 'solo', id: 'dashboard', label: 'Dashboard', href: 'dashboard.html', icon: I.grid },
     { type: 'solo', id: 'command', label: 'Command Center', href: 'command.html', icon: I.pulse },
     { type: 'group', label: 'Sales', items: [
-      { id: 'invoice',     label: 'GST Invoice',     href: SOON,         icon: I.invoice },
+      { id: 'invoice',     label: 'GST Invoice',     href: 'sales.html#new', icon: I.invoice },
       { id: 'sales',       label: 'Sales Register',  href: 'sales.html', icon: I.sales },
       { id: 'collections', label: 'Collections',     href: 'sales.html#pending', icon: I.coll, badgeKey: 'collections' },
       { id: 'monthreg',    label: 'Monthly Register', href: 'monthreg.html', icon: I.cal }
