@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finance + GST Portal — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css"><link rel="stylesheet" href="./finance.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
+<script src="./finance.js"></script>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Finance + GST Portal</h1>
+        <div class="page-sub" id="finSub">Bank statements · outstanding · GST · CA documents</div>
+      </div>
+      <div class="page-actions">
+        <button class="ql-btn" id="finReclass" title="Re-run AI classification on all transactions"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><polyline points="21 3 21 9 15 9"/></svg> Re-classify</button>
+        <button class="ql-btn ql-btn-primary" id="finUploadBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload statement</button>
+      </div>
+    </div>
+
+    <div class="fin-tabs" id="finTabs">
+      <button class="fin-tab active" data-t="overview">Overview</button>
+      <button class="fin-tab" data-t="txns">Transactions</button>
+      <button class="fin-tab" data-t="gst">GST Tracking</button>
+      <button class="fin-tab" data-t="ca">CA Documents</button>
+      <button class="fin-tab" data-t="reports">Reports</button>
+    </div>
+
+    <div id="finBody"></div>
+  </div>
+</div>
+
+<!-- Upload / import panel (hidden until triggered) -->
+<div class="fin-sheet" id="finSheet" hidden>
+  <div class="fin-sheet-card">
+    <div class="fin-sheet-head">
+      <div><div class="fin-sheet-title" id="finSheetTitle">Upload bank statement</div><div class="fin-sheet-sub" id="finSheetSub">CSV or Excel is auto-read. PDF is best-effort — please review.</div></div>
+      <button class="fin-x" id="finSheetClose">&times;</button>
+    </div>
+    <div class="fin-sheet-body" id="finSheetBody"></div>
+  </div>
+</div>
+
+<div id="finToast" class="fin-toast" hidden></div>
+
+<script src="./shell.js"></script>
+<script>
+QLShell.mount({ active: 'finance', title: 'Finance + GST Portal' });
+const Q = window.QLD, F = window.QLFin;
+const CATS = F.CATS;
+const $ = s => document.querySelector(s);
+const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fC = Q.fC, fmt = Q.fmt;
+let FIN = { tab: 'overview', acc: 'all', cat: 'all', q: '', caMonth: F.thisMonth() };
+
+/* ── toast ─────────────────────────────────────────────── */
+let _tt;
+function toast(msg, tone) {
+  const el = $('#finToast'); el.textContent = msg; el.className = 'fin-toast ' + (tone || ''); el.hidden = false;
+  clearTimeout(_tt); _tt = setTimeout(() => { el.hidden = true; }, 3200);
+}
+
+/* ── date helper ───────────────────────────────────────── */
+function fDate(s) { if (!s) return '—'; const [y, m, d] = s.split('-'); return d && m ? `${d} ${['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m]}` : s; }
+
+/* ══════════════════ OVERVIEW ══════════════════ */
+function ovIcon(k) {
+  const I = {
+    in: '<path d="M12 5v14M5 12l7 7 7-7"/>', out: '<path d="M12 19V5M5 12l7-7 7 7"/>',
+    rupee: '<path d="M6 3h12M6 8h12M6 13l8.5 8M6 13h3a5 5 0 0 0 0-10"/>',
+    bill: '<path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 2 2 2-2 2 2 2-2 3 2V8z"/><path d="M14 2v6h6"/>',
+    flow: '<path d="M3 12h4l3 8 4-16 3 8h4"/>', bank: '<path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/>',
+    warn: '<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+    tag: '<path d="M20.6 13.4 12 22l-9-9V4h9z"/><circle cx="7.5" cy="7.5" r="1.5"/>'
+  };
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${I[k] || I.rupee}</svg>`;
+}
+function renderOverview() {
+  const s = F.summary();
+  const K = [
+    { label: 'Sales Received', v: fC(s.salesRecv), meta: 'money in from customers', ic: 'in', tone: 'ok' },
+    { label: 'Purchases Paid', v: fC(s.purchasePaid), meta: 'money out to suppliers', ic: 'out', tone: 'red' },
+    { label: 'Customer Outstanding', v: fC(s.custOut), meta: 'to be collected', ic: 'rupee', tone: 'amber' },
+    { label: 'Supplier Outstanding', v: fC(s.supOut), meta: 'to be paid', ic: 'bill', tone: 'indigo' },
+    { label: 'Pending Bills', v: s.pendingBills, meta: 'invoices + bills open', ic: 'tag', tone: 'brand' },
+    { label: 'Overdue (30d+)', v: fC(s.overdue), meta: 'needs a reminder', ic: 'warn', tone: 'red' },
+    { label: 'Net Cash Flow', v: fC(s.netCash), meta: `${fC(s.inflow)} in · ${fC(s.outflow)} out`, ic: 'flow', tone: s.netCash >= 0 ? 'ok' : 'red' },
+    { label: 'GST Refund In', v: fC(s.gstRefund), meta: 'received in bank', ic: 'rupee', tone: 'ok' }
+  ];
+  const kpis = `<div class="kpi-strip fin-kpis">${K.map(k => `
+    <div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic fin-ic-${k.tone}">${ovIcon(k.ic)}</div></div>
+    <div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${esc(k.meta)}</div></div></div>`).join('')}</div>`;
+
+  const accCards = `<div class="fin-acc-row">${s.accounts.map(a => `
+    <div class="fin-acc-card">
+      <div class="fin-acc-top"><div class="fin-acc-ic">${ovIcon('bank')}</div><span class="fin-acc-tag">${a.count} txns</span></div>
+      <div class="fin-acc-label">${esc(a.label)}${a.bank ? ' · ' + esc(a.bank) : ''}</div>
+      <div class="fin-acc-bal">${fC(a.balance)}</div>
+      <div class="fin-acc-sub">current balance</div>
+    </div>`).join('')}
+    <div class="fin-acc-card fin-acc-total">
+      <div class="fin-acc-top"><div class="fin-acc-ic">${ovIcon('flow')}</div></div>
+      <div class="fin-acc-label">Combined position</div>
+      <div class="fin-acc-bal">${fC(s.accounts.reduce((x, a) => x + a.balance, 0))}</div>
+      <div class="fin-acc-sub">${s.txnCount} transactions · ${s.needsReview} need review</div>
+    </div></div>`;
+
+  const ins = F.insights();
+  const aiCard = `<div class="fin-ai card">
+    <div class="fin-ai-head"><div class="fin-ai-badge">✨ AI Finance Assistant</div><div class="fin-ai-title">What needs your attention</div></div>
+    <div class="fin-ai-list">${ins.map(i => `
+      <div class="fin-ai-item tone-${i.tone}">
+        <div class="fin-ai-dot">${ovIcon(i.icon === 'folder' ? 'bill' : i.icon === 'rupee' ? 'rupee' : i.icon === 'flow' ? 'flow' : i.icon === 'bill' ? 'bill' : i.icon === 'warn' ? 'warn' : 'tag')}</div>
+        <div><div class="fin-ai-t">${esc(i.title)}</div><div class="fin-ai-b">${esc(i.body)}</div></div>
+      </div>`).join('') || '<div class="fin-empty">Upload a bank statement to get AI insights.</div>'}</div>
+  </div>`;
+
+  const cats = F.byCategory();
+  const catCard = `<div class="card fin-cat-card">
+    <div class="fin-card-title">Where the money moved</div>
+    ${cats.length ? `<table class="fin-mini"><thead><tr><th>Category</th><th class="r">In</th><th class="r">Out</th><th class="r">Count</th></tr></thead><tbody>
+      ${cats.map(c => `<tr><td><span class="fin-pill ${catClass(c.cat)}">${esc(c.cat)}</span></td><td class="r pos">${c.credit ? fC(c.credit) : '—'}</td><td class="r neg">${c.debit ? fC(c.debit) : '—'}</td><td class="r">${c.count}</td></tr>`).join('')}
+    </tbody></table>` : '<div class="fin-empty">No transactions yet.</div>'}
+  </div>`;
+
+  const custOut = F.customerOutstanding().slice(0, 6), supOut = F.supplierOutstanding().slice(0, 6);
+  const outCard = `<div class="fin-two">
+    <div class="card"><div class="fin-card-title">Top customer outstanding</div>${outTable(custOut, 'Customer')}</div>
+    <div class="card"><div class="fin-card-title">Top supplier outstanding</div>${outTable(supOut, 'Supplier')}</div>
+  </div>`;
+
+  $('#finBody').innerHTML = kpis + accCards + `<div class="fin-grid2">${aiCard}${catCard}</div>` + outCard;
+  QLShell.paintWorkspace && QLShell.paintWorkspace();
+}
+function outTable(rows, label) {
+  if (!rows.length) return '<div class="fin-empty">Nothing outstanding 🎉</div>';
+  return `<table class="fin-mini"><thead><tr><th>${label}</th><th class="r">Amount</th><th class="r">Age</th></tr></thead><tbody>
+    ${rows.map(r => `<tr><td>${esc(r.party)}</td><td class="r">${fC(r.amount)}</td><td class="r ${r.oldest > 30 ? 'neg' : 'muted'}">${r.oldest}d</td></tr>`).join('')}</tbody></table>`;
+}
+function catClass(c) {
+  if (['Customer Payment', 'Sales Receipt', 'GST Refund'].includes(c)) return 'c-green';
+  if (c === 'Needs Review') return 'c-amber';
+  if (['GST Payment'].includes(c)) return 'c-red';
+  return 'c-slate';
+}
+
+/* ══════════════════ TRANSACTIONS ══════════════════ */
+function renderTxns() {
+  const F2 = Q.finance;
+  const accOpts = [['all', 'All accounts'], ...F2.accounts.map(a => [a.id, a.label])];
+  const toolbar = `<div class="card"><div class="fin-txn-tools">
+    <div class="sr-tabs">${accOpts.map(([v, l]) => `<button class="sr-tab ${FIN.acc === v ? 'active' : ''}" data-acc="${v}">${esc(l)}</button>`).join('')}</div>
+    <div class="fin-tool-right">
+      <select id="finCatFilter" class="fin-select"><option value="all">All categories</option>${CATS.map(c => `<option ${FIN.cat === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
+      <div class="sr-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="finSearch" placeholder="Search narration, ref…" value="${esc(FIN.q)}"></div>
+      <button class="ql-btn" id="finAddTxn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add</button>
+    </div></div>`;
+
+  let rows = F2.txns.slice();
+  if (FIN.acc !== 'all') rows = rows.filter(t => t.acc === FIN.acc);
+  if (FIN.cat !== 'all') rows = rows.filter(t => t.cat === FIN.cat);
+  if (FIN.q) { const q = FIN.q.toLowerCase(); rows = rows.filter(t => (t.narr + ' ' + t.ref + ' ' + (t.match || '')).toLowerCase().includes(q)); }
+
+  const body = rows.length ? rows.map(t => `<tr>
+    <td class="nowrap">${fDate(t.date)}</td>
+    <td class="muted">${esc(F.accLabel(t.acc)).replace('Current Account ', 'A/C ')}</td>
+    <td class="fin-narr"><div>${esc(t.narr) || '—'}</div>${t.match ? `<div class="fin-match">↔ ${esc(t.match)}</div>` : ''}${t.ref ? `<div class="fin-ref">${esc(t.ref)}</div>` : ''}</td>
+    <td class="r pos">${t.credit ? fC(t.credit) : ''}</td>
+    <td class="r neg">${t.debit ? fC(t.debit) : ''}</td>
+    <td class="r muted">${t.bal == null ? '' : fC(t.bal)}</td>
+    <td><select class="fin-cat ${catClass(t.cat)}" data-id="${t.id}">${CATS.map(c => `<option ${c === t.cat ? 'selected' : ''}>${c}</option>`).join('')}</select></td>
+    <td class="r"><button class="fin-del" data-del="${t.id}" title="Delete">&times;</button></td>
+  </tr>`).join('') : `<tr><td colspan="8"><div class="fin-empty">No transactions${FIN.q || FIN.cat !== 'all' || FIN.acc !== 'all' ? ' in this view' : ' yet — upload a statement to begin'}.</div></td></tr>`;
+
+  const table = `<div class="card"><div class="sr-table-wrap"><table class="sr fin-table">
+    <thead><tr><th>Date</th><th>A/C</th><th>Narration</th><th class="r">In</th><th class="r">Out</th><th class="r">Balance</th><th>Category</th><th></th></tr></thead>
+    <tbody>${body}</tbody></table></div>
+    <div class="sr-foot"><span>${rows.length} of ${F2.txns.length} transaction${F2.txns.length === 1 ? '' : 's'}</span></div></div>`;
+
+  $('#finBody').innerHTML = toolbar + table;
+
+  $('#finBody').querySelectorAll('.sr-tab[data-acc]').forEach(b => b.onclick = () => { FIN.acc = b.dataset.acc; renderTxns(); });
+  $('#finCatFilter').onchange = e => { FIN.cat = e.target.value; renderTxns(); };
+  $('#finSearch').oninput = e => { FIN.q = e.target.value; const cur = e.target; renderTxnsRowsOnly(); const inp = $('#finSearch'); if (inp) { inp.focus(); inp.setSelectionRange(cur.value.length, cur.value.length); } };
+  $('#finAddTxn').onclick = openManualAdd;
+  wireTxnRows();
+}
+function renderTxnsRowsOnly() { renderTxns(); }
+function wireTxnRows() {
+  $('#finBody').querySelectorAll('.fin-cat').forEach(sel => sel.onchange = () => {
+    const t = F.setTxn(sel.dataset.id, { cat: sel.value, match: '' }); sel.className = 'fin-cat ' + catClass(sel.value);
+    toast('Category updated'); if (FIN.tab === 'overview') renderOverview();
+  });
+  $('#finBody').querySelectorAll('.fin-del').forEach(b => b.onclick = () => { if (confirm('Delete this transaction?')) { F.deleteTxn(b.dataset.del); toast('Transaction deleted'); renderTxns(); } });
+}
+
+/* ══════════════════ GST TRACKING ══════════════════ */
+function renderGst() {
+  const g = F.gstMonths();
+  const totals = g.reduce((a, m) => ({ collected: a.collected + m.collected, itc: a.itc + m.itc, net: a.net + m.net, paidBank: a.paidBank + m.paidBank, refundBank: a.refundBank + m.refundBank, refundPending: a.refundPending + m.refundPending }), { collected: 0, itc: 0, net: 0, paidBank: 0, refundBank: 0, refundPending: 0 });
+  const kpis = `<div class="kpi-strip fin-kpis">
+    ${gstKpi('GST Collected', fC(totals.collected), 'output tax on sales', 'red')}
+    ${gstKpi('Input Tax Credit', fC(totals.itc), 'ITC on purchases', 'ok')}
+    ${gstKpi('Net GST Payable', fC(totals.net), 'collected − ITC', 'amber')}
+    ${gstKpi('Refund Received', fC(totals.refundBank), 'credited in bank', 'ok')}
+    ${gstKpi('Refund Pending', fC(totals.refundPending), 'claimed, awaited', 'indigo')}
+  </div>`;
+  const table = `<div class="card"><div class="fin-card-title">Month-wise GST summary &amp; filing status</div>
+    <div class="sr-table-wrap"><table class="sr fin-table">
+    <thead><tr><th>Month</th><th class="r">Collected</th><th class="r">ITC</th><th class="r">Net GST</th><th class="r">Paid (bank)</th><th class="r">Refund in</th><th class="r">Refund pending</th><th>Filing status</th></tr></thead>
+    <tbody>${g.length ? g.map(m => `<tr>
+      <td class="nowrap"><b>${m.label}</b></td>
+      <td class="r">${fC(m.collected)}</td><td class="r pos">${fC(m.itc)}</td>
+      <td class="r"><b>${fC(m.net)}</b></td><td class="r">${m.paidBank ? fC(m.paidBank) : '—'}</td>
+      <td class="r pos">${m.refundBank ? fC(m.refundBank) : '—'}</td>
+      <td class="r"><input class="fin-inline-num" data-gst-pending="${m.ym}" value="${m.refundPending || ''}" placeholder="0"></td>
+      <td><select class="fin-cat fin-status s-${m.status.replace(/\s+/g, '')}" data-gst-status="${m.ym}">${F.STATUSES.map(s => `<option ${s === m.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td>
+    </tr>`).join('') : `<tr><td colspan="8"><div class="fin-empty">No GST activity yet — add sales/purchases or import GST transactions.</div></td></tr>`}</tbody></table></div></div>`;
+  $('#finBody').innerHTML = kpis + table;
+  $('#finBody').querySelectorAll('[data-gst-status]').forEach(sel => sel.onchange = () => { F.setGst(sel.dataset.gstStatus, { status: sel.value }); sel.className = 'fin-cat fin-status s-' + sel.value.replace(/\s+/g, ''); toast('Filing status saved'); });
+  $('#finBody').querySelectorAll('[data-gst-pending]').forEach(inp => inp.onchange = () => { F.setGst(inp.dataset.gstPending, { refundPending: F.parseNum(inp.value) }); toast('Refund pending saved'); });
+}
+function gstKpi(label, v, meta, tone) { return `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic fin-ic-${tone}">${ovIcon('rupee')}</div></div><div><div class="kpi-label">${label}</div><div class="kpi-val">${v}</div><div class="kpi-meta">${meta}</div></div></div>`; }
+
+/* ══════════════════ CA DOCUMENTS ══════════════════ */
+function renderCa() {
+  const ym = FIN.caMonth, m = F.caMonth(ym), prog = F.caProgress(ym);
+  const head = `<div class="card fin-ca-head">
+    <div class="fin-ca-month"><label>Month</label><input type="month" id="finCaMonth" value="${ym}"></div>
+    <div class="fin-ca-prog">
+      <div class="fin-ring" style="--pct:${prog.pct}"><span>${prog.pct}%</span></div>
+      <div><div class="fin-ca-progt">${prog.done} of ${prog.total} steps complete</div><div class="fin-ca-progs">Filing status:
+        <select class="fin-cat fin-status s-${m.filing.replace(/\s+/g, '')}" id="finCaFiling">${F.STATUSES.map(s => `<option ${s === m.filing ? 'selected' : ''}>${s}</option>`).join('')}</select></div></div>
+    </div></div>`;
+
+  const checklist = `<div class="card"><div class="fin-card-title">Monthly checklist — ${F.caLabel(ym)}</div>
+    <div class="fin-check">${F.CHECKLIST.map(([k, l]) => `<label class="fin-check-item ${m.checklist[k] ? 'on' : ''}"><input type="checkbox" data-chk="${k}" ${m.checklist[k] ? 'checked' : ''}><span class="fin-check-box"></span><span>${esc(l)}</span></label>`).join('')}</div></div>`;
+
+  const docs = m.docs || [];
+  const upload = `<div class="card">
+    <div class="fin-card-title">Documents for ${F.caLabel(ym)} <span class="fin-count">${docs.length}</span></div>
+    <div class="fin-drop" id="finDrop">
+      <div class="fin-drop-inner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div><b>Drop files or click to upload</b><div class="fin-drop-sub">Bank statements, invoices, bills, GST returns, challans, TDS — any CA file</div></div>
+      </div>
+      <div class="fin-drop-kind"><label>Type</label><select id="finDocKind">${F.DOC_KINDS.map(k => `<option>${k}</option>`).join('')}</select></div>
+      <input type="file" id="finDocFile" multiple hidden>
+    </div>
+    ${docs.length ? `<div class="fin-doc-list">${docs.map(d => `<div class="fin-doc">
+      <div class="fin-doc-ic">${docIcon(d.name)}</div>
+      <div class="fin-doc-meta"><div class="fin-doc-name">${esc(d.name)}</div><div class="fin-doc-sub"><span class="fin-pill c-slate">${esc(d.kind)}</span> ${fmtSize(d.size)} · ${new Date(d.at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</div></div>
+      <div class="fin-doc-act"><button class="ql-btn fin-doc-dl" data-dl="${d.id}">Download</button><button class="fin-del" data-docdel="${d.id}">&times;</button></div>
+    </div>`).join('')}</div>` : '<div class="fin-empty">No documents uploaded for this month yet.</div>'}
+    <div class="fin-note">🔒 Files are stored privately in this browser for now. Once your Hostinger database is live, they move to secure server storage your CA can download.</div>
+  </div>`;
+
+  $('#finBody').innerHTML = head + checklist + upload;
+
+  $('#finCaMonth').onchange = e => { FIN.caMonth = e.target.value; renderCa(); };
+  $('#finCaFiling').onchange = e => { F.setFiling(ym, e.target.value); toast('Filing status saved'); renderCa(); };
+  $('#finBody').querySelectorAll('[data-chk]').forEach(c => c.onchange = () => { F.setChecklist(ym, c.dataset.chk, c.checked); renderCa(); });
+  const drop = $('#finDrop'), file = $('#finDocFile');
+  drop.onclick = e => { if (!e.target.closest('.fin-drop-kind')) file.click(); };
+  file.onchange = () => handleDocs([...file.files]);
+  ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => { if (e.dataTransfer.files.length) handleDocs([...e.dataTransfer.files]); });
+  $('#finBody').querySelectorAll('[data-dl]').forEach(b => b.onclick = () => { const d = F.caMonth(ym).docs.find(x => x.id === b.dataset.dl); F.downloadDoc(d); });
+  $('#finBody').querySelectorAll('[data-docdel]').forEach(b => b.onclick = async () => { if (confirm('Remove this document?')) { await F.deleteDoc(ym, b.dataset.docdel); toast('Document removed'); renderCa(); } });
+}
+async function handleDocs(files) {
+  const kind = $('#finDocKind').value, ym = FIN.caMonth;
+  for (const f of files) { try { await F.addDoc(ym, kind, f); } catch (e) { toast('Upload failed: ' + f.name, 'err'); } }
+  toast(`${files.length} document${files.length > 1 ? 's' : ''} added`, 'ok'); renderCa();
+}
+function docIcon(name) {
+  const e = (name.split('.').pop() || '').toLowerCase();
+  const c = e === 'pdf' ? '#EF4444' : (['xls', 'xlsx', 'csv'].includes(e) ? '#16A34A' : (['png', 'jpg', 'jpeg'].includes(e) ? '#7C3AED' : '#64748B'));
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+}
+function fmtSize(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+
+/* ══════════════════ REPORTS ══════════════════ */
+function renderReports() {
+  const R = [
+    ['cashflow', 'Monthly Cash Flow', 'Every transaction with running category totals', 'flow'],
+    ['collection', 'Sales Collection', 'Payments received from customers', 'in'],
+    ['payment', 'Purchase Payments', 'Payments made to suppliers', 'out'],
+    ['custout', 'Customer Outstanding', 'Who owes you, and for how long', 'rupee'],
+    ['supout', 'Supplier Outstanding', 'Bills you still need to pay', 'bill'],
+    ['gstrefund', 'GST Refund', 'Refund received vs pending, month-wise', 'rupee'],
+    ['gststatus', 'GST Filing Status', 'Filing progress for every month', 'tag'],
+    ['missing', 'Missing Documents', 'CA checklist gaps across months', 'warn'],
+    ['unmatched', 'Unmatched Transactions', 'Bank entries still needing a category', 'warn']
+  ];
+  $('#finBody').innerHTML = `<div class="fin-rep-grid">${R.map(([id, t, d, ic]) => `
+    <div class="fin-rep card">
+      <div class="fin-rep-ic fin-ic-brand">${ovIcon(ic)}</div>
+      <div class="fin-rep-t">${t}</div><div class="fin-rep-d">${d}</div>
+      <div class="fin-rep-act"><button class="ql-btn" data-rep-print="${id}">Print</button><button class="ql-btn ql-btn-primary" data-rep-csv="${id}">Export CSV</button></div>
+    </div>`).join('')}</div>`;
+  $('#finBody').querySelectorAll('[data-rep-csv]').forEach(b => b.onclick = () => { const r = F.report(b.dataset.repCsv); exportCSV(r.title, r.headers, r.rows, r.totals); toast('CSV downloaded'); });
+  $('#finBody').querySelectorAll('[data-rep-print]').forEach(b => b.onclick = () => { const r = F.report(b.dataset.repPrint); printReport(r); });
+}
+function exportCSV(name, headers, rows, totals) {
+  const e = v => { v = (v == null ? '' : v).toString(); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  let csv = headers.map(e).join(',') + '\n' + rows.map(r => r.map(e).join(',')).join('\n');
+  if (totals) csv += '\n' + totals.map(e).join(',');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }), url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = (name + '.csv').replace(/\s+/g, '_'); a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function printReport(r) {
+  const co = Q.co || {}; const money = v => (typeof v === 'number' ? fC(v) : esc(v));
+  const w = window.open('', '_blank');
+  w.document.write(`<html><head><title>${esc(r.title)}</title><style>
+    body{font-family:Inter,Arial,sans-serif;padding:32px;color:#0f172a}
+    h1{font-size:20px;margin:0}h2{font-size:13px;color:#64748b;font-weight:500;margin:2px 0 20px}
+    table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0}
+    th{background:#f8fafc;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#64748b}
+    td.r,th.r{text-align:right}tfoot td{font-weight:700;border-top:2px solid #0f172a}
+  </style></head><body><h1>${esc(co.name || 'Gotan Lime Industries')} — ${esc(r.title)}</h1><h2>Generated ${new Date().toLocaleString('en-IN')}</h2>
+  <table><thead><tr>${r.headers.map((h, i) => `<th class="${i > 0 && typeof (r.rows[0] || [])[i] === 'number' ? 'r' : ''}">${esc(h)}</th>`).join('')}</tr></thead>
+  <tbody>${r.rows.map(row => `<tr>${row.map(c => `<td class="${typeof c === 'number' ? 'r' : ''}">${money(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+  ${r.totals ? `<tfoot><tr>${r.totals.map(c => `<td class="${typeof c === 'number' ? 'r' : ''}">${money(c)}</td>`).join('')}</tr></tfoot>` : ''}</table>
+  <script>window.onload=function(){window.print()}<\/script></body></html>`);
+  w.document.close();
+}
+
+/* ══════════════════ UPLOAD SHEET ══════════════════ */
+function openUpload() {
+  const F2 = Q.finance;
+  $('#finSheetTitle').textContent = 'Upload bank statement';
+  $('#finSheetSub').textContent = 'CSV or Excel is auto-read. PDF is best-effort — please review.';
+  $('#finSheetBody').innerHTML = `
+    <div class="fin-up-acc"><label>Which account is this statement for?</label>
+      <div class="fin-up-accs">${F2.accounts.map((a, i) => `<button class="fin-up-accbtn ${i === 0 ? 'active' : ''}" data-acc="${a.id}">${esc(a.label)}${a.bank ? '<span>' + esc(a.bank) + '</span>' : ''}</button>`).join('')}</div>
+    </div>
+    <label class="fin-drop" id="finUpDrop"><div class="fin-drop-inner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <div><b>Choose a statement file</b><div class="fin-drop-sub">.csv, .xlsx, .xls or .pdf</div></div></div>
+      <input type="file" id="finUpFile" accept=".csv,.xlsx,.xls,.pdf" hidden></label>
+    <div id="finUpResult"></div>`;
+  $('#finSheet').hidden = false;
+  let acc = F2.accounts[0].id;
+  $('#finSheetBody').querySelectorAll('.fin-up-accbtn').forEach(b => b.onclick = () => { $('#finSheetBody').querySelectorAll('.fin-up-accbtn').forEach(x => x.classList.remove('active')); b.classList.add('active'); acc = b.dataset.acc; });
+  const drop = $('#finUpDrop'), file = $('#finUpFile');
+  file.onchange = () => file.files[0] && previewFile(file.files[0], acc);
+  ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) previewFile(e.dataTransfer.files[0], acc); });
+}
+async function previewFile(f, acc) {
+  const res = $('#finUpResult'); res.innerHTML = `<div class="fin-up-loading">Reading <b>${esc(f.name)}</b>…</div>`;
+  let parsed;
+  try { parsed = await F.fileToRows(f); } catch (e) { res.innerHTML = `<div class="fin-up-err">Couldn't read this file. Try exporting your statement as CSV or Excel.</div>`; return; }
+  const ex = F.extract(parsed.rows);
+  if (!ex.ok || !ex.txns.length) {
+    res.innerHTML = `<div class="fin-up-err">Couldn't auto-detect the columns${parsed.kind === 'pdf' ? ' (PDF statements vary a lot)' : ''}. Make sure the file has Date, Debit/Credit and Balance columns — or export as CSV/Excel from your bank.</div>`;
+    return;
+  }
+  // classify preview
+  const preview = ex.txns.slice(0, 6);
+  res.innerHTML = `
+    <div class="fin-up-ok">✓ Found <b>${ex.txns.length}</b> transactions${parsed.kind === 'pdf' ? ' <span class="fin-beta">PDF · review carefully</span>' : ''}</div>
+    <div class="sr-table-wrap fin-up-prev"><table class="sr fin-table"><thead><tr><th>Date</th><th>Narration</th><th class="r">In</th><th class="r">Out</th><th class="r">Balance</th></tr></thead>
+    <tbody>${preview.map(t => `<tr><td class="nowrap">${fDate(t.date)}</td><td class="fin-narr"><div>${esc((t.narr || '').slice(0, 50)) || '—'}</div></td><td class="r pos">${t.credit ? fC(t.credit) : ''}</td><td class="r neg">${t.debit ? fC(t.debit) : ''}</td><td class="r muted">${t.bal == null ? '' : fC(t.bal)}</td></tr>`).join('')}</tbody></table></div>
+    ${ex.txns.length > 6 ? `<div class="fin-up-more">…and ${ex.txns.length - 6} more</div>` : ''}
+    <button class="ql-btn ql-btn-primary fin-up-import" id="finDoImport">Import ${ex.txns.length} transactions into ${esc(F.accLabel(acc))}</button>`;
+  $('#finDoImport').onclick = () => {
+    const r = F.importTxns(acc, ex.txns);
+    closeSheet();
+    toast(`${r.added} imported${r.dupes ? `, ${r.dupes} duplicate${r.dupes > 1 ? 's' : ''} skipped` : ''}`, 'ok');
+    FIN.tab = 'txns'; setTab('txns');
+  };
+}
+function openManualAdd() {
+  const F2 = Q.finance;
+  $('#finSheetTitle').textContent = 'Add transaction manually';
+  $('#finSheetSub').textContent = 'For entries a statement upload missed.';
+  $('#finSheetBody').innerHTML = `<div class="fin-form">
+    <div class="fin-f2"><label>Date<input type="date" id="maDate" value="${new Date().toISOString().slice(0, 10)}"></label>
+      <label>Account<select id="maAcc">${F2.accounts.map(a => `<option value="${a.id}">${esc(a.label)}</option>`).join('')}</select></label></div>
+    <label>Narration<input id="maNarr" placeholder="e.g. NEFT ARIF CHEMICAL"></label>
+    <div class="fin-f2"><label>Money in (₹)<input id="maCr" type="number" step="0.01" placeholder="0"></label>
+      <label>Money out (₹)<input id="maDr" type="number" step="0.01" placeholder="0"></label></div>
+    <div class="fin-f2"><label>Reference / UTR<input id="maRef" placeholder="optional"></label>
+      <label>Category<select id="maCat">${CATS.map(c => `<option>${c}</option>`).join('')}</select></label></div>
+    <button class="ql-btn ql-btn-primary fin-up-import" id="maSave">Add transaction</button></div>`;
+  $('#finSheet').hidden = false;
+  $('#maSave').onclick = () => {
+    const cr = F.parseNum($('#maCr').value), dr = F.parseNum($('#maDr').value);
+    if (!cr && !dr) { toast('Enter money in or money out', 'err'); return; }
+    F.importTxns($('#maAcc').value, [{ date: $('#maDate').value, narr: $('#maNarr').value, credit: cr, debit: dr, ref: $('#maRef').value, cat: $('#maCat').value, bal: null }]);
+    closeSheet(); toast('Transaction added', 'ok'); setTab('txns');
+  };
+}
+function closeSheet() { $('#finSheet').hidden = true; }
+
+/* ══════════════════ TAB ROUTING ══════════════════ */
+function setTab(t) {
+  FIN.tab = t;
+  document.querySelectorAll('.fin-tab').forEach(b => b.classList.toggle('active', b.dataset.t === t));
+  ({ overview: renderOverview, txns: renderTxns, gst: renderGst, ca: renderCa, reports: renderReports }[t] || renderOverview)();
+}
+function refreshSub() {
+  const s = F.summary();
+  $('#finSub').textContent = `${(Q.co || {}).short || 'Your plant'} · ${s.txnCount} transactions · ${fC(s.accounts.reduce((a, x) => a + x.balance, 0))} across ${s.accounts.length} accounts`;
+}
+document.querySelectorAll('.fin-tab').forEach(b => b.onclick = () => setTab(b.dataset.t));
+$('#finUploadBtn').onclick = openUpload;
+$('#finSheetClose').onclick = closeSheet;
+$('#finSheet').addEventListener('click', e => { if (e.target.id === 'finSheet') closeSheet(); });
+$('#finReclass').onclick = () => { F.reclassifyAll(); toast('AI re-classified all transactions', 'ok'); setTab(FIN.tab); };
+
+window.__qlOnSwitchCompany = id => Q.switchCompany(id, () => { refreshSub(); setTab(FIN.tab); });
+window.__qlRefresh = () => { refreshSub(); setTab(FIN.tab); };
+Q.init(() => { refreshSub(); setTab(FIN.tab); });
+</script>
+</body>
+</html>

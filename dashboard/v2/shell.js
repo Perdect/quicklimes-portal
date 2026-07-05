@@ -71,6 +71,7 @@
       { id: 'dispatch', label: 'Dispatch',         href: SOON, icon: I.truck }
     ]},
     { type: 'group', label: 'Finance', items: [
+      { id: 'finance',  label: 'Finance + GST Portal', href: 'finance.html', icon: I.bank, badge: { text: 'new', tone: 'info' } },
       { id: 'cashbook', label: 'Cash Book',     href: 'cashbook.html', icon: I.card },
       { id: 'loans',    label: 'Loans',         href: 'loans.html',    icon: I.bank },
       { id: 'gst',      label: 'GST',           href: 'gst.html',      icon: I.receipt },

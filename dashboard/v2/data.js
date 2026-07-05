@@ -74,8 +74,32 @@
   /* ── State ───────────────────────────────────────────────────── */
   const S = {
     SALES: [], PURCHASES: [], WORKERS: [], WORK_LOG: [], ATT: {},
-    TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: []
+    TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: [],
+    FINANCE: null
   };
+  // Finance + GST Portal state (bank txns, GST tracking, CA docs metadata).
+  // Lives inside the per-company blob so it persists locally and syncs to
+  // cloud with everything else. Uploaded document *files* live in IndexedDB
+  // (finance.js), only lightweight metadata is kept here.
+  function defaultFinance() {
+    return {
+      accounts: [
+        { id: 'A1', label: 'Current Account 1', bank: '', accNo: '', opening: 0 },
+        { id: 'A2', label: 'Current Account 2', bank: '', accNo: '', opening: 0 }
+      ],
+      txns: [], gst: {}, ca: {}
+    };
+  }
+  function normalizeFinance(f) {
+    const d = defaultFinance();
+    if (!f || typeof f !== 'object') return d;
+    return {
+      accounts: (Array.isArray(f.accounts) && f.accounts.length) ? f.accounts : d.accounts,
+      txns: Array.isArray(f.txns) ? f.txns : [],
+      gst: (f.gst && typeof f.gst === 'object') ? f.gst : {},
+      ca: (f.ca && typeof f.ca === 'object') ? f.ca : {}
+    };
+  }
   let DB = null;
   let ALL_LOANS = [];   // global across companies (v1 stores loans in `dm_loans`, tagged by .company)
 
@@ -115,6 +139,7 @@
     S.TDS.length = 0; S.CHALLANS.length = 0; S.PARTIES.length = 0; S.CASHBOOK.length = 0;
     S.LOANS.length = 0; S.CHUNNA.length = 0;
     Object.keys(S.ATT).forEach(k => delete S.ATT[k]);
+    S.FINANCE = defaultFinance();
   }
   function hydrate(d) {
     if (!d) return;
@@ -129,6 +154,7 @@
     if (d.cashbook)  S.CASHBOOK.push(...d.cashbook);
     if (d.loans)     S.LOANS.push(...d.loans);
     if (d.chunna)    S.CHUNNA.push(...d.chunna);
+    if (d.finance)   S.FINANCE = normalizeFinance(d.finance);
   }
   function loadLocal() {
     clearState();
@@ -184,7 +210,7 @@
     const b = {
       sales: S.SALES, purchases: S.PURCHASES, workers: S.WORKERS, workLog: S.WORK_LOG,
       att: S.ATT, tds: S.TDS, challans: S.CHALLANS, parties: S.PARTIES,
-      cashbook: S.CASHBOOK, chunna: S.CHUNNA
+      cashbook: S.CASHBOOK, chunna: S.CHUNNA, finance: S.FINANCE || defaultFinance()
     };
     if (includePic) b.profile_pic = localStorage.getItem('dm_profile_pic') || null;
     return b;
@@ -829,6 +855,10 @@
     invoiceData, amountInWords,
     notifications, getRenewals, addRenewal, removeRenewal, recommendations,
     REPORT_TYPES, buildReport, getGroups, saveGroups, getSchedules, saveSchedules,
+
+    // ── Finance + GST Portal ──
+    get finance() { return (S.FINANCE || (S.FINANCE = defaultFinance())); },
+    saveFinance() { commit(); },
 
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal,
