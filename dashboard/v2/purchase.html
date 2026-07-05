@@ -18,7 +18,7 @@
     <div class="page-head">
       <div><h1 class="page-title">Purchase Register</h1><div class="page-sub" id="prSub">Loading bills…</div></div>
       <div class="page-actions">
-        <button class="ql-btn ql-btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
+        <button class="ql-btn ql-btn-secondary" id="puExport"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
         <button class="ql-btn ql-btn-primary" onclick="QLShell.openPurchaseForm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add bill</button>
       </div>
     </div>
@@ -104,6 +104,13 @@ document.getElementById('prPrev').addEventListener('click', () => { if (pPage > 
 document.getElementById('prNext').addEventListener('click', () => { pPage++; render(); });
 window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
 window.__qlRefresh = render;
+document.getElementById('puExport').addEventListener('click', () => {
+  const r = filtered();
+  QLShell.exportCSV('purchases_' + (QLD.co.short || 'register').replace(/\s+/g, '_'),
+    ['Bill', 'Date', 'Supplier', 'Category', 'GSTIN', 'Taxable', 'GST', 'ITC', 'Total', 'Status'],
+    r.map(x => [x.bill, x.date, x.sup, x.cat, x.gstin, x.taxable, x.gst, x.itc, x.total, x.status]));
+  QLShell.toast('Exported ' + r.length + ' bill' + (r.length === 1 ? '' : 's') + ' to CSV');
+});
 QLD.init(render);
 </script>
 </body>

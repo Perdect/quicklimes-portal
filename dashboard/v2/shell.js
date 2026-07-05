@@ -1150,7 +1150,7 @@
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
     // form modals + row action menus
     closeModal, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
-    rowMenu, printInvoice,
+    rowMenu, printInvoice, exportCSV,
     formPrompt(title, specs, onSave, sub) { openForm({ title, sub, specs, saveLabel: 'Save', initial: {}, onSave(v) { onSave(v); } }); },
 
     mount(opts) {
