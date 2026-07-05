@@ -495,10 +495,76 @@
   function accLabel(id) { const a = QLD.finance.accounts.find(x => x.id === id); return a ? a.label : id; }
   function caLabel(ym) { if (!ym) return ''; const [y, m] = ym.split('-'); return new Date(+y, +m - 1, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }); }
 
+  /* ── Generic spreadsheet-import helpers (shared by Sales/Purchase) ── */
+  // Find the header row: `groups` is a list of keyword-groups, ALL must match
+  // (each group is an OR of keywords). Skips bank/register preamble rows.
+  function findHeaderRow(rows, groups) {
+    for (let i = 0; i < Math.min(rows.length, 30); i++) {
+      const cells = (rows[i] || []).map(c => (c || '').toString().toLowerCase());
+      if (groups.every(g => cells.some(c => g.some(k => c.includes(k))))) return i;
+    }
+    return -1;
+  }
+  const colOf = (header, ...kws) => header.findIndex(h => { const c = (h || '').toString().toLowerCase().trim(); return kws.some(k => c.includes(k)); });
+
+  // Reusable upload sheet: file → cfg.extract(rows) → {ok, items} → dedup via
+  // cfg.keyOf/existing → preview table → bulk cfg.add → cfg.done(count).
+  function importSheet(cfg) {
+    const noun = cfg.noun || 'row';
+    const plural = n => noun + (n === 1 ? '' : 's');
+    let el = document.getElementById('qlfImportSheet');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'qlfImportSheet'; el.className = 'fin-sheet';
+      el.innerHTML = '<div class="fin-sheet-card"><div class="fin-sheet-head"><div><div class="fin-sheet-title" id="qlfImpTitle"></div><div class="fin-sheet-sub" id="qlfImpSub"></div></div><button class="fin-x" id="qlfImpX">&times;</button></div><div class="fin-sheet-body" id="qlfImpBody"></div></div>';
+      document.body.appendChild(el);
+      el.addEventListener('click', e => { if (e.target.id === 'qlfImportSheet') el.hidden = true; });
+      el.querySelector('#qlfImpX').addEventListener('click', () => { el.hidden = true; });
+    }
+    document.getElementById('qlfImpTitle').textContent = cfg.title || 'Import';
+    document.getElementById('qlfImpSub').textContent = cfg.sub || '';
+    document.getElementById('qlfImpBody').innerHTML =
+      '<label class="fin-drop" id="qlfDrop"><div class="fin-drop-inner">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
+      '<div><b>' + (cfg.dropTitle || 'Choose a file') + '</b><div class="fin-drop-sub">' + (cfg.dropSub || '.csv, .xlsx or .xls') + '</div></div></div>' +
+      '<input type="file" id="qlfFile" accept="' + (cfg.accept || '.csv,.xlsx,.xls') + '" hidden></label>' +
+      (cfg.tip ? '<div class="fin-note">' + cfg.tip + '</div>' : '') +
+      '<div id="qlfImpResult"></div>';
+    el.hidden = false;
+    const drop = document.getElementById('qlfDrop'), file = document.getElementById('qlfFile');
+    const go = f => f && preview(f);
+    file.onchange = () => go(file.files[0]);
+    ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+    drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); go(e.dataTransfer.files[0]); });
+
+    async function preview(f) {
+      const res = document.getElementById('qlfImpResult');
+      res.innerHTML = '<div class="fin-up-loading">Reading <b>' + (f.name || '').replace(/[<>]/g, '') + '</b>…</div>';
+      let parsed;
+      try { parsed = await fileToRows(f); } catch (e) { res.innerHTML = '<div class="fin-up-err">Couldn\'t read this file. Please export it as CSV or Excel.</div>'; return; }
+      let ex; try { ex = cfg.extract(parsed.rows); } catch (e) { ex = { ok: false }; }
+      if (!ex || !ex.ok || !ex.items.length) { res.innerHTML = '<div class="fin-up-err">' + (cfg.errText || 'Couldn\'t find the expected columns. Make sure your sheet has a header row.') + '</div>'; return; }
+      const existing = cfg.existing ? cfg.existing() : new Set();
+      const keyOf = cfg.keyOf || (() => '');
+      const fresh = ex.items.filter(it => { const k = keyOf(it); return !(k && existing.has(k)); });
+      const dupes = ex.items.length - fresh.length;
+      const p = cfg.preview, prev = fresh.slice(0, 6), R = p.right || [];
+      res.innerHTML =
+        '<div class="fin-up-ok">✓ Found <b>' + ex.items.length + '</b> ' + plural(ex.items.length) + (dupes ? ' · ' + dupes + ' already added (skipped)' : '') + '</div>' +
+        '<div class="sr-table-wrap fin-up-prev"><table class="sr fin-table"><thead><tr>' + p.headers.map((h, i) => '<th' + (R.includes(i) ? ' class="r"' : '') + '>' + h + '</th>').join('') + '</tr></thead><tbody>' +
+        prev.map(it => '<tr>' + p.row(it).map((c, i) => '<td' + (R.includes(i) ? ' class="r"' : '') + '>' + (c == null ? '' : c) + '</td>').join('') + '</tr>').join('') +
+        '</tbody></table></div>' +
+        (fresh.length > 6 ? '<div class="fin-up-more">…and ' + (fresh.length - 6) + ' more</div>' : '') +
+        (fresh.length ? '<button class="ql-btn ql-btn-primary fin-up-import" id="qlfDoImport">Import ' + fresh.length + ' ' + plural(fresh.length) + '</button>' : '<div class="fin-note">Nothing new to import — all of these are already added.</div>');
+      const btn = document.getElementById('qlfDoImport');
+      if (btn) btn.onclick = () => { fresh.forEach(cfg.add); el.hidden = true; if (cfg.done) cfg.done(fresh.length); };
+    }
+  }
+
   /* ── Public API ────────────────────────────────────────────────── */
   window.QLFin = {
     CATS, CREDIT_CATS, DEBIT_CATS, STATUSES, CHECKLIST, DOC_KINDS,
-    fileToRows, extract, parseDate, parseNum,
+    fileToRows, extract, parseDate, parseNum, findHeaderRow, colOf, importSheet,
     importTxns, reclassifyAll, setTxn, deleteTxn, findDuplicates,
     summary, byCategory, customerOutstanding, supplierOutstanding, accBalance, accLabel,
     gstMonths, setGst,

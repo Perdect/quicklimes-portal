@@ -247,107 +247,50 @@ document.getElementById('srExport').addEventListener('click', () => {
   QLShell.toast('Exported ' + r.length + ' invoice' + (r.length === 1 ? '' : 's') + ' to CSV');
 });
 
-/* ── Import sales bills from CSV / Excel ───────────────────────── */
-document.getElementById('srImport').addEventListener('click', openSalesImport);
-function _srSheet(title, sub, bodyHTML) {
-  let el = document.getElementById('srSheet');
-  if (!el) {
-    el = document.createElement('div'); el.id = 'srSheet'; el.className = 'fin-sheet';
-    el.innerHTML = '<div class="fin-sheet-card"><div class="fin-sheet-head"><div><div class="fin-sheet-title" id="srSheetTitle"></div><div class="fin-sheet-sub" id="srSheetSub"></div></div><button class="fin-x" id="srSheetX">&times;</button></div><div class="fin-sheet-body" id="srSheetBody"></div></div>';
-    document.body.appendChild(el);
-    el.addEventListener('click', e => { if (e.target.id === 'srSheet') el.hidden = true; });
-    el.querySelector('#srSheetX').addEventListener('click', () => { el.hidden = true; });
-  }
-  document.getElementById('srSheetTitle').textContent = title;
-  document.getElementById('srSheetSub').textContent = sub;
-  document.getElementById('srSheetBody').innerHTML = bodyHTML;
-  el.hidden = false; return el;
-}
-function openSalesImport() {
-  _srSheet('Import sales bills', 'Upload a CSV or Excel file of your invoices — columns are auto-detected.',
-    '<label class="fin-drop" id="srDrop"><div class="fin-drop-inner">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
-    '<div><b>Choose your sales file</b><div class="fin-drop-sub">.csv, .xlsx or .xls — needs Date, Party and an amount column</div></div></div>' +
-    '<input type="file" id="srFile" accept=".csv,.xlsx,.xls" hidden></label>' +
-    '<div class="fin-note">Tip: a simple sheet with columns <b>Invoice, Date, Party, GSTIN, Qty, Rate, GST%</b> works best. If you only have a total amount, that\'s fine — we\'ll work out the taxable value.</div>' +
-    '<div id="srImpResult"></div>');
-  const drop = document.getElementById('srDrop'), file = document.getElementById('srFile');
-  file.onchange = () => file.files[0] && previewSalesFile(file.files[0]);
-  ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
-  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
-  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) previewSalesFile(e.dataTransfer.files[0]); });
-}
-function _idx(header, ...kws) { return header.findIndex(h => { const c = (h || '').toString().toLowerCase().trim(); return kws.some(k => c.includes(k)); }); }
-function detectSalesHeader(rows) {
-  for (let i = 0; i < Math.min(rows.length, 25); i++) {
-    const cells = (rows[i] || []).map(c => (c || '').toString().toLowerCase());
-    const has = (...k) => cells.some(c => k.some(x => c.includes(x)));
-    if ((has('date') || has('invoice', 'bill', 'voucher')) && has('party', 'customer', 'buyer', 'consignee', 'name', 'amount', 'taxable', 'total', 'rate')) return i;
-  }
-  return -1;
-}
+/* ── Import sales bills from CSV / Excel (via shared QLFin.importSheet) ── */
 function extractSales(rows) {
-  const hi = detectSalesHeader(rows);
+  const hi = QLFin.findHeaderRow(rows, [['date', 'invoice', 'bill', 'voucher'], ['party', 'customer', 'buyer', 'consignee', 'name', 'amount', 'taxable', 'total', 'rate']]);
   if (hi < 0) return { ok: false };
-  const header = rows[hi].map(c => (c || '').toString());
+  const header = rows[hi].map(c => (c || '').toString()), C = QLFin.colOf;
   const map = {
-    inv: _idx(header, 'invoice no', 'bill no', 'invoice', 'voucher', 'inv no', 'inv'),
-    date: _idx(header, 'invoice date', 'bill date', 'date'),
-    party: _idx(header, 'party', 'customer', 'buyer', 'consignee', 'name'),
-    gstin: _idx(header, 'gstin', 'gst no', 'gst number', 'gst in'),
-    qty: _idx(header, 'qty', 'quantity', 'weight', 'tonne', 'ton', 'mt'),
-    rate: _idx(header, 'rate', 'price', 'unit'),
-    gstr: _idx(header, 'gst %', 'gst%', 'gst rate', 'tax %', 'tax%', 'rate of tax', 'tax rate'),
-    taxable: _idx(header, 'taxable', 'basic', 'amount', 'value'),
-    total: _idx(header, 'invoice value', 'grand total', 'net amount', 'total')
+    inv: C(header, 'invoice no', 'bill no', 'invoice', 'voucher', 'inv no', 'inv'),
+    date: C(header, 'invoice date', 'bill date', 'date'),
+    party: C(header, 'party', 'customer', 'buyer', 'consignee', 'name'),
+    gstin: C(header, 'gstin', 'gst no', 'gst number', 'gst in'),
+    qty: C(header, 'qty', 'quantity', 'weight', 'tonne', 'ton', 'mt'),
+    rate: C(header, 'rate', 'price', 'unit'),
+    gstr: C(header, 'gst %', 'gst%', 'gst rate', 'tax %', 'tax%', 'rate of tax', 'tax rate'),
+    taxable: C(header, 'taxable', 'basic', 'amount', 'value'),
+    total: C(header, 'invoice value', 'grand total', 'net amount', 'total')
   };
-  const veh = _idx(header, 'vehicle', 'truck', 'lorry');
-  const P = QLFin.parseNum, D = QLFin.parseDate, out = [];
+  const veh = C(header, 'vehicle', 'truck', 'lorry'), P = QLFin.parseNum, D = QLFin.parseDate, out = [];
   for (let r = hi + 1; r < rows.length; r++) {
     const row = rows[r]; if (!row) continue;
     const c = i => (i >= 0 && i < row.length) ? row[i] : '';
-    const party = (c(map.party) || '').toString().trim();
-    const date = D(c(map.date));
-    let qty = map.qty >= 0 ? P(c(map.qty)) : 0;
-    let rate = map.rate >= 0 ? P(c(map.rate)) : 0;
-    let taxable = map.taxable >= 0 ? P(c(map.taxable)) : 0;
-    let total = map.total >= 0 ? P(c(map.total)) : 0;
-    let gstR = map.gstr >= 0 ? P(c(map.gstr)) : 5;
-    if (!gstR) gstR = 5;
-    if (gstR > 0 && gstR < 1) gstR = gstR * 100;   // "0.05" → 5
+    const party = (c(map.party) || '').toString().trim(), date = D(c(map.date));
+    let qty = map.qty >= 0 ? P(c(map.qty)) : 0, rate = map.rate >= 0 ? P(c(map.rate)) : 0;
+    let taxable = map.taxable >= 0 ? P(c(map.taxable)) : 0, total = map.total >= 0 ? P(c(map.total)) : 0;
+    let gstR = map.gstr >= 0 ? P(c(map.gstr)) : 5; if (!gstR) gstR = 5; if (gstR > 0 && gstR < 1) gstR *= 100;
     if (!taxable && !(qty && rate) && total) taxable = total / (1 + gstR / 100);
     if (!qty || !rate) { if (taxable) { qty = qty || 1; rate = taxable / (qty || 1); } }
     if (!party && !qty && !taxable && !total) continue;
     out.push({ inv: (c(map.inv) || '').toString().trim(), date: date || '', party, gstin: (c(map.gstin) || '').toString().trim().toUpperCase(), qty: +(qty || 0), rate: +(rate || 0), gstR, veh: veh >= 0 ? (c(veh) || '').toString().trim() : '', status: 'pending' });
   }
-  return { ok: out.length > 0, header, map, sales: out };
+  return { ok: out.length > 0, items: out };
 }
-async function previewSalesFile(f) {
-  const res = document.getElementById('srImpResult');
-  res.innerHTML = '<div class="fin-up-loading">Reading <b>' + f.name + '</b>…</div>';
-  let parsed;
-  try { parsed = await QLFin.fileToRows(f); } catch (e) { res.innerHTML = '<div class="fin-up-err">Couldn\'t read this file. Please export it as CSV or Excel.</div>'; return; }
-  const ex = extractSales(parsed.rows);
-  if (!ex.ok) { res.innerHTML = '<div class="fin-up-err">Couldn\'t find invoice columns. Make sure the sheet has a header row with at least <b>Date</b>, <b>Party</b> and an amount (Taxable / Rate / Total).</div>'; return; }
-  const existing = new Set(QLD.state.SALES.map(s => (s.inv || '').toString().toUpperCase()).filter(Boolean));
-  const fresh = ex.sales.filter(s => !(s.inv && existing.has(s.inv.toUpperCase())));
-  const dupes = ex.sales.length - fresh.length;
-  const preview = fresh.slice(0, 6);
-  res.innerHTML =
-    '<div class="fin-up-ok">✓ Found <b>' + ex.sales.length + '</b> invoice' + (ex.sales.length === 1 ? '' : 's') + (dupes ? ' · ' + dupes + ' already in the register (skipped)' : '') + '</div>' +
-    '<div class="sr-table-wrap fin-up-prev"><table class="sr fin-table"><thead><tr><th>Invoice</th><th>Date</th><th>Party</th><th class="r">Qty</th><th class="r">Taxable</th><th class="r">GST%</th></tr></thead><tbody>' +
-    preview.map(s => '<tr><td>' + (s.inv || '—') + '</td><td class="nowrap">' + (s.date || '—') + '</td><td>' + (s.party || '—') + '</td><td class="r">' + (s.qty || '') + '</td><td class="r">' + QLD.fC(s.qty * s.rate) + '</td><td class="r">' + s.gstR + '%</td></tr>').join('') +
-    '</tbody></table></div>' +
-    (fresh.length > 6 ? '<div class="fin-up-more">…and ' + (fresh.length - 6) + ' more</div>' : '') +
-    (fresh.length ? '<button class="ql-btn ql-btn-primary fin-up-import" id="srDoImport">Import ' + fresh.length + ' invoice' + (fresh.length === 1 ? '' : 's') + '</button>' : '<div class="fin-note">Nothing new to import — all of these are already in your register.</div>');
-  const btn = document.getElementById('srDoImport');
-  if (btn) btn.onclick = () => {
-    fresh.forEach(s => QLD.addSale(s));
-    document.getElementById('srSheet').hidden = true;
-    QLShell.toast('Imported ' + fresh.length + ' invoice' + (fresh.length === 1 ? '' : 's'));
-    srPage = 1; renderSales();
-  };
-}
+document.getElementById('srImport').addEventListener('click', () => QLFin.importSheet({
+  title: 'Import sales bills', sub: 'Upload a CSV or Excel file of your invoices — columns are auto-detected.',
+  dropTitle: 'Choose your sales file', dropSub: '.csv, .xlsx or .xls — needs Date, Party and an amount column',
+  tip: 'Tip: a sheet with columns <b>Invoice, Date, Party, GSTIN, Qty, Rate, GST%</b> works best. If you only have a total amount, that\'s fine — we\'ll work out the taxable value.',
+  noun: 'invoice',
+  errText: 'Couldn\'t find invoice columns. Make sure the sheet has a header row with at least <b>Date</b>, <b>Party</b> and an amount (Taxable / Rate / Total).',
+  extract: extractSales,
+  existing: () => new Set(QLD.state.SALES.map(s => (s.inv || '').toString().toUpperCase()).filter(Boolean)),
+  keyOf: s => s.inv ? s.inv.toUpperCase() : '',
+  preview: { headers: ['Invoice', 'Date', 'Party', 'Qty', 'Taxable', 'GST%'], right: [3, 4, 5], row: s => [s.inv || '—', s.date || '—', s.party || '—', s.qty || '', QLD.fC(s.qty * s.rate), s.gstR + '%'] },
+  add: s => QLD.addSale(s),
+  done: n => { QLShell.toast('Imported ' + n + ' invoice' + (n === 1 ? '' : 's')); srPage = 1; renderSales(); }
+}));
 
 QLD.init(renderSales);
 _maybeOpenNew();   // opened via the GST Invoice sidebar link (sales.html#new)

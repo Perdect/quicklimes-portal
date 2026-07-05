@@ -8,9 +8,10 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css"><link rel="stylesheet" href="./finance.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./data.js"></script>
+<script src="./finance.js"></script><!-- QLFin: CSV/Excel parsing + shared import sheet -->
 </head>
 <body class="ql-v2">
 <div id="ql-page">
@@ -18,6 +19,7 @@
     <div class="page-head">
       <div><h1 class="page-title">Purchase Register</h1><div class="page-sub" id="prSub">Loading bills…</div></div>
       <div class="page-actions">
+        <button class="ql-btn ql-btn-secondary" id="puImport"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Import bills</button>
         <button class="ql-btn ql-btn-secondary" id="puExport"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
         <button class="ql-btn ql-btn-primary" onclick="QLShell.openPurchaseForm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add bill</button>
       </div>
@@ -111,6 +113,54 @@ document.getElementById('puExport').addEventListener('click', () => {
     r.map(x => [x.bill, x.date, x.sup, x.cat, x.gstin, x.taxable, x.gst, x.itc, x.total, x.status]));
   QLShell.toast('Exported ' + r.length + ' bill' + (r.length === 1 ? '' : 's') + ' to CSV');
 });
+
+/* ── Import purchase bills from CSV / Excel (shared QLFin.importSheet) ── */
+function extractPurchases(rows) {
+  const hi = QLFin.findHeaderRow(rows, [['date', 'bill', 'invoice', 'voucher'], ['supplier', 'vendor', 'party', 'seller', 'name', 'amount', 'taxable', 'total']]);
+  if (hi < 0) return { ok: false };
+  const header = rows[hi].map(c => (c || '').toString()), C = QLFin.colOf;
+  const map = {
+    bill: C(header, 'bill no', 'invoice no', 'bill', 'invoice', 'voucher'),
+    date: C(header, 'bill date', 'invoice date', 'date'),
+    sup: C(header, 'supplier', 'vendor', 'seller', 'party', 'name'),
+    gstin: C(header, 'gstin', 'gst no', 'gst number', 'gst in'),
+    cat: C(header, 'category', 'head', 'expense', 'nature', 'type'),
+    taxable: C(header, 'taxable', 'basic', 'amount', 'value'),
+    total: C(header, 'invoice value', 'grand total', 'net amount', 'total'),
+    grate: C(header, 'gst %', 'gst%', 'gst rate', 'tax %', 'tax%', 'rate of tax', 'tax rate'),
+    itc: C(header, 'itc')
+  };
+  const P = QLFin.parseNum, D = QLFin.parseDate, out = [];
+  const KNOWN = ['Raw Material', 'Petcoke', 'Transport', 'Packing', 'Electricity', 'Repair', 'Other'];
+  for (let r = hi + 1; r < rows.length; r++) {
+    const row = rows[r]; if (!row) continue;
+    const c = i => (i >= 0 && i < row.length) ? row[i] : '';
+    const sup = (c(map.sup) || '').toString().trim(), date = D(c(map.date));
+    let taxable = map.taxable >= 0 ? P(c(map.taxable)) : 0, total = map.total >= 0 ? P(c(map.total)) : 0;
+    let grate = map.grate >= 0 ? P(c(map.grate)) : 5; if (!grate) grate = 5; if (grate > 0 && grate < 1) grate *= 100;
+    if (!taxable && total) taxable = total / (1 + grate / 100);
+    if (!sup && !taxable && !total) continue;
+    let itc = 'Eligible'; const iv = (c(map.itc) || '').toString().toLowerCase().trim();
+    if (/rcm/.test(iv)) itc = 'RCM'; else if (/inelig/.test(iv) || iv === 'no' || iv === 'n') itc = 'Ineligible';
+    let cat = (c(map.cat) || '').toString().trim();
+    if (cat) { const k = KNOWN.find(x => x.toLowerCase() === cat.toLowerCase()); cat = k || cat; } else cat = 'Other';
+    out.push({ bill: (c(map.bill) || '').toString().trim(), date: date || '', sup, gstin: (c(map.gstin) || '').toString().trim().toUpperCase(), cat, taxable: +(taxable || 0), grate, itc, status: 'pending' });
+  }
+  return { ok: out.length > 0, items: out };
+}
+document.getElementById('puImport').addEventListener('click', () => QLFin.importSheet({
+  title: 'Import purchase bills', sub: 'Upload a CSV or Excel file of your supplier bills — columns are auto-detected.',
+  dropTitle: 'Choose your purchase file', dropSub: '.csv, .xlsx or .xls — needs Date, Supplier and a taxable amount',
+  tip: 'Tip: a sheet with columns <b>Bill No, Date, Supplier, GSTIN, Category, Taxable, GST%, ITC</b> works best. A total-amount column is fine too.',
+  noun: 'bill',
+  errText: 'Couldn\'t find bill columns. Make sure the sheet has a header row with at least <b>Date</b>, <b>Supplier</b> and a taxable/total amount.',
+  extract: extractPurchases,
+  existing: () => new Set(QLD.state.PURCHASES.filter(p => p.bill).map(p => ((p.sup || '') + '|' + p.bill).toUpperCase())),
+  keyOf: p => p.bill ? ((p.sup || '') + '|' + p.bill).toUpperCase() : '',
+  preview: { headers: ['Bill', 'Date', 'Supplier', 'Category', 'Taxable', 'GST%'], right: [4, 5], row: p => [p.bill || '—', p.date || '—', p.sup || '—', p.cat || '—', QLD.fC(p.taxable), p.grate + '%'] },
+  add: p => QLD.addPurchase(p),
+  done: n => { QLShell.toast('Imported ' + n + ' bill' + (n === 1 ? '' : 's')); pPage = 1; render(); }
+}));
 QLD.init(render);
 </script>
 </body>
