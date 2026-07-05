@@ -506,12 +506,20 @@
     return -1;
   }
   const colOf = (header, ...kws) => header.findIndex(h => { const c = (h || '').toString().toLowerCase().trim(); return kws.some(k => c.includes(k)); });
+  // First row that looks like data/header (>=2 non-empty cells) — skips title rows.
+  function firstDataRow(rows) { for (let i = 0; i < rows.length; i++) { if ((rows[i] || []).filter(c => (c || '').toString().trim() !== '').length >= 2) return i; } return 0; }
 
-  // Reusable upload sheet: file → cfg.extract(rows) → {ok, items} → dedup via
-  // cfg.keyOf/existing → preview table → bulk cfg.add → cfg.done(count).
+  // Reusable import wizard: file → find header → auto-map columns → (if any
+  // required column is unmatched) show a manual column-mapper → preview →
+  // dedup (cfg.keyOf/existing) → bulk cfg.add → cfg.done(count).
+  // cfg: {title,sub,dropTitle,dropSub,tip,accept,noun,
+  //   fields:[{key,label,required}], requireOneOf:[[key,...]],
+  //   headerGroups, autoMap:header=>({key:idx}), buildRow:get=>item|null,
+  //   existing,keyOf, preview:{headers,right,row}, add, done, errText}
   function importSheet(cfg) {
     const noun = cfg.noun || 'row';
     const plural = n => noun + (n === 1 ? '' : 's');
+    const esc = s => (s == null ? '' : s).toString().replace(/[<>]/g, '');
     let el = document.getElementById('qlfImportSheet');
     if (!el) {
       el = document.createElement('div'); el.id = 'qlfImportSheet'; el.className = 'fin-sheet';
@@ -531,34 +539,78 @@
       '<div id="qlfImpResult"></div>';
     el.hidden = false;
     const drop = document.getElementById('qlfDrop'), file = document.getElementById('qlfFile');
-    const go = f => f && preview(f);
+    const go = f => f && handle(f);
     file.onchange = () => go(file.files[0]);
     ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
     ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
     drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); go(e.dataTransfer.files[0]); });
 
-    async function preview(f) {
-      const res = document.getElementById('qlfImpResult');
-      res.innerHTML = '<div class="fin-up-loading">Reading <b>' + (f.name || '').replace(/[<>]/g, '') + '</b>…</div>';
+    const res = () => document.getElementById('qlfImpResult');
+    const displayHeader = row => (row || []).map((c, i) => { const t = (c || '').toString().trim(); return t || ('Column ' + (i + 1)); });
+    function complete(m) {
+      if ((cfg.fields || []).some(f => f.required && (m[f.key] == null || m[f.key] < 0))) return false;
+      if ((cfg.requireOneOf || []).some(g => !g.some(k => m[k] != null && m[k] >= 0))) return false;
+      return true;
+    }
+
+    async function handle(f) {
+      res().innerHTML = '<div class="fin-up-loading">Reading <b>' + esc(f.name) + '</b>…</div>';
       let parsed;
-      try { parsed = await fileToRows(f); } catch (e) { res.innerHTML = '<div class="fin-up-err">Couldn\'t read this file. Please export it as CSV or Excel.</div>'; return; }
-      let ex; try { ex = cfg.extract(parsed.rows); } catch (e) { ex = { ok: false }; }
-      if (!ex || !ex.ok || !ex.items.length) { res.innerHTML = '<div class="fin-up-err">' + (cfg.errText || 'Couldn\'t find the expected columns. Make sure your sheet has a header row.') + '</div>'; return; }
+      try { parsed = await fileToRows(f); } catch (e) { res().innerHTML = '<div class="fin-up-err">Couldn\'t read this file. Please export it as CSV or Excel and try again.</div>'; return; }
+      const rows = parsed.rows || [];
+      if (rows.length < 2) { res().innerHTML = '<div class="fin-up-err">This file doesn\'t look like a list. Upload a spreadsheet with a header row and one row per ' + noun + '.</div>'; return; }
+      let hi = cfg.headerGroups ? findHeaderRow(rows, cfg.headerGroups) : -1;
+      if (hi < 0) hi = firstDataRow(rows);
+      const mapping = cfg.autoMap ? cfg.autoMap(rows[hi] || []) : {};
+      if (complete(mapping)) buildPreview(rows, hi, mapping);
+      else mapper(rows, hi, mapping);
+    }
+
+    // Manual column-mapper — shown when auto-detect can't match every required field
+    function mapper(rows, hi, mapping) {
+      const header = displayHeader(rows[hi]);
+      const opts = sel => '<option value="-1">— not in file —</option>' + header.map((h, i) => '<option value="' + i + '"' + (sel === i ? ' selected' : '') + '>' + esc(h) + '</option>').join('');
+      res().innerHTML =
+        '<div class="fin-map-head">Match your columns so we import the right data:</div>' +
+        '<div class="fin-map">' + (cfg.fields || []).map(f =>
+          '<label class="fin-map-row"><span>' + esc(f.label) + (f.required ? ' <b class="fin-req">*</b>' : '') + '</span><select data-field="' + f.key + '">' + opts(mapping[f.key] != null ? mapping[f.key] : -1) + '</select></label>').join('') + '</div>' +
+        (cfg.requireOneOf ? '<div class="fin-note">Map at least one amount column (e.g. Taxable, Rate or Total).</div>' : '') +
+        '<button class="ql-btn ql-btn-primary fin-up-import" id="qlfMapGo">Continue</button>';
+      document.getElementById('qlfMapGo').onclick = () => {
+        const m = {};
+        res().querySelectorAll('select[data-field]').forEach(s => { const v = +s.value; if (v >= 0) m[s.dataset.field] = v; });
+        if (!complete(m)) { if (window.QLShell && QLShell.toast) QLShell.toast('Please map the required columns marked *'); return; }
+        buildPreview(rows, hi, m);
+      };
+    }
+
+    function buildPreview(rows, hi, mapping) {
+      const items = [];
+      for (let r = hi + 1; r < rows.length; r++) {
+        const row = rows[r]; if (!row) continue;
+        const get = key => { const i = mapping[key]; return (i != null && i >= 0 && i < row.length) ? row[i] : ''; };
+        let it; try { it = cfg.buildRow(get); } catch (e) { it = null; }
+        if (it) items.push(it);
+      }
+      if (!items.length) { res().innerHTML = '<div class="fin-up-err">' + (cfg.errText || 'No usable rows found — check the column mapping.') + '</div><a class="fin-remap" id="qlfRemap">↺ Re-map columns</a>'; wireRemap(rows, hi, mapping); return; }
       const existing = cfg.existing ? cfg.existing() : new Set();
       const keyOf = cfg.keyOf || (() => '');
-      const fresh = ex.items.filter(it => { const k = keyOf(it); return !(k && existing.has(k)); });
-      const dupes = ex.items.length - fresh.length;
+      const fresh = items.filter(it => { const k = keyOf(it); return !(k && existing.has(k)); });
+      const dupes = items.length - fresh.length;
       const p = cfg.preview, prev = fresh.slice(0, 6), R = p.right || [];
-      res.innerHTML =
-        '<div class="fin-up-ok">✓ Found <b>' + ex.items.length + '</b> ' + plural(ex.items.length) + (dupes ? ' · ' + dupes + ' already added (skipped)' : '') + '</div>' +
+      res().innerHTML =
+        '<div class="fin-up-ok">✓ Found <b>' + items.length + '</b> ' + plural(items.length) + (dupes ? ' · ' + dupes + ' already added (skipped)' : '') + '</div>' +
         '<div class="sr-table-wrap fin-up-prev"><table class="sr fin-table"><thead><tr>' + p.headers.map((h, i) => '<th' + (R.includes(i) ? ' class="r"' : '') + '>' + h + '</th>').join('') + '</tr></thead><tbody>' +
         prev.map(it => '<tr>' + p.row(it).map((c, i) => '<td' + (R.includes(i) ? ' class="r"' : '') + '>' + (c == null ? '' : c) + '</td>').join('') + '</tr>').join('') +
         '</tbody></table></div>' +
         (fresh.length > 6 ? '<div class="fin-up-more">…and ' + (fresh.length - 6) + ' more</div>' : '') +
+        '<a class="fin-remap" id="qlfRemap">↺ Columns look wrong? Re-map</a>' +
         (fresh.length ? '<button class="ql-btn ql-btn-primary fin-up-import" id="qlfDoImport">Import ' + fresh.length + ' ' + plural(fresh.length) + '</button>' : '<div class="fin-note">Nothing new to import — all of these are already added.</div>');
+      wireRemap(rows, hi, mapping);
       const btn = document.getElementById('qlfDoImport');
       if (btn) btn.onclick = () => { fresh.forEach(cfg.add); el.hidden = true; if (cfg.done) cfg.done(fresh.length); };
     }
+    function wireRemap(rows, hi, mapping) { const a = document.getElementById('qlfRemap'); if (a) a.onclick = () => mapper(rows, hi, mapping); }
   }
 
   /* ── Public API ────────────────────────────────────────────────── */

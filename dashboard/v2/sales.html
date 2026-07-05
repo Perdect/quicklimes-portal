@@ -247,44 +247,43 @@ document.getElementById('srExport').addEventListener('click', () => {
   QLShell.toast('Exported ' + r.length + ' invoice' + (r.length === 1 ? '' : 's') + ' to CSV');
 });
 
-/* ── Import sales bills from CSV / Excel (via shared QLFin.importSheet) ── */
-function extractSales(rows) {
-  const hi = QLFin.findHeaderRow(rows, [['date', 'invoice', 'bill', 'voucher'], ['party', 'customer', 'buyer', 'consignee', 'name', 'amount', 'taxable', 'total', 'rate']]);
-  if (hi < 0) return { ok: false };
-  const header = rows[hi].map(c => (c || '').toString()), C = QLFin.colOf;
-  const map = {
-    inv: C(header, 'invoice no', 'bill no', 'invoice', 'voucher', 'inv no', 'inv'),
-    date: C(header, 'invoice date', 'bill date', 'date'),
-    party: C(header, 'party', 'customer', 'buyer', 'consignee', 'name'),
-    gstin: C(header, 'gstin', 'gst no', 'gst number', 'gst in'),
-    qty: C(header, 'qty', 'quantity', 'weight', 'tonne', 'ton', 'mt'),
-    rate: C(header, 'rate', 'price', 'unit'),
-    gstr: C(header, 'gst %', 'gst%', 'gst rate', 'tax %', 'tax%', 'rate of tax', 'tax rate'),
-    taxable: C(header, 'taxable', 'basic', 'amount', 'value'),
-    total: C(header, 'invoice value', 'grand total', 'net amount', 'total')
-  };
-  const veh = C(header, 'vehicle', 'truck', 'lorry'), P = QLFin.parseNum, D = QLFin.parseDate, out = [];
-  for (let r = hi + 1; r < rows.length; r++) {
-    const row = rows[r]; if (!row) continue;
-    const c = i => (i >= 0 && i < row.length) ? row[i] : '';
-    const party = (c(map.party) || '').toString().trim(), date = D(c(map.date));
-    let qty = map.qty >= 0 ? P(c(map.qty)) : 0, rate = map.rate >= 0 ? P(c(map.rate)) : 0;
-    let taxable = map.taxable >= 0 ? P(c(map.taxable)) : 0, total = map.total >= 0 ? P(c(map.total)) : 0;
-    let gstR = map.gstr >= 0 ? P(c(map.gstr)) : 5; if (!gstR) gstR = 5; if (gstR > 0 && gstR < 1) gstR *= 100;
+/* ── Import sales bills — CSV/Excel with auto-detect + manual column mapping ── */
+document.getElementById('srImport').addEventListener('click', () => QLFin.importSheet({
+  title: 'Import sales bills', sub: 'Upload a CSV or Excel file of your invoices.',
+  dropTitle: 'Choose your sales file', dropSub: '.csv, .xlsx or .xls — one row per invoice',
+  tip: 'Any column names are fine — if we can\'t match them automatically, you\'ll pick which column is Date, Party and Amount.',
+  noun: 'invoice',
+  errText: 'No usable invoices found. Check that Date, Party and an amount column are mapped correctly.',
+  headerGroups: [['date', 'invoice', 'bill', 'voucher'], ['party', 'customer', 'buyer', 'consignee', 'name', 'amount', 'taxable', 'total', 'rate']],
+  fields: [
+    { key: 'inv', label: 'Invoice No.' }, { key: 'date', label: 'Date', required: true },
+    { key: 'party', label: 'Party / Customer', required: true }, { key: 'gstin', label: 'GSTIN' },
+    { key: 'qty', label: 'Quantity' }, { key: 'rate', label: 'Rate' }, { key: 'gstr', label: 'GST %' },
+    { key: 'taxable', label: 'Taxable amount' }, { key: 'total', label: 'Total amount' }, { key: 'veh', label: 'Vehicle No.' }
+  ],
+  requireOneOf: [['taxable', 'rate', 'total']],
+  autoMap: h => ({
+    inv: QLFin.colOf(h, 'invoice no', 'bill no', 'invoice', 'voucher', 'inv no', 'inv'),
+    date: QLFin.colOf(h, 'invoice date', 'bill date', 'date'),
+    party: QLFin.colOf(h, 'party', 'customer', 'buyer', 'consignee', 'name'),
+    gstin: QLFin.colOf(h, 'gstin', 'gst no', 'gst number', 'gst in'),
+    qty: QLFin.colOf(h, 'qty', 'quantity', 'weight', 'tonne', 'ton', 'mt'),
+    rate: QLFin.colOf(h, 'rate', 'price', 'unit'),
+    gstr: QLFin.colOf(h, 'gst %', 'gst%', 'gst rate', 'tax %', 'tax%', 'rate of tax', 'tax rate'),
+    taxable: QLFin.colOf(h, 'taxable', 'basic', 'amount', 'value'),
+    total: QLFin.colOf(h, 'invoice value', 'grand total', 'net amount', 'total'),
+    veh: QLFin.colOf(h, 'vehicle', 'truck', 'lorry')
+  }),
+  buildRow: get => {
+    const party = (get('party') || '').toString().trim(), date = QLFin.parseDate(get('date'));
+    let qty = QLFin.parseNum(get('qty')), rate = QLFin.parseNum(get('rate'));
+    let taxable = QLFin.parseNum(get('taxable')), total = QLFin.parseNum(get('total'));
+    let gstR = QLFin.parseNum(get('gstr')); if (!gstR) gstR = 5; if (gstR > 0 && gstR < 1) gstR *= 100;
     if (!taxable && !(qty && rate) && total) taxable = total / (1 + gstR / 100);
     if (!qty || !rate) { if (taxable) { qty = qty || 1; rate = taxable / (qty || 1); } }
-    if (!party && !qty && !taxable && !total) continue;
-    out.push({ inv: (c(map.inv) || '').toString().trim(), date: date || '', party, gstin: (c(map.gstin) || '').toString().trim().toUpperCase(), qty: +(qty || 0), rate: +(rate || 0), gstR, veh: veh >= 0 ? (c(veh) || '').toString().trim() : '', status: 'pending' });
-  }
-  return { ok: out.length > 0, items: out };
-}
-document.getElementById('srImport').addEventListener('click', () => QLFin.importSheet({
-  title: 'Import sales bills', sub: 'Upload a CSV or Excel file of your invoices — columns are auto-detected.',
-  dropTitle: 'Choose your sales file', dropSub: '.csv, .xlsx or .xls — needs Date, Party and an amount column',
-  tip: 'Tip: a sheet with columns <b>Invoice, Date, Party, GSTIN, Qty, Rate, GST%</b> works best. If you only have a total amount, that\'s fine — we\'ll work out the taxable value.',
-  noun: 'invoice',
-  errText: 'Couldn\'t find invoice columns. Make sure the sheet has a header row with at least <b>Date</b>, <b>Party</b> and an amount (Taxable / Rate / Total).',
-  extract: extractSales,
+    if (!party && !qty && !taxable && !total) return null;
+    return { inv: (get('inv') || '').toString().trim(), date: date || '', party, gstin: (get('gstin') || '').toString().trim().toUpperCase(), qty: +(qty || 0), rate: +(rate || 0), gstR, veh: (get('veh') || '').toString().trim(), status: 'pending' };
+  },
   existing: () => new Set(QLD.state.SALES.map(s => (s.inv || '').toString().toUpperCase()).filter(Boolean)),
   keyOf: s => s.inv ? s.inv.toUpperCase() : '',
   preview: { headers: ['Invoice', 'Date', 'Party', 'Qty', 'Taxable', 'GST%'], right: [3, 4, 5], row: s => [s.inv || '—', s.date || '—', s.party || '—', s.qty || '', QLD.fC(s.qty * s.rate), s.gstR + '%'] },

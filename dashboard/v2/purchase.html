@@ -114,47 +114,45 @@ document.getElementById('puExport').addEventListener('click', () => {
   QLShell.toast('Exported ' + r.length + ' bill' + (r.length === 1 ? '' : 's') + ' to CSV');
 });
 
-/* ── Import purchase bills from CSV / Excel (shared QLFin.importSheet) ── */
-function extractPurchases(rows) {
-  const hi = QLFin.findHeaderRow(rows, [['date', 'bill', 'invoice', 'voucher'], ['supplier', 'vendor', 'party', 'seller', 'name', 'amount', 'taxable', 'total']]);
-  if (hi < 0) return { ok: false };
-  const header = rows[hi].map(c => (c || '').toString()), C = QLFin.colOf;
-  const map = {
-    bill: C(header, 'bill no', 'invoice no', 'bill', 'invoice', 'voucher'),
-    date: C(header, 'bill date', 'invoice date', 'date'),
-    sup: C(header, 'supplier', 'vendor', 'seller', 'party', 'name'),
-    gstin: C(header, 'gstin', 'gst no', 'gst number', 'gst in'),
-    cat: C(header, 'category', 'head', 'expense', 'nature', 'type'),
-    taxable: C(header, 'taxable', 'basic', 'amount', 'value'),
-    total: C(header, 'invoice value', 'grand total', 'net amount', 'total'),
-    grate: C(header, 'gst %', 'gst%', 'gst rate', 'tax %', 'tax%', 'rate of tax', 'tax rate'),
-    itc: C(header, 'itc')
-  };
-  const P = QLFin.parseNum, D = QLFin.parseDate, out = [];
-  const KNOWN = ['Raw Material', 'Petcoke', 'Transport', 'Packing', 'Electricity', 'Repair', 'Other'];
-  for (let r = hi + 1; r < rows.length; r++) {
-    const row = rows[r]; if (!row) continue;
-    const c = i => (i >= 0 && i < row.length) ? row[i] : '';
-    const sup = (c(map.sup) || '').toString().trim(), date = D(c(map.date));
-    let taxable = map.taxable >= 0 ? P(c(map.taxable)) : 0, total = map.total >= 0 ? P(c(map.total)) : 0;
-    let grate = map.grate >= 0 ? P(c(map.grate)) : 5; if (!grate) grate = 5; if (grate > 0 && grate < 1) grate *= 100;
-    if (!taxable && total) taxable = total / (1 + grate / 100);
-    if (!sup && !taxable && !total) continue;
-    let itc = 'Eligible'; const iv = (c(map.itc) || '').toString().toLowerCase().trim();
-    if (/rcm/.test(iv)) itc = 'RCM'; else if (/inelig/.test(iv) || iv === 'no' || iv === 'n') itc = 'Ineligible';
-    let cat = (c(map.cat) || '').toString().trim();
-    if (cat) { const k = KNOWN.find(x => x.toLowerCase() === cat.toLowerCase()); cat = k || cat; } else cat = 'Other';
-    out.push({ bill: (c(map.bill) || '').toString().trim(), date: date || '', sup, gstin: (c(map.gstin) || '').toString().trim().toUpperCase(), cat, taxable: +(taxable || 0), grate, itc, status: 'pending' });
-  }
-  return { ok: out.length > 0, items: out };
-}
+/* ── Import purchase bills — CSV/Excel with auto-detect + manual column mapping ── */
+const PUR_CATS = ['Raw Material', 'Petcoke', 'Transport', 'Packing', 'Electricity', 'Repair', 'Other'];
 document.getElementById('puImport').addEventListener('click', () => QLFin.importSheet({
-  title: 'Import purchase bills', sub: 'Upload a CSV or Excel file of your supplier bills — columns are auto-detected.',
-  dropTitle: 'Choose your purchase file', dropSub: '.csv, .xlsx or .xls — needs Date, Supplier and a taxable amount',
-  tip: 'Tip: a sheet with columns <b>Bill No, Date, Supplier, GSTIN, Category, Taxable, GST%, ITC</b> works best. A total-amount column is fine too.',
+  title: 'Import purchase bills', sub: 'Upload a CSV or Excel file of your supplier bills.',
+  dropTitle: 'Choose your purchase file', dropSub: '.csv, .xlsx or .xls — one row per bill',
+  tip: 'Any column names are fine — if we can\'t match them automatically, you\'ll pick which column is Date, Supplier and Amount.',
   noun: 'bill',
-  errText: 'Couldn\'t find bill columns. Make sure the sheet has a header row with at least <b>Date</b>, <b>Supplier</b> and a taxable/total amount.',
-  extract: extractPurchases,
+  errText: 'No usable bills found. Check that Date, Supplier and a taxable/total column are mapped correctly.',
+  headerGroups: [['date', 'bill', 'invoice', 'voucher'], ['supplier', 'vendor', 'party', 'seller', 'name', 'amount', 'taxable', 'total']],
+  fields: [
+    { key: 'bill', label: 'Bill No.' }, { key: 'date', label: 'Date', required: true },
+    { key: 'sup', label: 'Supplier', required: true }, { key: 'gstin', label: 'GSTIN' },
+    { key: 'cat', label: 'Category' }, { key: 'taxable', label: 'Taxable amount' },
+    { key: 'total', label: 'Total amount' }, { key: 'grate', label: 'GST %' }, { key: 'itc', label: 'ITC (Eligible/RCM)' }
+  ],
+  requireOneOf: [['taxable', 'total']],
+  autoMap: h => ({
+    bill: QLFin.colOf(h, 'bill no', 'invoice no', 'bill', 'invoice', 'voucher'),
+    date: QLFin.colOf(h, 'bill date', 'invoice date', 'date'),
+    sup: QLFin.colOf(h, 'supplier', 'vendor', 'seller', 'party', 'name'),
+    gstin: QLFin.colOf(h, 'gstin', 'gst no', 'gst number', 'gst in'),
+    cat: QLFin.colOf(h, 'category', 'head', 'expense', 'nature', 'type'),
+    taxable: QLFin.colOf(h, 'taxable', 'basic', 'amount', 'value'),
+    total: QLFin.colOf(h, 'invoice value', 'grand total', 'net amount', 'total'),
+    grate: QLFin.colOf(h, 'gst %', 'gst%', 'gst rate', 'tax %', 'tax%', 'rate of tax', 'tax rate'),
+    itc: QLFin.colOf(h, 'itc')
+  }),
+  buildRow: get => {
+    const sup = (get('sup') || '').toString().trim(), date = QLFin.parseDate(get('date'));
+    let taxable = QLFin.parseNum(get('taxable')), total = QLFin.parseNum(get('total'));
+    let grate = QLFin.parseNum(get('grate')); if (!grate) grate = 5; if (grate > 0 && grate < 1) grate *= 100;
+    if (!taxable && total) taxable = total / (1 + grate / 100);
+    if (!sup && !taxable && !total) return null;
+    let itc = 'Eligible'; const iv = (get('itc') || '').toString().toLowerCase().trim();
+    if (/rcm/.test(iv)) itc = 'RCM'; else if (/inelig/.test(iv) || iv === 'no' || iv === 'n') itc = 'Ineligible';
+    let cat = (get('cat') || '').toString().trim();
+    if (cat) { const k = PUR_CATS.find(x => x.toLowerCase() === cat.toLowerCase()); cat = k || cat; } else cat = 'Other';
+    return { bill: (get('bill') || '').toString().trim(), date: date || '', sup, gstin: (get('gstin') || '').toString().trim().toUpperCase(), cat, taxable: +(taxable || 0), grate, itc, status: 'pending' };
+  },
   existing: () => new Set(QLD.state.PURCHASES.filter(p => p.bill).map(p => ((p.sup || '') + '|' + p.bill).toUpperCase())),
   keyOf: p => p.bill ? ((p.sup || '') + '|' + p.bill).toUpperCase() : '',
   preview: { headers: ['Bill', 'Date', 'Supplier', 'Category', 'Taxable', 'GST%'], right: [4, 5], row: p => [p.bill || '—', p.date || '—', p.sup || '—', p.cat || '—', QLD.fC(p.taxable), p.grate + '%'] },
