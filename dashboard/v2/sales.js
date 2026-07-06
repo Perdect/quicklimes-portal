@@ -14,11 +14,7 @@ const toast = (m, t) => QLX.toast(m, t);
 /* ── cells ── */
 function stCell(r) { return `<select class="qx-st s-${r.status}" data-st="${r.idx}" onclick="event.stopPropagation()">${STATUSES.map(s => `<option value="${s[0]}" ${s[0] === r.status ? 'selected' : ''}>${s[1]}</option>`).join('')}</select>`; }
 function stPill(r) { const st = r.status; return `<span class="qx-pill s-${st}">${st[0].toUpperCase() + st.slice(1)}</span>`; }
-function partyCell(r) {
-  const sub = r.gstin || r.veh || '';
-  const od = r.status === 'pending' && r.days > 30 ? `<span style="color:var(--ql-danger-600);font-weight:600"> · ${r.days}d overdue</span>` : '';
-  return `<span class="qx-party"><span class="qx-av" style="background:linear-gradient(135deg,${QLX.avColor(r.party)})">${(r.party || '?').charAt(0).toUpperCase()}</span><span class="qx-party-c"><span class="qx-party-n">${esc(r.party)}</span><span class="qx-party-s">${esc(sub) || '—'}${od}</span></span></span>`;
-}
+function partyCell(r) { return `<span class="qx-party-n" style="font-weight:600">${esc(r.party)}</span>`; }
 
 /* ── mutations ── */
 function printInv(r) { QLShell.printInvoice(r.idx); }

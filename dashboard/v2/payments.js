@@ -26,7 +26,7 @@ const ACC = { cash: ['Cash', '#0d9488'], bank: ['Bank', '#2563eb'], upi: ['UPI',
 function ptypePill(r) { const c = PTYPE[r.ptype] || PTYPE.Other; return `<span class="qx-pill" style="background:${c[0]};color:${c[1]}">${c[2]} ${esc(r.ptype)}</span>`; }
 function methodTag(r) { const a = ACC[r.mode] || ACC.bank; return `<span class="qx-tag" style="color:${a[1]}">${esc(r.method)}</span>`; }
 function accLabel(mode) { return (ACC[mode] || ACC.bank)[0]; }
-function partyCell(r) { return `<span class="qx-party"><span class="qx-av" style="background:linear-gradient(135deg,${QLX.avColor(r.party)})">${(r.party || '?').charAt(0).toUpperCase()}</span><span class="qx-party-n">${esc(r.party)}</span></span>`; }
+function partyCell(r) { return `<span class="qx-party-n" style="font-weight:600">${esc(r.party)}</span>`; }
 
 /* ══════════════════ MODALS ══════════════════ */
 function receivePaymentModal() {
