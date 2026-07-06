@@ -688,7 +688,7 @@
         if (hasText.length) {
           const bills = pages.map(t => ocrBuild(parseInvoiceText(t))).filter(Boolean);
           if (bills.length >= 2) { finishImport(bills, null); return; }
-          if (bills.length === 1) { ocrReview(parseInvoiceText(hasText[0])); return; }
+          if (bills.length === 1) { ocrReview(parseInvoiceText(hasText[0]), f); return; }
         }
         ocrOffer(f); return;
       }
@@ -787,9 +787,11 @@
           else if (msg && m.status) msg.textContent = m.status.charAt(0).toUpperCase() + m.status.slice(1) + '…';
         });
       } catch (e) { res().innerHTML = '<div class="fin-up-err">Couldn\'t read this file. Try a clearer, well-lit photo — or add the ' + noun + (cfg.addLabel ? ' with the "' + cfg.addLabel + '" button' : ' manually') + '.</div>'; return; }
-      ocrReview(data);
+      ocrReview(data, file);
     }
-    function ocrReview(g) {
+    // `file` (optional) is the original photo/PDF of this single bill — kept so we
+    // can auto-attach the real scan to the row on save (cfg.add(row, file)).
+    function ocrReview(g, file) {
       // Only pull a value for a field that's explicitly mapped to an OCR key —
       // otherwise a field like unit "rate" would wrongly grab the GST-rate value.
       const val = f => { const k = cfg.ocrMap ? cfg.ocrMap[f.key] : f.key; return (k && g[k] != null) ? g[k] : ''; };
@@ -805,7 +807,7 @@
         if (miss.length) { if (window.QLShell && QLShell.toast) QLShell.toast('Please fill: ' + miss.map(f => f.label).join(', ')); return; }
         let row; try { row = cfg.buildRow(k => vals[k] != null ? vals[k] : ''); } catch (e) { row = null; }
         if (!row) { if (window.QLShell && QLShell.toast) QLShell.toast('Couldn\'t save — check the amounts'); return; }
-        cfg.add(row); el.hidden = true; if (cfg.done) cfg.done(1);
+        cfg.add(row, file); el.hidden = true; if (cfg.done) cfg.done(1);
       };
     }
   }

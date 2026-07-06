@@ -296,7 +296,7 @@ function importInvoices() {
     existing: () => new Set(Q.state.SALES.map(s => (s.inv || '').toString().toUpperCase()).filter(Boolean)),
     keyOf: s => s.inv ? s.inv.toUpperCase() : '',
     preview: { headers: ['Invoice', 'Date', 'Party', 'Qty', 'Taxable', 'GST%'], right: [3, 4, 5], row: s => [s.inv || '—', s.date || '—', s.party || '—', s.qty || '', Q.fC(s.qty * s.rate), s.gstR + '%'] },
-    add: s => Q.addSale(s),
+    add: (s, file) => { Q.addSale(s); if (file) { try { addAttach(Q.state.SALES.length - 1, file, 'Invoice'); } catch (_) {} } },
     done: n => { toast('Imported ' + n + ' invoice' + (n === 1 ? '' : 's'), 'ok'); QLX.refresh(); }
   });
 }

@@ -324,7 +324,7 @@ function importBills() {
     existing: () => new Set(Q.state.PURCHASES.filter(p => p.bill).map(p => ((p.sup || '') + '|' + p.bill).toUpperCase())),
     keyOf: p => p.bill ? ((p.sup || '') + '|' + p.bill).toUpperCase() : '',
     preview: { headers: ['Bill', 'Date', 'Supplier', 'Group', 'Taxable', 'GST%'], right: [4, 5], row: p => [p.bill || '—', p.date || '—', p.sup || '—', (Q.purchaseGroups.find(g => g.key === p.group) || { label: p.cat || '—' }).label, Q.fC(p.taxable), p.grate + '%'] },
-    add: p => Q.addPurchase(p),
+    add: (p, file) => { Q.addPurchase(p); if (file) { try { addAttach(Q.state.PURCHASES.length - 1, file, 'Invoice'); } catch (_) {} } },
     done: n => { toast('Imported ' + n + ' bill' + (n === 1 ? '' : 's'), 'ok'); QLX.refresh(); }
   });
 }
