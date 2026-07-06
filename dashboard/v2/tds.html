@@ -3,95 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TDS — QuickLimes v2</title>
+<title>TDS — QuickLimes</title>
 <meta name="theme-color" content="#2563EB">
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css"><link rel="stylesheet" href="./qlx.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./data.js"></script>
 </head>
 <body class="ql-v2">
-<div id="ql-page">
-  <div class="dash">
-    <div class="page-head">
-      <div><h1 class="page-title">TDS</h1><div class="page-sub" id="tdSub">Tax deducted at source</div></div>
-      <div class="page-actions">
-        <button class="ql-btn ql-btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
-        <button class="ql-btn ql-btn-primary" onclick="QLShell.openTdsForm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New entry</button>
-      </div>
-    </div>
-    <div class="kpi-strip" id="tdKpis" style="grid-template-columns:repeat(4,1fr)"></div>
-    <div class="card" style="gap:var(--ql-space-4)">
-      <div class="sr-toolbar">
-        <div class="sr-tabs" id="tdTabs"><button class="sr-tab active" data-f="all">All</button></div>
-        <div class="sr-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="tdSearch" placeholder="Search party, PAN, section…"></div>
-      </div>
-      <div class="sr-table-wrap"><table class="sr"><thead><tr id="tdHead"></tr></thead><tbody id="tdBody"></tbody></table></div>
-      <div class="sr-foot"><span id="tdCount">—</span><div class="sr-pager"><button id="tdPrev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><span id="tdPage" style="font-size:var(--ql-text-sm)">1</span><button id="tdNext"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></div></div>
-    </div>
-  </div>
-</div>
+<div id="ql-page"></div>
 <script src="./shell.js"></script>
-<script>
-QLShell.mount({ active: 'tds', title: 'TDS' });
-const AVG = ['#0891B2,#155E75','#7C3AED,#5B21B6','#16A34A,#15803D','#F59E0B,#B45309','#DB2777,#9D174D','#2563EB,#1D4ED8'];
-const PER = 14;
-let tdQuery = '', tdSort = { key: 'date', dir: 'desc' }, tdPage = 1;
-const COLS = [
-  { key: 'date', label: 'Date', sortable: true },
-  { key: 'party', label: 'Deductee', sortable: true },
-  { key: 'sec', label: 'Section', sortable: true },
-  { key: 'amount', label: 'Amount', sortable: true, num: true },
-  { key: 'rate', label: 'Rate', sortable: true, num: true },
-  { key: 'tds', label: 'TDS', sortable: true, num: true },
-  { key: 'net', label: 'Net paid', sortable: true, num: true }
-];
-function filtered() {
-  let r = QLD.tdsRows();
-  if (tdQuery) { const q = tdQuery.toLowerCase(); r = r.filter(x => (x.party + ' ' + x.pan + ' ' + x.sec).toLowerCase().includes(q)); }
-  r.sort((a, b) => { let x = a[tdSort.key], y = b[tdSort.key]; if (typeof x === 'string') { x = x.toLowerCase(); y = (y || '').toLowerCase(); } return x < y ? (tdSort.dir === 'asc' ? -1 : 1) : x > y ? (tdSort.dir === 'asc' ? 1 : -1) : 0; });
-  return r;
-}
-function render() {
-  const co = QLD.co, s = QLD.tdsSummary();
-  const K = [
-    { label: 'Entries', v: s.count, meta: 'recorded', bg: '#ECFEFF', fg: '#0891B2', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' },
-    { label: 'Gross Amount', v: QLD.fC(s.amount), meta: 'before TDS', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
-    { label: 'TDS Deducted', v: QLD.fC(s.tds), meta: 'payable to govt', bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>' },
-    { label: 'Net Paid', v: QLD.fC(s.net), meta: 'to parties', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>' }
-  ];
-  document.getElementById('tdKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
-  document.getElementById('tdSub').textContent = `${co.short} · ${s.count} entries · ${QLD.fC(s.tds)} TDS`;
-  document.getElementById('tdHead').innerHTML = COLS.map(c => { const st = tdSort.key === c.key; return `<th class="${st ? 'sorted' : ''} ${c.num ? 'sr-num' : ''}" data-sort="${c.key}">${c.label}<span class="sort-ic">${st ? (tdSort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></th>`; }).join('') + '<th class="no-sort"></th>';
-  document.querySelectorAll('#tdHead th[data-sort]').forEach(th => th.addEventListener('click', () => { const k = th.dataset.sort; if (tdSort.key === k) tdSort.dir = tdSort.dir === 'asc' ? 'desc' : 'asc'; else { tdSort.key = k; tdSort.dir = 'asc'; } tdPage = 1; render(); }));
-  const rows = filtered(), pages = Math.max(1, Math.ceil(rows.length / PER)); tdPage = Math.min(tdPage, pages);
-  const slice = rows.slice((tdPage - 1) * PER, tdPage * PER);
-  document.getElementById('tdBody').innerHTML = slice.length ? slice.map(r => {
-    const c = AVG[((r.party || 'P').charCodeAt(0) + (r.party || '').length) % AVG.length];
-    return `<tr>
-      <td class="pt-muted">${QLD.fDS(r.date)}</td>
-      <td><div class="sr-party"><div class="sr-av" style="background:linear-gradient(135deg,${c})">${(r.party || 'P').charAt(0).toUpperCase()}</div><div><div style="font-weight:600;color:var(--ql-text)">${r.party || '—'}</div><div style="font-size:var(--ql-text-xs);color:var(--ql-text-secondary)">${r.pan || '—'}</div></div></div></td>
-      <td><span class="sr-pill neutral">${r.sec}</span></td>
-      <td class="sr-num">${QLD.fC(r.amount)}</td>
-      <td class="sr-num pt-muted">${r.rate}%</td>
-      <td class="sr-num" style="font-weight:700;color:var(--ql-danger-600)">${QLD.fC(r.tds)}</td>
-      <td class="sr-num" style="font-weight:600;color:var(--ql-success-700)">${QLD.fC(r.net)}</td>
-      <td class="sr-num"><button class="sr-kebab" onclick="QLShell.rowMenu(event,'tds',${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="8"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No TDS entries yet</div></div></td></tr>`;
-  document.getElementById('tdCount').textContent = rows.length ? `Showing ${(tdPage - 1) * PER + 1}–${Math.min(tdPage * PER, rows.length)} of ${rows.length}` : '0 entries';
-  document.getElementById('tdPage').textContent = `${tdPage} / ${pages}`;
-  document.getElementById('tdPrev').disabled = tdPage <= 1; document.getElementById('tdNext').disabled = tdPage >= pages;
-  QLShell.paintWorkspace();
-}
-document.getElementById('tdSearch').addEventListener('input', e => { tdQuery = e.target.value; tdPage = 1; render(); });
-document.getElementById('tdPrev').addEventListener('click', () => { if (tdPage > 1) { tdPage--; render(); } });
-document.getElementById('tdNext').addEventListener('click', () => { tdPage++; render(); });
-window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
-window.__qlRefresh = render;
-QLD.init(render);
-</script>
+<script src="./qlx.js"></script>
+<script src="./tds.js"></script>
 </body>
 </html>

@@ -3,108 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Labour — QuickLimes v2</title>
+<title>Labour — QuickLimes</title>
 <meta name="theme-color" content="#2563EB">
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css"><link rel="stylesheet" href="./qlx.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./data.js"></script>
 </head>
 <body class="ql-v2">
-<div id="ql-page">
-  <div class="dash">
-    <div class="page-head">
-      <div><h1 class="page-title">Labour</h1><div class="page-sub" id="lbSub">Workers · Wages · Attendance</div></div>
-      <div class="page-actions">
-        <button class="ql-btn ql-btn-secondary" id="lbExport"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
-        <button class="ql-btn ql-btn-primary" onclick="QLShell.openWorkerForm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add worker</button>
-      </div>
-    </div>
-    <div class="kpi-strip" id="lbKpis" style="grid-template-columns:repeat(4,1fr)"></div>
-    <div class="card" style="gap:var(--ql-space-4)">
-      <div class="sr-toolbar">
-        <div class="sr-tabs" id="lbTabs">
-          <button class="sr-tab active" data-f="all">All</button>
-          <button class="sr-tab" data-f="daily">Daily</button>
-          <button class="sr-tab" data-f="monthly">Monthly</button>
-        </div>
-        <div class="sr-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="lbSearch" placeholder="Search worker or designation…"></div>
-      </div>
-      <div class="sr-table-wrap"><table class="sr"><thead><tr id="lbHead"></tr></thead><tbody id="lbBody"></tbody></table></div>
-      <div class="sr-foot"><span id="lbCount">—</span><div class="sr-pager"><button id="lbPrev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><span id="lbPage" style="font-size:var(--ql-text-sm)">1</span><button id="lbNext"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></div></div>
-    </div>
-  </div>
-</div>
+<div id="ql-page"></div>
 <script src="./shell.js"></script>
-<script>
-QLShell.mount({ active: 'labour', title: 'Labour' });
-const AVG = ['#F59E0B,#B45309','#16A34A,#15803D','#2563EB,#1D4ED8','#7C3AED,#5B21B6','#DB2777,#9D174D','#0891B2,#155E75'];
-const PER = 12;
-let lFilter = 'all', lQuery = '', lSort = { key: 'net', dir: 'desc' }, lPage = 1;
-const COLS = [
-  { key: 'name', label: 'Worker', sortable: true },
-  { key: 'wage', label: 'Wage', sortable: true, num: true },
-  { key: 'freq', label: 'Type', sortable: true },
-  { key: 'days', label: 'Days', sortable: true, num: true },
-  { key: 'gross', label: 'Gross', sortable: true, num: true },
-  { key: 'adv', label: 'Advance', sortable: true, num: true },
-  { key: 'net', label: 'Net Payable', sortable: true, num: true }
-];
-function filtered() {
-  let r = QLD.labourRows();
-  if (lFilter !== 'all') r = r.filter(x => (x.freq || 'daily') === lFilter);
-  if (lQuery) { const q = lQuery.toLowerCase(); r = r.filter(x => (x.name + ' ' + x.desig).toLowerCase().includes(q)); }
-  r.sort((a, b) => { let x = a[lSort.key], y = b[lSort.key]; if (typeof x === 'string') { x = x.toLowerCase(); y = (y || '').toLowerCase(); } return x < y ? (lSort.dir === 'asc' ? -1 : 1) : x > y ? (lSort.dir === 'asc' ? 1 : -1) : 0; });
-  return r;
-}
-function render() {
-  const co = QLD.co, s = QLD.labourSummary();
-  const K = [
-    { label: 'Workers', v: s.count, meta: 'on roll', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>' },
-    { label: 'Total Gross', v: QLD.fC(s.gross), meta: 'this period', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
-    { label: 'Advances', v: QLD.fC(s.adv), meta: 'paid out', bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z"/></svg>' },
-    { label: 'Net Payable', v: QLD.fC(s.net), meta: 'after advances', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>' }
-  ];
-  document.getElementById('lbKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
-  document.getElementById('lbSub').textContent = `${co.short} · ${s.count} workers · ${QLD.fC(s.net)} net payable`;
-  document.getElementById('lbHead').innerHTML = COLS.map(c => { const st = lSort.key === c.key; return `<th class="${st ? 'sorted' : ''} ${c.num ? 'sr-num' : ''}" data-sort="${c.key}">${c.label}<span class="sort-ic">${st ? (lSort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></th>`; }).join('') + '<th class="no-sort"></th>';
-  document.querySelectorAll('#lbHead th[data-sort]').forEach(th => th.addEventListener('click', () => { const k = th.dataset.sort; if (lSort.key === k) lSort.dir = lSort.dir === 'asc' ? 'desc' : 'asc'; else { lSort.key = k; lSort.dir = 'asc'; } lPage = 1; render(); }));
-  const rows = filtered(), pages = Math.max(1, Math.ceil(rows.length / PER)); lPage = Math.min(lPage, pages);
-  const slice = rows.slice((lPage - 1) * PER, lPage * PER);
-  document.getElementById('lbBody').innerHTML = slice.length ? slice.map(r => {
-    const c = AVG[(r.name.charCodeAt(0) + r.name.length) % AVG.length];
-    return `<tr>
-      <td><div class="sr-party"><div class="sr-av" style="background:linear-gradient(135deg,${c})">${r.name.charAt(0).toUpperCase()}</div><div><div style="font-weight:700;color:var(--ql-text)">${r.name}</div><div style="font-size:var(--ql-text-xs);color:var(--ql-text-secondary)">${r.desig || 'Worker'}</div></div></div></td>
-      <td class="sr-num pt-muted">${QLD.fC(r.wage)}</td>
-      <td><span class="sr-pill ${r.freq === 'monthly' ? 'both' : 'cash'}"><span class="dot"></span>${r.freq === 'monthly' ? 'Monthly' : 'Daily'}</span></td>
-      <td class="sr-num">${r.days}</td>
-      <td class="sr-num">${QLD.fC(r.gross)}</td>
-      <td class="sr-num" style="color:${r.adv ? 'var(--ql-danger-600)' : 'var(--ql-text-muted)'}">${r.adv ? '−' + QLD.fC(r.adv) : '—'}</td>
-      <td class="sr-num" style="font-weight:700;color:var(--ql-success-700)">${QLD.fC(r.net)}</td>
-      <td class="sr-num"><button class="sr-kebab" onclick="QLShell.rowMenu(event,'worker',${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="8"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No workers in this view</div></div></td></tr>`;
-  document.getElementById('lbCount').textContent = rows.length ? `Showing ${(lPage - 1) * PER + 1}–${Math.min(lPage * PER, rows.length)} of ${rows.length}` : '0 workers';
-  document.getElementById('lbPage').textContent = `${lPage} / ${pages}`;
-  document.getElementById('lbPrev').disabled = lPage <= 1; document.getElementById('lbNext').disabled = lPage >= pages;
-  QLShell.paintWorkspace();
-}
-document.querySelectorAll('#lbTabs .sr-tab').forEach(t => t.addEventListener('click', () => { document.querySelectorAll('#lbTabs .sr-tab').forEach(x => x.classList.remove('active')); t.classList.add('active'); lFilter = t.dataset.f; lPage = 1; render(); }));
-document.getElementById('lbSearch').addEventListener('input', e => { lQuery = e.target.value; lPage = 1; render(); });
-document.getElementById('lbPrev').addEventListener('click', () => { if (lPage > 1) { lPage--; render(); } });
-document.getElementById('lbNext').addEventListener('click', () => { lPage++; render(); });
-window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
-window.__qlRefresh = render;
-document.getElementById('lbExport').addEventListener('click', () => {
-  const r = filtered();
-  QLShell.exportCSV('labour_' + (QLD.co.short || 'register').replace(/\s+/g, '_'),
-    ['Name', 'Designation', 'Wage', 'Frequency', 'Days present', 'Gross', 'Advance', 'Net payable'],
-    r.map(x => [x.name, x.desig, x.wage, x.freq, x.days, x.gross, x.adv, x.net]));
-  QLShell.toast('Exported ' + r.length + ' worker' + (r.length === 1 ? '' : 's') + ' to CSV');
-});
-QLD.init(render);
-</script>
+<script src="./qlx.js"></script>
+<script src="./labour.js"></script>
 </body>
 </html>
