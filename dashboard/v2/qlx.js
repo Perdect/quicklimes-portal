@@ -77,10 +77,18 @@
     root.className = 'qx qx-a-' + (CFG.accent || 'blue');
     root.id = 'qxRoot';
     main.innerHTML = ''; main.appendChild(root);
+    root.innerHTML = skeletonHTML();          // instant glass skeleton — never blank
     ensureChrome();
-    render();
+    // QLD.init() runs loadLocal() (which resolves the active company) and THEN
+    // fires our callback, so the first real paint always has valid data. Register
+    // it as the paint driver — do NOT render before this, or a not-yet-loaded
+    // company would throw and skip this registration, leaving the page blank.
+    if (Q && Q.init) {
+      Q.init(() => refresh());
+      window.__qlRefresh = () => refresh();
+      window.__qlOnSwitchCompany = id => Q.switchCompany(id, () => refresh());
+    } else { render(); }
     QLShell.paintWorkspace && QLShell.paintWorkspace();
-    if (Q) { Q.init && Q.init(() => refresh()); window.__qlRefresh = () => refresh(); window.__qlOnSwitchCompany = id => Q.switchCompany(id, () => refresh()); }
   }
 
   function ensureChrome() {
@@ -124,10 +132,25 @@
   /* ══════════════════ RENDER ══════════════════ */
   function render() {
     const root = document.getElementById('qxRoot'); if (!root) return;
-    const rows = filtered();
-    root.innerHTML = heroHTML() + statsHTML() + `<div class="qx-panel">${toolbarHTML(rows)}${advHTML()}<div id="qxView">${viewHTML(rows)}</div></div>`;
-    wire(rows);
-    renderBulk();
+    try {
+      const rows = filtered();
+      const html = heroHTML() + statsHTML() + `<div class="qx-panel">${toolbarHTML(rows)}${advHTML()}<div id="qxView">${viewHTML(rows)}</div></div>`;
+      root.innerHTML = html;         // atomic — if building `html` throws, prior content stays
+      root.dataset.ready = '1';
+      wire(rows);
+      renderBulk();
+    } catch (e) {
+      console.warn('QLX render deferred (data not ready yet?):', e);
+      if (root.dataset.ready !== '1') root.innerHTML = skeletonHTML();
+    }
+  }
+  function skeletonHTML() {
+    const sk = (w, h, r) => `<span class="qx-sk" style="display:inline-block;width:${w};height:${h}${r ? ';border-radius:' + r : ''}"></span>`;
+    const stat = `<div class="qx-stat"><div class="qx-stat-top">${sk('30px', '30px', '9px')}${sk('80px', '12px')}</div><div style="margin:2px 0 8px">${sk('110px', '24px')}</div>${sk('70px', '11px')}</div>`;
+    const row = `<div style="display:flex;gap:16px;align-items:center;padding:14px;border-bottom:1px solid var(--ql-divider)">${['30px', '110px', '150px', '80px', '80px', '90px'].map(w => sk(w, '14px')).join('')}</div>`;
+    return `<div class="qx-hero"><div class="qx-hero-l">${sk('46px', '46px', '14px')}<div>${sk('200px', '24px')}<div style="margin-top:8px">${sk('260px', '12px')}</div></div></div></div>
+      <div class="qx-stats">${Array.from({ length: 6 }).map(() => stat).join('')}</div>
+      <div class="qx-panel"><div class="qx-tb">${sk('220px', '22px')}<div class="qx-tb-sp"></div>${sk('190px', '22px')}</div>${Array.from({ length: 6 }).map(() => row).join('')}</div>`;
   }
   function refresh() { render(); if (S.openId != null && rowById(S.openId)) renderDetailBody(); else if (S.openId != null) closeDetail(); }
 
