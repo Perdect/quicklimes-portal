@@ -51,6 +51,18 @@
       });
     }
 
+    if (fn === 'signup_plant') {
+      // Create a brand-new account. The signup page reads data.error for a
+      // taken phone / bad input, then calls login_plant on success.
+      return jfetch(API + 'signup.php', {
+        method: 'POST', headers: JSON_HDR,
+        body: JSON.stringify({
+          p_plant_name: params.p_plant_name, p_plant_type: params.p_plant_type,
+          p_owner_phone: params.p_owner_phone, p_password: params.p_password
+        })
+      });
+    }
+
     if (fn === 'get_my_data') {
       var r = await jfetch(API + 'data.php?plant_id=' + encodeURIComponent(params.p_plant_id) +
         '&token=' + encodeURIComponent(token()), { method: 'GET' });

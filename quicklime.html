@@ -896,7 +896,7 @@ table.t tbody tr:last-child td{border-bottom:none}
   </div><!-- /app-body -->
 </div><!-- /app -->
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="ql-api.js"></script>
 <script>
 // ═══ Supabase config ═══
 const SUPA_URL = 'https://iteaawedfmaujujyrqdu.supabase.co';
@@ -991,7 +991,9 @@ async function doLogin(){
       // Stash plant info so the dashboard knows who's logged in.
       // Embed the full plants[] array (primary + child plants) on the
       // primary plant object so the dashboard can build a company switcher.
-      const _primary = { ...data.plant, plants: data.plants || [data.plant], plan_limit: data.plan_limit };
+      // Include the login token — the Hostinger PHP backend authenticates
+      // every data call with it (read from ql_plant.token by ql-api.js).
+      const _primary = { ...data.plant, plants: data.plants || [data.plant], plan_limit: data.plan_limit, token: data.token };
       localStorage.setItem('ql_plant', JSON.stringify(_primary));
       const plantName = (data.plant.plant_name || '').toString();
       _qlAuthOverlay({

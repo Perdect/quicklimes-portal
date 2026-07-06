@@ -25,6 +25,9 @@ jobs:
           cp terms_and_conditions.html deploy/terms_and_conditions.html
           cp quicklime.html          deploy/quicklime.html
           cp quicklimes-admin.html   deploy/quicklimes-admin.html
+          # Backend shim so the ROOT login/signup pages talk to the Hostinger
+          # PHP API (window.supabase drop-in). Single source: dashboard/v2/ql-api.js.
+          cp dashboard/v2/ql-api.js  deploy/ql-api.js
           # Hindi marketing page (rewritten from /hi if .htaccess routes it)
           cp deshwali_minerals_hindi.html deploy/deshwali_minerals_hindi.html
           # Branded 404 + crawler discovery
