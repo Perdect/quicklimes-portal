@@ -211,11 +211,63 @@ function showBill(idx) {
       ${line('Input tax credit (ITC)', r.itc ? fC(r.itc) : '—')}
       <div class="bv-total">${line('Total payable', '<b>' + fC(r.total) + '</b>')}</div>
       <div class="bv-acts">
-        <button class="ql-btn ql-btn-secondary" onclick="document.getElementById('billSheet').hidden=true;QLShell.openPurchaseForm(${r.idx})">Edit bill</button>
+        <button class="ql-btn ql-btn-secondary" onclick="billPDF(${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View PDF</button>
+        <button class="ql-btn ql-btn-secondary" onclick="document.getElementById('billSheet').hidden=true;QLShell.openPurchaseForm(${r.idx})">Edit</button>
         ${r.status !== 'paid' ? `<button class="ql-btn ql-btn-primary" onclick="document.getElementById('billSheet').hidden=true;QLShell.openPaymentForm('purchase',${r.idx})">Mark paid</button>` : ''}
       </div>
     </div></div>`;
   el.hidden = false;
+}
+
+/* ── Generate a printable / savable PDF of the bill ── */
+function billPDF(idx) {
+  const r = QLD.purchaseRows().find(x => x.idx === idx); if (!r) return;
+  const co = QLD.co || {}, cg = r.gst / 2, money = n => '₹' + QLD.fmt(n);
+  const rowsHTML = `<tr>
+      <td>${esc(r.emoji + ' ' + r.groupLabel)}<div class="it">${esc(r.item)}${r.desc ? ' — ' + esc(r.desc) : ''}</div></td>
+      <td class="r">${r.qty ? QLD.fmt(r.qty, 2) + (r.unit ? ' ' + esc(r.unit) : '') : '—'}</td>
+      <td class="r">${r.rate ? money(r.rate) : '—'}</td>
+      <td class="r">${money(r.taxable)}</td></tr>`;
+  const w = window.open('', '_blank');
+  if (!w) { QLShell.toast('Allow pop-ups to view the PDF'); return; }
+  w.document.write(`<html><head><title>Purchase Bill ${esc(r.bill || '')}</title><meta charset="utf-8"><style>
+    *{box-sizing:border-box} body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;padding:36px;font-size:13px}
+    .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0f172a;padding-bottom:14px}
+    .co{font-size:20px;font-weight:800;letter-spacing:-.3px}.mut{color:#64748b;font-size:12px;line-height:1.5}
+    .doc{text-align:right}.doc h1{font-size:16px;margin:0;letter-spacing:2px;color:#2563eb}
+    .grid{display:flex;justify-content:space-between;gap:24px;margin:18px 0}
+    .box{flex:1}.lbl{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:3px}
+    .nm{font-weight:700;font-size:14px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}th,td{padding:9px 10px;text-align:left;border-bottom:1px solid #e2e8f0}
+    th{background:#f8fafc;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#64748b}
+    td.r,th.r{text-align:right}.it{color:#64748b;font-size:11px;margin-top:2px}
+    .tot{margin-left:auto;width:280px;margin-top:14px}.tot .row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px}
+    .tot .g{font-weight:800;font-size:16px;border-top:2px solid #0f172a;padding-top:10px;margin-top:4px}
+    .pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700}
+    .paid{background:#dcfce7;color:#15803d}.pending{background:#fef3c7;color:#b45309}
+    .ft{margin-top:26px;color:#94a3b8;font-size:11px;border-top:1px solid #e2e8f0;padding-top:12px}
+    @media print{body{padding:0}}
+  </style></head><body>
+    <div class="hd">
+      <div><div class="co">${esc(co.name || 'Your Company')}</div><div class="mut">${esc(co.address || '')}${co.gstin ? '<br>GSTIN: ' + esc(co.gstin) : ''}${co.phone ? ' · ' + esc(co.phone) : ''}</div></div>
+      <div class="doc"><h1>PURCHASE BILL</h1><div class="mut">Bill No: <b>${esc(r.bill || '—')}</b><br>Date: ${QLD.fDS(r.date)}<br><span class="pill ${r.status}">${r.status === 'paid' ? 'PAID' : 'PENDING'}</span></div></div>
+    </div>
+    <div class="grid">
+      <div class="box"><div class="lbl">Supplier</div><div class="nm">${esc(r.sup)}</div><div class="mut">${r.gstin ? 'GSTIN: ' + esc(r.gstin) : ''}</div></div>
+      <div class="box" style="text-align:right"><div class="lbl">Department · ITC</div><div class="nm">${esc(r.dept || '—')}</div><div class="mut">ITC: ${r.itc ? 'Eligible' : '—'}</div></div>
+    </div>
+    <table><thead><tr><th>Purchase Group / Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Taxable</th></tr></thead><tbody>${rowsHTML}</tbody></table>
+    <div class="tot">
+      <div class="row"><span>Taxable value</span><span>${money(r.taxable)}</span></div>
+      ${r.freightAmt ? `<div class="row"><span>Freight / transport (incl.)</span><span>${money(r.freightAmt)}</span></div>` : ''}
+      <div class="row"><span>CGST @ ${r.grate / 2}%</span><span>${money(cg)}</span></div>
+      <div class="row"><span>SGST @ ${r.grate / 2}%</span><span>${money(cg)}</span></div>
+      <div class="row g"><span>Total</span><span>${money(r.total)}</span></div>
+    </div>
+    <div class="ft">Generated from ${esc(co.name || 'QuickLimes')} · QuickLimes — Purchase Register. This is a system-generated record of the purchase bill entered.</div>
+    <script>window.onload=function(){setTimeout(function(){window.print();},250)}<\/script>
+  </body></html>`);
+  w.document.close();
 }
 
 /* ── Wiring ── */
