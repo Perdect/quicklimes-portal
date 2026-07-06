@@ -620,7 +620,7 @@ table.att th, table.att td { border-bottom: 1px solid var(--ql-divider); }
 .ft-section-label { font: 700 11px Inter; letter-spacing: .6px; text-transform: uppercase; color: var(--ql-text-tertiary, #94a3b8); margin: 6px 0 10px; display: flex; align-items: center; gap: 10px; }
 .ft-hint { font: 600 11px Inter; text-transform: none; letter-spacing: 0; color: var(--ql-text-secondary); background: var(--ql-surface-2, #f1f5f9); padding: 2px 9px; border-radius: 99px; }
 .ft-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.ft-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--ql-border, #e2e8f0); border-radius: 13px; cursor: pointer; transition: border-color .14s, background .14s; }
+.ft-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--ql-border, #e2e8f0); border-radius: 12px; cursor: pointer; transition: border-color .14s, background .14s; }
 .ft-row:hover { border-color: #cdd8ea; }
 .ft-locked { background: var(--ql-surface-2, #f8fafc); cursor: default; }
 .ft-info { flex: 1; min-width: 0; }
@@ -645,7 +645,7 @@ table.att th, table.att td { border-bottom: 1px solid var(--ql-divider); }
 .pg-h-title { font: 800 17px Inter; color: var(--ql-text); margin: 0; letter-spacing: -.3px; }
 .pg-h-sub { font: 500 12.5px Inter; color: var(--ql-text-secondary); margin-top: 3px; }
 .pg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-bottom: var(--ql-space-5, 20px); }
-.pg-card { text-align: left; border: 1px solid var(--ql-border, #e2e8f0); background: #fff; border-radius: 16px; padding: 16px; cursor: pointer; transition: transform .16s, box-shadow .16s, border-color .16s; position: relative; overflow: hidden; }
+.pg-card { text-align: left; border: 1px solid var(--ql-border, #e2e8f0); background: #fff; border-radius: 12px; padding: 16px; cursor: pointer; transition: transform .16s, box-shadow .16s, border-color .16s; position: relative; overflow: hidden; }
 .pg-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--pgfg, #64748b); opacity: .85; }
 .pg-card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(15, 23, 42, .09); }
 .pg-card.on { border-color: var(--pgfg, #2563eb); box-shadow: 0 0 0 2px var(--pgfg, #2563eb) inset, 0 8px 22px rgba(15, 23, 42, .08); }
@@ -660,7 +660,7 @@ table.att th, table.att td { border-bottom: 1px solid var(--ql-divider); }
 .pg-item-n { color: var(--ql-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-item-v { color: var(--ql-text); font-weight: 600; flex-shrink: 0; }
 .pg-more { color: var(--ql-text-tertiary, #94a3b8); font-weight: 500; }
-.pg-empty { grid-column: 1/-1; text-align: center; padding: 24px; color: var(--ql-text-tertiary, #94a3b8); font: 500 13px Inter; border: 1px dashed var(--ql-border, #e2e8f0); border-radius: 14px; }
+.pg-empty { grid-column: 1/-1; text-align: center; padding: 24px; color: var(--ql-text-tertiary, #94a3b8); font: 500 13px Inter; border: 1px dashed var(--ql-border, #e2e8f0); border-radius: 12px; }
 /* group pill + dept + freight tag in the table */
 .pg-pill { display: inline-flex; align-items: center; gap: 5px; font: 700 12px Inter; padding: 4px 10px; border-radius: 8px; white-space: nowrap; }
 .pg-dept { font: 600 11.5px Inter; color: var(--ql-text-secondary); background: var(--ql-surface-2, #f1f5f9); padding: 3px 9px; border-radius: 7px; }
