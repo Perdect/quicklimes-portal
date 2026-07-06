@@ -69,18 +69,27 @@ function cardsHTML() {
   const paid = rows.reduce((a, r) => a + r.paid, 0);
   const now = new Date(), ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
   const thisMonth = rows.filter(r => (r.date || '').slice(0, 7) === ym).reduce((a, r) => a + r.taxable, 0);
-  const trend = i.momPct == null ? '' : `<span class="prcard-tr ${i.momPct >= 0 ? 'up' : 'dn'}">${i.momPct >= 0 ? '▲' : '▼'} ${Math.abs(i.momPct).toFixed(0)}%</span>`;
+  const trend = i.momPct == null ? '' : `<span class="lcard-tr ${i.momPct >= 0 ? 'up' : 'dn'}">${i.momPct >= 0 ? '↑' : '↓'} ${Math.abs(i.momPct).toFixed(0)}%</span>`;
+  const SV = {
+    file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+    cart: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>',
+    receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>',
+    check: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+    cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'
+  };
   const C = [
-    { k: 'bills', label: 'Total Bills', v: s.count, sub: rows.filter(r => r.isOverdue).length + ' overdue', ic: '📄', tone: 'brand' },
-    { k: 'tot', label: 'Total Purchases', v: fC(s.total), sub: 'excl. GST', ic: '🛒', tone: 'amber' },
-    { k: 'itc', label: 'GST Input Credit', v: fC(s.itc), sub: 'available ITC', ic: '🧾', tone: 'ok' },
-    { k: 'pend', label: 'Pending Payment', v: fC(s.pending), sub: i.pendCount + ' supplier' + (i.pendCount === 1 ? '' : 's'), ic: '⏳', tone: 'red' },
-    { k: 'paid', label: 'Paid Amount', v: fC(paid), sub: 'settled to date', ic: '✅', tone: 'ok' },
-    { k: 'month', label: 'This Month', v: fC(thisMonth), sub: 'purchases ' + trend, ic: '📅', tone: 'indigo' }
+    { label: 'Total Bills', v: s.count, sub: rows.filter(r => r.isOverdue).length + ' overdue', tint: 'blue', ic: SV.file },
+    { label: 'Total Purchases', v: fC(s.total), sub: 'excl. GST', tint: 'indigo', ic: SV.cart },
+    { label: 'GST Input Credit', v: fC(s.itc), sub: 'available ITC', tint: 'green', ic: SV.receipt },
+    { label: 'Pending Payment', v: fC(s.pending), sub: i.pendCount + ' supplier' + (i.pendCount === 1 ? '' : 's'), tint: 'amber', ic: SV.clock },
+    { label: 'Paid Amount', v: fC(paid), sub: 'settled to date', tint: 'teal', ic: SV.check },
+    { label: 'This Month', v: fC(thisMonth), sub: 'purchases ' + trend, tint: 'violet', ic: SV.cal }
   ];
-  return C.map(c => `<div class="prcard prcard-${c.tone}">
-    <div class="prcard-ic">${c.ic}</div>
-    <div class="prcard-b"><div class="prcard-l">${c.label}</div><div class="prcard-v">${c.v}</div><div class="prcard-s">${c.sub}</div></div>
+  return C.map(c => `<div class="lcard">
+    <div class="lcard-top"><span class="lcard-ic t-${c.tint}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${c.ic}</svg></span><span class="lcard-l">${c.label}</span></div>
+    <div class="lcard-v">${c.v}</div>
+    <div class="lcard-s">${c.sub}</div>
   </div>`).join('');
 }
 
@@ -89,7 +98,7 @@ function opt(v, l, sel) { return `<option value="${esc(v)}" ${String(v) === Stri
 function fillFilters() {
   const rows = Q.purchaseRows(), G = Q.purchaseGroups;
   $('#pfGroup').innerHTML = opt('all', 'All groups', pF.group) + G.filter(g => rows.some(r => r.group === g.key)).map(g => opt(g.key, g.emoji + ' ' + g.label, pF.group)).join('');
-  $('#pfStatus').innerHTML = ['all', 'pending', 'partial', 'paid', 'overdue', 'cancelled'].map(s => opt(s, s === 'all' ? 'All status' : s[0].toUpperCase() + s.slice(1), pF.status)).join('');
+  document.querySelectorAll('#prTabs .prf-tab').forEach(t => t.classList.toggle('active', t.dataset.s === pF.status));
   const itemPool = pF.group !== 'all' ? (G.find(g => g.key === pF.group) || { items: [] }).items : [...new Set(rows.map(r => r.item))];
   $('#pfItem').innerHTML = opt('all', 'All items', pF.item) + itemPool.map(it => opt(it, it, pF.item)).join('');
   $('#pfSup').innerHTML = opt('all', 'All suppliers', pF.sup) + [...new Set(rows.map(r => r.sup))].filter(s => s && s !== '—').sort().map(s => opt(s, s, pF.sup)).join('');
@@ -321,7 +330,7 @@ $('#pdrawerBack').addEventListener('click', e => { if (e.target.id === 'pdrawerB
 
 /* ── Filter wiring ── */
 $('#pfGroup').onchange = e => { pF.group = e.target.value; pF.item = 'all'; pPage = 1; render(); };
-$('#pfStatus').onchange = e => { pF.status = e.target.value; pPage = 1; render(); };
+document.querySelectorAll('#prTabs .prf-tab').forEach(t => t.onclick = () => { pF.status = t.dataset.s; pPage = 1; render(); });
 $('#pfItem').onchange = e => { pF.item = e.target.value; pPage = 1; render(); };
 $('#pfSup').onchange = e => { pF.sup = e.target.value; pPage = 1; render(); };
 $('#pfDept').onchange = e => { pF.dept = e.target.value; pPage = 1; render(); };
