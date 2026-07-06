@@ -41,8 +41,8 @@ function copyLink(r) { const text = `${Q.co.short} · Bill ${r.bill || ''} · ${
 function stCell(r) { const st = r.isOverdue ? 'overdue' : r.status; return `<select class="qx-st s-${st}" data-st="${r.idx}" onclick="event.stopPropagation()">${STATUSES.map(s => `<option value="${s[0]}" ${s[0] === r.status ? 'selected' : ''}>${r.isOverdue && s[0] === 'pending' ? 'Overdue' : s[1]}</option>`).join('')}</select>`; }
 function stPill(r) { const st = r.isOverdue ? 'overdue' : r.status; return `<span class="qx-pill s-${st}">${st[0].toUpperCase() + st.slice(1)}</span>`; }
 function groupChip(r) { const gc = GCOL[r.group] || GCOL.other; return `<span class="qx-pill" style="background:${gc[0]};color:${gc[1]}">${r.emoji} ${esc(r.groupLabel)}</span>`; }
-function supCell(r) { return `<span class="qx-party"><span class="qx-av" style="background:linear-gradient(135deg,${QLX.avColor(r.sup)})">${(r.sup || '?').charAt(0).toUpperCase()}</span><span class="qx-party-n">${esc(r.sup)}</span></span>`; }
-function itemCell(r) { return `<span class="qx-party"><span class="qx-av" style="background:#fff;border:1px solid var(--ql-border);color:inherit">${r.itemIconEmoji || r.emoji || '📦'}</span><span class="qx-party-n">${esc(r.item)}</span></span>${r.freight ? ' <span class="qx-frt">freight</span>' : ''}`; }
+function supCell(r) { return `<span class="qx-party"><span class="qx-av" style="background:linear-gradient(135deg,${QLX.avColor(r.sup)})">${(r.sup || '?').charAt(0).toUpperCase()}</span><span class="qx-party-c"><span class="qx-party-n">${esc(r.sup)}</span>${r.gstin ? `<span class="qx-party-s">${esc(r.gstin)}</span>` : ''}</span></span>`; }
+function itemCell(r) { return `<span class="qx-party"><span class="qx-av qx-av-sq" style="background:var(--ql-neutral-100);color:inherit">${r.itemIconEmoji || r.emoji || '📦'}</span><span class="qx-party-n">${esc(r.item)}</span></span>${r.freight ? ' <span class="qx-frt">freight</span>' : ''}`; }
 
 /* ══════════════════ PDF (drawer/print) ══════════════════ */
 function billHTML(r) {
