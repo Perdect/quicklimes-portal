@@ -66,12 +66,43 @@ function wirePayments(body, r) {
   btn.onclick = () => { const amt = +body.querySelector('#sxPayAmt').value || 0, method = body.querySelector('#sxPayMode').value; if (!amt) { toast('Enter an amount', 'err'); return; } Q.receiveSalesPayment(r.idx, { amount: amt, method }); toast('Payment received — invoice updated', 'ok'); QLX.refresh(); };
 }
 
+/* ══════════════════ AI Insights panel (monthly ops) ══════════════════ */
+function sInsightFilter(ym) {
+  const S = QLX.state();
+  const d = new Date(ym + '-01T00:00'), last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  S.adv = { _from: ym + '-01', _to: ym + '-' + String(last.getDate()).padStart(2, '0') };
+  S.advOpen = true; S.page = 1;
+  QLX.refresh();
+  const p = document.querySelector('.qx-panel'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function salesInsightsPanel() {
+  const all = Q.salesRows();
+  const months = [...new Set(all.map(r => (r.date || '').slice(0, 7)).filter(Boolean))].sort();
+  const curYm = new Date().toISOString().slice(0, 7);
+  const ym = (months.includes(curYm) || !months.length) ? curYm : months[months.length - 1];
+  const rows = all.filter(r => (r.date || '').slice(0, 7) === ym);
+  const mon = new Date(ym + '-01T00:00').toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+  const tons = rows.reduce((a, r) => a + (r.qty || 0), 0);
+  const trucks = rows.filter(r => r.veh && r.veh.trim()).length || rows.length;
+  const sales = rows.reduce((a, r) => a + r.taxable, 0);
+  const chev = svg('<polyline points="9 18 15 12 9 6"/>');
+  const cards = [
+    { ic: '🏭', tint: 'indigo', n: fmt(tons, 1) + ' T', label: 'Production', sub: 'dispatched in ' + mon },
+    { ic: '🚚', tint: 'amber', n: String(trucks), label: 'Trucks Loaded', sub: 'loaded in ' + mon },
+    { ic: '💰', tint: 'green', n: fC(sales), label: 'Sales', sub: 'billed in ' + mon },
+    { ic: '🧾', tint: 'blue', n: String(rows.length), label: 'Invoices', sub: 'raised in ' + mon }
+  ];
+  const cardHTML = c => `<div class="qx-aip-card" onclick="sInsightFilter('${ym}')"><span class="qx-aip-ic t-${c.tint}">${c.ic}</span><div class="qx-aip-b"><div class="qx-aip-top"><span class="qx-aip-n">${c.n}</span><span class="qx-aip-l">${c.label}</span></div><div class="qx-aip-s">${c.sub}</div></div><span class="qx-aip-chev">${chev}</span></div>`;
+  return `<div class="qx-aip"><div class="qx-aip-h"><span class="qx-aip-h-t">${svg(IC.ai)} AI Insights</span><span class="qx-aip-badge">Auto</span></div><div class="qx-aip-row">${cards.map(cardHTML).join('')}</div></div>`;
+}
+
 /* ══════════════════ CONFIG ══════════════════ */
 QLX.mount({
   active: 'sales', title: 'Sales Register', accent: 'blue', noun: 'invoice', nounPl: 'invoices',
   icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
   data: () => Q.salesRows(), rowId: r => r.idx, dateField: r => r.date,
   subtitle: () => { const s = Q.salesSummary(); return `<b>${esc(Q.co.short)}</b> · ${s.count} invoices · <b>${fC(s.taxable)}</b> sales`; },
+  banner: () => salesInsightsPanel(),
   primary: { label: 'New invoice', icon: IC.plus, onClick: () => QLShell.openSaleForm() },
   tools: [
     { label: 'Import', icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => importInvoices() },
