@@ -416,7 +416,7 @@
         qty: s.qty || 0, taxable: c.tx, gst: c.cgst + c.sgst, total: c.tot,
         status: s.status || 'pending', veh: s.veh || '', gstin: s.gstin || '',
         days: daysAgo(s.date), paid, outstanding: Math.max(0, c.tot - paid),
-        payments: s.payments || [], paidMode: s.paidMode || '', paidDate: s.paidDate || ''
+        payments: s.payments || [], paidMode: s.paidMode || '', paidDate: s.paidDate || '', attach: s.attach || []
       };
     });
   }

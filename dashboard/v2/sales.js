@@ -11,6 +11,19 @@ const STATUSES = [['pending', 'Pending'], ['partial', 'Partial'], ['paid', 'Paid
 const STDOT = { pending: '#f59e0b', partial: '#2563eb', paid: '#16a34a', cash: '#0d9488', cancelled: '#ef4444' };
 const toast = (m, t) => QLX.toast(m, t);
 
+/* ── Attachments (IndexedDB, per browser) — real scanned/signed invoices ── */
+const ADB = 'ql_sal_docs'; let _adb = null;
+function adb() { if (_adb) return _adb; _adb = new Promise((res, rej) => { const r = indexedDB.open(ADB, 1); r.onupgradeneeded = e => { const d = e.target.result; if (!d.objectStoreNames.contains('f')) d.createObjectStore('f'); }; r.onsuccess = e => res(e.target.result); r.onerror = () => rej(r.error); }); return _adb; }
+function aOp(mode, fn) { return adb().then(d => new Promise((res, rej) => { const t = d.transaction('f', mode), o = fn(t.objectStore('f')); t.oncomplete = () => res(o && o.result !== undefined ? o.result : o); t.onerror = () => rej(t.error); })); }
+async function addAttach(idx, file, kind) {
+  const id = 'sa' + Date.now().toString(36) + Math.floor(Math.random() * 1e5).toString(36);
+  await aOp('readwrite', st => st.put(file, id));
+  const s = Q.state.SALES[idx]; Q.updateSale(idx, { attach: (s.attach || []).concat([{ id, name: file.name, type: file.type || '', kind: kind || 'Invoice', size: file.size, at: new Date().toISOString() }]) });
+}
+function getAttachBlob(id) { return aOp('readonly', st => st.get(id)); }
+async function openAttach(idx, id, dl) { const a = (Q.state.SALES[idx].attach || []).find(x => x.id === id); if (!a) return; const b = await getAttachBlob(a.id); if (!b) { toast('File not found in this browser', 'err'); return; } const url = URL.createObjectURL(b); if (dl) { const x = document.createElement('a'); x.href = url; x.download = a.name; x.click(); } else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 4000); }
+async function delAttach(idx, id) { const s = Q.state.SALES[idx]; Q.updateSale(idx, { attach: (s.attach || []).filter(a => a.id !== id) }); try { await aOp('readwrite', st => st.delete(id)); } catch (_) {} QLX.refresh(); }
+
 /* ── cells ── */
 function stCell(r) { return `<select class="qx-st s-${r.status}" data-st="${r.idx}" onclick="event.stopPropagation()">${STATUSES.map(s => `<option value="${s[0]}" ${s[0] === r.status ? 'selected' : ''}>${s[1]}</option>`).join('')}</select>`; }
 function stPill(r) { const st = r.status; return `<span class="qx-pill s-${st}">${st[0].toUpperCase() + st.slice(1)}</span>`; }
@@ -18,6 +31,7 @@ function partyCell(r) { return `<span class="qx-party-n" style="font-weight:600"
 
 /* ── mutations ── */
 function printInv(r) { QLShell.printInvoice(r.idx); }
+function printInvByIdx(idx) { QLShell.printInvoice(idx); }
 /* Generated GST invoice (same layout as an uploaded bill), from manual entry */
 function salesBillHTML(r) {
   const co = Q.co || {}, cg = r.gst / 2, money = n => '₹' + fmt(n), rate = r.qty ? r.taxable / r.qty : 0;
@@ -39,9 +53,35 @@ function salesBillHTML(r) {
     <div class="tot"><div class="row"><span>Taxable value</span><span>${money(r.taxable)}</span></div><div class="row"><span>CGST</span><span>${money(cg)}</span></div><div class="row"><span>SGST</span><span>${money(cg)}</span></div><div class="row g"><span>Total</span><span>${money(r.total)}</span></div></div>
     <div class="ft">System-generated from ${esc(co.name || 'QuickLimes')} · QuickLimes Sales Register.</div>`;
 }
-function viewBillSale(r) {
+async function viewBillSale(r) {
+  const list = r.attach || [];
+  const a = list.find(x => /invoice|bill|scan|pdf|image/i.test((x.kind || '') + ' ' + (x.type || ''))) || list[0];
+  if (a) {
+    try {
+      const blob = await getAttachBlob(a.id);
+      if (blob) { const url = URL.createObjectURL(blob); QLX.viewDoc({ eyebrow: 'Uploaded bill', title: r.inv || '—', sub: r.party + ' · ' + a.name, fileUrl: url, fileType: a.type || blob.type, fileName: a.name, file: blob }); return; }
+      toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err');
+    } catch (_) { toast('Could not open the uploaded bill', 'err'); }
+  }
   let html = ''; try { html = QLShell.getInvoiceHTML(r.idx); } catch (_) {}
   QLX.viewDoc({ eyebrow: 'GST Invoice', title: r.inv || '—', sub: r.party + ' · tax invoice', html: html || salesBillHTML(r), onPrint: () => printInv(r), onShare: () => shareInv(r) });
+}
+/* Documents tab — upload/view the real scanned invoice */
+function tabDocs(r) {
+  const KINDS = ['Invoice PDF', 'Scanned Invoice', 'E-way Bill', 'Weighbridge Slip', 'Photo', 'Other'];
+  const list = (r.attach || []).length ? (r.attach || []).map(a => `<div class="qx-doc"><span class="qx-doc-ic">${svg(IC.doc2)}</span><div style="min-width:0"><div class="qx-doc-n">${esc(a.name)}</div><div class="qx-doc-m">${esc(a.kind)} · ${(a.size / 1024).toFixed(0)} KB</div></div><div class="qx-doc-a"><button class="qx-ib" data-tt="View" onclick="openAttach(${r.idx},'${a.id}',0)">${svg(IC.eye)}</button><button class="qx-ib" data-tt="Download" onclick="openAttach(${r.idx},'${a.id}',1)">${svg(IC.dl)}</button><button class="qx-ib" data-tt="Remove" onclick="delAttach(${r.idx},'${a.id}')">${svg(IC.trash)}</button></div></div>`).join('') : '<div class="qx-empty">No documents yet. Upload the scanned / signed invoice so View opens the real bill.</div>';
+  return `<div class="qx-sec-h">Attach the real invoice <span class="qx-mut" style="text-transform:none;letter-spacing:0;font-weight:500">PDF · scan · photo</span></div>
+    <label class="qx-drop" id="sxDrop"><select id="sxKind" class="qx-sel" onclick="event.stopPropagation()" style="margin-bottom:4px">${KINDS.map(k => `<option>${k}</option>`).join('')}</select>${svg(IC.dl)}<span>Drop files or click to upload</span><input type="file" id="sxFile" multiple hidden></label>
+    <div style="margin-top:14px">${list}</div>`;
+}
+function wireDocs(body, r) {
+  const drop = body.querySelector('#sxDrop'), file = body.querySelector('#sxFile'), kind = body.querySelector('#sxKind');
+  const handle = async files => { for (const f of files) { try { await addAttach(r.idx, f, kind.value); } catch (_) { toast('Upload failed', 'err'); } } toast(files.length + ' file' + (files.length > 1 ? 's' : '') + ' attached', 'ok'); QLX.refresh(); };
+  drop.addEventListener('click', e => { if (!e.target.closest('select')) file.click(); });
+  file.onchange = () => handle([...file.files]);
+  ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => { if (e.dataTransfer.files.length) handle([...e.dataTransfer.files]); });
 }
 function setStatus(r, val) { Q.setSaleStatus(r.idx, val, (val === 'paid' || val === 'cash') ? { paidDate: todayISO, paidMode: val === 'cash' ? 'Cash' : 'Bank' } : {}); }
 function delInv(r) { if (confirm('Delete invoice ' + (r.inv || '') + ' for ' + r.party + '?')) { Q.deleteSale(r.idx); toast('Invoice deleted'); QLX.refresh(); } }
@@ -209,6 +249,8 @@ QLX.mount({
     ],
     tabs: [
       { label: 'Overview', icon: IC.file, render: tabOverview },
+      { label: 'Invoice', icon: IC.doc2, render: r => `<div class="qx-inv-bar"><button class="qx-btn qx-btn-sm" onclick="printInvByIdx(${r.idx})">${svg(IC.print)} Print</button></div><iframe class="qx-inv-frame" srcdoc="${esc((function(){try{return QLShell.getInvoiceHTML(r.idx)}catch(_){return salesBillHTML(r)}})())}" title="invoice"></iframe>` },
+      { label: 'Documents', icon: IC.dl, count: (r.attach || []).length || null, render: tabDocs, onMount: wireDocs },
       { label: 'Payments', icon: IC.clock, render: tabPayments, onMount: wirePayments }
     ]
   })
