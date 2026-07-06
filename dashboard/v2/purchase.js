@@ -134,6 +134,39 @@ function tabAI(r) {
     <div class="qx-sec-h">Related in ${r.emoji} ${esc(r.groupLabel)}</div><div>${relList(related)}</div>`;
 }
 
+/* ══════════════════ AI Insights panel (monthly materials) ══════════════════ */
+function pInsightFilter(kind) {
+  const S = QLX.state();
+  if (kind === '__royalty') { S.adv = {}; S.q = 'royalty'; }
+  else { S.adv = { group: kind }; S.q = ''; }
+  S.advOpen = true; S.page = 1;
+  QLX.refresh();
+  const p = document.querySelector('.qx-panel'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function aiInsightsPanel() {
+  const all = Q.purchaseRows();
+  const months = [...new Set(all.map(r => (r.date || '').slice(0, 7)).filter(Boolean))].sort();
+  const curYm = new Date().toISOString().slice(0, 7);
+  const ym = (months.includes(curYm) || !months.length) ? curYm : months[months.length - 1];
+  const rows = all.filter(r => (r.date || '').slice(0, 7) === ym);
+  const amt = pred => rows.filter(pred).reduce((a, r) => a + r.total, 0);
+  const qty = pred => rows.filter(pred).reduce((a, r) => a + (r.qty || 0), 0);
+  const chev = svg('<polyline points="9 18 15 12 9 6"/>');
+  const mon = new Date(ym + '-01T00:00').toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+  const cards = [
+    { ic: '🪨', tint: 'amber', label: 'Limestone', a: amt(r => r.group === 'limestone'), q: qty(r => r.group === 'limestone'), unit: 'T', act: 'purchased', f: 'limestone' },
+    { ic: '🔥', tint: 'red', label: 'Petcoke', a: amt(r => r.group === 'petcoke'), q: qty(r => r.group === 'petcoke'), unit: 'T', act: 'consumed', f: 'petcoke' },
+    { ic: '📦', tint: 'blue', label: 'Plastic Bags', a: amt(r => r.group === 'packaging'), q: qty(r => r.group === 'packaging'), unit: 'bags', act: 'used', f: 'packaging' },
+    { ic: '📜', tint: 'violet', label: 'Royalty', a: amt(r => /royalty/i.test(r.item)), q: 0, unit: '', act: 'paid', f: '__royalty' }
+  ];
+  const cardHTML = c => {
+    const big = c.a ? fC(c.a) : '₹0';
+    const sub = c.act + ' in ' + mon + (c.q && c.unit ? ' · ' + fmt(c.q, c.unit === 'bags' ? 0 : 1) + ' ' + c.unit : '');
+    return `<div class="qx-aip-card" onclick="pInsightFilter('${c.f}')"><span class="qx-aip-ic t-${c.tint}">${c.ic}</span><div class="qx-aip-b"><div class="qx-aip-top"><span class="qx-aip-n">${big}</span><span class="qx-aip-l">${c.label}</span></div><div class="qx-aip-s">${sub}</div></div><span class="qx-aip-chev">${chev}</span></div>`;
+  };
+  return `<div class="qx-aip"><div class="qx-aip-h"><span class="qx-aip-h-t">${svg(IC.ai)} AI Insights</span><span class="qx-aip-badge">Auto</span></div><div class="qx-aip-row">${cards.map(cardHTML).join('')}</div></div>`;
+}
+
 /* ══════════════════ CONFIG ══════════════════ */
 QLX.mount({
   active: 'purchase', title: 'Purchase Register', accent: 'blue', noun: 'bill', nounPl: 'bills',
@@ -141,6 +174,7 @@ QLX.mount({
   views: ['table'],
   data: () => Q.purchaseRows(), rowId: r => r.idx, dateField: r => r.date,
   subtitle: () => { const s = Q.purchaseSummary(); return `<b>${esc(Q.co.short)}</b> · ${s.count} bills · <b>${fC(s.total)}</b> purchase value`; },
+  banner: () => aiInsightsPanel(),
   primary: { label: 'Add Bill', icon: IC.plus, onClick: () => QLShell.openPurchaseForm() },
   tools: [
     { label: 'Report', icon: IC.file, onClick: () => { const r = Q.purchaseByGroup(); QLShell.exportCSV('Purchase by Group (landed cost)', ['Group', 'Items', 'Freight', 'Taxable', 'GST', 'Total'], r.map(g => [g.emoji + ' ' + g.label, g.count, g.freight, g.taxable, g.gst, g.total])); toast('Group report exported'); } },
