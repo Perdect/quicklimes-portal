@@ -370,16 +370,18 @@
 .sr-search input { border: none; outline: none; background: transparent; font-family: inherit; font-size: var(--ql-text-sm); color: var(--ql-text); flex: 1; min-width: 0; }
 .sr-search svg { width: 15px; height: 15px; color: var(--ql-text-muted); flex-shrink: 0; }
 .sr-table-wrap { overflow-x: auto; }
-table.sr { width: 100%; border-collapse: collapse; font-size: var(--ql-text-sm); }
-table.sr thead th { text-align: left; font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold); color: var(--ql-text-muted); text-transform: uppercase; letter-spacing: var(--ql-tracking-wide); padding: var(--ql-space-3); border-bottom: 1px solid var(--ql-border); white-space: nowrap; background: var(--ql-card); cursor: pointer; user-select: none; }
+/* Clean, airy listing table (Zoho/PropertyFinder-style spacing) */
+table.sr { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.sr thead th { text-align: left; font-size: 11px; font-weight: 600; color: var(--ql-text-tertiary, #94a3b8); text-transform: uppercase; letter-spacing: .07em; padding: 13px var(--ql-space-4, 16px); border-bottom: 1px solid var(--ql-border, #eef2f7); white-space: nowrap; background: transparent; cursor: pointer; user-select: none; }
 table.sr thead th.no-sort { cursor: default; }
-table.sr thead th .sort-ic { display: inline-block; width: 10px; opacity: .4; margin-left: 3px; }
+table.sr thead th .sort-ic { display: inline-block; width: 10px; opacity: .35; margin-left: 3px; }
 table.sr thead th.sorted .sort-ic { opacity: 1; color: var(--ql-brand-600); }
-table.sr td { padding: var(--ql-space-3); border-bottom: 1px solid var(--ql-divider); color: var(--ql-text); white-space: nowrap; }
+table.sr td { padding: 16px var(--ql-space-4, 16px); border-bottom: 1px solid var(--ql-divider, #f1f5f9); color: var(--ql-text); white-space: nowrap; vertical-align: middle; }
 table.sr tbody tr:last-child td { border-bottom: none; }
-table.sr tbody tr:hover td { background: var(--ql-neutral-50); }
+table.sr tbody tr { transition: background .12s; }
+table.sr tbody tr:hover td { background: var(--ql-surface-2, #f8fafc); }
 .sr-num { text-align: right; font-variant-numeric: tabular-nums; }
-.sr-inv { font-weight: var(--ql-weight-bold); color: var(--ql-text); }
+.sr-inv { font-weight: 700; color: var(--ql-brand-600, #2563eb); }
 .sr-party { display: flex; align-items: center; gap: var(--ql-space-3); }
 .sr-av { width: 32px; height: 32px; border-radius: var(--ql-radius-pill); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: var(--ql-weight-bold); font-size: var(--ql-text-xs); }
 .sr-pill { display: inline-flex; align-items: center; gap: 6px; font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold); padding: 3px 10px; border-radius: var(--ql-radius-pill); }
