@@ -756,64 +756,136 @@
 
   /* ── GST tax invoice (print / save as PDF) ───────────────────── */
   function invoiceHTML(d) {
-    const Q = window.QLD, money = n => '₹' + Q.fmt(n, 2), s = d.seller, b = d.buyer;
-    const taxRows = d.interState
-      ? `<tr><td>IGST</td><td class="r">${d.gstR}%</td><td class="r">${money(d.igst)}</td></tr>`
-      : `<tr><td>CGST</td><td class="r">${d.gstR / 2}%</td><td class="r">${money(d.cgst)}</td></tr><tr><td>SGST</td><td class="r">${d.gstR / 2}%</td><td class="r">${money(d.sgst)}</td></tr>`;
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice ${esc(d.inv)} — ${esc(s.short)}</title>
+    const Q = window.QLD, amt = n => Q.fmt(n, 2), s = d.seller, b = d.buyer;
+    const fdate = iso => { if (!iso) return ''; const p = iso.split('-'); return p.length === 3 ? p[2] + '-' + p[1] + '-' + p[0] : iso; };
+    const totalTax = d.interState ? d.igst : d.cgst + d.sgst;
+    const gstCols = d.interState
+      ? `<div class="tl"><span>Add : IGST @ ${d.gstR} %</span><span>${amt(d.igst)}</span></div>`
+      : `<div class="tl"><span>Add : CGST @ ${d.gstR / 2} %</span><span>${amt(d.cgst)}</span></div><div class="tl"><span>Add : SGST @ ${d.gstR / 2} %</span><span>${amt(d.sgst)}</span></div>`;
+    const taxSumHead = d.interState ? '<th>IGST Amt.</th>' : '<th>CGST Amt.</th><th>SGST Amt.</th>';
+    const taxSumCells = d.interState ? `<td>${amt(d.igst)}</td>` : `<td>${amt(d.cgst)}</td><td>${amt(d.sgst)}</td>`;
+    const party = who => `<div class="pcol"><div class="pi">${who} :</div><div class="pn">${esc(b.name)}</div>${b.address ? `<div>${esc(b.address)}</div>` : ''}<div style="margin-top:6px">GSTIN / UIN&nbsp;&nbsp;: <b>${esc(b.gstin || '—')}</b></div></div>`;
+    const bank2 = s.bank2 ? `<br>${esc(s.bank2)}${s.bankBranch2 ? ' ' + esc(s.bankBranch2) : ''}, IFSC CODE-${esc(s.ifsc2 || '')}, AC NO-${esc(s.accNo2 || '')}` : '';
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice ${esc(d.inv)} — ${esc(s.short || s.name)}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',system-ui,Arial,sans-serif;color:#0f172a;font-size:12px;line-height:1.45;padding:24px;background:#fff}
-  .inv{max-width:780px;margin:0 auto;border:1px solid #cbd5e1}
-  .hd{display:flex;justify-content:space-between;gap:16px;padding:18px 20px;border-bottom:2px solid #2563EB}
-  .hd h1{font-size:20px;letter-spacing:.5px;color:#2563EB}
-  .hd .sub{font-size:11px;color:#475569;margin-top:2px}
-  .tag{align-self:flex-start;background:#2563EB;color:#fff;font-weight:700;font-size:11px;letter-spacing:1px;padding:5px 12px;border-radius:6px}
-  .meta{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e2e8f0}
-  .meta>div{padding:12px 20px}
-  .meta>div:first-child{border-right:1px solid #e2e8f0}
-  .lbl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#64748b;font-weight:700;margin-bottom:3px}
-  .v{font-weight:600}
+  body{font-family:Arial,'Helvetica Neue',sans-serif;color:#000;font-size:11.5px;line-height:1.35;padding:20px;background:#fff}
+  .inv{max-width:820px;margin:0 auto;border:1.5px solid #000}
+  .row{display:flex}
+  .b-b{border-bottom:1px solid #000}.b-r{border-right:1px solid #000}
+  .pad{padding:6px 10px}
+  /* header */
+  .ihd{position:relative;text-align:center;padding:10px 12px 8px}
+  .orig{position:absolute;top:6px;right:10px;font-style:italic;font-size:11px}
+  .gi{font-weight:700;font-size:12px}
+  .co{font-size:22px;font-weight:800;letter-spacing:.3px;margin-top:1px}
+  .ca{font-size:11px}
+  .gstln{font-weight:700;font-size:12px;margin-top:1px}
+  .tagline{font-weight:700;font-size:12px;margin-top:3px}
+  .logo{position:absolute;left:12px;top:8px;height:56px}
+  /* meta / party rows */
+  .half{width:50%}
+  .mline{display:flex;justify-content:space-between}
+  .mline span:first-child{min-width:120px}
+  .pi{font-weight:700;font-style:italic;margin-bottom:3px}
+  .pn{font-weight:700;font-size:12px}
+  /* items */
   table{width:100%;border-collapse:collapse}
-  .items th{background:#f1f5f9;text-align:left;padding:9px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#475569;border-bottom:1px solid #e2e8f0}
-  .items td{padding:11px 12px;border-bottom:1px solid #eef2f7}
-  .r{text-align:right}
-  .tax{width:280px;margin-left:auto}
-  .tax td{padding:6px 12px;font-size:12px}
-  .tax tr.grand td{border-top:2px solid #0f172a;font-weight:800;font-size:14px;padding-top:9px}
-  .words{padding:12px 20px;background:#f8fafc;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0}
-  .ft{display:flex;justify-content:space-between;gap:16px;padding:16px 20px}
-  .sign{text-align:right;min-width:200px}
-  .sign .line{margin-top:46px;border-top:1px solid #94a3b8;padding-top:4px;font-size:11px;color:#475569}
-  @media print{body{padding:0}.inv{border:none;max-width:none}.noprint{display:none}}
-  .bar{display:flex;justify-content:center;gap:10px;padding:14px}
-  .btn{padding:9px 18px;border-radius:8px;border:none;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit}
-  .btn-p{background:#2563EB;color:#fff}.btn-s{background:#e2e8f0;color:#0f172a}
+  .it th,.it td{border:1px solid #000;padding:5px 7px;font-size:11px}
+  .it th{background:#fff;text-align:center;font-weight:700}
+  .it td.l{text-align:left}.it td.c{text-align:center}.it td.r{text-align:right}
+  .it .fill td{height:120px;border-top:none;border-bottom:none}
+  /* totals */
+  .tot{padding:6px 10px}
+  .tl{display:flex;justify-content:flex-end;gap:24px;padding:2px 0}
+  .tl span:last-child{min-width:110px;text-align:right}
+  .grand{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:13px;border-top:1px solid #000;margin-top:4px;padding-top:5px}
+  /* tax summary */
+  .ts th,.ts td{border:1px solid #000;padding:4px 7px;font-size:10.5px;text-align:center}
+  .ts th{font-weight:700}
+  .words{font-weight:700;padding:6px 10px}
+  .decl{padding:6px 10px;text-align:center}
+  .decl-h{font-weight:700;text-decoration:underline;margin-bottom:2px}
+  .decl div{font-size:10.5px}
+  .bank{padding:6px 10px;font-size:11px}
+  .terms{font-size:10px;width:55%}
+  .terms b{font-size:11px}
+  .sig{width:45%;text-align:center;display:flex;flex-direction:column}
+  .sig .for{font-weight:700;margin-top:auto;padding-top:34px}
+  @media print{body{padding:0}.inv{border:1.5px solid #000}.noprint{display:none}}
+  .bar{display:flex;justify-content:center;gap:10px;padding:0 0 14px}
+  .btn{padding:8px 16px;border-radius:6px;border:none;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit}
+  .btn-p{background:#2563EB;color:#fff}.btn-s{background:#e2e8f0;color:#000}
 </style></head><body>
 <div class="bar noprint"><button class="btn btn-p" onclick="window.print()">Print / Save PDF</button><button class="btn btn-s" onclick="window.close()">Close</button></div>
 <div class="inv">
-  <div class="hd">
-    <div><h1>${esc(s.name)}</h1><div class="sub">${esc(s.address || '')}</div><div class="sub">GSTIN: <b>${esc(s.gstin || '—')}</b> · State: ${esc(s.state || '')} · Ph: ${esc(s.phone || '')}</div><div class="sub">${esc(s.product || '')}</div></div>
-    <span class="tag">TAX INVOICE</span>
+  <div class="ihd b-b">
+    ${s.logo ? `<img class="logo" src="${esc(s.logo)}" alt="">` : ''}
+    <div class="orig">Original Copy</div>
+    <div class="gi">GST INVOICE</div>
+    <div class="co">${esc(s.name)}</div>
+    <div class="ca">${esc(s.address || '')}</div>
+    <div class="gstln">GSTIN : ${esc(s.gstin || '—')}</div>
+    ${s.email ? `<div class="ca">email : ${esc(s.email)}</div>` : ''}
+    <div class="tagline">${esc(s.product || 'MANUFACTURER')}</div>
   </div>
-  <div class="meta">
-    <div><div class="lbl">Invoice No.</div><div class="v">${esc(d.inv)}</div><div class="lbl" style="margin-top:8px">Date</div><div class="v">${esc(Q.fDS(d.date))} ${(d.date || '').slice(0, 4)}</div>${d.veh ? `<div class="lbl" style="margin-top:8px">Vehicle</div><div class="v">${esc(d.veh)}</div>` : ''}${d.eway ? `<div class="lbl" style="margin-top:8px">E-way Bill</div><div class="v">${esc(d.eway)}</div>` : ''}</div>
-    <div><div class="lbl">Bill To</div><div class="v" style="font-size:14px">${esc(b.name)}</div>${b.address ? `<div style="color:#475569;margin-top:2px">${esc(b.address)}</div>` : ''}<div class="lbl" style="margin-top:8px">GSTIN</div><div class="v">${esc(b.gstin || 'Unregistered')}</div>${b.state ? `<div class="lbl" style="margin-top:8px">State</div><div class="v">${esc(b.state)}</div>` : ''}</div>
+  <div class="row b-b">
+    <div class="half b-r pad">
+      <div class="mline"><span>Invoice No.</span><b>: ${esc(d.inv || '')}</b></div>
+      <div class="mline"><span>Dated</span><b>: ${fdate(d.date)}</b></div>
+      <div class="mline"><span>Place of Supply</span><b>: ${esc(s.state || b.state || '')}</b></div>
+      <div class="mline"><span>Reverse Charge</span><b>: N</b></div>
+      <div class="mline"><span>GR/RR No.</span><b>: ${esc(d.grrr || '')}</b></div>
+    </div>
+    <div class="half pad">
+      <div class="mline"><span>Transport</span><b>: ${esc(d.transport || 'By Road')}</b></div>
+      <div class="mline"><span>Vehicle No.</span><b>: ${esc(d.veh || '')}</b></div>
+      <div class="mline"><span>Station</span><b>: ${esc(s.station || s.city || '')}</b></div>
+      <div class="mline"><span>E-Way Bill No.</span><b>: ${esc(d.eway || '')}</b></div>
+    </div>
   </div>
-  <table class="items">
-    <thead><tr><th style="width:30px">#</th><th>Description</th><th>HSN</th><th class="r">Qty (T)</th><th class="r">Rate</th><th class="r">Taxable</th></tr></thead>
-    <tbody><tr><td>1</td><td><b>${esc(d.product)}</b></td><td>${esc(d.hsn)}</td><td class="r">${Q.fmt(d.qty, 2)}</td><td class="r">${money(d.rate)}</td><td class="r">${money(d.taxable)}</td></tr></tbody>
+  <div class="row b-b">
+    <div class="half b-r pad">${party('Billed to')}</div>
+    <div class="half pad">${party('Shipped to')}</div>
+  </div>
+  <table class="it">
+    <thead><tr><th style="width:36px">S.N.</th><th>Description of Goods</th><th style="width:74px">HSN/SAC<br>Code</th><th style="width:56px">Qty.</th><th style="width:56px">Unit</th><th style="width:82px">Price</th><th style="width:100px">Amount(₹)</th></tr></thead>
+    <tbody>
+      <tr><td class="c">1</td><td class="l">${esc(d.product)}</td><td class="c">${esc(d.hsn)}</td><td class="r">${amt(d.qty)}</td><td class="c">${esc(d.unit || 'Tonne')}</td><td class="r">${amt(d.rate)}</td><td class="r">${amt(d.taxable)}</td></tr>
+      <tr class="fill"><td class="l" colspan="7"></td></tr>
+    </tbody>
   </table>
-  <table class="tax">
-    <tr><td>Taxable Value</td><td></td><td class="r">${money(d.taxable)}</td></tr>
-    ${taxRows}
-    ${Math.abs(d.roundOff) > 0.001 ? `<tr><td>Round Off</td><td></td><td class="r">${money(d.roundOff)}</td></tr>` : ''}
-    <tr class="grand"><td>Grand Total</td><td></td><td class="r">₹${Q.fmt(d.grand, 0)}</td></tr>
+  <div class="tot b-b">
+    <div class="tl"><span></span><span>${amt(d.taxable)}</span></div>
+    ${gstCols}
+    <div class="grand"><span>Grand Total&nbsp;&nbsp;${amt(d.qty)} ${esc(d.unit || 'Tonne')}</span><span>₹ ${amt(d.grand)}</span></div>
+  </div>
+  <table class="ts b-b">
+    <thead><tr><th>HSN/SAC</th><th>Tax Rate</th><th>Taxable Amt.</th>${taxSumHead}<th>Total Tax</th></tr></thead>
+    <tbody><tr><td>${esc(d.hsn)}</td><td>${d.gstR}%</td><td>${amt(d.taxable)}</td>${taxSumCells}<td>${amt(totalTax)}</td></tr></tbody>
   </table>
-  <div class="words"><span class="lbl">Amount in words</span> <b>${esc(d.words)}</b></div>
-  <div class="ft">
-    <div><div class="lbl">Bank Details</div><div>${esc(s.bank || '—')}${s.bankBranch ? ', ' + esc(s.bankBranch) : ''}</div>${s.accNo ? `<div>A/c: <b>${esc(s.accNo)}</b> · IFSC: ${esc(s.ifsc || '')}</div>` : ''}<div style="margin-top:8px;color:#94a3b8;font-size:10px">This is a computer-generated invoice.</div></div>
-    <div class="sign"><div style="font-weight:700">For ${esc(s.short)}</div><div class="line">Authorised Signatory</div></div>
+  <div class="words b-b">${esc(d.words)}</div>
+  <div class="decl b-b">
+    <div class="decl-h">Declaration</div>
+    ${s.msme ? `<div>1. REGISTERED IN MSME NO. ${esc(s.msme)}</div>` : ''}
+    <div>${s.msme ? '2' : '1'}. Supply of goods under RULE 46 OF CGST RULE 2017 .</div>
+    <div>${s.msme ? '3' : '2'}. No complaint will be entertained after 10 Days from the Date</div>
+    <div>${s.msme ? '4' : '3'}. Interest at 18% per annum will be charged for amount not paid in time</div>
+  </div>
+  <div class="bank b-b"><b>Bank Details :</b> ${esc(s.bank || '—')}${s.bankBranch ? ' ' + esc(s.bankBranch) : ''}${s.ifsc ? ', IFSC CODE-' + esc(s.ifsc) : ''}${s.accNo ? ', AC NO-' + esc(s.accNo) : ''}${bank2}</div>
+  <div class="row">
+    <div class="terms b-r pad">
+      <b>Terms &amp; Conditions</b>
+      <div style="margin-top:2px">E.&amp; O.E.</div>
+      <div>1. Goods once sold will not be taken back.</div>
+      <div>2. Interest @ 18% p.a. will be charged if the payment is not made within the stipulated time.</div>
+      <div>3. Subject to ${esc(s.jurisdiction || (s.station || s.city || 'local'))} Jurisdiction only.</div>
+      ${s.msme ? `<div>4. REGISTERED IN MSME NO. ${esc(s.msme)}</div>` : ''}
+    </div>
+    <div class="sig pad">
+      <div style="text-align:left">Receiver's Signature&nbsp;&nbsp;:</div>
+      <div class="for">for ${esc(s.name)}<br><br>Authorised Signatory</div>
+    </div>
   </div>
 </div>
 <script>setTimeout(function(){try{window.focus()}catch(e){}},50)</script>
@@ -1215,6 +1287,7 @@
     closeModal, openForm, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
     rowMenu, printInvoice, exportCSV,
     formPrompt(title, specs, onSave, sub) { openForm({ title, sub, specs, saveLabel: 'Save', initial: {}, onSave(v) { onSave(v); } }); },
+    getInvoiceHTML(idx) { const d = window.QLD.invoiceData(idx); return d ? invoiceHTML(d) : ''; },
 
     // ── Feature Management (Settings) ──
     feat: featOn,

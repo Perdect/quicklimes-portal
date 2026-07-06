@@ -39,7 +39,10 @@ function salesBillHTML(r) {
     <div class="tot"><div class="row"><span>Taxable value</span><span>${money(r.taxable)}</span></div><div class="row"><span>CGST</span><span>${money(cg)}</span></div><div class="row"><span>SGST</span><span>${money(cg)}</span></div><div class="row g"><span>Total</span><span>${money(r.total)}</span></div></div>
     <div class="ft">System-generated from ${esc(co.name || 'QuickLimes')} · QuickLimes Sales Register.</div>`;
 }
-function viewBillSale(r) { QLX.viewDoc({ eyebrow: 'GST Invoice', title: r.inv || '—', sub: r.party + ' · generated from entry', html: salesBillHTML(r), onPrint: () => printInv(r) }); }
+function viewBillSale(r) {
+  let html = ''; try { html = QLShell.getInvoiceHTML(r.idx); } catch (_) {}
+  QLX.viewDoc({ eyebrow: 'GST Invoice', title: r.inv || '—', sub: r.party + ' · tax invoice', html: html || salesBillHTML(r), onPrint: () => printInv(r) });
+}
 function setStatus(r, val) { Q.setSaleStatus(r.idx, val, (val === 'paid' || val === 'cash') ? { paidDate: todayISO, paidMode: val === 'cash' ? 'Cash' : 'Bank' } : {}); }
 function delInv(r) { if (confirm('Delete invoice ' + (r.inv || '') + ' for ' + r.party + '?')) { Q.deleteSale(r.idx); toast('Invoice deleted'); QLX.refresh(); } }
 function dupInv(r) { const s = Q.state.SALES[r.idx]; Q.addSale(Object.assign({}, s, { inv: (s.inv || '') + '-COPY', status: 'pending', paid: 0, payments: [] })); toast('Invoice duplicated'); QLX.refresh(); }
