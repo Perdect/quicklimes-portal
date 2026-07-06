@@ -1,7 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════
-   QuickLimes v2 — Design Tokens
-   The single source of truth for colour, type, spacing, radius,
-   and shadow. Every component in v2 should compose from these.
+   PERDECT Design System — tokens (shared with IMZA CRM)
+   The single source of truth for colour, type, spacing, radius and
+   shadow across every PERDECT product. Values match IMZA CRM
+   (crm.imza.ae): Geist type, #2563EB primary, #F8FAFC surface,
+   slate neutrals, tight radii (8–12px), subtle shadows.
+   Every component composes from these — never hard-code a hex.
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
@@ -65,10 +68,10 @@
   --ql-link:        var(--ql-brand-600);
   --ql-link-hover:  var(--ql-brand-700);
 
-  /* ── TYPOGRAPHY ───────────────────────────────────────────── */
-  --ql-font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+  /* ── TYPOGRAPHY (Geist — the PERDECT / IMZA CRM type) ───────── */
+  --ql-font-sans: 'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
                   'Helvetica Neue', Arial, sans-serif;
-  --ql-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  --ql-font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
 
   /* Type scale (matches Tailwind/Inter conventions) */
   --ql-text-2xs:  10px;     /* labels, badges */
@@ -112,14 +115,14 @@
   --ql-space-14:  56px;
   --ql-space-16:  64px;
 
-  /* ── RADIUS ───────────────────────────────────────────────── */
-  --ql-radius-xs:  4px;
-  --ql-radius-sm:  6px;
-  --ql-radius-md:  8px;
-  --ql-radius-lg:  10px;
-  --ql-radius-xl:  12px;
-  --ql-radius-2xl: 16px;
-  --ql-radius-3xl: 20px;
+  /* ── RADIUS (IMZA/shadcn scale — tight, 4–14px) ─────────────── */
+  --ql-radius-xs:  4px;    /* .25rem */
+  --ql-radius-sm:  6px;    /* .375rem */
+  --ql-radius-md:  8px;    /* .5rem  — control radius */
+  --ql-radius-lg:  8px;
+  --ql-radius-xl:  10px;
+  --ql-radius-2xl: 12px;   /* .75rem — card radius */
+  --ql-radius-3xl: 14px;
   --ql-radius-pill: 9999px;
 
   /* ── SHADOW (soft, layered, never harsh) ──────────────────── */

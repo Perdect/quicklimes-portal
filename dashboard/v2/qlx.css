@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   QLX — QuickLimes Workspace design system
-   A reusable, config-driven Monday-style workspace layer for EVERY module.
-   Glassmorphism · soft gradients · floating panels · micro-animations.
-   Scoped under .qx so it never collides with legacy page CSS.
-   Built entirely on the v2 tokens in tokens.css.
+   QLX — QuickLimes Workspace (PERDECT Design System)
+   A reusable, config-driven workspace layer for EVERY module, styled to
+   match IMZA CRM (crm.imza.ae): Geist type, #2563EB primary, slate
+   neutrals, clean flat surfaces, tight 8–12px radii, subtle shadows.
+   Scoped under .qx. Composes entirely from the PERDECT tokens (tokens.css).
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── ACCENT SYSTEM ──────────────────────────────────────────────────────
@@ -43,7 +43,7 @@
 .qx-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 6px 6px 18px; flex-wrap: wrap; }
 .qx-hero-l { display: flex; gap: 14px; align-items: center; min-width: 0; }
 .qx-badge {
-  width: 46px; height: 46px; border-radius: 14px; flex: none;
+  width: 44px; height: 44px; border-radius: 11px; flex: none;
   display: grid; place-items: center; color: #fff; background: var(--qx-grad);
   box-shadow: 0 8px 20px -6px var(--qx-glow), inset 0 1px 0 rgba(255,255,255,.25);
 }
@@ -56,9 +56,8 @@
 
 .qx-btn {
   display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px;
-  border-radius: 11px; font-size: 13px; font-weight: 600; cursor: pointer;
-  background: rgba(255,255,255,.72); color: var(--ql-text); border: 1px solid var(--ql-border);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer;
+  background: #fff; color: var(--ql-text); border: 1px solid var(--ql-border);
   transition: all .16s var(--ql-ease-out);
 }
 .qx-btn svg { width: 15px; height: 15px; }
@@ -72,12 +71,11 @@
 /* ── KPI STAT STRIP ─────────────────────────────────────────────────── */
 .qx-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(186px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .qx-stat {
-  background: rgba(255,255,255,.75); border: 1px solid var(--ql-border);
-  border-radius: 16px; padding: 15px 16px; position: relative; overflow: hidden;
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  box-shadow: var(--ql-shadow-sm); transition: transform .18s var(--ql-ease-out), box-shadow .18s var(--ql-ease-out);
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: 12px; padding: 15px 16px; position: relative; overflow: hidden;
+  box-shadow: var(--ql-shadow-xs); transition: transform .16s var(--ql-ease-out), box-shadow .16s var(--ql-ease-out), border-color .16s;
 }
-.qx-stat:hover { transform: translateY(-2px); box-shadow: var(--ql-shadow-md); }
+.qx-stat:hover { border-color: var(--ql-border-strong); box-shadow: var(--ql-shadow-sm); }
 .qx-stat-top { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
 .qx-stat-ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: none; }
 .qx-stat-ic svg { width: 16px; height: 16px; }
@@ -94,7 +92,7 @@
 .t-orange{background:#fff4ed;color:#ea580c}.t-purple{background:#faf5ff;color:#9333ea}.t-red{background:#fef2f2;color:#dc2626}
 
 /* ── AI INSIGHTS BAR (banner slot between stats and table) ──────────── */
-.qx-aibar { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; padding: 11px 14px; border-radius: 15px; background: linear-gradient(135deg, rgba(124,58,237,.06), rgba(37,99,235,.05)); border: 1px solid rgba(124,58,237,.14); backdrop-filter: blur(8px); }
+.qx-aibar { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; padding: 11px 14px; border-radius: 12px; background: linear-gradient(135deg, rgba(124,58,237,.06), rgba(37,99,235,.05)); border: 1px solid rgba(124,58,237,.14); backdrop-filter: blur(8px); }
 .qx-aibar-h { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: #6d28d9; padding-right: 4px; white-space: nowrap; }
 .qx-aibar-h svg { width: 15px; height: 15px; }
 .qx-aibar-i { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ql-text); background: rgba(255,255,255,.7); border: 1px solid var(--ql-border); border-radius: 99px; padding: 5px 12px; }
@@ -102,9 +100,8 @@
 
 /* ── WORKSPACE PANEL (holds toolbar + views) ────────────────────────── */
 .qx-panel {
-  background: rgba(255,255,255,.78); border: 1px solid var(--ql-border);
-  border-radius: 18px; box-shadow: var(--ql-shadow-sm);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); overflow: hidden;
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: 12px; box-shadow: var(--ql-shadow-xs); overflow: hidden;
 }
 
 /* ── TOOLBAR ────────────────────────────────────────────────────────── */
@@ -121,7 +118,7 @@
 .qx-tab.active .qx-tab-ct { background: rgba(255,255,255,.7); color: var(--qx-ink); }
 
 .qx-tb-sp { flex: 1; }
-.qx-search { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 11px; border-radius: 10px; background: var(--ql-neutral-100); border: 1px solid transparent; transition: all .15s; min-width: 190px; }
+.qx-search { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 11px; border-radius: 8px; background: var(--ql-neutral-100); border: 1px solid transparent; transition: all .15s; min-width: 190px; }
 .qx-search:focus-within { background: #fff; border-color: var(--qx); box-shadow: 0 0 0 3px var(--qx-glow); }
 .qx-search svg { width: 15px; height: 15px; color: var(--ql-text-muted); flex: none; }
 .qx-search input { border: none; background: none; outline: none; font-size: 13px; width: 100%; color: var(--ql-text); }
@@ -137,7 +134,7 @@
 .qx-tool-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--qx); }
 
 /* view segmented control */
-.qx-views { display: flex; gap: 2px; padding: 3px; background: var(--ql-neutral-100); border-radius: 10px; }
+.qx-views { display: flex; gap: 2px; padding: 3px; background: var(--ql-neutral-100); border-radius: 8px; }
 .qx-view {
   width: 32px; height: 28px; border: none; background: transparent; border-radius: 7px; cursor: pointer;
   display: grid; place-items: center; color: var(--ql-text-muted); transition: all .14s;
@@ -156,9 +153,8 @@
 /* ── DROPDOWN MENUS (columns, group-by, sort, more) ─────────────────── */
 .qx-menu {
   position: absolute; z-index: var(--ql-z-dropdown); min-width: 210px; padding: 6px;
-  background: rgba(255,255,255,.92); border: 1px solid var(--ql-border); border-radius: 13px;
-  box-shadow: var(--ql-shadow-lg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  animation: qx-pop .16s var(--ql-ease-out);
+  background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 10px;
+  box-shadow: var(--ql-shadow-lg); animation: qx-pop .16s var(--ql-ease-out);
 }
 @keyframes qx-pop { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
 .qx-menu-h { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ql-text-muted); padding: 6px 8px 4px; }
@@ -260,14 +256,14 @@
 
 /* ═══ BOARD / KANBAN VIEW ════════════════════════════════════════════ */
 .qx-board { display: flex; gap: 14px; padding: 16px; overflow-x: auto; align-items: flex-start; min-height: 300px; }
-.qx-col { flex: 0 0 300px; background: rgba(248,250,252,.7); border: 1px solid var(--ql-divider); border-radius: 14px; display: flex; flex-direction: column; max-height: 640px; }
+.qx-col { flex: 0 0 300px; background: rgba(248,250,252,.7); border: 1px solid var(--ql-divider); border-radius: 12px; display: flex; flex-direction: column; max-height: 640px; }
 .qx-col-h { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--ql-divider); position: sticky; top: 0; }
 .qx-col-dot { width: 9px; height: 9px; border-radius: 99px; flex: none; }
 .qx-col-n { font-weight: 700; font-size: 13px; }
 .qx-col-ct { font-size: 11px; font-weight: 700; color: var(--ql-text-muted); background: rgba(15,23,42,.05); padding: 1px 7px; border-radius: 99px; }
 .qx-col-sum { margin-left: auto; font-size: 12px; font-weight: 800; color: var(--ql-text-secondary); font-variant-numeric: tabular-nums; }
 .qx-col-body { padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; }
-.qx-kcard { background: #fff; border: 1px solid var(--ql-border); border-radius: 11px; padding: 12px; cursor: pointer; transition: all .15s var(--ql-ease-out); box-shadow: var(--ql-shadow-xs); }
+.qx-kcard { background: #fff; border: 1px solid var(--ql-border); border-radius: 10px; padding: 12px; cursor: pointer; transition: all .15s var(--ql-ease-out); box-shadow: var(--ql-shadow-xs); }
 .qx-kcard:hover { transform: translateY(-2px); box-shadow: var(--ql-shadow-md); border-color: var(--qx); }
 .qx-kcard-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
 .qx-kcard-ttl { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -277,7 +273,7 @@
 
 /* ═══ CARDS / GALLERY VIEW ═══════════════════════════════════════════ */
 .qx-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; padding: 16px; }
-.qx-card { background: #fff; border: 1px solid var(--ql-border); border-radius: 15px; padding: 16px; cursor: pointer; transition: all .16s var(--ql-ease-out); box-shadow: var(--ql-shadow-xs); position: relative; overflow: hidden; }
+.qx-card { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 12px; padding: 16px; cursor: pointer; transition: all .16s var(--ql-ease-out); box-shadow: var(--ql-shadow-xs); position: relative; overflow: hidden; }
 .qx-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--qx-grad); opacity: 0; transition: opacity .16s; }
 .qx-card:hover { transform: translateY(-3px); box-shadow: var(--ql-shadow-lg); border-color: transparent; }
 .qx-card:hover::before { opacity: 1; }
