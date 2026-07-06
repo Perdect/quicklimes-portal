@@ -240,10 +240,14 @@
 .qx-party-c { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .qx-party-n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; display: inline-block; vertical-align: middle; }
 
-/* Filter dropdown (IMZA-style popover) */
-.qx-filter-menu { min-width: 250px; padding: 8px; }
-.qx-fm-f { padding: 7px 6px; }
-.qx-fm-f > label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ql-text-muted); margin-bottom: 6px; }
+/* Filter dropdown (IMZA-style popover with multi-select checkboxes) */
+.qx-filter-menu { min-width: 240px; max-height: 72vh; overflow-y: auto; padding: 8px; }
+.qx-fm-h { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ql-text-muted); padding: 10px 8px 4px; }
+.qx-fm-h:first-child { padding-top: 4px; }
+.qx-fm-chk { justify-content: flex-start; gap: 9px; }
+.qx-fm-chk .qx-cbx { flex: none; }
+.qx-fm-chk.on { color: var(--qx-ink); }
+.qx-fm-f { padding: 5px 6px 7px; }
 .qx-fm-f .qx-sel { width: 100%; max-width: none; height: 34px; }
 .qx-fm-row { display: flex; gap: 6px; align-items: center; }
 .qx-fm-row .qx-date { flex: 1; }

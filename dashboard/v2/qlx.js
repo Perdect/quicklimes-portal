@@ -117,7 +117,7 @@
   function filtered() {
     let r = allRows();
     if (S.quick !== 'all' && CFG.quickFilters) { const qf = CFG.quickFilters.find(x => x.key === S.quick); if (qf && qf.test) r = r.filter(qf.test); }
-    (CFG.filters || []).forEach(f => { const v = S.adv[f.key]; if (v && v !== 'all') r = r.filter(x => f.test(x, v)); });
+    (CFG.filters || []).forEach(f => { const v = S.adv[f.key]; if (Array.isArray(v)) { if (v.length) r = r.filter(x => v.some(val => f.test(x, val))); } else if (v && v !== 'all') r = r.filter(x => f.test(x, v)); });
     if (S.adv._from) r = r.filter(x => (CFG.dateField ? CFG.dateField(x) : x.date || '') >= S.adv._from);
     if (S.adv._to) r = r.filter(x => (CFG.dateField ? CFG.dateField(x) : x.date || '') <= S.adv._to);
     if (S.q && CFG.search) { const q = S.q.toLowerCase(); r = r.filter(x => CFG.search(x, q)); }
@@ -401,19 +401,32 @@
     m.querySelectorAll('[data-gb]').forEach(b => b.onclick = () => { S.groupBy = b.dataset.gb; S.collapsed.clear(); closeMenu(); render(); });
     placeMenu(m, anchor);
   }
-  function anyAdv() { return Object.keys(S.adv).some(k => S.adv[k] && S.adv[k] !== 'all'); }
+  function anyAdv() { return Object.keys(S.adv).some(k => { const v = S.adv[k]; return Array.isArray(v) ? v.length : (v && v !== 'all'); }); }
+  function selOf(key) { const v = S.adv[key]; return Array.isArray(v) ? v.map(String) : (v && v !== 'all' ? [String(v)] : []); }
   function openFilterMenu(anchor) {
     closeMenu(); const m = document.createElement('div'); m.className = 'qx-menu qx-filter-menu';
-    let inner = '<div class="qx-menu-h">Filter by</div>';
+    let inner = '';
     (CFG.filters || []).forEach(f => {
-      const opts = [['all', f.allLabel || ('All ' + f.label.toLowerCase())]].concat(f.options ? f.options(allRows()) : []);
-      inner += `<div class="qx-fm-f"><label>${esc(f.label)}</label><select class="qx-sel" data-fk="${esc(f.key)}">${opts.map(o => `<option value="${esc(o[0])}" ${String(S.adv[f.key] || 'all') === String(o[0]) ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select></div>`;
+      const opts = f.options ? f.options(allRows()) : [], sel = selOf(f.key);
+      inner += `<div class="qx-fm-h">${esc(f.label)}</div>`;
+      if (opts.length && opts.length <= 12) {   // small set → multi-select checkboxes
+        inner += opts.map(o => { const on = sel.indexOf(String(o[0])) >= 0; return `<button class="qx-menu-i qx-fm-chk ${on ? 'on' : ''}" data-fk="${esc(f.key)}" data-val="${esc(o[0])}"><span class="qx-cbx ${on ? 'on' : ''}">${svg(IC.check)}</span>${esc(o[1])}</button>`; }).join('');
+      } else {                                   // large set → single select
+        inner += `<div class="qx-fm-f"><select class="qx-sel" data-single="${esc(f.key)}"><option value="all">All ${esc(f.label.toLowerCase())}</option>${opts.map(o => `<option value="${esc(o[0])}" ${String(S.adv[f.key]) === String(o[0]) ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select></div>`;
+      }
     });
-    if (CFG.dateRange) inner += `<div class="qx-fm-f"><label>Date range</label><div class="qx-fm-row"><input class="qx-date" type="date" id="qxFmFrom" value="${S.adv._from || ''}"><span class="qx-dash">–</span><input class="qx-date" type="date" id="qxFmTo" value="${S.adv._to || ''}"></div></div>`;
+    if (CFG.dateRange) inner += `<div class="qx-fm-h">Date range</div><div class="qx-fm-f"><div class="qx-fm-row"><input class="qx-date" type="date" id="qxFmFrom" value="${S.adv._from || ''}"><span class="qx-dash">–</span><input class="qx-date" type="date" id="qxFmTo" value="${S.adv._to || ''}"></div></div>`;
     inner += `<div class="qx-menu-div"></div><button class="qx-menu-i" id="qxFmReset">${svg(IC.x)} Clear all filters</button>`;
     m.innerHTML = inner;
     const apply = () => { const b = document.getElementById('qxFilBtn'); if (b) b.classList.toggle('on', anyAdv()); renderViewOnly(); };
-    m.querySelectorAll('[data-fk]').forEach(sel => sel.onchange = () => { S.adv[sel.dataset.fk] = sel.value; S.page = 1; apply(); });
+    m.querySelectorAll('.qx-fm-chk').forEach(btn => btn.onclick = () => {
+      const k = btn.dataset.fk, val = btn.dataset.val, arr = selOf(k).slice(), i = arr.indexOf(val);
+      if (i >= 0) arr.splice(i, 1); else arr.push(val);
+      if (arr.length) S.adv[k] = arr; else delete S.adv[k];
+      btn.classList.toggle('on'); btn.querySelector('.qx-cbx').classList.toggle('on');
+      S.page = 1; apply();
+    });
+    m.querySelectorAll('[data-single]').forEach(sel => sel.onchange = () => { if (sel.value === 'all') delete S.adv[sel.dataset.single]; else S.adv[sel.dataset.single] = sel.value; S.page = 1; apply(); });
     const from = m.querySelector('#qxFmFrom'), to = m.querySelector('#qxFmTo');
     if (from) from.onchange = () => { S.adv._from = from.value; S.page = 1; apply(); };
     if (to) to.onchange = () => { S.adv._to = to.value; S.page = 1; apply(); };
