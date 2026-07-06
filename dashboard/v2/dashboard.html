@@ -90,7 +90,7 @@
         <div class="coll-list" id="collList"></div>
       </div>
 
-      <div class="card">
+      <div class="card" data-feat="production">
         <div class="card-head">
           <div>
             <h3 class="card-title">Production &amp; dispatch</h3>
@@ -273,9 +273,11 @@ function renderAll(){
   /* shell: workspace switcher + profile + badges */
   QLShell.paintWorkspace();
 
-  /* KPIs */
+  /* KPIs — hide production/dispatch tiles when the Production module is off */
   const k = QLD.kpis();
-  document.getElementById('kpiStrip').innerHTML = Object.keys(KLABELS).map(key => `
+  const prodOn = !window.QLShell || QLShell.feat('production');
+  const kpiKeys = Object.keys(KLABELS).filter(key => prodOn || (key !== 'production' && key !== 'dispatch'));
+  document.getElementById('kpiStrip').innerHTML = kpiKeys.map(key => `
     <div class="kpi-tile">
       <div class="kpi-head">
         <div class="kpi-ic" style="background:${KICONS[key].bg};color:${KICONS[key].fg}">${KICONS[key].svg}</div>

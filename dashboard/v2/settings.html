@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./data.js"></script>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Settings</h1>
+        <div class="page-sub" id="setSub">Manage which modules appear across the app</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ft-head">
+        <div>
+          <h3 class="ft-title">Feature Management</h3>
+          <div class="ft-note">Turn modules on or off to keep the app simple. Hidden modules are <b>never deleted</b> — switch them back on anytime. Changes apply instantly to the sidebar, search and dashboard, and are saved on this device.</div>
+        </div>
+        <button class="ql-btn ql-btn-secondary" id="ftReset">Reset to defaults</button>
+      </div>
+
+      <div class="ft-section-label">Core modules <span class="ft-hint">always on</span></div>
+      <div class="ft-list" id="ftCore"></div>
+
+      <div class="ft-section-label" style="margin-top:var(--ql-space-5)">Optional modules <span class="ft-hint" id="ftOptCount"></span></div>
+      <div class="ft-list" id="ftOpt"></div>
+    </div>
+  </div>
+</div>
+
+<div id="setToast" class="fin-toast" hidden></div>
+
+<script src="./shell.js"></script>
+<script>
+QLShell.mount({ active: 'settings', title: 'Settings' });
+const $ = s => document.querySelector(s);
+const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let _tt;
+function toast(msg) { const el = $('#setToast'); el.textContent = msg; el.hidden = false; clearTimeout(_tt); _tt = setTimeout(() => { el.hidden = true; }, 2400); }
+
+function row(f) {
+  return `<label class="ft-row${f.locked ? ' ft-locked' : ''}">
+    <div class="ft-info">
+      <div class="ft-label">${esc(f.label)}${f.locked ? '<span class="ft-lock">Locked on</span>' : ''}</div>
+      <div class="ft-desc">${esc(f.desc)}</div>
+    </div>
+    <span class="ft-switch"><input type="checkbox" data-key="${f.key}" ${f.active ? 'checked' : ''} ${f.locked ? 'disabled' : ''}><span class="ft-slider"></span></span>
+  </label>`;
+}
+function render() {
+  const feats = QLShell.features();
+  const core = feats.filter(f => f.core), opt = feats.filter(f => !f.core);
+  const onCount = opt.filter(f => f.active).length;
+  $('#ftCore').innerHTML = core.map(row).join('');
+  $('#ftOpt').innerHTML = opt.map(row).join('');
+  $('#ftOptCount').textContent = onCount + ' of ' + opt.length + ' on';
+  const total = feats.filter(f => f.active).length;
+  $('#setSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + total + ' of ' + feats.length + ' modules active';
+  if (window.QLShell && QLShell.paintWorkspace) QLShell.paintWorkspace();
+  document.querySelectorAll('.ft-row input[type=checkbox]').forEach(inp => inp.addEventListener('change', () => {
+    QLShell.setFeature(inp.dataset.key, inp.checked);
+    const f = QLShell.features().find(x => x.key === inp.dataset.key);
+    toast((f ? f.label : 'Module') + (inp.checked ? ' turned on' : ' hidden'));
+    render();
+  }));
+}
+$('#ftReset').addEventListener('click', () => {
+  if (!confirm('Reset feature visibility to the default (Dashboard, Sales, Purchase, Finance, Settings)?')) return;
+  QLShell.resetFeatures(); toast('Reset to defaults'); render();
+});
+window.__qlOnSwitchCompany = () => render();
+window.__qlRefresh = render;
+QLD.init(render);
+</script>
+</body>
+</html>

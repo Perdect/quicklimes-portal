@@ -46,69 +46,103 @@
 
   /* ── Navigation registry — single source of truth ───────────── */
   const SOON = '#soon';
+  /* ── Feature flags (managed from Settings → Feature Management) ───
+     Hide/show whole modules without deleting anything. Persisted in
+     localStorage so the choice survives refresh/login on this device.
+     Sidebar, command palette and dashboard all respect these flags. */
+  const FEATURES = [
+    { key: 'dashboard',  label: 'Dashboard',        desc: 'Business overview & KPIs',                    core: true, locked: true },
+    { key: 'sales',      label: 'Sales',            desc: 'GST Invoice · Sales Register · Collections',  core: true },
+    { key: 'purchase',   label: 'Purchase',         desc: 'Purchase Register · Suppliers',               core: true },
+    { key: 'finance',    label: 'Finance',          desc: 'Payments · Expenses · Partner Ledger / Loans', core: true },
+    { key: 'settings',   label: 'Settings',         desc: 'App settings & Feature Management',            core: true, locked: true },
+    { key: 'command',    label: 'Command Center',   desc: 'Owner command dashboard' },
+    { key: 'monthreg',   label: 'Monthly Register', desc: 'Combined monthly sales & purchase register' },
+    { key: 'advfinance', label: 'GST · TDS · P&L',  desc: 'GST filing, TDS and Profit & Loss' },
+    { key: 'people',     label: 'Parties & Labour', desc: 'All parties, labour and attendance' },
+    { key: 'production', label: 'Production',        desc: 'Quick Lime, Chunna, Kiln & Daily production' },
+    { key: 'inventory',  label: 'Inventory',         desc: 'Raw material, stock and dispatch' },
+    { key: 'reports',    label: 'Reports & Analytics', desc: 'Reports hub and analytics' }
+  ];
+  const FEAT_DEFAULT_ON = { dashboard: 1, sales: 1, purchase: 1, finance: 1, settings: 1 };
+  const FEAT_KEY = 'ql_features';
+  function loadFeatures() {
+    const f = {}; FEATURES.forEach(x => { f[x.key] = !!FEAT_DEFAULT_ON[x.key]; });
+    try { const s = JSON.parse(localStorage.getItem(FEAT_KEY) || '{}'); Object.keys(s).forEach(k => { if (k in f) f[k] = !!s[k]; }); } catch (_) {}
+    FEATURES.forEach(x => { if (x.locked) f[x.key] = true; });   // core-locked always on
+    return f;
+  }
+  let FEAT = loadFeatures();
+  const featOn = k => FEAT[k] !== false;
+  function setFeat(k, on) { const x = FEATURES.find(y => y.key === k); if (!x || x.locked) return; FEAT[k] = !!on; try { localStorage.setItem(FEAT_KEY, JSON.stringify(FEAT)); } catch (_) {} }
+
   const NAV = [
-    { type: 'solo', id: 'dashboard', label: 'Dashboard', href: 'dashboard.html', icon: I.grid },
-    { type: 'solo', id: 'command', label: 'Command Center', href: 'command.html', icon: I.pulse },
-    { type: 'group', label: 'Sales', items: [
+    { type: 'solo', id: 'dashboard', label: 'Dashboard', href: 'dashboard.html', icon: I.grid, feat: 'dashboard' },
+    { type: 'solo', id: 'command', label: 'Command Center', href: 'command.html', icon: I.pulse, feat: 'command' },
+    { type: 'group', label: 'Sales', feat: 'sales', items: [
       { id: 'invoice',     label: 'GST Invoice',     href: 'sales.html#new', icon: I.invoice },
       { id: 'sales',       label: 'Sales Register',  href: 'sales.html', icon: I.sales },
       { id: 'collections', label: 'Collections',     href: 'sales.html#pending', icon: I.coll, badgeKey: 'collections' },
-      { id: 'monthreg',    label: 'Monthly Register', href: 'monthreg.html', icon: I.cal }
+      { id: 'monthreg',    label: 'Monthly Register', href: 'monthreg.html', icon: I.cal, feat: 'monthreg' }
     ]},
-    { type: 'group', label: 'Purchases', items: [
+    { type: 'group', label: 'Purchase', feat: 'purchase', items: [
       { id: 'purchase',  label: 'Purchase Register', href: 'purchase.html', icon: I.bag },
       { id: 'suppliers', label: 'Suppliers',         href: 'parties.html#supplier', icon: I.factory }
     ]},
-    { type: 'group', label: 'Production', items: [
+    { type: 'group', label: 'Finance', feat: 'finance', items: [
+      { id: 'finance',  label: 'Payments',                 href: 'finance.html',  icon: I.bank },
+      { id: 'cashbook', label: 'Expenses',                 href: 'cashbook.html', icon: I.card },
+      { id: 'loans',    label: 'Partner Ledger / Loans',   href: 'loans.html',    icon: I.receipt },
+      { id: 'gst',      label: 'GST Filing', href: 'gst.html', icon: I.receipt, feat: 'advfinance' },
+      { id: 'tds',      label: 'TDS',        href: 'tds.html', icon: I.receipt, feat: 'advfinance' },
+      { id: 'pl',       label: 'Profit & Loss', href: 'pl.html', icon: I.chart, feat: 'advfinance' }
+    ]},
+    { type: 'group', label: 'Production', feat: 'production', items: [
       { id: 'ql-prod',  label: 'Quick Lime Production', href: 'production.html', icon: I.clock },
       { id: 'chunna',   label: 'Chunna Production',     href: 'chunna.html', icon: I.flame },
-      { id: 'kiln',     label: 'Kiln Management',       href: SOON, icon: I.bars, badge: { text: 'soon', tone: 'info' } },
-      { id: 'daily',    label: 'Daily Production',      href: SOON, icon: I.cal }
+      { id: 'kiln',     label: 'Kiln Management',       href: SOON, icon: I.bars, soon: true },
+      { id: 'daily',    label: 'Daily Production',      href: SOON, icon: I.cal, soon: true }
     ]},
-    { type: 'group', label: 'Inventory', items: [
-      { id: 'raw',      label: 'Raw Material',     href: SOON, icon: I.layers },
-      { id: 'stock',    label: 'Stock Management', href: SOON, icon: I.box },
-      { id: 'dispatch', label: 'Dispatch',         href: SOON, icon: I.truck }
+    { type: 'group', label: 'Inventory', feat: 'inventory', items: [
+      { id: 'raw',      label: 'Raw Material',     href: SOON, icon: I.layers, soon: true },
+      { id: 'stock',    label: 'Stock Management', href: SOON, icon: I.box, soon: true },
+      { id: 'dispatch', label: 'Dispatch',         href: SOON, icon: I.truck, soon: true }
     ]},
-    { type: 'group', label: 'Finance', items: [
-      { id: 'finance',  label: 'Finance + GST Portal', href: 'finance.html', icon: I.bank, badge: { text: 'new', tone: 'info' } },
-      { id: 'cashbook', label: 'Cash Book',     href: 'cashbook.html', icon: I.card },
-      { id: 'loans',    label: 'Loans',         href: 'loans.html',    icon: I.bank },
-      { id: 'gst',      label: 'GST',           href: 'gst.html',      icon: I.receipt },
-      { id: 'tds',      label: 'TDS',           href: 'tds.html',      icon: I.receipt },
-      { id: 'pl',       label: 'Profit & Loss', href: 'pl.html',       icon: I.chart }
-    ]},
-    { type: 'group', label: 'People', items: [
+    { type: 'group', label: 'People', feat: 'people', items: [
       { id: 'parties',    label: 'All Parties', href: 'parties.html', icon: I.users },
       { id: 'labour',     label: 'Labour',      href: 'labour.html',  icon: I.users },
       { id: 'attendance', label: 'Attendance',  href: 'attendance.html', icon: I.check }
     ]},
-    { type: 'group', label: 'Reports', items: [
+    { type: 'group', label: 'Reports', feat: 'reports', items: [
       { id: 'reports', label: 'Reports Hub',          href: 'reports.html', icon: I.dl },
-      { id: 'biz-an',  label: 'Business Analytics',   href: SOON, icon: I.pulse },
-      { id: 'prod-an', label: 'Production Analytics', href: SOON, icon: I.pulse }
+      { id: 'biz-an',  label: 'Business Analytics',   href: SOON, icon: I.pulse, soon: true },
+      { id: 'prod-an', label: 'Production Analytics', href: SOON, icon: I.pulse, soon: true }
     ]},
-    { type: 'solo', id: 'settings', label: 'Settings', href: SOON, icon: I.gear, soloTop: true }
+    { type: 'solo', id: 'settings', label: 'Settings', href: 'settings.html', icon: I.gear, feat: 'settings', soloTop: true }
   ];
 
   /* ── Build sidebar nav HTML ──────────────────────────────────── */
   function navHTML(active) {
     let h = '';
     NAV.forEach(sec => {
+      if (sec.feat && !featOn(sec.feat)) return;   // whole module turned off
       if (sec.type === 'solo') {
         h += `<div class="sb-solo"${sec.soloTop ? ' style="margin-top:var(--ql-space-2)"' : ''}>
           <a class="sb-link${sec.id === active ? ' active' : ''}" href="${sec.href}" data-page="${sec.id}">
             ${sec.icon}<span class="sb-link-text">${sec.label}</span>
           </a></div>`;
       } else {
-        const open = sec.items.some(it => it.id === active);
+        const items = sec.items.filter(it => !it.feat || featOn(it.feat));
+        if (!items.length) return;   // nothing visible in this group
+        const open = items.some(it => it.id === active);
         h += `<div class="sb-group${open ? '' : ''}">
           <button class="sb-group-title" onclick="QLShell.toggleGroup(this)"><span>${sec.label}</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
           <div class="sb-group-body">` +
-          sec.items.map(it => {
+          items.map(it => {
             let badge = '';
-            if (it.badge) badge = `<span class="sb-link-badge"${it.badge.tone === 'info' ? ' style="background:var(--ql-brand-100);color:var(--ql-brand-700)"' : it.badge.tone === 'success' ? ' style="background:var(--ql-success-100);color:var(--ql-success-700)"' : ''}>${it.badge.text}</span>`;
+            if (it.soon) badge = `<span class="sb-link-badge" style="background:var(--ql-brand-100);color:var(--ql-brand-700)">Soon</span>`;
+            else if (it.badge) badge = `<span class="sb-link-badge"${it.badge.tone === 'info' ? ' style="background:var(--ql-brand-100);color:var(--ql-brand-700)"' : it.badge.tone === 'success' ? ' style="background:var(--ql-success-100);color:var(--ql-success-700)"' : ''}>${it.badge.text}</span>`;
             else if (it.badgeKey) badge = `<span class="sb-link-badge" data-badge="${it.badgeKey}" hidden></span>`;
             return `<a class="sb-link${it.id === active ? ' active' : ''}" href="${it.href}" data-page="${it.id}">${it.icon}<span class="sb-link-text">${it.label}</span>${badge}</a>`;
           }).join('') +
@@ -333,14 +367,22 @@
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
   };
   function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  // Pages to offer in the palette — derived from the ACTIVE nav (respects Feature Management).
+  function navPages() {
+    const pIcon = id => id === 'dashboard' ? 'grid' : /sale|invoice|collection/.test(id) ? 'sales' : /purchase|supplier/.test(id) ? 'bag' : /part|labour|attend|people/.test(id) ? 'users' : 'grid';
+    const out = [];
+    NAV.forEach(sec => {
+      if (sec.feat && !featOn(sec.feat)) return;
+      if (sec.type === 'solo') { if (sec.href && sec.href !== SOON) out.push([sec.label, sec.href, pIcon(sec.id)]); }
+      else sec.items.forEach(it => { if ((!it.feat || featOn(it.feat)) && it.href && it.href !== SOON) out.push([it.label, it.href, pIcon(it.id)]); });
+    });
+    return out;
+  }
   function paletteItems(q) {
     const Q = window.QLD;
     const res = [];
-    // pages always
-    [['Dashboard', 'dashboard.html', 'grid'], ['Sales Register', 'sales.html', 'sales'], ['Collections', 'sales.html?filter=pending', 'sales'],
-     ['Purchase Register', 'purchase.html', 'bag'], ['All Parties', 'parties.html', 'users'], ['Labour', 'labour.html', 'users'],
-     ['Cash Book', 'cashbook.html', 'grid'], ['Loans', 'loans.html', 'grid'], ['GST', 'gst.html', 'grid']]
-      .forEach(([t, href, ic]) => { if (!q || t.toLowerCase().includes(q)) res.push({ group: 'Go to', icon: ic, t, s: 'Page', href }); });
+    // pages (active modules only)
+    navPages().forEach(([t, href, ic]) => { if (!q || t.toLowerCase().includes(q)) res.push({ group: 'Go to', icon: ic, t, s: 'Page', href }); });
     if (Q && q) {
       const ql = q;
       [...new Set(Q.state.PARTIES.map(p => p.name))].filter(n => n.toLowerCase().includes(ql)).slice(0, 5)
@@ -1153,14 +1195,23 @@
     rowMenu, printInvoice, exportCSV,
     formPrompt(title, specs, onSave, sub) { openForm({ title, sub, specs, saveLabel: 'Save', initial: {}, onSave(v) { onSave(v); } }); },
 
+    // ── Feature Management (Settings) ──
+    feat: featOn,
+    features() { return FEATURES.map(x => ({ key: x.key, label: x.label, desc: x.desc, core: !!x.core, locked: !!x.locked, active: featOn(x.key) })); },
+    setFeature(k, on) { setFeat(k, on); this.refreshNav(); this.applyFeatureVisibility(); },
+    resetFeatures() { try { localStorage.removeItem(FEAT_KEY); } catch (_) {} FEAT = loadFeatures(); this.refreshNav(); this.applyFeatureVisibility(); },
+    refreshNav() { const nav = document.querySelector('.sb-nav'); if (nav) { nav.innerHTML = navHTML(_active); refreshNotifDot(); } },
+    applyFeatureVisibility() { document.querySelectorAll('[data-feat]').forEach(el => { el.style.display = featOn(el.getAttribute('data-feat')) ? '' : 'none'; }); },
+
     mount(opts) {
       opts = opts || {};
+      _active = opts.active || 'dashboard';
       const page = document.getElementById('ql-page');
       const content = page ? page.innerHTML : '';
       if (page) page.remove();
       // inject shell
       const wrap = document.createElement('div');
-      wrap.innerHTML = shellHTML(opts.active || 'dashboard', '');
+      wrap.innerHTML = shellHTML(_active, '');
       while (wrap.firstChild) document.body.insertBefore(wrap.firstChild, document.body.firstChild);
       $('ql-main').innerHTML = content;
       // wire
@@ -1171,6 +1222,8 @@
       // breadcrumb
       if (opts.title) this.setBreadcrumb(opts.title);
       renderPalette('');
+      this.applyFeatureVisibility();
     }
   };
+  let _active = 'dashboard';
 })();
