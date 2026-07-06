@@ -62,7 +62,7 @@
 .dk-kpi-ic { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex: none; }
 .dk-kpi-ic svg { width: 19px; height: 19px; }
 .dk-kpi-l { font-size: 12px; font-weight: 600; color: var(--ql-text-secondary); line-height: 1.25; }
-.dk-kpi-v { font-size: 25px; font-weight: 800; letter-spacing: -.025em; color: var(--ql-text); line-height: 1; font-variant-numeric: tabular-nums; }
+.dk-kpi-v { font-size: 21px; font-weight: 800; letter-spacing: -.025em; color: var(--ql-text); line-height: 1.05; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dk-kpi-m { font-size: 11.5px; color: var(--ql-text-muted); margin-top: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .dk-trend { font-weight: 700; display: inline-flex; align-items: center; gap: 2px; padding: 1px 7px; border-radius: 99px; font-size: 10.5px; }
 .dk-trend.up { color: var(--ql-success-700, #15803d); background: #ecfdf3; } .dk-trend.dn { color: var(--ql-danger-600); background: #fef2f2; }
