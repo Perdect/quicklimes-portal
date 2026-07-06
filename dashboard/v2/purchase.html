@@ -8,341 +8,57 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css"><link rel="stylesheet" href="./finance.css">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css"><link rel="stylesheet" href="./finance.css"><link rel="stylesheet" href="./purchase.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./data.js"></script>
-<script src="./finance.js"></script><!-- QLFin: CSV/Excel parsing + shared import sheet -->
+<script src="./finance.js"></script>
 </head>
 <body class="ql-v2">
 <div id="ql-page">
-  <div class="dash">
+  <div class="dash pr2">
     <div class="page-head">
-      <div><h1 class="page-title">Purchase Register</h1><div class="page-sub" id="prSub">Loading bills…</div></div>
+      <div><h1 class="page-title">Purchase Register</h1><div class="page-sub" id="prSub">Loading…</div></div>
       <div class="page-actions">
-        <button class="ql-btn ql-btn-secondary" id="puImport"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Import bills</button>
+        <button class="ql-btn ql-btn-secondary" id="puReport"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="12" y2="11"/></svg> Report</button>
+        <button class="ql-btn ql-btn-secondary" id="puImport"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Import</button>
         <button class="ql-btn ql-btn-secondary" id="puExport"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
-        <button class="ql-btn ql-btn-primary" onclick="QLShell.openPurchaseForm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add bill</button>
+        <button class="ql-btn ql-btn-primary" onclick="QLShell.openPurchaseForm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Bill</button>
       </div>
     </div>
 
-    <div class="kpi-strip" id="prKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="prc" id="prCards"></div>
 
-    <!-- Spend by Purchase Group (landed cost) -->
-    <div class="pg-head">
-      <div><h3 class="pg-h-title">Spend by Purchase Group</h3><div class="pg-h-sub">Landed cost — related items (material + freight + royalty) rolled up together</div></div>
-    </div>
-    <div class="pg-grid" id="pgGrid"></div>
-
-    <!-- AI insights -->
-    <div class="pin card" id="pinCard"></div>
-
-    <!-- Bills table -->
-    <div class="card" style="gap:var(--ql-space-4)">
-      <div class="pf-bar">
-        <select class="pf-sel" id="pfGroup"></select>
-        <select class="pf-sel" id="pfItem"></select>
-        <select class="pf-sel" id="pfSup"></select>
-        <select class="pf-sel" id="pfDept"></select>
-        <select class="pf-sel" id="pfGst"></select>
-        <select class="pf-sel" id="pfStatus"></select>
-        <input class="pf-date" type="date" id="pfFrom" title="From date">
-        <input class="pf-date" type="date" id="pfTo" title="To date">
-        <div class="sr-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="prSearch" placeholder="Search bill, supplier, item…"></div>
-        <button class="pf-clear" id="pfClear" hidden>Clear</button>
+    <div class="prf" id="prFilter">
+      <div class="prf-row">
+        <select class="prf-sel" id="pfGroup"></select>
+        <select class="prf-sel" id="pfStatus"></select>
+        <div class="prf-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="prSearch" placeholder="Search bill, supplier, item…"></div>
+        <button class="prf-btn" id="pfMore"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg> Filters</button>
+        <div class="prf-cols-wrap"><button class="prf-btn" id="pfCols"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg> Columns</button><div class="prf-cols-menu" id="pfColsMenu" hidden></div></div>
+        <button class="prf-btn prf-reset" id="pfReset" hidden>Reset</button>
       </div>
-      <div class="sr-table-wrap"><table class="sr"><thead><tr id="prHead"></tr></thead><tbody id="prBody"></tbody></table></div>
-      <div class="sr-foot"><span id="prCount">—</span><div class="sr-pager"><button id="prPrev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><span id="prPage" style="font-size:var(--ql-text-sm)">1</span><button id="prNext"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></div></div>
+      <div class="prf-adv" id="prfAdv" hidden>
+        <select class="prf-sel" id="pfItem"></select>
+        <select class="prf-sel" id="pfSup"></select>
+        <select class="prf-sel" id="pfDept"></select>
+        <select class="prf-sel" id="pfGst"></select>
+        <input class="prf-date" type="date" id="pfFrom" title="From"><span class="prf-dash">–</span><input class="prf-date" type="date" id="pfTo" title="To">
+      </div>
     </div>
+
+    <div class="prt-card">
+      <div class="prt-scroll"><table class="prt"><thead id="prHead"></thead><tbody id="prBody"></tbody></table></div>
+      <div class="prt-pager"><span id="prCount">—</span><div class="sr-pager"><button id="prPrev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><span id="prPage">1</span><button id="prNext"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></div></div>
+    </div>
+
+    <div class="prfoot" id="prFoot"></div>
   </div>
 </div>
+
+<div class="pdrawer-back" id="pdrawerBack"><aside class="pdrawer" id="pdrawer"></aside></div>
+<div id="prToast" class="fin-toast" hidden></div>
+
 <script src="./shell.js"></script>
-<script>
-QLShell.mount({ active: 'purchase', title: 'Purchase Register' });
-const fC = QLD.fC;
-const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const AVG = ['#0891B2,#155E75', '#7C3AED,#5B21B6', '#16A34A,#15803D', '#F59E0B,#B45309', '#DB2777,#9D174D', '#2563EB,#1D4ED8'];
-const GCOL = { limestone: ['#f6f0e4', '#8a6d3b'], petcoke: ['#fdeceb', '#c0392b'], packaging: ['#eaf1ff', '#2f5fd0'], labour: ['#e9f9ee', '#1c7c3a'], maintenance: ['#f2eefb', '#6b3fa0'], utilities: ['#fff5e0', '#b7791f'], office: ['#eef2f7', '#475569'], other: ['#f1f5f9', '#64748b'] };
-const PER = 12;
-const pF = { group: 'all', item: 'all', sup: 'all', dept: 'all', gst: 'all', status: 'all', from: '', to: '' };
-let pQuery = '', pSort = { key: 'date', dir: 'desc' }, pPage = 1;
-
-const COLS = [
-  { key: 'sup', label: 'Supplier', sortable: true },
-  { key: 'item', label: 'Purchase Item', sortable: true },
-  { key: 'grate', label: 'GST', sortable: true, num: true },
-  { key: 'taxable', label: 'Taxable', sortable: true, num: true },
-  { key: 'freightAmt', label: 'Freight', sortable: true, num: true },
-  { key: 'total', label: 'Total', sortable: true, num: true },
-  { key: 'status', label: 'Status', sortable: true }
-];
-
-function filtered() {
-  let r = QLD.purchaseRows();
-  if (pF.group !== 'all') r = r.filter(x => x.group === pF.group);
-  if (pF.item !== 'all') r = r.filter(x => x.item === pF.item);
-  if (pF.sup !== 'all') r = r.filter(x => x.sup === pF.sup);
-  if (pF.dept !== 'all') r = r.filter(x => x.dept === pF.dept);
-  if (pF.gst !== 'all') r = r.filter(x => String(x.grate) === pF.gst);
-  if (pF.status !== 'all') r = r.filter(x => x.status === pF.status);
-  if (pF.from) r = r.filter(x => (x.date || '') >= pF.from);
-  if (pF.to) r = r.filter(x => (x.date || '') <= pF.to);
-  if (pQuery) { const q = pQuery.toLowerCase(); r = r.filter(x => (x.bill + ' ' + x.sup + ' ' + x.item + ' ' + x.groupLabel + ' ' + x.gstin).toLowerCase().includes(q)); }
-  r.sort((a, b) => { let x = a[pSort.key], y = b[pSort.key]; if (typeof x === 'string') { x = x.toLowerCase(); y = (y || '').toLowerCase(); } return x < y ? (pSort.dir === 'asc' ? -1 : 1) : x > y ? (pSort.dir === 'asc' ? 1 : -1) : 0; });
-  return r;
-}
-
-/* ── Spend-by-group cards ── */
-function renderGroups() {
-  const byG = QLD.purchaseByGroup();
-  const grid = document.getElementById('pgGrid');
-  if (!byG.length) { grid.innerHTML = '<div class="pg-empty">No purchases yet — add a bill to see spend by group.</div>'; return; }
-  grid.innerHTML = byG.map(g => {
-    const gc = GCOL[g.key] || GCOL.other, active = pF.group === g.key;
-    const items = g.items.slice(0, 3).map(it => `<div class="pg-item"><span class="pg-item-n">${esc(it.item)}</span><span class="pg-item-v">${fC(it.taxable)}</span></div>`).join('');
-    return `<button class="pg-card${active ? ' on' : ''}" data-group="${g.key}" style="--pgbg:${gc[0]};--pgfg:${gc[1]}">
-      <div class="pg-top"><span class="pg-emoji">${g.emoji}</span><span class="pg-name">${esc(g.label)}</span><span class="pg-count">${g.count}</span></div>
-      <div class="pg-total">${fC(g.taxable)}</div>
-      <div class="pg-metatxt">${g.freight ? 'incl. ' + fC(g.freight) + ' freight' : 'landed cost'}</div>
-      <div class="pg-items">${items}${g.items.length > 3 ? `<div class="pg-item pg-more">+${g.items.length - 3} more items</div>` : ''}</div>
-    </button>`;
-  }).join('');
-  grid.querySelectorAll('.pg-card').forEach(c => c.addEventListener('click', () => {
-    pF.group = pF.group === c.dataset.group ? 'all' : c.dataset.group; pF.item = 'all'; pPage = 1; render();
-    document.querySelector('.pf-bar').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }));
-}
-
-/* ── AI insights ── */
-function renderInsights() {
-  const i = QLD.purchaseInsights();
-  const cell = (label, val, sub) => `<div class="pin-cell"><div class="pin-label">${label}</div><div class="pin-val">${val}</div>${sub ? `<div class="pin-sub">${sub}</div>` : ''}</div>`;
-  const mom = i.momPct == null ? '—' : (i.momPct >= 0 ? '▲ +' : '▼ ') + Math.abs(i.momPct).toFixed(0) + '%';
-  document.getElementById('pinCard').innerHTML =
-    `<div class="pin-head"><span class="pin-badge">✨ AI Insights</span><span class="pin-sub2">Landed-cost intelligence from your bills</span></div>
-     <div class="pin-grid">
-       ${cell('🪨 Limestone landed cost', fC(i.limeLanded), i.limeFreight ? 'incl. ' + fC(i.limeFreight) + ' freight' : 'material + royalty')}
-       ${cell('🔥 Petcoke landed cost', fC(i.petLanded), i.petFreight ? 'incl. ' + fC(i.petFreight) + ' freight' : 'material + loading')}
-       ${cell('🚚 Freight of material', i.freightPct.toFixed(1) + '%', fC(i.freight) + ' total freight')}
-       ${cell('🏆 Highest spend group', i.top ? i.top.emoji + ' ' + i.top.label : '—', i.top ? fC(i.top.taxable) : '')}
-       ${cell('⏳ Pending to suppliers', fC(i.pendAmt), i.pendCount + ' supplier' + (i.pendCount === 1 ? '' : 's'))}
-       ${cell('🧾 GST input credit', fC(i.itc), 'available ITC')}
-       ${cell('📈 vs last month', mom, fC(i.momCur) + ' this month')}
-     </div>`;
-}
-
-/* ── Filter dropdowns ── */
-function opt(v, label, sel) { return `<option value="${esc(v)}" ${String(v) === String(sel) ? 'selected' : ''}>${esc(label)}</option>`; }
-function fillFilters() {
-  const rows = QLD.purchaseRows(), GROUPS = QLD.purchaseGroups;
-  document.getElementById('pfGroup').innerHTML = opt('all', 'All groups', pF.group) + GROUPS.filter(g => rows.some(r => r.group === g.key)).map(g => opt(g.key, g.emoji + ' ' + g.label, pF.group)).join('');
-  const itemPool = pF.group !== 'all' ? (QLD.purchaseGroups.find(g => g.key === pF.group) || { items: [] }).items : [...new Set(rows.map(r => r.item))];
-  document.getElementById('pfItem').innerHTML = opt('all', 'All items', pF.item) + itemPool.map(it => opt(it, it, pF.item)).join('');
-  document.getElementById('pfSup').innerHTML = opt('all', 'All suppliers', pF.sup) + [...new Set(rows.map(r => r.sup))].filter(s => s && s !== '—').sort().map(s => opt(s, s, pF.sup)).join('');
-  document.getElementById('pfDept').innerHTML = opt('all', 'All departments', pF.dept) + QLD.departments.filter(d => rows.some(r => r.dept === d)).map(d => opt(d, d, pF.dept)).join('');
-  document.getElementById('pfGst').innerHTML = opt('all', 'All GST', pF.gst) + [...new Set(rows.map(r => r.grate))].sort((a, b) => a - b).map(g => opt(g, g + '% GST', pF.gst)).join('');
-  document.getElementById('pfStatus').innerHTML = opt('all', 'All status', pF.status) + opt('pending', 'Pending', pF.status) + opt('paid', 'Paid', pF.status);
-  document.getElementById('pfFrom').value = pF.from; document.getElementById('pfTo').value = pF.to;
-  const anyFilter = pF.group !== 'all' || pF.item !== 'all' || pF.sup !== 'all' || pF.dept !== 'all' || pF.gst !== 'all' || pF.status !== 'all' || pF.from || pF.to || pQuery;
-  document.getElementById('pfClear').hidden = !anyFilter;
-}
-
-function render() {
-  const co = QLD.co, s = QLD.purchaseSummary(), byG = QLD.purchaseByGroup();
-  const top = byG[0];
-  const K = [
-    { label: 'Total Purchases', v: fC(s.total), meta: s.count + ' bills · excl. GST', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' },
-    { label: 'Pending Payment', v: fC(s.pending), meta: 'to suppliers', bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>' },
-    { label: 'ITC Available', v: fC(s.itc), meta: 'input tax credit', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8.5a1 1 0 0 1 .5-.87L12 4l6.5 3.63a1 1 0 0 1 .5.87V21"/></svg>' },
-    { label: 'Top Group', v: top ? top.emoji + ' ' + top.label : '—', meta: top ? fC(top.taxable) + ' landed' : 'no bills yet', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8"/><rect x="12" y="6" width="3" height="12"/><rect x="17" y="13" width="3" height="5"/></svg>' }
-  ];
-  document.getElementById('prKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${esc(k.meta)}</div></div></div>`).join('');
-  document.getElementById('prSub').textContent = `${co.short} · ${s.count} bills · ${fC(s.total)} across ${byG.length} groups`;
-
-  renderGroups();
-  renderInsights();
-  fillFilters();
-
-  document.getElementById('prHead').innerHTML = COLS.map(c => { const st = pSort.key === c.key; return `<th class="${st ? 'sorted' : ''} ${c.num ? 'sr-num' : ''}" data-sort="${c.key}">${c.label}<span class="sort-ic">${st ? (pSort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></th>`; }).join('') + '<th class="no-sort"></th>';
-  document.querySelectorAll('#prHead th[data-sort]').forEach(th => th.addEventListener('click', () => { const k = th.dataset.sort; if (pSort.key === k) pSort.dir = pSort.dir === 'asc' ? 'desc' : 'asc'; else { pSort.key = k; pSort.dir = 'asc'; } pPage = 1; render(); }));
-  const rows = filtered(), pages = Math.max(1, Math.ceil(rows.length / PER)); pPage = Math.min(pPage, pages);
-  const slice = rows.slice((pPage - 1) * PER, pPage * PER);
-  const PILL = { paid: 'Paid', pending: 'Pending' };
-  document.getElementById('prBody').innerHTML = slice.length ? slice.map(r => {
-    const c = AVG[(r.sup.charCodeAt(0) + r.sup.length) % AVG.length];
-    const od = r.status === 'pending' && r.days > 30 ? ` · <span style="color:var(--ql-danger-600);font-weight:600">${r.days}d</span>` : '';
-    return `<tr>
-      <td><div class="sr-party"><div class="sr-av" style="background:linear-gradient(135deg,${c})">${(r.sup || '?').charAt(0).toUpperCase()}</div><div><div style="font-weight:600">${esc(r.sup)}</div><div style="font-size:var(--ql-text-xs);color:var(--ql-text-secondary)">${esc(r.bill || '—')} · ${QLD.fDS(r.date)}${od}</div></div></div></td>
-      <td><span class="pg-item-cell" title="${esc(r.groupLabel)}">${r.emoji}</span> ${esc(r.item)}${r.freight ? ' <span class="pg-frt">freight</span>' : ''}</td>
-      <td class="sr-num pt-muted">${r.grate}%</td>
-      <td class="sr-num">${fC(r.taxable)}</td>
-      <td class="sr-num" style="color:${r.freightAmt ? '#b7791f' : 'var(--ql-text-muted)'};font-weight:${r.freightAmt ? '600' : '400'}">${r.freightAmt ? '🚚 ' + fC(r.freightAmt) : '—'}</td>
-      <td class="sr-num" style="font-weight:700">${fC(r.total)}</td>
-      <td><span class="sr-pill ${r.status}"><span class="dot"></span>${PILL[r.status] || r.status}</span></td>
-      <td class="sr-num" style="white-space:nowrap"><button class="sr-eye" title="View bill" onclick="showBill(${r.idx})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="sr-kebab" onclick="QLShell.rowMenu(event,'purchase',${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="8"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No bills in this view</div></div></td></tr>`;
-  document.getElementById('prCount').textContent = rows.length ? `Showing ${(pPage - 1) * PER + 1}–${Math.min(pPage * PER, rows.length)} of ${rows.length}` : '0 bills';
-  document.getElementById('prPage').textContent = `${pPage} / ${pages}`;
-  document.getElementById('prPrev').disabled = pPage <= 1; document.getElementById('prNext').disabled = pPage >= pages;
-  QLShell.paintWorkspace();
-}
-
-/* ── View a single bill (eye icon) ── */
-function showBill(idx) {
-  const r = QLD.purchaseRows().find(x => x.idx === idx); if (!r) return;
-  const gc = GCOL[r.group] || GCOL.other;
-  let el = document.getElementById('billSheet');
-  if (!el) { el = document.createElement('div'); el.id = 'billSheet'; el.className = 'fin-sheet'; el.hidden = true; document.body.appendChild(el); el.addEventListener('click', e => { if (e.target.id === 'billSheet') el.hidden = true; }); }
-  const line = (l, v) => `<div class="bv-row"><span class="bv-l">${l}</span><span class="bv-v">${v}</span></div>`;
-  const qtyLine = r.qty ? line('Quantity', QLD.fmt(r.qty, 2) + (r.unit ? ' ' + esc(r.unit) : '') + (r.rate ? ' @ ' + fC(r.rate) : '')) : '';
-  el.innerHTML = `<div class="fin-sheet-card">
-    <div class="fin-sheet-head"><div><div class="fin-sheet-title">Bill ${esc(r.bill || '—')}</div><div class="fin-sheet-sub">${esc(r.sup)}${r.gstin ? ' · ' + esc(r.gstin) : ''}</div></div><button class="fin-x" onclick="document.getElementById('billSheet').hidden=true">&times;</button></div>
-    <div class="fin-sheet-body">
-      <div class="bv-top"><span class="pg-pill" style="background:${gc[0]};color:${gc[1]}">${r.emoji} ${esc(r.groupLabel)}</span><span class="sr-pill ${r.status}"><span class="dot"></span>${r.status === 'paid' ? 'Paid' : 'Pending'}</span>${r.freight ? '<span class="pg-frt">freight / transport</span>' : ''}</div>
-      ${line('Purchase Item', esc(r.item))}
-      ${line('Department', esc(r.dept || '—'))}
-      ${line('Bill date', QLD.fDS(r.date) + (r.status === 'pending' && r.days > 30 ? ' · <span style="color:var(--ql-danger-600)">' + r.days + 'd overdue</span>' : ''))}
-      ${r.desc ? line('Description', esc(r.desc)) : ''}
-      ${qtyLine}
-      <div class="bv-div"></div>
-      ${line('Taxable value', fC(r.taxable))}
-      ${r.freightAmt ? line('Freight / transport', '🚚 ' + fC(r.freightAmt)) : ''}
-      ${line('GST @ ' + r.grate + '%', fC(r.gst))}
-      ${line('Input tax credit (ITC)', r.itc ? fC(r.itc) : '—')}
-      <div class="bv-total">${line('Total payable', '<b>' + fC(r.total) + '</b>')}</div>
-      <div class="bv-acts">
-        <button class="ql-btn ql-btn-secondary" onclick="billPDF(${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View PDF</button>
-        <button class="ql-btn ql-btn-secondary" onclick="document.getElementById('billSheet').hidden=true;QLShell.openPurchaseForm(${r.idx})">Edit</button>
-        ${r.status !== 'paid' ? `<button class="ql-btn ql-btn-primary" onclick="document.getElementById('billSheet').hidden=true;QLShell.openPaymentForm('purchase',${r.idx})">Mark paid</button>` : ''}
-      </div>
-    </div></div>`;
-  el.hidden = false;
-}
-
-/* ── Generate a printable / savable PDF of the bill ── */
-function billPDF(idx) {
-  const r = QLD.purchaseRows().find(x => x.idx === idx); if (!r) return;
-  const co = QLD.co || {}, cg = r.gst / 2, money = n => '₹' + QLD.fmt(n);
-  const rowsHTML = `<tr>
-      <td>${esc(r.emoji + ' ' + r.groupLabel)}<div class="it">${esc(r.item)}${r.desc ? ' — ' + esc(r.desc) : ''}</div></td>
-      <td class="r">${r.qty ? QLD.fmt(r.qty, 2) + (r.unit ? ' ' + esc(r.unit) : '') : '—'}</td>
-      <td class="r">${r.rate ? money(r.rate) : '—'}</td>
-      <td class="r">${money(r.taxable)}</td></tr>`;
-  const w = window.open('', '_blank');
-  if (!w) { QLShell.toast('Allow pop-ups to view the PDF'); return; }
-  w.document.write(`<html><head><title>Purchase Bill ${esc(r.bill || '')}</title><meta charset="utf-8"><style>
-    *{box-sizing:border-box} body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;padding:36px;font-size:13px}
-    .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0f172a;padding-bottom:14px}
-    .co{font-size:20px;font-weight:800;letter-spacing:-.3px}.mut{color:#64748b;font-size:12px;line-height:1.5}
-    .doc{text-align:right}.doc h1{font-size:16px;margin:0;letter-spacing:2px;color:#2563eb}
-    .grid{display:flex;justify-content:space-between;gap:24px;margin:18px 0}
-    .box{flex:1}.lbl{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:3px}
-    .nm{font-weight:700;font-size:14px}
-    table{width:100%;border-collapse:collapse;margin-top:8px}th,td{padding:9px 10px;text-align:left;border-bottom:1px solid #e2e8f0}
-    th{background:#f8fafc;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#64748b}
-    td.r,th.r{text-align:right}.it{color:#64748b;font-size:11px;margin-top:2px}
-    .tot{margin-left:auto;width:280px;margin-top:14px}.tot .row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px}
-    .tot .g{font-weight:800;font-size:16px;border-top:2px solid #0f172a;padding-top:10px;margin-top:4px}
-    .pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700}
-    .paid{background:#dcfce7;color:#15803d}.pending{background:#fef3c7;color:#b45309}
-    .ft{margin-top:26px;color:#94a3b8;font-size:11px;border-top:1px solid #e2e8f0;padding-top:12px}
-    @media print{body{padding:0}}
-  </style></head><body>
-    <div class="hd">
-      <div><div class="co">${esc(co.name || 'Your Company')}</div><div class="mut">${esc(co.address || '')}${co.gstin ? '<br>GSTIN: ' + esc(co.gstin) : ''}${co.phone ? ' · ' + esc(co.phone) : ''}</div></div>
-      <div class="doc"><h1>PURCHASE BILL</h1><div class="mut">Bill No: <b>${esc(r.bill || '—')}</b><br>Date: ${QLD.fDS(r.date)}<br><span class="pill ${r.status}">${r.status === 'paid' ? 'PAID' : 'PENDING'}</span></div></div>
-    </div>
-    <div class="grid">
-      <div class="box"><div class="lbl">Supplier</div><div class="nm">${esc(r.sup)}</div><div class="mut">${r.gstin ? 'GSTIN: ' + esc(r.gstin) : ''}</div></div>
-      <div class="box" style="text-align:right"><div class="lbl">Department · ITC</div><div class="nm">${esc(r.dept || '—')}</div><div class="mut">ITC: ${r.itc ? 'Eligible' : '—'}</div></div>
-    </div>
-    <table><thead><tr><th>Purchase Group / Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Taxable</th></tr></thead><tbody>${rowsHTML}</tbody></table>
-    <div class="tot">
-      <div class="row"><span>Taxable value</span><span>${money(r.taxable)}</span></div>
-      ${r.freightAmt ? `<div class="row"><span>Freight / transport (incl.)</span><span>${money(r.freightAmt)}</span></div>` : ''}
-      <div class="row"><span>CGST @ ${r.grate / 2}%</span><span>${money(cg)}</span></div>
-      <div class="row"><span>SGST @ ${r.grate / 2}%</span><span>${money(cg)}</span></div>
-      <div class="row g"><span>Total</span><span>${money(r.total)}</span></div>
-    </div>
-    <div class="ft">Generated from ${esc(co.name || 'QuickLimes')} · QuickLimes — Purchase Register. This is a system-generated record of the purchase bill entered.</div>
-    <script>window.onload=function(){setTimeout(function(){window.print();},250)}<\/script>
-  </body></html>`);
-  w.document.close();
-}
-
-/* ── Wiring ── */
-document.getElementById('pfGroup').addEventListener('change', e => { pF.group = e.target.value; pF.item = 'all'; pPage = 1; render(); });
-document.getElementById('pfItem').addEventListener('change', e => { pF.item = e.target.value; pPage = 1; render(); });
-document.getElementById('pfSup').addEventListener('change', e => { pF.sup = e.target.value; pPage = 1; render(); });
-document.getElementById('pfDept').addEventListener('change', e => { pF.dept = e.target.value; pPage = 1; render(); });
-document.getElementById('pfGst').addEventListener('change', e => { pF.gst = e.target.value; pPage = 1; render(); });
-document.getElementById('pfStatus').addEventListener('change', e => { pF.status = e.target.value; pPage = 1; render(); });
-document.getElementById('pfFrom').addEventListener('change', e => { pF.from = e.target.value; pPage = 1; render(); });
-document.getElementById('pfTo').addEventListener('change', e => { pF.to = e.target.value; pPage = 1; render(); });
-document.getElementById('prSearch').addEventListener('input', e => { pQuery = e.target.value; pPage = 1; render(); });
-document.getElementById('pfClear').addEventListener('click', () => { Object.assign(pF, { group: 'all', item: 'all', sup: 'all', dept: 'all', gst: 'all', status: 'all', from: '', to: '' }); pQuery = ''; document.getElementById('prSearch').value = ''; pPage = 1; render(); });
-document.getElementById('prPrev').addEventListener('click', () => { if (pPage > 1) { pPage--; render(); } });
-document.getElementById('prNext').addEventListener('click', () => { pPage++; render(); });
-window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
-window.__qlRefresh = render;
-document.getElementById('puExport').addEventListener('click', () => {
-  const r = filtered();
-  QLShell.exportCSV('purchases_' + (QLD.co.short || 'register').replace(/\s+/g, '_'),
-    ['Bill', 'Date', 'Supplier', 'Purchase Group', 'Purchase Item', 'Department', 'GSTIN', 'GST%', 'Taxable', 'GST', 'ITC', 'Total', 'Status'],
-    r.map(x => [x.bill, x.date, x.sup, x.groupLabel, x.item, x.dept, x.gstin, x.grate, x.taxable, x.gst, x.itc, x.total, x.status]));
-  QLShell.toast('Exported ' + r.length + ' bill' + (r.length === 1 ? '' : 's') + ' to CSV');
-});
-
-/* ── Import purchase bills — CSV/Excel with auto-detect + manual column mapping ── */
-document.getElementById('puImport').addEventListener('click', () => QLFin.importSheet({
-  title: 'Import purchase bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',
-  dropTitle: 'Choose a file', dropSub: '.csv / .xlsx list, or a photo / PDF of one bill',
-  tip: 'A spreadsheet imports many bills at once. A photo or PDF of one bill is read with OCR and fills the form for you. A "Purchase Group" / "Item" column is auto-detected if present.',
-  noun: 'bill', addLabel: 'Add bill',
-  accept: '.csv,.xlsx,.xls,.pdf,image/*', ocr: true,
-  ocrMap: { bill: 'docno', date: 'date', sup: 'name', gstin: 'gstin', taxable: 'taxable', total: 'total', grate: 'rate' },
-  errText: 'No usable bills found. Check that Date, Supplier and a taxable/total column are mapped correctly.',
-  headerGroups: [['date', 'bill', 'invoice', 'voucher'], ['supplier', 'vendor', 'party', 'seller', 'name', 'amount', 'taxable', 'total']],
-  fields: [
-    { key: 'bill', label: 'Bill No.' }, { key: 'date', label: 'Date', required: true },
-    { key: 'sup', label: 'Supplier', required: true }, { key: 'gstin', label: 'GSTIN' },
-    { key: 'group', label: 'Purchase Group' }, { key: 'item', label: 'Purchase Item' },
-    { key: 'taxable', label: 'Taxable amount' }, { key: 'total', label: 'Total amount' }, { key: 'grate', label: 'GST %' }, { key: 'itc', label: 'ITC (Eligible/RCM)' }
-  ],
-  requireOneOf: [['taxable', 'total']],
-  autoMap: h => ({
-    bill: QLFin.colOf(h, 'bill no', 'invoice no', 'bill', 'invoice', 'voucher'),
-    date: QLFin.colOf(h, 'bill date', 'invoice date', 'date'),
-    sup: QLFin.colOf(h, 'supplier', 'vendor', 'seller', 'party', 'name'),
-    gstin: QLFin.colOf(h, 'gstin', 'gst no', 'gst number', 'gst in'),
-    group: QLFin.colOf(h, 'purchase group', 'group', 'category', 'head', 'nature'),
-    item: QLFin.colOf(h, 'purchase item', 'item', 'particular', 'description'),
-    taxable: QLFin.colOf(h, 'taxable', 'basic', 'amount', 'value'),
-    total: QLFin.colOf(h, 'invoice value', 'grand total', 'net amount', 'total'),
-    grate: QLFin.colOf(h, 'gst %', 'gst%', 'gst rate', 'tax %', 'tax%', 'rate of tax', 'tax rate'),
-    itc: QLFin.colOf(h, 'itc')
-  }),
-  buildRow: get => {
-    const sup = (get('sup') || '').toString().trim(), date = QLFin.parseDate(get('date'));
-    let taxable = QLFin.parseNum(get('taxable')), total = QLFin.parseNum(get('total'));
-    let grate = QLFin.parseNum(get('grate')); if (!grate) grate = 5; if (grate > 0 && grate < 1) grate *= 100;
-    if (!taxable && total) taxable = total / (1 + grate / 100);
-    if (!sup && !taxable && !total) return null;
-    let itc = 'Eligible'; const iv = (get('itc') || '').toString().toLowerCase().trim();
-    if (/rcm/.test(iv)) itc = 'RCM'; else if (/inelig/.test(iv) || iv === 'no' || iv === 'n') itc = 'Ineligible';
-    // Map a free-text group/item onto the taxonomy (falls back to catToGroupItem at read time).
-    const raw = ((get('group') || '') + ' ' + (get('item') || '')).toLowerCase().trim();
-    const out = { bill: (get('bill') || '').toString().trim(), date: date || '', sup, gstin: (get('gstin') || '').toString().trim().toUpperCase(), taxable: +(taxable || 0), grate, itc, status: 'pending' };
-    if (raw) { out.cat = raw; const gm = QLD.purchaseGroups.find(g => raw.includes(g.label.toLowerCase()) || g.items.some(it => raw.includes(it.toLowerCase()))); if (gm) { out.group = gm.key; out.item = gm.items.find(it => raw.includes(it.toLowerCase())) || gm.items[0]; } }
-    return out;
-  },
-  existing: () => new Set(QLD.state.PURCHASES.filter(p => p.bill).map(p => ((p.sup || '') + '|' + p.bill).toUpperCase())),
-  keyOf: p => p.bill ? ((p.sup || '') + '|' + p.bill).toUpperCase() : '',
-  preview: { headers: ['Bill', 'Date', 'Supplier', 'Group', 'Taxable', 'GST%'], right: [4, 5], row: p => [p.bill || '—', p.date || '—', p.sup || '—', (QLD.purchaseGroups.find(g => g.key === p.group) || { label: p.cat || '—' }).label, QLD.fC(p.taxable), p.grate + '%'] },
-  add: p => QLD.addPurchase(p),
-  done: n => { QLShell.toast('Imported ' + n + ' bill' + (n === 1 ? '' : 's')); pPage = 1; render(); }
-}));
-QLD.init(render);
-</script>
+<script src="./purchase.js"></script>
 </body>
 </html>

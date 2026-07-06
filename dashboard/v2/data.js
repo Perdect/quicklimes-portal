@@ -469,19 +469,76 @@
   }
 
   /* ── Purchase register helpers ───────────────────────────────── */
+  function itemIcon(item, groupEmoji) {
+    const s = (item || '').toLowerCase();
+    if (/freight|transport|cartage/.test(s)) return '🚚';
+    if (/loading/.test(s)) return '🏗️';
+    if (/royalty/.test(s)) return '📜';
+    if (/thread|stitch/.test(s)) return '🧵';
+    if (/bag|plastic|packag/.test(s)) return '📦';
+    if (/electric|power/.test(s)) return '⚡';
+    if (/diesel|fuel|petrol/.test(s)) return '⛽';
+    if (/water/.test(s)) return '💧';
+    if (/labour|labor|worker|crew|kiln lab|packing lab|loading lab/.test(s)) return '👷';
+    if (/repair|machine|spare|maint/.test(s)) return '🔧';
+    if (/station|print|office/.test(s)) return '🖇️';
+    return groupEmoji || '📋';
+  }
   function purchaseRows() {
+    const todayISO = fmtISO(new Date());
     return S.PURCHASES.map((p, i) => {
       const c = cP(p);
       const g = catToGroupItem(p), gm = PGROUP_MAP[g.group] || PGROUP_MAP.other;
+      let paid = +p.paid || 0;
+      if (p.status === 'paid' && !paid) paid = c.tot;
+      const outstanding = Math.max(0, c.tot - paid);
+      const active = p.status !== 'paid' && p.status !== 'cancelled';
+      const isOverdue = active && p.dueDate && p.dueDate < todayISO;
       return {
         idx: i, bill: p.bill, date: p.date, sup: p.sup || '—', cat: p.cat || 'Other',
         group: g.group, groupLabel: gm.label, emoji: gm.emoji, item: g.item, dept: g.dept,
+        itemIconEmoji: itemIcon(g.item, gm.emoji),
         taxable: p.taxable, gst: c.g, itc: c.itc, total: c.tot, grate: p.grate || 0,
         qty: p.qty || 0, unit: p.unit || '', rate: p.rate || 0, desc: p.desc || '',
         status: p.status || 'pending', gstin: p.gstin || '', days: daysAgo(p.date),
+        remarks: p.remarks || '', dueDate: p.dueDate || '', createdBy: p.createdBy || (QL_PLANT.owner_name || QL_PLANT.plant_name || 'Owner'),
+        paid, outstanding, payments: p.payments || [], attach: p.attach || [], isOverdue,
         freight: isFreightItem(g.item), freightAmt: isFreightItem(g.item) ? (p.taxable || 0) : 0
       };
     });
+  }
+  function fmtISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  // Record a (possibly partial) payment against a purchase bill.
+  function recordPurchasePayment(i, amount, mode, date) {
+    const p = S.PURCHASES[i]; if (!p) return;
+    const c = cP(p); amount = +amount || 0;
+    const prev = +p.paid || (p.status === 'paid' ? c.tot : 0);
+    const paid = Math.min(c.tot, prev + amount);
+    p.paid = paid;
+    p.payments = (p.payments || []).concat([{ date: date || fmtISO(new Date()), amount, mode: mode || 'bank' }]);
+    p.status = paid >= c.tot - 0.5 ? 'paid' : (paid > 0 ? 'partial' : 'pending');
+    commit();
+  }
+  // Per-bill AI insights.
+  function billInsights(idx) {
+    const rows = purchaseRows(), r = rows[idx]; if (!r) return [];
+    const out = [], todayISO = fmtISO(new Date());
+    if ((r.status === 'pending' || r.status === 'partial') && r.dueDate && r.dueDate < todayISO) out.push({ tone: 'danger', text: 'Payment overdue by ' + Math.max(1, daysAgo(r.dueDate)) + ' days.' });
+    else if (r.status === 'pending' && r.days > 30) out.push({ tone: 'warn', text: 'Unpaid for ' + r.days + ' days — consider scheduling payment.' });
+    const dup = rows.filter((x, j) => j !== idx && x.sup === r.sup && x.bill && r.bill && x.bill.toUpperCase() === r.bill.toUpperCase());
+    if (dup.length) out.push({ tone: 'danger', text: 'Possible duplicate — bill ' + r.bill + ' from ' + r.sup + ' appears ' + (dup.length + 1) + ' times.' });
+    const prev = rows.filter(x => x.sup === r.sup && x.item === r.item && x.date < r.date && x.rate > 0).sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+    if (prev && r.rate > 0) { const d = (r.rate - prev.rate) / prev.rate * 100; if (Math.abs(d) >= 3) out.push({ tone: d > 0 ? 'warn' : 'ok', text: r.item + ' rate ' + (d > 0 ? 'up ' : 'down ') + Math.abs(d).toFixed(0) + '% vs last purchase (' + fC(prev.rate) + '→' + fC(r.rate) + ').' }); }
+    if (r.freight) { const pf = rows.filter(x => x.group === r.group && x.freight && x.date < r.date && x.taxable > 0).sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0]; if (pf) { const d = (r.taxable - pf.taxable) / pf.taxable * 100; if (d >= 8) out.push({ tone: 'warn', text: 'Freight ' + d.toFixed(0) + '% higher than previous (' + fC(pf.taxable) + '→' + fC(r.taxable) + ').' }); } }
+    if (!r.itc && r.gst > 0) out.push({ tone: 'info', text: 'No ITC claimed on ' + fC(r.gst) + ' GST — check eligibility.' });
+    if (!out.length) out.push({ tone: 'ok', text: 'Looks healthy — no issues detected.' });
+    return out;
+  }
+  // Bills related to a bill (same group), split into freight / royalty.
+  function relatedBills(idx) {
+    const rows = purchaseRows(), r = rows[idx]; if (!r) return { freight: [], royalty: [], group: [] };
+    const same = rows.filter((x, j) => j !== idx && x.group === r.group);
+    return { freight: same.filter(x => x.freight), royalty: same.filter(x => /royalty/i.test(x.item)), group: same };
   }
   function purchaseSummary() {
     const r = purchaseRows();
@@ -931,6 +988,7 @@
     salesRows, salesSummary,
     purchaseRows, purchaseSummary, partyRows, partySummary,
     purchaseGroups: PURCHASE_GROUPS, departments: DEPARTMENTS, purchaseByGroup, purchaseInsights,
+    recordPurchasePayment, billInsights, relatedBills, itemIcon,
     labourRows, labourSummary, cashbookRows, cashbookBalances,
     loanRows, loanSummary, gstSummary,
     getPL, chunnaRows, chunnaSummary, attendanceData,
