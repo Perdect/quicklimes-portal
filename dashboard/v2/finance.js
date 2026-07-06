@@ -219,27 +219,48 @@
   // (docno,date,name,gstin,taxable,total,rate); each page maps them to its own.
   function parseInvoiceText(text) {
     const T = (text || '').replace(/\r/g, ''), up = T.toUpperCase(), out = {};
+    const lines = T.split('\n').map(l => l.trim()).filter(Boolean);
+    // GSTIN(s) — the party's is the one that isn't ANY of our own plants'.
     const gstins = up.match(/\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]\b/g) || [];
-    const sellerG = ((window.QLD && QLD.co && QLD.co.gstin) || '').toUpperCase();
-    const partyG = gstins.find(g => g !== sellerG);
+    const ownG = new Set();
+    if (window.QLD) { if (QLD.co && QLD.co.gstin) ownG.add(QLD.co.gstin.toUpperCase()); Object.values(QLD.COMPANIES || {}).forEach(c => c.gstin && ownG.add(c.gstin.toUpperCase())); }
+    const partyG = gstins.find(g => !ownG.has(g));
     if (partyG) out.gstin = partyG;
-    // Invoice/bill number — prefer a "No/#/number"-labelled value, and the value
-    // must contain a digit (so a bare "TAX INVOICE" title isn't mistaken for it).
+    // Invoice/bill number — prefer a "No/#/number"-labelled value containing a digit.
     let doc = '', re = /(?:invoice|bill|inv|voucher)\s*(?:no\.?|number|#)\s*[:\-.]?\s*([A-Za-z0-9][A-Za-z0-9\/\-]{1,18})/ig, mm;
     while ((mm = re.exec(T))) { if (/\d/.test(mm[1])) { doc = mm[1]; break; } }
     if (!doc) { re = /(?:invoice|bill|inv|voucher)\s*[:\-.]?\s*([A-Za-z0-9\/\-]*\d[A-Za-z0-9\/\-]*)/ig; while ((mm = re.exec(T))) { if (/\d/.test(mm[1])) { doc = mm[1]; break; } } }
     if (doc) out.docno = doc.replace(/[^A-Za-z0-9\/\-]/g, '');
-    let m = T.match(/(\d{1,2}[\/\-.][A-Za-z0-9]{1,9}[\/\-.]\d{2,4})/);
-    if (m) out.date = m[1];
-    const grab = labels => { for (const L of labels) { const mm = T.match(new RegExp(L + '[^0-9\\-]{0,18}([0-9][0-9,]*\\.?[0-9]{0,2})', 'i')); if (mm) return mm[1].replace(/,/g, ''); } return ''; };
-    out.total = grab(['grand total', 'invoice value', 'total value', 'total amount', 'net amount', 'bill amount', 'total']);
-    out.taxable = grab(['taxable value', 'taxable amount', 'taxable', 'sub ?total', 'basic value', 'basic amount']);
-    m = up.match(/\b(0|5|12|18|28)\s?%/); if (m) out.rate = m[1];
-    // Party name — best effort: a line starting with M/s, or after "To" / "Buyer".
-    const lines = T.split('\n').map(l => l.trim()).filter(Boolean);
-    let nm = lines.find(l => /^m\/?s\.?\s+\S/i.test(l));
-    if (nm) out.name = nm.replace(/^m\/?s\.?\s+/i, '').replace(/[.,;]+$/, '').trim().slice(0, 40);
-    else { const i = lines.findIndex(l => /^(to|buyer|billed to|consignee|customer)\b[:,]?\s*$/i.test(l)); if (i >= 0 && lines[i + 1]) out.name = lines[i + 1].replace(/[.,;]+$/, '').trim().slice(0, 40); }
+    // Date — must be a REAL d/m/y: month is 1-12 or a month name. This rejects an
+    // invoice number like "1/2026-27" (month "2026" is invalid). Prefer one near a "date" label.
+    const MON = 'jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec';
+    const dre = new RegExp('(\\d{1,2})[\\/\\-. ]{1,2}(\\d{1,2}|' + MON + ')[a-z]*[\\/\\-. ]{1,2}(\\d{2,4})', 'ig');
+    const pick = scope => { dre.lastIndex = 0; let d; while ((d = dre.exec(scope))) { const day = +d[1], named = /[a-z]/i.test(d[2]), mo = named ? 1 : +d[2]; if (day >= 1 && day <= 31 && (named || (mo >= 1 && mo <= 12))) return d[0].replace(/\s+/g, ' ').trim(); } return ''; };
+    const near = T.match(/\bdate\b\s*[:\-]?\s*([^\n]{0,22})/i);
+    const dt = (near && pick(near[1])) || pick(T);
+    if (dt) out.date = dt;
+    // Amounts by label.
+    const grab = labels => { for (const L of labels) { const g = T.match(new RegExp(L + '[^0-9\\-]{0,18}([0-9][0-9,]*\\.?[0-9]{0,2})', 'i')); if (g) return g[1].replace(/,/g, ''); } return ''; };
+    const tot = grab(['grand total', 'invoice value', 'total value', 'total amount', 'net amount', 'bill amount', 'amount payable', 'total']);
+    const tax = grab(['taxable value', 'taxable amount', 'taxable', 'sub ?total', 'basic value', 'basic amount']);
+    if (tot) out.total = tot; if (tax) out.taxable = tax;
+    let m = up.match(/\b(0|5|12|18|28)\s?%/); if (m) out.rate = m[1];
+    // Vehicle number (e.g. RJ 19 GJ 0746).
+    m = up.match(/\b([A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{1,3}[\s\-]?\d{3,4})\b/); if (m) out.veh = m[1].replace(/[\s\-]/g, '');
+    // Party name — labelled buyer field → "M/s" → a name-like line near the party GSTIN.
+    const BAD = /road|street|nagar|dist|state|pin|mobile|phone|gstin|invoice|hsn|rajasthan|india|\d{6}/i;
+    let nm = '';
+    m = T.match(/(?:bill\s*to|buyer|party\s*name|consignee|customer(?:\s*name)?|name\s*of\s*(?:party|customer|buyer|consignee))\s*[:\-]?\s*([A-Za-z][A-Za-z0-9 &.,'()\-]{2,40})/i);
+    if (m && !BAD.test(m[1])) nm = m[1];
+    if (!nm) { const ml = lines.find(l => /^m\/?s\.?\s+\S/i.test(l)); if (ml) nm = ml.replace(/^m\/?s\.?\s+/i, ''); }
+    if (!nm && partyG) {
+      const gi = lines.findIndex(l => l.toUpperCase().includes(partyG));
+      if (gi >= 0) for (let j = gi; j >= Math.max(0, gi - 4); j--) {
+        const cand = lines[j].replace(/gstin.*/i, '').replace(/^(m\/?s\.?|to|buyer|bill\s*to)\s*[:,]?\s*/i, '').trim();
+        if (cand.length >= 3 && cand.length <= 40 && /[A-Za-z]{3}/.test(cand) && !BAD.test(cand)) { nm = cand; break; }
+      }
+    }
+    if (nm) out.name = nm.replace(/[.,;]+$/, '').trim().slice(0, 40);
     return out;
   }
 
