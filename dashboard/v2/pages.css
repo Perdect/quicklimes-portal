@@ -683,3 +683,5 @@ table.att th, table.att td { border-bottom: 1px solid var(--ql-divider); }
 .pf-clear:hover { background: #fef2f2; }
 .pf-bar .sr-search { margin-left: auto; }
 @media (max-width: 640px) { .pf-bar .sr-search { margin-left: 0; width: 100%; } .pf-sel, .pf-date { flex: 1; min-width: 130px; } }
+
+.pg-item-cell { margin-right: 2px; font-size: 14px; cursor: default; }

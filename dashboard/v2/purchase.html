@@ -68,9 +68,7 @@ let pQuery = '', pSort = { key: 'date', dir: 'desc' }, pPage = 1;
 
 const COLS = [
   { key: 'sup', label: 'Supplier', sortable: true },
-  { key: 'group', label: 'Purchase Group', sortable: true },
   { key: 'item', label: 'Purchase Item', sortable: true },
-  { key: 'dept', label: 'Department', sortable: true },
   { key: 'grate', label: 'GST', sortable: true, num: true },
   { key: 'taxable', label: 'Taxable', sortable: true, num: true },
   { key: 'total', label: 'Total', sortable: true, num: true },
@@ -169,20 +167,18 @@ function render() {
   const slice = rows.slice((pPage - 1) * PER, pPage * PER);
   const PILL = { paid: 'Paid', pending: 'Pending' };
   document.getElementById('prBody').innerHTML = slice.length ? slice.map(r => {
-    const c = AVG[(r.sup.charCodeAt(0) + r.sup.length) % AVG.length], gc = GCOL[r.group] || GCOL.other;
+    const c = AVG[(r.sup.charCodeAt(0) + r.sup.length) % AVG.length];
     const od = r.status === 'pending' && r.days > 30 ? ` · <span style="color:var(--ql-danger-600);font-weight:600">${r.days}d</span>` : '';
     return `<tr>
       <td><div class="sr-party"><div class="sr-av" style="background:linear-gradient(135deg,${c})">${(r.sup || '?').charAt(0).toUpperCase()}</div><div><div style="font-weight:600">${esc(r.sup)}</div><div style="font-size:var(--ql-text-xs);color:var(--ql-text-secondary)">${esc(r.bill || '—')} · ${QLD.fDS(r.date)}${od}</div></div></div></td>
-      <td><span class="pg-pill" style="background:${gc[0]};color:${gc[1]}">${r.emoji} ${esc(r.groupLabel)}</span></td>
-      <td>${esc(r.item)}${r.freight ? ' <span class="pg-frt">freight</span>' : ''}</td>
-      <td><span class="pg-dept">${esc(r.dept || '—')}</span></td>
+      <td><span class="pg-item-cell" title="${esc(r.groupLabel)}">${r.emoji}</span> ${esc(r.item)}${r.freight ? ' <span class="pg-frt">freight</span>' : ''}</td>
       <td class="sr-num pt-muted">${r.grate}%</td>
       <td class="sr-num">${fC(r.taxable)}</td>
       <td class="sr-num" style="font-weight:700">${fC(r.total)}</td>
       <td><span class="sr-pill ${r.status}"><span class="dot"></span>${PILL[r.status] || r.status}</span></td>
       <td class="sr-num"><button class="sr-kebab" onclick="QLShell.rowMenu(event,'purchase',${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
     </tr>`;
-  }).join('') : `<tr><td colspan="9"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No bills in this view</div></div></td></tr>`;
+  }).join('') : `<tr><td colspan="7"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No bills in this view</div></div></td></tr>`;
   document.getElementById('prCount').textContent = rows.length ? `Showing ${(pPage - 1) * PER + 1}–${Math.min(pPage * PER, rows.length)} of ${rows.length}` : '0 bills';
   document.getElementById('prPage').textContent = `${pPage} / ${pages}`;
   document.getElementById('prPrev').disabled = pPage <= 1; document.getElementById('prNext').disabled = pPage >= pages;
