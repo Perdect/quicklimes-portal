@@ -41,7 +41,7 @@ function salesBillHTML(r) {
 }
 function viewBillSale(r) {
   let html = ''; try { html = QLShell.getInvoiceHTML(r.idx); } catch (_) {}
-  QLX.viewDoc({ eyebrow: 'GST Invoice', title: r.inv || '—', sub: r.party + ' · tax invoice', html: html || salesBillHTML(r), onPrint: () => printInv(r) });
+  QLX.viewDoc({ eyebrow: 'GST Invoice', title: r.inv || '—', sub: r.party + ' · tax invoice', html: html || salesBillHTML(r), onPrint: () => printInv(r), onShare: () => shareInv(r) });
 }
 function setStatus(r, val) { Q.setSaleStatus(r.idx, val, (val === 'paid' || val === 'cash') ? { paidDate: todayISO, paidMode: val === 'cash' ? 'Cash' : 'Bank' } : {}); }
 function delInv(r) { if (confirm('Delete invoice ' + (r.inv || '') + ' for ' + r.party + '?')) { Q.deleteSale(r.idx); toast('Invoice deleted'); QLX.refresh(); } }

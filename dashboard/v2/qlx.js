@@ -525,17 +525,31 @@
     }
     function close() { back.classList.remove('open'); }
     let body;
+    const isImg = /image\//.test(opts.fileType || '') || /\.(png|jpe?g|gif|webp|heic)$/i.test(opts.fileName || '');
     if (opts.fileUrl) {
-      body = /image\//.test(opts.fileType || '') || /\.(png|jpe?g|gif|webp)$/i.test(opts.fileName || '')
+      body = isImg
         ? `<img src="${opts.fileUrl}" alt="bill" style="max-width:100%;border-radius:10px;border:1px solid var(--ql-border)">`
         : `<iframe src="${opts.fileUrl}" class="qx-inv-frame" style="height:76vh" title="bill"></iframe>`;
     } else body = `<iframe class="qx-inv-frame" style="height:76vh" srcdoc="${esc(opts.html || '')}" title="bill"></iframe>`;
     const dl = opts.fileUrl ? `<a class="qx-btn qx-btn-sm" href="${opts.fileUrl}" download="${esc(opts.fileName || 'bill')}">${svg(IC.dl)} Download</a>` : '';
+    const sh = (opts.file || opts.fileUrl || opts.onShare) ? `<button class="qx-btn qx-btn-sm" id="qxDocSh">${svg(IC.share)} Share</button>` : '';
     const pr = opts.onPrint ? `<button class="qx-btn qx-btn-sm" id="qxDocPr">${svg(IC.print)} Print</button>` : '';
     const dp = document.getElementById('qxDoc');
-    dp.innerHTML = `<div class="qx-dp-head"><div class="qx-dp-top"><div><div class="qx-dp-eyebrow">${svg(IC.file)} ${esc(opts.eyebrow || 'Bill')}</div><div class="qx-dp-t">${esc(opts.title || '')}</div><div class="qx-dp-s">${esc(opts.sub || '')}</div></div><button class="qx-dp-x" id="qxDocX">${svg(IC.x)}</button></div><div class="qx-dp-actions">${dl}${pr}</div></div><div class="qx-dp-body">${body}</div>`;
+    dp.innerHTML = `<div class="qx-dp-head"><div class="qx-dp-top"><div><div class="qx-dp-eyebrow">${svg(IC.file)} ${esc(opts.eyebrow || 'Bill')}</div><div class="qx-dp-t">${esc(opts.title || '')}</div><div class="qx-dp-s">${esc(opts.sub || '')}</div></div><button class="qx-dp-x" id="qxDocX">${svg(IC.x)}</button></div><div class="qx-dp-actions">${dl}${sh}${pr}</div></div><div class="qx-dp-body">${body}</div>`;
     document.getElementById('qxDocX').onclick = close;
     if (opts.onPrint) document.getElementById('qxDocPr').onclick = () => opts.onPrint();
+    const shBtn = document.getElementById('qxDocSh');
+    if (shBtn) shBtn.onclick = async () => {
+      try {
+        if (opts.file && navigator.canShare) {
+          const f = new File([opts.file], opts.fileName || 'bill', { type: opts.file.type || opts.fileType || 'application/octet-stream' });
+          if (navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: opts.title || 'Bill' }); return; }
+        }
+      } catch (_) {}
+      if (opts.onShare) { opts.onShare(); return; }
+      try { if (navigator.share) { await navigator.share({ title: opts.title || 'Bill', text: opts.title || 'Bill' }); return; } } catch (_) {}
+      if (opts.fileUrl) window.open(opts.fileUrl, '_blank');
+    };
     back.classList.add('open');
   }
 

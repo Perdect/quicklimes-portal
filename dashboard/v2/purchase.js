@@ -69,11 +69,17 @@ function pdfWindow(r) { const w = window.open('', '_blank'); if (!w) { toast('Al
    generated from the manually-entered details (same layout). */
 async function viewBill(r) {
   const list = r.attach || [];
-  const a = list.find(x => /invoice|bill|scan/i.test(x.kind || '')) || list[0];
+  // prefer an invoice/bill/scan/pdf attachment, else the first uploaded file
+  const a = list.find(x => /invoice|bill|scan|pdf|image/i.test((x.kind || '') + ' ' + (x.type || ''))) || list[0];
   if (a) {
-    try { const blob = await aOp('readonly', st => st.get(a.id)); if (blob) { const url = URL.createObjectURL(blob); QLX.viewDoc({ eyebrow: 'Uploaded bill', title: 'Bill ' + (r.bill || '—'), sub: r.sup + ' · ' + a.name, fileUrl: url, fileType: a.type, fileName: a.name, onPrint: () => window.open(url, '_blank') }); return; } } catch (_) {}
+    try {
+      const blob = await aOp('readonly', st => st.get(a.id));
+      if (blob) { const url = URL.createObjectURL(blob); QLX.viewDoc({ eyebrow: 'Uploaded bill', title: 'Bill ' + (r.bill || '—'), sub: r.sup + ' · ' + a.name, fileUrl: url, fileType: a.type || blob.type, fileName: a.name, file: blob }); return; }
+      toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err');
+    } catch (_) { toast('Could not open the uploaded bill', 'err'); }
   }
-  QLX.viewDoc({ eyebrow: 'Purchase bill', title: 'Bill ' + (r.bill || '—'), sub: r.sup + ' · generated from entry', html: billHTML(r), onPrint: () => pdfWindow(r) });
+  // no upload on this bill → show the bill generated from the entry
+  QLX.viewDoc({ eyebrow: 'Purchase bill', title: 'Bill ' + (r.bill || '—'), sub: r.sup + ' · generated (no file uploaded)', html: billHTML(r), onPrint: () => pdfWindow(r), onShare: () => shareBill(r) });
 }
 
 /* ══════════════════ DETAIL PANEL TABS ══════════════════ */
