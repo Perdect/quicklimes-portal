@@ -64,7 +64,18 @@
   }
 
   /* ── CSV parser (quoted-field aware) ───────────────────────────── */
-  function parseCSV(text) {
+  // Sniff the delimiter from the first non-empty line: Excel in some regions
+  // exports semicolons, Google Sheets/exports use tabs, some use pipes.
+  function sniffDelimiter(text) {
+    const line = (text.split(/\r?\n/).find(l => l.trim() !== '') || '');
+    const counts = { ',': 0, ';': 0, '\t': 0, '|': 0 }; let inQ = false;
+    for (const ch of line) { if (ch === '"') inQ = !inQ; else if (!inQ && counts[ch] != null) counts[ch]++; }
+    let best = ',', n = 0;
+    for (const d in counts) if (counts[d] > n) { n = counts[d]; best = d; }
+    return best;
+  }
+  function parseCSV(text, delim) {
+    delim = delim || ',';
     const rows = []; let i = 0, field = '', row = [], inQ = false;
     while (i < text.length) {
       const c = text[i];
@@ -73,7 +84,7 @@
         else field += c;
       } else {
         if (c === '"') inQ = true;
-        else if (c === ',') { row.push(field); field = ''; }
+        else if (c === delim) { row.push(field); field = ''; }
         else if (c === '\n' || c === '\r') {
           if (c === '\r' && text[i + 1] === '\n') i++;
           row.push(field); rows.push(row); row = []; field = '';
@@ -109,18 +120,21 @@
   function readAsBuffer(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsArrayBuffer(file); }); }
 
   async function fileToRows(file) {
-    const name = (file.name || '').toLowerCase();
-    if (name.endsWith('.csv') || file.type === 'text/csv') return { rows: parseCSV(await readAsText(file)), kind: 'csv' };
-    if (name.endsWith('.xlsx') || name.endsWith('.xls') || /sheet|excel/.test(file.type)) {
+    const name = (file.name || '').toLowerCase(), type = file.type || '';
+    // Photos / scans can't be read as a table.
+    if (/^image\//.test(type) || /\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/.test(name)) return { rows: [], kind: 'image' };
+    if (name.endsWith('.pdf') || type === 'application/pdf') return { rows: await pdfToRows(file), kind: 'pdf' };
+    if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.xlsm') || /sheet|excel|ms-excel/.test(type)) {
       await loadXLSX();
       const wb = window.XLSX.read(await readAsBuffer(file), { type: 'array', cellDates: false, raw: false });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      return { rows: window.XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '' }), kind: 'xlsx' };
+      // Pick the sheet with the most rows — skips empty cover/summary sheets.
+      let best = [], bestN = -1;
+      wb.SheetNames.forEach(nm => { const r = window.XLSX.utils.sheet_to_json(wb.Sheets[nm], { header: 1, blankrows: false, defval: '' }); if (r.length > bestN) { bestN = r.length; best = r; } });
+      return { rows: best, kind: 'xlsx' };
     }
-    if (name.endsWith('.pdf') || file.type === 'application/pdf') return { rows: await pdfToRows(file), kind: 'pdf' };
-    // last resort: try CSV/TSV text
+    // csv / tsv / txt — auto-detect the delimiter (comma / semicolon / tab / pipe)
     const txt = await readAsText(file);
-    return { rows: parseCSV(txt.indexOf('\t') > -1 ? txt.replace(/\t/g, ',') : txt), kind: 'txt' };
+    return { rows: parseCSV(txt, sniffDelimiter(txt)), kind: 'csv' };
   }
 
   // Best-effort PDF row extraction: pull text lines, keep those that start with
@@ -558,7 +572,15 @@
       let parsed;
       try { parsed = await fileToRows(f); } catch (e) { res().innerHTML = '<div class="fin-up-err">Couldn\'t read this file. Please export it as CSV or Excel and try again.</div>'; return; }
       const rows = parsed.rows || [];
-      if (rows.length < 2) { res().innerHTML = '<div class="fin-up-err">This file doesn\'t look like a list. Upload a spreadsheet with a header row and one row per ' + noun + '.</div>'; return; }
+      if (rows.length < 2) {
+        const add = cfg.addLabel ? ' or add it with the "' + cfg.addLabel + '" button' : '';
+        let msg;
+        if (parsed.kind === 'image') msg = 'That\'s a photo/scan — we can\'t read a picture into a table yet. Export a CSV/Excel list from your billing software' + add + '.';
+        else if (parsed.kind === 'pdf') msg = 'This looks like a PDF document (often a single bill), not a spreadsheet list. To bulk-import, export an Excel/CSV with one row per ' + noun + '. To add a single ' + noun + add + '.';
+        else msg = 'We couldn\'t read any rows. Upload an Excel or CSV with a header row and one row per ' + noun + add + '.';
+        res().innerHTML = '<div class="fin-up-err">' + msg + '</div>';
+        return;
+      }
       let hi = cfg.headerGroups ? findHeaderRow(rows, cfg.headerGroups) : -1;
       if (hi < 0) hi = firstDataRow(rows);
       const mapping = cfg.autoMap ? cfg.autoMap(rows[hi] || []) : {};

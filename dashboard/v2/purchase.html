@@ -120,7 +120,7 @@ document.getElementById('puImport').addEventListener('click', () => QLFin.import
   title: 'Import purchase bills', sub: 'Upload a CSV or Excel file of your supplier bills.',
   dropTitle: 'Choose your purchase file', dropSub: '.csv, .xlsx or .xls — one row per bill',
   tip: 'Any column names are fine — if we can\'t match them automatically, you\'ll pick which column is Date, Supplier and Amount.',
-  noun: 'bill',
+  noun: 'bill', addLabel: 'Add bill',
   errText: 'No usable bills found. Check that Date, Supplier and a taxable/total column are mapped correctly.',
   headerGroups: [['date', 'bill', 'invoice', 'voucher'], ['supplier', 'vendor', 'party', 'seller', 'name', 'amount', 'taxable', 'total']],
   fields: [

@@ -252,7 +252,7 @@ document.getElementById('srImport').addEventListener('click', () => QLFin.import
   title: 'Import sales bills', sub: 'Upload a CSV or Excel file of your invoices.',
   dropTitle: 'Choose your sales file', dropSub: '.csv, .xlsx or .xls — one row per invoice',
   tip: 'Any column names are fine — if we can\'t match them automatically, you\'ll pick which column is Date, Party and Amount.',
-  noun: 'invoice',
+  noun: 'invoice', addLabel: 'New invoice',
   errText: 'No usable invoices found. Check that Date, Party and an amount column are mapped correctly.',
   headerGroups: [['date', 'invoice', 'bill', 'voucher'], ['party', 'customer', 'buyer', 'consignee', 'name', 'amount', 'taxable', 'total', 'rate']],
   fields: [
