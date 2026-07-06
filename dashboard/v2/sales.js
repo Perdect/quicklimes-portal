@@ -32,6 +32,20 @@ function partyCell(r) { return `<span class="qx-party-n" style="font-weight:600"
 /* ── mutations ── */
 function printInv(r) { QLShell.printInvoice(r.idx); }
 function printInvByIdx(idx) { QLShell.printInvoice(idx); }
+/* "Print / PDF" button: open the UPLOADED invoice scan in a new tab when one is
+   attached (the real document), else print the generated GST invoice. */
+async function openInvPdf(r) {
+  const list = r.attach || [];
+  const a = list.find(x => /invoice|bill|scan|pdf|image/i.test((x.kind || '') + ' ' + (x.type || ''))) || list[0];
+  if (a) {
+    try {
+      const blob = await getAttachBlob(a.id);
+      if (blob) { const url = URL.createObjectURL(blob); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 8000); return; }
+      toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
+    } catch (_) { toast('Could not open the uploaded invoice', 'err'); return; }
+  }
+  printInv(r);
+}
 /* Generated GST invoice (same layout as an uploaded bill), from manual entry */
 function salesBillHTML(r) {
   const co = Q.co || {}, cg = r.gst / 2, money = n => '₹' + fmt(n), rate = r.qty ? r.taxable / r.qty : 0;
@@ -218,7 +232,7 @@ QLX.mount({
     { tt: 'Edit', icon: IC.edit, onClick: r => QLShell.openSaleForm(r.idx) }
   ],
   rowMenu: r => [
-    { label: 'Print / PDF', icon: IC.print, onClick: printInv },
+    { label: 'Print / PDF', icon: IC.print, onClick: openInvPdf },
     { label: 'Edit', icon: IC.edit, onClick: r => QLShell.openSaleForm(r.idx) },
     { label: 'Duplicate', icon: IC.copy, onClick: dupInv },
     { label: 'Share', icon: IC.share, onClick: shareInv },
@@ -243,7 +257,7 @@ QLX.mount({
   detail: r => ({
     eyebrow: 'GST Invoice', title: `${esc(r.inv || '—')} · ${esc(r.party)}`, sub: `${fDS(r.date)} · ${fmt(r.qty, 2)} T · ${fC(r.total)}`,
     actions: [
-      { label: 'Print', icon: IC.print, onClick: printInv },
+      { label: 'PDF', icon: IC.print, onClick: openInvPdf },
       { label: 'Edit', icon: IC.edit, onClick: r => QLShell.openSaleForm(r.idx) },
       ...(r.status !== 'paid' && r.status !== 'cash' && r.outstanding > 0 ? [{ label: 'Receive', icon: IC.check, primary: true, onClick: r => { Q.receiveSalesPayment(r.idx, { amount: r.outstanding, method: 'Bank' }); toast('Payment received', 'ok'); QLX.refresh(); } }] : [])
     ],

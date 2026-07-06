@@ -192,6 +192,26 @@
     }
     return pages;
   }
+  // pdf-lib (separate from pdf.js) — splits a multi-bill PDF into single-page
+  // PDFs so each imported bill can carry its own page as the uploaded document.
+  const loadPdfLib = () => loadScript('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js', 'pdflib').then(() => window.PDFLib);
+  // Extract the given 0-based page indexes as individual single-page PDF Files
+  // (aligned 1:1 with pageIndexes; a page that fails to copy yields null).
+  async function splitPdfPages(file, pageIndexes, baseName) {
+    const PDFLib = await loadPdfLib();
+    const src = await PDFLib.PDFDocument.load(await readAsBuffer(file));
+    const out = [];
+    for (const i of pageIndexes) {
+      try {
+        const doc = await PDFLib.PDFDocument.create();
+        const [pg] = await doc.copyPages(src, [i]);
+        doc.addPage(pg);
+        const bytes = await doc.save();
+        out.push(new File([bytes], (baseName || 'bill') + '-p' + (i + 1) + '.pdf', { type: 'application/pdf' }));
+      } catch (_) { out.push(null); }
+    }
+    return out;
+  }
   async function pdfText(file) { return (await pdfPages(file)).join('\n'); }
   // Render each PDF page to a PNG data URL (Tesseract reads images, not PDFs).
   async function pdfToImages(file, scale) {
@@ -686,9 +706,18 @@
         try { pages = await pdfPages(f); } catch (e) {}
         const hasText = pages.filter(t => t && /\d/.test(t) && t.replace(/\s+/g, '').length > 60);
         if (hasText.length) {
-          const bills = pages.map(t => ocrBuild(parseInvoiceText(t))).filter(Boolean);
-          if (bills.length >= 2) { finishImport(bills, null); return; }
-          if (bills.length === 1) { ocrReview(parseInvoiceText(hasText[0]), f); return; }
+          // Keep each parsed bill tied to the page it came from, so we can split
+          // that page out and attach it to the bill as its real uploaded copy.
+          const built = [];
+          pages.forEach((t, i) => { const b = ocrBuild(parseInvoiceText(t)); if (b) built.push({ bill: b, page: i }); });
+          if (built.length >= 2) {
+            res().innerHTML = '<div class="fin-up-loading">Reading <b>' + esc(f.name) + '</b> — splitting ' + built.length + ' bills…</div>';
+            let files = [];
+            try { files = await splitPdfPages(f, built.map(x => x.page), (f.name || 'bill').replace(/\.[^.]+$/, '')); } catch (_) {}
+            finishImport(built.map(x => x.bill), null, files);
+            return;
+          }
+          if (built.length === 1) { ocrReview(parseInvoiceText(pages[built[0].page]), f); return; }
         }
         ocrOffer(f); return;
       }
@@ -742,24 +771,29 @@
       if (!items.length) { res().innerHTML = '<div class="fin-up-err">' + (cfg.errText || 'No usable rows found — check the column mapping.') + '</div><a class="fin-remap" id="qlfRemap">↺ Re-map columns</a>'; wireRemap(rows, hi, mapping); return; }
       finishImport(items, () => mapper(rows, hi, mapping));
     }
-    // Dedup + preview table + bulk import. remapFn (optional) wires a "re-map" link.
-    function finishImport(items, remapFn) {
+    // Dedup + preview table + bulk import. remapFn (optional) wires a "re-map"
+    // link. files (optional) is aligned 1:1 with items — each item's uploaded
+    // page/scan, attached on add. Pairs (item+file) so dedup keeps them aligned.
+    function finishImport(items, remapFn, files) {
+      files = files || [];
       const existing = cfg.existing ? cfg.existing() : new Set();
       const keyOf = cfg.keyOf || (() => '');
-      const fresh = items.filter(it => { const k = keyOf(it); return !(k && existing.has(k)); });
+      const pairs = items.map((it, i) => ({ it, file: files[i] || null }));
+      const fresh = pairs.filter(pr => { const k = keyOf(pr.it); return !(k && existing.has(k)); });
       const dupes = items.length - fresh.length;
+      const nFiles = fresh.filter(pr => pr.file).length;
       const p = cfg.preview, prev = fresh.slice(0, 8), R = p.right || [];
       res().innerHTML =
-        '<div class="fin-up-ok">✓ Found <b>' + items.length + '</b> ' + plural(items.length) + (dupes ? ' · ' + dupes + ' already added (skipped)' : '') + '</div>' +
+        '<div class="fin-up-ok">✓ Found <b>' + items.length + '</b> ' + plural(items.length) + (dupes ? ' · ' + dupes + ' already added (skipped)' : '') + (nFiles ? ' · ' + nFiles + ' with attached bill page' : '') + '</div>' +
         '<div class="sr-table-wrap fin-up-prev"><table class="sr fin-table"><thead><tr>' + p.headers.map((h, i) => '<th' + (R.includes(i) ? ' class="r"' : '') + '>' + h + '</th>').join('') + '</tr></thead><tbody>' +
-        prev.map(it => '<tr>' + p.row(it).map((c, i) => '<td' + (R.includes(i) ? ' class="r"' : '') + '>' + (c == null ? '' : c) + '</td>').join('') + '</tr>').join('') +
+        prev.map(pr => '<tr>' + p.row(pr.it).map((c, i) => '<td' + (R.includes(i) ? ' class="r"' : '') + '>' + (c == null ? '' : c) + '</td>').join('') + '</tr>').join('') +
         '</tbody></table></div>' +
         (fresh.length > prev.length ? '<div class="fin-up-more">…and ' + (fresh.length - prev.length) + ' more</div>' : '') +
         (remapFn ? '<a class="fin-remap" id="qlfRemap">↺ Columns look wrong? Re-map</a>' : '') +
         (fresh.length ? '<button class="ql-btn ql-btn-primary fin-up-import" id="qlfDoImport">Import ' + fresh.length + ' ' + plural(fresh.length) + '</button>' : '<div class="fin-note">Nothing new to import — all of these are already added.</div>');
       if (remapFn) { const a = document.getElementById('qlfRemap'); if (a) a.onclick = remapFn; }
       const btn = document.getElementById('qlfDoImport');
-      if (btn) btn.onclick = () => { fresh.forEach(cfg.add); el.hidden = true; if (cfg.done) cfg.done(fresh.length); };
+      if (btn) btn.onclick = () => { fresh.forEach(pr => cfg.add(pr.it, pr.file || undefined)); el.hidden = true; if (cfg.done) cfg.done(fresh.length); };
     }
     // Build a row from OCR-parsed generic fields via cfg.buildRow + ocrMap.
     function ocrBuild(g) {

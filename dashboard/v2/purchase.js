@@ -65,6 +65,20 @@ function billHTML(r) {
     <div class="ft">System-generated from ${esc(co.name || 'QuickLimes')} · QuickLimes Purchase Register.</div>`;
 }
 function pdfWindow(r) { const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups to open the PDF'); return; } w.document.write('<html><head><title>Purchase Bill ' + esc(r.bill || '') + '</title></head><body>' + billHTML(r) + '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print()},250)}</scr' + 'ipt></body></html>'); w.document.close(); }
+/* The "PDF" / "Download PDF" buttons: open the UPLOADED scan in a new tab when
+   one is attached (the real document), else fall back to the generated bill. */
+async function openBillPdf(r) {
+  const list = r.attach || [];
+  const a = list.find(x => /invoice|bill|scan|pdf|image/i.test((x.kind || '') + ' ' + (x.type || ''))) || list[0];
+  if (a) {
+    try {
+      const blob = await aOp('readonly', st => st.get(a.id));
+      if (blob) { const url = URL.createObjectURL(blob); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 8000); return; }
+      toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
+    } catch (_) { toast('Could not open the uploaded bill', 'err'); return; }
+  }
+  pdfWindow(r);
+}
 /* View the actual bill: the UPLOADED file if one is attached, else the bill
    generated from the manually-entered details (same layout). */
 async function viewBill(r) {
@@ -103,7 +117,7 @@ function tabOverview(r) {
     ${kv('Taxable value', fC(r.taxable))}${r.freightAmt ? kv('Freight / transport', '🚚 ' + fC(r.freightAmt)) : ''}${kv('GST @ ' + r.grate + '%', fC(r.gst))}${kv('ITC', r.itc ? fC(r.itc) : '—')}
     <div class="qx-kv qx-kv-tot"><span>Grand total</span><b>${fC(r.total)}</b></div>`;
 }
-function pdfByIdx(idx) { pdfWindow(Q.purchaseRows()[idx]); }
+function pdfByIdx(idx) { openBillPdf(Q.purchaseRows()[idx]); }
 function shareByIdx(idx) { shareBill(Q.purchaseRows()[idx]); }
 function tabInvoice(r) {
   return `<div class="qx-inv-bar"><button class="qx-btn qx-btn-sm" onclick="pdfByIdx(${r.idx})">${svg(IC.dl)} Download</button><button class="qx-btn qx-btn-sm" onclick="pdfByIdx(${r.idx})">${svg(IC.print)} Print</button><button class="qx-btn qx-btn-sm" onclick="shareByIdx(${r.idx})">${svg(IC.share)} Share</button></div>
@@ -249,7 +263,7 @@ QLX.mount({
   ],
   rowMenu: r => [
     { label: 'Duplicate', icon: IC.copy, onClick: dupBill },
-    { label: 'Download PDF', icon: IC.dl, onClick: pdfWindow },
+    { label: 'Download PDF', icon: IC.dl, onClick: openBillPdf },
     { label: 'Print', icon: IC.print, onClick: pdfWindow },
     { label: 'Share', icon: IC.share, onClick: shareBill },
     { label: 'Copy link', icon: IC.copy, onClick: copyLink },
@@ -280,7 +294,7 @@ QLX.mount({
     eyebrow: 'Purchase Bill', title: `${esc(r.bill || '—')} · ${esc(r.sup)}`, sub: `${r.emoji} ${esc(r.groupLabel)} → ${esc(r.item)} · ${fC(r.total)}`,
     actions: [
       { label: 'Edit', icon: IC.edit, onClick: r => QLShell.openPurchaseForm(r.idx) },
-      { label: 'PDF', icon: IC.print, onClick: pdfWindow },
+      { label: 'PDF', icon: IC.print, onClick: openBillPdf },
       ...(r.status !== 'paid' && r.status !== 'cancelled' ? [{ label: 'Mark paid', icon: IC.check, primary: true, onClick: markPaid }] : [])
     ],
     tabs: [
