@@ -3,98 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>All Parties — QuickLimes v2</title>
+<title>Parties — QuickLimes</title>
 <meta name="theme-color" content="#2563EB">
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css"><link rel="stylesheet" href="./qlx.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./data.js"></script>
 </head>
 <body class="ql-v2">
-<div id="ql-page">
-  <div class="dash">
-    <div class="page-head">
-      <div><h1 class="page-title">All Parties</h1><div class="page-sub" id="paSub">Customers · Suppliers · Contact directory</div></div>
-      <div class="page-actions">
-        <button class="ql-btn ql-btn-primary" onclick="QLShell.openPartyForm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add party</button>
-      </div>
-    </div>
-    <div class="kpi-strip" id="paKpis" style="grid-template-columns:repeat(3,1fr)"></div>
-    <div class="card" style="gap:var(--ql-space-4)">
-      <div class="sr-toolbar">
-        <div class="sr-tabs" id="paTabs">
-          <button class="sr-tab active" data-f="all">All</button>
-          <button class="sr-tab" data-f="customer">Customers</button>
-          <button class="sr-tab" data-f="supplier">Suppliers</button>
-        </div>
-        <div class="sr-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="paSearch" placeholder="Search party name, GSTIN, phone…"></div>
-      </div>
-      <div class="sr-table-wrap"><table class="sr"><thead><tr id="paHead"></tr></thead><tbody id="paBody"></tbody></table></div>
-      <div class="sr-foot"><span id="paCount">—</span><div class="sr-pager"><button id="paPrev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><span id="paPage" style="font-size:var(--ql-text-sm)">1</span><button id="paNext"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></div></div>
-    </div>
-  </div>
-</div>
+<div id="ql-page"></div>
 <script src="./shell.js"></script>
-<script>
-QLShell.mount({ active: 'parties', title: 'All Parties' });
-const AVG = ['#2563EB,#1D4ED8','#16A34A,#15803D','#F59E0B,#B45309','#7C3AED,#5B21B6','#DB2777,#9D174D','#0891B2,#155E75'];
-const PER = 14;
-// Accept type from ?type= OR #hash (server-proof) — e.g. Suppliers = parties#supplier
-function _urlType() { const h = (location.hash || '').slice(1); const t = new URLSearchParams(location.search).get('type') || (['customer','supplier','both','all'].includes(h) ? h : null); return t || 'all'; }
-let paFilter = _urlType(), paQuery = '', paSort = { key: 'name', dir: 'asc' }, paPage = 1;
-const COLS = [
-  { key: 'name', label: 'Name / GSTIN', sortable: true },
-  { key: 'type', label: 'Type', sortable: true },
-  { key: 'phone', label: 'Phone', sortable: false },
-  { key: 'state', label: 'State', sortable: true }
-];
-function filtered() {
-  let r = QLD.partyRows();
-  if (paFilter !== 'all') r = r.filter(x => x.type === paFilter || x.type === 'both');
-  if (paQuery) { const q = paQuery.toLowerCase(); r = r.filter(x => (x.name + ' ' + x.gstin + ' ' + x.phone).toLowerCase().includes(q)); }
-  r.sort((a, b) => { let x = (a[paSort.key] || '').toString().toLowerCase(), y = (b[paSort.key] || '').toString().toLowerCase(); return x < y ? (paSort.dir === 'asc' ? -1 : 1) : x > y ? (paSort.dir === 'asc' ? 1 : -1) : 0; });
-  return r;
-}
-function render() {
-  const co = QLD.co, s = QLD.partySummary();
-  const K = [
-    { label: 'Total Parties', v: s.count, meta: 'in directory', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>' },
-    { label: 'Customers', v: s.customers, meta: 'buyers', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' },
-    { label: 'Suppliers', v: s.suppliers, meta: 'vendors', bg: '#EEF2FF', fg: '#4F46E5', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8.5a1 1 0 0 1 .5-.87L12 4l6.5 3.63a1 1 0 0 1 .5.87V21"/></svg>' }
-  ];
-  document.getElementById('paKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
-  document.getElementById('paSub').textContent = `${co.short} · ${s.count} parties · ${s.customers} customers · ${s.suppliers} suppliers`;
-  document.getElementById('paHead').innerHTML = COLS.map(c => { const st = paSort.key === c.key; return `<th class="${c.sortable ? '' : 'no-sort'} ${st ? 'sorted' : ''}" ${c.sortable ? `data-sort="${c.key}"` : ''}>${c.label}${c.sortable ? `<span class="sort-ic">${st ? (paSort.dir === 'asc' ? '▲' : '▼') : '↕'}</span>` : ''}</th>`; }).join('') + '<th class="no-sort"></th>';
-  document.querySelectorAll('#paHead th[data-sort]').forEach(th => th.addEventListener('click', () => { const k = th.dataset.sort; if (paSort.key === k) paSort.dir = paSort.dir === 'asc' ? 'desc' : 'asc'; else { paSort.key = k; paSort.dir = 'asc'; } paPage = 1; render(); }));
-  const rows = filtered(), pages = Math.max(1, Math.ceil(rows.length / PER)); paPage = Math.min(paPage, pages);
-  const slice = rows.slice((paPage - 1) * PER, paPage * PER);
-  const PILL = { customer: 'Customer', supplier: 'Supplier', both: 'Both' };
-  document.getElementById('paBody').innerHTML = slice.length ? slice.map(r => {
-    const c = AVG[(r.name.charCodeAt(0) + r.name.length) % AVG.length];
-    return `<tr>
-      <td><div class="sr-party"><div class="sr-av" style="background:linear-gradient(135deg,${c})">${r.name.charAt(0).toUpperCase()}</div><div><div style="font-weight:700;color:var(--ql-text)">${r.name}</div><div style="font-size:var(--ql-text-xs);color:var(--ql-text-secondary);letter-spacing:.3px">${r.gstin || '—'}</div></div></div></td>
-      <td><span class="sr-pill ${r.type}"><span class="dot"></span>${PILL[r.type] || r.type}</span></td>
-      <td class="pt-muted">${r.phone || '—'}</td>
-      <td class="pt-muted">${r.state || '—'}</td>
-      <td class="sr-num"><button class="sr-kebab" onclick="QLShell.rowMenu(event,'party',${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="5"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No parties in this view</div></div></td></tr>`;
-  document.getElementById('paCount').textContent = rows.length ? `Showing ${(paPage - 1) * PER + 1}–${Math.min(paPage * PER, rows.length)} of ${rows.length}` : '0 parties';
-  document.getElementById('paPage').textContent = `${paPage} / ${pages}`;
-  document.getElementById('paPrev').disabled = paPage <= 1; document.getElementById('paNext').disabled = paPage >= pages;
-  QLShell.paintWorkspace();
-}
-document.querySelectorAll('#paTabs .sr-tab').forEach(t => t.addEventListener('click', () => { document.querySelectorAll('#paTabs .sr-tab').forEach(x => x.classList.remove('active')); t.classList.add('active'); paFilter = t.dataset.f; paPage = 1; render(); }));
-document.querySelectorAll('#paTabs .sr-tab').forEach(t => t.classList.toggle('active', t.dataset.f === paFilter));
-window.addEventListener('hashchange', () => { paFilter = _urlType(); paPage = 1; document.querySelectorAll('#paTabs .sr-tab').forEach(t => t.classList.toggle('active', t.dataset.f === paFilter)); if (window.QLD && QLD.co) render(); });
-document.getElementById('paSearch').addEventListener('input', e => { paQuery = e.target.value; paPage = 1; render(); });
-document.getElementById('paPrev').addEventListener('click', () => { if (paPage > 1) { paPage--; render(); } });
-document.getElementById('paNext').addEventListener('click', () => { paPage++; render(); });
-window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
-window.__qlRefresh = render;
-QLD.init(render);
-</script>
+<script src="./qlx.js"></script>
+<script src="./parties.js"></script>
 </body>
 </html>
