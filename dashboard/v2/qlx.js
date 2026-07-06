@@ -179,22 +179,23 @@
   }
 
   function toolbarHTML(rows) {
-    const qf = (CFG.quickFilters || []).map(f => {
+    const showTabs = CFG.quickFilters && CFG.quickFilters.length > 1;
+    const qf = showTabs ? CFG.quickFilters.map(f => {
       const n = f.test ? allRows().filter(f.test).length : allRows().length;
       return `<button class="qx-tab ${S.quick === f.key ? 'active' : ''}" data-qf="${f.key}">${esc(f.label)}<span class="qx-tab-ct">${n}</span></button>`;
-    }).join('');
-    const views = (CFG.views || ['table']).map(v => `<button class="qx-view ${S.view === v ? 'active' : ''}" data-view="${v}" title="${v[0].toUpperCase() + v.slice(1)} view">${svg(IC[v === 'analytics' ? 'an' : v] || IC.table)}</button>`).join('');
+    }).join('') : '';
+    const showViews = (CFG.views || []).length > 1;
+    const views = showViews ? CFG.views.map(v => `<button class="qx-view ${S.view === v ? 'active' : ''}" data-view="${v}" title="${v[0].toUpperCase() + v.slice(1)} view">${svg(IC[v === 'analytics' ? 'an' : v] || IC.table)}</button>`).join('') : '';
     const gbActive = S.groupBy && S.groupBy !== 'none';
-    const grpBtn = (CFG.groupBy && CFG.groupBy.length) ? `<button class="qx-tool ${gbActive ? 'on' : ''}" id="qxGroupBtn">${svg(IC.group)} Group${gbActive ? '' : ''}</button>` : '';
+    const grpBtn = (CFG.groupBy && CFG.groupBy.length) ? `<button class="qx-tool ${gbActive ? 'on' : ''}" id="qxGroupBtn">${svg(IC.group)} Group</button>` : '';
     const colBtn = (CFG.columns && S.view === 'table') ? `<button class="qx-tool" id="qxColBtn">${svg(IC.cols)} Columns</button>` : '';
     const filBtn = (CFG.filters && CFG.filters.length) || CFG.dateRange ? `<button class="qx-tool ${S.advOpen ? 'on' : ''}" id="qxFilBtn">${svg(IC.filter)} Filters</button>` : '';
     const resetBtn = anyFilter() ? `<button class="qx-tool" id="qxReset">${svg(IC.x)} Reset</button>` : '';
+    const search = CFG.search ? `<div class="qx-search">${svg(IC.search)}<input id="qxSearch" placeholder="Search ${esc(CFG.nounPl || 'records')}" value="${esc(S.q)}"></div>` : '';
     return `<div class="qx-tb">
-      <div class="qx-tabs">${qf}</div>
-      <div class="qx-tb-sp"></div>
-      ${CFG.search ? `<div class="qx-search">${svg(IC.search)}<input id="qxSearch" placeholder="Search ${esc(CFG.nounPl || 'records')}" value="${esc(S.q)}"></div>` : ''}
+      ${showTabs ? `<div class="qx-tabs">${qf}</div><div class="qx-tb-sp"></div>${search}` : `${search}<div class="qx-tb-sp"></div>`}
       ${grpBtn}${filBtn}${colBtn}${resetBtn}
-      <div class="qx-views">${views}</div>
+      ${showViews ? `<div class="qx-views">${views}</div>` : ''}
     </div>`;
   }
 

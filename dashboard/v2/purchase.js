@@ -138,7 +138,7 @@ function tabAI(r) {
 QLX.mount({
   active: 'purchase', title: 'Purchase Register', accent: 'amber', noun: 'bill', nounPl: 'bills',
   icon: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>',
-  views: ['table', 'board', 'cards', 'calendar', 'analytics'],
+  views: ['table'],
   data: () => Q.purchaseRows(), rowId: r => r.idx, dateField: r => r.date,
   subtitle: () => { const s = Q.purchaseSummary(); return `<b>${esc(Q.co.short)}</b> · ${s.count} bills · <b>${fC(s.total)}</b> purchase value`; },
   primary: { label: 'Add Bill', icon: IC.plus, onClick: () => QLShell.openPurchaseForm() },
@@ -150,27 +150,17 @@ QLX.mount({
   stats: () => {
     const rows = Q.purchaseRows(), s = Q.purchaseSummary(), i = Q.purchaseInsights();
     const paid = rows.reduce((a, r) => a + r.paid, 0);
-    const now = new Date(), ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-    const thisMonth = rows.filter(r => (r.date || '').slice(0, 7) === ym).reduce((a, r) => a + r.taxable, 0);
     return [
       { label: 'Total Bills', value: s.count, sub: rows.filter(r => r.isOverdue).length + ' overdue', tint: 'blue', icon: IC.file },
       { label: 'Total Purchases', value: fC(s.total), sub: 'excl. GST', tint: 'indigo', icon: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>' },
       { label: 'GST Input Credit', value: fC(s.itc), sub: 'available ITC', tint: 'green', icon: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/>' },
       { label: 'Pending Payment', value: fC(s.pending), sub: i.pendCount + ' supplier' + (i.pendCount === 1 ? '' : 's'), tint: 'amber', icon: IC.clock },
-      { label: 'Paid Amount', value: fC(paid), sub: 'settled to date', tint: 'teal', icon: IC.check },
-      { label: 'This Month', value: fC(thisMonth), sub: 'purchases', trend: i.momPct, tint: 'violet', icon: IC.cal }
+      { label: 'Paid Amount', value: fC(paid), sub: 'settled to date', tint: 'teal', icon: IC.check }
     ];
   },
-  quickFilters: [
-    { key: 'all', label: 'All', test: () => true },
-    { key: 'pending', label: 'Pending', test: r => r.status === 'pending' && !r.isOverdue },
-    { key: 'partial', label: 'Partial', test: r => r.status === 'partial' },
-    { key: 'paid', label: 'Paid', test: r => r.status === 'paid' },
-    { key: 'overdue', label: 'Overdue', test: r => r.isOverdue },
-    { key: 'cancelled', label: 'Cancelled', test: r => r.status === 'cancelled' }
-  ],
   search: (r, q) => (r.bill + ' ' + r.sup + ' ' + r.item + ' ' + r.groupLabel + ' ' + r.gstin + ' ' + r.dept).toLowerCase().includes(q),
   filters: [
+    { key: 'status', label: 'Status', options: () => [['pending', 'Pending'], ['partial', 'Partial'], ['paid', 'Paid'], ['overdue', 'Overdue'], ['cancelled', 'Cancelled']], test: (r, v) => v === 'overdue' ? r.isOverdue : v === 'pending' ? (r.status === 'pending' && !r.isOverdue) : r.status === v },
     { key: 'group', label: 'Group', options: rows => Q.purchaseGroups.filter(g => rows.some(r => r.group === g.key)).map(g => [g.key, g.emoji + ' ' + g.label]), test: (r, v) => r.group === v },
     { key: 'sup', label: 'Supplier', options: rows => [...new Set(rows.map(r => r.sup))].filter(s => s && s !== '—').sort().map(s => [s, s]), test: (r, v) => r.sup === v },
     { key: 'dept', label: 'Department', options: rows => Q.departments.filter(d => rows.some(r => r.dept === d)).map(d => [d, d]), test: (r, v) => r.dept === v },

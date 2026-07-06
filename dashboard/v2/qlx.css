@@ -70,7 +70,7 @@
 .qx-btn-icon { width: 38px; padding: 0; justify-content: center; }
 
 /* ── KPI STAT STRIP ─────────────────────────────────────────────────── */
-.qx-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 16px; }
+.qx-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(186px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .qx-stat {
   background: rgba(255,255,255,.75); border: 1px solid var(--ql-border);
   border-radius: 16px; padding: 15px 16px; position: relative; overflow: hidden;
