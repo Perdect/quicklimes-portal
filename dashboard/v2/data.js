@@ -432,14 +432,52 @@
     };
   }
 
+  /* ── Purchase Groups → Items taxonomy (landed-cost model) ─────────
+     Related expenses stay grouped: e.g. Petcoke = Petcoke Purchase +
+     Petcoke Transport Freight + Loading Charges (the true landed cost). */
+  const PURCHASE_GROUPS = [
+    { key: 'limestone',   label: 'Limestone',   emoji: '🪨', items: ['Limestone Purchase', 'Limestone Freight', 'Royalty'] },
+    { key: 'petcoke',     label: 'Petcoke',     emoji: '🔥', items: ['Petcoke Purchase', 'Petcoke Transport Freight', 'Loading Charges'] },
+    { key: 'packaging',   label: 'Packaging',   emoji: '📦', items: ['Plastic Bags', 'Bag Printing', 'Other Packaging'] },
+    { key: 'labour',      label: 'Labour',      emoji: '👷', items: ['Kiln Labour', 'Packing Labour', 'Loading Labour'] },
+    { key: 'maintenance', label: 'Maintenance', emoji: '🛠️', items: ['Machine Repair', 'Spare Parts', 'Building Repair'] },
+    { key: 'utilities',   label: 'Utilities',   emoji: '⚡', items: ['Electricity', 'Diesel', 'Water'] },
+    { key: 'office',      label: 'Office',       emoji: '🏢', items: ['Stationery', 'Printing', 'Office Expenses'] },
+    { key: 'other',       label: 'Other',        emoji: '📋', items: ['Other'] }
+  ];
+  const PGROUP_MAP = {}; PURCHASE_GROUPS.forEach(g => { PGROUP_MAP[g.key] = g; });
+  const DEPARTMENTS = ['Production', 'Kiln', 'Packing', 'Loading', 'Utilities', 'Maintenance', 'Office', 'General'];
+  const GROUP_DEPT = { limestone: 'Production', petcoke: 'Kiln', packaging: 'Packing', labour: 'Production', maintenance: 'Maintenance', utilities: 'Utilities', office: 'Office', other: 'General' };
+  // Freight / transport / loading / royalty items — the "landed cost add-ons".
+  const isFreightItem = it => /freight|transport|loading|cartage/i.test(it || '');
+  // Map a legacy free-text category onto a {group,item} so old bills fit the model.
+  function catToGroupItem(p) {
+    if (p.group) return { group: p.group, item: p.item || (PGROUP_MAP[p.group] || PGROUP_MAP.other).items[0], dept: p.dept || GROUP_DEPT[p.group] || 'General' };
+    const c = (p.cat || '').toLowerCase();
+    let group = 'other', item = 'Other';
+    if (/raw material|lime ?stone|\bstone\b|mineral/.test(c)) { group = 'limestone'; item = 'Limestone Purchase'; }
+    else if (/petcoke|pet coke|\bcoke\b|\bcoal\b/.test(c)) { group = 'petcoke'; item = 'Petcoke Purchase'; }
+    else if (/freight|transport|cartage|loading/.test(c)) { group = 'petcoke'; item = 'Petcoke Transport Freight'; }
+    else if (/pack/.test(c)) { group = 'packaging'; item = 'Plastic Bags'; }
+    else if (/electric|power/.test(c)) { group = 'utilities'; item = 'Electricity'; }
+    else if (/diesel|fuel/.test(c)) { group = 'utilities'; item = 'Diesel'; }
+    else if (/water/.test(c)) { group = 'utilities'; item = 'Water'; }
+    else if (/repair|maint|spare/.test(c)) { group = 'maintenance'; item = 'Machine Repair'; }
+    else if (/labour|labor|wage|salary/.test(c)) { group = 'labour'; item = 'Kiln Labour'; }
+    else if (/office|station|print/.test(c)) { group = 'office'; item = 'Office Expenses'; }
+    return { group, item, dept: p.dept || GROUP_DEPT[group] || 'General' };
+  }
+
   /* ── Purchase register helpers ───────────────────────────────── */
   function purchaseRows() {
     return S.PURCHASES.map((p, i) => {
       const c = cP(p);
+      const g = catToGroupItem(p), gm = PGROUP_MAP[g.group] || PGROUP_MAP.other;
       return {
         idx: i, bill: p.bill, date: p.date, sup: p.sup || '—', cat: p.cat || 'Other',
-        taxable: p.taxable, gst: c.g, itc: c.itc, total: c.tot,
-        status: p.status || 'pending', gstin: p.gstin || '', days: daysAgo(p.date)
+        group: g.group, groupLabel: gm.label, emoji: gm.emoji, item: g.item, dept: g.dept,
+        taxable: p.taxable, gst: c.g, itc: c.itc, total: c.tot, grate: p.grate || 0,
+        status: p.status || 'pending', gstin: p.gstin || '', days: daysAgo(p.date), freight: isFreightItem(g.item)
       };
     });
   }
@@ -452,6 +490,48 @@
       itc: r.reduce((a, x) => a + x.itc, 0),
       pending: pend.reduce((a, x) => a + x.total, 0),
       gst: r.reduce((a, x) => a + x.gst, 0)
+    };
+  }
+  // Spend rolled up by Purchase Group (the landed cost), with item breakdown.
+  function purchaseByGroup() {
+    const rows = purchaseRows(), map = {};
+    PURCHASE_GROUPS.forEach(g => { map[g.key] = { key: g.key, label: g.label, emoji: g.emoji, taxable: 0, gst: 0, total: 0, itc: 0, count: 0, freight: 0, items: {} }; });
+    rows.forEach(r => {
+      const m = map[r.group] || map.other;
+      m.taxable += r.taxable; m.gst += r.gst; m.total += r.total; m.itc += r.itc; m.count++;
+      if (r.freight) m.freight += r.taxable;
+      const it = m.items[r.item] || (m.items[r.item] = { item: r.item, taxable: 0, total: 0, count: 0, freight: r.freight });
+      it.taxable += r.taxable; it.total += r.total; it.count++;
+    });
+    return Object.values(map).filter(m => m.count)
+      .map(m => ({ ...m, items: Object.values(m.items).sort((a, b) => b.taxable - a.taxable) }))
+      .sort((a, b) => b.taxable - a.taxable);
+  }
+  // AI-style insights for the purchase page.
+  function purchaseInsights() {
+    const rows = purchaseRows(), byG = purchaseByGroup();
+    const g = k => byG.find(x => x.key === k) || { taxable: 0, total: 0, freight: 0, items: [] };
+    const lime = g('limestone'), pet = g('petcoke');
+    const material = byG.reduce((a, x) => a + x.taxable, 0);
+    const freight = byG.reduce((a, x) => a + x.freight, 0);
+    const matBase = Math.max(1, material - freight);
+    const pend = rows.filter(r => r.status === 'pending');
+    // month-over-month total purchase spend
+    const now = new Date();
+    const ym = (y, m) => y + '-' + String(m + 1).padStart(2, '0');
+    const curYM = ym(now.getFullYear(), now.getMonth());
+    const pd = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevYM = ym(pd.getFullYear(), pd.getMonth());
+    const sumYM = k => rows.filter(r => (r.date || '').slice(0, 7) === k).reduce((a, r) => a + r.taxable, 0);
+    const cur = sumYM(curYM), prev = sumYM(prevYM);
+    return {
+      limeLanded: lime.taxable, petLanded: pet.taxable,
+      petFreight: pet.freight, limeFreight: lime.freight,
+      freight, material, freightPct: freight / matBase * 100,
+      top: byG[0] || null,
+      pendAmt: pend.reduce((a, r) => a + r.total, 0), pendCount: [...new Set(pend.map(r => r.sup))].length,
+      itc: rows.reduce((a, r) => a + r.itc, 0),
+      momCur: cur, momPrev: prev, momPct: prev > 0 ? (cur - prev) / prev * 100 : null
     };
   }
 
@@ -848,6 +928,7 @@
     kpis, monthSeries, collections, insights, production, topProducts, activity,
     salesRows, salesSummary,
     purchaseRows, purchaseSummary, partyRows, partySummary,
+    purchaseGroups: PURCHASE_GROUPS, departments: DEPARTMENTS, purchaseByGroup, purchaseInsights,
     labourRows, labourSummary, cashbookRows, cashbookBalances,
     loanRows, loanSummary, gstSummary,
     getPL, chunnaRows, chunnaSummary, attendanceData,

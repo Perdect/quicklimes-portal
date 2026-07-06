@@ -24,15 +24,31 @@
         <button class="ql-btn ql-btn-primary" onclick="QLShell.openPurchaseForm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add bill</button>
       </div>
     </div>
+
     <div class="kpi-strip" id="prKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+
+    <!-- Spend by Purchase Group (landed cost) -->
+    <div class="pg-head">
+      <div><h3 class="pg-h-title">Spend by Purchase Group</h3><div class="pg-h-sub">Landed cost — related items (material + freight + royalty) rolled up together</div></div>
+    </div>
+    <div class="pg-grid" id="pgGrid"></div>
+
+    <!-- AI insights -->
+    <div class="pin card" id="pinCard"></div>
+
+    <!-- Bills table -->
     <div class="card" style="gap:var(--ql-space-4)">
-      <div class="sr-toolbar">
-        <div class="sr-tabs" id="prTabs">
-          <button class="sr-tab active" data-f="all">All</button>
-          <button class="sr-tab" data-f="pending">Pending</button>
-          <button class="sr-tab" data-f="paid">Paid</button>
-        </div>
-        <div class="sr-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="prSearch" placeholder="Search bill no or supplier…"></div>
+      <div class="pf-bar">
+        <select class="pf-sel" id="pfGroup"></select>
+        <select class="pf-sel" id="pfItem"></select>
+        <select class="pf-sel" id="pfSup"></select>
+        <select class="pf-sel" id="pfDept"></select>
+        <select class="pf-sel" id="pfGst"></select>
+        <select class="pf-sel" id="pfStatus"></select>
+        <input class="pf-date" type="date" id="pfFrom" title="From date">
+        <input class="pf-date" type="date" id="pfTo" title="To date">
+        <div class="sr-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="prSearch" placeholder="Search bill, supplier, item…"></div>
+        <button class="pf-clear" id="pfClear" hidden>Clear</button>
       </div>
       <div class="sr-table-wrap"><table class="sr"><thead><tr id="prHead"></tr></thead><tbody id="prBody"></tbody></table></div>
       <div class="sr-foot"><span id="prCount">—</span><div class="sr-pager"><button id="prPrev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><span id="prPage" style="font-size:var(--ql-text-sm)">1</span><button id="prNext"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></div></div>
@@ -42,66 +58,148 @@
 <script src="./shell.js"></script>
 <script>
 QLShell.mount({ active: 'purchase', title: 'Purchase Register' });
-const AVG = ['#0891B2,#155E75','#7C3AED,#5B21B6','#16A34A,#15803D','#F59E0B,#B45309','#DB2777,#9D174D','#2563EB,#1D4ED8'];
+const fC = QLD.fC;
+const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const AVG = ['#0891B2,#155E75', '#7C3AED,#5B21B6', '#16A34A,#15803D', '#F59E0B,#B45309', '#DB2777,#9D174D', '#2563EB,#1D4ED8'];
+const GCOL = { limestone: ['#f6f0e4', '#8a6d3b'], petcoke: ['#fdeceb', '#c0392b'], packaging: ['#eaf1ff', '#2f5fd0'], labour: ['#e9f9ee', '#1c7c3a'], maintenance: ['#f2eefb', '#6b3fa0'], utilities: ['#fff5e0', '#b7791f'], office: ['#eef2f7', '#475569'], other: ['#f1f5f9', '#64748b'] };
 const PER = 12;
-let pFilter = 'all', pQuery = '', pSort = { key: 'date', dir: 'desc' }, pPage = 1;
+const pF = { group: 'all', item: 'all', sup: 'all', dept: 'all', gst: 'all', status: 'all', from: '', to: '' };
+let pQuery = '', pSort = { key: 'date', dir: 'desc' }, pPage = 1;
+
 const COLS = [
-  { key: 'bill', label: 'Bill', sortable: true },
-  { key: 'date', label: 'Date', sortable: true },
   { key: 'sup', label: 'Supplier', sortable: true },
-  { key: 'cat', label: 'Category', sortable: true },
+  { key: 'group', label: 'Purchase Group', sortable: true },
+  { key: 'item', label: 'Purchase Item', sortable: true },
+  { key: 'dept', label: 'Department', sortable: true },
+  { key: 'grate', label: 'GST', sortable: true, num: true },
   { key: 'taxable', label: 'Taxable', sortable: true, num: true },
-  { key: 'gst', label: 'GST', sortable: true, num: true },
-  { key: 'itc', label: 'ITC', sortable: true, num: true },
   { key: 'total', label: 'Total', sortable: true, num: true },
   { key: 'status', label: 'Status', sortable: true }
 ];
+
 function filtered() {
   let r = QLD.purchaseRows();
-  if (pFilter !== 'all') r = r.filter(x => x.status === pFilter);
-  if (pQuery) { const q = pQuery.toLowerCase(); r = r.filter(x => (x.bill + ' ' + x.sup + ' ' + x.cat + ' ' + x.gstin).toLowerCase().includes(q)); }
+  if (pF.group !== 'all') r = r.filter(x => x.group === pF.group);
+  if (pF.item !== 'all') r = r.filter(x => x.item === pF.item);
+  if (pF.sup !== 'all') r = r.filter(x => x.sup === pF.sup);
+  if (pF.dept !== 'all') r = r.filter(x => x.dept === pF.dept);
+  if (pF.gst !== 'all') r = r.filter(x => String(x.grate) === pF.gst);
+  if (pF.status !== 'all') r = r.filter(x => x.status === pF.status);
+  if (pF.from) r = r.filter(x => (x.date || '') >= pF.from);
+  if (pF.to) r = r.filter(x => (x.date || '') <= pF.to);
+  if (pQuery) { const q = pQuery.toLowerCase(); r = r.filter(x => (x.bill + ' ' + x.sup + ' ' + x.item + ' ' + x.groupLabel + ' ' + x.gstin).toLowerCase().includes(q)); }
   r.sort((a, b) => { let x = a[pSort.key], y = b[pSort.key]; if (typeof x === 'string') { x = x.toLowerCase(); y = (y || '').toLowerCase(); } return x < y ? (pSort.dir === 'asc' ? -1 : 1) : x > y ? (pSort.dir === 'asc' ? 1 : -1) : 0; });
   return r;
 }
+
+/* ── Spend-by-group cards ── */
+function renderGroups() {
+  const byG = QLD.purchaseByGroup();
+  const grid = document.getElementById('pgGrid');
+  if (!byG.length) { grid.innerHTML = '<div class="pg-empty">No purchases yet — add a bill to see spend by group.</div>'; return; }
+  grid.innerHTML = byG.map(g => {
+    const gc = GCOL[g.key] || GCOL.other, active = pF.group === g.key;
+    const items = g.items.slice(0, 3).map(it => `<div class="pg-item"><span class="pg-item-n">${esc(it.item)}</span><span class="pg-item-v">${fC(it.taxable)}</span></div>`).join('');
+    return `<button class="pg-card${active ? ' on' : ''}" data-group="${g.key}" style="--pgbg:${gc[0]};--pgfg:${gc[1]}">
+      <div class="pg-top"><span class="pg-emoji">${g.emoji}</span><span class="pg-name">${esc(g.label)}</span><span class="pg-count">${g.count}</span></div>
+      <div class="pg-total">${fC(g.taxable)}</div>
+      <div class="pg-metatxt">${g.freight ? 'incl. ' + fC(g.freight) + ' freight' : 'landed cost'}</div>
+      <div class="pg-items">${items}${g.items.length > 3 ? `<div class="pg-item pg-more">+${g.items.length - 3} more items</div>` : ''}</div>
+    </button>`;
+  }).join('');
+  grid.querySelectorAll('.pg-card').forEach(c => c.addEventListener('click', () => {
+    pF.group = pF.group === c.dataset.group ? 'all' : c.dataset.group; pF.item = 'all'; pPage = 1; render();
+    document.querySelector('.pf-bar').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }));
+}
+
+/* ── AI insights ── */
+function renderInsights() {
+  const i = QLD.purchaseInsights();
+  const cell = (label, val, sub) => `<div class="pin-cell"><div class="pin-label">${label}</div><div class="pin-val">${val}</div>${sub ? `<div class="pin-sub">${sub}</div>` : ''}</div>`;
+  const mom = i.momPct == null ? '—' : (i.momPct >= 0 ? '▲ +' : '▼ ') + Math.abs(i.momPct).toFixed(0) + '%';
+  document.getElementById('pinCard').innerHTML =
+    `<div class="pin-head"><span class="pin-badge">✨ AI Insights</span><span class="pin-sub2">Landed-cost intelligence from your bills</span></div>
+     <div class="pin-grid">
+       ${cell('🪨 Limestone landed cost', fC(i.limeLanded), i.limeFreight ? 'incl. ' + fC(i.limeFreight) + ' freight' : 'material + royalty')}
+       ${cell('🔥 Petcoke landed cost', fC(i.petLanded), i.petFreight ? 'incl. ' + fC(i.petFreight) + ' freight' : 'material + loading')}
+       ${cell('🚚 Freight of material', i.freightPct.toFixed(1) + '%', fC(i.freight) + ' total freight')}
+       ${cell('🏆 Highest spend group', i.top ? i.top.emoji + ' ' + i.top.label : '—', i.top ? fC(i.top.taxable) : '')}
+       ${cell('⏳ Pending to suppliers', fC(i.pendAmt), i.pendCount + ' supplier' + (i.pendCount === 1 ? '' : 's'))}
+       ${cell('🧾 GST input credit', fC(i.itc), 'available ITC')}
+       ${cell('📈 vs last month', mom, fC(i.momCur) + ' this month')}
+     </div>`;
+}
+
+/* ── Filter dropdowns ── */
+function opt(v, label, sel) { return `<option value="${esc(v)}" ${String(v) === String(sel) ? 'selected' : ''}>${esc(label)}</option>`; }
+function fillFilters() {
+  const rows = QLD.purchaseRows(), GROUPS = QLD.purchaseGroups;
+  document.getElementById('pfGroup').innerHTML = opt('all', 'All groups', pF.group) + GROUPS.filter(g => rows.some(r => r.group === g.key)).map(g => opt(g.key, g.emoji + ' ' + g.label, pF.group)).join('');
+  const itemPool = pF.group !== 'all' ? (QLD.purchaseGroups.find(g => g.key === pF.group) || { items: [] }).items : [...new Set(rows.map(r => r.item))];
+  document.getElementById('pfItem').innerHTML = opt('all', 'All items', pF.item) + itemPool.map(it => opt(it, it, pF.item)).join('');
+  document.getElementById('pfSup').innerHTML = opt('all', 'All suppliers', pF.sup) + [...new Set(rows.map(r => r.sup))].filter(s => s && s !== '—').sort().map(s => opt(s, s, pF.sup)).join('');
+  document.getElementById('pfDept').innerHTML = opt('all', 'All departments', pF.dept) + QLD.departments.filter(d => rows.some(r => r.dept === d)).map(d => opt(d, d, pF.dept)).join('');
+  document.getElementById('pfGst').innerHTML = opt('all', 'All GST', pF.gst) + [...new Set(rows.map(r => r.grate))].sort((a, b) => a - b).map(g => opt(g, g + '% GST', pF.gst)).join('');
+  document.getElementById('pfStatus').innerHTML = opt('all', 'All status', pF.status) + opt('pending', 'Pending', pF.status) + opt('paid', 'Paid', pF.status);
+  document.getElementById('pfFrom').value = pF.from; document.getElementById('pfTo').value = pF.to;
+  const anyFilter = pF.group !== 'all' || pF.item !== 'all' || pF.sup !== 'all' || pF.dept !== 'all' || pF.gst !== 'all' || pF.status !== 'all' || pF.from || pF.to || pQuery;
+  document.getElementById('pfClear').hidden = !anyFilter;
+}
+
 function render() {
-  const co = QLD.co, s = QLD.purchaseSummary();
+  const co = QLD.co, s = QLD.purchaseSummary(), byG = QLD.purchaseByGroup();
+  const top = byG[0];
   const K = [
-    { label: 'Total Bills', v: s.count, meta: 'recorded', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>' },
-    { label: 'Total Purchases', v: QLD.fC(s.total), meta: 'excl. GST', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' },
-    { label: 'ITC Available', v: QLD.fC(s.itc), meta: 'input tax credit', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8.5a1 1 0 0 1 .5-.87L12 4l6.5 3.63a1 1 0 0 1 .5.87V21"/></svg>' },
-    { label: 'Pending Payment', v: QLD.fC(s.pending), meta: 'to suppliers', bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>' }
+    { label: 'Total Purchases', v: fC(s.total), meta: s.count + ' bills · excl. GST', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' },
+    { label: 'Pending Payment', v: fC(s.pending), meta: 'to suppliers', bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>' },
+    { label: 'ITC Available', v: fC(s.itc), meta: 'input tax credit', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8.5a1 1 0 0 1 .5-.87L12 4l6.5 3.63a1 1 0 0 1 .5.87V21"/></svg>' },
+    { label: 'Top Group', v: top ? top.emoji + ' ' + top.label : '—', meta: top ? fC(top.taxable) + ' landed' : 'no bills yet', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8"/><rect x="12" y="6" width="3" height="12"/><rect x="17" y="13" width="3" height="5"/></svg>' }
   ];
-  document.getElementById('prKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
-  document.getElementById('prSub').textContent = `${co.short} · ${s.count} bills · ${QLD.fC(s.total)} purchased`;
+  document.getElementById('prKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${esc(k.meta)}</div></div></div>`).join('');
+  document.getElementById('prSub').textContent = `${co.short} · ${s.count} bills · ${fC(s.total)} across ${byG.length} groups`;
+
+  renderGroups();
+  renderInsights();
+  fillFilters();
+
   document.getElementById('prHead').innerHTML = COLS.map(c => { const st = pSort.key === c.key; return `<th class="${st ? 'sorted' : ''} ${c.num ? 'sr-num' : ''}" data-sort="${c.key}">${c.label}<span class="sort-ic">${st ? (pSort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></th>`; }).join('') + '<th class="no-sort"></th>';
   document.querySelectorAll('#prHead th[data-sort]').forEach(th => th.addEventListener('click', () => { const k = th.dataset.sort; if (pSort.key === k) pSort.dir = pSort.dir === 'asc' ? 'desc' : 'asc'; else { pSort.key = k; pSort.dir = 'asc'; } pPage = 1; render(); }));
   const rows = filtered(), pages = Math.max(1, Math.ceil(rows.length / PER)); pPage = Math.min(pPage, pages);
   const slice = rows.slice((pPage - 1) * PER, pPage * PER);
   const PILL = { paid: 'Paid', pending: 'Pending' };
-  const body = document.getElementById('prBody');
-  body.innerHTML = slice.length ? slice.map(r => {
-    const c = AVG[(r.sup.charCodeAt(0) + r.sup.length) % AVG.length];
+  document.getElementById('prBody').innerHTML = slice.length ? slice.map(r => {
+    const c = AVG[(r.sup.charCodeAt(0) + r.sup.length) % AVG.length], gc = GCOL[r.group] || GCOL.other;
     const od = r.status === 'pending' && r.days > 30 ? ` · <span style="color:var(--ql-danger-600);font-weight:600">${r.days}d</span>` : '';
     return `<tr>
-      <td><span class="sr-inv">${r.bill}</span></td>
-      <td class="pt-muted">${QLD.fDS(r.date)}</td>
-      <td><div class="sr-party"><div class="sr-av" style="background:linear-gradient(135deg,${c})">${r.sup.charAt(0).toUpperCase()}</div><div><div style="font-weight:600">${r.sup}</div><div style="font-size:var(--ql-text-xs);color:var(--ql-text-secondary)">${r.gstin || '—'}${od}</div></div></div></td>
-      <td><span class="sr-pill neutral">${r.cat}</span></td>
-      <td class="sr-num">${QLD.fC(r.taxable)}</td>
-      <td class="sr-num pt-muted">${QLD.fC(r.gst)}</td>
-      <td class="sr-num" style="color:${r.itc ? 'var(--ql-success-700)' : 'var(--ql-text-muted)'}">${r.itc ? QLD.fC(r.itc) : '—'}</td>
-      <td class="sr-num" style="font-weight:700">${QLD.fC(r.total)}</td>
+      <td><div class="sr-party"><div class="sr-av" style="background:linear-gradient(135deg,${c})">${(r.sup || '?').charAt(0).toUpperCase()}</div><div><div style="font-weight:600">${esc(r.sup)}</div><div style="font-size:var(--ql-text-xs);color:var(--ql-text-secondary)">${esc(r.bill || '—')} · ${QLD.fDS(r.date)}${od}</div></div></div></td>
+      <td><span class="pg-pill" style="background:${gc[0]};color:${gc[1]}">${r.emoji} ${esc(r.groupLabel)}</span></td>
+      <td>${esc(r.item)}${r.freight ? ' <span class="pg-frt">freight</span>' : ''}</td>
+      <td><span class="pg-dept">${esc(r.dept || '—')}</span></td>
+      <td class="sr-num pt-muted">${r.grate}%</td>
+      <td class="sr-num">${fC(r.taxable)}</td>
+      <td class="sr-num" style="font-weight:700">${fC(r.total)}</td>
       <td><span class="sr-pill ${r.status}"><span class="dot"></span>${PILL[r.status] || r.status}</span></td>
       <td class="sr-num"><button class="sr-kebab" onclick="QLShell.rowMenu(event,'purchase',${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
     </tr>`;
-  }).join('') : `<tr><td colspan="10"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No bills in this view</div></div></td></tr>`;
+  }).join('') : `<tr><td colspan="9"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No bills in this view</div></div></td></tr>`;
   document.getElementById('prCount').textContent = rows.length ? `Showing ${(pPage - 1) * PER + 1}–${Math.min(pPage * PER, rows.length)} of ${rows.length}` : '0 bills';
   document.getElementById('prPage').textContent = `${pPage} / ${pages}`;
   document.getElementById('prPrev').disabled = pPage <= 1; document.getElementById('prNext').disabled = pPage >= pages;
   QLShell.paintWorkspace();
 }
-document.querySelectorAll('#prTabs .sr-tab').forEach(t => t.addEventListener('click', () => { document.querySelectorAll('#prTabs .sr-tab').forEach(x => x.classList.remove('active')); t.classList.add('active'); pFilter = t.dataset.f; pPage = 1; render(); }));
+
+/* ── Wiring ── */
+document.getElementById('pfGroup').addEventListener('change', e => { pF.group = e.target.value; pF.item = 'all'; pPage = 1; render(); });
+document.getElementById('pfItem').addEventListener('change', e => { pF.item = e.target.value; pPage = 1; render(); });
+document.getElementById('pfSup').addEventListener('change', e => { pF.sup = e.target.value; pPage = 1; render(); });
+document.getElementById('pfDept').addEventListener('change', e => { pF.dept = e.target.value; pPage = 1; render(); });
+document.getElementById('pfGst').addEventListener('change', e => { pF.gst = e.target.value; pPage = 1; render(); });
+document.getElementById('pfStatus').addEventListener('change', e => { pF.status = e.target.value; pPage = 1; render(); });
+document.getElementById('pfFrom').addEventListener('change', e => { pF.from = e.target.value; pPage = 1; render(); });
+document.getElementById('pfTo').addEventListener('change', e => { pF.to = e.target.value; pPage = 1; render(); });
 document.getElementById('prSearch').addEventListener('input', e => { pQuery = e.target.value; pPage = 1; render(); });
+document.getElementById('pfClear').addEventListener('click', () => { Object.assign(pF, { group: 'all', item: 'all', sup: 'all', dept: 'all', gst: 'all', status: 'all', from: '', to: '' }); pQuery = ''; document.getElementById('prSearch').value = ''; pPage = 1; render(); });
 document.getElementById('prPrev').addEventListener('click', () => { if (pPage > 1) { pPage--; render(); } });
 document.getElementById('prNext').addEventListener('click', () => { pPage++; render(); });
 window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
@@ -109,17 +207,16 @@ window.__qlRefresh = render;
 document.getElementById('puExport').addEventListener('click', () => {
   const r = filtered();
   QLShell.exportCSV('purchases_' + (QLD.co.short || 'register').replace(/\s+/g, '_'),
-    ['Bill', 'Date', 'Supplier', 'Category', 'GSTIN', 'Taxable', 'GST', 'ITC', 'Total', 'Status'],
-    r.map(x => [x.bill, x.date, x.sup, x.cat, x.gstin, x.taxable, x.gst, x.itc, x.total, x.status]));
+    ['Bill', 'Date', 'Supplier', 'Purchase Group', 'Purchase Item', 'Department', 'GSTIN', 'GST%', 'Taxable', 'GST', 'ITC', 'Total', 'Status'],
+    r.map(x => [x.bill, x.date, x.sup, x.groupLabel, x.item, x.dept, x.gstin, x.grate, x.taxable, x.gst, x.itc, x.total, x.status]));
   QLShell.toast('Exported ' + r.length + ' bill' + (r.length === 1 ? '' : 's') + ' to CSV');
 });
 
 /* ── Import purchase bills — CSV/Excel with auto-detect + manual column mapping ── */
-const PUR_CATS = ['Raw Material', 'Petcoke', 'Transport', 'Packing', 'Electricity', 'Repair', 'Other'];
 document.getElementById('puImport').addEventListener('click', () => QLFin.importSheet({
   title: 'Import purchase bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',
   dropTitle: 'Choose a file', dropSub: '.csv / .xlsx list, or a photo / PDF of one bill',
-  tip: 'A spreadsheet imports many bills at once. A photo or PDF of one bill is read with OCR and fills the form for you.',
+  tip: 'A spreadsheet imports many bills at once. A photo or PDF of one bill is read with OCR and fills the form for you. A "Purchase Group" / "Item" column is auto-detected if present.',
   noun: 'bill', addLabel: 'Add bill',
   accept: '.csv,.xlsx,.xls,.pdf,image/*', ocr: true,
   ocrMap: { bill: 'docno', date: 'date', sup: 'name', gstin: 'gstin', taxable: 'taxable', total: 'total', grate: 'rate' },
@@ -128,8 +225,8 @@ document.getElementById('puImport').addEventListener('click', () => QLFin.import
   fields: [
     { key: 'bill', label: 'Bill No.' }, { key: 'date', label: 'Date', required: true },
     { key: 'sup', label: 'Supplier', required: true }, { key: 'gstin', label: 'GSTIN' },
-    { key: 'cat', label: 'Category' }, { key: 'taxable', label: 'Taxable amount' },
-    { key: 'total', label: 'Total amount' }, { key: 'grate', label: 'GST %' }, { key: 'itc', label: 'ITC (Eligible/RCM)' }
+    { key: 'group', label: 'Purchase Group' }, { key: 'item', label: 'Purchase Item' },
+    { key: 'taxable', label: 'Taxable amount' }, { key: 'total', label: 'Total amount' }, { key: 'grate', label: 'GST %' }, { key: 'itc', label: 'ITC (Eligible/RCM)' }
   ],
   requireOneOf: [['taxable', 'total']],
   autoMap: h => ({
@@ -137,7 +234,8 @@ document.getElementById('puImport').addEventListener('click', () => QLFin.import
     date: QLFin.colOf(h, 'bill date', 'invoice date', 'date'),
     sup: QLFin.colOf(h, 'supplier', 'vendor', 'seller', 'party', 'name'),
     gstin: QLFin.colOf(h, 'gstin', 'gst no', 'gst number', 'gst in'),
-    cat: QLFin.colOf(h, 'category', 'head', 'expense', 'nature', 'type'),
+    group: QLFin.colOf(h, 'purchase group', 'group', 'category', 'head', 'nature'),
+    item: QLFin.colOf(h, 'purchase item', 'item', 'particular', 'description'),
     taxable: QLFin.colOf(h, 'taxable', 'basic', 'amount', 'value'),
     total: QLFin.colOf(h, 'invoice value', 'grand total', 'net amount', 'total'),
     grate: QLFin.colOf(h, 'gst %', 'gst%', 'gst rate', 'tax %', 'tax%', 'rate of tax', 'tax rate'),
@@ -151,13 +249,15 @@ document.getElementById('puImport').addEventListener('click', () => QLFin.import
     if (!sup && !taxable && !total) return null;
     let itc = 'Eligible'; const iv = (get('itc') || '').toString().toLowerCase().trim();
     if (/rcm/.test(iv)) itc = 'RCM'; else if (/inelig/.test(iv) || iv === 'no' || iv === 'n') itc = 'Ineligible';
-    let cat = (get('cat') || '').toString().trim();
-    if (cat) { const k = PUR_CATS.find(x => x.toLowerCase() === cat.toLowerCase()); cat = k || cat; } else cat = 'Other';
-    return { bill: (get('bill') || '').toString().trim(), date: date || '', sup, gstin: (get('gstin') || '').toString().trim().toUpperCase(), cat, taxable: +(taxable || 0), grate, itc, status: 'pending' };
+    // Map a free-text group/item onto the taxonomy (falls back to catToGroupItem at read time).
+    const raw = ((get('group') || '') + ' ' + (get('item') || '')).toLowerCase().trim();
+    const out = { bill: (get('bill') || '').toString().trim(), date: date || '', sup, gstin: (get('gstin') || '').toString().trim().toUpperCase(), taxable: +(taxable || 0), grate, itc, status: 'pending' };
+    if (raw) { out.cat = raw; const gm = QLD.purchaseGroups.find(g => raw.includes(g.label.toLowerCase()) || g.items.some(it => raw.includes(it.toLowerCase()))); if (gm) { out.group = gm.key; out.item = gm.items.find(it => raw.includes(it.toLowerCase())) || gm.items[0]; } }
+    return out;
   },
   existing: () => new Set(QLD.state.PURCHASES.filter(p => p.bill).map(p => ((p.sup || '') + '|' + p.bill).toUpperCase())),
   keyOf: p => p.bill ? ((p.sup || '') + '|' + p.bill).toUpperCase() : '',
-  preview: { headers: ['Bill', 'Date', 'Supplier', 'Category', 'Taxable', 'GST%'], right: [4, 5], row: p => [p.bill || '—', p.date || '—', p.sup || '—', p.cat || '—', QLD.fC(p.taxable), p.grate + '%'] },
+  preview: { headers: ['Bill', 'Date', 'Supplier', 'Group', 'Taxable', 'GST%'], right: [4, 5], row: p => [p.bill || '—', p.date || '—', p.sup || '—', (QLD.purchaseGroups.find(g => g.key === p.group) || { label: p.cat || '—' }).label, QLD.fC(p.taxable), p.grate + '%'] },
   add: p => QLD.addPurchase(p),
   done: n => { QLShell.toast('Imported ' + n + ' bill' + (n === 1 ? '' : 's')); pPage = 1; render(); }
 }));

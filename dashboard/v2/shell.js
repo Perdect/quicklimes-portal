@@ -587,28 +587,41 @@
     });
   }
 
-  /* ── Purchase bill ───────────────────────────────────────────── */
-  const PUR_SPECS = [
-    { k: 'bill', label: 'Bill No.', req: true, ph: 'e.g. 328' },
-    { k: 'date', label: 'Date', type: 'date', req: true },
-    { k: 'sup', label: 'Supplier', req: true, ph: 'Supplier name', upper: true, full: true },
-    { k: 'gstin', label: 'GSTIN', upper: true },
-    { k: 'cat', label: 'Category', type: 'select', opts: ['Raw Material', 'Petcoke', 'Transport', 'Packing', 'Electricity', 'Repair', 'Other'] },
-    { k: 'desc', label: 'Description', ph: 'e.g. Lime Stone' },
-    { k: 'qty', label: 'Qty', type: 'number' },
-    { k: 'unit', label: 'Unit', ph: 'MT' },
-    { k: 'rate', label: 'Rate', type: 'number' },
-    { k: 'taxable', label: 'Taxable (₹)', type: 'number', req: true, reqNonZero: true },
-    { k: 'grate', label: 'GST rate', type: 'select', opts: GST_OPTS },
-    { k: 'itc', label: 'ITC', type: 'select', opts: [['Eligible', 'ITC Eligible'], ['Ineligible', 'ITC Ineligible'], ['RCM', 'RCM']] }
-  ];
+  /* ── Purchase bill (Group → Item taxonomy, dependent dropdown) ─── */
   function openPurchaseForm(idx) {
     const editing = idx != null && idx >= 0;
     const row = editing ? window.QLD.state.PURCHASES[idx] : null;
+    const GROUPS = window.QLD.purchaseGroups, DEPTS = window.QLD.departments;
+    const init = row || { date: today(), group: 'limestone', item: 'Limestone Purchase', dept: 'Production', grate: 5, itc: 'Eligible', unit: 'MT' };
+    const curG = GROUPS.find(g => g.key === init.group) || GROUPS[0];
+    const specs = [
+      { k: 'bill', label: 'Bill No.', req: true, ph: 'e.g. 328' },
+      { k: 'date', label: 'Date', type: 'date', req: true },
+      { k: 'sup', label: 'Supplier', req: true, ph: 'Supplier name', upper: true, full: true },
+      { k: 'gstin', label: 'GSTIN', upper: true },
+      { k: 'group', label: 'Purchase Group', type: 'select', opts: GROUPS.map(g => [g.key, g.emoji + '  ' + g.label]) },
+      { k: 'item', label: 'Purchase Item', type: 'select', opts: curG.items },
+      { k: 'dept', label: 'Department', type: 'select', opts: DEPTS },
+      { k: 'desc', label: 'Description', ph: 'optional' },
+      { k: 'qty', label: 'Qty', type: 'number' },
+      { k: 'unit', label: 'Unit', ph: 'MT' },
+      { k: 'rate', label: 'Rate', type: 'number' },
+      { k: 'taxable', label: 'Taxable (₹)', type: 'number', req: true, reqNonZero: true },
+      { k: 'grate', label: 'GST rate', type: 'select', opts: GST_OPTS },
+      { k: 'itc', label: 'ITC', type: 'select', opts: [['Eligible', 'ITC Eligible'], ['Ineligible', 'ITC Ineligible'], ['RCM', 'RCM']] }
+    ];
     openForm({
       title: editing ? 'Edit bill' : 'New purchase bill', sub: 'Purchase register',
-      specs: PUR_SPECS, saveLabel: editing ? 'Save changes' : 'Add bill',
-      initial: row || { date: today(), cat: 'Raw Material', grate: 5, itc: 'Eligible', unit: 'MT' },
+      specs, saveLabel: editing ? 'Save changes' : 'Add bill', initial: init,
+      // Purchase Item options depend on the chosen Purchase Group — no unrelated items.
+      onRender() {
+        const gsel = $('qf_group'), isel = $('qf_item');
+        if (!gsel || !isel) return;
+        gsel.onchange = () => {
+          const g = GROUPS.find(x => x.key === gsel.value) || GROUPS[0];
+          isel.innerHTML = g.items.map(it => `<option value="${esc(it)}">${esc(it)}</option>`).join('');
+        };
+      },
       onSave(v) { if (editing) window.QLD.updatePurchase(idx, v); else window.QLD.addPurchase(v); refresh(editing ? 'Bill updated' : 'Bill added'); }
     });
   }
