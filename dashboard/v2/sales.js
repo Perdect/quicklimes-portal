@@ -38,11 +38,12 @@ async function openInvPdf(r) {
   const list = r.attach || [];
   const a = list.find(x => /invoice|bill|scan|pdf|image/i.test((x.kind || '') + ' ' + (x.type || ''))) || list[0];
   if (a) {
+    const w = window.open('', '_blank');
     try {
       const blob = await getAttachBlob(a.id);
-      if (blob) { const url = URL.createObjectURL(blob); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 8000); return; }
-      toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
-    } catch (_) { toast('Could not open the uploaded invoice', 'err'); return; }
+      if (blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
+      if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
+    } catch (_) { if (w) w.close(); toast('Could not open the uploaded invoice', 'err'); return; }
   }
   printInv(r);
 }
@@ -71,11 +72,15 @@ async function viewBillSale(r) {
   const list = r.attach || [];
   const a = list.find(x => /invoice|bill|scan|pdf|image/i.test((x.kind || '') + ' ' + (x.type || ''))) || list[0];
   if (a) {
+    // Open the uploaded scan straight in the browser's native PDF/image viewer
+    // (its own download/print/share) — no in-app wrapper. Reserve the tab
+    // synchronously so the pop-up isn't blocked after the await.
+    const w = window.open('', '_blank');
     try {
       const blob = await getAttachBlob(a.id);
-      if (blob) { const url = URL.createObjectURL(blob); QLX.viewDoc({ eyebrow: 'Uploaded bill', title: r.inv || '—', sub: r.party + ' · ' + a.name, fileUrl: url, fileType: a.type || blob.type, fileName: a.name, file: blob }); return; }
-      toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err');
-    } catch (_) { toast('Could not open the uploaded bill', 'err'); }
+      if (blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
+      if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
+    } catch (_) { if (w) w.close(); toast('Could not open the uploaded bill', 'err'); return; }
   }
   let html = ''; try { html = QLShell.getInvoiceHTML(r.idx); } catch (_) {}
   QLX.viewDoc({ eyebrow: 'GST Invoice', title: r.inv || '—', sub: r.party + ' · tax invoice', html: html || salesBillHTML(r), onPrint: () => printInv(r), onShare: () => shareInv(r) });
