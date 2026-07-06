@@ -149,7 +149,7 @@
     const sk = (w, h, r) => `<span class="qx-sk" style="display:inline-block;width:${w};height:${h}${r ? ';border-radius:' + r : ''}"></span>`;
     const stat = `<div class="qx-stat"><div class="qx-stat-top">${sk('30px', '30px', '9px')}${sk('80px', '12px')}</div><div style="margin:2px 0 8px">${sk('110px', '24px')}</div>${sk('70px', '11px')}</div>`;
     const row = `<div style="display:flex;gap:16px;align-items:center;padding:14px;border-bottom:1px solid var(--ql-divider)">${['30px', '110px', '150px', '80px', '80px', '90px'].map(w => sk(w, '14px')).join('')}</div>`;
-    return `<div class="qx-hero"><div class="qx-hero-l"><div>${sk('200px', '24px')}</div></div></div>
+    return `<div class="qx-hero"></div>
       <div class="qx-stats">${Array.from({ length: 6 }).map(() => stat).join('')}</div>
       <div class="qx-panel"><div class="qx-tb">${sk('220px', '22px')}<div class="qx-tb-sp"></div>${sk('190px', '22px')}</div>${Array.from({ length: 6 }).map(() => row).join('')}</div>`;
   }
@@ -158,10 +158,10 @@
   function heroHTML() {
     const tools = (CFG.tools || []).map((t, i) => `<button class="qx-btn" data-tool="${i}">${t.icon ? svg(t.icon) : ''}<span>${esc(t.label)}</span></button>`).join('');
     const prim = CFG.primary ? `<button class="qx-btn qx-btn-primary" id="qxPrimary">${svg(CFG.primary.icon || IC.plus)}<span>${esc(CFG.primary.label)}</span></button>` : '';
+    // Title text removed per request — the topbar breadcrumb already names the
+    // page. Empty left keeps the action buttons right-aligned.
     return `<div class="qx-hero">
-      <div class="qx-hero-l">
-        <div class="qx-hero-tt"><div class="qx-title">${esc(CFG.title)}</div></div>
-      </div>
+      <div class="qx-hero-l"></div>
       <div class="qx-hero-r">${tools}${prim}</div>
     </div>`;
   }
