@@ -65,6 +65,16 @@ function billHTML(r) {
     <div class="ft">System-generated from ${esc(co.name || 'QuickLimes')} · QuickLimes Purchase Register.</div>`;
 }
 function pdfWindow(r) { const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups to open the PDF'); return; } w.document.write('<html><head><title>Purchase Bill ' + esc(r.bill || '') + '</title></head><body>' + billHTML(r) + '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print()},250)}</scr' + 'ipt></body></html>'); w.document.close(); }
+/* View the actual bill: the UPLOADED file if one is attached, else the bill
+   generated from the manually-entered details (same layout). */
+async function viewBill(r) {
+  const list = r.attach || [];
+  const a = list.find(x => /invoice|bill|scan/i.test(x.kind || '')) || list[0];
+  if (a) {
+    try { const blob = await aOp('readonly', st => st.get(a.id)); if (blob) { const url = URL.createObjectURL(blob); QLX.viewDoc({ eyebrow: 'Uploaded bill', title: 'Bill ' + (r.bill || '—'), sub: r.sup + ' · ' + a.name, fileUrl: url, fileType: a.type, fileName: a.name, onPrint: () => window.open(url, '_blank') }); return; } } catch (_) {}
+  }
+  QLX.viewDoc({ eyebrow: 'Purchase bill', title: 'Bill ' + (r.bill || '—'), sub: r.sup + ' · generated from entry', html: billHTML(r), onPrint: () => pdfWindow(r) });
+}
 
 /* ══════════════════ DETAIL PANEL TABS ══════════════════ */
 function tabOverview(r) {
@@ -227,7 +237,7 @@ QLX.mount({
   ],
   status: { options: STATUSES, of: r => r.status, set: setStatus, dot: v => STDOT[v] },
   rowActions: r => [
-    { tt: 'Open', icon: IC.eye, onClick: r => QLX.open(r.idx) },
+    { tt: 'View bill', icon: IC.eye, onClick: viewBill },
     { tt: 'Edit', icon: IC.edit, onClick: r => QLShell.openPurchaseForm(r.idx) },
     ...(r.status !== 'paid' && r.status !== 'cancelled' ? [{ tt: 'Mark paid', icon: IC.check, cls: 'qx-ib-ok', onClick: markPaid }] : [])
   ],

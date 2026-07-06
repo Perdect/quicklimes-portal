@@ -380,6 +380,32 @@ button { font-family: inherit; cursor: pointer; }
 .tb-action.is-ai { color: var(--ql-brand-600); }
 .tb-action.is-ai:hover { background: var(--ql-brand-50); border-color: var(--ql-brand-100); }
 
+/* IMZA-style topbar search pill */
+.tb-search {
+  display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; margin-right: 2px;
+  border-radius: 10px; background: var(--ql-neutral-100); border: 1px solid transparent;
+  color: var(--ql-text-muted); font-size: 13px; font-weight: 500; cursor: pointer; min-width: 180px;
+  transition: background .15s var(--ql-ease-out), border-color .15s var(--ql-ease-out);
+}
+.tb-search:hover { background: var(--ql-bg-elevated); border-color: var(--ql-border); }
+.tb-search svg { width: 15px; height: 15px; flex: none; }
+.tb-search span { flex: 1; text-align: left; }
+.tb-search kbd { font-family: var(--ql-font-sans); font-size: 10.5px; font-weight: 600; color: var(--ql-text-muted); background: var(--ql-bg-elevated); border: 1px solid var(--ql-border); border-radius: 5px; padding: 1px 5px; }
+
+/* animated notification badge (IMZA bell) */
+.tb-bell { overflow: visible; }
+.tb-badge {
+  position: absolute; top: -3px; right: -3px; min-width: 17px; height: 17px; padding: 0 4px;
+  border-radius: 99px; background: var(--ql-danger-500); color: #fff; font-size: 10px; font-weight: 700;
+  display: grid; place-items: center; line-height: 1; box-shadow: 0 0 0 2px var(--ql-bg-elevated);
+}
+.tb-badge[hidden] { display: none; }
+.tb-bell.has-notif svg { animation: tb-ring 2.8s var(--ql-ease-in-out) infinite; transform-origin: 50% 3px; }
+.tb-bell.has-notif .tb-badge { animation: tb-pulse 2s var(--ql-ease-out) infinite; }
+@keyframes tb-ring { 0%,48%,100% { transform: rotate(0); } 52% { transform: rotate(15deg); } 57% { transform: rotate(-12deg); } 62% { transform: rotate(9deg); } 67% { transform: rotate(-6deg); } 72% { transform: rotate(0); } }
+@keyframes tb-pulse { 0%,100% { box-shadow: 0 0 0 2px var(--ql-bg-elevated), 0 0 0 0 rgba(239,68,68,.5); } 50% { box-shadow: 0 0 0 2px var(--ql-bg-elevated), 0 0 0 5px rgba(239,68,68,0); } }
+@media (max-width: 640px) { .tb-search { min-width: 0; width: 36px; padding: 0; justify-content: center; } .tb-search span, .tb-search kbd { display: none; } }
+
 .tb-avatar {
   width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--ql-radius-pill);
   background: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-700));

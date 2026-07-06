@@ -18,6 +18,28 @@ function partyCell(r) { return `<span class="qx-party-n" style="font-weight:600"
 
 /* ── mutations ── */
 function printInv(r) { QLShell.printInvoice(r.idx); }
+/* Generated GST invoice (same layout as an uploaded bill), from manual entry */
+function salesBillHTML(r) {
+  const co = Q.co || {}, cg = r.gst / 2, money = n => '₹' + fmt(n), rate = r.qty ? r.taxable / r.qty : 0;
+  const st = (r.status === 'paid' || r.status === 'cash') ? 'paid' : (r.status === 'partial' ? 'partial' : 'pending');
+  return `<style>*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;padding:32px;font-size:13px}
+    .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0f172a;padding-bottom:14px}
+    .co{font-size:19px;font-weight:800}.mut{color:#64748b;font-size:12px;line-height:1.5}.doc{text-align:right}.doc h1{font-size:15px;margin:0;letter-spacing:2px;color:#2563eb}
+    .grid{display:flex;justify-content:space-between;gap:24px;margin:18px 0}.lbl{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:3px}.nm{font-weight:700;font-size:14px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}th,td{padding:9px 10px;text-align:left;border-bottom:1px solid #e2e8f0}th{background:#f8fafc;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#64748b}td.r,th.r{text-align:right}
+    .tot{margin-left:auto;width:280px;margin-top:14px}.tot .row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px}.tot .g{font-weight:800;font-size:16px;border-top:2px solid #0f172a;padding-top:10px;margin-top:4px}
+    .pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700}.paid{background:#dcfce7;color:#15803d}.pending,.partial{background:#fef3c7;color:#b45309}
+    .ft{margin-top:26px;color:#94a3b8;font-size:11px;border-top:1px solid #e2e8f0;padding-top:12px}</style>
+    <div class="hd"><div><div class="co">${esc(co.name || 'Your Company')}</div><div class="mut">${esc(co.address || '')}${co.gstin ? '<br>GSTIN: ' + esc(co.gstin) : ''}${co.phone ? ' · ' + esc(co.phone) : ''}</div></div>
+      <div class="doc"><h1>TAX INVOICE</h1><div class="mut">Invoice: <b>${esc(r.inv || '—')}</b><br>Date: ${fDS(r.date)}<br><span class="pill ${st}">${st.toUpperCase()}</span></div></div></div>
+    <div class="grid"><div><div class="lbl">Billed to</div><div class="nm">${esc(r.party)}</div><div class="mut">${r.gstin ? 'GSTIN: ' + esc(r.gstin) : ''}</div></div>
+      <div style="text-align:right"><div class="lbl">Vehicle</div><div class="nm">${esc(r.veh || '—')}</div></div></div>
+    <table><thead><tr><th>Product</th><th class="r">Qty (T)</th><th class="r">Rate</th><th class="r">Taxable</th></tr></thead>
+      <tbody><tr><td>⚪ Quick Lime</td><td class="r">${fmt(r.qty, 2)}</td><td class="r">${money(rate)}</td><td class="r">${money(r.taxable)}</td></tr></tbody></table>
+    <div class="tot"><div class="row"><span>Taxable value</span><span>${money(r.taxable)}</span></div><div class="row"><span>CGST</span><span>${money(cg)}</span></div><div class="row"><span>SGST</span><span>${money(cg)}</span></div><div class="row g"><span>Total</span><span>${money(r.total)}</span></div></div>
+    <div class="ft">System-generated from ${esc(co.name || 'QuickLimes')} · QuickLimes Sales Register.</div>`;
+}
+function viewBillSale(r) { QLX.viewDoc({ eyebrow: 'GST Invoice', title: r.inv || '—', sub: r.party + ' · generated from entry', html: salesBillHTML(r), onPrint: () => printInv(r) }); }
 function setStatus(r, val) { Q.setSaleStatus(r.idx, val, (val === 'paid' || val === 'cash') ? { paidDate: todayISO, paidMode: val === 'cash' ? 'Cash' : 'Bank' } : {}); }
 function delInv(r) { if (confirm('Delete invoice ' + (r.inv || '') + ' for ' + r.party + '?')) { Q.deleteSale(r.idx); toast('Invoice deleted'); QLX.refresh(); } }
 function dupInv(r) { const s = Q.state.SALES[r.idx]; Q.addSale(Object.assign({}, s, { inv: (s.inv || '') + '-COPY', status: 'pending', paid: 0, payments: [] })); toast('Invoice duplicated'); QLX.refresh(); }
@@ -148,7 +170,7 @@ QLX.mount({
   ],
   status: { options: STATUSES, of: r => r.status, set: setStatus, dot: v => STDOT[v] },
   rowActions: r => [
-    { tt: 'Open', icon: IC.eye, onClick: r => QLX.open(r.idx) },
+    { tt: 'View bill', icon: IC.eye, onClick: viewBillSale },
     { tt: 'Print invoice', icon: IC.print, onClick: printInv },
     { tt: 'Edit', icon: IC.edit, onClick: r => QLShell.openSaleForm(r.idx) }
   ],

@@ -479,9 +479,38 @@
   /* ══════════════════ TOAST ══════════════════ */
   function toast(m, tone) { TOAST.textContent = m; TOAST.className = 'qx-toast ' + (tone || ''); TOAST.hidden = false; clearTimeout(_tt); _tt = setTimeout(() => { TOAST.hidden = true; }, 2600); }
 
+  /* ══════════════════ BILL / DOC VIEWER ══════════════════
+     Opens an uploaded file (image/PDF) or a generated bill (HTML) in a
+     right-side drawer with Download / Print / Close. */
+  function viewDoc(opts) {
+    opts = opts || {};
+    let back = document.getElementById('qxDocBack');
+    if (!back) {
+      back = document.createElement('div'); back.id = 'qxDocBack'; back.className = 'qx-dp-back qx-a-blue';
+      back.innerHTML = '<aside class="qx-dp" id="qxDoc"></aside>';
+      document.body.appendChild(back);
+      back.addEventListener('click', e => { if (e.target.id === 'qxDocBack') close(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+    }
+    function close() { back.classList.remove('open'); }
+    let body;
+    if (opts.fileUrl) {
+      body = /image\//.test(opts.fileType || '') || /\.(png|jpe?g|gif|webp)$/i.test(opts.fileName || '')
+        ? `<img src="${opts.fileUrl}" alt="bill" style="max-width:100%;border-radius:10px;border:1px solid var(--ql-border)">`
+        : `<iframe src="${opts.fileUrl}" class="qx-inv-frame" style="height:76vh" title="bill"></iframe>`;
+    } else body = `<iframe class="qx-inv-frame" style="height:76vh" srcdoc="${esc(opts.html || '')}" title="bill"></iframe>`;
+    const dl = opts.fileUrl ? `<a class="qx-btn qx-btn-sm" href="${opts.fileUrl}" download="${esc(opts.fileName || 'bill')}">${svg(IC.dl)} Download</a>` : '';
+    const pr = opts.onPrint ? `<button class="qx-btn qx-btn-sm" id="qxDocPr">${svg(IC.print)} Print</button>` : '';
+    const dp = document.getElementById('qxDoc');
+    dp.innerHTML = `<div class="qx-dp-head"><div class="qx-dp-top"><div><div class="qx-dp-eyebrow">${svg(IC.file)} ${esc(opts.eyebrow || 'Bill')}</div><div class="qx-dp-t">${esc(opts.title || '')}</div><div class="qx-dp-s">${esc(opts.sub || '')}</div></div><button class="qx-dp-x" id="qxDocX">${svg(IC.x)}</button></div><div class="qx-dp-actions">${dl}${pr}</div></div><div class="qx-dp-body">${body}</div>`;
+    document.getElementById('qxDocX').onclick = close;
+    if (opts.onPrint) document.getElementById('qxDocPr').onclick = () => opts.onPrint();
+    back.classList.add('open');
+  }
+
   /* ══════════════════ PUBLIC API ══════════════════ */
   window.QLX = {
-    mount, refresh, toast,
+    mount, refresh, toast, viewDoc,
     open: openDetail, close: closeDetail,
     actionsCell, icons: IC, svg, esc, avColor,
     // helpers configs can use to build cells

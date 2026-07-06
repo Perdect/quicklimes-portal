@@ -183,12 +183,13 @@
       <span class="tb-crumb-active">Dashboard</span>
     </nav>
     <div class="tb-spacer"></div>
-    <button class="tb-action" title="New (N)" onclick="QLShell.openPalette()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <button class="tb-search" onclick="QLShell.openPalette()" aria-label="Search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span>Search…</span><kbd>⌘K</kbd>
     </button>
-    <button class="tb-action" title="Notifications" onclick="QLShell.openNotifications()">
+    <button class="tb-action tb-bell" title="Notifications" onclick="QLShell.openNotifications()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      <span class="tb-action-dot" id="tbNotifDot" style="display:none"></span>
+      <span class="tb-badge" id="tbNotifBadge" hidden>0</span>
     </button>
     <button class="tb-action is-ai" title="Ask AI" onclick="QLShell.openAssistant()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9 12 2"/></svg>
@@ -929,7 +930,14 @@
       : `<div class="ql-drawer-empty"><div style="font-size:34px">✅</div><div style="font-weight:700;color:var(--ql-text)">All caught up</div><div>No pending alerts right now.</div></div>`;
     $('qlDrawerBody').innerHTML = html;
   }
-  function refreshNotifDot() { try { QLShell.setNotifDot(notifActive().some(n => n.priority === 'high')); } catch (_) {} }
+  function refreshNotifDot() {
+    try {
+      const n = notifActive().length;
+      const badge = $('tbNotifBadge'), bell = document.querySelector('.tb-bell');
+      if (badge) { badge.textContent = n > 99 ? '99+' : n; badge.hidden = n === 0; }
+      if (bell) bell.classList.toggle('has-notif', n > 0);
+    } catch (_) {}
+  }
   // actions
   function notifOpen(id) { const n = _notifById[id]; if (n && n.page) { closeDrawer(); location.href = n.page; } }
   function notifWA(id) { const n = _notifById[id]; if (n) window.open(waLink(n.phone, n.wa || `Dear ${n.party || ''}, regarding ${window.QLD.fC(n.amount || 0)} — `), '_blank'); }
