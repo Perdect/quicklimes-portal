@@ -90,7 +90,7 @@
       { id: 'suppliers', label: 'Suppliers',         href: 'parties.html#supplier', icon: I.factory }
     ]},
     { type: 'group', label: 'Finance', feat: 'finance', items: [
-      { id: 'finance',  label: 'Payments',                 href: 'finance.html',  icon: I.bank },
+      { id: 'finance',  label: 'Payments Center',          href: 'payments.html', icon: I.bank },
       { id: 'cashbook', label: 'Expenses',                 href: 'cashbook.html', icon: I.card },
       { id: 'loans',    label: 'Partner Ledger / Loans',   href: 'loans.html',    icon: I.receipt },
       { id: 'gst',      label: 'GST Filing', href: 'gst.html', icon: I.receipt, feat: 'advfinance' },
@@ -1204,7 +1204,7 @@
     setBreadcrumb(label) { const c = document.querySelector('.tb-crumb-active'); if (c) c.textContent = label; },
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
     // form modals + row action menus
-    closeModal, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
+    closeModal, openForm, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
     rowMenu, printInvoice, exportCSV,
     formPrompt(title, specs, onSave, sub) { openForm({ title, sub, specs, saveLabel: 'Save', initial: {}, onSave(v) { onSave(v); } }); },
 

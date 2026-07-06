@@ -134,7 +134,8 @@
     const root = document.getElementById('qxRoot'); if (!root) return;
     try {
       const rows = filtered();
-      const html = heroHTML() + statsHTML() + `<div class="qx-panel">${toolbarHTML(rows)}${advHTML()}<div id="qxView">${viewHTML(rows)}</div></div>`;
+      const banner = CFG.banner ? (CFG.banner(allRows()) || '') : '';
+      const html = heroHTML() + statsHTML() + banner + `<div class="qx-panel">${toolbarHTML(rows)}${advHTML()}<div id="qxView">${viewHTML(rows)}</div></div>`;
       root.innerHTML = html;         // atomic — if building `html` throws, prior content stays
       root.dataset.ready = '1';
       wire(rows);

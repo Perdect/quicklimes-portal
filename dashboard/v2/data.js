@@ -410,11 +410,13 @@
   function salesRows() {
     return S.SALES.map((s, i) => {
       const c = cS(s);
+      const paid = (s.status === 'paid' || s.status === 'cash') ? c.tot : (+s.paid || 0);
       return {
         idx: i, inv: s.inv, date: s.date, party: s.party || '—',
         qty: s.qty || 0, taxable: c.tx, gst: c.cgst + c.sgst, total: c.tot,
         status: s.status || 'pending', veh: s.veh || '', gstin: s.gstin || '',
-        days: daysAgo(s.date)
+        days: daysAgo(s.date), paid, outstanding: Math.max(0, c.tot - paid),
+        payments: s.payments || [], paidMode: s.paidMode || '', paidDate: s.paidDate || ''
       };
     });
   }
@@ -508,8 +510,10 @@
     });
   }
   function fmtISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
-  // Record a (possibly partial) payment against a purchase bill.
-  function recordPurchasePayment(i, amount, mode, date) {
+  // Record a (possibly partial) payment against a purchase bill. Also posts
+  // ONE debit to the unified money ledger (CASHBOOK) so the payment flows into
+  // account balances, the Cash Book and the Payments Center automatically.
+  function recordPurchasePayment(i, amount, mode, date, extra) {
     const p = S.PURCHASES[i]; if (!p) return;
     const c = cP(p); amount = +amount || 0;
     const prev = +p.paid || (p.status === 'paid' ? c.tot : 0);
@@ -517,6 +521,8 @@
     p.paid = paid;
     p.payments = (p.payments || []).concat([{ date: date || fmtISO(new Date()), amount, mode: mode || 'bank' }]);
     p.status = paid >= c.tot - 0.5 ? 'paid' : (paid > 0 ? 'partial' : 'pending');
+    extra = extra || {};
+    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: date || fmtISO(new Date()), type: 'debit', mode: methodToMode(mode), method: extra.method || modeToMethod(methodToMode(mode)), ptype: 'Purchase Payment', party: p.sup || '—', ref: extra.ref || p.bill || '', amount, notes: extra.notes || '', link: { kind: 'purchase', idx: i } });
     commit();
   }
   // Per-bill AI insights.
@@ -726,6 +732,94 @@
       outstanding: r.reduce((a, x) => a + x.outstanding, 0),
       monthlyEmi: r.reduce((a, x) => a + x.emi, 0)
     };
+  }
+
+  /* ── Payments Center — ONE unified money ledger over CASHBOOK ──
+     Every payment (sales receipt, supplier payment, expense, salary, EMI,
+     transfer, partner draw) posts ONE cashbook entry carrying its type,
+     party, ref, method and a link to what it settles. Balances and the
+     Payments timeline are derived from that single source, so nothing is
+     double-counted and one payment updates every related module. */
+  const PAY_METHODS = ['Cash', 'Bank', 'PhonePe', 'Google Pay', 'UPI', 'Cheque', 'NEFT', 'RTGS', 'IMPS'];
+  const PAY_TYPES = ['Sales Payment', 'Purchase Payment', 'Expense', 'Salary', 'Loan EMI', 'Cash Deposit', 'Cash Withdrawal', 'Bank Transfer', 'UPI Transfer', 'Partner Withdrawal', 'Partner Investment', 'Other'];
+  function methodToMode(m) { m = (m || '').toString().toLowerCase(); if (/cash/.test(m)) return 'cash'; if (/phonep|google|gpay|upi/.test(m)) return 'upi'; return 'bank'; }
+  function modeToMethod(m) { return { cash: 'Cash', bank: 'Bank', upi: 'UPI', phonepay: 'PhonePe' }[m] || 'Bank'; }
+  function accountBalances() {
+    const openA = (S.FINANCE && S.FINANCE.opening) || {};
+    const bucket = b => S.CASHBOOK.reduce((s, e) => methodToMode(e.method || e.mode) !== b ? s : s + (e.type === 'credit' ? 1 : -1) * (+e.amount || 0), +openA[b] || 0);
+    const cash = bucket('cash'), bank = bucket('bank'), upi = bucket('upi');
+    return { cash, bank, upi, total: cash + bank + upi };
+  }
+  function paymentsLedger() {
+    const asc = S.CASHBOOK.map((e, i) => ({
+      id: e.id || ('cb' + i), idx: i, date: e.date || '',
+      party: e.party || e.category || '—', ptype: e.ptype || (e.type === 'credit' ? 'Receipt' : 'Payment'),
+      ref: e.ref || '', method: e.method || modeToMethod(e.mode), mode: methodToMode(e.method || e.mode),
+      dir: e.type === 'credit' ? 'in' : 'out',
+      credit: e.type === 'credit' ? (+e.amount || 0) : 0, debit: e.type === 'debit' ? (+e.amount || 0) : 0,
+      amount: +e.amount || 0, status: e.status || 'Completed', notes: e.notes || '', link: e.link || null, category: e.category || ''
+    })).sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.idx - b.idx));
+    let run = 0; asc.forEach(e => { run += e.credit - e.debit; e.balance = run; });
+    return asc.reverse();   // latest first for the table
+  }
+  function paymentsSummary() {
+    const today = fmtISO(new Date()), led = paymentsLedger(), bal = accountBalances();
+    const inToday = led.filter(e => e.date === today).reduce((s, e) => s + e.credit, 0);
+    const outToday = led.filter(e => e.date === today).reduce((s, e) => s + e.debit, 0);
+    const sales = salesRows(), purch = purchaseRows();
+    const custOutstanding = sales.reduce((s, r) => s + (r.status === 'cancelled' ? 0 : r.outstanding), 0);
+    const openBills = purch.filter(r => r.status !== 'paid' && r.status !== 'cancelled');
+    return { inToday, outToday, custOutstanding, supOutstanding: openBills.reduce((s, r) => s + r.outstanding, 0), cash: bal.cash, bank: bal.bank, upi: bal.upi, total: bal.total, pendingBills: openBills.length, count: led.length };
+  }
+  function receiveSalesPayment(i, o) {
+    const s = S.SALES[i]; if (!s) return; o = o || {};
+    const c = cS(s), amount = +o.amount || 0;
+    const prev = (s.status === 'paid' || s.status === 'cash') ? c.tot : (+s.paid || 0);
+    const paid = Math.min(c.tot, prev + amount);
+    s.paid = paid; s.status = paid >= c.tot - 0.5 ? 'paid' : (paid > 0 ? 'partial' : 'pending');
+    s.paidDate = o.date || fmtISO(new Date()); s.paidMode = o.method || 'Bank';
+    s.payments = (s.payments || []).concat([{ date: s.paidDate, amount, method: o.method || 'Bank' }]);
+    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: s.paidDate, type: 'credit', mode: methodToMode(o.method), method: o.method || 'Bank', ptype: 'Sales Payment', party: s.party || '—', ref: o.ref || s.inv || '', amount, notes: o.notes || '', link: { kind: 'sale', idx: i } });
+    commit();
+  }
+  function payPurchaseBill(i, o) { o = o || {}; recordPurchasePayment(i, o.amount, methodToMode(o.method), o.date, { method: o.method, ref: o.ref, notes: o.notes }); }
+  function addLedgerPayment(o) {
+    o = o || {};
+    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: o.date || fmtISO(new Date()), type: o.dir === 'in' ? 'credit' : 'debit', mode: methodToMode(o.method), method: o.method || 'Cash', ptype: o.ptype || 'Other', party: o.party || '—', ref: o.ref || '', amount: +o.amount || 0, notes: o.notes || '', category: o.category || '', link: o.link || null });
+    commit();
+  }
+  function addTransfer(o) {
+    o = o || {}; const amt = +o.amount || 0, date = o.date || fmtISO(new Date());
+    const ref = o.ref || ((o.fromMethod || '') + ' → ' + (o.toMethod || '')), party = o.party || 'Self transfer', ptype = o.ptype || 'Bank Transfer';
+    S.CASHBOOK.push({ id: 'cb' + idStamp(), date, type: 'debit', mode: methodToMode(o.fromMethod), method: o.fromMethod || 'Cash', ptype, party, ref, amount: amt, notes: o.notes || '', link: { kind: 'transfer' } });
+    S.CASHBOOK.push({ id: 'cb' + idStamp(), date, type: 'credit', mode: methodToMode(o.toMethod), method: o.toMethod || 'Bank', ptype, party, ref, amount: amt, notes: o.notes || '', link: { kind: 'transfer' } });
+    commit();
+  }
+  function saveLoans() { try { localStorage.setItem('dm_loans', JSON.stringify(ALL_LOANS)); } catch (_) {} }
+  function payLoanEmi(i, o) {
+    o = o || {}; const loans = ALL_LOANS.filter(l => l.company === ACTIVE_CO), l = loans[i]; if (!l) return;
+    const insts = l.installments || [], nx = insts.find(x => !x.paid);
+    if (nx) { nx.paid = true; nx.paidDate = o.date || fmtISO(new Date()); }
+    const amt = +o.amount || (nx ? nx.amount : l.emi) || 0;
+    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: o.date || fmtISO(new Date()), type: 'debit', mode: methodToMode(o.method), method: o.method || 'Bank', ptype: 'Loan EMI', party: l.name || l.bank || 'Loan', ref: o.ref || '', amount: amt, notes: o.notes || '', link: { kind: 'loan', idx: i } });
+    saveLoans(); commit();
+  }
+  function deleteLedgerEntry(i) { if (S.CASHBOOK[i]) { S.CASHBOOK.splice(i, 1); commit(); } }
+  function paymentsInsights() {
+    const out = [], today = fmtISO(new Date()), led = paymentsLedger();
+    const recv = salesRows().filter(r => r.status !== 'cancelled' && r.outstanding > 0).sort((a, b) => b.outstanding - a.outstanding);
+    if (recv[0]) out.push({ tone: 'warn', icon: '💰', text: `${recv[0].party} owes you ${fC(recv[0].outstanding)} — your largest receivable.` });
+    const purch = purchaseRows().filter(r => r.status !== 'paid' && r.status !== 'cancelled' && r.dueDate);
+    const weekEnd = fmtISO(new Date(Date.now() + 7 * 864e5));
+    const dueWk = purch.filter(r => r.dueDate <= weekEnd);
+    if (dueWk.length) out.push({ tone: 'info', icon: '📅', text: `${dueWk.length} supplier bill${dueWk.length > 1 ? 's' : ''} (${fC(dueWk.reduce((s, r) => s + r.outstanding, 0))}) due within a week.` });
+    const big = led.filter(e => e.date === today).sort((a, b) => b.amount - a.amount)[0];
+    if (big) out.push({ tone: 'ok', icon: '⭐', text: `Largest transaction today: ${big.ptype} ${fC(big.amount)} — ${big.party}.` });
+    const emi = loanRows().filter(l => l.nextDue).sort((a, b) => (a.nextDue || '').localeCompare(b.nextDue || ''))[0];
+    if (emi) out.push({ tone: 'info', icon: '🏦', text: `Next EMI ${fC(emi.nextAmt)} to ${emi.name}${emi.nextDue ? ' on ' + fDS(emi.nextDue) : ''}.` });
+    const bal = accountBalances();
+    if (bal.cash < 20000) out.push({ tone: 'bad', icon: '⚠️', text: `Cash running low: ${fC(bal.cash)}. Prioritise collections.` });
+    return out;
   }
 
   /* ── Amount in words (Indian numbering — ported from v1 wn) ──── */
@@ -989,6 +1083,10 @@
     purchaseRows, purchaseSummary, partyRows, partySummary,
     purchaseGroups: PURCHASE_GROUPS, departments: DEPARTMENTS, purchaseByGroup, purchaseInsights,
     recordPurchasePayment, billInsights, relatedBills, itemIcon,
+    // ── Payments Center (one unified money ledger) ──
+    paymentsLedger, paymentsSummary, paymentsInsights, accountBalances,
+    receiveSalesPayment, payPurchaseBill, addLedgerPayment, addTransfer, payLoanEmi, deleteLedgerEntry,
+    paymentMethods: PAY_METHODS, paymentTypes: PAY_TYPES, methodToMode,
     labourRows, labourSummary, cashbookRows, cashbookBalances,
     loanRows, loanSummary, gstSummary,
     getPL, chunnaRows, chunnaSummary, attendanceData,
