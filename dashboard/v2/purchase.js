@@ -39,7 +39,7 @@ function waLink(phone, text) { const d = (phone || '').replace(/\D/g, ''); const
 /* ── Columns ── */
 const ALLCOLS = [
   { key: 'sr', label: '#' }, { key: 'bill', label: 'Bill No', sort: 1 }, { key: 'date', label: 'Bill Date', sort: 1 },
-  { key: 'sup', label: 'Supplier', sort: 1 }, { key: 'item', label: 'Purchase Item', sort: 1 }, { key: 'group', label: 'Group', sort: 1 },
+  { key: 'sup', label: 'Supplier', sort: 1 }, { key: 'item', label: 'Purchase Item', sort: 1 },
   { key: 'dept', label: 'Department', sort: 1, opt: 1 }, { key: 'grate', label: 'GST', sort: 1, num: 1 },
   { key: 'taxable', label: 'Taxable', sort: 1, num: 1 }, { key: 'freightAmt', label: 'Freight', sort: 1, num: 1 },
   { key: 'total', label: 'Total', sort: 1, num: 1 }, { key: 'status', label: 'Status', sort: 1 },
@@ -110,7 +110,7 @@ function cell(col, r, sr) {
     case 'bill': return `<td><span class="prt-bill">${esc(r.bill || '—')}</span></td>`;
     case 'date': return `<td class="prt-mut">${fDS(r.date)}</td>`;
     case 'sup': { const c = AVG[(r.sup.charCodeAt(0) + r.sup.length) % AVG.length]; return `<td><div class="prt-sup"><span class="prt-av" style="background:linear-gradient(135deg,${c})">${(r.sup || '?').charAt(0).toUpperCase()}</span><span class="prt-sup-n">${esc(r.sup)}</span></div></td>`; }
-    case 'item': return `<td><span class="prt-item"><span class="prt-item-ic">${r.itemIconEmoji}</span>${esc(r.item)}</span>${r.freight ? ' <span class="pg-frt">freight</span>' : ''}</td>`;
+    case 'item': return `<td><span class="prt-item"><span class="prt-item-ic">${r.itemIconEmoji || r.emoji || '📦'}</span>${esc(r.item)}</span>${r.freight ? ' <span class="pg-frt">freight</span>' : ''}</td>`;
     case 'group': { const gc = GCOL[r.group] || GCOL.other; return `<td><span class="prt-gp" style="background:${gc[0]};color:${gc[1]}">${r.emoji} ${esc(r.groupLabel)}</span></td>`; }
     case 'dept': return `<td><span class="prt-dept">${esc(r.dept || '—')}</span></td>`;
     case 'grate': return `<td class="prt-num prt-mut">${r.grate}%</td>`;
