@@ -254,7 +254,7 @@ document.getElementById('srImport').addEventListener('click', () => QLFin.import
   tip: 'A spreadsheet imports many invoices at once. A photo or PDF of one bill is read with OCR and fills the form for you.',
   noun: 'invoice', addLabel: 'New invoice',
   accept: '.csv,.xlsx,.xls,.pdf,image/*', ocr: true,
-  ocrMap: { inv: 'docno', date: 'date', party: 'name', gstin: 'gstin', taxable: 'taxable', total: 'total', gstr: 'rate' },
+  ocrMap: { inv: 'docno', date: 'date', party: 'name', gstin: 'gstin', qty: 'qty', taxable: 'taxable', total: 'total', gstr: 'rate', veh: 'veh' },
   errText: 'No usable invoices found. Check that Date, Party and an amount column are mapped correctly.',
   headerGroups: [['date', 'invoice', 'bill', 'voucher'], ['party', 'customer', 'buyer', 'consignee', 'name', 'amount', 'taxable', 'total', 'rate']],
   fields: [

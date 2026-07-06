@@ -175,21 +175,24 @@
 
   /* ── OCR (Tesseract.js) — read a photo/PDF of a bill on-device ──── */
   const loadTesseract = () => loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js', 'tesseract').then(() => window.Tesseract);
-  // Pull the embedded text from a digital PDF (no OCR needed) — reconstructs
-  // visual lines by y-position so labels line up with their values.
-  async function pdfText(file) {
+  // Pull embedded text from a digital PDF (no OCR) — one entry per page, with
+  // visual lines reconstructed by y-position so labels line up with their values.
+  async function pdfPages(file) {
     const pdfjs = await loadPDF();
     const doc = await pdfjs.getDocument({ data: await readAsBuffer(file) }).promise;
-    let text = '';
-    for (let p = 1; p <= Math.min(doc.numPages, 10); p++) {
+    const pages = [];
+    for (let p = 1; p <= Math.min(doc.numPages, 200); p++) {
       const page = await doc.getPage(p);
       const content = await page.getTextContent();
       const byY = {};
       content.items.forEach(it => { const y = Math.round(it.transform[5]); (byY[y] = byY[y] || []).push({ x: it.transform[4], s: it.str }); });
+      let text = '';
       Object.keys(byY).map(Number).sort((a, b) => b - a).forEach(y => { const line = byY[y].sort((a, b) => a.x - b.x).map(o => o.s).join(' ').replace(/\s+/g, ' ').trim(); if (line) text += line + '\n'; });
+      pages.push(text);
     }
-    return text;
+    return pages;
   }
+  async function pdfText(file) { return (await pdfPages(file)).join('\n'); }
   // Render each PDF page to a PNG data URL (Tesseract reads images, not PDFs).
   async function pdfToImages(file, scale) {
     const pdfjs = await loadPDF();
@@ -217,6 +220,13 @@
   }
   // Best-effort field extraction from noisy OCR text. Returns GENERIC keys
   // (docno,date,name,gstin,taxable,total,rate); each page maps them to its own.
+  // Collapse a phrase that's the same thing twice — the "Billed to | Shipped to"
+  // side-by-side columns make names extract as "JAIDEV ASSOCIATES JAIDEV ASSOCIATES".
+  function dedupePhrase(s) {
+    const w = (s || '').trim().split(/\s+/);
+    if (w.length >= 2 && w.length % 2 === 0) { const h = w.length / 2; if (w.slice(0, h).join(' ').toLowerCase() === w.slice(h).join(' ').toLowerCase()) return w.slice(0, h).join(' '); }
+    return s;
+  }
   function parseInvoiceText(text) {
     const T = (text || '').replace(/\r/g, ''), up = T.toUpperCase(), out = {};
     const lines = T.split('\n').map(l => l.trim()).filter(Boolean);
@@ -231,36 +241,39 @@
     while ((mm = re.exec(T))) { if (/\d/.test(mm[1])) { doc = mm[1]; break; } }
     if (!doc) { re = /(?:invoice|bill|inv|voucher)\s*[:\-.]?\s*([A-Za-z0-9\/\-]*\d[A-Za-z0-9\/\-]*)/ig; while ((mm = re.exec(T))) { if (/\d/.test(mm[1])) { doc = mm[1]; break; } } }
     if (doc) out.docno = doc.replace(/[^A-Za-z0-9\/\-]/g, '');
-    // Date — must be a REAL d/m/y: month is 1-12 or a month name. This rejects an
-    // invoice number like "1/2026-27" (month "2026" is invalid). Prefer one near a "date" label.
+    // Date — a REAL d/m/y (month 1-12 or a name); rejects "1/2026-27". Prefer "Date"/"Dated".
     const MON = 'jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec';
     const dre = new RegExp('(\\d{1,2})[\\/\\-. ]{1,2}(\\d{1,2}|' + MON + ')[a-z]*[\\/\\-. ]{1,2}(\\d{2,4})', 'ig');
     const pick = scope => { dre.lastIndex = 0; let d; while ((d = dre.exec(scope))) { const day = +d[1], named = /[a-z]/i.test(d[2]), mo = named ? 1 : +d[2]; if (day >= 1 && day <= 31 && (named || (mo >= 1 && mo <= 12))) return d[0].replace(/\s+/g, ' ').trim(); } return ''; };
-    const near = T.match(/\bdate\b\s*[:\-]?\s*([^\n]{0,22})/i);
+    const near = T.match(/\bdate[d]?\b\s*[:\-]?\s*([^\n]{0,22})/i);
     const dt = (near && pick(near[1])) || pick(T);
     if (dt) out.date = dt;
-    // Amounts by label.
-    const grab = labels => { for (const L of labels) { const g = T.match(new RegExp(L + '[^0-9\\-]{0,18}([0-9][0-9,]*\\.?[0-9]{0,2})', 'i')); if (g) return g[1].replace(/,/g, ''); } return ''; };
-    const tot = grab(['grand total', 'invoice value', 'total value', 'total amount', 'net amount', 'bill amount', 'amount payable', 'total']);
-    const tax = grab(['taxable value', 'taxable amount', 'taxable', 'sub ?total', 'basic value', 'basic amount']);
-    if (tot) out.total = tot; if (tax) out.taxable = tax;
-    let m = up.match(/\b(0|5|12|18|28)\s?%/); if (m) out.rate = m[1];
-    // Vehicle number (e.g. RJ 19 GJ 0746).
+    const amts = s => (s.match(/[\d,]+\.\d{2}/g) || []).map(n => +n.replace(/,/g, ''));
+    // Grand total — the largest rupee amount on the "grand total" line.
+    const gl = lines.find(l => /grand\s*total/i.test(l));
+    if (gl) { const n = amts(gl); if (n.length) out.total = String(Math.max.apply(null, n)); }
+    if (!out.total) { const g = T.match(/(?:invoice value|total amount|net amount|amount payable)[^0-9\-]{0,12}([0-9][0-9,]*\.?[0-9]{0,2})/i); if (g) out.total = g[1].replace(/,/g, ''); }
+    // Quantity — "<qty> Tonne/MT" (on the grand-total line, else anywhere).
+    let qm = (gl || '').match(/([\d,]+\.?\d*)\s*(?:tonne|mt|kgs?|nos|ton)\b/i) || T.match(/([\d,]+\.\d{1,3})\s*(?:tonne|mt|ton)\b/i);
+    if (qm) out.qty = qm[1].replace(/,/g, '');
+    // Taxable — the subtotal shown right before "Add : CGST/IGST", else a labelled value.
+    const ai = lines.findIndex(l => /^add\s*[:.]?\s*(c?gst|igst|sgst)/i.test(l));
+    if (ai > 0) for (let j = ai - 1; j >= Math.max(0, ai - 3); j--) { const n = amts(lines[j]); if (n.length) { out.taxable = String(Math.max.apply(null, n)); break; } }
+    if (!out.taxable) { const g = T.match(/(?:taxable\s*(?:value|amt|amount)|basic\s*(?:value|amount))[^0-9\-]{0,12}([0-9][0-9,]*\.?[0-9]{0,2})/i); if (g) out.taxable = g[1].replace(/,/g, ''); }
+    // GST rate — whole-number rate ("5%") from the HSN summary, else IGST/GST %.
+    let m = up.match(/\b(5|12|18|28|3)\s?%/); if (!m) m = up.match(/i?gst\s*@?\s*(\d{1,2})(?:\.0+)?\s*%/i);
+    if (m) out.rate = m[1];
+    // Vehicle number (e.g. RJ 09 GE 0425).
     m = up.match(/\b([A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{1,3}[\s\-]?\d{3,4})\b/); if (m) out.veh = m[1].replace(/[\s\-]/g, '');
-    // Party name — labelled buyer field → "M/s" → a name-like line near the party GSTIN.
-    const BAD = /road|street|nagar|dist|state|pin|mobile|phone|gstin|invoice|hsn|rajasthan|india|\d{6}/i;
+    // Party name — "Billed to"/Buyer next line → labelled → M/s → near party GSTIN.
+    const BAD = /road|street|nagar|\bdist\b|state|\bpin\b|mobile|phone|gstin|invoice|hsn|ward|tehsil|khasara|rajasthan|gujarat|india|shipped|^\d|\d{6}/i;
     let nm = '';
-    m = T.match(/(?:bill\s*to|buyer|party\s*name|consignee|customer(?:\s*name)?|name\s*of\s*(?:party|customer|buyer|consignee))\s*[:\-]?\s*([A-Za-z][A-Za-z0-9 &.,'()\-]{2,40})/i);
-    if (m && !BAD.test(m[1])) nm = m[1];
-    if (!nm) { const ml = lines.find(l => /^m\/?s\.?\s+\S/i.test(l)); if (ml) nm = ml.replace(/^m\/?s\.?\s+/i, ''); }
-    if (!nm && partyG) {
-      const gi = lines.findIndex(l => l.toUpperCase().includes(partyG));
-      if (gi >= 0) for (let j = gi; j >= Math.max(0, gi - 4); j--) {
-        const cand = lines[j].replace(/gstin.*/i, '').replace(/^(m\/?s\.?|to|buyer|bill\s*to)\s*[:,]?\s*/i, '').trim();
-        if (cand.length >= 3 && cand.length <= 40 && /[A-Za-z]{3}/.test(cand) && !BAD.test(cand)) { nm = cand; break; }
-      }
-    }
-    if (nm) out.name = nm.replace(/[.,;]+$/, '').trim().slice(0, 40);
+    const bi = lines.findIndex(l => /^(billed\s*to|bill\s*to|buyer|consignee)\b/i.test(l));
+    if (bi >= 0) { let a = lines[bi].replace(/^(billed\s*to|bill\s*to|buyer|consignee)\b\s*:?\s*/i, '').trim(); if ((!a || a.length < 3) && lines[bi + 1]) a = lines[bi + 1].trim(); a = dedupePhrase(a); if (a && !BAD.test(a)) nm = a; }
+    if (!nm) { m = T.match(/(?:party\s*name|customer(?:\s*name)?|name\s*of\s*(?:party|customer|buyer))\s*[:\-]?\s*([A-Za-z][A-Za-z0-9 &.,'()\-]{2,40})/i); if (m && !BAD.test(m[1])) nm = dedupePhrase(m[1]); }
+    if (!nm) { const ml = lines.find(l => /^m\/?s\.?\s+\S/i.test(l)); if (ml) nm = dedupePhrase(ml.replace(/^m\/?s\.?\s+/i, '')); }
+    if (!nm && partyG) { const gi = lines.findIndex(l => l.toUpperCase().includes(partyG)); if (gi >= 0) for (let j = gi; j >= Math.max(0, gi - 4); j--) { const cand = dedupePhrase(lines[j].replace(/gstin.*/i, '').trim()); if (cand.length >= 3 && cand.length <= 40 && /[A-Za-z]{3}/.test(cand) && !BAD.test(cand)) { nm = cand; break; } } }
+    if (nm) out.name = nm.replace(/[.,;:]+$/, '').trim().slice(0, 40);
     return out;
   }
 
@@ -667,10 +680,16 @@
       if (cfg.ocr && isImg) { ocrOffer(f); return; }
       if (cfg.ocr && isPdf) {
         // Prefer the PDF's own embedded text (digital invoice) — instant, accurate,
-        // no OCR download. Only scanned/image PDFs fall back to Tesseract.
-        let text = '';
-        try { text = await pdfText(f); } catch (e) {}
-        if (text && /\d/.test(text) && text.replace(/\s+/g, '').length > 60) { ocrReview(parseInvoiceText(text)); return; }
+        // no OCR download. Each page is one bill: 2+ pages → bulk import; 1 → review;
+        // no embedded text (scanned PDF) → fall back to Tesseract OCR.
+        let pages = [];
+        try { pages = await pdfPages(f); } catch (e) {}
+        const hasText = pages.filter(t => t && /\d/.test(t) && t.replace(/\s+/g, '').length > 60);
+        if (hasText.length) {
+          const bills = pages.map(t => ocrBuild(parseInvoiceText(t))).filter(Boolean);
+          if (bills.length >= 2) { finishImport(bills, null); return; }
+          if (bills.length === 1) { ocrReview(parseInvoiceText(hasText[0])); return; }
+        }
         ocrOffer(f); return;
       }
       let parsed;
@@ -721,22 +740,31 @@
         if (it) items.push(it);
       }
       if (!items.length) { res().innerHTML = '<div class="fin-up-err">' + (cfg.errText || 'No usable rows found — check the column mapping.') + '</div><a class="fin-remap" id="qlfRemap">↺ Re-map columns</a>'; wireRemap(rows, hi, mapping); return; }
+      finishImport(items, () => mapper(rows, hi, mapping));
+    }
+    // Dedup + preview table + bulk import. remapFn (optional) wires a "re-map" link.
+    function finishImport(items, remapFn) {
       const existing = cfg.existing ? cfg.existing() : new Set();
       const keyOf = cfg.keyOf || (() => '');
       const fresh = items.filter(it => { const k = keyOf(it); return !(k && existing.has(k)); });
       const dupes = items.length - fresh.length;
-      const p = cfg.preview, prev = fresh.slice(0, 6), R = p.right || [];
+      const p = cfg.preview, prev = fresh.slice(0, 8), R = p.right || [];
       res().innerHTML =
         '<div class="fin-up-ok">✓ Found <b>' + items.length + '</b> ' + plural(items.length) + (dupes ? ' · ' + dupes + ' already added (skipped)' : '') + '</div>' +
         '<div class="sr-table-wrap fin-up-prev"><table class="sr fin-table"><thead><tr>' + p.headers.map((h, i) => '<th' + (R.includes(i) ? ' class="r"' : '') + '>' + h + '</th>').join('') + '</tr></thead><tbody>' +
         prev.map(it => '<tr>' + p.row(it).map((c, i) => '<td' + (R.includes(i) ? ' class="r"' : '') + '>' + (c == null ? '' : c) + '</td>').join('') + '</tr>').join('') +
         '</tbody></table></div>' +
-        (fresh.length > 6 ? '<div class="fin-up-more">…and ' + (fresh.length - 6) + ' more</div>' : '') +
-        '<a class="fin-remap" id="qlfRemap">↺ Columns look wrong? Re-map</a>' +
+        (fresh.length > prev.length ? '<div class="fin-up-more">…and ' + (fresh.length - prev.length) + ' more</div>' : '') +
+        (remapFn ? '<a class="fin-remap" id="qlfRemap">↺ Columns look wrong? Re-map</a>' : '') +
         (fresh.length ? '<button class="ql-btn ql-btn-primary fin-up-import" id="qlfDoImport">Import ' + fresh.length + ' ' + plural(fresh.length) + '</button>' : '<div class="fin-note">Nothing new to import — all of these are already added.</div>');
-      wireRemap(rows, hi, mapping);
+      if (remapFn) { const a = document.getElementById('qlfRemap'); if (a) a.onclick = remapFn; }
       const btn = document.getElementById('qlfDoImport');
       if (btn) btn.onclick = () => { fresh.forEach(cfg.add); el.hidden = true; if (cfg.done) cfg.done(fresh.length); };
+    }
+    // Build a row from OCR-parsed generic fields via cfg.buildRow + ocrMap.
+    function ocrBuild(g) {
+      const get = k => { const key = cfg.ocrMap ? cfg.ocrMap[k] : k; return (key && g[key] != null) ? g[key] : ''; };
+      try { return cfg.buildRow(get); } catch (e) { return null; }
     }
     function wireRemap(rows, hi, mapping) { const a = document.getElementById('qlfRemap'); if (a) a.onclick = () => mapper(rows, hi, mapping); }
 
