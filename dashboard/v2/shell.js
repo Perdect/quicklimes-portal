@@ -177,9 +177,6 @@
     <button class="tb-toggle" onclick="QLShell.toggleSidebar()" aria-label="Toggle sidebar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
-    <nav class="tb-crumb" aria-label="Breadcrumb">
-      <span class="tb-crumb-active">Dashboard</span>
-    </nav>
     <div class="tb-spacer"></div>
     <button class="tb-search" onclick="QLShell.openPalette()" aria-label="Search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
