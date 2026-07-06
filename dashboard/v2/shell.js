@@ -80,7 +80,7 @@
     { type: 'solo', id: 'dashboard', label: 'Dashboard', href: 'dashboard.html', icon: I.grid, feat: 'dashboard' },
     { type: 'solo', id: 'command', label: 'Command Center', href: 'command.html', icon: I.pulse, feat: 'command' },
     { type: 'group', label: 'Sales', feat: 'sales', items: [
-      { id: 'invoice',     label: 'GST Invoice',     href: 'sales.html#new', icon: I.invoice },
+      { id: 'invoice',     label: 'GST Invoice',     href: 'invoice.html', icon: I.invoice },
       { id: 'sales',       label: 'Sales Register',  href: 'sales.html', icon: I.sales },
       { id: 'collections', label: 'Collections',     href: 'sales.html#pending', icon: I.coll, badgeKey: 'collections' },
       { id: 'monthreg',    label: 'Monthly Register', href: 'monthreg.html', icon: I.cal, feat: 'monthreg' }
@@ -178,8 +178,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
     <nav class="tb-crumb" aria-label="Breadcrumb">
-      <span>QuickLimes</span>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       <span class="tb-crumb-active">Dashboard</span>
     </nav>
     <div class="tb-spacer"></div>
@@ -817,7 +815,7 @@
   .btn{padding:8px 16px;border-radius:6px;border:none;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit}
   .btn-p{background:#2563EB;color:#fff}.btn-s{background:#e2e8f0;color:#000}
 </style></head><body>
-<div class="bar noprint"><button class="btn btn-p" onclick="window.print()">Print / Save PDF</button><button class="btn btn-s" onclick="window.close()">Close</button></div>
+${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="window.print()">Print / Save PDF</button><button class="btn btn-s" onclick="window.close()">Close</button></div>'}
 <div class="inv">
   <div class="ihd b-b">
     ${s.logo ? `<img class="logo" src="${esc(s.logo)}" alt="">` : ''}
@@ -1288,6 +1286,7 @@
     rowMenu, printInvoice, exportCSV,
     formPrompt(title, specs, onSave, sub) { openForm({ title, sub, specs, saveLabel: 'Save', initial: {}, onSave(v) { onSave(v); } }); },
     getInvoiceHTML(idx) { const d = window.QLD.invoiceData(idx); return d ? invoiceHTML(d) : ''; },
+    renderInvoice(d) { return invoiceHTML(d); },
 
     // ── Feature Management (Settings) ──
     feat: featOn,

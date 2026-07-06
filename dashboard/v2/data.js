@@ -842,10 +842,11 @@
     const cgst = taxable * rate / 200, sgst = taxable * rate / 200, total = taxable + cgst + sgst;
     const interState = s.gstin && s.gstin.length >= 2 && s.gstin.slice(0, 2) !== '08';   // seller is 08 (Rajasthan)
     return {
-      seller, hsn: seller.hsn || HSN,
+      seller, hsn: s.hsn || seller.hsn || HSN,
       buyer: { name: s.party || '', gstin: s.gstin || '', address: s.addr || '', state: s.state || '' },
       inv: s.inv, date: s.date, product: s.product || 'Quick Lime', qty: s.qty || 0, rate: s.rate || 0,
-      veh: s.veh || '', eway: s.eway || '', gstR: rate,
+      unit: s.unit || 'Tonne', veh: s.veh || '', eway: s.eway || '', gstR: rate,
+      transport: s.transport || '', station: s.station || '', grrr: s.grrr || '',
       taxable, cgst, sgst, igst: interState ? cgst + sgst : 0, interState,
       total, roundOff: Math.round(total) - total, grand: Math.round(total),
       words: amountInWords(Math.round(total))

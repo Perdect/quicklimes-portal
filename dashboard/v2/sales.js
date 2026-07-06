@@ -110,7 +110,7 @@ function salesInsightsPanel() {
   const cards = [
     { ic: '🏭', tint: 'indigo', n: fmt(tons, 1) + ' T', label: 'Production', sub: 'dispatched in ' + mon },
     { ic: '🚚', tint: 'amber', n: String(trucks), label: 'Trucks Loaded', sub: 'loaded in ' + mon },
-    { ic: '💰', tint: 'green', n: fC(sales), label: 'Sales', sub: 'billed in ' + mon },
+    { ic: '₹', tint: 'green', n: fC(sales), label: 'Sales', sub: 'billed in ' + mon },
     { ic: '🧾', tint: 'blue', n: String(rows.length), label: 'Invoices', sub: 'raised in ' + mon }
   ];
   const cardHTML = c => `<div class="qx-aip-card" onclick="sInsightFilter('${ym}')"><span class="qx-aip-ic t-${c.tint}">${c.ic}</span><div class="qx-aip-b"><div class="qx-aip-top"><span class="qx-aip-n">${c.n}</span><span class="qx-aip-l">${c.label}</span></div><div class="qx-aip-s">${c.sub}</div></div><span class="qx-aip-chev">${chev}</span></div>`;

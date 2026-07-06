@@ -1,0 +1,29 @@
+/* GST Invoice builder — split: form (left) + live preview (right) */
+.inv-wrap { padding: 0 4px 60px; }
+.inv-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 6px 6px 16px; flex-wrap: wrap; }
+.inv-hero h1 { font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+.inv-hero .sub { color: var(--ql-text-secondary); font-size: 13px; margin-top: 3px; }
+.inv-hero-r { display: flex; gap: 8px; align-items: center; }
+
+.inv-build { display: grid; grid-template-columns: 440px 1fr; gap: 16px; }
+.inv-form { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px; box-shadow: var(--ql-shadow-xs); padding: 18px; align-self: start; position: sticky; top: 12px; max-height: calc(100vh - 96px); overflow-y: auto; }
+.inv-prev { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px; box-shadow: var(--ql-shadow-xs); overflow: hidden; }
+.inv-prev iframe { width: 100%; height: calc(100vh - 96px); border: none; background: #fff; display: block; }
+
+.if-sec { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ql-text-muted); margin: 18px 0 9px; padding-bottom: 6px; border-bottom: 1px solid var(--ql-divider); }
+.if-sec:first-child { margin-top: 0; }
+.if-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.if-f { display: flex; flex-direction: column; gap: 4px; }
+.if-f.full { grid-column: 1 / -1; }
+.if-f label { font-size: 11px; font-weight: 600; color: var(--ql-text-secondary); }
+.if-f input, .if-f select { height: 36px; border: 1px solid var(--ql-border); border-radius: 8px; padding: 0 10px; font-size: 13px; font-family: inherit; color: var(--ql-text); background: #fff; transition: border-color .14s, box-shadow .14s; }
+.if-f input:focus, .if-f select:focus { outline: none; border-color: var(--ql-brand-600); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+.if-live { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--ql-success-600); }
+.if-live::before { content: ""; width: 7px; height: 7px; border-radius: 99px; background: var(--ql-success-500); box-shadow: 0 0 0 0 rgba(34,197,94,.5); animation: if-pulse 1.8s infinite; }
+@keyframes if-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,.5); } 50% { box-shadow: 0 0 0 5px rgba(34,197,94,0); } }
+
+@media (max-width: 900px) {
+  .inv-build { grid-template-columns: 1fr; }
+  .inv-form { position: static; max-height: none; }
+  .inv-prev iframe { height: 640px; }
+}
