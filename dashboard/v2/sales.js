@@ -233,7 +233,6 @@ QLX.mount({
   status: { options: STATUSES, of: r => r.status, set: setStatus, dot: v => STDOT[v] },
   rowActions: r => [
     { tt: 'View bill', icon: IC.eye, onClick: viewBillSale },
-    { tt: 'Print invoice', icon: IC.print, onClick: printInv },
     { tt: 'Edit', icon: IC.edit, onClick: r => QLShell.openSaleForm(r.idx) }
   ],
   rowMenu: r => [
