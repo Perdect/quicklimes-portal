@@ -117,10 +117,12 @@ document.getElementById('puExport').addEventListener('click', () => {
 /* ── Import purchase bills — CSV/Excel with auto-detect + manual column mapping ── */
 const PUR_CATS = ['Raw Material', 'Petcoke', 'Transport', 'Packing', 'Electricity', 'Repair', 'Other'];
 document.getElementById('puImport').addEventListener('click', () => QLFin.importSheet({
-  title: 'Import purchase bills', sub: 'Upload a CSV or Excel file of your supplier bills.',
-  dropTitle: 'Choose your purchase file', dropSub: '.csv, .xlsx or .xls — one row per bill',
-  tip: 'Any column names are fine — if we can\'t match them automatically, you\'ll pick which column is Date, Supplier and Amount.',
+  title: 'Import purchase bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',
+  dropTitle: 'Choose a file', dropSub: '.csv / .xlsx list, or a photo / PDF of one bill',
+  tip: 'A spreadsheet imports many bills at once. A photo or PDF of one bill is read with OCR and fills the form for you.',
   noun: 'bill', addLabel: 'Add bill',
+  accept: '.csv,.xlsx,.xls,.pdf,image/*', ocr: true,
+  ocrMap: { bill: 'docno', date: 'date', sup: 'name', gstin: 'gstin', taxable: 'taxable', total: 'total', grate: 'rate' },
   errText: 'No usable bills found. Check that Date, Supplier and a taxable/total column are mapped correctly.',
   headerGroups: [['date', 'bill', 'invoice', 'voucher'], ['supplier', 'vendor', 'party', 'seller', 'name', 'amount', 'taxable', 'total']],
   fields: [

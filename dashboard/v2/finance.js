@@ -173,6 +173,61 @@
     return out;
   }
 
+  /* ── OCR (Tesseract.js) — read a photo/PDF of a bill on-device ──── */
+  const loadTesseract = () => loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js', 'tesseract').then(() => window.Tesseract);
+  // Render each PDF page to a PNG data URL (Tesseract reads images, not PDFs).
+  async function pdfToImages(file, scale) {
+    const pdfjs = await loadPDF();
+    const doc = await pdfjs.getDocument({ data: await readAsBuffer(file) }).promise;
+    const imgs = [];
+    for (let p = 1; p <= Math.min(doc.numPages, 10); p++) {
+      const page = await doc.getPage(p);
+      const vp = page.getViewport({ scale: scale || 2 });
+      const canvas = document.createElement('canvas'); canvas.width = vp.width; canvas.height = vp.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      imgs.push(canvas.toDataURL('image/png'));
+    }
+    return imgs;
+  }
+  async function ocrScan(file, onProgress) {
+    const T = await loadTesseract();
+    const name = (file.name || '').toLowerCase(), type = file.type || '';
+    const images = (name.endsWith('.pdf') || type === 'application/pdf') ? await pdfToImages(file, 2) : [file];
+    let text = '';
+    for (let i = 0; i < images.length; i++) {
+      const { data } = await T.recognize(images[i], 'eng', { logger: onProgress || (() => {}) });
+      text += '\n' + (data.text || '');
+    }
+    return Object.assign({ _text: text }, parseInvoiceText(text));
+  }
+  // Best-effort field extraction from noisy OCR text. Returns GENERIC keys
+  // (docno,date,name,gstin,taxable,total,rate); each page maps them to its own.
+  function parseInvoiceText(text) {
+    const T = (text || '').replace(/\r/g, ''), up = T.toUpperCase(), out = {};
+    const gstins = up.match(/\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]\b/g) || [];
+    const sellerG = ((window.QLD && QLD.co && QLD.co.gstin) || '').toUpperCase();
+    const partyG = gstins.find(g => g !== sellerG);
+    if (partyG) out.gstin = partyG;
+    // Invoice/bill number — prefer a "No/#/number"-labelled value, and the value
+    // must contain a digit (so a bare "TAX INVOICE" title isn't mistaken for it).
+    let doc = '', re = /(?:invoice|bill|inv|voucher)\s*(?:no\.?|number|#)\s*[:\-.]?\s*([A-Za-z0-9][A-Za-z0-9\/\-]{1,18})/ig, mm;
+    while ((mm = re.exec(T))) { if (/\d/.test(mm[1])) { doc = mm[1]; break; } }
+    if (!doc) { re = /(?:invoice|bill|inv|voucher)\s*[:\-.]?\s*([A-Za-z0-9\/\-]*\d[A-Za-z0-9\/\-]*)/ig; while ((mm = re.exec(T))) { if (/\d/.test(mm[1])) { doc = mm[1]; break; } } }
+    if (doc) out.docno = doc.replace(/[^A-Za-z0-9\/\-]/g, '');
+    let m = T.match(/(\d{1,2}[\/\-.][A-Za-z0-9]{1,9}[\/\-.]\d{2,4})/);
+    if (m) out.date = m[1];
+    const grab = labels => { for (const L of labels) { const mm = T.match(new RegExp(L + '[^0-9\\-]{0,18}([0-9][0-9,]*\\.?[0-9]{0,2})', 'i')); if (mm) return mm[1].replace(/,/g, ''); } return ''; };
+    out.total = grab(['grand total', 'invoice value', 'total value', 'total amount', 'net amount', 'bill amount', 'total']);
+    out.taxable = grab(['taxable value', 'taxable amount', 'taxable', 'sub ?total', 'basic value', 'basic amount']);
+    m = up.match(/\b(0|5|12|18|28)\s?%/); if (m) out.rate = m[1];
+    // Party name — best effort: a line starting with M/s, or after "To" / "Buyer".
+    const lines = T.split('\n').map(l => l.trim()).filter(Boolean);
+    let nm = lines.find(l => /^m\/?s\.?\s+\S/i.test(l));
+    if (nm) out.name = nm.replace(/^m\/?s\.?\s+/i, '').replace(/[.,;]+$/, '').trim().slice(0, 40);
+    else { const i = lines.findIndex(l => /^(to|buyer|billed to|consignee|customer)\b[:,]?\s*$/i.test(l)); if (i >= 0 && lines[i + 1]) out.name = lines[i + 1].replace(/[.,;]+$/, '').trim().slice(0, 40); }
+    return out;
+  }
+
   /* ── Header detection + column mapping ─────────────────────────── */
   function findHeader(rows) {
     for (let i = 0; i < Math.min(rows.length, 30); i++) {
@@ -573,6 +628,8 @@
       try { parsed = await fileToRows(f); } catch (e) { res().innerHTML = '<div class="fin-up-err">Couldn\'t read this file. Please export it as CSV or Excel and try again.</div>'; return; }
       const rows = parsed.rows || [];
       if (rows.length < 2) {
+        // A photo or single-bill PDF → offer on-device OCR (if enabled for this register).
+        if (cfg.ocr && (parsed.kind === 'image' || parsed.kind === 'pdf')) { ocrOffer(f); return; }
         const add = cfg.addLabel ? ' or add it with the "' + cfg.addLabel + '" button' : '';
         let msg;
         if (parsed.kind === 'image') msg = 'That\'s a photo/scan — we can\'t read a picture into a table yet. Export a CSV/Excel list from your billing software' + add + '.';
@@ -633,12 +690,53 @@
       if (btn) btn.onclick = () => { fresh.forEach(cfg.add); el.hidden = true; if (cfg.done) cfg.done(fresh.length); };
     }
     function wireRemap(rows, hi, mapping) { const a = document.getElementById('qlfRemap'); if (a) a.onclick = () => mapper(rows, hi, mapping); }
+
+    /* ── OCR path — read a photo/PDF of a bill, then review & save ── */
+    function ocrOffer(file) {
+      res().innerHTML =
+        '<div class="fin-ocr-offer"><div class="fin-ocr-ic">📷</div><div><b>Read this bill with OCR</b>' +
+        '<div class="fin-ocr-sub">We\'ll read the text on your device and fill in the ' + noun + ' for you to check. Works best on a clear, straight photo of a printed bill. <span class="fin-beta">beta</span></div></div></div>' +
+        '<button class="ql-btn ql-btn-primary fin-up-import" id="qlfOcrGo">Scan bill</button>';
+      document.getElementById('qlfOcrGo').onclick = () => runOcr(file);
+    }
+    async function runOcr(file) {
+      res().innerHTML = '<div class="fin-ocr-prog"><div class="fin-ocr-track"><i id="qlfOcrBar"></i></div><div id="qlfOcrMsg" class="fin-up-loading">Starting the reader… the first scan downloads ~12&nbsp;MB, so give it a moment.</div></div>';
+      let data;
+      try {
+        data = await ocrScan(file, m => {
+          const bar = document.getElementById('qlfOcrBar'), msg = document.getElementById('qlfOcrMsg');
+          if (!bar) return;
+          if (m.status === 'recognizing text') { bar.style.width = Math.round((m.progress || 0) * 100) + '%'; if (msg) msg.textContent = 'Reading the bill… ' + Math.round((m.progress || 0) * 100) + '%'; }
+          else if (msg && m.status) msg.textContent = m.status.charAt(0).toUpperCase() + m.status.slice(1) + '…';
+        });
+      } catch (e) { res().innerHTML = '<div class="fin-up-err">Couldn\'t read this file. Try a clearer, well-lit photo — or add the ' + noun + (cfg.addLabel ? ' with the "' + cfg.addLabel + '" button' : ' manually') + '.</div>'; return; }
+      ocrReview(data);
+    }
+    function ocrReview(g) {
+      // Only pull a value for a field that's explicitly mapped to an OCR key —
+      // otherwise a field like unit "rate" would wrongly grab the GST-rate value.
+      const val = f => { const k = cfg.ocrMap ? cfg.ocrMap[f.key] : f.key; return (k && g[k] != null) ? g[k] : ''; };
+      const got = (cfg.fields || []).filter(f => val(f) !== '').length;
+      res().innerHTML =
+        '<div class="fin-up-ok">✓ Read the bill — filled ' + got + ' field' + (got === 1 ? '' : 's') + '. Check everything, fix what\'s off, then save.</div>' +
+        '<div class="fin-form fin-ocr-form">' + (cfg.fields || []).map(f =>
+          '<label>' + esc(f.label) + (f.required ? ' <b class="fin-req">*</b>' : '') + '<input data-k="' + f.key + '" value="' + esc(val(f)) + '"></label>').join('') + '</div>' +
+        '<button class="ql-btn ql-btn-primary fin-up-import" id="qlfOcrSave">Save ' + noun + '</button>';
+      document.getElementById('qlfOcrSave').onclick = () => {
+        const vals = {}; res().querySelectorAll('input[data-k]').forEach(i => vals[i.dataset.k] = i.value);
+        const miss = (cfg.fields || []).filter(f => f.required && !((vals[f.key] || '').toString().trim()));
+        if (miss.length) { if (window.QLShell && QLShell.toast) QLShell.toast('Please fill: ' + miss.map(f => f.label).join(', ')); return; }
+        let row; try { row = cfg.buildRow(k => vals[k] != null ? vals[k] : ''); } catch (e) { row = null; }
+        if (!row) { if (window.QLShell && QLShell.toast) QLShell.toast('Couldn\'t save — check the amounts'); return; }
+        cfg.add(row); el.hidden = true; if (cfg.done) cfg.done(1);
+      };
+    }
   }
 
   /* ── Public API ────────────────────────────────────────────────── */
   window.QLFin = {
     CATS, CREDIT_CATS, DEBIT_CATS, STATUSES, CHECKLIST, DOC_KINDS,
-    fileToRows, extract, parseDate, parseNum, findHeaderRow, colOf, importSheet,
+    fileToRows, extract, parseDate, parseNum, findHeaderRow, colOf, importSheet, ocrScan, parseInvoiceText,
     importTxns, reclassifyAll, setTxn, deleteTxn, findDuplicates,
     summary, byCategory, customerOutstanding, supplierOutstanding, accBalance, accLabel,
     gstMonths, setGst,

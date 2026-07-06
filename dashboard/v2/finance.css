@@ -191,6 +191,18 @@
 .fin-remap { display: inline-block; margin-top: 12px; font: 600 12.5px Inter; color: var(--ql-brand-600, #2563eb); cursor: pointer; text-decoration: none; }
 .fin-remap:hover { text-decoration: underline; }
 @media (max-width: 560px) { .fin-map { grid-template-columns: 1fr; } }
+/* ── OCR scan (photo/PDF bill) ── */
+.fin-ocr-offer { display: flex; align-items: center; gap: 14px; padding: 16px; border: 1px solid #e3ebfb; background: linear-gradient(160deg, #fbfdff, #f5f8ff); border-radius: 14px; margin: 6px 0 4px; }
+.fin-ocr-ic { font-size: 30px; line-height: 1; }
+.fin-ocr-offer b { font: 700 14px Inter; color: var(--ql-text, #0f172a); }
+.fin-ocr-sub { font: 500 12.5px/1.5 Inter; color: var(--ql-text-secondary, #64748b); margin-top: 3px; }
+.fin-ocr-prog { padding: 10px 2px; }
+.fin-ocr-track { height: 8px; border-radius: 99px; background: var(--ql-surface-2, #eef2f7); overflow: hidden; margin-bottom: 10px; }
+.fin-ocr-track > i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, var(--ql-brand-500, #3b82f6), var(--ql-brand-600, #2563eb)); transition: width .3s ease; }
+.fin-ocr-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; margin: 14px 0; }
+.fin-ocr-form label { font: 600 12px Inter; color: var(--ql-text-secondary, #64748b); display: flex; flex-direction: column; gap: 5px; }
+.fin-ocr-form input { border: 1px solid var(--ql-border, #e2e8f0); border-radius: 9px; padding: 9px 11px; font: 500 13.5px Inter; color: var(--ql-text, #0f172a); }
+@media (max-width: 560px) { .fin-ocr-form { grid-template-columns: 1fr; } }
 .fin-form { display: flex; flex-direction: column; gap: 13px; }
 .fin-form label { font: 600 12px Inter; color: var(--ql-text-secondary, #64748b); display: flex; flex-direction: column; gap: 6px; }
 .fin-form input, .fin-form select { border: 1px solid var(--ql-border, #e2e8f0); border-radius: 10px; padding: 10px 12px; font: 500 14px Inter; color: var(--ql-text, #0f172a); }
