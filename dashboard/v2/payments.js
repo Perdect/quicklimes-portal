@@ -130,7 +130,7 @@ function tabPayOverview(r) {
 
 /* ══════════════════ CONFIG ══════════════════ */
 QLX.mount({
-  active: 'finance', title: 'Payments Center', accent: 'teal', noun: 'payment', nounPl: 'payments',
+  active: 'finance', title: 'Payments Center', accent: 'blue', noun: 'payment', nounPl: 'payments',
   icon: '<path d="M2 8h20M2 8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2M2 8v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8"/><path d="M6 14h4"/>',
   data: () => Q.paymentsLedger(), rowId: r => r.idx, dateField: r => r.date,
   subtitle: () => { const s = Q.paymentsSummary(); return `<b>${esc(Q.co.short)}</b> · ${s.count} transactions · Balance <b>${fC(s.total)}</b>`; },

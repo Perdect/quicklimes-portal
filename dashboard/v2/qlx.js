@@ -74,7 +74,7 @@
     QLShell.mount({ active: CFG.active, title: CFG.title });
     const main = document.getElementById('ql-main');
     const root = document.createElement('div');
-    root.className = 'qx qx-a-' + (CFG.accent || 'blue');
+    root.className = 'qx qx-a-' + 'blue';
     root.id = 'qxRoot';
     main.innerHTML = ''; main.appendChild(root);
     root.innerHTML = skeletonHTML();          // instant glass skeleton — never blank
@@ -93,15 +93,15 @@
 
   function ensureChrome() {
     if (!document.getElementById('qxDpBack')) {
-      DP = document.createElement('div'); DP.id = 'qxDpBack'; DP.className = 'qx-dp-back ' + 'qx-a-' + (CFG.accent || 'blue');
+      DP = document.createElement('div'); DP.id = 'qxDpBack'; DP.className = 'qx-dp-back ' + 'qx-a-' + 'blue';
       DP.innerHTML = '<aside class="qx-dp" id="qxDp"></aside>';
       document.body.appendChild(DP);
       DP.addEventListener('click', e => { if (e.target.id === 'qxDpBack') closeDetail(); });
-    } else { DP = document.getElementById('qxDpBack'); DP.className = 'qx-dp-back qx-a-' + (CFG.accent || 'blue'); }
+    } else { DP = document.getElementById('qxDpBack'); DP.className = 'qx-dp-back qx-a-' + 'blue'; }
     if (!document.getElementById('qxBulk')) {
-      BULK = document.createElement('div'); BULK.id = 'qxBulk'; BULK.className = 'qx-bulk qx-a-' + (CFG.accent || 'blue');
+      BULK = document.createElement('div'); BULK.id = 'qxBulk'; BULK.className = 'qx-bulk qx-a-' + 'blue';
       document.body.appendChild(BULK);
-    } else { BULK = document.getElementById('qxBulk'); BULK.className = 'qx-bulk qx-a-' + (CFG.accent || 'blue'); }
+    } else { BULK = document.getElementById('qxBulk'); BULK.className = 'qx-bulk qx-a-' + 'blue'; }
     if (!document.getElementById('qxToast')) {
       TOAST = document.createElement('div'); TOAST.id = 'qxToast'; TOAST.className = 'qx-toast'; TOAST.hidden = true;
       document.body.appendChild(TOAST);
