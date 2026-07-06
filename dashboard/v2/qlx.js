@@ -172,7 +172,7 @@
   function statsHTML() {
     if (!CFG.stats) return '';
     const cards = CFG.stats(allRows()) || [];
-    return `<div class="qx-stats">${cards.map(c => `<div class="qx-stat">
+    return `<div class="qx-stats">${cards.map(c => `<div class="qx-stat qx-tint-${c.tint || 'blue'}">
       <div class="qx-stat-top"><span class="qx-stat-ic t-${c.tint || 'blue'}">${svg(c.icon || IC.file)}</span><span class="qx-stat-l">${esc(c.label)}</span></div>
       <div class="qx-stat-v">${c.value}</div>
       <div class="qx-stat-s">${c.sub || ''}${c.trend != null ? ` <span class="qx-tr ${c.trend >= 0 ? 'up' : 'dn'}">${c.trend >= 0 ? '↑' : '↓'} ${Math.abs(c.trend).toFixed(0)}%</span>` : ''}</div>
