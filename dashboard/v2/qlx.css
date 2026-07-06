@@ -214,7 +214,7 @@
 .qx-grid th.sortable:hover { color: var(--ql-text-secondary); }
 .qx-grid th.sorted { color: var(--qx); }
 .qx-sic { display: inline-block; width: 10px; margin-left: 2px; }
-.qx-grid td { padding: 15px 16px; border-bottom: 1px solid var(--ql-divider); vertical-align: middle; color: var(--ql-text); font-size: 13px; }
+.qx-grid td { padding: 15px 16px; border-bottom: 1px solid var(--ql-divider); vertical-align: middle; color: var(--ql-text); font-size: 13px; white-space: nowrap; }
 .qx-row { cursor: pointer; transition: background .13s var(--ql-ease-out); }
 .qx-row:hover { background: color-mix(in srgb, var(--qx-soft) 60%, var(--ql-card)); }
 .qx-row.sel { background: var(--qx-soft); }
@@ -238,7 +238,15 @@
 .qx-av-sq { border-radius: 9px; box-shadow: none; }
 .qx-party { display: inline-flex; align-items: center; gap: 11px; min-width: 0; }
 .qx-party-c { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.qx-party-n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qx-party-n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; display: inline-block; vertical-align: middle; }
+
+/* Filter dropdown (IMZA-style popover) */
+.qx-filter-menu { min-width: 250px; padding: 8px; }
+.qx-fm-f { padding: 7px 6px; }
+.qx-fm-f > label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ql-text-muted); margin-bottom: 6px; }
+.qx-fm-f .qx-sel { width: 100%; max-width: none; height: 34px; }
+.qx-fm-row { display: flex; gap: 6px; align-items: center; }
+.qx-fm-row .qx-date { flex: 1; }
 .qx-party-s { font-size: 11.5px; font-weight: 500; color: var(--ql-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qx-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 99px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
 .qx-tag { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 7px; font-size: 11px; font-weight: 600; background: var(--ql-neutral-100); color: var(--ql-text-secondary); }

@@ -135,7 +135,7 @@
     try {
       const rows = filtered();
       const banner = CFG.banner ? (CFG.banner(allRows()) || '') : '';
-      const html = heroHTML() + statsHTML() + banner + `<div class="qx-panel">${toolbarHTML(rows)}${advHTML()}<div id="qxView">${viewHTML(rows)}</div></div>`;
+      const html = heroHTML() + statsHTML() + banner + `<div class="qx-panel">${toolbarHTML(rows)}<div id="qxView">${viewHTML(rows)}</div></div>`;
       root.innerHTML = html;         // atomic — if building `html` throws, prior content stays
       root.dataset.ready = '1';
       wire(rows);
@@ -190,7 +190,8 @@
     const gbActive = S.groupBy && S.groupBy !== 'none';
     const grpBtn = (CFG.groupBy && CFG.groupBy.length) ? `<button class="qx-tool ${gbActive ? 'on' : ''}" id="qxGroupBtn">${svg(IC.group)} Group</button>` : '';
     const colBtn = (CFG.columns && S.view === 'table') ? `<button class="qx-tool" id="qxColBtn">${svg(IC.cols)} Columns</button>` : '';
-    const filBtn = (CFG.filters && CFG.filters.length) || CFG.dateRange ? `<button class="qx-tool ${S.advOpen ? 'on' : ''}" id="qxFilBtn">${svg(IC.filter)} Filters</button>` : '';
+    const advActive = Object.keys(S.adv).some(k => S.adv[k] && S.adv[k] !== 'all');
+    const filBtn = (CFG.filters && CFG.filters.length) || CFG.dateRange ? `<button class="qx-tool ${advActive ? 'on' : ''}" id="qxFilBtn">${svg(IC.filter)} Filters</button>` : '';
     const resetBtn = anyFilter() ? `<button class="qx-tool" id="qxReset">${svg(IC.x)} Reset</button>` : '';
     const search = CFG.search ? `<div class="qx-search">${svg(IC.search)}<input id="qxSearch" placeholder="Search ${esc(CFG.nounPl || 'records')}" value="${esc(S.q)}"></div>` : '';
     return `<div class="qx-tb">
@@ -350,7 +351,7 @@
     root.querySelectorAll('[data-qf]').forEach(b => b.onclick = () => { S.quick = b.dataset.qf; S.page = 1; render(); });
     root.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { S.view = b.dataset.view; render(); });
     if ($('qxSearch')) { const inp = $('qxSearch'); inp.oninput = () => { S.q = inp.value; S.page = 1; renderViewOnly(); }; }
-    if ($('qxFilBtn')) $('qxFilBtn').onclick = () => { S.advOpen = !S.advOpen; render(); };
+    if ($('qxFilBtn')) $('qxFilBtn').onclick = e => openFilterMenu(e.currentTarget);
     if ($('qxReset')) $('qxReset').onclick = () => { S.quick = 'all'; S.q = ''; S.adv = {}; S.page = 1; render(); };
     if ($('qxGroupBtn')) $('qxGroupBtn').onclick = e => openGroupMenu(e.currentTarget);
     if ($('qxColBtn')) $('qxColBtn').onclick = e => openColMenu(e.currentTarget);
@@ -393,13 +394,32 @@
   /* ══════════════════ MENUS ══════════════════ */
   let _menu = null;
   function closeMenu() { if (_menu) { _menu.remove(); _menu = null; } }
-  document.addEventListener('click', e => { if (_menu && !e.target.closest('.qx-menu') && !e.target.closest('#qxGroupBtn,#qxColBtn')) closeMenu(); });
+  document.addEventListener('click', e => { if (_menu && !e.target.closest('.qx-menu') && !e.target.closest('#qxGroupBtn,#qxColBtn,#qxFilBtn')) closeMenu(); });
   function placeMenu(m, anchor) { document.body.appendChild(m); const r = anchor.getBoundingClientRect(); m.style.top = (r.bottom + 6) + 'px'; m.style.left = Math.min(r.left, window.innerWidth - m.offsetWidth - 12) + 'px'; _menu = m; }
   function openGroupMenu(anchor) {
     closeMenu(); const m = document.createElement('div'); m.className = 'qx-menu';
     const opts = [{ key: 'none', label: 'No grouping' }].concat(CFG.groupBy);
     m.innerHTML = `<div class="qx-menu-h">Group by</div>` + opts.map(o => `<button class="qx-menu-i ${S.groupBy === o.key ? 'on' : ''}" data-gb="${o.key}">${o.label}<span class="qx-menu-chk">${svg(IC.check)}</span></button>`).join('');
     m.querySelectorAll('[data-gb]').forEach(b => b.onclick = () => { S.groupBy = b.dataset.gb; S.collapsed.clear(); closeMenu(); render(); });
+    placeMenu(m, anchor);
+  }
+  function anyAdv() { return Object.keys(S.adv).some(k => S.adv[k] && S.adv[k] !== 'all'); }
+  function openFilterMenu(anchor) {
+    closeMenu(); const m = document.createElement('div'); m.className = 'qx-menu qx-filter-menu';
+    let inner = '<div class="qx-menu-h">Filter by</div>';
+    (CFG.filters || []).forEach(f => {
+      const opts = [['all', f.allLabel || ('All ' + f.label.toLowerCase())]].concat(f.options ? f.options(allRows()) : []);
+      inner += `<div class="qx-fm-f"><label>${esc(f.label)}</label><select class="qx-sel" data-fk="${esc(f.key)}">${opts.map(o => `<option value="${esc(o[0])}" ${String(S.adv[f.key] || 'all') === String(o[0]) ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select></div>`;
+    });
+    if (CFG.dateRange) inner += `<div class="qx-fm-f"><label>Date range</label><div class="qx-fm-row"><input class="qx-date" type="date" id="qxFmFrom" value="${S.adv._from || ''}"><span class="qx-dash">–</span><input class="qx-date" type="date" id="qxFmTo" value="${S.adv._to || ''}"></div></div>`;
+    inner += `<div class="qx-menu-div"></div><button class="qx-menu-i" id="qxFmReset">${svg(IC.x)} Clear all filters</button>`;
+    m.innerHTML = inner;
+    const apply = () => { const b = document.getElementById('qxFilBtn'); if (b) b.classList.toggle('on', anyAdv()); renderViewOnly(); };
+    m.querySelectorAll('[data-fk]').forEach(sel => sel.onchange = () => { S.adv[sel.dataset.fk] = sel.value; S.page = 1; apply(); });
+    const from = m.querySelector('#qxFmFrom'), to = m.querySelector('#qxFmTo');
+    if (from) from.onchange = () => { S.adv._from = from.value; S.page = 1; apply(); };
+    if (to) to.onchange = () => { S.adv._to = to.value; S.page = 1; apply(); };
+    m.querySelector('#qxFmReset').onclick = () => { S.adv = {}; S.page = 1; closeMenu(); render(); };
     placeMenu(m, anchor);
   }
   function openColMenu(anchor) {
