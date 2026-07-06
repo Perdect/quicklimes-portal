@@ -168,7 +168,11 @@ QLX.mount({
   if (h === 'new') { history.replaceState(null, '', location.pathname); QLShell.openSaleForm(); }
   else if (['pending', 'paid', 'cash'].includes(h)) { const S = QLX.state(); S.quick = h; QLX.refresh(); }
 })();
-window.addEventListener('hashchange', () => { if ((location.hash || '') === '#new') { history.replaceState(null, '', location.pathname); QLShell.openSaleForm(); } });
+window.addEventListener('hashchange', () => {
+  const h = (location.hash || '').slice(1);
+  if (h === 'new') { history.replaceState(null, '', location.pathname); QLShell.openSaleForm(); }
+  else if (['pending', 'paid', 'cash', 'partial', 'all'].includes(h)) { const S = QLX.state(); S.quick = h; QLX.refresh(); }
+});
 
 /* Export / Import */
 function exportRows(rows) { QLShell.exportCSV('sales_' + (Q.co.short || 'register').replace(/\s+/g, '_'), ['Invoice', 'Date', 'Party', 'GSTIN', 'Qty (MT)', 'Taxable', 'GST', 'Total', 'Status'], rows.map(x => [x.inv, x.date, x.party, x.gstin, x.qty, x.taxable, x.gst, x.total, x.status])); toast('Exported ' + rows.length + ' invoices'); }
