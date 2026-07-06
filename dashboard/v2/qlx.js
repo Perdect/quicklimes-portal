@@ -156,14 +156,12 @@
   function refresh() { render(); if (S.openId != null && rowById(S.openId)) renderDetailBody(); else if (S.openId != null) closeDetail(); }
 
   function heroHTML() {
-    const rows = allRows();
-    const sub = CFG.subtitle ? CFG.subtitle(rows) : '';
     const tools = (CFG.tools || []).map((t, i) => `<button class="qx-btn" data-tool="${i}">${t.icon ? svg(t.icon) : ''}<span>${esc(t.label)}</span></button>`).join('');
     const prim = CFG.primary ? `<button class="qx-btn qx-btn-primary" id="qxPrimary">${svg(CFG.primary.icon || IC.plus)}<span>${esc(CFG.primary.label)}</span></button>` : '';
     return `<div class="qx-hero">
       <div class="qx-hero-l">
         <div class="qx-badge">${svg(CFG.icon || IC.table)}</div>
-        <div class="qx-hero-tt"><div class="qx-title">${esc(CFG.title)}</div><div class="qx-sub">${sub}</div></div>
+        <div class="qx-hero-tt"><div class="qx-title">${esc(CFG.title)}</div></div>
       </div>
       <div class="qx-hero-r">${tools}${prim}</div>
     </div>`;
