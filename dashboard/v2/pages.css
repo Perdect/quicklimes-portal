@@ -685,3 +685,16 @@ table.att th, table.att td { border-bottom: 1px solid var(--ql-divider); }
 @media (max-width: 640px) { .pf-bar .sr-search { margin-left: 0; width: 100%; } .pf-sel, .pf-date { flex: 1; min-width: 130px; } }
 
 .pg-item-cell { margin-right: 2px; font-size: 14px; cursor: default; }
+
+/* view-bill eye button + bill detail */
+.sr-eye { border: 0; background: transparent; color: var(--ql-text-tertiary, #94a3b8); width: 28px; height: 28px; border-radius: 7px; cursor: pointer; vertical-align: middle; transition: all .12s; }
+.sr-eye:hover { background: var(--ql-brand-50, #eff6ff); color: var(--ql-brand-600, #2563eb); }
+.sr-eye svg { width: 15px; height: 15px; }
+.bv-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.bv-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--ql-border, #f1f5f9); font: 500 13.5px Inter; }
+.bv-l { color: var(--ql-text-secondary); }
+.bv-v { color: var(--ql-text); font-weight: 600; text-align: right; }
+.bv-div { height: 6px; }
+.bv-total .bv-row { border-bottom: none; padding-top: 12px; font-size: 15.5px; }
+.bv-acts { display: flex; gap: 10px; margin-top: 18px; }
+.bv-acts .ql-btn { flex: 1; justify-content: center; }

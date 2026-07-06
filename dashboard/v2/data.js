@@ -477,7 +477,9 @@
         idx: i, bill: p.bill, date: p.date, sup: p.sup || '—', cat: p.cat || 'Other',
         group: g.group, groupLabel: gm.label, emoji: gm.emoji, item: g.item, dept: g.dept,
         taxable: p.taxable, gst: c.g, itc: c.itc, total: c.tot, grate: p.grate || 0,
-        status: p.status || 'pending', gstin: p.gstin || '', days: daysAgo(p.date), freight: isFreightItem(g.item)
+        qty: p.qty || 0, unit: p.unit || '', rate: p.rate || 0, desc: p.desc || '',
+        status: p.status || 'pending', gstin: p.gstin || '', days: daysAgo(p.date),
+        freight: isFreightItem(g.item), freightAmt: isFreightItem(g.item) ? (p.taxable || 0) : 0
       };
     });
   }

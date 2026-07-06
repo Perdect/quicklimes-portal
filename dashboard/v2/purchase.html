@@ -71,6 +71,7 @@ const COLS = [
   { key: 'item', label: 'Purchase Item', sortable: true },
   { key: 'grate', label: 'GST', sortable: true, num: true },
   { key: 'taxable', label: 'Taxable', sortable: true, num: true },
+  { key: 'freightAmt', label: 'Freight', sortable: true, num: true },
   { key: 'total', label: 'Total', sortable: true, num: true },
   { key: 'status', label: 'Status', sortable: true }
 ];
@@ -174,15 +175,47 @@ function render() {
       <td><span class="pg-item-cell" title="${esc(r.groupLabel)}">${r.emoji}</span> ${esc(r.item)}${r.freight ? ' <span class="pg-frt">freight</span>' : ''}</td>
       <td class="sr-num pt-muted">${r.grate}%</td>
       <td class="sr-num">${fC(r.taxable)}</td>
+      <td class="sr-num" style="color:${r.freightAmt ? '#b7791f' : 'var(--ql-text-muted)'};font-weight:${r.freightAmt ? '600' : '400'}">${r.freightAmt ? '🚚 ' + fC(r.freightAmt) : '—'}</td>
       <td class="sr-num" style="font-weight:700">${fC(r.total)}</td>
       <td><span class="sr-pill ${r.status}"><span class="dot"></span>${PILL[r.status] || r.status}</span></td>
-      <td class="sr-num"><button class="sr-kebab" onclick="QLShell.rowMenu(event,'purchase',${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
+      <td class="sr-num" style="white-space:nowrap"><button class="sr-eye" title="View bill" onclick="showBill(${r.idx})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="sr-kebab" onclick="QLShell.rowMenu(event,'purchase',${r.idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button></td>
     </tr>`;
-  }).join('') : `<tr><td colspan="7"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No bills in this view</div></div></td></tr>`;
+  }).join('') : `<tr><td colspan="8"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No bills in this view</div></div></td></tr>`;
   document.getElementById('prCount').textContent = rows.length ? `Showing ${(pPage - 1) * PER + 1}–${Math.min(pPage * PER, rows.length)} of ${rows.length}` : '0 bills';
   document.getElementById('prPage').textContent = `${pPage} / ${pages}`;
   document.getElementById('prPrev').disabled = pPage <= 1; document.getElementById('prNext').disabled = pPage >= pages;
   QLShell.paintWorkspace();
+}
+
+/* ── View a single bill (eye icon) ── */
+function showBill(idx) {
+  const r = QLD.purchaseRows().find(x => x.idx === idx); if (!r) return;
+  const gc = GCOL[r.group] || GCOL.other;
+  let el = document.getElementById('billSheet');
+  if (!el) { el = document.createElement('div'); el.id = 'billSheet'; el.className = 'fin-sheet'; el.hidden = true; document.body.appendChild(el); el.addEventListener('click', e => { if (e.target.id === 'billSheet') el.hidden = true; }); }
+  const line = (l, v) => `<div class="bv-row"><span class="bv-l">${l}</span><span class="bv-v">${v}</span></div>`;
+  const qtyLine = r.qty ? line('Quantity', QLD.fmt(r.qty, 2) + (r.unit ? ' ' + esc(r.unit) : '') + (r.rate ? ' @ ' + fC(r.rate) : '')) : '';
+  el.innerHTML = `<div class="fin-sheet-card">
+    <div class="fin-sheet-head"><div><div class="fin-sheet-title">Bill ${esc(r.bill || '—')}</div><div class="fin-sheet-sub">${esc(r.sup)}${r.gstin ? ' · ' + esc(r.gstin) : ''}</div></div><button class="fin-x" onclick="document.getElementById('billSheet').hidden=true">&times;</button></div>
+    <div class="fin-sheet-body">
+      <div class="bv-top"><span class="pg-pill" style="background:${gc[0]};color:${gc[1]}">${r.emoji} ${esc(r.groupLabel)}</span><span class="sr-pill ${r.status}"><span class="dot"></span>${r.status === 'paid' ? 'Paid' : 'Pending'}</span>${r.freight ? '<span class="pg-frt">freight / transport</span>' : ''}</div>
+      ${line('Purchase Item', esc(r.item))}
+      ${line('Department', esc(r.dept || '—'))}
+      ${line('Bill date', QLD.fDS(r.date) + (r.status === 'pending' && r.days > 30 ? ' · <span style="color:var(--ql-danger-600)">' + r.days + 'd overdue</span>' : ''))}
+      ${r.desc ? line('Description', esc(r.desc)) : ''}
+      ${qtyLine}
+      <div class="bv-div"></div>
+      ${line('Taxable value', fC(r.taxable))}
+      ${r.freightAmt ? line('Freight / transport', '🚚 ' + fC(r.freightAmt)) : ''}
+      ${line('GST @ ' + r.grate + '%', fC(r.gst))}
+      ${line('Input tax credit (ITC)', r.itc ? fC(r.itc) : '—')}
+      <div class="bv-total">${line('Total payable', '<b>' + fC(r.total) + '</b>')}</div>
+      <div class="bv-acts">
+        <button class="ql-btn ql-btn-secondary" onclick="document.getElementById('billSheet').hidden=true;QLShell.openPurchaseForm(${r.idx})">Edit bill</button>
+        ${r.status !== 'paid' ? `<button class="ql-btn ql-btn-primary" onclick="document.getElementById('billSheet').hidden=true;QLShell.openPaymentForm('purchase',${r.idx})">Mark paid</button>` : ''}
+      </div>
+    </div></div>`;
+  el.hidden = false;
 }
 
 /* ── Wiring ── */
