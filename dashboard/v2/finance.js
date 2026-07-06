@@ -175,6 +175,21 @@
 
   /* ── OCR (Tesseract.js) — read a photo/PDF of a bill on-device ──── */
   const loadTesseract = () => loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js', 'tesseract').then(() => window.Tesseract);
+  // Pull the embedded text from a digital PDF (no OCR needed) — reconstructs
+  // visual lines by y-position so labels line up with their values.
+  async function pdfText(file) {
+    const pdfjs = await loadPDF();
+    const doc = await pdfjs.getDocument({ data: await readAsBuffer(file) }).promise;
+    let text = '';
+    for (let p = 1; p <= Math.min(doc.numPages, 10); p++) {
+      const page = await doc.getPage(p);
+      const content = await page.getTextContent();
+      const byY = {};
+      content.items.forEach(it => { const y = Math.round(it.transform[5]); (byY[y] = byY[y] || []).push({ x: it.transform[4], s: it.str }); });
+      Object.keys(byY).map(Number).sort((a, b) => b - a).forEach(y => { const line = byY[y].sort((a, b) => a.x - b.x).map(o => o.s).join(' ').replace(/\s+/g, ' ').trim(); if (line) text += line + '\n'; });
+    }
+    return text;
+  }
   // Render each PDF page to a PNG data URL (Tesseract reads images, not PDFs).
   async function pdfToImages(file, scale) {
     const pdfjs = await loadPDF();
@@ -624,6 +639,19 @@
 
     async function handle(f) {
       res().innerHTML = '<div class="fin-up-loading">Reading <b>' + esc(f.name) + '</b>…</div>';
+      const name = (f.name || '').toLowerCase(), type = f.type || '';
+      const isImg = /^image\//.test(type) || /\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/.test(name);
+      const isPdf = name.endsWith('.pdf') || type === 'application/pdf';
+      // OCR-enabled registers treat a photo or single-bill PDF as a "scan".
+      if (cfg.ocr && isImg) { ocrOffer(f); return; }
+      if (cfg.ocr && isPdf) {
+        // Prefer the PDF's own embedded text (digital invoice) — instant, accurate,
+        // no OCR download. Only scanned/image PDFs fall back to Tesseract.
+        let text = '';
+        try { text = await pdfText(f); } catch (e) {}
+        if (text && /\d/.test(text) && text.replace(/\s+/g, '').length > 60) { ocrReview(parseInvoiceText(text)); return; }
+        ocrOffer(f); return;
+      }
       let parsed;
       try { parsed = await fileToRows(f); } catch (e) { res().innerHTML = '<div class="fin-up-err">Couldn\'t read this file. Please export it as CSV or Excel and try again.</div>'; return; }
       const rows = parsed.rows || [];
