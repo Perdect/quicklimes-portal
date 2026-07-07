@@ -556,10 +556,20 @@
   function renderBulk() {
     if (!CFG.bulkActions || !S.sel.size) { BULK.classList.remove('on'); return; }
     BULK.classList.add('on');
-    const acts = CFG.bulkActions.map((a, i) => `<button class="qx-bulk-btn ${a.cls || ''}" data-ba="${i}">${a.icon ? svg(a.icon) : ''}${esc(a.label)}</button>`).join('');
-    BULK.innerHTML = `<span class="qx-bulk-ct"><b>${S.sel.size}</b> selected</span>${acts}<button class="qx-bulk-x" id="qxBulkX">${svg(IC.x)}</button>`;
+    const chosen = allRows().filter(r => S.sel.has(String(rowId(r))));
+    const fmtC = (window.QLD && QLD.fC) ? QLD.fC : (n => '₹' + Math.round(n || 0).toLocaleString('en-IN'));
+    const noun = S.sel.size === 1 ? (CFG.noun || 'item') : (CFG.nounPl || 'items');
+    const sub = CFG.groupSum ? (fmtC(chosen.reduce((a, r) => a + (CFG.groupSum(r) || 0), 0)) + ' total') : (S.sel.size + ' ' + noun);
+    const acts = CFG.bulkActions.map((a, i) => {
+      const tone = a.cls === 'del' ? 'del' : (/paid|receiv|collect|approv|done|complete|check|mark/i.test(a.label || '') ? 'ok' : 'info');
+      return `<button class="qx-bulk-card ${tone}" data-ba="${i}" title="${esc(a.label)}"><span class="qx-bulk-ic">${a.icon ? svg(a.icon) : ''}</span><span class="qx-bulk-lbl">${esc(a.label)}</span></button>`;
+    }).join('');
+    BULK.innerHTML =
+      `<div class="qx-bulk-head"><span class="qx-bulk-badge">${S.sel.size}<span class="qx-bulk-spark">${svg('<path d="M12 2l1.4 5.2L19 9l-5.6 1.8L12 16l-1.4-5.2L5 9l5.6-1.8z"/>')}</span></span><div class="qx-bulk-txt"><b>Selected</b><span>${esc(sub)}</span></div></div>` +
+      `<div class="qx-bulk-acts">${acts}</div>` +
+      `<button class="qx-bulk-x" id="qxBulkX" title="Clear selection">${svg(IC.x)}</button>`;
     BULK.querySelector('#qxBulkX').onclick = () => { S.sel.clear(); render(); };
-    BULK.querySelectorAll('[data-ba]').forEach(b => b.onclick = () => { const chosen = allRows().filter(r => S.sel.has(String(rowId(r)))); CFG.bulkActions[+b.dataset.ba].onClick(chosen); });
+    BULK.querySelectorAll('[data-ba]').forEach(b => b.onclick = () => { const c = allRows().filter(r => S.sel.has(String(rowId(r)))); CFG.bulkActions[+b.dataset.ba].onClick(c); });
   }
 
   /* ══════════════════ TOAST ══════════════════ */

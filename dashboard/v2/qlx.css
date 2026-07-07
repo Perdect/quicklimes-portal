@@ -463,19 +463,35 @@
 
 /* ── BULK ACTION BAR (floating) ─────────────────────────────────────── */
 .qx-bulk {
-  position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(20px);
-  z-index: var(--ql-z-toast); display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px;
-  background: var(--ql-neutral-900); border-radius: 15px; box-shadow: var(--ql-shadow-xl);
-  opacity: 0; pointer-events: none; transition: all .22s var(--ql-ease-out);
+  position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(22px);
+  z-index: var(--ql-z-toast); display: flex; align-items: center; gap: 14px; padding: 12px 14px;
+  background: linear-gradient(180deg, #ffffff, #f4f6fb); border: 1px solid rgba(15,23,42,.06); border-radius: 24px;
+  box-shadow: 0 28px 64px -20px rgba(15,23,42,.4), 0 3px 8px rgba(15,23,42,.07);
+  opacity: 0; pointer-events: none; transition: all .24s var(--ql-ease-out);
 }
 .qx-bulk.on { opacity: 1; pointer-events: auto; transform: translateX(-50%); }
-.qx-bulk-ct { color: #fff; font-size: 13px; font-weight: 600; }
-.qx-bulk-ct b { background: var(--qx); padding: 2px 8px; border-radius: 7px; margin-right: 6px; }
-.qx-bulk-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 10px; border: none; background: rgba(255,255,255,.12); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: background .14s; }
-.qx-bulk-btn svg { width: 14px; height: 14px; }
-.qx-bulk-btn:hover { background: rgba(255,255,255,.2); }
-.qx-bulk-btn.del:hover { background: var(--ql-danger-600); }
-.qx-bulk-x { width: 34px; height: 34px; border-radius: 10px; border: none; background: rgba(255,255,255,.12); color: #fff; cursor: pointer; display: grid; place-items: center; }
+.qx-bulk-head { display: flex; align-items: center; gap: 12px; padding: 0 4px 0 2px; }
+.qx-bulk-badge { position: relative; min-width: 56px; height: 50px; padding: 0 12px; display: grid; place-items: center; border-radius: 15px; background: linear-gradient(150deg, #818cf8, #2563eb); color: #fff; font-size: 21px; font-weight: 800; letter-spacing: -.02em; box-shadow: 0 10px 20px -7px rgba(37,99,235,.75); }
+.qx-bulk-spark { position: absolute; top: -5px; right: -5px; }
+.qx-bulk-spark svg { width: 16px; height: 16px; fill: #fde047; stroke: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,.15)); }
+.qx-bulk-txt { display: flex; flex-direction: column; line-height: 1.25; }
+.qx-bulk-txt b { font-size: 15px; font-weight: 800; color: var(--ql-text); letter-spacing: -.01em; }
+.qx-bulk-txt span { font-size: 12px; color: var(--ql-text-muted); font-weight: 500; }
+.qx-bulk-acts { display: flex; align-items: center; gap: 10px; padding-left: 14px; border-left: 1px solid rgba(15,23,42,.09); }
+.qx-bulk-card { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 78px; padding: 10px 6px; border: 1px solid rgba(15,23,42,.06); border-radius: 16px; background: #fff; cursor: pointer; box-shadow: 0 2px 7px -2px rgba(15,23,42,.14); transition: transform .14s var(--ql-ease-out), box-shadow .14s; }
+.qx-bulk-card:hover { transform: translateY(-3px); box-shadow: 0 12px 22px -8px rgba(15,23,42,.3); }
+.qx-bulk-card:active { transform: translateY(-1px); }
+.qx-bulk-ic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
+.qx-bulk-ic svg { width: 19px; height: 19px; }
+.qx-bulk-lbl { font-size: 11.5px; font-weight: 600; color: var(--ql-text-secondary); white-space: nowrap; }
+.qx-bulk-card.ok .qx-bulk-ic { background: #dcfce7; color: #16a34a; }
+.qx-bulk-card.info .qx-bulk-ic { background: #e0e7ff; color: #4f46e5; }
+.qx-bulk-card.del .qx-bulk-ic { background: #fee2e2; color: #dc2626; }
+.qx-bulk-card.del .qx-bulk-lbl { color: #dc2626; }
+.qx-bulk-x { width: 46px; height: 46px; border-radius: 15px; border: 1px solid rgba(15,23,42,.06); background: #fff; color: var(--ql-text-muted); cursor: pointer; display: grid; place-items: center; box-shadow: 0 2px 7px -2px rgba(15,23,42,.14); transition: background .14s, color .14s; }
+.qx-bulk-x:hover { background: #f1f5f9; color: var(--ql-text); }
+.qx-bulk-x svg { width: 19px; height: 19px; }
+@media (max-width: 640px) { .qx-bulk { gap: 10px; padding: 10px; border-radius: 20px; bottom: 16px; max-width: calc(100vw - 20px); } .qx-bulk-card { width: 62px; padding: 8px 4px; } .qx-bulk-txt b { font-size: 14px; } .qx-bulk-acts { gap: 7px; padding-left: 10px; } }
 
 /* ── SKELETON ───────────────────────────────────────────────────────── */
 .qx-sk { background: linear-gradient(90deg, var(--ql-neutral-100) 25%, var(--ql-neutral-50) 50%, var(--ql-neutral-100) 75%); background-size: 200% 100%; animation: qx-sh 1.3s infinite; border-radius: 7px; }
