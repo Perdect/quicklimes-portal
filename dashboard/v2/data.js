@@ -119,15 +119,20 @@
   const daysAgo = s => { const d = parseD(s); return d ? Math.floor((Date.now() - d.getTime()) / 86400000) : 0; };
 
   /* ── Business calc (ported from v1) ──────────────────────────── */
-  const cS = s => { const tx = s.qty * s.rate, g = tx * s.gstR / 100; return { tx, cgst: g / 2, sgst: g / 2, tot: tx + g }; };
-  const cP = p => { const g = p.taxable * p.grate / 100, itc = (p.itc === 'Eligible' || p.itc === 'RCM') ? g : 0; return { g, tot: p.taxable + g, itc }; };
+  // gstR can be absent on legacy/synced sales → default 5% (mirrors invoiceData) so we never produce NaN
+  const cS = s => { const tx = (+s.qty || 0) * (+s.rate || 0), g = tx * (s.gstR == null ? 5 : +s.gstR) / 100; return { tx, cgst: g / 2, sgst: g / 2, tot: tx + g }; };
+  // RCM: the recipient pays GST to the govt, not the supplier — so the supplier-payable (total) is the taxable only, ITC still claimable
+  const cP = p => { const tx = +p.taxable || 0, g = tx * (+p.grate || 0) / 100, rcm = p.itc === 'RCM', itc = (p.itc === 'Eligible' || rcm) ? g : 0; return { g, tot: rcm ? tx : tx + g, itc }; };
   const cW = w => {
     const days = Object.values(S.ATT[w.id] || {}).filter(v => v === 'P' || v === 'H').length;
     const gross = w.freq === 'monthly' ? w.wage : w.wage * days, ded = w.adv || 0;
     return { days, gross, ded, net: gross - ded, cost: gross };
   };
-  const totS = () => S.SALES.reduce((a, x) => { const c = cS(x); return { tx: a.tx + c.tx, cgst: a.cgst + c.cgst, sgst: a.sgst + c.sgst, tot: a.tot + c.tot }; }, { tx: 0, cgst: 0, sgst: 0, tot: 0 });
-  const totP = () => S.PURCHASES.reduce((a, x) => { const c = cP(x); return { tx: a.tx + x.taxable, g: a.g + c.g, tot: a.tot + c.tot, itc: a.itc + c.itc }; }, { tx: 0, g: 0, tot: 0, itc: 0 });
+  // inter-state = buyer GSTIN state code ≠ 08 (Rajasthan seller). Inter-state GST is IGST, not CGST/SGST.
+  const saleInter = s => { const g = s.gstin || partyGstin(s.party); return !!(g && g.length >= 2 && g.slice(0, 2) !== '08'); };
+  const notCancelled = x => (x.status || 'pending') !== 'cancelled';   // cancelled bills never count toward sales/GST/ITC totals
+  const totS = () => S.SALES.filter(notCancelled).reduce((a, x) => { const c = cS(x), inter = saleInter(x); return { tx: a.tx + c.tx, cgst: a.cgst + (inter ? 0 : c.cgst), sgst: a.sgst + (inter ? 0 : c.sgst), igst: a.igst + (inter ? c.cgst + c.sgst : 0), tot: a.tot + c.tot }; }, { tx: 0, cgst: 0, sgst: 0, igst: 0, tot: 0 });
+  const totP = () => S.PURCHASES.filter(notCancelled).reduce((a, x) => { const c = cP(x); return { tx: a.tx + (+x.taxable || 0), g: a.g + c.g, tot: a.tot + c.tot, itc: a.itc + c.itc }; }, { tx: 0, g: 0, tot: 0, itc: 0 });
   const totL = () => S.WORKERS.reduce((a, w) => { const c = cW(w); return { gross: a.gross + c.gross, net: a.net + c.net, cost: a.cost + c.cost }; }, { gross: 0, net: 0, cost: 0 });
   function getPL() {
     const ts = totS(), tp = totP(), tl = totL();
@@ -243,6 +248,8 @@
 
   /* ── Mutations (each updates S.* then persists) ──────────────── */
   const upper = s => (s || '').toString().trim().toUpperCase();
+  // OCR label-leak names ("Delivery Note Mode/Terms of Payment", "the buyer", …) — never a real supplier
+  const SUP_LEAK = /delivery\s*note|mode\s*\/?\s*terms|terms\s*of\b|the\s*buyer|reference\s*no|dispatch|bill\s*of\s*lading|^[—\-\s]*$/i;
   // Party auto-create/merge — same merge rules as v1 autoSaveParty.
   function upsertParty(name, gstin, phone, address, state, type) {
     if (!name || name.trim().length < 2) return;
@@ -251,6 +258,8 @@
     if (idx >= 0) {
       const p = S.PARTIES[idx];
       if (gstin && !p.gstin) p.gstin = upper(gstin);
+      // upgrade a leaked/placeholder party name to a real one when a clean import arrives
+      if (name && !SUP_LEAK.test(name.trim()) && SUP_LEAK.test((p.name || '').trim())) p.name = name.trim();
       if (phone && !p.phone) p.phone = phone;
       if (address && (!p.address || address.length > (p.address || '').length)) p.address = address;
       if (state && !p.state) p.state = state;
@@ -310,29 +319,31 @@
     const cur = ser[1] || { sales: 0, purchases: 0, profit: 0, qty: 0, invoices: 0 };
     const prev = ser[0] || { sales: 0, purchases: 0, profit: 0, qty: 0, invoices: 0 };
     const ts = totS(), pl = getPL();
-    const pendSales = S.SALES.filter(s => (s.status || 'pending') === 'pending');
-    const pendParties = [...new Set(pendSales.map(s => s.party))];
-    const overdueParties = [...new Set(pendSales.filter(s => daysAgo(s.date) > 30).map(s => s.party))];
-    const pendPur = S.PURCHASES.filter(p => (p.status || 'pending') === 'pending');
+    const outRows = salesRows().filter(r => r.outstanding > 0.5 && r.status !== 'cancelled');   // anything still owed (incl. partials)
+    const pendParties = [...new Set(outRows.map(r => r.party))];
+    const overdueParties = [...new Set(outRows.filter(r => r.days > 30).map(r => r.party))];
+    const collAmt = outRows.reduce((a, r) => a + r.outstanding, 0);
+    const payAmt = purchaseRows().filter(r => r.outstanding > 0.5 && r.status !== 'cancelled').reduce((a, r) => a + r.outstanding, 0);
     const totQty = S.SALES.reduce((a, s) => a + (s.qty || 0), 0);
     return {
       sales:       { v: fC(ts.tx), trend: mom(cur.sales, prev.sales), meta: S.SALES.length + ' invoices · excl. GST' },
       profit:      { v: fC(pl.np), trend: mom(cur.profit, prev.profit), meta: 'Margin ' + pl.npm.toFixed(1) + '%' },
       production:  { v: fmt(totQty, 1) + ' T', trend: mom(cur.qty, prev.qty), meta: 'Total lime dispatched' },
       dispatch:    { v: fmt(cur.qty, 1) + ' T', trend: mom(cur.qty, prev.qty), meta: cur.invoices + ' invoices this month' },
-      collections: { v: fC(pendSales.reduce((a, s) => a + cS(s).tot, 0)), trend: null, meta: pendParties.length + ' parties · ' + overdueParties.length + ' overdue' },
-      payments:    { v: fC(pendPur.reduce((a, p) => a + cP(p).tot, 0)), trend: null, meta: [...new Set(pendPur.map(p => p.sup))].length + ' suppliers' }
+      collections: { v: fC(collAmt), trend: null, meta: pendParties.length + ' parties · ' + overdueParties.length + ' overdue' },
+      payments:    { v: fC(payAmt), trend: null, meta: [...new Set(purchaseRows().filter(r => r.outstanding > 0.5 && r.status !== 'cancelled').map(r => r.sup))].length + ' suppliers' }
     };
   }
 
   function collections(filter = 'all') {
-    const pend = S.SALES.filter(s => (s.status || 'pending') === 'pending');
+    // everything still owed by customers = outstanding > 0 (includes partially-paid bills), matching the register
+    const pend = salesRows().filter(r => r.outstanding > 0.5 && r.status !== 'cancelled');
     const byParty = {};
-    pend.forEach(s => {
-      const k = s.party || '—';
-      byParty[k] = byParty[k] || { party: k, bills: 0, total: 0, oldest: s.date };
-      byParty[k].bills++; byParty[k].total += cS(s).tot;
-      if (s.date < byParty[k].oldest) byParty[k].oldest = s.date;
+    pend.forEach(r => {
+      const k = r.party || '—';
+      byParty[k] = byParty[k] || { party: k, bills: 0, total: 0, oldest: r.date };
+      byParty[k].bills++; byParty[k].total += r.outstanding;
+      if (r.date < byParty[k].oldest) byParty[k].oldest = r.date;
     });
     let rows = Object.values(byParty).map(r => ({ ...r, days: daysAgo(r.oldest) }));
     if (filter === 'overdue') rows = rows.filter(r => r.days > 30);
@@ -441,14 +452,13 @@
     });
   }
   function salesSummary() {
-    const rows = salesRows();
-    const paid = rows.filter(r => r.status === 'paid' || r.status === 'cash');
+    const rows = salesRows().filter(r => r.status !== 'cancelled');
     return {
       count: rows.length,
       taxable: rows.reduce((a, r) => a + r.taxable, 0),   // headline "sales" = taxable (matches v1)
       revenue: rows.reduce((a, r) => a + r.total, 0),      // GST-inclusive (kept for any callers)
-      collected: paid.reduce((a, r) => a + r.total, 0),    // money received is GST-inclusive
-      pending: rows.filter(r => r.status === 'pending').reduce((a, r) => a + r.total, 0),
+      collected: rows.reduce((a, r) => a + r.paid, 0),     // actual money received (includes partial payments)
+      pending: rows.reduce((a, r) => a + r.outstanding, 0),// true receivable still owed (includes partials)
       gst: rows.reduce((a, r) => a + r.gst, 0),
       qty: rows.reduce((a, r) => a + r.qty, 0)
     };
@@ -506,6 +516,10 @@
     if (/station|print|office/.test(s)) return '🖇️';
     return groupEmoji || '📋';
   }
+  // recover a real supplier name from the GSTIN when the stored name is an OCR label
+  // leak (Tally "Delivery Note Mode/Terms of Payment", "the buyer", etc.)
+  function nameByGstin(gstin) { if (!gstin) return ''; const g = String(gstin).trim().toUpperCase(); const p = S.PARTIES.find(x => x.gstin && String(x.gstin).trim().toUpperCase() === g && x.name && !SUP_LEAK.test(x.name)); return p ? p.name : ''; }
+  function cleanSup(p) { const raw = (p.sup || '').trim(); if (raw && SUP_LEAK.test(raw)) { const rec = nameByGstin(p.gstin); if (rec) return rec; } return raw || '—'; }
   function purchaseRows() {
     const todayISO = fmtISO(new Date());
     return S.PURCHASES.map((p, i) => {
@@ -517,7 +531,7 @@
       const active = p.status !== 'paid' && p.status !== 'cancelled';
       const isOverdue = active && p.dueDate && p.dueDate < todayISO;
       return {
-        idx: i, bill: p.bill, date: p.date, sup: p.sup || '—', cat: p.cat || 'Other',
+        idx: i, bill: p.bill, date: p.date, sup: cleanSup(p), cat: p.cat || 'Other',
         group: g.group, groupLabel: gm.label, emoji: gm.emoji, item: g.item, dept: g.dept,
         itemIconEmoji: itemIcon(g.item, gm.emoji),
         taxable: p.taxable, gst: c.g, itc: c.itc, total: c.tot, grate: p.grate || 0,
@@ -568,13 +582,12 @@
     return { freight: same.filter(x => x.freight), royalty: same.filter(x => /royalty/i.test(x.item)), group: same };
   }
   function purchaseSummary() {
-    const r = purchaseRows();
-    const pend = r.filter(x => x.status === 'pending');
+    const r = purchaseRows().filter(x => x.status !== 'cancelled');   // cancelled bills don't count toward totals
     return {
       count: r.length,
       total: r.reduce((a, x) => a + x.taxable, 0),
       itc: r.reduce((a, x) => a + x.itc, 0),
-      pending: pend.reduce((a, x) => a + x.total, 0),
+      pending: r.reduce((a, x) => a + (x.outstanding || 0), 0),         // true payable still owed (includes partials, nets partial payments)
       gst: r.reduce((a, x) => a + x.gst, 0)
     };
   }
@@ -861,7 +874,8 @@
     const taxable = (s.qty || 0) * (s.rate || 0);
     const rate = s.gstR != null ? s.gstR : 5;
     const cgst = taxable * rate / 200, sgst = taxable * rate / 200, total = taxable + cgst + sgst;
-    const interState = s.gstin && s.gstin.length >= 2 && s.gstin.slice(0, 2) !== '08';   // seller is 08 (Rajasthan)
+    const bg = s.gstin || partyGstin(s.party);   // resolve buyer GSTIN (sale record, else the party) for inter-state detection
+    const interState = bg && bg.length >= 2 && bg.slice(0, 2) !== '08';   // seller is 08 (Rajasthan)
     return {
       seller, hsn: s.hsn || seller.hsn || HSN,
       buyer: { name: s.party || '', gstin: s.gstin || '', address: s.addr || '', state: s.state || '' },
@@ -877,7 +891,8 @@
   /* ── GST summary ─────────────────────────────────────────────── */
   function gstSummary() {
     const ts = totS(), tp = totP();
-    return { outGST: ts.cgst + ts.sgst, cgst: ts.cgst, sgst: ts.sgst, itc: tp.itc, net: Math.max(0, (ts.cgst + ts.sgst) - tp.itc), taxable: ts.tx, purchaseTaxable: tp.tx };
+    const out = ts.cgst + ts.sgst + ts.igst;
+    return { outGST: out, cgst: ts.cgst, sgst: ts.sgst, igst: ts.igst || 0, itc: tp.itc, net: Math.max(0, out - tp.itc), taxable: ts.tx, purchaseTaxable: tp.tx };
   }
 
   /* ── TDS (tax deducted at source) ────────────────────────────── */
@@ -1051,7 +1066,7 @@
     } else if (type === 'gst') {
       const g = gstSummary();
       headers = ['Particulars', 'Amount'];
-      rows = [['CGST (output)', g.cgst], ['SGST (output)', g.sgst], ['Total output GST', g.outGST], ['Less: Input tax credit', -g.itc], ['Net GST payable', g.net], ['Taxable sales', g.taxable], ['Taxable purchases', g.purchaseTaxable]];
+      rows = [['CGST (output)', g.cgst], ['SGST (output)', g.sgst], ['IGST (output)', g.igst], ['Total output GST', g.outGST], ['Less: Input tax credit', -g.itc], ['Net GST payable', g.net], ['Taxable sales', g.taxable], ['Taxable purchases', g.purchaseTaxable]];
       kpis = [['Output GST', fC(g.outGST)], ['ITC', fC(g.itc)], ['Net payable', fC(g.net)]];
     } else if (type === 'production') {
       const pr = production(), ser = monthSeries(6);

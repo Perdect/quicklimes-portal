@@ -70,6 +70,13 @@ function itemCell(r) { return `<span class="qx-party"><span class="qx-party-n">$
 /* ══════════════════ PDF (drawer/print) ══════════════════ */
 function billHTML(r) {
   const co = Q.co || {}, cg = r.gst / 2, money = n => '₹' + fmt(n);
+  const inter = (r.gstin || '').length >= 2 && (r.gstin || '').slice(0, 2) !== '08';   // supplier out-of-state → IGST
+  const rcm = r.itc === 'RCM';
+  const gstRows = rcm
+    ? `<div class="row"><span>GST @ ${r.grate}% — under RCM (payable by recipient)</span><span>${money(r.gst)}</span></div>`
+    : inter
+      ? `<div class="row"><span>IGST @ ${r.grate}%</span><span>${money(r.gst)}</span></div>`
+      : `<div class="row"><span>CGST @ ${r.grate / 2}%</span><span>${money(cg)}</span></div><div class="row"><span>SGST @ ${r.grate / 2}%</span><span>${money(cg)}</span></div>`;
   return `<style>*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;padding:32px;font-size:13px}
     .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0f172a;padding-bottom:14px}
     .co{font-size:19px;font-weight:800}.mut{color:#64748b;font-size:12px;line-height:1.5}.doc{text-align:right}.doc h1{font-size:15px;margin:0;letter-spacing:2px;color:#2563eb}
@@ -84,7 +91,7 @@ function billHTML(r) {
       <div style="text-align:right"><div class="lbl">Department · ITC</div><div class="nm">${esc(r.dept || '—')}</div><div class="mut">ITC: ${r.itc ? 'Eligible' : '—'}</div></div></div>
     <table><thead><tr><th>Purchase Group / Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Taxable</th></tr></thead>
       <tbody><tr><td>${esc(r.emoji + ' ' + r.groupLabel)}<div class="it">${esc(r.item)}${r.desc ? ' — ' + esc(r.desc) : ''}</div></td><td class="r">${r.qty ? fmt(r.qty, 2) + (r.unit ? ' ' + esc(r.unit) : '') : '—'}</td><td class="r">${r.rate ? money(r.rate) : '—'}</td><td class="r">${money(r.taxable)}</td></tr></tbody></table>
-    <div class="tot"><div class="row"><span>Taxable value</span><span>${money(r.taxable)}</span></div>${r.freightAmt ? `<div class="row"><span>Freight (incl.)</span><span>${money(r.freightAmt)}</span></div>` : ''}<div class="row"><span>CGST @ ${r.grate / 2}%</span><span>${money(cg)}</span></div><div class="row"><span>SGST @ ${r.grate / 2}%</span><span>${money(cg)}</span></div><div class="row g"><span>Total</span><span>${money(r.total)}</span></div></div>
+    <div class="tot"><div class="row"><span>Taxable value</span><span>${money(r.taxable)}</span></div>${r.freightAmt ? `<div class="row"><span>Freight (incl.)</span><span>${money(r.freightAmt)}</span></div>` : ''}${gstRows}<div class="row g"><span>Total${rcm ? ' payable' : ''}</span><span>${money(r.total)}</span></div></div>
     <div class="ft">System-generated from ${esc(co.name || 'QuickLimes')} · QuickLimes Purchase Register.</div>`;
 }
 const isMobileP = () => (window.QLMobile ? QLMobile.isMobile() : window.matchMedia('(max-width:768px)').matches);
@@ -335,7 +342,7 @@ QLX.mount({
     const g = Q.purchaseByGroup();
     const bars = g.map(x => ({ label: x.emoji + ' ' + x.label, value: x.total, display: fC(x.total), color: (GCOL[x.key] || GCOL.other)[1] }));
     const rows = Q.purchaseRows();
-    const byStatus = {}; rows.forEach(r => { const k = r.isOverdue ? 'overdue' : r.status; byStatus[k] = (byStatus[k] || 0) + r.total; });
+    const byStatus = {}; rows.forEach(r => { if (r.status === 'cancelled') return; const k = r.isOverdue ? 'overdue' : r.status; byStatus[k] = (byStatus[k] || 0) + r.total; });
     const donut = Object.keys(byStatus).map(k => ({ label: k[0].toUpperCase() + k.slice(1), value: byStatus[k], color: STDOT[k] || '#94a3b8' }));
     return { barsTitle: 'Landed cost by purchase group', bars, donutTitle: 'Spend by payment status', donut, donutCenter: fC(Q.purchaseSummary().total) };
   },
