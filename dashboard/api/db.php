@@ -138,4 +138,52 @@ function ql_ensure_tables() {
     updated_at TIMESTAMP   DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (plant_id, data_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  /* ── Bank Reconciliation (Phase 2): bank transactions scale out of the
+        per-company JSON blob into their own indexed tables, scoped by
+        (plant_id, company_id), so month/status/type filtering and paging
+        happen in SQL and the store can hold millions of rows. ─────────── */
+  $db->exec("CREATE TABLE IF NOT EXISTS bank_accounts (
+    id          VARCHAR(64)  NOT NULL PRIMARY KEY,
+    plant_id    VARCHAR(64)  NOT NULL,
+    company_id  VARCHAR(96)  NOT NULL,
+    bank        VARCHAR(80)  DEFAULT NULL,
+    acct_no     VARCHAR(40)  DEFAULT NULL,
+    ifsc        VARCHAR(20)  DEFAULT NULL,
+    label       VARCHAR(120) DEFAULT NULL,
+    created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_ba_scope (plant_id, company_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  $db->exec("CREATE TABLE IF NOT EXISTS bank_txns (
+    id          VARCHAR(64)   NOT NULL PRIMARY KEY,
+    plant_id    VARCHAR(64)   NOT NULL,
+    company_id  VARCHAR(96)   NOT NULL,
+    account_id  VARCHAR(64)   DEFAULT NULL,
+    txn_date    DATE          DEFAULT NULL,
+    raw         TEXT,
+    clean       VARCHAR(255)  DEFAULT NULL,
+    utr         VARCHAR(64)   DEFAULT NULL,
+    cheque      VARCHAR(20)   DEFAULT NULL,
+    mode        VARCHAR(12)   DEFAULT NULL,
+    bank        VARCHAR(80)   DEFAULT NULL,
+    debit       DECIMAL(16,2) NOT NULL DEFAULT 0,
+    credit      DECIMAL(16,2) NOT NULL DEFAULT 0,
+    balance     DECIMAL(16,2) DEFAULT NULL,
+    dedupe_key  VARCHAR(140)  DEFAULT NULL,
+    status      VARCHAR(20)   DEFAULT NULL,
+    confidence  INT           DEFAULT NULL,
+    m           LONGTEXT,
+    updated_at  TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_bt_scope  (plant_id, company_id, txn_date),
+    KEY idx_bt_status (plant_id, company_id, status),
+    KEY idx_bt_dedupe (plant_id, company_id, dedupe_key)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  $db->exec("CREATE TABLE IF NOT EXISTS party_aliases (
+    plant_id    VARCHAR(64)  NOT NULL,
+    company_id  VARCHAR(96)  NOT NULL,
+    alias_key   VARCHAR(190) NOT NULL,
+    party       VARCHAR(190) NOT NULL,
+    updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (plant_id, company_id, alias_key)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
