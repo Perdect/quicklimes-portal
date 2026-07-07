@@ -36,6 +36,27 @@ function setStatus(r, val) { const patch = { status: val }; if (val === 'paid') 
 function markPaid(r) { Q.recordPurchasePayment(r.idx, r.outstanding, 'bank'); toast('Marked paid', 'ok'); QLX.refresh(); }
 function dupBill(r) { const p = Q.state.PURCHASES[r.idx]; Q.addPurchase(Object.assign({}, p, { bill: (p.bill || '') + '-COPY', status: 'pending', paid: 0, payments: [], attach: [] })); toast('Bill duplicated'); QLX.refresh(); }
 function delBill(r) { if (confirm('Delete bill ' + (r.bill || '') + ' from ' + r.sup + '?')) { Q.deletePurchase(r.idx); toast('Bill deleted'); QLX.refresh(); } }
+// Find + remove duplicate purchase bills (same supplier · amount · date · bill no.),
+// keeping the BEST copy of each group (real supplier name / has a bill no. / has a scan).
+function removeDuplicateBills() {
+  const P = Q.state.PURCHASES;
+  const BADNAME = /delivery\s*note|mode\s*\/?\s*terms|terms\s*of|the\s*buyer|reference\s*no|dispatch|^[—\-\s]*$/i;
+  const sig = p => [(p.gstin || p.sup || '').toString().trim().toUpperCase(), Math.round(+p.taxable || 0), (p.date || ''), (p.bill || '').toString().trim().toUpperCase()].join('|');
+  const score = p => (p.bill ? 4 : 0) + ((p.attach || []).length ? 2 : 0) + ((p.sup && !BADNAME.test(p.sup)) ? 1 : 0);
+  const groups = {};
+  P.forEach((p, i) => { const k = sig(p); (groups[k] = groups[k] || []).push(i); });
+  const remove = [];
+  Object.values(groups).forEach(idxs => {
+    if (idxs.length < 2) return;
+    let keep = idxs[0]; idxs.forEach(i => { if (score(P[i]) > score(P[keep])) keep = i; });
+    idxs.forEach(i => { if (i !== keep) remove.push(i); });
+  });
+  if (!remove.length) { toast('No duplicate bills found', 'ok'); return; }
+  if (!confirm('Remove ' + remove.length + ' duplicate bill' + (remove.length > 1 ? 's' : '') + '? One (best) copy of each is kept.')) return;
+  remove.sort((a, b) => b - a).forEach(i => Q.deletePurchase(i));   // delete from the end so indices stay valid
+  toast('Removed ' + remove.length + ' duplicate bill' + (remove.length > 1 ? 's' : ''), 'ok');
+  QLX.refresh();
+}
 function shareBill(r) { const co = supContact(r.sup); window.open(waLink(co.phone || '', `Purchase bill ${r.bill || ''} — ${r.item} · ${fC(r.total)} · ${r.status}`), '_blank'); }
 function copyLink(r) { const text = `${Q.co.short} · Bill ${r.bill || ''} · ${r.sup} · ${r.item} · ${fC(r.total)} · ${r.status}`; (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast('Bill summary copied'), () => toast('Copy not available', 'err')); }
 
@@ -232,7 +253,8 @@ QLX.mount({
   tools: [
     { label: 'Import', icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => importBills() },
     { label: 'Export', icon: IC.dl, onClick: () => exportRows(QLX.rows()) },
-    { label: 'Report', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>', onClick: () => openPurchaseReport(QLX.rows()) }
+    { label: 'Report', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>', onClick: () => openPurchaseReport(QLX.rows()) },
+    { label: 'Remove duplicates', icon: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', onClick: () => removeDuplicateBills() }
   ],
   // Month-scoped: `rows` is the selected month's bills (all statuses).
   stats: rows => {
@@ -375,8 +397,12 @@ function openPurchaseReport(rows) {
   w.document.write(html); w.document.close();
 }
 function importBills() {
-  // stable "same bill" key: bill no. + GSTIN (falls back to taxable amount) — name-independent
-  const dupKeyP = p => p.bill ? (String(p.bill).trim() + '|' + (p.gstin || Math.round(+p.taxable || 0))).toUpperCase() : '';
+  // stable "same bill" key — name-independent, and works even when the bill NUMBER
+  // wasn't extracted (Tally bills): bill · supplier-identity (GSTIN, else name) · amount · date.
+  const dupKeyP = p => {
+    const b = String(p.bill || '').trim(), id = String(p.gstin || p.sup || '').trim(), amt = Math.round(+p.taxable || 0);
+    return (b || id) ? (b + '|' + id + '|' + amt + '|' + (p.date || '')).toUpperCase() : '';
+  };
   QLFin.importSheet({
     title: 'Import purchase bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',
     dropTitle: 'Choose a file', dropSub: '.csv / .xlsx list, or a photo / PDF of one bill',
