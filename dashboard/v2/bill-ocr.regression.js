@@ -33,6 +33,33 @@ Total 619740.00`,
     expect: { supplier: 'Indian Oil Corporation Limited', supplierGstin: '24AAACI1681G1ZV', buyerGstin: '08BNAPM0488E1Z3', billNo: '20273121B007217', date: '23-Jun-26', billType: 'Tax Invoice', group: 'petcoke', item: 'Pet Coke', qty: 32.38, unit: 'TO', taxable: 525203.60, igst: 94536.65, gstRate: 18, total: 619740, grandTotal: 619740, itc: 'Eligible', cgst: null, sgst: null }
   },
   {
+    // User-reported (2026-07-07): IOC pet-coke variant with a "Supplier TAN:" line
+    // (was leaking as the supplier) AND "Mode of Transport" + "Freight 0.00" noise
+    // lines (were flipping the group to transport/freight). Must stay petcoke/material.
+    name: 'Indian Oil (IOC) — pet coke, TAN + transport-noise variant', format: 'PDF · columnar · IGST',
+    text: `INVOICE UNDER RULE 46 of GST Rules
+Indian Oil Corporation Limited
+TAX INVOICE 20263121B024217
+Form No AC4 31A SAP Doc no.7007959120 Date 15-Jan-26 Time 12:01
+Supplier TAN: DELIO9652G
+GST Registration No GSTIN 24AAACI1681G1ZV
+GSTIN 08BNAPM0488E1Z3
+Reverse Charge Applicable - No
+Place of supply : Gujarat 24
+Material Code / Material Description Quantity Unit Rate HSN Total
+178100 FUEL GRADE PET COKE (BULK) 48.500 TO 8293.00 27131100 402226.20
+AVL Transaction Value
+Taxable Value 402226.20
+OIG IN: Integrated Tax 18.000 % 72400.72
+Mode of Transport : Road
+Freight 0.00
+Density@15: 0.000
+Bay No.: 08
+RND Rounding Difference
+Total 474627.00`,
+    expect: { supplier: 'Indian Oil Corporation Limited', supplierGstin: '24AAACI1681G1ZV', buyerGstin: '08BNAPM0488E1Z3', billNo: '20263121B024217', date: '15-Jan-26', group: 'petcoke', item: 'Pet Coke', taxable: 402226.20, igst: 72400.72, gstRate: 18, total: 474627, itc: 'Eligible' }
+  },
+  {
     name: 'Reliance — pet coke, IGST inter-state', format: 'IGST',
     text: `Reliance Industries Limited
 Jamnagar Gujarat  GSTIN 24AAACR5055K1Z7

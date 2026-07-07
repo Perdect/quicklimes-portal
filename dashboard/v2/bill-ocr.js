@@ -87,7 +87,34 @@
     { group: 'petcoke', item: 'Pet Coke', kw: /pet\s*coke|petcoke|petroleum\s*coke|\bcoke\b/i },
     { group: 'limestone', item: 'Limestone Purchase', kw: /lime\s*stone|limestone|l[\. ]?stone|\bkankar\b|agricultural\s*lime|liming\s*material|hydrated\s*lime|quick\s*lime/i }
   ];
-  function detectGroup(text) { var T = String(text || ''); for (var i = 0; i < GROUPS.length; i++) if (GROUPS[i].kw.test(T)) return { group: GROUPS[i].group, item: GROUPS[i].item }; return { group: '', item: '' }; }
+  // Materials are goods; services are charges levied on/for a material.
+  var MATERIAL = { petcoke: 1, limestone: 1, packaging: 1, fuel: 1, electricity: 1 };
+  // A material keyword is a REAL line item (not just "freight FOR limestone" or
+  // "royalty ON limestone") when at least one occurrence isn't the grammatical
+  // object of a service word. This lets a pet-coke MATERIAL bill that merely
+  // carries a "Mode of Transport" / "Freight 0.00" noise line stay petcoke,
+  // while a genuine "Freight for limestone" bill still classifies as transport.
+  function materialStrong(T, kw) {
+    var re = new RegExp(kw.source, 'gi'), m;
+    while ((m = re.exec(T)) !== null) {
+      if (m.index === re.lastIndex) re.lastIndex++;
+      var before = T.slice(Math.max(0, m.index - 16), m.index).toLowerCase();
+      if (!/(?:for|on|of|against|towards|freight|carriage|cartage|royalty|labour|labor|loading|unloading|transport(?:ation)?)\s*$/.test(before)) return true;
+    }
+    return false;
+  }
+  function detectGroup(text) {
+    var T = String(text || ''), matHit = null, svcHit = null, i, g;
+    for (i = 0; i < GROUPS.length; i++) {
+      g = GROUPS[i]; if (!g.kw.test(T)) continue;
+      if (MATERIAL[g.group]) { if (!matHit && materialStrong(T, g.kw)) matHit = g; }
+      else if (!svcHit) svcHit = g;
+    }
+    if (matHit) return { group: matHit.group, item: matHit.item };   // real material line wins over stray freight/mode noise
+    if (svcHit) return { group: svcHit.group, item: svcHit.item };   // otherwise the service being billed
+    for (i = 0; i < GROUPS.length; i++) if (GROUPS[i].kw.test(T)) return { group: GROUPS[i].group, item: GROUPS[i].item };
+    return { group: '', item: '' };
+  }
 
   /* ── date ────────────────────────────────────────────────────────────── */
   var MON = 'jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec';
@@ -200,7 +227,7 @@
        lines first ("Transporter: …", "Vehicle No: …") so a transporter's name
        can't hijack the material classification. */
     var giText = lines.filter(function (l) {
-      return !/^(?:transporter|vehicle|transport\s*mode|lorry|lr\s*no|e-?way|place\s*of\s*supply|reverse\s*charge|state\s*code|pan\b|cin\b|mobile|phone|email|gstin|billed\s*to|bill\s*to|ship\s*to|consignee)\b/i.test(l);
+      return !/^(?:transporter|vehicle|transport\s*mode|mode\s*of\s*transport|del\s*mode|t\.?t\.?\s*no|tank\s*truck|bay\s*no|density|nomination|dispatch|lorry|lr\s*no|e-?way|place\s*of\s*supply|reverse\s*charge|state\s*code|pan\b|cin\b|tan\b|mobile|phone|email|gstin|billed\s*to|bill\s*to|ship\s*to|consignee)\b/i.test(l);
     }).join('\n');
     var gi = detectGroup(giText);
     if (gi.group) { set('group', gi.group, 0.75); set('item', gi.item, 0.7); }
@@ -234,6 +261,8 @@
     var c = clean(s).replace(/[.,;:]+$/, '');
     if (c.length < 3 || c.length > 72) return '';               // long Indian firm names are valid
     if (isLabel(c)) return '';                                   // <-- the fix: never a label
+    if (/^(?:tan|pan|cin|tin|iec|code|no\.?|id|ref|regn?|gst(?:in)?|hsn|sac|state|udyam|msme|drug|lic|tel|ph)\b\s*[:.\-#]/i.test(c)) return '';   // "Supplier TAN: DEL…" → a label:value, never a name
+    if (/^[A-Za-z]{4,5}\d{4,5}[A-Za-z]?\d?[A-Za-z]?$/.test(c.replace(/[\s:]/g, ''))) return '';   // a bare TAN/PAN-style token
     if (!/[A-Za-z]{3}/.test(c)) return '';
     if (/^\d/.test(c) || /\d{6}/.test(c)) return '';             // starts with a number / has a pin
     if (ADDR_RE.test(c)) return '';                              // address line, not a name
