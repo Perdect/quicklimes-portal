@@ -9,4 +9,11 @@
   RewriteEngine On
   RewriteCond %{HTTP:Authorization} .
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+  # Clean API URLs: /api/foo → /api/foo.php (internal rewrite, no redirect —
+  # the API is POSTed to, so a 301 would drop the request body). Existing
+  # /api/foo.php URLs keep working unchanged.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME}.php -f
+  RewriteRule ^([A-Za-z0-9_-]+)$ $1.php [L]
 </IfModule>
