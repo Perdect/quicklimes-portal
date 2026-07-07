@@ -132,6 +132,29 @@
 .rc-pick:hover { border-color: var(--ql-brand-500); background: var(--ql-brand-50, #eff4ff); }
 .rc-pick b { color: var(--ql-text); } .rc-pick-m { font-size: 11px; color: var(--ql-text-muted); margin-top: 3px; }
 
+/* ══ split payment across bills ══ */
+.rc-modal-lg { max-width: 560px; }
+.rc-splitrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rc-linkbtn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-brand-600, #2563eb); font: inherit; font-size: 12px; font-weight: 600; padding: 6px 11px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
+.rc-linkbtn:hover { background: var(--ql-brand-50, #eff4ff); border-color: var(--ql-brand-500); }
+.rc-linkbtn svg { width: 14px; height: 14px; }
+.rc-split-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 4px 0 14px; }
+.rc-split-sum > div { background: var(--ql-bg-subtle, #f8fafc); border: 1px solid var(--ql-border); border-radius: 11px; padding: 10px 12px; }
+.rc-split-sum span { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--ql-text-muted); }
+.rc-split-sum b { font-size: 16px; font-weight: 800; letter-spacing: -.02em; color: var(--ql-text); }
+.rc-split-sum .rc-ok { background: #dcfce7; border-color: #bbf7d0; } .rc-split-sum .rc-ok b, .rc-split-sum .rc-ok span { color: #15803d; }
+.rc-split-sum .rc-bad { background: #fef2f2; border-color: #fecaca; } .rc-split-sum .rc-bad b, .rc-split-sum .rc-bad span { color: #dc2626; }
+.rc-al-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
+.rc-al { display: flex; align-items: center; gap: 9px; border: 1px solid var(--ql-border); border-radius: 11px; padding: 8px 10px; background: var(--ql-card); }
+.rc-al-i { flex: 1; min-width: 0; } .rc-al-i b { display: block; font-size: 13px; color: var(--ql-text); } .rc-al-i span { font-size: 11px; color: var(--ql-text-muted); }
+.rc-al-amt { width: 108px; flex: none; text-align: right; border: 1px solid var(--ql-border); border-radius: 8px; padding: 7px 9px; font: inherit; font-size: 13px; font-weight: 600; }
+.rc-al-amt:focus { outline: none; border-color: var(--ql-brand-500); box-shadow: 0 0 0 3px var(--ql-brand-50, #eff4ff); }
+.rc-al-x { flex: none; } .rc-al-x svg { width: 15px; height: 15px; color: var(--ql-text-muted); }
+.rc-al-x:hover svg { color: #dc2626; }
+.rc-split-add-h { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ql-text-muted); margin-bottom: 8px; }
+.rc-split-foot { display: flex; justify-content: flex-end; gap: 9px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ql-border); }
+.rc-split-foot .rc-btn[disabled] { opacity: .5; pointer-events: none; }
+
 /* confidence tier dot inside status badge */
 .rc-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
 .rc-dot.green { background: #16a34a; } .rc-dot.yellow { background: #d97706; } .rc-dot.red { background: #dc2626; }

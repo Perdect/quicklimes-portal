@@ -67,6 +67,18 @@ r = RC.bestMatch(RC.parseNarration('NEFT-XYZ-IOC PETRO'), { credit: 50000, debit
   { aliasParty: 'INDIAN OIL CORPORATION' });
 ok('learned alias IOC => matched INDIAN OIL', r.idx === 5 && r.confidence >= 95, r);
 
+/* ── split one payment across many bills ───────────────────────── */
+console.log('split payment');
+eq('exact split => matched', RC.splitStatus(100000, [{ amount: 60000 }, { amount: 40000 }]).status, 'matched');
+eq('partial split => partial', RC.splitStatus(100000, [{ amount: 60000 }]).status, 'partial');
+eq('over-allocated => over', RC.splitStatus(100000, [{ amount: 60000 }, { amount: 50000 }]).status, 'over');
+ok('over-allocated => invalid', RC.splitStatus(100000, [{ amount: 60000 }, { amount: 50000 }]).valid === false);
+ok('rounding tolerance absorbs 0.50', RC.splitStatus(100000, [{ amount: 99999.5 }]).status === 'matched');
+eq('remaining computed', RC.splitStatus(100000, [{ amount: 70000 }]).remaining, 30000);
+eq('suggest fills remaining capped at due', RC.suggestAlloc(100000, 60000, 25000), 25000);
+eq('suggest caps at remaining when due larger', RC.suggestAlloc(100000, 60000, 90000), 40000);
+eq('suggest 0 when fully allocated', RC.suggestAlloc(100000, 100000, 50000), 0);
+
 /* ── dedupe + bank detect ──────────────────────────────────────── */
 console.log('dedupe + bank detect');
 const a = RC.parseNarration('RTGS-ICICR42026061700504050-ARIF CHEMICAL LIME');

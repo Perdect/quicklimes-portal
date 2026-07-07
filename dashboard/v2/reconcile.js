@@ -20,7 +20,9 @@ const IC = {
   x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
   ai: '<path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/><circle cx="18" cy="18" r="1.5"/><circle cx="5" cy="17" r="1"/>',
   ck: '<polyline points="20 6 9 17 4 12"/>', bank: '<line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/>',
-  clock: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>', wallet: '<path d="M2 8h20M2 8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2M2 8v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8"/>'
+  clock: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>', wallet: '<path d="M2 8h20M2 8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2M2 8v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8"/>',
+  split: '<line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>', trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'
 };
 const STAT = {
   matched:      ['Matched', '#dcfce7', '#15803d'],
@@ -33,7 +35,8 @@ const STAT = {
   other:        ['Categorized', '#cffafe', '#0e7490'],
   manual:       ['Linked', '#dbeafe', '#1d4ed8'],
   review:       ['Needs review', '#fef9c3', '#a16207'],
-  overpayment:  ['Overpayment', '#ffedd5', '#c2410c']
+  overpayment:  ['Overpayment', '#ffedd5', '#c2410c'],
+  split:        ['Split', '#ede9fe', '#6d28d9']
 };
 function tierColor(t) { return t === 'green' ? ['#dcfce7', '#15803d'] : t === 'yellow' ? ['#fef9c3', '#a16207'] : ['#fef2f2', '#dc2626']; }
 const toast = (m, t) => (QLShell.toast ? QLShell.toast(m, t) : 0);
@@ -130,12 +133,20 @@ async function parseBankFile(file) {
 
 /* ── analytics ───────────────────────────────────────────────────────── */
 function monthTxns() { return txns().filter(t => inMonth(t.date)); }
-function billFor(t) {
-  if (!t.m || t.m.idx == null) return null;
-  const arr = t.m.kind === 'sale' ? Q.salesRows() : Q.purchaseRows();
-  return arr.find(r => r.idx === t.m.idx) || null;
+/* A transaction links to one bill (t.m.idx) OR many (t.m.allocs). allocsOf
+   normalises both into an array of { kind, idx, amount } so every downstream
+   consumer — ledger, cards, export, drawer — is split-aware for free. */
+function allocsOf(t) {
+  if (!t.m) return [];
+  if (Array.isArray(t.m.allocs) && t.m.allocs.length) return t.m.allocs;
+  if (t.m.idx != null) return [{ kind: t.m.kind, idx: t.m.idx, amount: (t.credit || t.debit || 0) }];
+  return [];
 }
-function isLinked(t) { return t.m && (t.m.idx != null || t.m.status === 'other' || t.m.manual); }
+function billOf(a) { const arr = a.kind === 'sale' ? Q.salesRows() : Q.purchaseRows(); return arr.find(r => r.idx === a.idx) || null; }
+function billsFor(t) { return allocsOf(t).map(a => { const b = billOf(a); return b ? { kind: a.kind, idx: a.idx, amount: a.amount, bill: b } : null; }).filter(Boolean); }
+function billFor(t) { const a = allocsOf(t)[0]; return a ? billOf(a) : null; }
+function isSplit(t) { return t.m && Array.isArray(t.m.allocs) && t.m.allocs.length > 1; }
+function isLinked(t) { return t.m && (t.m.idx != null || (Array.isArray(t.m.allocs) && t.m.allocs.length) || t.m.status === 'other' || t.m.manual); }
 function cards() {
   const tt = monthTxns();
   const credits = tt.reduce((a, t) => a + (t.credit || 0), 0);
@@ -152,7 +163,7 @@ function partyLedger() {
   const touch = k => (by[k] = by[k] || { party: k, sales: 0, purchases: 0, recv: 0, paid: 0, pendS: 0, pendP: 0 });
   Q.salesRows().forEach(r => { if (r.status === 'cancelled') return; const p = touch(r.party || '—'); p.sales += r.total || 0; p.pendS += r.outstanding || 0; });
   Q.purchaseRows().forEach(r => { if (r.status === 'cancelled') return; const p = touch(r.sup || '—'); p.purchases += r.total || 0; p.pendP += r.outstanding || 0; });
-  monthTxns().forEach(t => { const b = billFor(t); if (!b) return; const name = t.m.kind === 'sale' ? b.party : b.sup; const p = touch(name || '—'); if (t.credit) p.recv += t.credit; if (t.debit) p.paid += t.debit; });
+  monthTxns().forEach(t => billsFor(t).forEach(x => { const name = x.kind === 'sale' ? x.bill.party : x.bill.sup; const p = touch(name || '—'); if (t.credit) p.recv += x.amount; else if (t.debit) p.paid += x.amount; }));
   return Object.values(by).map(p => ({ ...p, pending: p.pendS - p.pendP, business: p.sales + p.purchases })).sort((a, b) => b.business - a.business);
 }
 function aiSuggestions() {
@@ -252,6 +263,7 @@ function badge(t) {
   return `<span class="rc-badge" style="background:${s[1]};color:${s[2]}">${dot}${s[0]}${m.manual ? ' ✓' : ''}${showConf ? ' · ' + m.confidence + '%' : ''}</span>`;
 }
 function matchCell(t) {
+  if (isSplit(t)) { const bl = billsFor(t); const names = bl.map(x => x.kind === 'sale' ? x.bill.party : x.bill.sup).filter(Boolean); const uniq = [...new Set(names)]; return `<div class="rc-match"><b>${bl.length} bills · ${fC(bl.reduce((a, x) => a + x.amount, 0))}</b><span>${esc(uniq.slice(0, 2).join(', '))}${uniq.length > 2 ? ' +' + (uniq.length - 2) : ''}</span></div>`; }
   const b = billFor(t);
   if (b) { const ref = t.m.kind === 'sale' ? b.inv : b.bill; const nm = t.m.kind === 'sale' ? b.party : b.sup; return `<div class="rc-match"><b>${esc(ref || '—')}</b><span>${esc(nm || '')}${t.m.kind === 'purchase' && b.emoji ? ' · ' + b.emoji : ''}</span></div>`; }
   if (t.m && t.m.status === 'other') return `<div class="rc-match"><b>${esc(t.m.cat || 'Categorized')}</b><span>non-bill entry</span></div>`;
@@ -354,11 +366,12 @@ function openLink(tid) {
   const b = overlay();
   const row = x => { const r = x.r; const ref = isCr ? r.inv : r.bill; const nm = isCr ? r.party : r.sup; return `<button class="rc-pick" data-idx="${r.idx}"><div><b>${esc(ref || '—')}</b> · ${esc(nm || '')}</div><div class="rc-pick-m">${fDS(r.date)} · total ${fC(r.total)} · due ${fC(r.outstanding || 0)}</div></button>`; };
   b.innerHTML = `<div class="rc-modal"><div class="rc-modal-h"><div class="rc-modal-t">Link ${isCr ? 'credit' : 'debit'} ${fC(amt)} to a ${isCr ? 'sales invoice' : 'purchase bill'}</div><button class="rc-modal-x" id="rcLX">&times;</button></div>
-    <div class="rc-modal-b"><div class="rc-mut" style="font-size:12px;margin-bottom:8px">${fDS(t.date)} · ${esc((t.desc || '').slice(0, 60))}</div>
-      <input class="rc-search" id="rcPickQ" placeholder="Search ${isCr ? 'invoice / customer' : 'bill / supplier'}…" style="width:100%;margin-bottom:10px">
+    <div class="rc-modal-b"><div class="rc-splitrow"><div class="rc-mut" style="font-size:12px">${fDS(t.date)} · ${esc((t.desc || '').slice(0, 48))}</div><button class="rc-linkbtn" id="rcToSplit">${svg(IC.split)}<span>Split across bills</span></button></div>
+      <input class="rc-search" id="rcPickQ" placeholder="Search ${isCr ? 'invoice / customer' : 'bill / supplier'}…" style="width:100%;margin:10px 0">
       <div class="rc-picklist" id="rcPickList">${list.slice(0, 40).map(row).join('') || '<div class="rc-none">No bills found.</div>'}</div></div></div>`;
   const close = () => b.remove();
   document.getElementById('rcLX').onclick = close;
+  document.getElementById('rcToSplit').onclick = () => { close(); openSplit(tid); };
   const relist = q => { const f = q ? list.filter(x => { const r = x.r; return ((isCr ? r.inv + ' ' + r.party : r.bill + ' ' + r.sup) || '').toLowerCase().includes(q); }) : list; document.getElementById('rcPickList').innerHTML = f.slice(0, 40).map(row).join('') || '<div class="rc-none">No matches.</div>'; wirePicks(); };
   const wirePicks = () => b.querySelectorAll('[data-idx]').forEach(btn => btn.onclick = () => {
     const idx = +btn.dataset.idx, bill = (isCr ? Q.salesRows() : Q.purchaseRows()).find(r => r.idx === idx);
@@ -371,6 +384,62 @@ function openLink(tid) {
   });
   wirePicks();
   document.getElementById('rcPickQ').oninput = e => relist(e.target.value.toLowerCase());
+}
+
+/* ══════════════════ SPLIT ONE PAYMENT ACROSS MULTIPLE BILLS ══════════════════ */
+function openSplit(tid) {
+  const t = txns().find(x => x.id === tid); if (!t) return;
+  const isCr = (t.credit || 0) > 0, kind = isCr ? 'sale' : 'purchase', amt = isCr ? t.credit : t.debit;
+  const src = () => (isCr ? Q.salesRows() : Q.purchaseRows()).filter(r => r.status !== 'cancelled');
+  // seed from any existing allocation so re-editing a split is non-destructive
+  let picks = (allocsOf(t).filter(a => a.kind === kind && billOf(a)).map(a => ({ idx: a.idx, amount: a.amount })));
+  const b = overlay();
+  const refOf = r => isCr ? r.inv : r.bill, nmOf = r => isCr ? r.party : r.sup;
+  const alloc = () => picks.reduce((s, p) => s + (+p.amount || 0), 0);
+  const rem = () => Math.round((amt - alloc()) * 100) / 100;
+  const paint = () => {
+    const chosen = new Set(picks.map(p => p.idx));
+    const rows = picks.map(p => { const r = src().find(x => x.idx === p.idx) || {}; return `<div class="rc-al" data-al="${p.idx}">
+      <div class="rc-al-i"><b>${esc(refOf(r) || '—')}</b><span>${esc(nmOf(r) || '')} · due ${fC(r.outstanding || 0)}</span></div>
+      <input class="rc-al-amt" type="number" inputmode="decimal" data-amt="${p.idx}" value="${p.amount}" min="0" step="1">
+      <button class="rc-ib rc-al-x" data-del="${p.idx}" title="Remove">${svg(IC.trash)}</button></div>`; }).join('');
+    const avail = src().filter(r => !chosen.has(r.idx)).map(r => ({ r, sc: Math.abs(rem() - (r.outstanding || r.total || 0)) })).sort((a, c) => a.sc - c.sc);
+    const pick = avail.slice(0, 30).map(x => { const r = x.r; return `<button class="rc-pick" data-add="${r.idx}"><div><b>${esc(refOf(r) || '—')}</b> · ${esc(nmOf(r) || '')}</div><div class="rc-pick-m">${fDS(r.date)} · due ${fC(r.outstanding || 0)}</div></button>`; }).join('') || '<div class="rc-none">No more bills.</div>';
+    const over = rem() < -0.5;
+    b.querySelector('.rc-modal-b').innerHTML = `
+      <div class="rc-split-sum">
+        <div><span>Payment</span><b>${fC(amt)}</b></div>
+        <div><span>Allocated</span><b>${fC(alloc())}</b></div>
+        <div class="${over ? 'rc-bad' : rem() < 0.5 ? 'rc-ok' : ''}"><span>${over ? 'Over by' : 'Unallocated'}</span><b>${fC(Math.abs(rem()))}</b></div>
+      </div>
+      <div class="rc-al-list">${rows || '<div class="rc-none" style="padding:10px 0">Pick bills below to split this payment across them.</div>'}</div>
+      <div class="rc-split-add-h">Add a ${isCr ? 'sales invoice' : 'purchase bill'}</div>
+      <input class="rc-search" id="rcSplitQ" placeholder="Search ${isCr ? 'invoice / customer' : 'bill / supplier'}…" style="width:100%;margin-bottom:8px">
+      <div class="rc-picklist" id="rcSplitList" style="max-height:32vh">${pick}</div>
+      <div class="rc-split-foot"><button class="rc-btn" id="rcSplitCancel">Cancel</button><button class="rc-btn rc-btn-primary" id="rcSplitSave" ${picks.length && !over ? '' : 'disabled'}>${svg(IC.ck)}<span>Save split (${picks.length})</span></button></div>`;
+    wire2();
+  };
+  const wire2 = () => {
+    b.querySelectorAll('[data-add]').forEach(btn => btn.onclick = () => { const idx = +btn.dataset.add; const r = src().find(x => x.idx === idx); const suggest = RC.suggestAlloc(amt, alloc(), (r && r.outstanding) || (r && r.total) || 0); picks.push({ idx, amount: suggest }); paint(); });
+    b.querySelectorAll('[data-del]').forEach(btn => btn.onclick = () => { picks = picks.filter(p => p.idx !== +btn.dataset.del); paint(); });
+    b.querySelectorAll('[data-amt]').forEach(inp => inp.oninput = () => { const p = picks.find(x => x.idx === +inp.dataset.amt); if (p) { p.amount = +inp.value || 0; const sum = b.querySelector('.rc-split-sum'); const over = rem() < -0.5; if (sum) sum.children[1].querySelector('b').textContent = fC(alloc()); const c3 = sum && sum.children[2]; if (c3) { c3.className = over ? 'rc-bad' : rem() < 0.5 ? 'rc-ok' : ''; c3.querySelector('span').textContent = over ? 'Over by' : 'Unallocated'; c3.querySelector('b').textContent = fC(Math.abs(rem())); } const save = document.getElementById('rcSplitSave'); if (save) save.disabled = !(picks.length && !over); } });
+    const sq = document.getElementById('rcSplitQ'); if (sq) sq.oninput = () => { const q = sq.value.toLowerCase(); const chosen = new Set(picks.map(p => p.idx)); const f = src().filter(r => !chosen.has(r.idx) && ((refOf(r) + ' ' + nmOf(r)) || '').toLowerCase().includes(q)); document.getElementById('rcSplitList').innerHTML = f.slice(0, 30).map(r => `<button class="rc-pick" data-add="${r.idx}"><div><b>${esc(refOf(r) || '—')}</b> · ${esc(nmOf(r) || '')}</div><div class="rc-pick-m">${fDS(r.date)} · due ${fC(r.outstanding || 0)}</div></button>`).join('') || '<div class="rc-none">No matches.</div>'; wire2(); };
+    const cx = document.getElementById('rcSplitCancel'); if (cx) cx.onclick = () => b.remove();
+    const sv = document.getElementById('rcSplitSave'); if (sv) sv.onclick = save;
+  };
+  const save = () => {
+    picks = picks.filter(p => (+p.amount || 0) > 0);
+    if (!picks.length) { b.remove(); return; }
+    const allocs = picks.map(p => ({ kind, idx: p.idx, amount: Math.round((+p.amount) * 100) / 100 }));
+    const ss = RC.splitStatus(amt, allocs);
+    if (!ss.valid) { toast('Allocation exceeds the payment amount', 'warn'); return; }
+    const status = ss.status === 'matched' ? 'matched' : 'partial';
+    t.m = { kind, allocs, status, manual: true, confidence: 100, matchedBy: 'manual', reasons: ['Split across ' + allocs.length + ' bills (' + fC(ss.total) + ' of ' + fC(amt) + ')'], at: new Date().toISOString() };
+    Q.saveRecon(); b.remove(); render(); toast('Split across ' + allocs.length + ' bills', 'ok');
+  };
+  b.innerHTML = `<div class="rc-modal rc-modal-lg"><div class="rc-modal-h"><div class="rc-modal-t">Split ${isCr ? 'credit' : 'debit'} ${fC(amt)} across bills</div><button class="rc-modal-x" id="rcSX">&times;</button></div><div class="rc-modal-b"></div></div>`;
+  document.getElementById('rcSX').onclick = () => b.remove();
+  paint();
 }
 
 /* ══════════════════ TRANSACTION DETAIL DRAWER ══════════════════ */
@@ -389,8 +458,10 @@ function openDetail(tid) {
       <div class="rc-dp-narr"><div class="rc-dp-nl">Clean (matched on)</div><div class="rc-dp-nc">${esc(t.clean || '—')}</div><div class="rc-dp-nl" style="margin-top:9px">Raw (verbatim from statement)</div><div class="rc-dp-nr">${esc(t.raw || t.desc || '—')}</div></div>
       <div class="rc-dp-sec">Statement fields</div>
       ${kv('Bank', t.bank)}${kv('Mode', t.mode)}${kv('UTR / Ref', t.utr)}${kv('Cheque no.', t.cheque)}${kv('Running balance', t.balance ? fC(t.balance) : '')}${kv('Firm', esc(Q.co.short || ''))}
-      <div class="rc-dp-sec">Match</div>
-      ${b ? (kv(m.kind === 'sale' ? 'Sales invoice' : 'Purchase bill', esc((m.kind === 'sale' ? b.inv : b.bill) || '—') + ' · ' + esc((m.kind === 'sale' ? b.party : b.sup) || '')) + kv('Bill total', fC(b.total)) + kv('Outstanding', fC(b.outstanding || 0))) : (m.cat ? kv('Category', esc(m.cat)) : '<div class="rc-mut" style="font-size:12.5px">Not linked to any bill yet.</div>')}
+      <div class="rc-dp-sec">Match${isSplit(t) ? ' · split across ' + billsFor(t).length + ' bills' : ''}</div>
+      ${isSplit(t)
+        ? billsFor(t).map(x => `<div class="rc-dp-kv"><span>${esc((x.kind === 'sale' ? x.bill.inv : x.bill.bill) || '—')} · ${esc((x.kind === 'sale' ? x.bill.party : x.bill.sup) || '')}</span><b>${fC(x.amount)}</b></div>`).join('') + kv('Total allocated', fC(billsFor(t).reduce((a, x) => a + x.amount, 0)))
+        : (b ? (kv(m.kind === 'sale' ? 'Sales invoice' : 'Purchase bill', esc((m.kind === 'sale' ? b.inv : b.bill) || '—') + ' · ' + esc((m.kind === 'sale' ? b.party : b.sup) || '')) + kv('Bill total', fC(b.total)) + kv('Outstanding', fC(b.outstanding || 0))) : (m.cat ? kv('Category', esc(m.cat)) : '<div class="rc-mut" style="font-size:12.5px">Not linked to any bill yet.</div>'))}
       <div class="rc-dp-sec">Why the AI decided this</div>
       <ul class="rc-dp-why">${reasons}</ul>
       <div class="rc-dp-sec">Audit trail</div>
@@ -398,6 +469,7 @@ function openDetail(tid) {
       <div class="rc-dp-acts">
         ${(m.status === 'review' && b) ? `<button class="rc-btn rc-btn-primary" id="rcDpConfirm">${svg(IC.ck)}<span>Confirm match</span></button>` : ''}
         <button class="rc-btn" id="rcDpLink">${svg(IC.link)}<span>Link / change</span></button>
+        <button class="rc-btn" id="rcDpSplit">${svg(IC.split)}<span>${isSplit(t) ? 'Edit split' : 'Split across bills'}</span></button>
         <button class="rc-btn" id="rcDpMark">${svg(IC.tag)}<span>Categorize</span></button>
         ${isLinked(t) ? `<button class="rc-btn" id="rcDpUnlink">${svg(IC.x)}<span>Unlink</span></button>` : ''}
       </div>
@@ -406,6 +478,7 @@ function openDetail(tid) {
   $('rcDpX').onclick = () => back.classList.remove('open');
   if ($('rcDpConfirm')) $('rcDpConfirm').onclick = () => { const party = m.kind === 'sale' ? b.party : b.sup; if (t.clean && party) learnAlias(t.clean, party); const paidPartial = t.credit && t.credit < (b.outstanding != null ? b.outstanding : b.total) - 1; t.m = Object.assign({}, m, { status: paidPartial ? 'partial' : 'matched', manual: true, matchedBy: 'manual', confidence: 100, at: new Date().toISOString() }); runMatchAll(); back.classList.remove('open'); render(); toast('Confirmed · alias learned', 'ok'); };
   if ($('rcDpLink')) $('rcDpLink').onclick = () => { back.classList.remove('open'); openLink(tid); };
+  if ($('rcDpSplit')) $('rcDpSplit').onclick = () => { back.classList.remove('open'); openSplit(tid); };
   if ($('rcDpMark')) $('rcDpMark').onclick = e => openMark(tid, e.currentTarget);
   if ($('rcDpUnlink')) $('rcDpUnlink').onclick = () => { t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched', confidence: 0, tier: 'red', matchedBy: 'manual', reasons: ['Unlinked by user'], at: new Date().toISOString() }; Q.saveRecon(); back.classList.remove('open'); render(); };
 }
@@ -414,8 +487,12 @@ function openDetail(tid) {
 function exportRecon() {
   const rows = filteredTxns();
   QLShell.exportCSV('reconciliation_' + (Q.co.short || 'bank').replace(/\s+/g, '_') + (ST.month !== 'all' ? '_' + ST.month : ''),
-    ['Date', 'Description', 'Ref/UTR', 'Debit', 'Credit', 'Balance', 'Matched Bill', 'Party', 'Status'],
-    rows.map(t => { const bl = billFor(t); return [t.date, t.desc, t.ref, t.debit || '', t.credit || '', t.balance || '', bl ? (t.m.kind === 'sale' ? bl.inv : bl.bill) : (t.m && t.m.cat || ''), bl ? (t.m.kind === 'sale' ? bl.party : bl.sup) : '', (t.m && STAT[t.m.status]) ? STAT[t.m.status][0] : 'Unmatched']; }));
+    ['Date', 'Description', 'Ref/UTR', 'Debit', 'Credit', 'Balance', 'Matched Bill', 'Party', 'Allocated', 'Status'],
+    rows.flatMap(t => {
+      if (isSplit(t)) return billsFor(t).map(x => [t.date, t.desc, t.utr || t.ref, t.debit ? x.amount : '', t.credit ? x.amount : '', '', x.kind === 'sale' ? x.bill.inv : x.bill.bill, x.kind === 'sale' ? x.bill.party : x.bill.sup, x.amount, 'Split']);
+      const bl = billFor(t);
+      return [[t.date, t.desc, t.utr || t.ref, t.debit || '', t.credit || '', t.balance || '', bl ? (t.m.kind === 'sale' ? bl.inv : bl.bill) : (t.m && t.m.cat || ''), bl ? (t.m.kind === 'sale' ? bl.party : bl.sup) : '', bl ? (t.credit || t.debit || '') : '', (t.m && STAT[t.m.status]) ? STAT[t.m.status][0] : 'Unmatched']];
+    }));
   toast('Exported ' + rows.length + ' transactions', 'ok');
 }
 function exportLedger() {

@@ -187,9 +187,28 @@
     ['IDFC', /IDFC/], ['IndusInd', /INDUSIND/], ['Federal', /FEDERAL BANK/], ['YES', /\bYES BANK\b/], ['AU', /\bAU (SMALL|BANK)/], ['IOB', /INDIAN OVERSEAS/]];
   function detectBank(text) { var U = (text || '').toString().toUpperCase(); for (var i = 0; i < BANKS.length; i++) if (BANKS[i][1].test(U)) return BANKS[i][0]; return ''; }
 
+  /* ── split: allocate one payment across many bills ─────────────────────── */
+  // Decide the status of a split. allocs = [{amount}]. tol absorbs rounding.
+  function splitStatus(payment, allocs, tol) {
+    tol = tol == null ? 1 : tol;
+    var total = 0; for (var i = 0; i < (allocs || []).length; i++) total += (+allocs[i].amount || 0);
+    total = Math.round(total * 100) / 100;
+    var rem = Math.round((payment - total) * 100) / 100;
+    var status = rem < -tol ? 'over' : (Math.abs(rem) <= tol ? 'matched' : 'partial');
+    return { total: total, remaining: rem, status: status, valid: total > 0 && rem >= -tol };
+  }
+  // Suggest an amount for the next bill: fill the remaining, capped at its due.
+  function suggestAlloc(payment, allocatedTotal, billDue) {
+    var rem = Math.round((payment - allocatedTotal) * 100) / 100;
+    if (rem <= 0) return 0;
+    var due = (+billDue || 0);
+    return Math.round((due > 0 ? Math.min(rem, due) : rem) * 100) / 100;
+  }
+
   return {
     normName: normName, tokens: tokens, distinctive: distinctive, daysBetween: daysBetween,
     parseNarration: parseNarration, nameMatch: nameMatch, classifyDebit: classifyDebit,
-    scoreMatch: scoreMatch, bestMatch: bestMatch, dedupeKey: dedupeKey, detectBank: detectBank, STOP: STOP
+    scoreMatch: scoreMatch, bestMatch: bestMatch, dedupeKey: dedupeKey, detectBank: detectBank,
+    splitStatus: splitStatus, suggestAlloc: suggestAlloc, STOP: STOP
   };
 });
