@@ -27,9 +27,7 @@ const I = {
   x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
 };
 
-let period = 'month', tab = 'revenue', compare = false, collapsed = { fin: true, gst: true };
-const PERIODS = { day: 'Today', week: 'Week', month: 'Month', quarter: 'Quarter', year: 'Year' };
-const NPTS = { day: 7, week: 8, month: 6, quarter: 8, year: 6 };
+let dashMonth = null, tab = 'revenue', compare = false, collapsed = { fin: true, gst: true };
 
 /* ── tiny inline sparkline ── */
 function spark(vals, color, up) {
@@ -57,15 +55,54 @@ function gstByMonth(n) {
 function matTons(g) { return Q.purchaseRows().filter(r => r.group === g).reduce((a, r) => a + (r.qty || 0), 0); }
 function matAmt(g) { const x = Q.purchaseByGroup().find(v => v.key === g); return x ? x.total : 0; }
 
+/* ── month filter (matches the Sales/Purchase registers) ── */
+function availMonths() {
+  const set = new Set();
+  Q.salesRows().forEach(r => { const m = (r.date || '').slice(0, 7); if (m) set.add(m); });
+  Q.purchaseRows().forEach(r => { const m = (r.date || '').slice(0, 7); if (m) set.add(m); });
+  return [...set].sort().reverse();
+}
+function monthSel() { return dashMonth && dashMonth !== 'all' ? dashMonth : null; }
+function dashMonthLabel() {
+  if (!monthSel()) return 'All months';
+  try { return new Date(dashMonth + '-01T00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); } catch (_) { return dashMonth; }
+}
+function monthMetrics() {
+  const m = monthSel(), inM = r => !m || (r.date || '').slice(0, 7) === m;
+  const ms = Q.salesRows().filter(r => inM(r) && r.status !== 'cancelled');
+  const mp = Q.purchaseRows().filter(r => inM(r) && r.status !== 'cancelled');
+  const salesTax = ms.reduce((a, r) => a + r.taxable, 0), purchTax = mp.reduce((a, r) => a + r.taxable, 0);
+  return {
+    salesTax, purchTax, invoices: ms.length, bills: mp.length,
+    collected: ms.reduce((a, r) => a + r.paid, 0), pending: ms.reduce((a, r) => a + r.outstanding, 0),
+    qty: ms.reduce((a, r) => a + r.qty, 0), gst: ms.reduce((a, r) => a + r.gst, 0),
+    profit: salesTax - purchTax
+  };
+}
+function openDashMonthMenu(anchor) {
+  document.querySelectorAll('.dx-month-menu').forEach(x => x.remove());
+  const months = availMonths(), menu = document.createElement('div');
+  menu.className = 'dx-month-menu';
+  const lbl = m => { try { return new Date(m + '-01T00:00').toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }); } catch (_) { return m; } };
+  menu.innerHTML = months.map(m => `<button class="dx-mm-i${m === dashMonth ? ' on' : ''}" data-m="${m}">${lbl(m)}</button>`).join('') +
+    `<button class="dx-mm-i${!monthSel() ? ' on' : ''}" data-m="all">All months</button>`;
+  const r = anchor.getBoundingClientRect();
+  menu.style.cssText = `position:fixed;top:${r.bottom + 6}px;left:${r.left}px;min-width:160px;max-height:280px;overflow:auto;background:#fff;border:1px solid var(--ql-border);border-radius:12px;box-shadow:var(--ql-shadow-lg);z-index:500;padding:6px`;
+  document.body.appendChild(menu);
+  menu.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { dashMonth = b.dataset.m; menu.remove(); render(); });
+  setTimeout(() => document.addEventListener('click', function h(e) { if (!menu.contains(e.target) && e.target.id !== 'dxMonth' && !anchor.contains(e.target)) { menu.remove(); document.removeEventListener('click', h); } }), 0);
+}
+
 function render() {
   const main = document.getElementById('ql-main'); if (!main) return;
   let root = document.getElementById('dxRoot');
   if (!root) { main.innerHTML = '<div class="dx" id="dxRoot"></div>'; root = document.getElementById('dxRoot'); }
   try {
+    if (dashMonth === null) { const ms = availMonths(); dashMonth = ms[0] || 'all'; }   // default to the latest data month
     const co = Q.co, k = Q.kpis(), s = Q.salesSummary(), prod = Q.production(), bal = Q.accountBalances(), pay = Q.paymentsSummary(), pl = Q.getPL(), gst = Q.gstSummary();
     root.innerHTML =
       filterBar(co) +
-      kpiRow1(k, s, prod, bal, pay) +
+      kpiRow1() +
       heroRow() +
       flowWidget(prod) +
       kpiRow2(pl, s) +
@@ -84,17 +121,10 @@ function render() {
 
 /* ══════════ sticky filter bar ══════════ */
 function filterBar(co) {
-  const range = Object.entries(PERIODS).map(([k, v]) => `<button class="${period === k ? 'on' : ''}" data-period="${k}">${v}</button>`).join('');
-  const drop = (id, label) => `<button class="dx-fchip" data-drop="${id}">${label}${svg(I.chevD)}</button>`;
   return `<div class="dx-fbar">
     <div class="dx-fbar-l"><h1 class="dx-h1">Dashboard</h1><span class="dx-fbar-co">${esc(co.short || co.name || '')}</span></div>
     <div class="dx-fbar-r">
-      <div class="dx-range" id="dxRange">${range}</div>
-      ${drop('plant', 'All plants')}
-      ${drop('pay', 'Payment')}
-      ${drop('gst', 'GST')}
-      <button class="dx-fchip" id="dxExport">${svg(I.dl)}Export</button>
-      <button class="dx-fchip dx-fchip-ghost" id="dxSaveView">${svg(I.save)}Save view</button>
+      <button class="dx-fchip dx-month-btn" id="dxMonth">${svg(I.cal)}<b>${esc(dashMonthLabel())}</b>${svg(I.chevD)}</button>
     </div></div>`;
 }
 
@@ -107,17 +137,16 @@ function kpi(o) {
     <div class="dx-kpi-b">${o.spark ? `<div class="dx-kpi-sp">${o.spark}</div>` : ''}<span class="dx-kpi-m">${o.meta}</span></div>
   </button>`;
 }
-function kpiRow1(k, s, prod, bal, pay) {
-  const rev = Q.monthSeries(6).map(d => d.sales), profit = Q.monthSeries(6).map(d => d.profit), qty = Q.monthSeries(6).map(d => d.qty);
-  const today = Q.salesRows().filter(r => r.date === todayISO()); const todayAmt = today.reduce((a, r) => a + r.total, 0);
-  const recv = pay.custOutstanding;
+function kpiRow1() {
+  const M = monthMetrics(), lbl = dashMonthLabel();
+  const rev = Q.monthSeries(6).map(d => d.sales), pur = Q.monthSeries(6).map(d => d.purchases), qty = Q.monthSeries(6).map(d => d.qty);
   return `<div class="dx-kpis">
-    ${kpi({ tint: 'blue', ic: I.receipt, label: "Today's Sales", val: fC(todayAmt), raw: todayAmt, pre: '₹', meta: today.length + ' invoices', spark: spark(dailySales(7), '#2563eb') })}
-    ${kpi({ tint: 'green', ic: I.trend, label: 'Revenue · this month', val: k.sales.v, g: k.sales.trend, meta: 'vs last month', spark: spark(rev, '#16a34a', (k.sales.trend || 0) >= 0) })}
-    ${kpi({ tint: 'violet', ic: I.coins, label: 'Collections due', val: fC(recv), raw: recv, pre: '₹', meta: k.collections.meta, badge: '<span class="dx-g warn">receivable</span>' })}
-    ${kpi({ tint: 'teal', ic: I.wallet, label: 'Cash position', val: fC(bal.total), raw: bal.total, pre: '₹', meta: `Cash ${fC(bal.cash)} · Bank ${fC(bal.bank)}` })}
-    ${kpi({ tint: 'indigo', ic: I.factory, label: 'Production · month', val: fmt(prod.month, 1) + ' T', g: k.production.trend, meta: 'Quick Lime dispatched', spark: spark(qty, '#6366f1', (k.production.trend || 0) >= 0) })}
-    ${kpi({ tint: 'amber', ic: I.trend, label: 'Net Profit', val: k.profit.v, g: k.profit.trend, meta: k.profit.meta, spark: spark(profit, '#f59e0b', (k.profit.trend || 0) >= 0) })}
+    ${kpi({ tint: 'blue', ic: I.receipt, label: 'Sales · ' + lbl, val: fC(M.salesTax), raw: M.salesTax, pre: '₹', meta: M.invoices + ' invoices', spark: spark(rev, '#2563eb') })}
+    ${kpi({ tint: 'green', ic: I.wallet, label: 'Collected', val: fC(M.collected), raw: M.collected, pre: '₹', meta: 'money received' })}
+    ${kpi({ tint: 'violet', ic: I.coins, label: 'Pending', val: fC(M.pending), raw: M.pending, pre: '₹', meta: 'still receivable', badge: '<span class="dx-g warn">receivable</span>' })}
+    ${kpi({ tint: 'amber', ic: I.receipt, label: 'Purchases', val: fC(M.purchTax), raw: M.purchTax, pre: '₹', meta: M.bills + ' bills', spark: spark(pur, '#f59e0b') })}
+    ${kpi({ tint: 'indigo', ic: I.factory, label: 'Production', val: fmt(M.qty, 1) + ' T', raw: M.qty, suf: ' T', meta: 'Quick Lime dispatched', spark: spark(qty, '#6366f1') })}
+    ${kpi({ tint: 'teal', ic: I.trend, label: 'Gross Profit', val: fC(M.profit), raw: M.profit, pre: '₹', meta: 'sales − purchases' })}
   </div>`;
 }
 
@@ -131,7 +160,7 @@ const TABS = [
 ];
 function heroRow() { return `<div class="dx-hero">${analyticsCard()}${aiCard()}</div>`; }
 function analyticsCard() {
-  const t = TABS.find(x => x.k === tab) || TABS[0], n = NPTS[period] || 6;
+  const t = TABS.find(x => x.k === tab) || TABS[0], n = 6;
   const labels = Q.monthSeries(n).map(d => d.m), vals = t.series(n);
   const prevVals = compare ? t.series(n * 2).slice(0, n) : null;
   const total = vals.reduce((a, b) => a + b, 0), last = vals[vals.length - 1] || 0, prev = vals[vals.length - 2] || 0;
@@ -146,7 +175,7 @@ function analyticsCard() {
       </div>
     </div>
     <div class="dx-ac-head">
-      <div><div class="dx-ac-l">${t.label} · ${PERIODS[period]}</div><div class="dx-ac-v">${t.fmt(total)}</div></div>
+      <div><div class="dx-ac-l">${t.label} · last 6 months</div><div class="dx-ac-v">${t.fmt(total)}</div></div>
       ${g != null ? `<div class="dx-ac-g">${growth(g)}<span class="dx-ac-gs">vs previous</span></div>` : ''}
     </div>
     ${metricChart(labels, vals, prevVals, t)}
@@ -275,12 +304,10 @@ function skeleton() {
 function go(p) { if (p) location.href = p.includes('.html') ? p : p + '.html'; }
 function wire() {
   const root = document.getElementById('dxRoot'); if (!root) return;
-  root.querySelectorAll('[data-period]').forEach(b => b.onclick = () => { period = b.dataset.period; render(); });
+  const mo = document.getElementById('dxMonth'); if (mo) mo.onclick = e => { e.stopPropagation(); openDashMonthMenu(mo); };
   root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
   root.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', e => { if (e.target.closest('.dx-fab-i') || b.classList.contains('dx-fab-i') || !b.closest('.dx-fab')) go(b.dataset.go); }));
   const cmp = document.getElementById('dxCompare'); if (cmp) cmp.onclick = () => { compare = !compare; render(); };
-  const exp = document.getElementById('dxExport'); if (exp) exp.onclick = () => { const r = Q.salesRows(); QLShell.exportCSV('dashboard_sales', ['Invoice', 'Date', 'Party', 'Taxable', 'GST', 'Total', 'Status'], r.map(x => [x.inv, x.date, x.party, x.taxable, x.gst, x.total, x.status])); QLShell.toast && QLShell.toast('Exported ' + r.length + ' rows'); };
-  const sv = document.getElementById('dxSaveView'); if (sv) sv.onclick = () => QLShell.toast && QLShell.toast('View saved: ' + PERIODS[period] + ' · ' + tab);
   const ask = document.getElementById('dxAskAi'); if (ask) ask.onclick = () => QLShell.toast && QLShell.toast('AI assistant coming to your workspace');
   const full = document.getElementById('dxFull'); if (full) full.onclick = () => { const c = document.querySelector('.dx-analytics'); if (c) c.classList.toggle('dx-fs'); };
   // party segmented
@@ -290,7 +317,6 @@ function wire() {
   document.addEventListener('click', () => { const f = document.getElementById('dxFab'); if (f) f.classList.remove('open'); }, { once: true });
   root.querySelectorAll('.dx-fab-i').forEach(b => b.onclick = () => go(b.dataset.go));
   // filter chips (visual dropdowns → toast for now)
-  root.querySelectorAll('[data-drop]').forEach(b => b.onclick = () => QLShell.toast && QLShell.toast('Filter: ' + b.dataset.drop + ' (single plant)'));
 }
 
 window.__qlRefresh = render;
