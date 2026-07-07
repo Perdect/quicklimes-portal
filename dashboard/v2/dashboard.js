@@ -175,7 +175,7 @@ function salesVsFlowHTML(s, prod) {
   const collectedPct = s.revenue ? Math.round(s.collected / s.revenue * 100) : 0;
   const flow = [['🪨', 'Limestone', matTons('limestone') ? fmt(matTons('limestone'), 0) + 'T' : '—'], ['🔥', 'Kiln', prod.month ? 'Active' : '—'], ['⚪', 'Quick Lime', fmt(prod.month, 1) + 'T'], ['📦', 'Packing', fmt(prod.month, 1) + 'T'], ['🚚', 'Dispatch', fmt(prod.today, 1) + 'T']];
   return `<div class="dk-grid dk-g-2e">
-    <div class="dk-card"><div class="dk-card-h"><div class="dk-card-t">Sales vs collections</div><a class="dk-link" href="sales.html#pending">Collections →</a></div>
+    <div class="dk-card"><div class="dk-card-h"><div class="dk-card-t">Sales vs collections</div><a class="dk-link" href="collections.html">Collections →</a></div>
       <div class="dk-row"><span class="dk-row-l">Invoiced (incl. GST)</span><span class="dk-row-v">${fC(s.revenue)}</span></div>
       <div class="dk-row"><span class="dk-row-l">Collected</span><span class="dk-row-v" style="color:var(--ql-success-600)">${fC(s.collected)}</span></div>
       <div class="dk-row"><span class="dk-row-l">Outstanding</span><span class="dk-row-v" style="color:var(--ql-danger-600)">${fC(s.pending)}</span></div>

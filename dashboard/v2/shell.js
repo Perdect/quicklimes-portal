@@ -82,7 +82,7 @@
     { type: 'group', label: 'Sales', feat: 'sales', items: [
       { id: 'invoice',     label: 'GST Invoice',     href: 'invoice.html', icon: I.invoice },
       { id: 'sales',       label: 'Sales Register',  href: 'sales.html', icon: I.sales },
-      { id: 'collections', label: 'Collections',     href: 'sales.html#pending', icon: I.coll, badgeKey: 'collections' },
+      { id: 'collections', label: 'Collections',     href: 'collections.html', icon: I.coll, badgeKey: 'collections' },
       { id: 'monthreg',    label: 'Monthly Register', href: 'monthreg.html', icon: I.cal, feat: 'monthreg' }
     ]},
     { type: 'group', label: 'Purchase', feat: 'purchase', items: [
