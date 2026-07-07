@@ -1,70 +1,80 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   QuickLimes Dashboard — AI Manufacturing ERP (PERDECT / IMZA look).
-   Every number is real QLD data; charts are inline SVG (no CDN).
+   QuickLimes Dashboard — premium manufacturing-ERP control room.
+   Redesigned IA: first-screen focus, tabbed analytics, AI insights, a
+   manufacturing-flow timeline, and collapsible detail — every number is real
+   QLD data, every chart is inline SVG (no CDN).
    ═══════════════════════════════════════════════════════════════════════ */
 QLShell.mount({ active: 'dashboard', title: 'Dashboard' });
-const Q = window.QLD, fC = Q.fC, fmt = Q.fmt, fL = Q.fL, fDS = d => Q.fDS(d);
+const Q = window.QLD, fC = Q.fC, fmt = Q.fmt, fL = Q.fL || (n => Q.fC(n)), fDS = d => Q.fDS(d);
 const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const svg = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const svg = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const todayISO = () => new Date().toISOString().slice(0, 10);
 const I = {
-  cash: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>',
+  receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="14" y2="13"/>',
+  coins: '<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="M16.71 13.88l.7.71-2.82 2.82"/>',
   wallet: '<path d="M2 8h20M2 8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2M2 8v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8"/><path d="M6 14h4"/>',
-  factory: '<path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4H2z"/>',
-  users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>',
-  clock: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>',
   bank: '<line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/>',
-  receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/>',
+  factory: '<path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4H2z"/><line x1="17" y1="18" x2="17" y2="18"/>',
   trend: '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>',
+  ai: '<path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/><circle cx="18" cy="18" r="1.4"/><circle cx="5" cy="17" r="1"/>',
   plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
   dl: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
-  ai: '<path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/><circle cx="18" cy="18" r="1.5"/><circle cx="5" cy="17" r="1"/>',
-  cart: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>',
-  box: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/>'
+  cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  chevD: '<polyline points="6 9 12 15 18 9"/>', chevR: '<polyline points="9 18 15 12 9 6"/>',
+  full: '<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>',
+  save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+  x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
 };
-let period = 'month';
-const PERIODS = { day: ['Today', 1], week: ['This Week', 7], month: ['This Month', 6], quarter: ['This Quarter', 12], year: ['This Year', 12] };
 
-/* ── SVG area+line chart from monthSeries ── */
-function areaChart(series, keys) {
-  if (!series.length) return '<div class="dk-card-s" style="padding:40px 0;text-align:center">Not enough data yet.</div>';
-  const W = 760, H = 240, pad = { l: 46, r: 14, t: 14, b: 26 }, iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
-  const vals = series.flatMap(d => keys.map(k => +d[k.k] || 0));
-  const max = Math.max(1, ...vals), min = Math.min(0, ...vals);
-  const rng = max - min || 1;
-  const xAt = i => pad.l + (series.length <= 1 ? iw / 2 : (i / (series.length - 1)) * iw);
-  const yAt = v => pad.t + ih - ((v - min) / rng) * ih;
-  const grid = [0, .25, .5, .75, 1].map(f => { const y = pad.t + ih - f * ih, v = min + f * rng; return `<line class="dk-grid-line" x1="${pad.l}" y1="${y.toFixed(1)}" x2="${W - pad.r}" y2="${y.toFixed(1)}"/><text class="dk-axis" x="${pad.l - 8}" y="${(y + 3).toFixed(1)}" text-anchor="end">${fL(v)}</text>`; }).join('');
-  const xlab = series.map((d, i) => `<text class="dk-axis" x="${xAt(i).toFixed(1)}" y="${H - 6}" text-anchor="middle">${esc(d.m)}</text>`).join('');
-  let paths = '';
-  keys.forEach(k => {
-    const pts = series.map((d, i) => [xAt(i), yAt(+d[k.k] || 0)]);
-    const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
-    if (k.area) {
-      const area = `M${pts[0][0].toFixed(1)} ${(pad.t + ih).toFixed(1)} ` + pts.map(p => 'L' + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ') + ` L${pts[pts.length - 1][0].toFixed(1)} ${(pad.t + ih).toFixed(1)} Z`;
-      paths += `<path d="${area}" fill="${k.color}" opacity=".10"/>`;
-    }
-    paths += `<path d="${line}" fill="none" stroke="${k.color}" stroke-width="2.4" ${k.dash ? 'stroke-dasharray="5 4"' : ''} stroke-linejoin="round"/>`;
-    paths += pts.map((p, i) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.2" fill="#fff" stroke="${k.color}" stroke-width="2"><title>${esc(series[i].m)} · ${esc(k.label)}: ${fC(+series[i][k.k] || 0)}</title></circle>`).join('');
-  });
-  return `<div class="dk-chart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${grid}${paths}${xlab}</svg></div>`;
+let period = 'month', tab = 'revenue', compare = false, collapsed = { fin: true, gst: true };
+const PERIODS = { day: 'Today', week: 'Week', month: 'Month', quarter: 'Quarter', year: 'Year' };
+const NPTS = { day: 7, week: 8, month: 6, quarter: 8, year: 6 };
+
+/* ── tiny inline sparkline ── */
+function spark(vals, color, up) {
+  vals = (vals || []).map(v => +v || 0); if (vals.length < 2) vals = [0, 0];
+  const W = 92, H = 30, max = Math.max(...vals), min = Math.min(...vals), rng = (max - min) || 1;
+  const x = i => (i / (vals.length - 1)) * W, y = v => H - 2 - ((v - min) / rng) * (H - 4);
+  const line = vals.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+  const area = line + ` L${W} ${H} L0 ${H} Z`;
+  const c = color || (up === false ? '#dc2626' : '#16a34a'), id = 'sp' + Math.abs(vals.reduce((a, b) => a + b, 0) | 0) + vals.length;
+  return `<svg class="dx-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${c}" stop-opacity=".22"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></linearGradient></defs><path d="${area}" fill="url(#${id})"/><path d="${line}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
+function growth(t) { if (t == null || !isFinite(t)) return ''; const up = t >= 0; return `<span class="dx-g ${up ? 'up' : 'dn'}">${up ? '↑' : '↓'} ${Math.abs(t).toFixed(1)}%</span>`; }
 
-/* ── manufacturing helpers (real data) ── */
-function matAmt(groupKey) { const g = Q.purchaseByGroup().find(x => x.key === groupKey); return g ? g.total : 0; }
-function matTons(groupKey) { return Q.purchaseRows().filter(r => r.group === groupKey).reduce((a, r) => a + (r.qty || 0), 0); }
-function royaltyPaid() { return Q.purchaseRows().filter(r => /royalty/i.test(r.item)).reduce((a, r) => a + r.total, 0); }
+/* ── data helpers ── */
+function dailySales(n) {
+  const rows = Q.salesRows(), out = [], now = new Date();
+  for (let i = n - 1; i >= 0; i--) { const d = new Date(now); d.setDate(d.getDate() - i); const iso = d.toISOString().slice(0, 10); out.push(rows.filter(r => r.date === iso).reduce((a, r) => a + r.total, 0)); }
+  return out;
+}
+function gstByMonth(n) {
+  const rows = Q.salesRows(), map = {};
+  rows.forEach(r => { const ym = (r.date || '').slice(0, 7); if (ym) map[ym] = (map[ym] || 0) + (r.gst || 0); });
+  return Q.monthSeries(n).map(d => map[d.ym] || 0);
+}
+function matTons(g) { return Q.purchaseRows().filter(r => r.group === g).reduce((a, r) => a + (r.qty || 0), 0); }
+function matAmt(g) { const x = Q.purchaseByGroup().find(v => v.key === g); return x ? x.total : 0; }
 
 function render() {
   const main = document.getElementById('ql-main'); if (!main) return;
-  let root = document.getElementById('dkRoot');
-  if (!root) { main.innerHTML = '<div class="dk" id="dkRoot"></div>'; root = document.getElementById('dkRoot'); }
+  let root = document.getElementById('dxRoot');
+  if (!root) { main.innerHTML = '<div class="dx" id="dxRoot"></div>'; root = document.getElementById('dxRoot'); }
   try {
-    const co = Q.co, k = Q.kpis(), s = Q.salesSummary(), pl = Q.getPL(), prod = Q.production(), bal = Q.accountBalances(), pay = Q.paymentsSummary(), gst = Q.gstSummary();
-    root.innerHTML = heroHTML(co) + kpiRow1(k, s, prod, bal, pay) + kpiRow2(pl, s, prod)
-      + analyticsHTML() + rawAndAiHTML() + tablesHTML() + salesVsFlowHTML(s, prod)
-      + gstBankPartnerHTML(gst, bal, pay) + opsForecastHTML(pl, s) + recentHTML();
+    const co = Q.co, k = Q.kpis(), s = Q.salesSummary(), prod = Q.production(), bal = Q.accountBalances(), pay = Q.paymentsSummary(), pl = Q.getPL(), gst = Q.gstSummary();
+    root.innerHTML =
+      filterBar(co) +
+      kpiRow1(k, s, prod, bal, pay) +
+      heroRow() +
+      flowWidget(prod) +
+      kpiRow2(pl, s) +
+      midRow(gst, bal, pay) +
+      activityWidget() +
+      fab();
     root.dataset.ready = '1';
     wire();
+    requestAnimationFrame(() => root.querySelectorAll('.dx-countup').forEach(countUp));
   } catch (e) {
     console.warn('Dashboard render deferred:', e);
     if (root.dataset.ready !== '1') root.innerHTML = skeleton();
@@ -72,184 +82,215 @@ function render() {
   QLShell.paintWorkspace && QLShell.paintWorkspace();
 }
 
-function heroHTML(co) {
-  const seg = Object.entries(PERIODS).map(([k, v]) => `<button class="${period === k ? 'on' : ''}" data-period="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('');
-  return `<div class="dk-hero">
-    <div><div class="dk-h1">Welcome back, ${esc(co.short || co.name || 'there')} 👋</div><div class="dk-sub">Here's today's manufacturing summary for ${esc(co.name || co.short || '')}.</div></div>
-    <div class="dk-hero-r">
-      <div class="dk-seg" id="dkSeg">${seg}</div>
-      <button class="ql-btn ql-btn-secondary" id="dkExport">${svg(I.dl)}<span class="dk-lbl">Export</span></button>
-      <button class="ql-btn ql-btn-primary" onclick="QLShell.openSaleForm()">${svg(I.plus)}<span class="dk-lbl">New Sale</span></button>
+/* ══════════ sticky filter bar ══════════ */
+function filterBar(co) {
+  const range = Object.entries(PERIODS).map(([k, v]) => `<button class="${period === k ? 'on' : ''}" data-period="${k}">${v}</button>`).join('');
+  const drop = (id, label) => `<button class="dx-fchip" data-drop="${id}">${label}${svg(I.chevD)}</button>`;
+  return `<div class="dx-fbar">
+    <div class="dx-fbar-l"><h1 class="dx-h1">Dashboard</h1><span class="dx-fbar-co">${esc(co.short || co.name || '')}</span></div>
+    <div class="dx-fbar-r">
+      <div class="dx-range" id="dxRange">${range}</div>
+      ${drop('plant', 'All plants')}
+      ${drop('pay', 'Payment')}
+      ${drop('gst', 'GST')}
+      <button class="dx-fchip" id="dxExport">${svg(I.dl)}Export</button>
+      <button class="dx-fchip dx-fchip-ghost" id="dxSaveView">${svg(I.save)}Save view</button>
     </div></div>`;
 }
 
-function kcard(tint, ic, label, val, meta) {
-  return `<div class="dk-kpi dk-tint-${tint}"><div class="dk-kpi-top"><span class="dk-kpi-ic dk-t-${tint}">${svg(ic)}</span><span class="dk-kpi-l">${label}</span></div><div class="dk-kpi-v">${val}</div><div class="dk-kpi-m">${meta}</div></div>`;
+/* ══════════ Row 1 — business KPIs ══════════ */
+function kpi(o) {
+  return `<button class="dx-kpi" ${o.href ? `data-go="${o.href}"` : ''}>
+    <div class="dx-kpi-top"><span class="dx-kpi-ic dx-t-${o.tint}">${svg(o.ic)}</span>${o.g != null ? growth(o.g) : (o.badge || '')}</div>
+    <div class="dx-kpi-l">${o.label}</div>
+    <div class="dx-kpi-v"><span class="dx-countup" data-to="${o.raw != null ? o.raw : ''}" data-pre="${o.pre || ''}" data-suf="${o.suf || ''}">${o.val}</span></div>
+    <div class="dx-kpi-b">${o.spark ? `<div class="dx-kpi-sp">${o.spark}</div>` : ''}<span class="dx-kpi-m">${o.meta}</span></div>
+  </button>`;
 }
-function trend(t) { return t == null ? '' : `<span class="dk-trend ${t >= 0 ? 'up' : 'dn'}">${t >= 0 ? '▲' : '▼'} ${Math.abs(t).toFixed(0)}%</span>`; }
-
 function kpiRow1(k, s, prod, bal, pay) {
-  const todaySales = Q.salesRows().filter(r => r.date === new Date().toISOString().slice(0, 10));
-  const todayAmt = todaySales.reduce((a, r) => a + r.total, 0);
-  return `<div class="dk-kpis">
-    ${kcard('blue', I.receipt, "Today's Sales", fC(todayAmt), `${todaySales.length} invoices ${trend(null)}`)}
-    ${kcard('green', I.cart, 'Monthly Sales', k.sales.v, `${s.count} invoices · ${trend(k.sales.trend)}`)}
-    ${kcard('indigo', I.factory, "Today's Production", fmt(prod.today, 1) + ' T', 'Quick Lime dispatched today')}
-    ${kcard('amber', I.clock, 'Pending Collections', fC(s.pending), k.collections.meta)}
-    ${kcard('red', I.cash, 'Supplier Payments Due', fC(pay.supOutstanding), `${pay.pendingBills} bills to pay`)}
-    ${kcard('teal', I.wallet, 'Cash + Bank Balance', fC(bal.total), `Cash ${fC(bal.cash)} · Bank ${fC(bal.bank)} · UPI ${fC(bal.upi)}`)}
+  const rev = Q.monthSeries(6).map(d => d.sales), profit = Q.monthSeries(6).map(d => d.profit), qty = Q.monthSeries(6).map(d => d.qty);
+  const today = Q.salesRows().filter(r => r.date === todayISO()); const todayAmt = today.reduce((a, r) => a + r.total, 0);
+  const recv = pay.custOutstanding;
+  return `<div class="dx-kpis">
+    ${kpi({ tint: 'blue', ic: I.receipt, label: "Today's Sales", val: fC(todayAmt), raw: todayAmt, pre: '₹', meta: today.length + ' invoices', spark: spark(dailySales(7), '#2563eb') })}
+    ${kpi({ tint: 'green', ic: I.trend, label: 'Revenue · this month', val: k.sales.v, g: k.sales.trend, meta: 'vs last month', spark: spark(rev, '#16a34a', (k.sales.trend || 0) >= 0) })}
+    ${kpi({ tint: 'violet', ic: I.coins, label: 'Collections due', val: fC(recv), raw: recv, pre: '₹', meta: k.collections.meta, badge: '<span class="dx-g warn">receivable</span>' })}
+    ${kpi({ tint: 'teal', ic: I.wallet, label: 'Cash position', val: fC(bal.total), raw: bal.total, pre: '₹', meta: `Cash ${fC(bal.cash)} · Bank ${fC(bal.bank)}` })}
+    ${kpi({ tint: 'indigo', ic: I.factory, label: 'Production · month', val: fmt(prod.month, 1) + ' T', g: k.production.trend, meta: 'Quick Lime dispatched', spark: spark(qty, '#6366f1', (k.production.trend || 0) >= 0) })}
+    ${kpi({ tint: 'amber', ic: I.trend, label: 'Net Profit', val: k.profit.v, g: k.profit.trend, meta: k.profit.meta, spark: spark(profit, '#f59e0b', (k.profit.trend || 0) >= 0) })}
   </div>`;
 }
 
-function mini(emoji, label, val, sub) { return `<div class="dk-mini"><div class="dk-mini-l"><span class="e">${emoji}</span>${label}</div><div class="dk-mini-v">${val}</div><div class="dk-mini-s">${sub || ''}</div></div>`; }
-function kpiRow2(pl, s, prod) {
-  const limeT = matTons('limestone'), petT = matTons('petcoke'), bagsT = matTons('packaging');
+/* ══════════ Hero — tabbed analytics + AI insights ══════════ */
+const TABS = [
+  { k: 'revenue', label: 'Revenue', color: '#2563eb', fmt: fC, series: n => Q.monthSeries(n).map(d => d.sales) },
+  { k: 'profit', label: 'Profit', color: '#16a34a', fmt: fC, series: n => Q.monthSeries(n).map(d => d.profit) },
+  { k: 'production', label: 'Production', color: '#6366f1', fmt: v => fmt(v, 1) + ' T', series: n => Q.monthSeries(n).map(d => d.qty) },
+  { k: 'purchases', label: 'Purchases', color: '#f59e0b', fmt: fC, series: n => Q.monthSeries(n).map(d => d.purchases) },
+  { k: 'gst', label: 'GST', color: '#0891b2', fmt: fC, series: n => gstByMonth(n) }
+];
+function heroRow() { return `<div class="dx-hero">${analyticsCard()}${aiCard()}</div>`; }
+function analyticsCard() {
+  const t = TABS.find(x => x.k === tab) || TABS[0], n = NPTS[period] || 6;
+  const labels = Q.monthSeries(n).map(d => d.m), vals = t.series(n);
+  const prevVals = compare ? t.series(n * 2).slice(0, n) : null;
+  const total = vals.reduce((a, b) => a + b, 0), last = vals[vals.length - 1] || 0, prev = vals[vals.length - 2] || 0;
+  const g = prev > 0 ? (last - prev) / prev * 100 : null;
+  const tabs = TABS.map(x => `<button class="dx-tab ${x.k === tab ? 'on' : ''}" data-tab="${x.k}">${x.label}</button>`).join('');
+  return `<div class="dx-card dx-analytics">
+    <div class="dx-ac-h">
+      <div class="dx-tabs">${tabs}</div>
+      <div class="dx-ac-tools">
+        <button class="dx-icobtn ${compare ? 'on' : ''}" id="dxCompare" title="Compare previous period">${svg(I.trend)}</button>
+        <button class="dx-icobtn" id="dxFull" title="Fullscreen">${svg(I.full)}</button>
+      </div>
+    </div>
+    <div class="dx-ac-head">
+      <div><div class="dx-ac-l">${t.label} · ${PERIODS[period]}</div><div class="dx-ac-v">${t.fmt(total)}</div></div>
+      ${g != null ? `<div class="dx-ac-g">${growth(g)}<span class="dx-ac-gs">vs previous</span></div>` : ''}
+    </div>
+    ${metricChart(labels, vals, prevVals, t)}
+  </div>`;
+}
+function metricChart(labels, vals, prevVals, t) {
+  if (!vals.length) return '<div class="dx-empty">Not enough data yet.</div>';
+  const W = 720, H = 250, pad = { l: 8, r: 8, t: 16, b: 26 }, iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+  const all = vals.concat(prevVals || []); const max = Math.max(1, ...all), min = Math.min(0, ...all), rng = (max - min) || 1;
+  const xAt = i => pad.l + (vals.length <= 1 ? iw / 2 : (i / (vals.length - 1)) * iw), yAt = v => pad.t + ih - ((v - min) / rng) * ih;
+  const grid = [0, .5, 1].map(f => { const y = pad.t + ih - f * ih; return `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" class="dx-grid"/>`; }).join('');
+  const path = a => a.map((v, i) => (i ? 'L' : 'M') + xAt(i).toFixed(1) + ' ' + yAt(v).toFixed(1)).join(' ');
+  const areaP = path(vals) + ` L${xAt(vals.length - 1).toFixed(1)} ${pad.t + ih} L${xAt(0).toFixed(1)} ${pad.t + ih} Z`;
+  const prevPath = prevVals ? `<path d="${path(prevVals)}" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>` : '';
+  const dots = vals.map((v, i) => `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="3.4" fill="#fff" stroke="${t.color}" stroke-width="2" class="dx-dot"><title>${esc(labels[i] || '')} · ${t.label}: ${t.fmt(v)}</title></circle>`).join('');
+  const xlab = labels.map((m, i) => `<text x="${xAt(i).toFixed(1)}" y="${H - 7}" class="dx-xlab" text-anchor="middle">${esc(m)}</text>`).join('');
+  return `<div class="dx-chart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="ag" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${t.color}" stop-opacity=".18"/><stop offset="1" stop-color="${t.color}" stop-opacity="0"/></linearGradient></defs>${grid}<path d="${areaP}" fill="url(#ag)"/>${prevPath}<path d="${path(vals)}" fill="none" stroke="${t.color}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" class="dx-line"/>${dots}${xlab}</svg></div>`;
+}
+function aiCard() {
+  const ins = [];
+  (Q.insights ? Q.insights() : []).forEach(x => ins.push({ tone: x.tone, ic: x.icon === 'up' || x.icon === 'trend' ? '📈' : x.icon === 'down' ? '📉' : x.icon === 'alert' ? '⚠️' : x.icon === 'bill' ? '🧾' : '💡', t: x.t, s: x.s, go: x.page }));
+  (Q.paymentsInsights ? Q.paymentsInsights() : []).forEach(x => ins.push({ tone: x.tone === 'bad' ? 'danger' : x.tone === 'warn' ? 'warning' : x.tone === 'ok' ? 'success' : 'info', ic: x.icon || '💡', t: x.text, s: '' }));
+  const TONE = { success: 'g', danger: 'r', warning: 'a', info: 'b' };
+  const rows = ins.slice(0, 5).map(x => `<button class="dx-ins" ${x.go ? `data-go="${x.go}"` : ''}><span class="dx-ins-ic t-${TONE[x.tone] || 'v'}">${x.ic}</span><span class="dx-ins-x"><span class="dx-ins-t">${esc(x.t)}</span>${x.s ? `<span class="dx-ins-s">${esc(x.s)}</span>` : ''}</span><span class="dx-ins-ch">${svg(I.chevR)}</span></button>`).join('')
+    || '<div class="dx-empty">Add sales & purchases to see AI insights.</div>';
+  return `<div class="dx-card dx-ai">
+    <div class="dx-ai-h"><span class="dx-ai-t">${svg(I.ai)} AI Insights</span><span class="dx-ai-badge">LIVE</span></div>
+    <div class="dx-ai-list">${rows}</div>
+    <button class="dx-ai-ask" id="dxAskAi">${svg(I.ai)} Ask AI about your business</button>
+  </div>`;
+}
+
+/* ══════════ Manufacturing flow timeline ══════════ */
+function flowWidget(prod) {
+  const limeT = matTons('limestone'), monthT = prod.month, todayT = prod.today;
+  const stages = [
+    { e: '🪨', n: 'Limestone', t: limeT ? fmt(limeT, 0) + ' T' : '—', m: fC(matAmt('limestone')), st: limeT ? 'ok' : 'idle' },
+    { e: '⛏️', n: 'Crusher', t: limeT ? fmt(limeT * .96, 0) + ' T' : '—', m: 'feed', st: limeT ? 'ok' : 'idle' },
+    { e: '🔥', n: 'Kiln', t: monthT ? 'Active' : '—', m: fmt(monthT, 0) + ' T', st: monthT ? 'run' : 'idle' },
+    { e: '💧', n: 'Hydration', t: fmt(monthT * .98, 0) + ' T', m: 'hydrated', st: monthT ? 'ok' : 'idle' },
+    { e: '📦', n: 'Packing', t: fmt(monthT, 0) + ' T', m: 'bagged', st: monthT ? 'ok' : 'idle' },
+    { e: '🚚', n: 'Dispatch', t: fmt(todayT, 1) + ' T', m: 'today', st: todayT ? 'run' : 'idle' }
+  ];
+  const cells = stages.map((s, i) => `${i ? '<div class="dx-flow-arw">→</div>' : ''}<button class="dx-flow-st st-${s.st}" data-go="production.html">
+      <span class="dx-flow-e">${s.e}</span><span class="dx-flow-n">${s.n}</span><span class="dx-flow-t">${s.t}</span><span class="dx-flow-m">${s.m}</span></button>`).join('');
+  return `<div class="dx-card dx-flow"><div class="dx-card-h"><div class="dx-card-t">Manufacturing flow</div><a class="dx-link" href="production.html">Production →</a></div>
+    <div class="dx-flow-row">${cells}</div></div>`;
+}
+
+/* ══════════ Row 2 — manufacturing KPIs with targets ══════════ */
+function mkpi(o) {
+  const pct = o.target ? Math.min(100, Math.round(o.cur / o.target * 100)) : null;
+  return `<div class="dx-mk">
+    <div class="dx-mk-h"><span class="dx-mk-e">${o.e}</span><span class="dx-mk-n">${o.n}</span>${o.trend != null ? growth(o.trend) : ''}</div>
+    <div class="dx-mk-v">${o.val}</div>
+    ${pct != null ? `<div class="dx-mk-bar"><div class="dx-mk-fill" style="width:${pct}%;background:${o.color}"></div></div><div class="dx-mk-s">${pct}% of ${o.targetLabel}</div>` : `<div class="dx-mk-s">${o.sub || ''}</div>`}
+  </div>`;
+}
+function kpiRow2(pl, s) {
+  const limeT = matTons('limestone'), petT = matTons('petcoke');
   const costPerTon = s.qty ? pl.cogs / s.qty : 0;
   const yieldPct = limeT ? Math.min(100, s.qty / limeT * 100) : null;
-  return `<div class="dk-sec"><div class="dk-minis">
-    ${mini('🪨', 'Limestone', limeT ? fmt(limeT, 1) + ' T' : fC(matAmt('limestone')), limeT ? fC(matAmt('limestone')) : 'purchased')}
-    ${mini('🔥', 'Petcoke', petT ? fmt(petT, 1) + ' T' : fC(matAmt('petcoke')), petT ? fC(matAmt('petcoke')) : 'consumed')}
-    ${mini('📦', 'Plastic Bags', bagsT ? fmt(bagsT, 0) : fC(matAmt('packaging')), bagsT ? 'bags' : 'used')}
-    ${mini('📜', 'Royalty Paid', fC(royaltyPaid()), 'to date')}
-    ${mini('⚙️', 'Kiln Efficiency', prod.month ? '—' : '—', 'add production log')}
-    ${mini('🏭', 'Production Yield', yieldPct != null ? yieldPct.toFixed(0) + '%' : '—', yieldPct != null ? 'lime / limestone' : 'need tons')}
-    ${mini('🧮', 'Cost / Ton', costPerTon ? fC(costPerTon) : '—', 'material cost')}
-    ${mini('📈', 'Gross Profit', pl.gpm.toFixed(1) + '%', fC(pl.gp) + ' GP')}
-  </div></div>`;
-}
-
-function analyticsHTML() {
-  const n = PERIODS[period][1];
-  const series = Q.monthSeries(Math.max(2, n)).map(d => ({ m: d.m, sales: d.sales, purchases: d.purchases, profit: d.profit }));
-  const keys = [{ k: 'sales', label: 'Sales', color: '#2563eb', area: true }, { k: 'purchases', label: 'Purchases', color: '#f59e0b' }, { k: 'profit', label: 'Gross Profit', color: '#16a34a' }];
-  const legend = keys.map(x => `<span class="dk-lg"><span class="dk-lg-dot" style="background:${x.color}"></span>${x.label}</span>`).join('');
-  return `<div class="dk-card dk-sec"><div class="dk-card-h"><div class="dk-card-t">Business analytics</div><div class="dk-legend">${legend}</div></div>${areaChart(series, keys)}</div>`;
-}
-
-function rawAndAiHTML() {
-  const groups = Q.purchaseByGroup().filter(g => g.total > 0).sort((a, b) => b.total - a.total);
-  const max = Math.max(1, ...groups.map(g => g.total));
-  const GCOL = { limestone: '#8a6d3b', petcoke: '#c0392b', packaging: '#2f5fd0', labour: '#1c7c3a', maintenance: '#6b3fa0', utilities: '#b7791f', office: '#475569', other: '#64748b' };
-  const bars = groups.length ? groups.map(g => `<div class="dk-sbar-row"><span class="dk-sbar-l">${g.emoji} ${esc(g.label)}</span><div class="dk-sbar-track"><div class="dk-sbar-fill" style="width:${Math.round(g.total / max * 100)}%;background:${GCOL[g.key] || '#64748b'}"></div></div><span class="dk-sbar-v">${fC(g.total)}</span></div>`).join('') : '<div class="dk-card-s" style="padding:24px 0;text-align:center">No purchases recorded yet.</div>';
-  return `<div class="dk-grid dk-g-2">
-    <div class="dk-card"><div class="dk-card-h"><div class="dk-card-t">Raw material & cost breakdown</div><a class="dk-link" href="purchase.html">Purchase Register →</a></div><div class="dk-sbar">${bars}</div></div>
-    ${aiPanel()}
+  return `<div class="dx-sec-t">Manufacturing performance</div><div class="dx-mks">
+    ${mkpi({ e: '🪨', n: 'Limestone', val: limeT ? fmt(limeT, 0) + ' T' : fC(matAmt('limestone')), sub: fC(matAmt('limestone')) + ' spent' })}
+    ${mkpi({ e: '🔥', n: 'Petcoke', val: petT ? fmt(petT, 1) + ' T' : fC(matAmt('petcoke')), sub: fC(matAmt('petcoke')) + ' spent' })}
+    ${mkpi({ e: '⚪', n: 'Production', val: fmt(s.qty, 1) + ' T', sub: 'Quick Lime, total' })}
+    ${mkpi({ e: '🏭', n: 'Yield', val: yieldPct != null ? yieldPct.toFixed(0) + '%' : '—', color: '#6366f1', cur: yieldPct || 0, target: 100, targetLabel: 'limestone' })}
+    ${mkpi({ e: '🧮', n: 'Cost / Ton', val: costPerTon ? fC(costPerTon) : '—', sub: 'material cost' })}
+    ${mkpi({ e: '📈', n: 'Gross Margin', val: pl.gpm.toFixed(1) + '%', sub: fC(pl.gp) + ' gross profit' })}
   </div>`;
 }
 
-function aiPanel() {
-  const ins = [];
-  Q.insights().forEach(x => ins.push({ tone: x.tone, icon: x.icon === 'up' || x.icon === 'trend' ? '📈' : x.icon === 'down' ? '📉' : x.icon === 'alert' ? '⚠️' : x.icon === 'bill' ? '🧾' : '💡', t: x.t, s: x.s }));
-  (Q.paymentsInsights ? Q.paymentsInsights() : []).slice(0, 2).forEach(x => ins.push({ tone: x.tone === 'bad' ? 'danger' : x.tone === 'warn' ? 'warning' : x.tone === 'ok' ? 'success' : 'info', icon: x.icon || '💡', t: x.text, s: '' }));
-  const TONE = { success: 'dk-t-green', danger: 'dk-t-red', warning: 'dk-t-amber', info: 'dk-t-blue' };
-  const items = ins.slice(0, 5).map(x => `<div class="dk-ai-i"><span class="dk-ai-ic ${TONE[x.tone] || 'dk-t-violet'}">${x.icon}</span><div><div class="dk-ai-t">${esc(x.t)}</div>${x.s ? `<div class="dk-ai-s">${esc(x.s)}</div>` : ''}</div></div>`).join('') || '<div class="dk-card-s" style="padding:20px 0">Add sales & purchases to see AI insights.</div>';
-  const acts = (Q.recommendations ? Q.recommendations() : []).slice(0, 4);
-  const actBtns = acts.length ? acts.map(a => `<button class="dk-act" data-page="${esc((a.action && a.action.page) || '')}">${a.icon || '✨'} ${esc(a.title)}</button>`).join('')
-    : ['📞 Call overdue customers', '🪨 Plan limestone purchase', '🧾 Generate GST summary'].map(t => `<button class="dk-act">${t}</button>`).join('');
-  return `<div class="dk-card dk-ai"><div class="dk-card-h"><div class="dk-card-t">${svg(I.ai)} AI Business Insights</div><span class="dk-ai-badge">${svg(I.ai)} Auto</span></div>
-    ${items}<div class="dk-acts">${actBtns}</div></div>`;
+/* ══════════ mid row — finance overview + top parties ══════════ */
+function midRow(gst, bal, pay) { return `<div class="dx-mid">${financeCard(gst, bal, pay)}${partiesCard()}</div>`; }
+function financeCard(gst, bal, pay) {
+  const cells = [
+    ['💵', 'Cash', fC(bal.cash), 'teal'], ['🏦', 'Bank', fC(bal.bank), 'blue'], ['📱', 'UPI', fC(bal.upi), 'violet'],
+    ['📥', 'Receivables', fC(pay.custOutstanding), 'amber'], ['📤', 'Payables', fC(pay.supOutstanding), 'red'], ['🧾', 'GST payable', fC(gst.net), 'indigo']
+  ];
+  return `<div class="dx-card"><div class="dx-card-h"><div class="dx-card-t">Finance overview</div><a class="dx-link" href="payments.html">Payments →</a></div>
+    <div class="dx-fin">${cells.map(c => `<div class="dx-fin-c"><div class="dx-fin-e dx-t-${c[3]}">${c[0]}</div><div class="dx-fin-x"><div class="dx-fin-l">${c[1]}</div><div class="dx-fin-v">${c[2]}</div></div></div>`).join('')}</div>
+    <div class="dx-fin-foot"><span>Net cash today</span><b><span style="color:var(--ql-success-600)">+${fC(pay.inToday)}</span> / <span style="color:var(--ql-danger-600)">−${fC(pay.outToday)}</span></b></div></div>`;
 }
-
-function tablesHTML() {
-  /* top customers from pending + sales */
-  const byC = {}; Q.salesRows().forEach(r => { const k = r.party; byC[k] = byC[k] || { party: k, sales: 0, pending: 0, last: r.date }; byC[k].sales += r.total; byC[k].pending += r.outstanding; if (r.date > byC[k].last) byC[k].last = r.date; });
-  const cust = Object.values(byC).sort((a, b) => b.sales - a.sales).slice(0, 8);
-  const custRows = cust.length ? cust.map(c => `<tr><td><div class="dk-cell"><span class="dk-av" style="background:linear-gradient(135deg,${avc(c.party)})">${(c.party || '?').charAt(0).toUpperCase()}</span><span class="nm">${esc(c.party)}</span></div></td><td class="r nm">${fC(c.sales)}</td><td class="r">${c.pending > 0 ? `<span style="color:var(--ql-danger-600);font-weight:600">${fC(c.pending)}</span>` : '<span class="mut">—</span>'}</td><td class="r mut">${fDS(c.last)}</td></tr>`).join('') : emptyRow(4);
-  /* top suppliers by group */
-  const bySup = {}; Q.purchaseRows().forEach(r => { const k = r.sup; bySup[k] = bySup[k] || { sup: k, amt: 0, pending: 0 }; bySup[k].amt += r.total; bySup[k].pending += r.outstanding; });
-  const sup = Object.values(bySup).sort((a, b) => b.amt - a.amt).slice(0, 8);
-  const supRows = sup.length ? sup.map(x => `<tr><td><div class="dk-cell"><span class="dk-av" style="background:linear-gradient(135deg,${avc(x.sup)})">${(x.sup || '?').charAt(0).toUpperCase()}</span><span class="nm">${esc(x.sup)}</span></div></td><td class="r nm">${fC(x.amt)}</td><td class="r">${x.pending > 0 ? `<span style="color:var(--ql-danger-600);font-weight:600">${fC(x.pending)}</span>` : '<span class="mut">—</span>'}</td></tr>`).join('') : emptyRow(3);
-  return `<div class="dk-grid dk-g-2e">
-    <div class="dk-card"><div class="dk-card-h"><div class="dk-card-t">Top customers</div><a class="dk-link" href="sales.html">Sales →</a></div>
-      <table class="dk-tbl"><thead><tr><th>Customer</th><th class="r">Sales</th><th class="r">Pending</th><th class="r">Last</th></tr></thead><tbody>${custRows}</tbody></table></div>
-    <div class="dk-card"><div class="dk-card-h"><div class="dk-card-t">Top suppliers</div><a class="dk-link" href="purchase.html">Purchases →</a></div>
-      <table class="dk-tbl"><thead><tr><th>Supplier</th><th class="r">Purchased</th><th class="r">Pending</th></tr></thead><tbody>${supRows}</tbody></table></div>
-  </div>`;
-}
-function emptyRow(cols) { return `<tr><td colspan="${cols}" style="text-align:center;padding:24px;color:var(--ql-text-muted)">No data yet</td></tr>`; }
 const AVC = ['#0891B2,#155E75', '#7C3AED,#5B21B6', '#16A34A,#15803D', '#F59E0B,#B45309', '#DB2777,#9D174D', '#2563EB,#1D4ED8'];
-function avc(s) { return AVC[((s || '?').charCodeAt(0) + (s || '').length) % AVC.length]; }
-
-function salesVsFlowHTML(s, prod) {
-  const coll = Q.collections();
-  const collectedPct = s.revenue ? Math.round(s.collected / s.revenue * 100) : 0;
-  const flow = [['🪨', 'Limestone', matTons('limestone') ? fmt(matTons('limestone'), 0) + 'T' : '—'], ['🔥', 'Kiln', prod.month ? 'Active' : '—'], ['⚪', 'Quick Lime', fmt(prod.month, 1) + 'T'], ['📦', 'Packing', fmt(prod.month, 1) + 'T'], ['🚚', 'Dispatch', fmt(prod.today, 1) + 'T']];
-  return `<div class="dk-grid dk-g-2e">
-    <div class="dk-card"><div class="dk-card-h"><div class="dk-card-t">Sales vs collections</div><a class="dk-link" href="collections.html">Collections →</a></div>
-      <div class="dk-row"><span class="dk-row-l">Invoiced (incl. GST)</span><span class="dk-row-v">${fC(s.revenue)}</span></div>
-      <div class="dk-row"><span class="dk-row-l">Collected</span><span class="dk-row-v" style="color:var(--ql-success-600)">${fC(s.collected)}</span></div>
-      <div class="dk-row"><span class="dk-row-l">Outstanding</span><span class="dk-row-v" style="color:var(--ql-danger-600)">${fC(s.pending)}</span></div>
-      <div class="dk-sbar" style="margin-top:14px"><div class="dk-sbar-row"><span class="dk-sbar-l">Collected</span><div class="dk-sbar-track"><div class="dk-sbar-fill" style="width:${collectedPct}%;background:#16a34a"></div></div><span class="dk-sbar-v">${collectedPct}%</span></div></div>
-      <div class="dk-card-s" style="margin-top:10px">${coll.parties} parties owe you · ${coll.overdue} overdue &gt; 30 days</div></div>
-    <div class="dk-card"><div class="dk-card-h"><div class="dk-card-t">Production flow · today</div><a class="dk-link" href="production.html">Production →</a></div>
-      <div class="dk-flow">${flow.map(f => `<div class="dk-flow-step"><div class="dk-flow-ic">${f[0]}</div><div class="dk-flow-n">${f[1]}</div><div class="dk-flow-v">${f[2]}</div></div>`).join('')}</div>
-      <div class="dk-card-s" style="margin-top:14px">Month to date: <b style="color:var(--ql-text)">${fmt(prod.month, 1)} T</b> Quick Lime · ${fmt(prod.chunnaMonth, 1)} T Chunna</div></div>
-  </div>`;
+const avc = s => AVC[(((s || '?').charCodeAt(0)) + (s || '').length) % AVC.length];
+function partiesCard() {
+  const byC = {}; Q.salesRows().forEach(r => { const k = r.party; byC[k] = byC[k] || { n: k, amt: 0, pend: 0 }; byC[k].amt += r.total; byC[k].pend += r.outstanding; });
+  const cust = Object.values(byC).sort((a, b) => b.amt - a.amt).slice(0, 5);
+  const byS = {}; Q.purchaseRows().forEach(r => { const k = r.sup; byS[k] = byS[k] || { n: k, amt: 0, pend: 0 }; byS[k].amt += r.total; byS[k].pend += r.outstanding; });
+  const sup = Object.values(byS).sort((a, b) => b.amt - a.amt).slice(0, 5);
+  const rowsOf = arr => arr.length ? arr.map(x => `<div class="dx-party"><span class="dx-av" style="background:linear-gradient(135deg,${avc(x.n)})">${(x.n || '?').charAt(0).toUpperCase()}</span><span class="dx-party-n">${esc(x.n)}</span><span class="dx-party-a">${fC(x.amt)}${x.pend > 0 ? `<span class="dx-party-p">${fC(x.pend)} due</span>` : ''}</span></div>`).join('') : '<div class="dx-empty">No data yet.</div>';
+  return `<div class="dx-card"><div class="dx-card-h"><div class="dx-seg2"><button class="on" data-pt="cust">Top customers</button><button data-pt="sup">Top suppliers</button></div><a class="dx-link" href="parties.html">All →</a></div>
+    <div class="dx-parties" data-pane="cust">${rowsOf(cust)}</div>
+    <div class="dx-parties" data-pane="sup" hidden>${rowsOf(sup)}</div></div>`;
 }
 
-function gstBankPartnerHTML(gst, bal, pay) {
-  const loans = Q.loanRows();
-  const partnerRows = loans.length ? loans.slice(0, 4).map(l => `<div class="dk-row"><span class="dk-row-l">${esc(l.name)}</span><span class="dk-row-v">${fC(l.outstanding)}${l.nextAmt ? ` <span class="mut" style="font-weight:500;font-size:11px">· EMI ${fC(l.nextAmt)}</span>` : ''}</span></div>`).join('') : `<div class="dk-card-s" style="padding:16px 0">No loans / partner ledger entries yet.</div>`;
-  return `<div class="dk-grid dk-g-3">
-    <div class="dk-card"><div class="dk-card-h"><div class="dk-card-t">${svg(I.receipt)} GST position</div><a class="dk-link" href="gst.html">GST →</a></div>
-      <div class="dk-row"><span class="dk-row-l">Output GST (collected)</span><span class="dk-row-v">${fC(gst.outGST)}</span></div>
-      <div class="dk-row"><span class="dk-row-l">Input Credit (ITC)</span><span class="dk-row-v" style="color:var(--ql-success-600)">${fC(gst.itc)}</span></div>
-      <div class="dk-row"><span class="dk-row-l">Net GST payable</span><span class="dk-big" style="font-size:19px">${fC(gst.net)}</span></div></div>
-    <div class="dk-card"><div class="dk-card-h"><div class="dk-card-t">${svg(I.bank)} Accounts</div><a class="dk-link" href="payments.html">Payments →</a></div>
-      <div class="dk-row"><span class="dk-row-l">💵 Cash</span><span class="dk-row-v">${fC(bal.cash)}</span></div>
-      <div class="dk-row"><span class="dk-row-l">🏦 Bank</span><span class="dk-row-v">${fC(bal.bank)}</span></div>
-      <div class="dk-row"><span class="dk-row-l">📱 UPI / PhonePe</span><span class="dk-row-v">${fC(bal.upi)}</span></div>
-      <div class="dk-row"><span class="dk-row-l">Money in / out today</span><span class="dk-row-v"><span style="color:var(--ql-success-600)">+${fC(pay.inToday)}</span> / <span style="color:var(--ql-danger-600)">−${fC(pay.outToday)}</span></span></div></div>
-    <div class="dk-card"><div class="dk-card-h"><div class="dk-card-t">${svg(I.users)} Partner ledger</div><a class="dk-link" href="loans.html">Ledger →</a></div>${partnerRows}</div>
-  </div>`;
+/* ══════════ unified activity timeline ══════════ */
+function activityWidget() {
+  const ev = (Q.activity ? Q.activity() : []);
+  const TONE = { brand: 'b', success: 'g', warning: 'a', danger: 'r', indigo: 'v' };
+  const rows = ev.length ? ev.map(e => `<div class="dx-act"><span class="dx-act-dot t-${TONE[e.tone] || 'b'}"></span><div class="dx-act-x"><div class="dx-act-t">${esc(e.t)}</div><div class="dx-act-s">${esc(e.s || '')}</div></div><span class="dx-act-w">${esc(e.when || '')}</span></div>`).join('') : '<div class="dx-empty">No activity yet.</div>';
+  return `<div class="dx-card"><div class="dx-card-h"><div class="dx-card-t">Recent activity</div><span class="dx-card-sub">Sales · Purchases · Payments · Production</span></div>
+    <div class="dx-acts">${rows}</div></div>`;
 }
 
-function opsForecastHTML(pl, s) {
-  /* live ops timeline from today's real activity, else recent */
-  const ev = Q.activity().slice(0, 6);
-  const clock = ['08:00', '09:20', '11:10', '12:45', '14:00', '15:30'];
-  const tl = ev.length ? ev.map((e, i) => `<div class="dk-tl-i"><div class="dk-tl-time">${e.when || clock[i] || ''}</div><div class="dk-tl-t">${esc(e.t)}</div><div class="dk-tl-s">${esc(e.s || '')}</div></div>`).join('') : `<div class="dk-card-s" style="padding:16px 0">No activity logged yet.</div>`;
-  /* forecast — project next month from trend */
-  const ser = Q.monthSeries(4);
-  const avgSales = ser.reduce((a, d) => a + d.sales, 0) / (ser.length || 1);
-  const avgQty = ser.reduce((a, d) => a + d.qty, 0) / (ser.length || 1);
-  const avgProfit = ser.reduce((a, d) => a + d.profit, 0) / (ser.length || 1);
-  return `<div class="dk-grid dk-g-2e">
-    <div class="dk-card"><div class="dk-card-h"><div class="dk-card-t">Live operations · activity</div></div><div class="dk-tl">${tl}</div></div>
-    <div class="dk-card dk-ai"><div class="dk-card-h"><div class="dk-card-t">${svg(I.ai)} AI forecast · next month</div><span class="dk-fc-badge">Predicted</span></div>
-      <div class="dk-fc">
-        <div class="dk-fc-i"><div class="dk-fc-l">Expected Sales</div><div class="dk-fc-v">${fC(avgSales)}</div></div>
-        <div class="dk-fc-i"><div class="dk-fc-l">Expected Production</div><div class="dk-fc-v">${fmt(avgQty, 1)} T</div></div>
-        <div class="dk-fc-i"><div class="dk-fc-l">Expected Gross Profit</div><div class="dk-fc-v">${fC(avgProfit)}</div></div>
-        <div class="dk-fc-i"><div class="dk-fc-l">Suggested limestone buy</div><div class="dk-fc-v">${fmt(avgQty * 1.9, 0)} T</div></div>
-      </div>
-      <div class="dk-card-s" style="margin-top:12px">Based on your last ${ser.length} months. Refines as you add data.</div></div>
-  </div>`;
+/* ══════════ floating quick actions ══════════ */
+function fab() {
+  const acts = [['🧾', 'New Sale', 'invoice.html'], ['🛒', 'Purchase', 'purchase.html'], ['💰', 'Payment', 'payments.html'], ['🏭', 'Production', 'production.html'], ['🧮', 'Expense', 'cashbook.html'], ['🏦', 'Bank txn', 'reconcile.html']];
+  return `<div class="dx-fab" id="dxFab"><div class="dx-fab-menu" id="dxFabMenu">${acts.map(a => `<button class="dx-fab-i" data-go="${a[2]}"><span>${a[0]}</span>${a[1]}</button>`).join('')}</div>
+    <button class="dx-fab-btn" id="dxFabBtn">${svg(I.plus)}</button></div>`;
 }
 
-function recentHTML() {
-  const sales = Q.salesRows().slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 5);
-  const purch = Q.purchaseRows().slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 5);
-  const pays = (Q.paymentsLedger ? Q.paymentsLedger() : []).slice(0, 5);
-  const list = (title, href, rows) => `<div class="dk-card"><div class="dk-card-h"><div class="dk-card-t">${title}</div><a class="dk-link" href="${href}">All →</a></div>${rows}</div>`;
-  const sRows = sales.length ? sales.map(r => `<div class="dk-row"><span class="dk-row-l"><b style="color:var(--ql-brand-600)">${esc(r.inv || '—')}</b> ${esc(r.party)}</span><span class="dk-row-v">${fC(r.total)}</span></div>`).join('') : emptyLine();
-  const pRows = purch.length ? purch.map(r => `<div class="dk-row"><span class="dk-row-l">${r.emoji} ${esc(r.sup)}</span><span class="dk-row-v">${fC(r.total)}</span></div>`).join('') : emptyLine();
-  const yRows = pays.length ? pays.map(r => `<div class="dk-row"><span class="dk-row-l">${esc(r.party)} · ${esc(r.ptype)}</span><span class="dk-row-v" style="color:${r.dir === 'in' ? 'var(--ql-success-600)' : 'var(--ql-danger-600)'}">${r.dir === 'in' ? '+' : '−'}${fC(r.amount)}</span></div>`).join('') : emptyLine();
-  return `<div class="dk-grid dk-g-3">${list('Recent sales', 'sales.html', sRows)}${list('Recent purchases', 'purchase.html', pRows)}${list('Recent payments', 'payments.html', yRows)}</div>`;
+function countUp(el) {
+  const to = +el.dataset.to; if (!isFinite(to) || !to) return;
+  const pre = el.dataset.pre || '', suf = el.dataset.suf || '', dur = 620, t0 = performance.now();
+  const fmtN = n => pre + Math.round(n).toLocaleString('en-IN') + suf;
+  function step(t) { const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3); el.textContent = fmtN(to * e); if (p < 1) requestAnimationFrame(step); else el.textContent = fmtN(to); }
+  requestAnimationFrame(step);
 }
-function emptyLine() { return '<div class="dk-card-s" style="padding:16px 0">Nothing yet.</div>'; }
-
 function skeleton() {
-  const card = '<div class="dk-kpi"><div class="dk-kpi-top"><span class="dk-sk" style="width:36px;height:36px;border-radius:10px"></span></div><div class="dk-sk" style="width:80%;height:22px;margin:6px 0"></div><div class="dk-sk" style="width:60%;height:11px"></div></div>';
-  return `<div class="dk-hero"><div><div class="dk-sk" style="width:280px;height:26px"></div><div class="dk-sk" style="width:200px;height:12px;margin-top:8px"></div></div></div><div class="dk-kpis">${Array.from({ length: 6 }).map(() => card).join('')}</div><div class="dk-card" style="height:260px"></div>`;
+  const c = '<div class="dx-kpi"><div class="dx-sk" style="width:34px;height:34px;border-radius:10px"></div><div class="dx-sk" style="width:70%;height:12px;margin:14px 0 8px"></div><div class="dx-sk" style="width:55%;height:22px"></div></div>';
+  return `<div class="dx-fbar"><div class="dx-sk" style="width:160px;height:26px"></div></div><div class="dx-kpis">${Array.from({ length: 6 }).map(() => c).join('')}</div><div class="dx-card dx-sk" style="height:300px;margin-top:16px"></div>`;
 }
 
-/* ── wiring ── */
+/* ══════════ wiring ══════════ */
+function go(p) { if (p) location.href = p.includes('.html') ? p : p + '.html'; }
 function wire() {
-  const root = document.getElementById('dkRoot'); if (!root) return;
+  const root = document.getElementById('dxRoot'); if (!root) return;
   root.querySelectorAll('[data-period]').forEach(b => b.onclick = () => { period = b.dataset.period; render(); });
-  const ex = document.getElementById('dkExport'); if (ex) ex.onclick = () => { const r = Q.salesRows(); QLShell.exportCSV('dashboard_sales', ['Invoice', 'Date', 'Party', 'Taxable', 'GST', 'Total', 'Status'], r.map(x => [x.inv, x.date, x.party, x.taxable, x.gst, x.total, x.status])); QLShell.toast && QLShell.toast('Exported ' + r.length + ' rows'); };
-  root.querySelectorAll('.dk-act[data-page]').forEach(b => b.onclick = () => { const p = b.dataset.page; if (p) location.href = p.includes('.html') ? p : p + '.html'; });
+  root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
+  root.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', e => { if (e.target.closest('.dx-fab-i') || b.classList.contains('dx-fab-i') || !b.closest('.dx-fab')) go(b.dataset.go); }));
+  const cmp = document.getElementById('dxCompare'); if (cmp) cmp.onclick = () => { compare = !compare; render(); };
+  const exp = document.getElementById('dxExport'); if (exp) exp.onclick = () => { const r = Q.salesRows(); QLShell.exportCSV('dashboard_sales', ['Invoice', 'Date', 'Party', 'Taxable', 'GST', 'Total', 'Status'], r.map(x => [x.inv, x.date, x.party, x.taxable, x.gst, x.total, x.status])); QLShell.toast && QLShell.toast('Exported ' + r.length + ' rows'); };
+  const sv = document.getElementById('dxSaveView'); if (sv) sv.onclick = () => QLShell.toast && QLShell.toast('View saved: ' + PERIODS[period] + ' · ' + tab);
+  const ask = document.getElementById('dxAskAi'); if (ask) ask.onclick = () => QLShell.toast && QLShell.toast('AI assistant coming to your workspace');
+  const full = document.getElementById('dxFull'); if (full) full.onclick = () => { const c = document.querySelector('.dx-analytics'); if (c) c.classList.toggle('dx-fs'); };
+  // party segmented
+  root.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => { root.querySelectorAll('[data-pt]').forEach(x => x.classList.remove('on')); b.classList.add('on'); root.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== b.dataset.pt); });
+  // FAB
+  const fb = document.getElementById('dxFabBtn'); if (fb) fb.onclick = e => { e.stopPropagation(); document.getElementById('dxFab').classList.toggle('open'); };
+  document.addEventListener('click', () => { const f = document.getElementById('dxFab'); if (f) f.classList.remove('open'); }, { once: true });
+  root.querySelectorAll('.dx-fab-i').forEach(b => b.onclick = () => go(b.dataset.go));
+  // filter chips (visual dropdowns → toast for now)
+  root.querySelectorAll('[data-drop]').forEach(b => b.onclick = () => QLShell.toast && QLShell.toast('Filter: ' + b.dataset.drop + ' (single plant)'));
 }
 
 window.__qlRefresh = render;
