@@ -41,7 +41,7 @@
     'gst\\s*(?:registration|reg)?\\s*(?:no|number|in)?', 'gstin', 'g\\s*s\\s*t\\s*i\\s*n',
     'pan(?:\\s*no)?', 'tax\\s*invoice', 'invoice(?:\\s*(?:no|number|date|value|cum)?)?', 'bill(?:\\s*(?:no|number|of\\s*supply|to|date))?',
     'billed\\s*to', 'bill\\s*to', 'ship(?:ped)?\\s*to', 'sold\\s*(?:to|by)', 'buyer', 'seller', 'supplier', 'vendor',
-    'consignee', 'consignor', 'party(?:\\s*name)?', 'name(?:\\s*of\\s*\\w+)?', 'm/s',
+    'consignee', 'consignor', 'recipient', 'receiver', 'party(?:\\s*name)?', 'name(?:\\s*of\\s*\\w+)?', 'm/s',
     'hsn(?:\\s*(?:code|/sac|sac))?', 'sac', 'description(?:\\s*of\\s*goods)?', 'particulars?', 'goods',
     'state(?:\\s*(?:code|name))?', 'place\\s*of\\s*supply', 'address', 'contact', 'mobile', 'phone', 'email', 'e-?mail',
     'date[d]?', 'due\\s*date', 'qty', 'quantity', 'unit', 'per', 'rate', 'mrp', 'disc(?:ount)?',
@@ -273,25 +273,29 @@
     // The amount is the FIRST money that appears AFTER the label (on the same
     // line, or the next line if the label stands alone) — robust to a whole
     // tax block flattened onto one OCR line, and it never grabs the % rate.
+    // Strip numbers that are a rate/percentage OR a quantity (a number followed
+    // by a unit like TO/MT/KG/%): on "Taxable Value 32.380 TO 16220.000 TO
+    // 525203.60" this leaves only the true amount 525203.60, never the qty/rate.
+    function strip(s) { return String(s).replace(/\d[\d.,]*\s*%/g, ' ').replace(/\d[\d.,]*\s*(?:to|mt|m\.t\.?|kgs?|nos|ltr|litres?|tonnes?|\bton\b|bags?|pcs?|units?|qtls?|\bkl\b|cbm)\b/gi, ' '); }
     function firstAmtAfter(re, skip) {
       for (var i = 0; i < lines.length; i++) {
         if (skip && skip.test(lines[i])) continue;
         var m = re.exec(lines[i]); if (!m) continue;
-        var rest = lines[i].slice(m.index + m[0].length).replace(/\d[\d.,]*\s*%/g, ' ');
-        var mo = money(rest); if (mo.length) return mo[0];
-        if (i + 1 < lines.length) { var mo2 = money(String(lines[i + 1]).replace(/\d[\d.,]*\s*%/g, ' ')); if (mo2.length) return mo2[0]; }
+        var mo = money(strip(lines[i].slice(m.index + m[0].length))); if (mo.length) return mo[0];
+        if (i + 1 < lines.length) { var mo2 = money(strip(lines[i + 1])); if (mo2.length) return mo2[0]; }
       }
       return null;
     }
-    out.taxable = firstAmtAfter(/taxable\s*(?:value|amount|amt)|total\s*taxable|basic\s*(?:value|amount)|amount\s*before\s*tax/i);
+    out.taxable = firstAmtAfter(/taxable\s*(?:value|amount|amt)|total\s*taxable|basic\s*(?:value|amount)|assessable\s*value|amount\s*before\s*tax/i);
     if (out.taxable != null) out.conf.taxable = 0.85;
-    out.cgst = firstAmtAfter(/\bc\s*gst\b/i); if (out.cgst != null) out.conf.cgst = 0.8;
-    out.sgst = firstAmtAfter(/\bs\s*gst\b/i); if (out.sgst != null) out.conf.sgst = 0.8;
-    out.igst = firstAmtAfter(/\bi\s*gst\b/i); if (out.igst != null) out.conf.igst = 0.8;
-    out.roundOff = labelled(T, /round(?:ed)?\s*off[^0-9\-]{0,10}(-?[0-9][0-9,]*\.?[0-9]{0,2})/i);
-    // Grand total first; then a bare "Total" — skipping sub-total / taxable lines.
-    out.total = firstAmtAfter(/grand\s*total|invoice\s*value|amount\s*payable|net\s*(?:amount|payable)|bill\s*(?:amount|total)/i);
-    if (out.total == null) out.total = firstAmtAfter(/\btotal\b/i, /sub\s*-?\s*total|in\s*words|qty|quantity/i);
+    out.cgst = firstAmtAfter(/\bc\s*gst\b|central\s*tax/i); if (out.cgst != null) out.conf.cgst = 0.8;
+    out.sgst = firstAmtAfter(/\bs\s*gst\b|state\s*tax|\bugst\b/i); if (out.sgst != null) out.conf.sgst = 0.8;
+    out.igst = firstAmtAfter(/\bi\s*gst\b|integrated\s*tax/i); if (out.igst != null) out.conf.igst = 0.8;
+    out.roundOff = labelled(T, /round(?:ed|ing)?\s*(?:off|difference)?[^0-9\-]{0,12}(-?[0-9][0-9,]*\.?[0-9]{0,2})/i);
+    // Grand total first; then a bare "Total" — skipping sub-total / "total for
+    // material" / taxable / qty lines.
+    out.total = firstAmtAfter(/grand\s*total|invoice\s*(?:value|total)|amount\s*payable|net\s*(?:amount|payable)|bill\s*(?:amount|total)/i);
+    if (out.total == null) out.total = firstAmtAfter(/\btotal\b/i, /sub\s*-?\s*total|in\s*words|qty|quantity|total\s*for\b/i);
     if (out.total != null) out.conf.total = 0.8;
     return out;
   }
@@ -314,7 +318,9 @@
   var GEN = { billNo: 'docno', date: 'date', supplier: 'name', supplierGstin: 'gstin', taxable: 'taxable', total: 'total', gstRate: 'rate', group: 'group', item: 'item' };
   function legacy(res) {
     var f = res.fields, rev = res.review || [];
-    function ok(k, v) { return rev.indexOf(k) >= 0 ? '' : (v == null ? '' : v); }   // blank if needs-review
+    // Fill the best-guess value for every field (so nothing is silently empty);
+    // the UI still flags low-confidence fields for review via _review.
+    function ok(k, v) { return v == null ? '' : v; }
     var gconf = {}, grev = [];
     Object.keys(res.confidence || {}).forEach(function (k) { gconf[GEN[k] || k] = res.confidence[k]; });
     rev.forEach(function (k) { grev.push(GEN[k] || k); });
