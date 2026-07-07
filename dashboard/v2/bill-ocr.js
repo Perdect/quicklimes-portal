@@ -57,9 +57,13 @@
     var n = clean(s).replace(/[:\-–].*$/, '').trim();     // text before a colon/dash
     if (!n) return true;
     if (LABEL_RE.test(n)) {
-      // "M/s ACME TRADERS" is NOT a bare label — it has a real name after it.
+      // "M/s ACME TRADERS" is NOT a bare label — it has a real NAME after it.
+      // But "GSTIN 08AAAFS2222B1Z4" is a label + a CODE, not a name.
       var rest = n.replace(LABEL_RE, '').replace(/^[\s:.\-]+/, '').trim();
-      if (rest.length >= 3 && /[A-Za-z]{3}/.test(rest) && !LABEL_RE.test(rest)) return false;
+      var lettersOnly = (rest.match(/[A-Za-z]/g) || []).length;
+      var nameLike = rest.length >= 3 && /^[A-Za-z]/.test(rest) && !/\d{4}/.test(rest) &&
+        lettersOnly >= rest.replace(/\s/g, '').length * 0.6 && !LABEL_RE.test(rest);
+      if (nameLike) return false;
       return true;
     }
     return false;
@@ -200,7 +204,7 @@
 
   /* ── supplier picker ─────────────────────────────────────────────────── */
   var CO_SUFFIX = /\b(ltd|limited|pvt|private|llp|traders?|trading|mines?|minerals?|industries|enterprises?|cement|company|corporation|corp|sons|agencies|associates|udyog|stores?|suppliers?|transport|roadlines|petro|petroleum|\boil\b|chemicals?|distributors?|marketing|steel|works)\b/i;
-  var ADDR_RE = /road|street|nagar|\bdist\b|district|\bpin\b|tehsil|ward|khasra|khasara|colony|\bmarg\b|sector|village|\bgidc\b|industrial|\barea\b|plot|\bnear\b|\bopp\b|behind|\bstate\b|rajasthan|gujarat|maharashtra|\bindia\b|\d{6}/i;
+  var ADDR_RE = /\broad\b|street|\bnagar\b|\bdist\b|district|\bpin\b|tehsil|\bward\b|khasra|khasara|colony|\bmarg\b|\bsector\b|village|\bgidc\b|industrial|\barea\b|\bplot\b|\bnear\b|\bopp\b|behind|\bstate\b|rajasthan|gujarat|maharashtra|\bindia\b|\d{6}/i;
   function isCompanyish(s) { return CO_SUFFIX.test(s) || (/^[A-Z0-9 &.'()\-]{4,}$/.test(clean(s)) && clean(s).split(' ').length >= 2); }
   function goodName(s, ownNames) {
     var c = clean(s).replace(/[.,;:]+$/, '');
@@ -210,7 +214,7 @@
     if (/^\d/.test(c) || /\d{6}/.test(c)) return '';             // starts with a number / has a pin
     if (ADDR_RE.test(c)) return '';                              // address line, not a name
     if (/\b(?:from|to)\s*:/i.test(c) || /\bconsign(?:or|ee)\b/i.test(c) || /\broute\b/i.test(c)) return '';   // transport route line
-    if (/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/i.test(norm(c).replace(/\s/g, ''))) return '';
+    if (/\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]/i.test(norm(c).replace(/\s/g, ''))) return '';    // contains a GSTIN → not a name
     var n = norm(c); for (var i = 0; i < (ownNames || []).length; i++) { if (ownNames[i] && (n.indexOf(ownNames[i]) >= 0 || ownNames[i].indexOf(n) >= 0)) return ''; }
     return c;
   }
@@ -266,21 +270,29 @@
   function amountsOnLine(line) { return money(String(line).replace(/\d[\d.,]*\s*%/g, ' ')); }
   function pickAmounts(T, lines) {
     var out = { conf: {} };
-    function amtOf(re) { for (var i = 0; i < lines.length; i++) { if (re.test(lines[i])) { var a = amountsOnLine(lines[i]); if (a.length) return Math.max.apply(null, a); } } return null; }
-    out.taxable = amtOf(/taxable\s*(?:value|amount|amt)|total\s*taxable|basic\s*(?:value|amount)|amount\s*before\s*tax/i);
+    // The amount is the FIRST money that appears AFTER the label (on the same
+    // line, or the next line if the label stands alone) — robust to a whole
+    // tax block flattened onto one OCR line, and it never grabs the % rate.
+    function firstAmtAfter(re, skip) {
+      for (var i = 0; i < lines.length; i++) {
+        if (skip && skip.test(lines[i])) continue;
+        var m = re.exec(lines[i]); if (!m) continue;
+        var rest = lines[i].slice(m.index + m[0].length).replace(/\d[\d.,]*\s*%/g, ' ');
+        var mo = money(rest); if (mo.length) return mo[0];
+        if (i + 1 < lines.length) { var mo2 = money(String(lines[i + 1]).replace(/\d[\d.,]*\s*%/g, ' ')); if (mo2.length) return mo2[0]; }
+      }
+      return null;
+    }
+    out.taxable = firstAmtAfter(/taxable\s*(?:value|amount|amt)|total\s*taxable|basic\s*(?:value|amount)|amount\s*before\s*tax/i);
     if (out.taxable != null) out.conf.taxable = 0.85;
-    out.cgst = amtOf(/\bc\s*gst\b/i); if (out.cgst != null) out.conf.cgst = 0.8;
-    out.sgst = amtOf(/\bs\s*gst\b/i); if (out.sgst != null) out.conf.sgst = 0.8;
-    out.igst = amtOf(/\bi\s*gst\b/i); if (out.igst != null) out.conf.igst = 0.8;
+    out.cgst = firstAmtAfter(/\bc\s*gst\b/i); if (out.cgst != null) out.conf.cgst = 0.8;
+    out.sgst = firstAmtAfter(/\bs\s*gst\b/i); if (out.sgst != null) out.conf.sgst = 0.8;
+    out.igst = firstAmtAfter(/\bi\s*gst\b/i); if (out.igst != null) out.conf.igst = 0.8;
     out.roundOff = labelled(T, /round(?:ed)?\s*off[^0-9\-]{0,10}(-?[0-9][0-9,]*\.?[0-9]{0,2})/i);
-    // Grand total — a "total / invoice value / amount payable" line, but NOT a
-    // sub-total, taxable-total or amount-in-words line.
-    var tl = lines.filter(function (l) {
-      return /grand\s*total|invoice\s*value|amount\s*payable|net\s*(?:amount|payable)|bill\s*(?:amount|total)|(?:^|\s)total(?:\s|:|$)/i.test(l)
-        && !/sub\s*-?\s*total|taxable|before\s*tax|in\s*words|qty|quantity/i.test(l);
-    });
-    var tv = []; tl.forEach(function (l) { amountsOnLine(l).forEach(function (n) { tv.push(n); }); });
-    if (tv.length) { out.total = Math.max.apply(null, tv); out.conf.total = 0.8; }
+    // Grand total first; then a bare "Total" — skipping sub-total / taxable lines.
+    out.total = firstAmtAfter(/grand\s*total|invoice\s*value|amount\s*payable|net\s*(?:amount|payable)|bill\s*(?:amount|total)/i);
+    if (out.total == null) out.total = firstAmtAfter(/\btotal\b/i, /sub\s*-?\s*total|in\s*words|qty|quantity/i);
+    if (out.total != null) out.conf.total = 0.8;
     return out;
   }
   function pickRate(T, A) {
@@ -316,8 +328,64 @@
     };
   }
 
+  /* ── built-in sample corpus + one-click self-test ─────────────────────
+     Real-shaped Indian GST purchase bills across every category, each with
+     ground-truth. Powers the "Run Import Test Suite" button. */
+  var OWN = { ownGstins: ['08AABCG1234H1Z5', '08AADFD5678K1Z9'], ownNames: ['GOTAN LIME INDUSTRIES', 'DESHWALI MINERALS'] };
+  var SAMPLES = [
+    { name: 'Label-trap (the reported bug)', cat: 'limestone/CGST+SGST', text: 'INDORAMA CEMENT LIMITED\nPlot 42, GIDC Industrial Area, Bharuch, Gujarat\nGST Registration No\n24AAACI1681G1ZV\nTAX INVOICE\nInvoice No : 20273121B006913   Dated : 19-Jun-2026\nBilled To : Gotan Lime Industries  GSTIN 08AABCG1234H1Z5\nLimestone HSN 2521\nTaxable Value 84717.00\nCGST 2.5% 2117.93\nSGST 2.5% 2117.93\nGrand Total 88952.86\nReverse Charge : No', expect: { supplier: 'INDORAMA CEMENT LIMITED', supplierGstin: '24AAACI1681G1ZV', billNo: '20273121B006913', date: '19-Jun-2026', taxable: 84717, total: 88952.86, gstRate: 5, itc: 'Eligible' } },
+    { name: 'Limestone (M/s)', cat: 'limestone/CGST+SGST', text: 'M/s Mateshwari Mines and Minerals\nGSTIN 08ABCFM1234N1ZP\nBill No: GJ5534   Date: 15/06/2026\nTo: Gotan Lime Industries GSTIN 08AABCG1234H1Z5\nLimestone (Kankar) HSN 2521\nTaxable Value 847170.00 CGST 2.5% 21179.25 SGST 2.5% 21179.25 Grand Total 889529.00\nReverse Charge : No', expect: { supplier: 'Mateshwari Mines and Minerals', group: 'limestone', gstRate: 5, taxable: 847170, itc: 'Eligible' } },
+    { name: 'Petcoke IGST inter-state', cat: 'petcoke/IGST', text: 'Reliance Industries Limited\nJamnagar Gujarat\nGSTIN 24AAACR5055K1Z7\nTax Invoice No RIL/2026/8842 Dt 02-Jun-2026\nBill To Deshwali Minerals GSTIN 08AADFD5678K1Z9\nPet Coke HSN 2713\nTaxable Amount 1000000.00 IGST 18% 180000.00 Invoice Value 1180000.00', expect: { supplier: 'Reliance Industries Limited', group: 'petcoke', gstRate: 18, igst: 180000, total: 1180000 } },
+    { name: 'Zero-GST exempt', cat: 'no-GST', text: 'Krishna Traders\nGSTIN 08AAACK1111A1Z0\nBill No 771 Date 10-Jun-26\nTo Gotan Lime Industries\nExempt agricultural produce\nTaxable Value 50000.00 Total 50000.00', expect: { supplier: 'Krishna Traders', total: 50000 } },
+    { name: 'Plastic bags', cat: 'packaging', text: 'Shree Balaji Polysack Industries\nGSTIN 24AAECS7777P1ZR\nInvoice No SBP/771 Date 12-Jun-2026\nBill To Gotan Lime Industries GSTIN 08AABCG1234H1Z5\nHDPE Woven Sack Bags HSN 6305\nTaxable Value 174000.00 CGST 9% 15660.00 SGST 9% 15660.00 Grand Total 205320.00\nReverse Charge : No', expect: { supplier: 'Shree Balaji Polysack Industries', group: 'packaging', gstRate: 18, itc: 'Eligible' } },
+    { name: 'Royalty on limestone', cat: 'royalty', text: 'Department of Mines and Geology\nGSTIN 08AAAGD0001A1Z5\nChallan No DMG/RY/551 Date 09-Jun-2026\nTo Gotan Lime Industries\nRoyalty on Limestone (Mineral) DMF NMET\nTaxable Value 300000.00 CGST 9% 27000.00 SGST 9% 27000.00 Grand Total 354000.00', expect: { group: 'royalty', gstRate: 18 } },
+    { name: 'GTA freight RCM', cat: 'transport/RCM', text: 'M/s Shree Balaji Roadlines\nGSTIN 08AABCT9999Q1ZX\nConsignment Note TC/551 Date 20/06/2026\nTo Gotan Lime Industries\nGoods Transport Agency - Freight for limestone\nFreight 45000.00\nTax payable by recipient under RCM\nTotal 45000.00', expect: { supplier: 'Shree Balaji Roadlines', group: 'transport', itc: 'RCM' } },
+    { name: 'Diesel / HSD', cat: 'fuel', text: 'Shree Balaji Filling Station\nGSTIN 08AAAFS2222B1Z4\nInvoice No FS/8890 Date 11-Jun-2026\nTo Gotan Lime Industries\nHigh Speed Diesel HSD 2000 Ltr\nTaxable Value 178840.00 Total 178840.00', expect: { supplier: 'Shree Balaji Filling Station', group: 'fuel' } },
+    { name: 'Bank charges 18%', cat: 'bank', text: 'HDFC Bank Limited\nGST Registration No 07AAACH2702H1ZS\nTax Invoice / Debit Note No BC/2211 Date 30-Jun-2026\nTo Gotan Lime Industries GSTIN 08AABCG1234H1Z5\nProcessing fee and bank commission\nTaxable Value 5000.00 CGST 9% 450.00 SGST 9% 450.00 Grand Total 5900.00\nReverse Charge : No', expect: { supplier: 'HDFC Bank Limited', group: 'bank', gstRate: 18, itc: 'Eligible' } },
+    { name: 'Long supplier name', cat: 'labour', text: 'SHREE BALAJI LABOUR CONTRACTOR & MANPOWER SUPPLIERS\nGSTIN 08AACFS9012K1Z6\nInvoice No SBL/LAB/0271 Dated 18/02/2025\nBilled To Gotan Lime Industries GSTIN 08AABCG1234H1Z5\nLoading & Unloading of Limestone SAC 998519\nTaxable Value 85000.00 CGST 9% 7650.00 SGST 9% 7650.00 Grand Total 100300.00\nReverse Charge : No', expect: { supplier: 'SHREE BALAJI LABOUR CONTRACTOR & MANPOWER SUPPLIERS', group: 'labour', itc: 'Eligible' } },
+    { name: 'Blurry (must blank, not fake)', cat: 'low-confidence', text: 'T@X 1NV0ICE\nS0me Vend0r ???\nG$TlN 08 A?BC ????\nT0tal ...', expect: { supplier: null, total: null, taxable: null } },
+    { name: 'Duplicate of #2 (same supplier+bill)', cat: 'duplicate', text: 'M/s Mateshwari Mines and Minerals\nGSTIN 08ABCFM1234N1ZP\nBill No: GJ5534   Date: 15/06/2026\nTo: Gotan Lime Industries\nLimestone Taxable Value 847170.00 CGST 21179.25 SGST 21179.25 Grand Total 889529.00', expect: { supplier: 'Mateshwari Mines and Minerals', _dupOf: 1 } }
+  ];
+  function eqVal(exp, got) {
+    if (exp === null) return got == null || got === '';                  // expected blank
+    if (typeof exp === 'number') return got != null && Math.abs(+got - exp) <= 2;
+    return String(got || '').toLowerCase().trim() === String(exp).toLowerCase().trim();
+  }
+  function selfTest() {
+    var GROUPS_OF = { supplier: ['supplier'], amount: ['taxable', 'total'], gst: ['gstRate', 'cgst', 'sgst', 'igst'] };
+    var rep = { total: 0, passed: 0, failed: 0, labelErrors: 0, fakeErrors: 0, fieldPass: 0, fieldTot: 0, byGroup: { supplier: [0, 0], amount: [0, 0], gst: [0, 0], total: [0, 0] }, cases: [] };
+    var dupKeys = {};
+    SAMPLES.forEach(function (s) {
+      var r = parse(s.text, OWN), f = r.fields, fr = [], allOk = true;
+      Object.keys(s.expect).forEach(function (k) {
+        if (k[0] === '_') return;
+        var exp = s.expect[k], got = f[k], ok = eqVal(exp, got);
+        rep.fieldTot++; if (ok) rep.fieldPass++; else allOk = false;
+        if (k === 'supplier' && got && isLabel(String(got))) rep.labelErrors++;
+        if (exp === null && got != null && got !== '') rep.fakeErrors++;
+        ['supplier', 'amount', 'gst'].forEach(function (g) { if (GROUPS_OF[g].indexOf(k) >= 0) { rep.byGroup[g][1]++; if (ok) rep.byGroup[g][0]++; } });
+        if (k === 'total') { rep.byGroup.total[1]++; if (ok) rep.byGroup.total[0]++; }
+        fr.push({ name: k, exp: exp === null ? '(blank)' : exp, got: got == null ? '(blank)' : got, pass: ok });
+      });
+      // duplicate-key check
+      if (s.expect._dupOf != null) { var key = String(f.supplier || '') + '|' + String(f.billNo || ''); rep.dup = rep.dup || { n: 0, ok: 0 }; rep.dup.n++; if (dupKeys[key.toUpperCase()]) rep.dup.ok++; }
+      var key2 = String(f.supplier || '') + '|' + String(f.billNo || ''); if (f.billNo) dupKeys[key2.toUpperCase()] = 1;
+      rep.total++; if (allOk) rep.passed++; else rep.failed++;
+      rep.cases.push({ name: s.name, cat: s.cat, pass: allOk, supplier: f.supplier || '', fields: fr });
+    });
+    var pc = function (a) { return a[1] ? Math.round(a[0] / a[1] * 100) : 100; };
+    rep.fieldAccuracy = rep.fieldTot ? Math.round(rep.fieldPass / rep.fieldTot * 100) : 0;
+    rep.supplierAccuracy = pc(rep.byGroup.supplier);
+    rep.amountAccuracy = pc(rep.byGroup.amount);
+    rep.gstAccuracy = pc(rep.byGroup.gst);
+    rep.totalAccuracy = pc(rep.byGroup.total);
+    rep.duplicateAccuracy = rep.dup ? Math.round(rep.dup.ok / rep.dup.n * 100) : 100;
+    return rep;
+  }
+
   return {
     parse: parse, legacy: legacy, isLabel: isLabel, validGstin: validGstin,
-    detectGroup: detectGroup, goodName: goodName, findDate: findDate, nMoney: nMoney, LABEL_RE: LABEL_RE
+    detectGroup: detectGroup, goodName: goodName, findDate: findDate, nMoney: nMoney, LABEL_RE: LABEL_RE,
+    SAMPLES: SAMPLES, selfTest: selfTest
   };
 });

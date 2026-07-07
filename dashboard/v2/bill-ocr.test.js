@@ -210,5 +210,14 @@ eq('legacy gstin = supplier gstin', lg.gstin, '24AAACI1681G1ZV');
 eq('legacy rate = gstRate', String(lg.rate), '5');
 ok('legacy blanks review fields (never fake)', (() => { const l = OCR.legacy(p('T@X 1NV0ICE garbled ????')); return l.name === '' && l.total === ''; })());
 
+/* ═══ 18. built-in self-test corpus (powers the "Run Import Test Suite" button) ═══ */
+console.log('self-test corpus');
+const st = OCR.selfTest();
+ok('self-test: every sample bill passes', st.passed === st.total, st.cases.filter(c => !c.pass).map(c => c.name));
+ok('self-test: 0 supplier-as-label errors', st.labelErrors === 0);
+ok('self-test: 0 fabricated-data errors', st.fakeErrors === 0);
+ok('self-test: field accuracy >= 95%', st.fieldAccuracy >= 95, st.fieldAccuracy);
+ok('self-test: duplicate detection works', st.duplicateAccuracy === 100);
+
 console.log('\n' + (fail === 0 ? '✅ ALL ' + pass + ' TESTS PASSED' : '❌ ' + fail + ' FAILED, ' + pass + ' passed'));
 process.exit(fail ? 1 : 0);

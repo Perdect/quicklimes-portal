@@ -696,8 +696,10 @@
       '<div><b>' + (cfg.dropTitle || 'Choose a file') + '</b><div class="fin-drop-sub">' + (cfg.dropSub || '.csv, .xlsx or .xls') + '</div></div></div>' +
       '<input type="file" id="qlfFile" accept="' + (cfg.accept || '.csv,.xlsx,.xls') + '" hidden></label>' +
       (cfg.tip ? '<div class="fin-note">' + cfg.tip + '</div>' : '') +
+      ((cfg.ocr && window.BillOCR && ocrDevMode()) ? '<button class="ocr2-runbtn" id="qlfRunSuite">🧪 Run Import Test Suite (' + (window.BillOCR.SAMPLES || []).length + ' sample bills)</button>' : '') +
       '<div id="qlfImpResult"></div>';
     el.hidden = false;
+    if (document.getElementById('qlfRunSuite')) document.getElementById('qlfRunSuite').onclick = () => { ocr2css(); runOcrSuite(); };
     const drop = document.getElementById('qlfDrop'), file = document.getElementById('qlfFile');
     const go = f => f && handle(f);
     file.onchange = () => go(file.files[0]);
@@ -932,8 +934,43 @@
         '.ocr2-dbg-s{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ql-text-muted,#94a3b8);margin:10px 0 4px}' +
         '.ocr2-dbg pre{background:#0f172a;color:#e2e8f0;border-radius:8px;padding:10px;overflow:auto;max-height:200px;font-size:11px;line-height:1.45;white-space:pre-wrap;word-break:break-word}' +
         '.ocr2-save{position:sticky;bottom:0;display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:14px 0 2px;margin-top:16px;background:linear-gradient(transparent,var(--ql-card,#fff) 30%)}' +
-        '.ocr2-save-h{font-size:12px;color:var(--ql-text-muted,#94a3b8)}.ocr2-save .ql-btn{min-width:150px}';
+        '.ocr2-save-h{font-size:12px;color:var(--ql-text-muted,#94a3b8)}.ocr2-save .ql-btn{min-width:150px}' +
+        '.ocr2-runbtn{margin-top:12px;display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ql-brand-600,#2563eb);background:var(--ql-brand-50,#eff6ff);border:1px solid var(--ql-brand-200,#bfdbfe);border-radius:9px;padding:8px 13px;cursor:pointer}' +
+        '.ocr2-tcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:14px 0}' +
+        '.ocr2-tc{border:1px solid var(--ql-border,#e2e8f0);border-radius:11px;padding:11px 13px;background:var(--ql-bg-subtle,#f8fafc)}' +
+        '.ocr2-tc-v{font-size:20px;font-weight:800;letter-spacing:-.02em}.ocr2-tc-l{font-size:11px;color:var(--ql-text-muted,#64748b);margin-top:2px}' +
+        '.ocr2-tc.good{background:#f0fdf4;border-color:#bbf7d0}.ocr2-tc.good .ocr2-tc-v{color:#15803d}' +
+        '.ocr2-tc.bad{background:#fef2f2;border-color:#fecaca}.ocr2-tc.bad .ocr2-tc-v{color:#dc2626}' +
+        '.ocr2-ttable{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}' +
+        '.ocr2-ttable th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ql-text-muted,#94a3b8);padding:7px 9px;border-bottom:1px solid var(--ql-border,#e2e8f0)}' +
+        '.ocr2-ttable td{padding:8px 9px;border-bottom:1px solid var(--ql-border-subtle,#f1f5f9)}' +
+        '.ocr2-pass{color:#15803d;font-weight:600}.ocr2-fail{color:#dc2626;font-weight:600}';
       document.head.appendChild(s);
+    }
+    // Admin/dev mode: localStorage ql_dev=1  OR  ?dev in the URL.
+    function ocrDevMode() { try { return localStorage.getItem('ql_dev') === '1' || /[?&]dev\b/.test(location.search); } catch (_) { return /[?&]dev\b/.test(location.search); } }
+    // Run every built-in sample bill through the parser and show a field-level report.
+    function runOcrSuite() {
+      const rep = window.BillOCR.selfTest();
+      const card = (l, v, ok) => '<div class="ocr2-tc' + (ok === false ? ' bad' : ok === true ? ' good' : '') + '"><div class="ocr2-tc-v">' + v + '</div><div class="ocr2-tc-l">' + l + '</div></div>';
+      res().innerHTML =
+        '<div class="ocr2-hd"><b>OCR Test Suite</b> — ran ' + rep.total + ' sample bills through the parser</div>' +
+        '<div class="ocr2-tcards">' +
+          card('Bills passed', rep.passed + '/' + rep.total, rep.passed === rep.total) +
+          card('Field accuracy', rep.fieldAccuracy + '%', rep.fieldAccuracy >= 95) +
+          card('Supplier', rep.supplierAccuracy + '%', rep.supplierAccuracy >= 90) +
+          card('Amounts', rep.amountAccuracy + '%', rep.amountAccuracy >= 90) +
+          card('GST', rep.gstAccuracy + '%', rep.gstAccuracy >= 90) +
+          card('Total', rep.totalAccuracy + '%', rep.totalAccuracy >= 90) +
+          card('Duplicate detect', rep.duplicateAccuracy + '%', rep.duplicateAccuracy >= 90) +
+          card('Label-as-value errors', rep.labelErrors, rep.labelErrors === 0) +
+          card('Fake-data errors', rep.fakeErrors, rep.fakeErrors === 0) +
+        '</div>' +
+        '<table class="ocr2-ttable"><thead><tr><th>Sample bill</th><th>Category</th><th>Supplier read</th><th>Result</th></tr></thead><tbody>' +
+        rep.cases.map(c => '<tr><td>' + esc(c.name) + '</td><td>' + esc(c.cat) + '</td><td>' + esc(c.supplier || '—') + '</td><td>' + (c.pass ? '<span class="ocr2-pass">✓ Pass</span>' : '<span class="ocr2-fail">✗ ' + esc(c.fields.filter(f => !f.pass).map(f => f.name).join(', ')) + '</span>') + '</td></tr>').join('') +
+        '</tbody></table>' +
+        '<div class="ocr2-save"><button class="ql-btn" id="qlfSuiteBack">← Back to upload</button></div>';
+      const b = document.getElementById('qlfSuiteBack'); if (b) b.onclick = () => { res().innerHTML = ''; };
     }
   }
 
