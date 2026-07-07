@@ -75,7 +75,8 @@
   const S = {
     SALES: [], PURCHASES: [], WORKERS: [], WORK_LOG: [], ATT: {},
     TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: [],
-    FINANCE: null
+    FINANCE: null,
+    RECON: { txns: [] }   // bank-statement reconciliation (per company)
   };
   // Finance + GST Portal state (bank txns, GST tracking, CA docs metadata).
   // Lives inside the per-company blob so it persists locally and syncs to
@@ -140,6 +141,7 @@
     S.LOANS.length = 0; S.CHUNNA.length = 0;
     Object.keys(S.ATT).forEach(k => delete S.ATT[k]);
     S.FINANCE = defaultFinance();
+    S.RECON = { txns: [] };
   }
   function hydrate(d) {
     if (!d) return;
@@ -155,6 +157,7 @@
     if (d.loans)     S.LOANS.push(...d.loans);
     if (d.chunna)    S.CHUNNA.push(...d.chunna);
     if (d.finance)   S.FINANCE = normalizeFinance(d.finance);
+    if (d.reconcile && Array.isArray(d.reconcile.txns)) S.RECON = d.reconcile;
   }
   function loadLocal() {
     clearState();
@@ -210,7 +213,8 @@
     const b = {
       sales: S.SALES, purchases: S.PURCHASES, workers: S.WORKERS, workLog: S.WORK_LOG,
       att: S.ATT, tds: S.TDS, challans: S.CHALLANS, parties: S.PARTIES,
-      cashbook: S.CASHBOOK, chunna: S.CHUNNA, finance: S.FINANCE || defaultFinance()
+      cashbook: S.CASHBOOK, chunna: S.CHUNNA, finance: S.FINANCE || defaultFinance(),
+      reconcile: S.RECON || { txns: [] }
     };
     if (includePic) b.profile_pic = localStorage.getItem('dm_profile_pic') || null;
     return b;
@@ -1099,6 +1103,10 @@
     // ── Finance + GST Portal ──
     get finance() { return (S.FINANCE || (S.FINANCE = defaultFinance())); },
     saveFinance() { commit(); },
+
+    // ── Bank reconciliation ──
+    get recon() { return (S.RECON || (S.RECON = { txns: [] })); },
+    saveRecon() { commit(); },
 
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal,

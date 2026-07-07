@@ -92,6 +92,7 @@
     ]},
     { type: 'group', label: 'Finance', feat: 'finance', items: [
       { id: 'finance',  label: 'Payments Center',          href: 'payments.html', icon: I.bank },
+      { id: 'reconcile', label: 'Bank Reconciliation',     href: 'reconcile.html', icon: I.bank },
       { id: 'cashbook', label: 'Expenses',                 href: 'cashbook.html', icon: I.card },
       { id: 'loans',    label: 'Partner Ledger / Loans',   href: 'loans.html',    icon: I.receipt },
       { id: 'gst',      label: 'GST Filing', href: 'gst.html', icon: I.receipt, feat: 'advfinance' },
