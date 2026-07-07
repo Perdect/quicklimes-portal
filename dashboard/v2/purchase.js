@@ -360,7 +360,7 @@ function importBills() {
     dropTitle: 'Choose a file', dropSub: '.csv / .xlsx list, or a photo / PDF of one bill',
     tip: 'A spreadsheet imports many bills; a photo/PDF is read with OCR. A "Purchase Group / Item" column is auto-detected.',
     noun: 'bill', addLabel: 'Add Bill', accept: '.csv,.xlsx,.xls,.pdf,image/*', ocr: true,
-    ocrMap: { bill: 'docno', date: 'date', sup: 'name', gstin: 'gstin', taxable: 'taxable', total: 'total', grate: 'rate', group: 'group', item: 'item', itc: 'itc' },
+    ocrMap: { bill: 'docno', date: 'date', sup: 'name', gstin: 'gstin', taxable: 'taxable', total: 'total', grate: 'rate' },
     errText: 'No usable bills found. Ensure Date, Supplier and a taxable/total column are mapped.',
     headerGroups: [['date', 'bill', 'invoice', 'voucher'], ['supplier', 'vendor', 'party', 'seller', 'name', 'amount', 'taxable', 'total']],
     fields: [{ key: 'bill', label: 'Bill No.' }, { key: 'date', label: 'Date', required: true }, { key: 'sup', label: 'Supplier', required: true }, { key: 'gstin', label: 'GSTIN' }, { key: 'group', label: 'Purchase Group' }, { key: 'item', label: 'Purchase Item' }, { key: 'taxable', label: 'Taxable amount' }, { key: 'total', label: 'Total amount' }, { key: 'grate', label: 'GST %' }, { key: 'itc', label: 'ITC' }],
