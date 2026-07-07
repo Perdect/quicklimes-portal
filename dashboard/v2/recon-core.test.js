@@ -83,6 +83,18 @@ eq('suggest 0 when fully allocated', RC.suggestAlloc(100000, 100000, 50000), 0);
 console.log('dedupe + bank detect');
 const a = RC.parseNarration('RTGS-ICICR42026061700504050-ARIF CHEMICAL LIME');
 eq('dedupe by UTR', RC.dedupeKey(a, { credit: 180810, debit: 0, date: '2026-06-01' }).indexOf('UTR') >= 0, true);
+// self-transfer legs that share a reference must NOT be flagged as duplicates
+const crLeg = RC.parseNarration('EBANK:SELF/1512391877/BOB to BOb Cr');
+const drLeg = RC.parseNarration('EBANK:SELF/1512391877/BOB to BOb Dr');
+const kCr = RC.dedupeKey(crLeg, { credit: 25000, debit: 0, date: '2026-06-11' });
+const kDr = RC.dedupeKey(drLeg, { credit: 25000, debit: 0, date: '2026-06-11' });
+ok('Cr vs Dr legs are NOT the same dedupe key', kCr !== kDr, { kCr: kCr, kDr: kDr });
+// but re-importing the exact same line IS a duplicate
+ok('identical line re-import = same key', kCr === RC.dedupeKey(RC.parseNarration('EBANK:SELF/1512391877/BOB to BOb Cr'), { credit: 25000, debit: 0, date: '2026-06-11' }));
+// two genuinely different payments, same amount/day, different party = not dup
+ok('different parties same amount/day are not dups',
+  RC.dedupeKey(RC.parseNarration('UPI-AMAN ENTERPRISES'), { credit: 5000, debit: 0, date: '2026-06-11' }) !==
+  RC.dedupeKey(RC.parseNarration('UPI-RAKESH TRADERS'), { credit: 5000, debit: 0, date: '2026-06-11' }));
 eq('detect ICICI', RC.detectBank('ICICI BANK LTD STATEMENT'), 'ICICI');
 eq('detect BOB', RC.detectBank('BANK OF BARODA A/C 3358'), 'Bank of Baroda');
 

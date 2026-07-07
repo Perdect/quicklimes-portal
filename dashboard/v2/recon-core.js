@@ -174,11 +174,19 @@
     return { idx: linkIdx, kind: isCr ? 'sale' : 'purchase', status: status, confidence: conf, tier: tier, matchedBy: 'ai', reasons: r.reasons, cat: isCr ? undefined : best.bill.group };
   }
 
-  /* ── duplicate key (UTR first, else amount+cleanname+date) ─────────────── */
+  /* ── duplicate key ──────────────────────────────────────────────────────
+     A duplicate is the SAME bank line appearing twice (re-import, double
+     post) — so the key must use the FULL raw narration, not the lossy clean
+     name. Using clean wrongly merged distinct lines that differ only in a
+     stripped word/ref: e.g. "…/BOB to BOb Cr" vs "…/BOB to BOb Dr" (the two
+     legs of a self-transfer share a reference) collapsed to one key and the
+     second was flagged Duplicate. Full-raw + direction + amount + date keeps
+     genuinely different lines apart while still catching real duplicates. */
   function dedupeKey(np, txn) {
     var dir = (txn.credit || 0) > 0 ? 'C' : 'D', amt = Math.round((txn.credit || 0) + (txn.debit || 0));
-    if (np.utr) return dir + '|UTR|' + np.utr;
-    return dir + '|' + amt + '|' + np.clean.slice(0, 24) + '|' + (txn.date || '');
+    var sig = normName(np.raw || np.clean || '');
+    if (np.utr) return dir + '|UTR|' + np.utr + '|' + amt + '|' + sig;
+    return dir + '|' + amt + '|' + (txn.date || '') + '|' + sig;
   }
 
   /* ── bank auto-detection from statement text ───────────────────────────── */
