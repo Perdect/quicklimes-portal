@@ -296,12 +296,18 @@
     return null;
   }
 
-  /* ── legacy adapter: feed the existing ocrMap (docno/name/taxable/…) ──── */
+  /* ── legacy adapter: feed the existing ocrMap (docno/name/taxable/…) ────
+     Also re-keys confidence + review onto the GENERIC keys the import form
+     uses, so the UI can badge each field. */
+  var GEN = { billNo: 'docno', date: 'date', supplier: 'name', supplierGstin: 'gstin', taxable: 'taxable', total: 'total', gstRate: 'rate', group: 'group', item: 'item' };
   function legacy(res) {
     var f = res.fields, rev = res.review || [];
     function ok(k, v) { return rev.indexOf(k) >= 0 ? '' : (v == null ? '' : v); }   // blank if needs-review
+    var gconf = {}, grev = [];
+    Object.keys(res.confidence || {}).forEach(function (k) { gconf[GEN[k] || k] = res.confidence[k]; });
+    rev.forEach(function (k) { grev.push(GEN[k] || k); });
     return {
-      _text: res.raw, _conf: res.confidence, _review: rev, _warn: res.warnings,
+      _text: res.raw, _conf: gconf, _review: grev, _warn: res.warnings, _fields: f,
       docno: ok('billNo', f.billNo), date: ok('date', f.date),
       name: ok('supplier', f.supplier), gstin: ok('supplierGstin', f.supplierGstin), buyergstin: f.buyerGstin || '',
       taxable: ok('taxable', f.taxable), total: ok('total', f.total), rate: ok('gstRate', f.gstRate),
