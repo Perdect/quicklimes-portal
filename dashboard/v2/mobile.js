@@ -51,7 +51,10 @@
     refresh: S('<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>'),
     trend: S('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>'),
     wallet: S('<path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>'),
-    box: S('<path d="M21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16V8"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22" x2="12" y2="12"/>')
+    box: S('<path d="M21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16V8"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22" x2="12" y2="12"/>'),
+    cal: S('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
+    chev: S('<polyline points="9 18 15 12 9 6"/>', 2.2),
+    truck: S('<rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>')
   };
 
   /* ── Bottom-nav tab config ─────────────────────────────────── */
@@ -393,11 +396,32 @@
     return `<div class="qlm-bars">${series.map(s => `<div class="qlm-bar"><div class="qlm-bar-fill" style="height:${Math.max(4, valFn(s) / max * 100)}%"></div><div class="qlm-bar-lbl">${esc(s.label || s.month || '')}</div></div>`).join('')}</div>`;
   }
   function monthSeriesSafe(n) { try { const s = Q().monthSeries(n); return s.map(m => ({ label: (m.month || m.label || '').slice(5), sales: m.sales, purchases: m.purchases, qty: m.qty, profit: m.profit })); } catch (_) { return []; } }
+  /* Shared native list row (avatar · name · vehicle/sub · date · amount · status · chevron).
+     Used by the mobile dashboard AND the QLX mobile lists so Sales/Purchase match. */
+  function listRow(c, opts) {
+    opts = opts || {};
+    const name = c.party || c.id || '';
+    const attrs = (opts.id != null ? ` data-id="${esc(opts.id)}"` : '') + (opts.onclick ? ` onclick="${opts.onclick}"` : '');
+    return `<div class="qlm-lrow"${attrs}>
+      <div class="qlm-lrow-av" style="background:${avc(name)}">${esc((name || '?').charAt(0).toUpperCase())}</div>
+      <div class="qlm-lrow-mid">
+        <div class="qlm-lrow-name">${esc(name)}</div>
+        ${c.sub ? `<div class="qlm-lrow-l1">${esc(c.sub)}</div>` : ''}
+        ${c.date ? `<div class="qlm-lrow-l2">${IC.cal}${esc(c.date)}</div>` : ''}
+      </div>
+      <div class="qlm-lrow-right">${c.amount ? `<div class="qlm-lrow-amt">${c.amount}</div>` : ''}${c.status || ''}</div>
+      <div class="qlm-lrow-chev">${IC.chev}</div>
+    </div>`;
+  }
+  // vehicle number is the headline sub-line; fall back to the invoice/bill no. if none
+  const vehSub = (veh, docLabel, doc) => veh ? ('🚚 ' + veh) : (docLabel + ': ' + (doc || '—'));
+
   function recentSales() {
     const rows = (Q().salesRows ? Q().salesRows() : []).slice(0, 6);
     if (!rows.length) return '';
-    return `<div class="qlm-sec"><h3>Recent invoices</h3><a href="sales.html">All</a></div><div class="qlm-list">` +
-      rows.map(r => `<div class="qlm-row" onclick="QLMobile.showInvoice(${r.idx})"><div class="qlm-row-av" style="background:${avc(r.party)}">${esc((r.party || '?').charAt(0).toUpperCase())}</div><div class="qlm-row-mid"><div class="qlm-row-t">${esc(r.party || '—')}</div><div class="qlm-row-s">${esc(r.inv || '')} · ${esc(r.date || '')}</div></div><div class="qlm-row-r"><div class="qlm-row-amt">${fc(r.total)}</div><div class="qlm-row-s">${statusPill(r.status)}</div></div></div>`).join('') +
+    return `<div class="qlm-sec"><h3>Recent invoices</h3><a href="sales.html">View All</a></div><div class="qlm-list">` +
+      rows.map(r => listRow({ party: r.party || '—', sub: vehSub(r.veh, 'Invoice', r.inv), date: r.date, amount: fc(r.total), status: statusPill(r.status) },
+        { onclick: `QLMobile.showInvoice(${r.idx})` })).join('') +
       `</div>`;
   }
   function statusPill(s) { s = s || 'pending'; const map = { paid: ['ok', 'Paid'], cash: ['ok', 'Cash'], pending: ['warn', 'Pending'] }; const m = map[s] || ['mut', s]; return `<span class="qlm-pill ${m[0]}">${m[1]}</span>`; }
@@ -487,7 +511,7 @@
   else setTimeout(fallback, 350);
 
   window.QLMobile = {
-    init, isMobile, sheet, actionSheet, wizard, invoiceViewer, showInvoice,
+    init, isMobile, sheet, actionSheet, wizard, invoiceViewer, showInvoice, listRow,
     buildDashboard, skeleton, refresh: doRefresh, paintChrome,
     openMore, filterSheet: sheet    // filterSheet is a themed bottom sheet
   };

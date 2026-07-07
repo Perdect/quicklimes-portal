@@ -286,7 +286,7 @@ QLX.mount({
   ],
   card: r => ({
     id: r.bill || '—', title: `<span style="color:var(--qx)">${esc(r.bill || '—')}</span>`, amount: fC(r.total),
-    party: r.sup, partySub: r.emoji + ' ' + r.groupLabel, calLabel: r.sup, status: stPill(r),
+    party: r.sup, partySub: r.emoji + ' ' + r.groupLabel, sub: r.veh ? '🚚 ' + r.veh : 'Bill: ' + (r.bill || '—'), date: r.date, calLabel: r.sup, status: stPill(r),
     chips: [groupChip(r), r.freight ? '<span class="qx-frt">freight</span>' : ''].filter(Boolean),
     rows: [['Item', r.itemIconEmoji + ' ' + esc(r.item)], ['Taxable', fC(r.taxable)], ['GST', fC(r.gst)], ['Status', stPill(r)]]
   }),

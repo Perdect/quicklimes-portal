@@ -252,7 +252,7 @@ QLX.mount({
     { label: 'Export', icon: IC.dl, onClick: rows => exportRows(rows) },
     { label: 'Delete', icon: IC.trash, cls: 'del', onClick: rows => { if (confirm('Delete ' + rows.length + ' invoices?')) { rows.map(r => r.idx).sort((a, b) => b - a).forEach(i => Q.deleteSale(i)); toast(rows.length + ' deleted'); QLX.refresh(); } } }
   ],
-  card: r => ({ id: r.inv || '—', title: `<span style="color:var(--qx)">${esc(r.inv || '—')}</span>`, amount: fC(r.total), party: r.party, partySub: r.gstin || '', calLabel: r.party, status: stPill(r), rows: [['Qty', fmt(r.qty, 2) + ' T'], ['Taxable', fC(r.taxable)], ['GST', fC(r.gst)], ['Status', stPill(r)]] }),
+  card: r => ({ id: r.inv || '—', title: `<span style="color:var(--qx)">${esc(r.inv || '—')}</span>`, amount: fC(r.total), party: r.party, partySub: r.gstin || '', sub: r.veh ? '🚚 ' + r.veh : 'Invoice: ' + (r.inv || '—'), date: r.date, calLabel: r.party, status: stPill(r), rows: [['Qty', fmt(r.qty, 2) + ' T'], ['Taxable', fC(r.taxable)], ['GST', fC(r.gst)], ['Status', stPill(r)]] }),
   footer: rows => { const t = rows.reduce((a, r) => ({ qty: a.qty + r.qty, tax: a.tax + r.taxable, gst: a.gst + r.gst, tot: a.tot + r.total, paid: a.paid + r.paid, out: a.out + r.outstanding }), { qty: 0, tax: 0, gst: 0, tot: 0, paid: 0, out: 0 }); return [{ label: 'Qty', value: fmt(t.qty, 1) + ' T' }, { label: 'Taxable', value: fC(t.tax) }, { label: 'GST', value: fC(t.gst) }, { label: 'Grand Total', value: fC(t.tot), strong: true }, { label: 'Collected', value: fC(t.paid) }, { label: 'Pending', value: fC(t.out) }]; },
   analytics: () => {
     const rows = Q.salesRows();

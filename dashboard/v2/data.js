@@ -512,6 +512,7 @@
         taxable: p.taxable, gst: c.g, itc: c.itc, total: c.tot, grate: p.grate || 0,
         qty: p.qty || 0, unit: p.unit || '', rate: p.rate || 0, desc: p.desc || '',
         status: p.status || 'pending', gstin: p.gstin || '', days: daysAgo(p.date),
+        veh: p.veh || p.vehicle || '',
         remarks: p.remarks || '', dueDate: p.dueDate || '', createdBy: p.createdBy || (QL_PLANT.owner_name || QL_PLANT.plant_name || 'Owner'),
         paid, outstanding, payments: p.payments || [], attach: p.attach || [], isOverdue,
         freight: isFreightItem(g.item), freightAmt: isFreightItem(g.item) ? (p.taxable || 0) : 0

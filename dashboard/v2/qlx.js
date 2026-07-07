@@ -361,6 +361,10 @@
   /* ══════════════════ CARDS / GALLERY ══════════════════ */
   function cardsHTML(rows) {
     if (!rows.length) return `<div class="qx-empty" style="padding:44px">${emptyMsg()}</div>`;
+    // phones: native list rows (avatar · name · vehicle · date · amount · status · ›)
+    if (qxMobile() && window.QLMobile && QLMobile.listRow) {
+      return `<div class="qx-cards">${rows.map(r => QLMobile.listRow(CFG.card ? CFG.card(r) : { id: rowId(r) }, { id: rowId(r) })).join('')}</div>`;
+    }
     return `<div class="qx-cards">${rows.map(r => {
       const c = CFG.card ? CFG.card(r) : { id: rowId(r) }; const id = rowId(r);
       return `<div class="qx-card" data-id="${esc(id)}">
@@ -433,7 +437,7 @@
     if ($('qxAll')) $('qxAll').onclick = () => { const all = allSel(rows); rows.forEach(r => { const id = String(rowId(r)); all ? S.sel.delete(id) : S.sel.add(id); }); render(); };
     root.querySelectorAll('[data-ck]').forEach(cb => cb.onclick = e => { e.stopPropagation(); const id = cb.dataset.ck; S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id); render(); });
     // row / card / kanban / cal open
-    root.querySelectorAll('.qx-row, .qx-kcard, .qx-card, .qx-cal-ev').forEach(el => el.addEventListener('click', e => {
+    root.querySelectorAll('.qx-row, .qx-kcard, .qx-card, .qx-cal-ev, .qlm-lrow').forEach(el => el.addEventListener('click', e => {
       if (e.target.closest('button,select,input,a,.qx-cbx,[data-act]')) return;
       openDetail(el.dataset.id);
     }));
