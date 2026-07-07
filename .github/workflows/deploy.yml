@@ -36,6 +36,7 @@ jobs:
           cp robots.txt              deploy/robots.txt
           # Favicon at site root so the browser tab and link previews resolve it
           cp icon.svg                deploy/icon.svg
+          cp site.webmanifest        deploy/site.webmanifest
           cp .htaccess               deploy/.htaccess
           cp -r assets               deploy/assets
 
@@ -51,6 +52,7 @@ jobs:
           cp dashboard/quick-limes-logo.png deploy/app/quick-limes-logo.png
           # SPA fallback — any non-file path → index.html (now the v2 redirect)
           cp dashboard/.htaccess          deploy/app/.htaccess
+          cp dashboard/robots.txt         deploy/app/robots.txt
           cp -r "dashboard/Deshwali Minerals — Business Suite_files" deploy/app/
           # v2 redesign — multi-page app at app.quicklimes.com/v2/ (and now the default).
           # Real .html files, so the SPA fallback above won't intercept them.
@@ -67,6 +69,7 @@ jobs:
           cp dashboard/migrate.html       deploy/app/migrate.html
           # Make the brand logo also accessible inside /app for any header reuse
           cp -r assets deploy/app/assets
+          cp site.webmanifest deploy/app/site.webmanifest
 
           # ── ADMIN SUBDOMAIN (admin.quicklimes.com) ──
           # Admin login → redirects to dashboard on success

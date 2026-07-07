@@ -1,0 +1,14 @@
+{
+  "name": "QuickLimes — AI ERP for Lime Manufacturers",
+  "short_name": "QuickLimes",
+  "description": "Run your whole quick-lime & hydrated-lime plant from one AI app — sales, GST invoicing, purchase, labour, cashbook and bank reconciliation.",
+  "start_url": "https://app.quicklimes.com/",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#2563EB",
+  "icons": [
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

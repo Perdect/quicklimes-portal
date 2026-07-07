@@ -1,0 +1,12 @@
+# QuickLimes app subdomain (app.quicklimes.com)
+# The app is a login-gated dashboard — keep its internals out of the index,
+# but let social crawlers fetch the root + OG image so link previews work.
+User-agent: *
+Allow: /$
+Allow: /assets/
+Disallow: /v2/
+Disallow: /classic.html
+Disallow: /migrate.html
+Disallow: /api/
+
+Sitemap: https://quicklimes.com/sitemap.xml
