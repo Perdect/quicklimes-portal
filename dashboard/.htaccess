@@ -6,6 +6,27 @@
 
 RewriteEngine On
 
+# ── Clean URLs ─────────────────────────────────────────────────────
+# Make the app look like a professional platform: no .html / .php in the
+# address bar. Mirrors the main site's rewrite scheme.
+#
+# 1) 301 /v2/foo.html → /v2/foo   (GET page loads only; hash & query survive)
+RewriteCond %{REQUEST_METHOD} =GET
+RewriteCond %{THE_REQUEST} \s/+(v2/[^\s?]+?)\.html[\s?] [NC]
+RewriteRule ^ /%1 [R=301,L,NE]
+#
+# 2) Serve /v2/foo from /v2/foo.html (internal — no redirect, so relative
+#    ./assets keep resolving against /v2/).
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^(v2/.+)$ $1.html [L]
+#
+# 3) Clean API: serve /api/foo from /api/foo.php. NO redirect here — the API
+#    is called with POST (login/data writes); a 301 would drop the body.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(api/[A-Za-z0-9_-]+)$ $1.php [L]
+
 # Don't rewrite real files or directories — let CSS, JS, images,
 # manifests etc be served as-is.
 RewriteCond %{REQUEST_FILENAME} !-f
