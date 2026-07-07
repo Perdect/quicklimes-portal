@@ -87,6 +87,7 @@
     ]},
     { type: 'group', label: 'Purchase', feat: 'purchase', items: [
       { id: 'purchase',  label: 'Purchase Register', href: 'purchase.html', icon: I.bag },
+      { id: 'payables',  label: 'Payments Due',      href: 'payables.html', icon: I.card, badgeKey: 'payables' },
       { id: 'suppliers', label: 'Suppliers',         href: 'parties.html#supplier', icon: I.factory }
     ]},
     { type: 'group', label: 'Finance', feat: 'finance', items: [
