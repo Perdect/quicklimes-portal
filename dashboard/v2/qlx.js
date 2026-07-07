@@ -437,8 +437,18 @@
   /* ══════════════════ MENUS ══════════════════ */
   let _menu = null;
   function closeMenu() { if (_menu) { _menu.remove(); _menu = null; } }
-  document.addEventListener('click', e => { if (_menu && !e.target.closest('.qx-menu') && !e.target.closest('#qxGroupBtn,#qxColBtn,#qxFilBtn')) closeMenu(); });
-  function placeMenu(m, anchor) { document.body.appendChild(m); const r = anchor.getBoundingClientRect(); m.style.top = (r.bottom + 6) + 'px'; m.style.left = Math.min(r.left, window.innerWidth - m.offsetWidth - 12) + 'px'; _menu = m; }
+  document.addEventListener('click', e => { if (_menu && !e.target.closest('.qx-menu') && !e.target.closest('#qxGroupBtn,#qxColBtn,#qxFilBtn,#qxMonthBtn')) closeMenu(); });
+  function placeMenu(m, anchor) {
+    document.body.appendChild(m);
+    const r = anchor.getBoundingClientRect();
+    // Clamp both axes to the viewport; flip above the anchor if it would spill below.
+    const mh = m.offsetHeight, mw = m.offsetWidth;
+    let top = r.bottom + 6;
+    if (top + mh > window.innerHeight - 8) top = Math.max(8, (r.top - 6 - mh) > 8 ? r.top - 6 - mh : window.innerHeight - mh - 8);
+    m.style.top = top + 'px';
+    m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - mw - 12)) + 'px';
+    _menu = m;
+  }
   function openGroupMenu(anchor) {
     closeMenu(); const m = document.createElement('div'); m.className = 'qx-menu';
     const opts = [{ key: 'none', label: 'No grouping' }].concat(CFG.groupBy);
