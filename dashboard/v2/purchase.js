@@ -88,7 +88,7 @@ function billHTML(r) {
     <div class="hd"><div><div class="co">${esc(co.name || 'Your Company')}</div><div class="mut">${esc(co.address || '')}${co.gstin ? '<br>GSTIN: ' + esc(co.gstin) : ''}${co.phone ? ' · ' + esc(co.phone) : ''}</div></div>
       <div class="doc"><h1>PURCHASE BILL</h1><div class="mut">Bill No: <b>${esc(r.bill || '—')}</b><br>Date: ${fDS(r.date)}<br><span class="pill ${r.status}">${r.status.toUpperCase()}</span></div></div></div>
     <div class="grid"><div><div class="lbl">Supplier</div><div class="nm">${esc(r.sup)}</div><div class="mut">${r.gstin ? 'GSTIN: ' + esc(r.gstin) : ''}</div></div>
-      <div style="text-align:right"><div class="lbl">Department · ITC</div><div class="nm">${esc(r.dept || '—')}</div><div class="mut">ITC: ${r.itc ? 'Eligible' : '—'}</div></div></div>
+      <div style="text-align:right"><div class="lbl">ITC</div><div class="nm">${r.itc ? 'Eligible' : '—'}</div></div></div>
     <table><thead><tr><th>Purchase Group / Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Taxable</th></tr></thead>
       <tbody><tr><td>${esc(r.emoji + ' ' + r.groupLabel)}<div class="it">${esc(r.item)}${r.desc ? ' — ' + esc(r.desc) : ''}</div></td><td class="r">${r.qty ? fmt(r.qty, 2) + (r.unit ? ' ' + esc(r.unit) : '') : '—'}</td><td class="r">${r.rate ? money(r.rate) : '—'}</td><td class="r">${money(r.taxable)}</td></tr></tbody></table>
     <div class="tot"><div class="row"><span>Taxable value</span><span>${money(r.taxable)}</span></div>${r.freightAmt ? `<div class="row"><span>Freight (incl.)</span><span>${money(r.freightAmt)}</span></div>` : ''}${gstRows}<div class="row g"><span>Total${rcm ? ' payable' : ''}</span><span>${money(r.total)}</span></div></div>
@@ -165,7 +165,7 @@ function tabOverview(r) {
     ${comm}
     <div class="qx-sec-h">Bill details</div>
     ${kv('Invoice / Bill No', esc(r.bill || '—'))}${kv('Bill date', fDS(r.date))}${kv('Due date', r.dueDate ? fDS(r.dueDate) : '—')}
-    ${kv('Group · Item', r.emoji + ' ' + esc(r.groupLabel) + ' → ' + esc(r.item))}${kv('Department', esc(r.dept || '—'))}${kv('Created by', esc(r.createdBy))}
+    ${kv('Group · Item', r.emoji + ' ' + esc(r.groupLabel) + ' → ' + esc(r.item))}${kv('Created by', esc(r.createdBy))}
     <div class="qx-sec-h">Amount</div>
     ${kv('Taxable value', fC(r.taxable))}${r.freightAmt ? kv('Freight / transport', '🚚 ' + fC(r.freightAmt)) : ''}${kv('GST @ ' + r.grate + '%', fC(r.gst))}${kv('ITC', r.itc ? fC(r.itc) : '—')}
     <div class="qx-kv qx-kv-tot"><span>Grand total</span><b>${fC(r.total)}</b></div>`;
@@ -279,7 +279,7 @@ QLX.mount({
       { label: 'Paid Amount', value: fC(paid), sub: 'settled to date', tint: 'teal', icon: IC.check }
     ];
   },
-  search: (r, q) => (r.bill + ' ' + r.sup + ' ' + r.item + ' ' + r.groupLabel + ' ' + r.gstin + ' ' + r.dept).toLowerCase().includes(q),
+  search: (r, q) => (r.bill + ' ' + r.sup + ' ' + r.item + ' ' + r.groupLabel + ' ' + r.gstin).toLowerCase().includes(q),
   filters: [
     { key: 'status', label: 'Status', options: () => [['pending', 'Pending'], ['partial', 'Partial'], ['paid', 'Paid'], ['overdue', 'Overdue'], ['cancelled', 'Cancelled']], test: (r, v) => v === 'overdue' ? r.isOverdue : v === 'pending' ? (r.status === 'pending' && !r.isOverdue) : r.status === v },
     { key: 'group', label: 'Group', options: rows => Q.purchaseGroups.filter(g => rows.some(r => r.group === g.key)).map(g => [g.key, g.emoji + ' ' + g.label]), test: (r, v) => r.group === v },
@@ -290,8 +290,7 @@ QLX.mount({
     { key: 'group', label: 'Purchase Group', of: r => r.group, title: r => esc(r.groupLabel), dot: r => (GCOL[r.group] || GCOL.other)[1] },
     { key: 'item', label: 'Purchase Item', of: r => r.item || '—', title: r => esc(ITEM_SHORT[r.item] || r.item || '—'), dot: r => (GCOL[r.group] || GCOL.other)[1] },
     { key: 'status', label: 'Payment status', of: r => (r.isOverdue ? 'overdue' : r.status), title: r => (r.isOverdue ? 'Overdue' : r.status[0].toUpperCase() + r.status.slice(1)), dot: r => STDOT[r.isOverdue ? 'overdue' : r.status] },
-    { key: 'sup', label: 'Supplier', of: r => r.sup, title: r => esc(r.sup), dot: () => 'var(--qx)' },
-    { key: 'dept', label: 'Department', of: r => r.dept, title: r => esc(r.dept || '—'), dot: () => 'var(--qx)' }
+    { key: 'sup', label: 'Supplier', of: r => r.sup, title: r => esc(r.sup), dot: () => 'var(--qx)' }
   ],
   groupByDefault: 'group', groupSum: r => r.total,
   sortDefault: { key: 'date', dir: 'desc' },
@@ -301,7 +300,6 @@ QLX.mount({
     { key: 'date', label: 'Bill Date', sort: true, cell: r => `<span class="qx-mut">${fDS(r.date)}</span>` },
     { key: 'sup', label: 'Supplier', sort: true, cell: supCell },
     { key: 'item', label: 'Purchase Item', sort: true, cell: itemCell },
-    { key: 'dept', label: 'Department', hidden: true, cell: r => `<span class="qx-tag">${esc(r.dept || '—')}</span>` },
     { key: 'grate', label: 'GST', sort: true, num: true, cell: r => `<span class="qx-mut qx-num">${r.grate}%</span>` },
     { key: 'taxable', label: 'Taxable', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` },
     { key: 'freightAmt', label: 'Freight', sort: true, num: true, cell: r => r.freightAmt ? `<span class="qx-num" style="color:#b7791f">🚚 ${fC(r.freightAmt)}</span>` : '<span class="qx-mut">—</span>' },
@@ -367,7 +365,7 @@ QLX.mount({
 function exportRows(rows) {
   rows = rows || [];
   const mo = QLX.month() ? '_' + QLX.month() : '';
-  QLShell.exportCSV('purchases_' + (Q.co.short || 'register').replace(/\s+/g, '_') + mo, ['Bill', 'Date', 'Supplier', 'Group', 'Item', 'Department', 'GSTIN', 'GST%', 'Taxable', 'Freight', 'GST', 'ITC', 'Total', 'Paid', 'Status', 'Due'], rows.map(x => [x.bill, x.date, x.sup, x.groupLabel, x.item, x.dept, x.gstin, x.grate, x.taxable, x.freightAmt, x.gst, x.itc, x.total, x.paid, x.status, x.dueDate]));
+  QLShell.exportCSV('purchases_' + (Q.co.short || 'register').replace(/\s+/g, '_') + mo, ['Bill', 'Date', 'Supplier', 'Group', 'Item', 'GSTIN', 'GST%', 'Taxable', 'Freight', 'GST', 'ITC', 'Total', 'Paid', 'Status', 'Due'], rows.map(x => [x.bill, x.date, x.sup, x.groupLabel, x.item, x.gstin, x.grate, x.taxable, x.freightAmt, x.gst, x.itc, x.total, x.paid, x.status, x.dueDate]));
   toast('Exported ' + rows.length + ' bills' + (QLX.month() ? ' · ' + QLX.monthLabel() : ''));
 }
 function exportBills() { exportRows(QLX.rows()); }

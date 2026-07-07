@@ -586,8 +586,8 @@
   function openPurchaseForm(idx) {
     const editing = idx != null && idx >= 0;
     const row = editing ? window.QLD.state.PURCHASES[idx] : null;
-    const GROUPS = window.QLD.purchaseGroups, DEPTS = window.QLD.departments;
-    const init = row || { date: today(), group: 'limestone', item: 'Limestone Purchase', dept: 'Production', grate: 5, itc: 'Eligible', unit: 'MT' };
+    const GROUPS = window.QLD.purchaseGroups;
+    const init = row || { date: today(), group: 'limestone', item: 'Limestone Purchase', grate: 5, itc: 'Eligible', unit: 'MT' };
     const curG = GROUPS.find(g => g.key === init.group) || GROUPS[0];
     const specs = [
       { k: 'bill', label: 'Bill No.', req: true, ph: 'e.g. 328' },
@@ -596,7 +596,6 @@
       { k: 'gstin', label: 'GSTIN', upper: true },
       { k: 'group', label: 'Purchase Group', type: 'select', opts: GROUPS.map(g => [g.key, g.emoji + '  ' + g.label]) },
       { k: 'item', label: 'Purchase Item', type: 'select', opts: curG.items },
-      { k: 'dept', label: 'Department', type: 'select', opts: DEPTS },
       { k: 'desc', label: 'Description', ph: 'optional' },
       { k: 'qty', label: 'Qty', type: 'number' },
       { k: 'unit', label: 'Unit', ph: 'MT' },
