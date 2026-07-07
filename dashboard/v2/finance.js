@@ -247,7 +247,29 @@
     if (w.length >= 2 && w.length % 2 === 0) { const h = w.length / 2; if (w.slice(0, h).join(' ').toLowerCase() === w.slice(h).join(' ').toLowerCase()) return w.slice(0, h).join(' '); }
     return s;
   }
+  // Our own firms — so the parser treats us as the BUYER, never the supplier.
+  function ownInfo() {
+    const g = [], n = [];
+    if (window.QLD) {
+      if (QLD.co) { if (QLD.co.gstin) g.push(QLD.co.gstin); if (QLD.co.short) n.push(QLD.co.short); if (QLD.co.name) n.push(QLD.co.name); }
+      Object.values(QLD.COMPANIES || {}).forEach(c => { if (c.gstin) g.push(c.gstin); if (c.short) n.push(c.short); if (c.name) n.push(c.name); });
+    }
+    return { ownGstins: g, ownNames: n, aliases: billAliases() };
+  }
+  // Learned supplier corrections: normalized header line → canonical name.
+  function billAliasKey() { const co = (window.QLD && QLD.activeCo) || 'x'; return 'ql_bill_aliases_' + co; }
+  function billAliases() { try { return JSON.parse(localStorage.getItem(billAliasKey()) || '{}'); } catch (_) { return {}; } }
+  function learnBillAlias(headerLine, supplier) {
+    if (!headerLine || !supplier) return;
+    const k = (headerLine || '').toString().toUpperCase().replace(/\s+/g, ' ').trim();
+    if (!k) return; const a = billAliases(); a[k] = supplier;
+    try { localStorage.setItem(billAliasKey(), JSON.stringify(a)); } catch (_) {}
+  }
   function parseInvoiceText(text) {
+    // Delegate to the pure, unit-tested BillOCR engine when present. It fixes
+    // the label-as-value bug, tells seller from buyer, and blanks unclear
+    // fields (needs-review) instead of guessing.
+    if (window.BillOCR && window.BillOCR.parse) { try { return window.BillOCR.legacy(window.BillOCR.parse(text, ownInfo())); } catch (_) {} }
     const T = (text || '').replace(/\r/g, ''), up = T.toUpperCase(), out = {};
     const lines = T.split('\n').map(l => l.trim()).filter(Boolean);
     // GSTIN(s) — the party's is the one that isn't ANY of our own plants'.
@@ -849,7 +871,7 @@
   /* ── Public API ────────────────────────────────────────────────── */
   window.QLFin = {
     CATS, CREDIT_CATS, DEBIT_CATS, STATUSES, CHECKLIST, DOC_KINDS,
-    fileToRows, extract, parseDate, parseNum, findHeaderRow, colOf, importSheet, ocrScan, parseInvoiceText,
+    fileToRows, extract, parseDate, parseNum, findHeaderRow, colOf, importSheet, ocrScan, parseInvoiceText, learnBillAlias,
     importTxns, reclassifyAll, setTxn, deleteTxn, findDuplicates,
     summary, byCategory, customerOutstanding, supplierOutstanding, accBalance, accLabel,
     gstMonths, setGst,
