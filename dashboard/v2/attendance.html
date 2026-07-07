@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Attendance — QuickLimes v2</title>
 <meta name="theme-color" content="#2563EB">
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
 <script src="ql-api.js"></script>
 <script src="./data.js"></script>
+<link rel="stylesheet" href="./mobile.css?v=m1">
 </head>
 <body class="ql-v2">
 <div id="ql-page">
@@ -31,6 +32,7 @@
   </div>
 </div>
 <script src="./shell.js"></script>
+<script src="./mobile.js?v=m1"></script>
 <script>
 QLShell.mount({ active: 'attendance', title: 'Attendance' });
 const LBL = { P: 'Present', A: 'Absent', H: 'Half day', L: 'Leave', S: 'Sunday' };

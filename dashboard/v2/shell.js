@@ -885,7 +885,9 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
 <script>setTimeout(function(){try{window.focus()}catch(e){}},50)</script>
 </body></html>`;
   }
-  function printInvoice(idx) {
+  function printInvoice(idx, forceWindow) {
+    // on phones, open the in-app viewer (fit / zoom / PDF / print / WhatsApp)
+    if (!forceWindow && isMobile() && window.QLMobile && QLMobile.showInvoice(idx)) return;
     const d = window.QLD.invoiceData(idx);
     if (!d) { toast('Invoice not found'); return; }
     const w = window.open('', '_blank');
@@ -1319,7 +1321,12 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       if (opts.title) this.setBreadcrumb(opts.title);
       renderPalette('');
       this.applyFeatureVisibility();
-    }
+      // mobile app layer (no-op on desktop)
+      try { if (window.QLMobile) QLMobile.init({ active: _active, title: opts.title }); } catch (_) {}
+    },
+    // expose nav + active for the mobile layer (bottom-nav "More" respects Feature Management)
+    nav() { return NAV; },
+    get _active() { return _active; }
   };
   let _active = 'dashboard';
 })();

@@ -52,9 +52,12 @@
   /* ── engine state ── */
   let CFG = null, S = null, DP = null, BULK = null, TOAST = null, _tt = null;
 
+  const qxMobile = () => window.matchMedia('(max-width: 768px)').matches;
   function freshState() {
     return {
-      view: (CFG.views && CFG.views[0]) || 'table',
+      // phones are card-first: a squeezed data-grid is never shown when the
+      // module defines a card() renderer
+      view: (qxMobile() && CFG.card) ? 'cards' : ((CFG.views && CFG.views[0]) || 'table'),
       quick: 'all', q: '', groupBy: (CFG.groupByDefault || (CFG.groupBy && CFG.groupBy[0] && CFG.groupBy[0].key) || 'none'),
       sort: Object.assign({}, CFG.sortDefault || { key: null, dir: 'desc' }),
       adv: {}, advOpen: false, page: 1,
@@ -253,6 +256,27 @@
     return `<div class="qx-adv">${sels}${dr}</div>`;
   }
 
+  /* Mobile: advanced filters as a native bottom sheet (Material/Party/Status/… + date range). */
+  function openMobileFilters() {
+    const fields = (CFG.filters || []).map(f => {
+      const opts = [['all', f.allLabel || ('All ' + f.label.toLowerCase())]].concat(f.options ? f.options(allRows()) : []);
+      return `<div class="qlm-field"><label>${esc(f.label)}</label><select data-fk="${f.key}">${opts.map(o => `<option value="${esc(o[0])}" ${String(S.adv[f.key] || 'all') === String(o[0]) ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select></div>`;
+    }).join('');
+    const dr = CFG.dateRange ? `<div class="qlm-field"><label>From date</label><input type="date" data-dk="_from" value="${S.adv._from || ''}"></div><div class="qlm-field"><label>To date</label><input type="date" data-dk="_to" value="${S.adv._to || ''}"></div>` : '';
+    window.QLMobile.sheet({
+      title: 'Filters',
+      bodyHTML: `<div style="padding-top:4px">${fields}${dr}</div>`,
+      footHTML: '<button class="ql-btn ql-btn-secondary" data-clear>Clear all</button><button class="ql-btn ql-btn-primary" data-apply>Show results</button>',
+      onMount(body, close) {
+        body.querySelectorAll('select[data-fk]').forEach(sel => sel.onchange = () => { S.adv[sel.dataset.fk] = sel.value; S.page = 1; render(); });
+        body.querySelectorAll('input[data-dk]').forEach(inp => inp.onchange = () => { S.adv[inp.dataset.dk] = inp.value; render(); });
+        const foot = document.getElementById('qlmSheetFoot');
+        foot.querySelector('[data-clear]').onclick = () => { S.adv = {}; S.page = 1; render(); close(); };
+        foot.querySelector('[data-apply]').onclick = close;
+      }
+    });
+  }
+
   function viewHTML(rows) {
     switch (S.view) {
       case 'board': return boardHTML(rows);
@@ -394,7 +418,7 @@
     root.querySelectorAll('[data-qf]').forEach(b => b.onclick = () => { S.quick = b.dataset.qf; S.page = 1; render(); });
     root.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { S.view = b.dataset.view; render(); });
     if ($('qxSearch')) { const inp = $('qxSearch'); inp.oninput = () => { S.q = inp.value; S.page = 1; renderViewOnly(); }; }
-    if ($('qxFilBtn')) $('qxFilBtn').onclick = e => openFilterMenu(e.currentTarget);
+    if ($('qxFilBtn')) $('qxFilBtn').onclick = e => (qxMobile() && window.QLMobile) ? openMobileFilters() : openFilterMenu(e.currentTarget);
     if ($('qxReset')) $('qxReset').onclick = () => { S.quick = 'all'; S.q = ''; S.adv = {}; S.page = 1; render(); };
     if ($('qxGroupBtn')) $('qxGroupBtn').onclick = e => openGroupMenu(e.currentTarget);
     if ($('qxColBtn')) $('qxColBtn').onclick = e => openColMenu(e.currentTarget);

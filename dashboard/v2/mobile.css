@@ -1,0 +1,509 @@
+/* ═══════════════════════════════════════════════════════════════
+   QuickLimes — MOBILE APP LAYER
+   A dedicated mobile-first app experience (iOS / Linear / Stripe /
+   modern-banking feel), NOT a squeezed desktop site.
+   Everything here is gated to ≤768px so DESKTOP IS UNTOUCHED.
+   Chrome (header + bottom nav + FAB + sheets) is built by mobile.js;
+   this file styles it and re-skins the shared QLX/dashboard surfaces
+   as native cards. Composes from tokens.css — never hard-codes a hex.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Reusable safe-area vars (0 on browsers without a notch) */
+:root {
+  --qlm-safe-top: env(safe-area-inset-top, 0px);
+  --qlm-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --qlm-header-h: 54px;
+  --qlm-nav-h: 60px;
+}
+
+/* The mobile chrome DOM is always present but hidden on desktop */
+.qlm-header, .qlm-bottomnav, .qlm-fab, .qlm-sheet-back, .qlm-as-back,
+.qlm-iv, .qlm-ptr { display: none; }
+
+@media (max-width: 768px) {
+
+/* ═══════════════ 1 · LAYOUT RESET ═══════════════ */
+html, body.ql-v2 { overflow-x: hidden; }
+body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent; }
+
+.shell {
+  display: block !important;
+  height: auto !important;
+  min-height: 100vh;
+  overflow: visible !important;
+}
+.sidebar, .topbar, .mobile-backdrop { display: none !important; }
+
+.main {
+  grid-area: unset !important;
+  height: auto !important;
+  overflow: visible !important;
+  padding: calc(var(--qlm-header-h) + var(--qlm-safe-top) + 10px)
+           14px
+           calc(var(--qlm-nav-h) + var(--qlm-safe-bottom) + 22px);
+}
+/* modules that set their own inner padding — normalise */
+.main > * { max-width: 100% !important; }
+
+/* ═══════════════ 2 · MOBILE HEADER ═══════════════ */
+.qlm-header {
+  display: flex; align-items: center; gap: 10px;
+  position: fixed; top: 0; left: 0; right: 0;
+  height: calc(var(--qlm-header-h) + var(--qlm-safe-top));
+  padding: var(--qlm-safe-top) 14px 0;
+  background: color-mix(in srgb, var(--ql-bg-elevated) 82%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  backdrop-filter: saturate(180%) blur(18px);
+  border-bottom: 1px solid var(--ql-border);
+  z-index: 250;
+}
+.qlm-h-back {
+  display: none; align-items: center; justify-content: center;
+  width: 34px; height: 34px; margin-left: -6px; flex: none;
+  background: transparent; border: 0; color: var(--ql-brand-600);
+}
+.qlm-h-back.show { display: flex; }
+.qlm-h-back svg { width: 24px; height: 24px; }
+.qlm-h-title {
+  flex: 1; min-width: 0;
+  font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: var(--ql-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.qlm-h-actions { display: flex; align-items: center; gap: 4px; flex: none; }
+.qlm-h-btn {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: var(--ql-radius-pill);
+  background: transparent; border: 0; color: var(--ql-text-secondary);
+  transition: background var(--ql-duration-fast) var(--ql-ease-out);
+}
+.qlm-h-btn:active { background: var(--ql-neutral-100); }
+.qlm-h-btn svg { width: 21px; height: 21px; }
+.qlm-h-badge {
+  position: absolute; top: 3px; right: 4px; min-width: 15px; height: 15px; padding: 0 3px;
+  border-radius: 99px; background: var(--ql-danger-500); color: #fff;
+  font-size: 9px; font-weight: 700; display: grid; place-items: center; line-height: 1;
+  box-shadow: 0 0 0 2px var(--ql-bg-elevated);
+}
+.qlm-h-badge[hidden] { display: none; }
+.qlm-h-avatar {
+  width: 32px; height: 32px; flex: none; border-radius: var(--ql-radius-pill);
+  background: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-700));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px; background-size: cover; background-position: center;
+}
+
+/* ═══════════════ 3 · BOTTOM NAV ═══════════════ */
+.qlm-bottomnav {
+  display: flex; align-items: stretch;
+  position: fixed; left: 0; right: 0; bottom: 0;
+  height: calc(var(--qlm-nav-h) + var(--qlm-safe-bottom));
+  padding-bottom: var(--qlm-safe-bottom);
+  background: color-mix(in srgb, var(--ql-bg-elevated) 88%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-top: 1px solid var(--ql-border);
+  z-index: 250;
+}
+.qlm-tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; padding: 6px 2px 4px;
+  background: transparent; border: 0; color: var(--ql-text-muted);
+  font-size: 10px; font-weight: 600; letter-spacing: -0.01em;
+  transition: color var(--ql-duration-fast) var(--ql-ease-out);
+  position: relative;
+}
+.qlm-tab svg { width: 23px; height: 23px; stroke-width: 2; transition: transform var(--ql-duration-base) var(--ql-ease-out); }
+.qlm-tab.active { color: var(--ql-brand-600); }
+.qlm-tab.active svg { transform: translateY(-1px); }
+.qlm-tab:active svg { transform: scale(0.86); }
+.qlm-tab-dot {
+  position: absolute; top: 5px; right: calc(50% - 16px);
+  min-width: 8px; height: 8px; border-radius: 99px; background: var(--ql-danger-500);
+  border: 1.5px solid var(--ql-bg-elevated);
+}
+
+/* ═══════════════ 4 · FLOATING ACTION BUTTON ═══════════════ */
+.qlm-fab {
+  display: flex; align-items: center; justify-content: center;
+  position: fixed; right: 18px;
+  bottom: calc(var(--qlm-nav-h) + var(--qlm-safe-bottom) + 16px);
+  width: 56px; height: 56px; border-radius: 20px;
+  background: linear-gradient(140deg, var(--ql-brand-500), var(--ql-brand-700));
+  color: #fff; border: 0; box-shadow: 0 10px 24px -6px rgba(37,99,235,.55), 0 4px 8px -2px rgba(37,99,235,.35);
+  z-index: 240;
+  transition: transform var(--ql-duration-base) var(--ql-ease-out), opacity var(--ql-duration-base) var(--ql-ease-out);
+}
+.qlm-fab svg { width: 26px; height: 26px; stroke-width: 2.4; }
+.qlm-fab:active { transform: scale(0.9); }
+.qlm-fab.hide { transform: translateY(90px) scale(.6); opacity: 0; pointer-events: none; }
+
+/* ═══════════════ 5 · BOTTOM SHEET ═══════════════ */
+.qlm-sheet-back {
+  display: block; position: fixed; inset: 0; z-index: 400;
+  background: rgba(15,23,42,0); pointer-events: none;
+  transition: background var(--ql-duration-base) var(--ql-ease-out);
+}
+.qlm-sheet-back.open { background: rgba(15,23,42,.44); pointer-events: auto; }
+.qlm-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  max-height: 90vh; display: flex; flex-direction: column;
+  background: var(--ql-bg-elevated);
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -10px 40px -8px rgba(15,23,42,.28);
+  transform: translateY(100%);
+  transition: transform var(--ql-duration-slow) var(--ql-ease-out);
+  padding-bottom: var(--qlm-safe-bottom);
+}
+.qlm-sheet-back.open .qlm-sheet { transform: translateY(0); }
+.qlm-sheet-grab { padding: 9px 0 3px; display: flex; justify-content: center; flex: none; touch-action: none; }
+.qlm-sheet-grab::before { content: ""; width: 38px; height: 5px; border-radius: 99px; background: var(--ql-neutral-300); }
+.qlm-sheet-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 18px 12px; flex: none;
+}
+.qlm-sheet-title { flex: 1; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+.qlm-sheet-x {
+  width: 30px; height: 30px; border-radius: 99px; border: 0; flex: none;
+  background: var(--ql-neutral-100); color: var(--ql-text-secondary);
+  display: flex; align-items: center; justify-content: center;
+}
+.qlm-sheet-x svg { width: 17px; height: 17px; }
+.qlm-sheet-body { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 18px 18px; }
+.qlm-sheet-foot {
+  flex: none; padding: 12px 18px calc(12px + var(--qlm-safe-bottom));
+  border-top: 1px solid var(--ql-border); display: flex; gap: 10px; background: var(--ql-bg-elevated);
+}
+.qlm-sheet-foot .ql-btn { flex: 1; height: 48px; font-size: 15px; border-radius: 14px; }
+
+/* ═══════════════ 6 · ACTION SHEET (iOS) ═══════════════ */
+.qlm-as-back {
+  display: block; position: fixed; inset: 0; z-index: 410;
+  background: rgba(15,23,42,0); pointer-events: none;
+  transition: background var(--ql-duration-base) var(--ql-ease-out);
+}
+.qlm-as-back.open { background: rgba(15,23,42,.44); pointer-events: auto; }
+.qlm-as {
+  position: absolute; left: 8px; right: 8px; bottom: 0;
+  padding-bottom: calc(8px + var(--qlm-safe-bottom));
+  transform: translateY(30px); opacity: 0;
+  transition: transform var(--ql-duration-slow) var(--ql-ease-out), opacity var(--ql-duration-base) var(--ql-ease-out);
+}
+.qlm-as-back.open .qlm-as { transform: translateY(0); opacity: 1; }
+.qlm-as-group, .qlm-as-cancel {
+  background: color-mix(in srgb, var(--ql-bg-elevated) 96%, transparent);
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  border-radius: 16px; overflow: hidden;
+}
+.qlm-as-cancel { margin-top: 8px; }
+.qlm-as-title {
+  padding: 15px 16px 13px; text-align: center; font-size: 12px; font-weight: 600;
+  color: var(--ql-text-secondary); border-bottom: 1px solid var(--ql-border);
+}
+.qlm-as-item {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  padding: 16px 18px; background: transparent; border: 0;
+  border-bottom: 1px solid var(--ql-border);
+  font-size: 16px; font-weight: 500; color: var(--ql-text); text-align: left;
+}
+.qlm-as-item:last-child { border-bottom: 0; }
+.qlm-as-item:active { background: var(--ql-neutral-100); }
+.qlm-as-item svg { width: 21px; height: 21px; color: var(--ql-text-secondary); flex: none; }
+.qlm-as-item.danger { color: var(--ql-danger-600); }
+.qlm-as-item.danger svg { color: var(--ql-danger-600); }
+.qlm-as-item.active { color: var(--ql-brand-600); font-weight: 700; }
+.qlm-as-cancel .qlm-as-item { justify-content: center; font-weight: 700; color: var(--ql-brand-600); }
+
+/* ═══════════════ 7 · GENERIC MOBILE CARD LIST ═══════════════ */
+.qlm-cardlist { display: flex; flex-direction: column; gap: 10px; }
+.qlm-card {
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-2xl); padding: 14px;
+  box-shadow: var(--ql-shadow-xs);
+  transition: transform var(--ql-duration-fast) var(--ql-ease-out);
+}
+.qlm-card:active { transform: scale(0.988); }
+.qlm-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.qlm-card-ttl { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+.qlm-card-amt { font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; }
+.qlm-card-sub { color: var(--ql-text-secondary); font-size: 13px; margin-top: 2px; }
+.qlm-card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+/* ═══════════════ 8 · QUICK-FILTER CHIPS (horizontal scroll) ═══════════════ */
+.qlm-chips {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  padding: 2px 14px 2px; margin: 0 -14px 12px;
+  scroll-snap-type: x proximity;
+}
+.qlm-chips::-webkit-scrollbar { display: none; }
+.qlm-chip {
+  flex: none; scroll-snap-align: start;
+  padding: 8px 15px; border-radius: 99px; border: 1px solid var(--ql-border);
+  background: var(--ql-bg-elevated); color: var(--ql-text-secondary);
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+  transition: all var(--ql-duration-fast) var(--ql-ease-out);
+}
+.qlm-chip.active { background: var(--ql-neutral-900); color: #fff; border-color: var(--ql-neutral-900); }
+
+/* “More” app library (bottom-sheet grid of module tiles) */
+.qlm-more { padding-top: 2px; }
+.qlm-more-sec { font-size: 12px; font-weight: 700; color: var(--ql-text-muted); text-transform: uppercase; letter-spacing: .06em; margin: 14px 2px 8px; }
+.qlm-more-sec:first-child { margin-top: 2px; }
+.qlm-more-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px 4px; }
+.qlm-more-tile { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 4px; border-radius: 14px; color: var(--ql-text); text-align: center; text-decoration: none; }
+.qlm-more-tile:active { background: var(--ql-neutral-100); }
+.qlm-more-tile span:last-child { font-size: 11px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; }
+.qlm-more-ic { width: 48px; height: 48px; border-radius: 15px; display: grid; place-items: center; background: var(--ql-brand-50); color: var(--ql-brand-600); }
+.qlm-more-ic svg { width: 23px; height: 23px; }
+
+/* status pills reused on cards */
+.qlm-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+.qlm-pill.ok { background: var(--ql-success-100); color: var(--ql-success-700); }
+.qlm-pill.warn { background: var(--ql-warning-100); color: var(--ql-warning-700); }
+.qlm-pill.info { background: var(--ql-brand-100); color: var(--ql-brand-700); }
+.qlm-pill.mut { background: var(--ql-neutral-100); color: var(--ql-text-secondary); }
+
+/* ═══════════════ 9 · QLX SURFACES → NATIVE ON MOBILE ═══════════════ */
+/* hero (page title + month) — trimmed, title comes from header */
+.qx-hero { padding: 0 0 12px !important; flex-wrap: wrap; gap: 10px; }
+.qx-hero-tt { font-size: 22px !important; }
+.qx-hero-l > .qx-sub, .qx-hero-l p { font-size: 13px; }
+
+/* stat cards — 2 per row, compact */
+.qx-stats { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+.qx-stat { padding: 13px !important; border-radius: var(--ql-radius-2xl) !important; }
+.qx-stat-v { font-size: 19px !important; }
+.qx-stat-l { font-size: 11px !important; }
+
+/* panel + toolbar */
+.qx-panel { border: 0 !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; overflow: visible !important; }
+.qx-tb { flex-wrap: wrap; gap: 8px !important; padding: 0 0 10px !important; border: 0 !important; }
+.qx-tb-sp { display: none !important; }
+.qx-search { flex: 1 1 100%; order: -1; height: 44px !important; border-radius: 12px !important; font-size: 15px !important; }
+.qx-search input { font-size: 15px !important; }
+/* views switcher hidden — mobile is card-first */
+.qx-views { display: none !important; }
+.qx-tool { height: 40px !important; padding: 0 14px !important; border-radius: 11px !important; font-size: 13px !important; }
+.qx-pager, .qx-foot { flex-wrap: wrap; gap: 8px; }
+
+/* quick tabs → chips (horizontal scroll, no wrap) */
+.qx-tabs {
+  flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none;
+  margin: 0 -14px 4px !important; padding: 0 14px 6px !important; gap: 8px !important;
+}
+.qx-tabs::-webkit-scrollbar { display: none; }
+.qx-tab { flex: none !important; white-space: nowrap; padding: 8px 14px !important; border-radius: 99px !important; font-size: 13px !important; }
+
+/* the FAB is the single create action on mobile — hide the in-toolbar primary */
+#qxPrimary { display: none !important; }
+
+/* the register table is replaced by cards on mobile; if a table still shows, let it scroll safely */
+.qx-grid-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--ql-radius-2xl); }
+
+/* QLX cards → full-width native rows */
+.qx-cards { grid-template-columns: 1fr !important; gap: 10px !important; }
+.qx-card { padding: 15px !important; border-radius: var(--ql-radius-2xl) !important; }
+.qx-card-top { align-items: center; }
+.qx-card-id { font-size: 15px !important; font-weight: 700 !important; }
+.qx-card-party { margin-top: 10px !important; }
+.qx-card-nm { font-size: 14px !important; }
+.qx-card-rows { margin-top: 10px !important; }
+.qx-card-r { font-size: 13px !important; }
+.qx-card-r > span { color: var(--ql-text-secondary); }
+
+/* group headers */
+.qx-grp-bar { padding: 12px 2px !important; }
+
+/* QLX detail drawer → full-screen bottom sheet */
+.qx-dp-back { z-index: 420 !important; }
+.qx-dp {
+  width: 100vw !important; max-width: 100vw !important;
+  height: 92vh !important; top: auto !important; bottom: 0 !important; right: 0 !important;
+  border-radius: 22px 22px 0 0 !important;
+  transform: translateY(100%) !important;
+  transition: transform var(--ql-duration-slow) var(--ql-ease-out) !important;
+}
+.qx-dp-back.open .qx-dp { transform: translateY(0) !important; }
+.qx-dp-actions { flex-wrap: wrap; }
+.qx-dp-actions .qx-btn { flex: 1 1 44%; justify-content: center; height: 46px; }
+.qx-inv-frame { width: 100% !important; }
+
+/* AI insight panels — full width, comfortable */
+.qx-aip-card, .qx-an-card { border-radius: var(--ql-radius-2xl) !important; }
+.qx-an { grid-template-columns: 1fr !important; }
+
+/* ═══════════════ 10 · MOBILE DASHBOARD ═══════════════ */
+/* the desktop dashboard root re-renders on data load — hide it; QLMobile mounts .qlm-dash */
+#ql-main > .dx { display: none !important; }
+.qlm-dash { display: flex; flex-direction: column; gap: 16px; }
+.qlm-dash-greet { }
+.qlm-dash-greet h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
+.qlm-dash-greet p { color: var(--ql-text-secondary); font-size: 14px; margin: 3px 0 0; }
+
+/* segmented tabs */
+.qlm-seg {
+  display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+  margin: 0 -14px; padding: 0 14px 2px;
+}
+.qlm-seg::-webkit-scrollbar { display: none; }
+.qlm-seg-btn {
+  flex: none; padding: 8px 15px; border-radius: 99px; border: 1px solid var(--ql-border);
+  background: var(--ql-bg-elevated); color: var(--ql-text-secondary);
+  font-size: 13.5px; font-weight: 600; white-space: nowrap;
+}
+.qlm-seg-btn.active { background: var(--ql-neutral-900); color: #fff; border-color: var(--ql-neutral-900); }
+
+/* KPI grid — 2 per row */
+.qlm-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.qlm-kpi {
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: 18px; padding: 15px; position: relative; overflow: hidden;
+  box-shadow: var(--ql-shadow-xs);
+}
+.qlm-kpi:active { transform: scale(0.99); }
+.qlm-kpi-ic {
+  width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; margin-bottom: 11px;
+}
+.qlm-kpi-ic svg { width: 18px; height: 18px; }
+.qlm-kpi-l { font-size: 12px; font-weight: 600; color: var(--ql-text-secondary); letter-spacing: -0.01em; }
+.qlm-kpi-v { font-size: 21px; font-weight: 800; letter-spacing: -0.03em; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.qlm-kpi-t { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 700; margin-top: 5px; }
+.qlm-kpi-t.up { color: var(--ql-success-600); }
+.qlm-kpi-t.down { color: var(--ql-danger-600); }
+.qlm-kpi-t.flat { color: var(--ql-text-muted); }
+.qlm-kpi-m { font-size: 11px; color: var(--ql-text-muted); margin-top: 5px; line-height: 1.3; }
+/* tint helpers */
+.qlm-tint-blue { background: var(--ql-brand-50); color: var(--ql-brand-600); }
+.qlm-tint-green { background: var(--ql-success-50); color: var(--ql-success-600); }
+.qlm-tint-amber { background: var(--ql-warning-50); color: var(--ql-warning-600); }
+.qlm-tint-red { background: var(--ql-danger-50); color: var(--ql-danger-600); }
+.qlm-tint-violet { background: #F5F3FF; color: #7C3AED; }
+.qlm-tint-cyan { background: #ECFEFF; color: #0891B2; }
+
+/* section title */
+.qlm-sec { display: flex; align-items: center; justify-content: space-between; margin: 6px 2px -2px; }
+.qlm-sec h3 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.qlm-sec a { font-size: 13px; font-weight: 600; color: var(--ql-brand-600); }
+
+/* mini bar chart (simplified) */
+.qlm-chartcard {
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: 18px; padding: 16px; box-shadow: var(--ql-shadow-xs);
+}
+.qlm-chartcard-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+.qlm-chartcard-h .t { font-size: 14px; font-weight: 700; }
+.qlm-chartcard-h .s { font-size: 12px; color: var(--ql-text-secondary); }
+.qlm-bars { display: flex; align-items: flex-end; gap: 8px; height: 120px; }
+.qlm-bar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+.qlm-bar-fill { width: 100%; max-width: 30px; border-radius: 7px 7px 3px 3px; background: linear-gradient(180deg, var(--ql-brand-500), var(--ql-brand-600)); transition: height var(--ql-duration-slow) var(--ql-ease-out); }
+.qlm-bar-lbl { font-size: 10px; color: var(--ql-text-muted); font-weight: 600; }
+
+/* list rows (recent activity, etc.) */
+.qlm-list { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 18px; overflow: hidden; }
+.qlm-row { display: flex; align-items: center; gap: 12px; padding: 13px 15px; border-bottom: 1px solid var(--ql-divider); }
+.qlm-row:last-child { border-bottom: 0; }
+.qlm-row:active { background: var(--ql-neutral-50); }
+.qlm-row-av { width: 38px; height: 38px; flex: none; border-radius: 11px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px; }
+.qlm-row-mid { flex: 1; min-width: 0; }
+.qlm-row-t { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qlm-row-s { font-size: 12px; color: var(--ql-text-secondary); margin-top: 1px; }
+.qlm-row-r { text-align: right; flex: none; }
+.qlm-row-amt { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ═══════════════ 11 · INVOICE VIEWER (full-screen, zoom, share) ═══════════════ */
+.qlm-iv {
+  display: none; position: fixed; inset: 0; z-index: 460;
+  flex-direction: column; background: #1b1f24;
+  opacity: 0; transition: opacity var(--ql-duration-base) var(--ql-ease-out);
+}
+.qlm-iv.open { display: flex; opacity: 1; }
+.qlm-iv-bar {
+  display: flex; align-items: center; gap: 10px; flex: none;
+  height: calc(50px + var(--qlm-safe-top)); padding: var(--qlm-safe-top) 12px 0;
+  background: rgba(20,24,28,.92); color: #fff;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.qlm-iv-x { width: 38px; height: 38px; border-radius: 99px; border: 0; background: rgba(255,255,255,.12); color: #fff; display: flex; align-items: center; justify-content: center; }
+.qlm-iv-x svg { width: 20px; height: 20px; }
+.qlm-iv-ttl { flex: 1; font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qlm-iv-zoom { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.7); min-width: 44px; text-align: right; }
+.qlm-iv-stage {
+  flex: 1; overflow: auto; -webkit-overflow-scrolling: touch;
+  display: flex; align-items: flex-start; justify-content: center; padding: 16px;
+  touch-action: pan-x pan-y;
+}
+.qlm-iv-doc {
+  width: 794px; flex: none; transform-origin: top center; background: #fff;
+  box-shadow: 0 18px 50px -10px rgba(0,0,0,.6);
+  transition: transform var(--ql-duration-base) var(--ql-ease-out);
+}
+.qlm-iv-doc.dragging { transition: none; }
+.qlm-iv-foot {
+  flex: none; display: flex; gap: 8px; padding: 10px 12px calc(10px + var(--qlm-safe-bottom));
+  background: rgba(20,24,28,.94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.qlm-iv-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 4px; border-radius: 12px; border: 0; background: transparent; color: #fff;
+  font-size: 11px; font-weight: 600;
+}
+.qlm-iv-btn:active { background: rgba(255,255,255,.1); }
+.qlm-iv-btn svg { width: 22px; height: 22px; }
+.qlm-iv-btn.share { color: #25D366; }
+.qlm-iv-btn.pdf { color: var(--ql-brand-300); }
+
+/* ═══════════════ 12 · WIZARD (step-by-step form) ═══════════════ */
+.qlm-wiz-head { padding: 2px 18px 14px; flex: none; }
+.qlm-wiz-steps { display: flex; align-items: center; gap: 6px; }
+.qlm-wiz-dot { flex: 1; height: 4px; border-radius: 99px; background: var(--ql-neutral-200); transition: background var(--ql-duration-base) var(--ql-ease-out); }
+.qlm-wiz-dot.done { background: var(--ql-brand-600); }
+.qlm-wiz-dot.cur { background: var(--ql-brand-400); }
+.qlm-wiz-step { font-size: 12px; font-weight: 600; color: var(--ql-text-secondary); margin-top: 10px; }
+.qlm-wiz-step b { color: var(--ql-text); font-size: 16px; font-weight: 800; display: block; letter-spacing: -0.02em; }
+.qlm-field { margin-bottom: 15px; }
+.qlm-field label { display: block; font-size: 13px; font-weight: 600; color: var(--ql-text-secondary); margin-bottom: 7px; }
+.qlm-field input, .qlm-field select, .qlm-field textarea {
+  width: 100%; height: 50px; padding: 0 15px; font-size: 16px; /* 16px avoids iOS zoom */
+  border: 1px solid var(--ql-border); border-radius: 13px; background: var(--ql-bg);
+  color: var(--ql-text); font-family: inherit; -webkit-appearance: none; appearance: none;
+}
+.qlm-field textarea { height: auto; min-height: 80px; padding: 13px 15px; }
+.qlm-field input:focus, .qlm-field select:focus, .qlm-field textarea:focus { outline: none; border-color: var(--ql-brand-500); box-shadow: var(--ql-shadow-ring); }
+.qlm-review-row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--ql-divider); font-size: 14px; }
+.qlm-review-row span { color: var(--ql-text-secondary); }
+.qlm-review-row b { text-align: right; }
+
+/* ═══════════════ 13 · SKELETON + PULL-TO-REFRESH ═══════════════ */
+.qlm-skel-wrap { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+.qlm-skel { border-radius: var(--ql-radius-2xl); background: var(--ql-neutral-100); position: relative; overflow: hidden; }
+.qlm-skel::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
+  transform: translateX(-100%); animation: qlm-shimmer 1.3s infinite;
+}
+@keyframes qlm-shimmer { 100% { transform: translateX(100%); } }
+.qlm-ptr {
+  display: flex; align-items: center; justify-content: center;
+  position: fixed; top: calc(var(--qlm-header-h) + var(--qlm-safe-top)); left: 0; right: 0;
+  height: 0; overflow: hidden; z-index: 200; color: var(--ql-text-muted);
+  transition: height var(--ql-duration-base) var(--ql-ease-out);
+}
+.qlm-ptr svg { width: 22px; height: 22px; }
+.qlm-ptr.spin svg { animation: qlm-spin .8s linear infinite; }
+@keyframes qlm-spin { 100% { transform: rotate(360deg); } }
+
+/* ═══════════════ 14 · MISC ═══════════════ */
+/* keep the shared form modal usable but push it to a sheet feel */
+.ql-modal { max-height: 92vh; }
+/* hide desktop-only floating helpers that clutter mobile */
+body.ql-v2 .dx-fab, body.ql-v2 .qx-fab-desktop { display: none !important; }
+
+/* smooth momentum + tap feedback everywhere */
+* { -webkit-tap-highlight-color: transparent; }
+
+} /* end @media */
+
+/* larger phones / small tablets keep 2-col KPI but a touch airier */
+@media (min-width: 480px) and (max-width: 768px) {
+  .qlm-kpis { gap: 14px; }
+}
