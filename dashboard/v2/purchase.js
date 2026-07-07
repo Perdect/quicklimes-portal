@@ -178,28 +178,25 @@ function pInsightFilter(kind) {
   QLX.refresh();
   const p = document.querySelector('.qx-panel'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-function aiInsightsPanel() {
-  const all = Q.purchaseRows();
-  const months = [...new Set(all.map(r => (r.date || '').slice(0, 7)).filter(Boolean))].sort();
-  const curYm = new Date().toISOString().slice(0, 7);
-  const ym = (months.includes(curYm) || !months.length) ? curYm : months[months.length - 1];
-  const rows = all.filter(r => (r.date || '').slice(0, 7) === ym);
-  const amt = pred => rows.filter(pred).reduce((a, r) => a + r.total, 0);
+// `rows` = the currently-selected month's bills (passed by the QLX engine).
+function aiInsightsPanel(rows) {
+  rows = rows || [];
+  const mon = QLX.month() ? QLX.monthLabel() : 'all time';
+  const inMon = QLX.month() ? '' : ' (all)';
+  const amt = pred => rows.filter(pred).reduce((a, r) => a + (r.total || 0), 0);
   const qty = pred => rows.filter(pred).reduce((a, r) => a + (r.qty || 0), 0);
-  const chev = svg('<polyline points="9 18 15 12 9 6"/>');
-  const mon = new Date(ym + '-01T00:00').toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
   const cards = [
-    { ic: '🪨', tint: 'amber', label: 'Limestone', a: amt(r => r.group === 'limestone'), q: qty(r => r.group === 'limestone'), unit: 'T', act: 'purchased', f: 'limestone' },
-    { ic: '🔥', tint: 'red', label: 'Petcoke', a: amt(r => r.group === 'petcoke'), q: qty(r => r.group === 'petcoke'), unit: 'T', act: 'consumed', f: 'petcoke' },
-    { ic: '📦', tint: 'blue', label: 'Plastic Bags', a: amt(r => r.group === 'packaging'), q: qty(r => r.group === 'packaging'), unit: 'bags', act: 'used', f: 'packaging' },
-    { ic: '📜', tint: 'violet', label: 'Royalty', a: amt(r => /royalty/i.test(r.item)), q: 0, unit: '', act: 'paid', f: '__royalty' }
+    { ic: '🪨', tint: 'amber', label: 'Limestone', a: amt(r => r.group === 'limestone'), q: qty(r => r.group === 'limestone'), unit: 'T', act: 'purchased' },
+    { ic: '🔥', tint: 'red', label: 'Petcoke', a: amt(r => r.group === 'petcoke'), q: qty(r => r.group === 'petcoke'), unit: 'T', act: 'consumed' },
+    { ic: '📦', tint: 'blue', label: 'Plastic Bags', a: amt(r => r.group === 'packaging'), q: qty(r => r.group === 'packaging'), unit: 'bags', act: 'used' },
+    { ic: '📜', tint: 'violet', label: 'Royalty', a: amt(r => /royalty/i.test(r.item)), q: 0, unit: '', act: 'paid' }
   ];
   const cardHTML = c => {
     const big = c.a ? fC(c.a) : '₹0';
-    const sub = c.act + ' in ' + mon + (c.q && c.unit ? ' · ' + fmt(c.q, c.unit === 'bags' ? 0 : 1) + ' ' + c.unit : '');
-    return `<div class="qx-aip-card" onclick="pInsightFilter('${c.f}')"><span class="qx-aip-ic t-${c.tint}">${c.ic}</span><div class="qx-aip-b"><div class="qx-aip-top"><span class="qx-aip-n">${big}</span><span class="qx-aip-l">${c.label}</span></div><div class="qx-aip-s">${sub}</div></div><span class="qx-aip-chev">${chev}</span></div>`;
+    const sub = c.act + inMon + (c.q && c.unit ? ' · ' + fmt(c.q, c.unit === 'bags' ? 0 : 1) + ' ' + c.unit : '');
+    return `<div class="qx-aip-card"><span class="qx-aip-ic t-${c.tint}">${c.ic}</span><div class="qx-aip-b"><div class="qx-aip-top"><span class="qx-aip-n">${big}</span><span class="qx-aip-l">${c.label}</span></div><div class="qx-aip-s">${sub}</div></div></div>`;
   };
-  return `<div class="qx-aip"><div class="qx-aip-h"><span class="qx-aip-h-t">${svg(IC.ai)} AI Insights</span><span class="qx-aip-badge">Auto</span></div><div class="qx-aip-row">${cards.map(cardHTML).join('')}</div></div>`;
+  return `<div class="qx-aip"><div class="qx-aip-h"><span class="qx-aip-h-t">${svg(IC.ai)} AI Insights · ${esc(mon)}</span><span class="qx-aip-badge">Auto</span></div><div class="qx-aip-row">${cards.map(cardHTML).join('')}</div></div>`;
 }
 
 /* ══════════════════ CONFIG ══════════════════ */
@@ -208,22 +205,28 @@ QLX.mount({
   icon: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>',
   views: ['table'],
   data: () => Q.purchaseRows(), rowId: r => r.idx, dateField: r => r.date,
+  monthFilter: true, monthOf: r => r.date, emptyLabel: 'purchase',
   subtitle: () => { const s = Q.purchaseSummary(); return `<b>${esc(Q.co.short)}</b> · ${s.count} bills · <b>${fC(s.total)}</b> purchase value`; },
-  banner: () => aiInsightsPanel(),
+  banner: rows => aiInsightsPanel(rows),
   primary: { label: 'Add Bill', icon: IC.plus, onClick: () => QLShell.openPurchaseForm() },
   tools: [
-    { label: 'Report', icon: IC.file, onClick: () => { const r = Q.purchaseByGroup(); QLShell.exportCSV('Purchase by Group (landed cost)', ['Group', 'Items', 'Freight', 'Taxable', 'GST', 'Total'], r.map(g => [g.emoji + ' ' + g.label, g.count, g.freight, g.taxable, g.gst, g.total])); toast('Group report exported'); } },
     { label: 'Import', icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => importBills() },
-    { label: 'Export', icon: IC.dl, onClick: () => exportBills() }
+    { label: 'Export', icon: IC.dl, onClick: () => exportRows(QLX.rows()) },
+    { label: 'Report', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>', onClick: () => openPurchaseReport(QLX.rows()) }
   ],
-  stats: () => {
-    const rows = Q.purchaseRows(), s = Q.purchaseSummary(), i = Q.purchaseInsights();
-    const paid = rows.reduce((a, r) => a + r.paid, 0);
+  // Month-scoped: `rows` is the selected month's bills (all statuses).
+  stats: rows => {
+    const nc = rows.filter(r => r.status !== 'cancelled');
+    const taxable = nc.reduce((a, r) => a + (r.taxable || 0), 0);
+    const itc = nc.reduce((a, r) => a + (r.itc || 0), 0);
+    const pending = nc.reduce((a, r) => a + (r.outstanding || 0), 0);
+    const paid = nc.reduce((a, r) => a + (r.paid || 0), 0);
+    const sups = new Set(nc.filter(r => (r.outstanding || 0) > 0).map(r => r.sup)).size;
     return [
-      { label: 'Total Bills', value: s.count, sub: rows.filter(r => r.isOverdue).length + ' overdue', tint: 'blue', icon: IC.file },
-      { label: 'Total Purchases', value: fC(s.total), sub: 'excl. GST', tint: 'indigo', icon: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>' },
-      { label: 'GST Input Credit', value: fC(s.itc), sub: 'available ITC', tint: 'green', icon: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/>' },
-      { label: 'Pending Payment', value: fC(s.pending), sub: i.pendCount + ' supplier' + (i.pendCount === 1 ? '' : 's'), tint: 'amber', icon: IC.clock },
+      { label: 'Total Bills', value: rows.length, sub: nc.filter(r => r.isOverdue).length + ' overdue', tint: 'blue', icon: IC.file },
+      { label: 'Total Purchases', value: fC(taxable), sub: 'excl. GST', tint: 'indigo', icon: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>' },
+      { label: 'GST Input Credit', value: fC(itc), sub: 'available ITC', tint: 'green', icon: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/>' },
+      { label: 'Pending Payment', value: fC(pending), sub: sups + ' supplier' + (sups === 1 ? '' : 's'), tint: 'amber', icon: IC.clock },
       { label: 'Paid Amount', value: fC(paid), sub: 'settled to date', tint: 'teal', icon: IC.check }
     ];
   },
@@ -235,7 +238,6 @@ QLX.mount({
     { key: 'dept', label: 'Department', options: rows => Q.departments.filter(d => rows.some(r => r.dept === d)).map(d => [d, d]), test: (r, v) => r.dept === v },
     { key: 'gst', label: 'GST', options: rows => [...new Set(rows.map(r => r.grate))].sort((a, b) => a - b).map(g => [String(g), g + '% GST']), test: (r, v) => String(r.grate) === v }
   ],
-  dateRange: true,
   groupBy: [
     { key: 'group', label: 'Purchase Group', of: r => r.group, title: r => `${r.emoji} ${esc(r.groupLabel)}`, dot: r => (GCOL[r.group] || GCOL.other)[1] },
     { key: 'status', label: 'Payment status', of: r => (r.isOverdue ? 'overdue' : r.status), title: r => (r.isOverdue ? 'Overdue' : r.status[0].toUpperCase() + r.status.slice(1)), dot: r => STDOT[r.isOverdue ? 'overdue' : r.status] },
@@ -313,8 +315,45 @@ QLX.mount({
 });
 
 /* ── Export / Import (reused) ── */
-function exportRows(rows) { QLShell.exportCSV('purchases_' + (Q.co.short || 'register').replace(/\s+/g, '_'), ['Bill', 'Date', 'Supplier', 'Group', 'Item', 'Department', 'GSTIN', 'GST%', 'Taxable', 'Freight', 'GST', 'ITC', 'Total', 'Paid', 'Status', 'Due'], rows.map(x => [x.bill, x.date, x.sup, x.groupLabel, x.item, x.dept, x.gstin, x.grate, x.taxable, x.freightAmt, x.gst, x.itc, x.total, x.paid, x.status, x.dueDate])); toast('Exported ' + rows.length + ' bills'); }
-function exportBills() { exportRows(Q.purchaseRows()); }
+function exportRows(rows) {
+  rows = rows || [];
+  const mo = QLX.month() ? '_' + QLX.month() : '';
+  QLShell.exportCSV('purchases_' + (Q.co.short || 'register').replace(/\s+/g, '_') + mo, ['Bill', 'Date', 'Supplier', 'Group', 'Item', 'Department', 'GSTIN', 'GST%', 'Taxable', 'Freight', 'GST', 'ITC', 'Total', 'Paid', 'Status', 'Due'], rows.map(x => [x.bill, x.date, x.sup, x.groupLabel, x.item, x.dept, x.gstin, x.grate, x.taxable, x.freightAmt, x.gst, x.itc, x.total, x.paid, x.status, x.dueDate]));
+  toast('Exported ' + rows.length + ' bills' + (QLX.month() ? ' · ' + QLX.monthLabel() : ''));
+}
+function exportBills() { exportRows(QLX.rows()); }
+/* Printable monthly Purchase report for the selected month. */
+function openPurchaseReport(rows) {
+  rows = rows || [];
+  const label = QLX.month() ? QLX.monthLabel() : 'All months';
+  if (!rows.length) { toast('No purchase data found for ' + label, 'err'); return; }
+  const nc = rows.filter(r => r.status !== 'cancelled');
+  const taxable = nc.reduce((a, r) => a + (r.taxable || 0), 0), gst = nc.reduce((a, r) => a + (r.gst || 0), 0);
+  const itc = nc.reduce((a, r) => a + (r.itc || 0), 0), total = nc.reduce((a, r) => a + (r.total || 0), 0);
+  const paid = nc.reduce((a, r) => a + (r.paid || 0), 0), pending = nc.reduce((a, r) => a + (r.outstanding || 0), 0);
+  const co = Q.co || {};
+  const cards = [['Bills', rows.length], ['Taxable value', fC(taxable)], ['GST (ITC)', fC(itc)], ['Total', fC(total)], ['Paid', fC(paid)], ['Pending', fC(pending)]];
+  const body = rows.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')).map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.bill || '—')}</td><td>${fDS(r.date)}</td><td>${esc(r.sup)}</td><td>${r.emoji} ${esc(r.item || r.groupLabel || '')}</td><td class="r">${fC(r.taxable)}</td><td class="r">${fC(r.gst)}</td><td class="r">${fC(r.total)}</td><td>${esc(r.status)}</td></tr>`).join('');
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Purchase Report — ${esc(label)}</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:#0f172a;padding:28px;max-width:1000px;margin:0 auto}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #2563eb;padding-bottom:14px;margin-bottom:18px}
+  h1{font-size:20px;font-weight:800}.sub{color:#64748b;font-size:13px;margin-top:3px}.co{text-align:right;font-size:13px;color:#334155}.co b{font-size:15px;color:#0f172a}
+  .cards{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
+  .c{border:1px solid #e2e8f0;border-radius:10px;padding:12px}.c .l{font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;font-weight:600}.c .v{font-size:16px;font-weight:800;margin-top:5px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}th,td{padding:8px 10px;text-align:left;border-bottom:1px solid #eef2f7}th{background:#f8fafc;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#475569}.r{text-align:right}
+  tfoot td{font-weight:800;border-top:2px solid #cbd5e1;background:#f8fafc}
+  .pbar{position:fixed;top:14px;right:14px}.pbtn{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-weight:700;cursor:pointer;font-size:13px}
+  @media print{.pbar{display:none}body{padding:0}}</style></head>
+  <body><div class="pbar"><button class="pbtn" onclick="window.print()">🖨 Print</button></div>
+  <div class="top"><div><h1>Purchase Report</h1><div class="sub">${esc(label)} · ${rows.length} bills</div></div>
+  <div class="co"><b>${esc(co.name || co.short || 'QuickLimes')}</b>${co.gstin ? '<div>GSTIN ' + esc(co.gstin) + '</div>' : ''}${co.city ? '<div>' + esc(co.city) + '</div>' : ''}</div></div>
+  <div class="cards">${cards.map(c => `<div class="c"><div class="l">${c[0]}</div><div class="v">${c[1]}</div></div>`).join('')}</div>
+  <table><thead><tr><th>#</th><th>Bill</th><th>Date</th><th>Supplier</th><th>Item</th><th class="r">Taxable</th><th class="r">GST</th><th class="r">Total</th><th>Status</th></tr></thead>
+  <tbody>${body}</tbody>
+  <tfoot><tr><td colspan="5">Total (${nc.length} bills)</td><td class="r">${fC(taxable)}</td><td class="r">${fC(gst)}</td><td class="r">${fC(total)}</td><td></td></tr></tfoot></table></body></html>`;
+  const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups to open the report'); return; }
+  w.document.write(html); w.document.close();
+}
 function importBills() {
   QLFin.importSheet({
     title: 'Import purchase bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',

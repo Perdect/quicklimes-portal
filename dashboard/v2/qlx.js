@@ -59,7 +59,8 @@
       sort: Object.assign({}, CFG.sortDefault || { key: null, dir: 'desc' }),
       adv: {}, advOpen: false, page: 1,
       hidden: loadHidden(), collapsed: new Set(), sel: new Set(),
-      calMonth: null, openId: null, dpTab: 0
+      calMonth: null, openId: null, dpTab: 0,
+      month: null, monthInit: false   // global Month filter (opt-in via CFG.monthFilter)
     };
   }
   function loadHidden() {
@@ -110,7 +111,19 @@
   }
 
   /* ══════════════════ DATA PIPELINE ══════════════════ */
-  function allRows() { return (CFG.data ? CFG.data() : []) || []; }
+  // The Month filter (opt-in via CFG.monthFilter + CFG.monthOf) narrows EVERY
+  // downstream consumer at once — stats, AI insights, table, export, report —
+  // because they all read allRows(). Default = the latest month that has data.
+  function monthOf(r) { return ((CFG.monthOf ? CFG.monthOf(r) : r.date) || '').slice(0, 7); }
+  function latestMonth(rows) { const ms = rows.map(monthOf).filter(Boolean).sort(); return ms.length ? ms[ms.length - 1] : 'all'; }
+  function allRows() {
+    let rows = (CFG.data ? CFG.data() : []) || [];
+    if (!CFG.monthFilter) return rows;
+    if (!S.monthInit && rows.length) { S.month = latestMonth(rows); S.monthInit = true; }
+    if (S.month && S.month !== 'all') rows = rows.filter(r => monthOf(r) === S.month);
+    return rows;
+  }
+  function rawRows() { return (CFG.data ? CFG.data() : []) || []; }   // pre-month, for the picker
   function rowId(r) { return CFG.rowId ? CFG.rowId(r) : (r.idx != null ? r.idx : r.id); }
   function rowById(id) { return allRows().find(r => String(rowId(r)) === String(id)); }
 
@@ -158,12 +171,44 @@
   function heroHTML() {
     const tools = (CFG.tools || []).map((t, i) => `<button class="qx-btn" data-tool="${i}">${t.icon ? svg(t.icon) : ''}<span>${esc(t.label)}</span></button>`).join('');
     const prim = CFG.primary ? `<button class="qx-btn qx-btn-primary" id="qxPrimary">${svg(CFG.primary.icon || IC.plus)}<span>${esc(CFG.primary.label)}</span></button>` : '';
+    const month = CFG.monthFilter ? `<button class="qx-month" id="qxMonthBtn" title="Filter by month">${svg('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>')}<span>${esc(monthLabel())}</span>${svg('<polyline points="6 9 12 15 18 9"/>')}</button>` : '';
     return `<div class="qx-hero">
       <div class="qx-hero-l">
         <div class="qx-hero-tt"><div class="qx-title">${esc(CFG.title)}</div></div>
       </div>
-      <div class="qx-hero-r">${tools}${prim}</div>
+      <div class="qx-hero-r">${month}${tools}${prim}</div>
     </div>`;
+  }
+  function monthLabel() {
+    if (!S.month || S.month === 'all') return 'All months';
+    try { return new Date(S.month + '-01T00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); } catch (_) { return S.month; }
+  }
+  function emptyMsg() {
+    if (CFG.monthFilter && S.month && S.month !== 'all') return `No ${esc(CFG.emptyLabel || CFG.noun || 'record')} data found for ${esc(monthLabel())}`;
+    return `No ${esc(CFG.nounPl || 'records')} in this view`;
+  }
+  function setMonth(ym) {
+    if (S.month === ym) return;
+    S.month = ym; S.monthInit = true; S.page = 1; S.sel = new Set();
+    const root = document.getElementById('qxRoot');
+    if (root) { root.innerHTML = skeletonHTML(); root.dataset.ready = ''; }   // loading skeleton on change
+    setTimeout(() => refresh(), 230);
+  }
+  function openMonthMenu(anchor) {
+    closeMenu();
+    const have = new Set(rawRows().map(monthOf).filter(Boolean));
+    let year = +((S.month && S.month !== 'all' ? S.month : new Date().toISOString().slice(0, 7)).slice(0, 4)) || new Date().getFullYear();
+    const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const m = document.createElement('div'); m.className = 'qx-menu qx-month-menu';
+    function paint() {
+      m.innerHTML = `<div class="qx-mm-yr"><button class="qx-mm-nav" data-yr="-1">${svg('<polyline points="15 18 9 12 15 6"/>')}</button><span>${year}</span><button class="qx-mm-nav" data-yr="1">${svg('<polyline points="9 18 15 12 9 6"/>')}</button></div>
+        <div class="qx-mm-grid">${MN.map((mn, i) => { const ym = year + '-' + String(i + 1).padStart(2, '0'); return `<button class="qx-mm-cell${S.month === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-ym="${ym}">${mn}</button>`; }).join('')}</div>
+        <button class="qx-mm-all${(!S.month || S.month === 'all') ? ' on' : ''}" data-ym="all">All months</button>`;
+      m.querySelectorAll('[data-yr]').forEach(b => b.onclick = () => { year += +b.dataset.yr; paint(); });
+      m.querySelectorAll('[data-ym]').forEach(b => b.onclick = () => { const ym = b.dataset.ym; closeMenu(); setMonth(ym); });
+    }
+    paint();
+    placeMenu(m, anchor);
   }
 
   function statsHTML() {
@@ -237,7 +282,7 @@
     const groups = groupRows(rows);
     const span = cols.length + (hasSel ? 1 : 0);
     let body = '', sr = 0;
-    if (!rows.length) body = `<tr><td colspan="${span}"><div class="qx-empty">No ${esc(CFG.nounPl || 'records')} in this view</div></td></tr>`;
+    if (!rows.length) body = `<tr><td colspan="${span}"><div class="qx-empty">${emptyMsg()}</div></td></tr>`;
     groups.forEach((grp, gi) => {
       const grouped = grp.key !== '__all';
       const collapsed = S.collapsed.has(grp.key);
@@ -291,7 +336,7 @@
 
   /* ══════════════════ CARDS / GALLERY ══════════════════ */
   function cardsHTML(rows) {
-    if (!rows.length) return `<div class="qx-empty" style="padding:44px">No ${esc(CFG.nounPl || 'records')}</div>`;
+    if (!rows.length) return `<div class="qx-empty" style="padding:44px">${emptyMsg()}</div>`;
     return `<div class="qx-cards">${rows.map(r => {
       const c = CFG.card ? CFG.card(r) : { id: rowId(r) }; const id = rowId(r);
       return `<div class="qx-card" data-id="${esc(id)}">
@@ -345,6 +390,7 @@
     const $ = s => document.getElementById(s), root = document.getElementById('qxRoot');
     if ($('qxPrimary') && CFG.primary) $('qxPrimary').onclick = () => CFG.primary.onClick();
     root.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => CFG.tools[+b.dataset.tool].onClick());
+    if ($('qxMonthBtn')) $('qxMonthBtn').onclick = e => openMonthMenu(e.currentTarget);
     root.querySelectorAll('[data-qf]').forEach(b => b.onclick = () => { S.quick = b.dataset.qf; S.page = 1; render(); });
     root.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { S.view = b.dataset.view; render(); });
     if ($('qxSearch')) { const inp = $('qxSearch'); inp.oninput = () => { S.q = inp.value; S.page = 1; renderViewOnly(); }; }
@@ -560,6 +606,11 @@
     // helpers configs can use to build cells
     statusPill(val, label, cls) { return `<select class="qx-st ${cls || 's-' + val}" data-st="__ID__">${label}</select>`; },
     getComments, addComment,
+    // Month filter — configs use these for month-scoped export / report.
+    rows: () => allRows(),                               // current month's rows (all statuses)
+    month: () => (S.month && S.month !== 'all') ? S.month : null,
+    monthLabel, setMonth,
+    inMonth: date => !CFG.monthFilter || !S.month || S.month === 'all' || (date || '').slice(0, 7) === S.month,
     config: () => CFG, state: () => S
   };
 })();

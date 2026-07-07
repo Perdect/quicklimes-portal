@@ -155,25 +155,22 @@ function sInsightFilter(ym) {
   QLX.refresh();
   const p = document.querySelector('.qx-panel'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-function salesInsightsPanel() {
-  const all = Q.salesRows();
-  const months = [...new Set(all.map(r => (r.date || '').slice(0, 7)).filter(Boolean))].sort();
-  const curYm = new Date().toISOString().slice(0, 7);
-  const ym = (months.includes(curYm) || !months.length) ? curYm : months[months.length - 1];
-  const rows = all.filter(r => (r.date || '').slice(0, 7) === ym);
-  const mon = new Date(ym + '-01T00:00').toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+// `rows` = the currently-selected month's invoices (passed by the QLX engine).
+function salesInsightsPanel(rows) {
+  rows = rows || [];
+  const mon = QLX.month() ? QLX.monthLabel() : 'all time';
+  const inMon = QLX.month() ? '' : ' (all)';
   const tons = rows.reduce((a, r) => a + (r.qty || 0), 0);
   const trucks = rows.filter(r => r.veh && r.veh.trim()).length || rows.length;
-  const sales = rows.reduce((a, r) => a + r.taxable, 0);
-  const chev = svg('<polyline points="9 18 15 12 9 6"/>');
+  const sales = rows.reduce((a, r) => a + (r.taxable || 0), 0);
   const cards = [
-    { ic: '🏭', tint: 'indigo', n: fmt(tons, 1) + ' T', label: 'Production', sub: 'dispatched in ' + mon },
-    { ic: '🚚', tint: 'amber', n: String(trucks), label: 'Trucks Loaded', sub: 'loaded in ' + mon },
-    { ic: '₹', tint: 'green', n: fC(sales), label: 'Sales', sub: 'billed in ' + mon },
-    { ic: '🧾', tint: 'blue', n: String(rows.length), label: 'Invoices', sub: 'raised in ' + mon }
+    { ic: '🏭', tint: 'indigo', n: fmt(tons, 1) + ' T', label: 'Production', sub: 'dispatched' + inMon },
+    { ic: '🚚', tint: 'amber', n: String(trucks), label: 'Trucks Loaded', sub: 'loaded' + inMon },
+    { ic: '₹', tint: 'green', n: fC(sales), label: 'Sales', sub: 'billed' + inMon },
+    { ic: '🧾', tint: 'blue', n: String(rows.length), label: 'Invoices', sub: 'raised' + inMon }
   ];
-  const cardHTML = c => `<div class="qx-aip-card" onclick="sInsightFilter('${ym}')"><span class="qx-aip-ic t-${c.tint}">${c.ic}</span><div class="qx-aip-b"><div class="qx-aip-top"><span class="qx-aip-n">${c.n}</span><span class="qx-aip-l">${c.label}</span></div><div class="qx-aip-s">${c.sub}</div></div><span class="qx-aip-chev">${chev}</span></div>`;
-  return `<div class="qx-aip"><div class="qx-aip-h"><span class="qx-aip-h-t">${svg(IC.ai)} AI Insights</span><span class="qx-aip-badge">Auto</span></div><div class="qx-aip-row">${cards.map(cardHTML).join('')}</div></div>`;
+  const cardHTML = c => `<div class="qx-aip-card"><span class="qx-aip-ic t-${c.tint}">${c.ic}</span><div class="qx-aip-b"><div class="qx-aip-top"><span class="qx-aip-n">${c.n}</span><span class="qx-aip-l">${c.label}</span></div><div class="qx-aip-s">${c.sub}</div></div></div>`;
+  return `<div class="qx-aip"><div class="qx-aip-h"><span class="qx-aip-h-t">${svg(IC.ai)} AI Insights · ${esc(mon)}</span><span class="qx-aip-badge">Auto</span></div><div class="qx-aip-row">${cards.map(cardHTML).join('')}</div></div>`;
 }
 
 /* ══════════════════ CONFIG ══════════════════ */
@@ -181,21 +178,29 @@ QLX.mount({
   active: 'sales', title: 'Sales Register', accent: 'blue', noun: 'invoice', nounPl: 'invoices',
   icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
   data: () => Q.salesRows(), rowId: r => r.idx, dateField: r => r.date,
+  monthFilter: true, monthOf: r => r.date, emptyLabel: 'sales',
   subtitle: () => { const s = Q.salesSummary(); return `<b>${esc(Q.co.short)}</b> · ${s.count} invoices · <b>${fC(s.taxable)}</b> sales`; },
-  banner: () => salesInsightsPanel(),
+  banner: rows => salesInsightsPanel(rows),
   primary: { label: 'New invoice', icon: IC.plus, onClick: () => QLShell.openSaleForm() },
   tools: [
     { label: 'Import', icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => importInvoices() },
-    { label: 'Export', icon: IC.dl, onClick: () => exportInvoices() }
+    { label: 'Export', icon: IC.dl, onClick: () => exportRows(QLX.rows()) },
+    { label: 'Report', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>', onClick: () => openSalesReport(QLX.rows()) }
   ],
-  stats: () => {
-    const s = Q.salesSummary();
+  // Month-scoped: `rows` is the selected month's invoices (all statuses).
+  stats: rows => {
+    const nc = rows.filter(r => r.status !== 'cancelled');
+    const qty = nc.reduce((a, r) => a + (r.qty || 0), 0);
+    const taxable = nc.reduce((a, r) => a + (r.taxable || 0), 0);
+    const gst = nc.reduce((a, r) => a + (r.gst || 0), 0);
+    const pending = nc.reduce((a, r) => a + (r.outstanding || 0), 0);
+    const collected = nc.reduce((a, r) => a + (r.total || 0), 0) - pending;
     return [
-      { label: 'Total Invoices', value: s.count, sub: fmt(s.qty, 1) + ' T dispatched', tint: 'blue', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>' },
-      { label: 'Total Sales', value: fC(s.taxable), sub: 'excl. GST', tint: 'green', icon: '<path d="M3 3h2l2 13h11l2-8H6"/><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/>' },
-      { label: 'Collected', value: fC(s.collected), sub: 'paid + cash', tint: 'indigo', icon: '<polyline points="20 6 9 17 4 12"/>' },
-      { label: 'Pending', value: fC(s.pending), sub: 'awaiting payment', tint: 'amber', icon: IC.clock },
-      { label: 'GST Output', value: fC(s.gst), sub: 'collected GST', tint: 'violet', icon: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="8" x2="16" y2="8"/>' }
+      { label: 'Total Invoices', value: rows.length, sub: fmt(qty, 1) + ' T dispatched', tint: 'blue', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>' },
+      { label: 'Total Sales', value: fC(taxable), sub: 'excl. GST', tint: 'green', icon: '<path d="M3 3h2l2 13h11l2-8H6"/><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/>' },
+      { label: 'Collected', value: fC(collected), sub: 'paid + cash', tint: 'indigo', icon: '<polyline points="20 6 9 17 4 12"/>' },
+      { label: 'Pending', value: fC(pending), sub: 'awaiting payment', tint: 'amber', icon: IC.clock },
+      { label: 'GST Output', value: fC(gst), sub: 'collected GST', tint: 'violet', icon: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="8" x2="16" y2="8"/>' }
     ];
   },
   quickFilters: [
@@ -210,7 +215,6 @@ QLX.mount({
     { key: 'party', label: 'Party', options: rows => [...new Set(rows.map(r => r.party))].filter(p => p && p !== '—').sort().map(p => [p, p]), test: (r, v) => r.party === v },
     { key: 'status', label: 'Status', options: () => STATUSES, test: (r, v) => r.status === v }
   ],
-  dateRange: true,
   groupBy: [
     { key: 'status', label: 'Status', of: r => r.status, title: r => r.status[0].toUpperCase() + r.status.slice(1), dot: r => STDOT[r.status] },
     { key: 'party', label: 'Customer', of: r => r.party, title: r => esc(r.party), dot: () => 'var(--qx)' },
@@ -287,8 +291,45 @@ window.addEventListener('hashchange', () => {
 });
 
 /* Export / Import */
-function exportRows(rows) { QLShell.exportCSV('sales_' + (Q.co.short || 'register').replace(/\s+/g, '_'), ['Invoice', 'Date', 'Party', 'GSTIN', 'Qty (MT)', 'Taxable', 'GST', 'Total', 'Status'], rows.map(x => [x.inv, x.date, x.party, x.gstin, x.qty, x.taxable, x.gst, x.total, x.status])); toast('Exported ' + rows.length + ' invoices'); }
-function exportInvoices() { exportRows(Q.salesRows()); }
+function exportRows(rows) {
+  rows = rows || [];
+  const mo = QLX.month() ? '_' + QLX.month() : '';
+  QLShell.exportCSV('sales_' + (Q.co.short || 'register').replace(/\s+/g, '_') + mo, ['Invoice', 'Date', 'Party', 'GSTIN', 'Qty (MT)', 'Taxable', 'GST', 'Total', 'Status'], rows.map(x => [x.inv, x.date, x.party, x.gstin, x.qty, x.taxable, x.gst, x.total, x.status]));
+  toast('Exported ' + rows.length + ' invoices' + (QLX.month() ? ' · ' + QLX.monthLabel() : ''));
+}
+function exportInvoices() { exportRows(QLX.rows()); }
+/* Printable monthly Sales report for the selected month. */
+function openSalesReport(rows) {
+  rows = rows || [];
+  const label = QLX.month() ? QLX.monthLabel() : 'All months';
+  if (!rows.length) { toast('No sales data found for ' + label, 'err'); return; }
+  const nc = rows.filter(r => r.status !== 'cancelled');
+  const qty = nc.reduce((a, r) => a + (r.qty || 0), 0), taxable = nc.reduce((a, r) => a + (r.taxable || 0), 0);
+  const gst = nc.reduce((a, r) => a + (r.gst || 0), 0), total = nc.reduce((a, r) => a + (r.total || 0), 0);
+  const pending = nc.reduce((a, r) => a + (r.outstanding || 0), 0), collected = total - pending;
+  const co = Q.co || {};
+  const cards = [['Invoices', rows.length], ['Qty dispatched', fmt(qty, 2) + ' T'], ['Taxable value', fC(taxable)], ['GST output', fC(gst)], ['Collected', fC(collected)], ['Pending', fC(pending)]];
+  const body = rows.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')).map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.inv || '—')}</td><td>${fDS(r.date)}</td><td>${esc(r.party)}</td><td class="r">${fmt(r.qty, 2)}</td><td class="r">${fC(r.taxable)}</td><td class="r">${fC(r.gst)}</td><td class="r">${fC(r.total)}</td><td>${esc(r.status)}</td></tr>`).join('');
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Sales Report — ${esc(label)}</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:#0f172a;padding:28px;max-width:1000px;margin:0 auto}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #2563eb;padding-bottom:14px;margin-bottom:18px}
+  h1{font-size:20px;font-weight:800}.sub{color:#64748b;font-size:13px;margin-top:3px}.co{text-align:right;font-size:13px;color:#334155}.co b{font-size:15px;color:#0f172a}
+  .cards{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
+  .c{border:1px solid #e2e8f0;border-radius:10px;padding:12px}.c .l{font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;font-weight:600}.c .v{font-size:16px;font-weight:800;margin-top:5px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}th,td{padding:8px 10px;text-align:left;border-bottom:1px solid #eef2f7}th{background:#f8fafc;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#475569}.r{text-align:right}
+  tfoot td{font-weight:800;border-top:2px solid #cbd5e1;background:#f8fafc}
+  .pbar{position:fixed;top:14px;right:14px}.pbtn{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-weight:700;cursor:pointer;font-size:13px}
+  @media print{.pbar{display:none}body{padding:0}}</style></head>
+  <body><div class="pbar"><button class="pbtn" onclick="window.print()">🖨 Print</button></div>
+  <div class="top"><div><h1>Sales Report</h1><div class="sub">${esc(label)} · ${rows.length} invoices</div></div>
+  <div class="co"><b>${esc(co.name || co.short || 'QuickLimes')}</b>${co.gstin ? '<div>GSTIN ' + esc(co.gstin) + '</div>' : ''}${co.city ? '<div>' + esc(co.city) + '</div>' : ''}</div></div>
+  <div class="cards">${cards.map(c => `<div class="c"><div class="l">${c[0]}</div><div class="v">${c[1]}</div></div>`).join('')}</div>
+  <table><thead><tr><th>#</th><th>Invoice</th><th>Date</th><th>Party</th><th class="r">Qty (T)</th><th class="r">Taxable</th><th class="r">GST</th><th class="r">Total</th><th>Status</th></tr></thead>
+  <tbody>${body}</tbody>
+  <tfoot><tr><td colspan="4">Total (${nc.length} invoices)</td><td class="r">${fmt(qty, 2)}</td><td class="r">${fC(taxable)}</td><td class="r">${fC(gst)}</td><td class="r">${fC(total)}</td><td></td></tr></tfoot></table></body></html>`;
+  const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups to open the report'); return; }
+  w.document.write(html); w.document.close();
+}
 function importInvoices() {
   QLFin.importSheet({
     title: 'Import sales bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',
