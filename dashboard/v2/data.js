@@ -416,6 +416,17 @@
   }
 
   /* ── Sales register helpers ──────────────────────────────────── */
+  // Resolve a party's GSTIN when the invoice didn't store one — look it up from the
+  // saved party record, then from our own linked firms (fixes e.g. Deshwali Minerals
+  // showing a blank GSTIN when the sale was booked without it).
+  function partyGstin(name) {
+    if (!name || name === '—') return '';
+    const n = String(name).trim().toUpperCase();
+    const p = S.PARTIES.find(x => (x.name || '').trim().toUpperCase() === n);
+    if (p && p.gstin) return p.gstin;
+    const c = Object.values(COMPANIES).find(x => (x.name || '').toUpperCase() === n || (x.short || '').toUpperCase() === n);
+    return (c && c.gstin) ? c.gstin : '';
+  }
   function salesRows() {
     return S.SALES.map((s, i) => {
       const c = cS(s);
@@ -423,7 +434,7 @@
       return {
         idx: i, inv: s.inv, date: s.date, party: s.party || '—',
         qty: s.qty || 0, taxable: c.tx, gst: c.cgst + c.sgst, total: c.tot,
-        status: s.status || 'pending', veh: s.veh || '', gstin: s.gstin || '',
+        status: s.status || 'pending', veh: s.veh || '', gstin: s.gstin || partyGstin(s.party),
         days: daysAgo(s.date), paid, outstanding: Math.max(0, c.tot - paid),
         payments: s.payments || [], paidMode: s.paidMode || '', paidDate: s.paidDate || '', attach: s.attach || []
       };
@@ -1014,10 +1025,10 @@
     let headers = [], rows = [], totals = null, kpis = [];
     if (type === 'sales') {
       const r = salesRows().filter(x => inR(x.date));
-      headers = ['Invoice', 'Date', 'Party', 'Qty (T)', 'Taxable', 'GST', 'Total', 'Status'];
-      rows = r.map(x => [x.inv, x.date, x.party, x.qty, x.taxable, x.gst, x.total, x.status]);
+      headers = ['Invoice', 'Date', 'Party', 'GSTIN', 'Vehicle', 'Qty (T)', 'Taxable', 'GST', 'Total', 'Status'];
+      rows = r.map(x => [x.inv, x.date, x.party, x.gstin || '—', x.veh || '—', x.qty, x.taxable, x.gst, x.total, x.status]);
       const tx = r.reduce((a, x) => a + x.taxable, 0), gst = r.reduce((a, x) => a + x.gst, 0), tot = r.reduce((a, x) => a + x.total, 0);
-      totals = ['Total', '', r.length + ' inv', r.reduce((a, x) => a + x.qty, 0), tx, gst, tot, ''];
+      totals = ['Total', '', r.length + ' inv', '', '', r.reduce((a, x) => a + x.qty, 0), tx, gst, tot, ''];
       kpis = [['Invoices', r.length], ['Taxable sales', fC(tx)], ['GST', fC(gst)], ['Total', fC(tot)]];
     } else if (type === 'purchase') {
       const r = purchaseRows().filter(x => inR(x.date));

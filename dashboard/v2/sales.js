@@ -299,7 +299,7 @@ window.addEventListener('hashchange', () => {
 function exportRows(rows) {
   rows = rows || [];
   const mo = QLX.month() ? '_' + QLX.month() : '';
-  QLShell.exportCSV('sales_' + (Q.co.short || 'register').replace(/\s+/g, '_') + mo, ['Invoice', 'Date', 'Party', 'GSTIN', 'Qty (MT)', 'Taxable', 'GST', 'Total', 'Status'], rows.map(x => [x.inv, x.date, x.party, x.gstin, x.qty, x.taxable, x.gst, x.total, x.status]));
+  QLShell.exportCSV('sales_' + (Q.co.short || 'register').replace(/\s+/g, '_') + mo, ['Invoice', 'Date', 'Party', 'GSTIN', 'Vehicle', 'Qty (MT)', 'Taxable', 'GST', 'Total', 'Status'], rows.map(x => [x.inv, x.date, x.party, x.gstin || '—', x.veh || '—', x.qty, x.taxable, x.gst, x.total, x.status]));
   toast('Exported ' + rows.length + ' invoices' + (QLX.month() ? ' · ' + QLX.monthLabel() : ''));
 }
 function exportInvoices() { exportRows(QLX.rows()); }

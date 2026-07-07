@@ -8,9 +8,9 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css"><link rel="stylesheet" href="./report.css?v=r1">
 <script src="ql-api.js"></script>
-<script src="./data.js?v=m3"></script>
+<script src="./data.js?v=m6"></script>
 <link rel="stylesheet" href="./mobile.css?v=m4">
 </head>
 <body class="ql-v2">
@@ -51,30 +51,56 @@ function ranges() {
 }
 function curRange(){ return ranges()[range]; }
 function money(n){ return '₹' + QLD.fmt(n); }
-function fmtCell(v){ return (typeof v === 'number' && Math.abs(v) >= 1000) ? money(v) : (v==null?'':v); }
+function fmtCell(v){ return (typeof v === 'number' && Math.abs(v) >= 1000) ? money(v) : (v==null||v==='' ? '—' : v); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function statusPill(v){ const s=String(v||'').toLowerCase(); const cls=/paid|cash|received/.test(s)?'ok':/pending|partial|overdue|due|unpaid/.test(s)?'warn':'mut'; return `<span class="rp-pill ${cls}">${esc(v||'—')}</span>`; }
+window.__view = idx => QLShell.printInvoice(+idx);
 
 /* ── PDF (print) + Excel (CSV) export ── */
 function printReport(rep) {
   const co = QLD.co, w = window.open('', '_blank'); if (!w) { QLShell.toast('Allow pop-ups to download'); return; }
-  const th = rep.headers.map(h => `<th>${h}</th>`).join('');
-  const tr = rep.rows.map(r => '<tr>' + r.map((c,i) => `<td class="${i>=2&&typeof c==='number'?'r':''}">${fmtCell(c)}</td>`).join('') + '</tr>').join('');
-  const tot = rep.totals ? '<tr class="tot">' + rep.totals.map((c,i)=>`<td class="${i>=2&&typeof c==='number'?'r':''}">${fmtCell(c)}</td>`).join('') + '</tr>' : '';
+  const numCol = rep.headers.map((h,ci)=>rep.rows.some(r=>typeof r[ci]==='number'));
+  const statusIdx = rep.headers.findIndex(h=>/^status$/i.test(h));
+  const pill = v => { const s=String(v||'').toLowerCase(); const c=/paid|cash|received/.test(s)?'ok':/pending|partial|overdue|due|unpaid/.test(s)?'warn':'mut'; return `<span class="pill ${c}">${esc(v||'—')}</span>`; };
+  const cell = (c,i)=> i===statusIdx ? `<td>${pill(c)}</td>` : `<td class="${numCol[i]?'r':''}${/gstin/i.test(rep.headers[i])?' mono':''}${i===0?' b':''}">${fmtCell(c)}</td>`;
+  const th = rep.headers.map((h,i) => `<th class="${numCol[i]?'r':''}">${esc(h)}</th>`).join('');
+  const tr = rep.rows.map(r => '<tr>' + r.map((c,i) => cell(c,i)).join('') + '</tr>').join('');
+  const tot = rep.totals ? '<tr class="tot">' + rep.totals.map((c,i)=>`<td class="${numCol[i]?'r':''}">${fmtCell(c)}</td>`).join('') + '</tr>' : '';
   const kpis = rep.kpis.map(k => `<div class="k"><span>${k[0]}</span><b>${k[1]}</b></div>`).join('');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${rep.title} — ${co.short}</title><style>
-    *{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',Arial,sans-serif}body{padding:26px;color:#0f172a;font-size:12px}
-    .h{display:flex;justify-content:space-between;border-bottom:2px solid #2563EB;padding-bottom:12px;margin-bottom:14px}
-    .h h1{font-size:18px;color:#2563EB}.h .c{font-size:11px;color:#475569;text-align:right}
-    .meta{color:#64748b;margin-bottom:12px;font-size:11px}
-    .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.k{border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;min-width:120px}.k span{display:block;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px}.k b{font-size:15px}
-    table{width:100%;border-collapse:collapse}th{background:#f1f5f9;text-align:left;padding:7px 9px;font-size:10px;text-transform:uppercase;color:#475569;border-bottom:1px solid #cbd5e1}td{padding:6px 9px;border-bottom:1px solid #eef2f7}.r{text-align:right}.tot td{font-weight:800;border-top:2px solid #0f172a;background:#f8fafc}
-    .bar{display:flex;gap:8px;justify-content:center;padding:0 0 14px}.btn{padding:8px 16px;border:none;border-radius:7px;font-weight:600;cursor:pointer;font-family:inherit}.bp{background:#2563EB;color:#fff}.bs{background:#e2e8f0}
-    @media print{.bar{display:none}body{padding:0}}
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(rep.title)} — ${esc(co.short)}</title><style>
+    *{box-sizing:border-box;margin:0;padding:0}body{font-family:'Geist','Inter',Arial,sans-serif;padding:30px;color:#0f172a;font-size:12px;background:#f8fafc}
+    .sheet{max-width:1100px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:18px;box-shadow:0 12px 24px -8px rgba(15,23,42,.08);padding:26px 28px}
+    .h{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:1px solid #e2e8f0;padding-bottom:16px;margin-bottom:18px}
+    .h .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(140deg,#3B82F6,#1D4ED8);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex:none}
+    .h .t{display:flex;gap:13px;align-items:center}
+    .h h1{font-size:20px;font-weight:800;letter-spacing:-.02em}.h .eyebrow{font-size:11px;font-weight:700;color:#2563EB;text-transform:uppercase;letter-spacing:.06em}
+    .h .c{font-size:11px;color:#475569;text-align:right;line-height:1.7}.h .c b{color:#0f172a;font-size:13px}
+    .meta{color:#64748b;margin-bottom:16px;font-size:11.5px}
+    .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px}
+    .k{border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;background:#fff}.k span{display:block;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;font-weight:600}.k b{font-size:18px;font-weight:800;letter-spacing:-.02em}
+    .twrap{border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+    table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+    th{background:#f8fafc;text-align:left;padding:11px 13px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#475569;font-weight:600;border-bottom:1px solid #e2e8f0}
+    td{padding:10px 13px;border-bottom:1px solid #f1f5f9}tr:last-child td{border-bottom:none}
+    .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.b{font-weight:700;color:#2563EB}.mono{font-family:'Geist Mono',monospace;font-size:11px;color:#64748b}
+    tbody tr:nth-child(even) td{background:#fcfdfe}
+    .tot td{font-weight:800;border-top:2px solid #cbd5e1;background:#f8fafc}
+    .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:10.5px;font-weight:700}
+    .pill:before{content:"";width:6px;height:6px;border-radius:99px;background:currentColor}
+    .pill.ok{background:#DCFCE7;color:#15803D}.pill.warn{background:#FEF3C7;color:#B45309}.pill.mut{background:#F1F5F9;color:#475569}
+    .bar{max-width:1100px;margin:0 auto 14px;display:flex;gap:8px;justify-content:flex-end}.btn{padding:9px 18px;border:none;border-radius:9px;font-weight:600;cursor:pointer;font-family:inherit;font-size:13px}.bp{background:#2563EB;color:#fff}.bs{background:#e2e8f0;color:#0f172a}
+    @media print{.bar{display:none}body{padding:0;background:#fff}.sheet{border:none;box-shadow:none;border-radius:0;max-width:none;padding:0}th{background:#eee!important;-webkit-print-color-adjust:exact}.pill{-webkit-print-color-adjust:exact}}
   </style></head><body>
-    <div class="bar"><button class="btn bp" onclick="window.print()">Print / Save PDF</button><button class="btn bs" onclick="window.close()">Close</button></div>
-    <div class="h"><div><h1>${rep.icon||''} ${rep.title}</h1></div><div class="c"><b>${co.name}</b><br>${co.gstin?'GSTIN: '+co.gstin:''}<br>${co.address||''}</div></div>
-    <div class="meta">Period: <b>${rep.period}</b> · ${rep.count} rows · generated ${new Date().toLocaleDateString('en-IN')}</div>
-    <div class="kpis">${kpis}</div>
-    <table><thead><tr>${th}</tr></thead><tbody>${tr}${tot}</tbody></table>
+    <div class="bar"><button class="btn bp" onclick="window.print()">🖨️ Print / Save PDF</button><button class="btn bs" onclick="window.close()">Close</button></div>
+    <div class="sheet">
+      <div class="h">
+        <div class="t"><div class="logo">${esc((co.short||'Q').charAt(0).toUpperCase())}</div><div><div class="eyebrow">${esc(rep.title)}</div><h1>${esc(co.name)}</h1></div></div>
+        <div class="c"><b>${co.gstin?'GSTIN '+esc(co.gstin):esc(co.name)}</b><br>${esc(co.address||'')}</div>
+      </div>
+      <div class="meta">Period: <b>${esc(rep.period)}</b> · ${rep.count} rows · generated ${new Date().toLocaleDateString('en-IN')}</div>
+      <div class="kpis">${kpis}</div>
+      <div class="twrap"><table><thead><tr>${th}</tr></thead><tbody>${tr}${tot}</tbody></table></div>
+    </div>
   </body></html>`);
   w.document.close();
 }
@@ -108,9 +134,36 @@ function genTab() {
   const typeCards = QLD.REPORT_TYPES.map(t => `<button class="rh-type ${t.id===selType?'on':''}" onclick="selType='${t.id}';render()"><span>${t.icon}</span>${t.name}</button>`).join('');
   const rangeBtns = Object.keys(rs).map(k => `<button class="sr-tab ${k===range?'active':''}" onclick="range='${k}';render()">${rs[k].label}</button>`).join('');
   const groupOpts = QLD.getGroups().map(g => `<button class="ql-btn ql-btn-secondary" onclick="sendToGroup('${g.id}')">Send to ${g.name}</button>`).join('');
-  const th = rep.headers.map((h,i)=>`<th class="${i>=2?'sr-num':''}">${h}</th>`).join('');
-  const body = rep.rows.length ? rep.rows.slice(0,40).map(r=>'<tr>'+r.map((c,i)=>`<td class="${i>=2&&typeof c==='number'?'sr-num':''}">${fmtCell(c)}</td>`).join('')+'</tr>').join('') : `<tr><td colspan="${rep.headers.length}"><div class="sr-empty">No data for this period</div></td></tr>`;
-  const tot = rep.totals ? '<tr style="border-top:2px solid var(--ql-border-strong);font-weight:800">'+rep.totals.map((c,i)=>`<td class="${i>=2&&typeof c==='number'?'sr-num':''}">${fmtCell(c)}</td>`).join('')+'</tr>' : '';
+  // modern data-driven table: numeric columns right-align, a "Status" column → pill
+  const numCol = rep.headers.map((h,ci)=>rep.rows.some(r=>typeof r[ci]==='number'));
+  const statusIdx = rep.headers.findIndex(h=>/^status$/i.test(h));
+  const isSales = selType === 'sales';
+  const invMap = {}; if(isSales) QLD.salesRows().forEach(r=>{ invMap[r.inv]=r.idx; });
+  const eyeSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const cell = (c,i)=> i===statusIdx ? `<td>${statusPill(c)}</td>`
+      : `<td class="${(numCol[i]?'num':'')}${i===0?' inv':''}${/gstin/i.test(rep.headers[i])?' mut':''}">${fmtCell(c)}</td>`;
+  const CAP = 60;
+  const th = rep.headers.map((h,i)=>`<th class="${numCol[i]?'num':''}">${esc(h)}</th>`).join('') + (isSales?'<th></th>':'');
+  const body = rep.rows.length ? rep.rows.slice(0,CAP).map(r=>{
+      const act = isSales && invMap[r[0]]!=null ? `<td><button class="rp-act" title="View invoice" onclick="__view(${invMap[r[0]]})">${eyeSvg}</button></td>` : (isSales?'<td></td>':'');
+      return '<tr>'+r.map((c,i)=>cell(c,i)).join('')+act+'</tr>';
+    }).join('') : `<tr><td colspan="${rep.headers.length+(isSales?1:0)}"><div style="text-align:center;padding:44px;color:var(--ql-text-muted)">No data for this period</div></td></tr>`;
+  const tot = rep.totals ? '<tr class="rp-tot">'+rep.totals.map((c,i)=>`<td class="${numCol[i]?'num':''}">${fmtCell(c)}</td>`).join('')+(isSales?'<td></td>':'')+'</tr>' : '';
+  // mobile invoice cards (sales report)
+  const gIdx = rep.headers.findIndex(h=>/gstin/i.test(h)), vIdx = rep.headers.findIndex(h=>/vehicle/i.test(h)),
+        qIdx = rep.headers.findIndex(h=>/qty/i.test(h)), txIdx = rep.headers.findIndex(h=>/taxable/i.test(h)),
+        gstIdx = rep.headers.findIndex(h=>/^gst$/i.test(h)), totIdx = rep.headers.findIndex(h=>/total/i.test(h)), dIdx=1;
+  const mcards = isSales ? rep.rows.slice(0,CAP).map(r=>`
+      <div class="rp-mcard" ${invMap[r[0]]!=null?`onclick="__view(${invMap[r[0]]})"`:''}>
+        <div class="rp-mcard-top"><span class="rp-mcard-inv">${esc(r[0])}</span>${statusIdx>=0?statusPill(r[statusIdx]):''}</div>
+        <div class="rp-mcard-sub">${esc(r[2])}${gIdx>=0&&r[gIdx]&&r[gIdx]!=='—'?' · '+esc(r[gIdx]):''}</div>
+        <div class="rp-mcard-rows">
+          <div class="rp-mcard-r"><span>Date</span><b>${esc(r[dIdx])}</b></div>
+          ${vIdx>=0?`<div class="rp-mcard-r"><span>Vehicle</span><b>${esc(r[vIdx])}</b></div>`:''}
+          ${qIdx>=0?`<div class="rp-mcard-r"><span>Qty</span><b>${fmtCell(r[qIdx])} T</b></div>`:''}
+          ${totIdx>=0?`<div class="rp-mcard-r"><span>Total</span><b>${fmtCell(r[totIdx])}</b></div>`:''}
+        </div>
+      </div>`).join('') : '';
   return `
     <div class="rh-grid">
       <div class="rh-types">${typeCards}</div>
@@ -118,9 +171,10 @@ function genTab() {
         <div class="sr-tabs" style="flex-wrap:wrap;margin-bottom:var(--ql-space-3)">${rangeBtns}</div>
         <div class="rh-prev-head"><div><div style="font-weight:800;font-size:var(--ql-text-lg)">${rep.icon} ${rep.title}</div><div class="page-sub">${rep.period} · ${rep.count} rows</div></div>
           <div class="page-actions"><button class="ql-btn ql-btn-secondary" onclick="__p()">📄 PDF</button><button class="ql-btn ql-btn-secondary" onclick="__x()">📊 Excel</button></div></div>
-        <div class="kpi-strip" style="grid-template-columns:repeat(${Math.min(4,rep.kpis.length)},1fr);margin:var(--ql-space-3) 0">${rep.kpis.map(k=>`<div class="kpi-tile"><div><div class="kpi-label">${k[0]}</div><div class="kpi-val" style="font-size:var(--ql-text-xl)">${k[1]}</div></div></div>`).join('')}</div>
-        <div class="sr-table-wrap"><table class="sr"><thead><tr>${th}</tr></thead><tbody>${body}${tot}</tbody></table></div>
-        ${rep.rows.length>40?`<div class="page-sub" style="margin-top:8px">Showing 40 of ${rep.count} — full set in the PDF/Excel.</div>`:''}
+        <div class="rp-kpis" style="grid-template-columns:repeat(${Math.min(4,rep.kpis.length)},1fr)">${rep.kpis.map(k=>`<div class="rp-kpi"><div class="rp-kpi-l">${k[0]}</div><div class="rp-kpi-v">${k[1]}</div></div>`).join('')}</div>
+        <div class="rp-table-wrap"><div class="rp-scroll"><table class="rp-table"><thead><tr>${th}</tr></thead><tbody>${body}${tot}</tbody></table></div></div>
+        ${mcards?`<div class="rp-mcards">${mcards}</div>`:''}
+        ${rep.rows.length>CAP?`<div class="rp-note">Showing ${CAP} of ${rep.count} — full set in the PDF / Excel.</div>`:''}
         <div class="rh-send"><span class="rh-send-h">📤 Send report:</span>${groupOpts}</div>
       </div>
     </div>`;
