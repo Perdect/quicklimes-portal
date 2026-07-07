@@ -1106,7 +1106,7 @@
 
     // ── Bank reconciliation ──
     get recon() { return (S.RECON || (S.RECON = { txns: [] })); },
-    saveRecon() { commit(); },
+    saveRecon() { commit(); try { if (window.QLReconAPI) window.QLReconAPI.mirror(ACTIVE_CO, S.RECON); } catch (_) {} },
 
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal,
