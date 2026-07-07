@@ -357,6 +357,8 @@ function openPurchaseReport(rows) {
   w.document.write(html); w.document.close();
 }
 function importBills() {
+  // stable "same bill" key: bill no. + GSTIN (falls back to taxable amount) — name-independent
+  const dupKeyP = p => p.bill ? (String(p.bill).trim() + '|' + (p.gstin || Math.round(+p.taxable || 0))).toUpperCase() : '';
   QLFin.importSheet({
     title: 'Import purchase bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',
     dropTitle: 'Choose a file', dropSub: '.csv / .xlsx list, or a photo / PDF of one bill',
@@ -381,8 +383,11 @@ function importBills() {
       if (raw) { out.cat = raw; const gm = Q.purchaseGroups.find(g => raw.includes(g.label.toLowerCase()) || g.items.some(it => raw.includes(it.toLowerCase()))); if (gm) { out.group = gm.key; out.item = gm.items.find(it => raw.includes(it.toLowerCase())) || gm.items[0]; } }
       return out;
     },
-    existing: () => new Set(Q.state.PURCHASES.filter(p => p.bill).map(p => ((p.sup || '') + '|' + p.bill).toUpperCase())),
-    keyOf: p => p.bill ? ((p.sup || '') + '|' + p.bill).toUpperCase() : '',
+    // Dedup by bill no. + a stable supplier identity (GSTIN, else taxable amount) —
+    // NOT the parsed supplier name, which can vary between OCR runs of the same bill
+    // (e.g. "the buyer. For" vs "Indian Oil Corporation Limited") and let duplicates through.
+    existing: () => new Set(Q.state.PURCHASES.filter(p => p.bill).map(dupKeyP)),
+    keyOf: dupKeyP,
     preview: { headers: ['Bill', 'Date', 'Supplier', 'Group', 'Taxable', 'GST%'], right: [4, 5], row: p => [p.bill || '—', p.date || '—', p.sup || '—', (Q.purchaseGroups.find(g => g.key === p.group) || { label: p.cat || '—' }).label, Q.fC(p.taxable), p.grate + '%'] },
     add: (p, file) => { Q.addPurchase(p); if (file) { try { addAttach(Q.state.PURCHASES.length - 1, file, 'Invoice'); } catch (_) {} } },
     done: n => { toast('Imported ' + n + ' bill' + (n === 1 ? '' : 's'), 'ok'); QLX.refresh(); }
