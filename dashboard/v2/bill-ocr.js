@@ -48,6 +48,8 @@
     'amount', 'taxable(?:\\s*(?:value|amount|amt))?', 'basic(?:\\s*(?:value|amount))?', 'sub\\s*-?\\s*total', 'total(?:\\s*(?:amount|value|gst|invoice|qty)?)?',
     'grand\\s*total', 'c\\s*gst', 'cgst', 's\\s*gst', 'sgst', 'i\\s*gst', 'igst', 'ugst', 'cess', 'gst\\s*%', 'tax(?:\\s*(?:amount|%|rate))?',
     'round(?:\\s*(?:off|ed))?', 'freight', 'transport(?:ation)?', 'vehicle(?:\\s*no)?', 'e-?way(?:\\s*bill)?', 'lr\\s*no', 'transporter',
+    // Tally / e-invoice header cells — never a supplier name
+    'delivery\\s*note(?:\\s*date)?', 'mode\\s*/?\\s*terms', 'terms\\s*of\\s*(?:payment|delivery)', 'reference(?:\\s*no)?', 'other\\s*reference', 'buyer\'?s?\\s*order', 'dispatch(?:ed)?(?:\\s*(?:doc|through))?', 'destination', 'motor\\s*vehicle', 'ack(?:nowledgement)?\\s*(?:no|date)', 'irn', 'bill\\s*of\\s*lading',
     'terms', 'reverse\\s*charge', 'sr\\.?\\s*no', 's\\.?\\s*no', 'sl\\.?\\s*no', 'code', 'no\\.?', 'for\\b', 'from', 'to',
     'declaration', 'bank', 'a/c', 'account', 'ifsc', 'branch', 'signature', 'authorised', 'authorized', 'received', 'jurisdiction',
     'cin', 'phone\\s*no', 'website', 'www', 'http'
@@ -123,13 +125,25 @@
   function findDate(text) {
     // Prefer the value on a "Date/Dated" line — but scan the WHOLE line with the
     // date regex (never a fixed-width filler, which used to eat the day's first
-    // digit: "Dated : 12/06/2025" → "2/06/2025").
+    // digit: "Dated : 12/06/2025" → "2/06/2025"). SKIP e-invoice / logistics dates
+    // ("Ack Date", "Delivery Note Date", "Due Date", "E-Way") so the INVOICE date wins.
     var lines = text.split('\n');
+    var skip = /due\s*date|ack(?:nowledgement)?\s*date|delivery\s*note\s*date|e-?way/i;
+    // pass 1 — an explicit invoice/bill "Dated" line
     for (var i = 0; i < lines.length; i++) {
-      var mi = lines[i].search(/\bdate[d]?\b/i);
-      if (mi >= 0 && !/due\s*date/i.test(lines[i])) { var v = firstDate(lines[i].slice(mi).replace(/^date[d]?/i, '')); if (v) return v; }
+      if (skip.test(lines[i])) continue;
+      if (/invoice\s*date|bill\s*date|\bdated\b/i.test(lines[i])) {
+        var mi1 = lines[i].search(/\bdate[d]?\b/i); var v1 = firstDate(lines[i].slice(mi1).replace(/^date[d]?/i, '')); if (v1) return v1;
+      }
     }
-    return firstDate(text);
+    // pass 2 — any date-labelled line that isn't ack/due/delivery-note/e-way
+    for (var j = 0; j < lines.length; j++) {
+      if (skip.test(lines[j])) continue;
+      var mi = lines[j].search(/\bdate[d]?\b/i);
+      if (mi >= 0) { var v = firstDate(lines[j].slice(mi).replace(/^date[d]?/i, '')); if (v) return v; }
+    }
+    // fallback — first date anywhere, but still not from an ack/logistics line
+    return firstDate(lines.filter(function (l) { return !skip.test(l); }).join('\n'));
   }
   function validateDate(s) {
     var m = String(s).match(DATE_RE); if (!m) return null;

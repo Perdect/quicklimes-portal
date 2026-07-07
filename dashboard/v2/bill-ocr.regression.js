@@ -60,6 +60,43 @@ Total 474627.00`,
     expect: { supplier: 'Indian Oil Corporation Limited', supplierGstin: '24AAACI1681G1ZV', buyerGstin: '08BNAPM0488E1Z3', billNo: '20263121B024217', date: '15-Jan-26', group: 'petcoke', item: 'Pet Coke', taxable: 402226.20, igst: 72400.72, gstRate: 18, total: 474627, itc: 'Eligible' }
   },
   {
+    // User-reported (2026-07-07): Tally e-invoice (Pooja Enterprises, plastic bags).
+    // Was reading supplier="Delivery Note Mode/Terms of Payment" (Tally header cell)
+    // and date=Ack Date (31 May 25) instead of the invoice Dated (29 May 25).
+    name: 'Tally e-invoice (Pooja Enterprises) — plastic bags, CGST+SGST', format: 'PDF · Tally · e-invoice',
+    text: `TAX INVOICE
+e-Invoice
+IRN : 789c3c509abaebea28830dcb756ef7d1d0d44cc82b839bddb28a60e9922e6ba
+Ack No. : 172517595673499
+Ack Date : 31 MAY 25
+Pooja Enterprises
+Plot No 87, Laxmi Nagar, Paota C Road,
+Jodhpur, Rajasthan, 342006
+GSTIN/UIN : 08BOLPB2694P1ZA
+Invoice No. 165 Dated 29 May 25
+Delivery Note Mode/Terms of Payment
+Reference No. Other Reference(s)
+Consignee (Ship to)
+GOTAN LIME INDUSTRIES, KAKA JI
+GSTIN/UIN : 08BNAPM0488E1Z3
+Dispatch Doc No. 16463,16471 Delivery Note Date
+Dispatched through Pick Up Destination
+Buyer (Bill to)
+GOTAN LIME INDUSTRIES, KAKA JI
+GSTIN/UIN : 08BNAPM0488E1Z3
+Bill of Lading/LR-RR No. dt. 29 May 25
+Motor Vehicle No.
+1 PLASTIC BAG MIX REPOL 392310 18% 10,000 BAG 9.7 BAG 97,000
+2 Plastic Repol 2nd 391590 18% 1,000 PIECES 7 PIECES 7,000
+1,04,000
+S G S T 9% 9,360
+C G S T 9% 9,360
+Total 1,22,720
+Company's GST No. : 08BOLPB2694P1ZA
+for Pooja Enterprises`,
+    expect: { supplier: 'Pooja Enterprises', supplierGstin: '08BOLPB2694P1ZA', buyerGstin: '08BNAPM0488E1Z3', billNo: '165', date: '29 May 25', group: 'packaging', item: 'Plastic Bags', taxable: 104000, gstRate: 18, total: 122720, itc: 'Eligible' }
+  },
+  {
     name: 'Reliance — pet coke, IGST inter-state', format: 'IGST',
     text: `Reliance Industries Limited
 Jamnagar Gujarat  GSTIN 24AAACR5055K1Z7
