@@ -243,6 +243,7 @@ QLX.mount({
   ],
   groupBy: [
     { key: 'group', label: 'Purchase Group', of: r => r.group, title: r => `${r.emoji} ${esc(r.groupLabel)}`, dot: r => (GCOL[r.group] || GCOL.other)[1] },
+    { key: 'item', label: 'Purchase Item', of: r => r.item || '—', title: r => `${r.emoji} ${esc(ITEM_SHORT[r.item] || r.item || '—')}`, dot: r => (GCOL[r.group] || GCOL.other)[1] },
     { key: 'status', label: 'Payment status', of: r => (r.isOverdue ? 'overdue' : r.status), title: r => (r.isOverdue ? 'Overdue' : r.status[0].toUpperCase() + r.status.slice(1)), dot: r => STDOT[r.isOverdue ? 'overdue' : r.status] },
     { key: 'sup', label: 'Supplier', of: r => r.sup, title: r => esc(r.sup), dot: () => 'var(--qx)' },
     { key: 'dept', label: 'Department', of: r => r.dept, title: r => esc(r.dept || '—'), dot: () => 'var(--qx)' }

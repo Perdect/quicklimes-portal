@@ -754,8 +754,8 @@
     const fdate = iso => { if (!iso) return ''; const p = iso.split('-'); return p.length === 3 ? p[2] + '-' + p[1] + '-' + p[0] : iso; };
     const totalTax = d.interState ? d.igst : d.cgst + d.sgst;
     const gstCols = d.interState
-      ? `<div class="tl"><span>Add : IGST @ ${d.gstR} %</span><span>${amt(d.igst)}</span></div>`
-      : `<div class="tl"><span>Add : CGST @ ${d.gstR / 2} %</span><span>${amt(d.cgst)}</span></div><div class="tl"><span>Add : SGST @ ${d.gstR / 2} %</span><span>${amt(d.sgst)}</span></div>`;
+      ? `<div class="tl"><span>Add : IGST @ ${(+d.gstR).toFixed(2)} %</span><span>${amt(d.igst)}</span></div>`
+      : `<div class="tl"><span>Add : CGST @ ${(d.gstR / 2).toFixed(2)} %</span><span>${amt(d.cgst)}</span></div><div class="tl"><span>Add : SGST @ ${(d.gstR / 2).toFixed(2)} %</span><span>${amt(d.sgst)}</span></div>`;
     const taxSumHead = d.interState ? '<th>IGST Amt.</th>' : '<th>CGST Amt.</th><th>SGST Amt.</th>';
     const taxSumCells = d.interState ? `<td>${amt(d.igst)}</td>` : `<td>${amt(d.cgst)}</td><td>${amt(d.sgst)}</td>`;
     const party = who => `<div class="pcol"><div class="pi">${who} :</div><div class="pn">${esc(b.name)}</div>${b.address ? `<div>${esc(b.address)}</div>` : ''}<div style="margin-top:6px">GSTIN / UIN&nbsp;&nbsp;: <b>${esc(b.gstin || '—')}</b></div></div>`;
@@ -776,7 +776,7 @@
   .ca{font-size:11px}
   .gstln{font-weight:700;font-size:12px;margin-top:1px}
   .tagline{font-weight:700;font-size:12px;margin-top:3px}
-  .logo{position:absolute;left:12px;top:8px;height:56px}
+  .logo{position:absolute;left:12px;top:8px;height:62px;width:auto;max-width:190px;object-fit:contain}
   /* meta / party rows */
   .half{width:50%}
   .mline{display:flex;justify-content:space-between}

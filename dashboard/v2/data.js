@@ -39,10 +39,13 @@
       product: 'Manufactures of Quick Lime and Hydrated Lime.', tan: 'JDPM00000D', jurisdiction: 'MERTA CITY'
     },
     'GOTAN LIME INDUSTRIES': {
-      address: 'BORUNDA, DISTRICT-NAGAUR, RAJASTHAN', state: 'Rajasthan (08)', pin: '342604',
-      gstin: '08BNAPM0488E1Z3', phone: '9460034743', bank: 'Bank of Baroda', bankBranch: 'Merta City',
-      accNo: '33580500001254', ifsc: 'BARB0MERTAC', product: 'Manufactures of Quick Lime and Hydrated Lime.',
-      tan: '', jurisdiction: 'NAGAUR'
+      address: 'TALANPUR ROAD ,SH 86B,, CHANDRA TYRE RETREADING GOTAN, DISTRICT -NAGAUR',
+      state: 'Rajasthan (08)', pin: '342604', gstin: '08BNAPM0488E1Z3', phone: '9460034743',
+      email: 'gotanlimeindustries@gmail.com', station: 'GOTAN',
+      bank: 'BANK OF BARODA', bankBranch: 'MERTA CITY', accNo: '33580500001254', ifsc: 'BARB0MERTAC',
+      bank2: 'HDFC BANK', bankBranch2: 'UMAID STADIUM', accNo2: '50200084904066', ifsc2: 'HDFC0001845',
+      product: 'MANUFACTURES OF QUICK LIME AND HYDRATED LIME', msme: 'UDYAM-RJ -25-0061325',
+      logo: '/v2/gotan-logo.svg', tan: '', jurisdiction: 'MERTA CITY'
     }
   };
 
@@ -59,8 +62,10 @@
       city: p.city || '',
       gstin: p.gst_number || seller.gstin || '',
       address: seller.address || '', state: seller.state || 'Rajasthan (08)', pin: seller.pin || '',
-      phone: seller.phone || (QL_PLANT.owner_phone || ''), bank: seller.bank || '', bankBranch: seller.bankBranch || '',
-      accNo: seller.accNo || '', ifsc: seller.ifsc || '', product: seller.product || '', hsn: HSN,
+      phone: seller.phone || (QL_PLANT.owner_phone || ''), email: seller.email || '', station: seller.station || p.city || '',
+      bank: seller.bank || '', bankBranch: seller.bankBranch || '', accNo: seller.accNo || '', ifsc: seller.ifsc || '',
+      bank2: seller.bank2 || '', bankBranch2: seller.bankBranch2 || '', accNo2: seller.accNo2 || '', ifsc2: seller.ifsc2 || '',
+      product: seller.product || '', msme: seller.msme || '', logo: seller.logo || '', jurisdiction: seller.jurisdiction || '', hsn: HSN,
       isPrimary: !p.parent_plant_id,
       dataKey: 'ql_data_' + p.id
     };
