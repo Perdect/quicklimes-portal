@@ -16,9 +16,12 @@
   --qlm-nav-h: 60px;
 }
 
-/* The mobile chrome DOM is always present but hidden on desktop */
+/* The mobile chrome DOM is always present but hidden on desktop. Listing
+   .qlm-dash here (default display:none) means that even if the mobile dashboard
+   got built during a transient narrow measurement, it can NEVER show on desktop
+   — the media query below flips it back to flex only ≤768px. */
 .qlm-header, .qlm-bottomnav, .qlm-fab, .qlm-sheet-back, .qlm-as-back,
-.qlm-iv, .qlm-ptr { display: none; }
+.qlm-iv, .qlm-ptr, .qlm-dash { display: none; }
 
 @media (max-width: 768px) {
 

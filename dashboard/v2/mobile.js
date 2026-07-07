@@ -438,10 +438,11 @@
   }
 
   function buildDashboard() {
+    if (!isMobile()) return;                 // desktop keeps its own .dx dashboard
     const main = $('ql-main'); if (!main || !Q()) return;
     if (_dashObs) _dashObs.disconnect();     // our own mutations must not re-trigger us
-    // hide any desktop dashboard content (.dx re-renders on data load), mount ours
-    Array.from(main.children).forEach(c => { if (!c.classList.contains('qlm-dash')) c.style.display = 'none'; });
+    // desktop .dx is hidden purely by CSS (#ql-main > .dx) — no inline mutation, so
+    // nothing to undo if the viewport later widens
     let root = main.querySelector('.qlm-dash');
     if (!root) { root = el('div', 'qlm-dash'); main.appendChild(root); }
     const co = Q().co ? Q().co.short : '';
