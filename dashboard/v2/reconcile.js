@@ -31,81 +31,45 @@ const STAT = {
   unknown:      ['Unknown party', '#f1f5f9', '#475569'],
   unmatched:    ['Unmatched', '#fef2f2', '#dc2626'],
   other:        ['Categorized', '#cffafe', '#0e7490'],
-  manual:       ['Linked', '#dbeafe', '#1d4ed8']
+  manual:       ['Linked', '#dbeafe', '#1d4ed8'],
+  review:       ['Needs review', '#fef9c3', '#a16207'],
+  overpayment:  ['Overpayment', '#ffedd5', '#c2410c']
 };
+function tierColor(t) { return t === 'green' ? ['#dcfce7', '#15803d'] : t === 'yellow' ? ['#fef9c3', '#a16207'] : ['#fef2f2', '#dc2626']; }
 const toast = (m, t) => (QLShell.toast ? QLShell.toast(m, t) : 0);
 
 let ST = { view: 'recon', month: 'all', monthInit: false, ftype: 'all', fstatus: 'all', q: '' };
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
 function txns() { return (Q.recon.txns || []); }
-function norm(s) { return (s || '').toString().toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); }
-function nameScore(desc, name) {
-  const dn = ' ' + norm(desc) + ' ', toks = norm(name).split(' ').filter(w => w.length >= 4);
-  if (!toks.length) return 0;
-  const hit = toks.filter(t => dn.includes(' ' + t) || dn.includes(t)).length;
-  return hit / toks.length;
-}
-function daysBetween(a, b) { const x = new Date(a + 'T00:00'), y = new Date(b + 'T00:00'); return Math.round((x - y) / 86400000); }
+const RC = window.ReconCore;                         // pure, unit-tested engine
+function aliases() { return (Q.recon.aliases || (Q.recon.aliases = {})); }
+function aliasOf(clean) { return aliases()[RC.normName(clean)] || null; }
+function learnAlias(clean, party) { if (clean && party) { aliases()[RC.normName(clean)] = party; } }
 function ymOf(d) { return (d || '').slice(0, 7); }
 function inMonth(d) { return !ST.month || ST.month === 'all' || ymOf(d) === ST.month; }
 function monthLabel() { if (!ST.month || ST.month === 'all') return 'All months'; try { return new Date(ST.month + '-01T00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); } catch (_) { return ST.month; } }
-function catOfDebit(desc) {
-  const d = norm(desc);
-  if (/ROYALTY/.test(d)) return 'Royalty';
-  if (/PETCOKE|PET COKE/.test(d)) return 'Petcoke';
-  if (/LIMESTONE|LIME STONE/.test(d)) return 'Limestone';
-  if (/GST|TAX|GSTIN/.test(d)) return 'GST payment';
-  if (/EMI|LOAN|BOB|PMEGP|TERM/.test(d)) return 'Loan / EMI';
-  if (/ATM|CASH WDL|WITHDRAWAL|CWDR|CASH/.test(d)) return 'Cash withdrawal';
-  if (/NEFT|RTGS|IMPS|TRANSFER|SELF/.test(d) && /SELF|OWN/.test(d)) return 'Partner transfer';
-  return null;
-}
 
-/* ── matching engine ─────────────────────────────────────────────────── */
+/* ── matching engine (ReconCore) ─────────────────────────────────────── */
+function npOf(t) { return { raw: t.raw || t.desc || '', clean: t.clean || '', utr: t.utr || '', cheque: t.cheque || '', mode: t.mode || '' }; }
 function autoMatch(t) {
-  const isCr = (t.credit || 0) > 0, amt = isCr ? t.credit : t.debit;
-  const list = isCr ? Q.salesRows() : Q.purchaseRows();
-  const nameOf = isCr ? (r => r.party) : (r => r.sup), refOf = isCr ? (r => r.inv) : (r => r.bill);
-  const dn = norm(t.desc) + ' ' + norm(t.ref);
-  let best = null, bestScore = 0;
-  list.forEach(r => {
-    if (r.status === 'cancelled') return;
-    let sc = 0; const nm = nameScore(dn, nameOf(r));
-    if (nm >= 0.5) sc += 45 * nm;
-    const dTotal = Math.abs(amt - (r.total || 0)), dOut = Math.abs(amt - (r.outstanding || r.total || 0));
-    const dAmt = Math.min(dTotal, dOut);
-    if (dAmt < 1) sc += 40; else if (dAmt < amt * 0.02) sc += 30; else if (dAmt < amt * 0.1) sc += 12;
-    if (refOf(r) && refOf(r).length >= 2 && dn.includes(norm(refOf(r)))) sc += 25;
-    if (r.gstin && dn.includes(norm(r.gstin))) sc += 22;
-    const dd = Math.abs(daysBetween(t.date, r.date || t.date));
-    if (dd <= 3) sc += 12; else if (dd <= 15) sc += 6; else if (dd > 60) sc -= 6;
-    if (sc > bestScore) { bestScore = sc; best = { r, nm, dAmt, dd }; }
-  });
-  if (!best || bestScore < 22) {
-    if (!isCr) { const cat = catOfDebit(t.desc); if (cat) return { kind: 'other', idx: null, status: 'other', cat, score: 0 }; }
-    const anyName = list.some(r => nameScore(dn, nameOf(r)) >= 0.5);
-    return { kind: isCr ? 'sale' : 'purchase', idx: null, status: anyName ? 'unmatched' : 'unknown', score: bestScore };
-  }
-  const exact = best.dAmt < 1 || best.dAmt < amt * 0.02;
-  const partial = !exact && best.dAmt < amt;   // paid less than the bill
-  let status = 'matched';
-  if (best.nm < 0.5 && !exact) status = 'partial';
-  else if (partial) status = 'partial';
-  else if (!exact) status = 'amountdiff';
-  if (status === 'matched' && best.dd > 45) status = 'datemismatch';
-  return { kind: isCr ? 'sale' : 'purchase', idx: best.r.idx, status, score: bestScore, cat: isCr ? undefined : best.r.group };
+  const np = npOf(t);
+  const bills = (t.credit || 0) > 0 ? Q.salesRows() : Q.purchaseRows();
+  const res = RC.bestMatch(np, t, bills, { aliasParty: aliasOf(np.clean) });
+  res.at = res.at || new Date().toISOString();
+  res.matchedBy = res.matchedBy || 'ai';
+  return res;
 }
 function runMatchAll(force) {
   const arr = txns();
   arr.forEach(t => { if (!t.m || !t.m.manual || force) t.m = autoMatch(t); });
-  // duplicate detection: same direction + amount + party matched to same bill, OR identical amount+desc+date
-  const seenBill = {}, seenSig = {};
+  // duplicate detection — UTR first, else amount + clean-name + date
+  const seenKey = {}, seenBill = {};
   arr.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach(t => {
     if (t.m && t.m.manual) return;
-    const dir = (t.credit || 0) > 0 ? 'c' : 'd', amt = (t.credit || 0) + (t.debit || 0);
-    const sig = dir + '|' + Math.round(amt) + '|' + norm(t.desc).slice(0, 20);
-    if (seenSig[sig]) t.m.status = 'duplicate'; else seenSig[sig] = 1;
+    const key = RC.dedupeKey(npOf(t), t);
+    if (seenKey[key]) { t.m.status = 'duplicate'; t.m.reasons = ['Duplicate of an earlier transaction']; }
+    else seenKey[key] = 1;
     if (t.m && t.m.idx != null) { const bk = t.m.kind + t.m.idx; if (seenBill[bk]) t.m.status = 'duplicate'; else seenBill[bk] = 1; }
   });
   Q.saveRecon();
@@ -132,11 +96,13 @@ async function parseBankFile(file) {
   const cRef = col('ref', 'utr', 'cheque', 'chq', 'reference', 'ref no', 'instrument', 'chq/ref');
   const cAmt = col('amount', 'txn amount', 'transaction amount');
   const cType = col('type', 'dr/cr', 'cr/dr', 'indicator');
+  const bank = RC.detectBank(rows.slice(0, 25).map(r => (r || []).join(' ')).join(' '));
   const out = [];
   for (let r = hi + 1; r < rows.length; r++) {
     const row = rows[r]; if (!row) continue;
     const g = i => (i != null && i >= 0 && i < row.length) ? row[i] : '';
-    const date = QLFin.parseDate(g(cDate)); if (!date) continue;
+    const date = QLFin.parseDate(g(cDate));
+    const narr = (g(cDesc) || '').toString().trim(), refVal = (g(cRef) || '').toString().trim();
     let debit = cDeb >= 0 ? QLFin.parseNum(g(cDeb)) : 0, credit = cCred >= 0 ? QLFin.parseNum(g(cCred)) : 0;
     if (!debit && !credit && cAmt >= 0) {
       const amt = QLFin.parseNum(g(cAmt)), ty = (g(cType) || '').toString().toLowerCase();
@@ -144,8 +110,20 @@ async function parseBankFile(file) {
       else if (/dr|debit|withdraw/.test(ty)) debit = Math.abs(amt);
       else if (amt < 0) debit = Math.abs(amt); else credit = amt;
     }
+    // A row with no date and no amount is a wrapped narration continuation of
+    // the previous transaction (fixes the "…-ARIF" truncation) — never lose it.
+    if (!date) {
+      if (out.length && narr && !debit && !credit) {
+        const last = out[out.length - 1];
+        last.raw = (last.raw + ' ' + narr).replace(/\s+/g, ' ').trim();
+        const rp = RC.parseNarration(last.raw); last.clean = rp.clean; if (!last.utr) last.utr = rp.utr; if (!last.cheque) last.cheque = rp.cheque;
+      }
+      continue;
+    }
     if (!debit && !credit) continue;
-    out.push({ id: 'bt' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) + r, date, desc: (g(cDesc) || '').toString().trim() || (g(cRef) || '').toString().trim(), debit: debit || 0, credit: credit || 0, balance: QLFin.parseNum(g(cBal)) || 0, ref: (g(cRef) || '').toString().trim() });
+    const np = RC.parseNarration(narr || refVal);
+    if (!np.utr && refVal) np.utr = refVal;
+    out.push({ id: 'bt' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) + r, date, raw: np.raw || narr, desc: narr, clean: np.clean, utr: np.utr, cheque: np.cheque, mode: np.mode, bank, debit: debit || 0, credit: credit || 0, balance: QLFin.parseNum(g(cBal)) || 0, ref: refVal });
   }
   return out;
 }
@@ -264,10 +242,15 @@ function filteredTxns() {
   else if (ST.fstatus === 'partial') r = r.filter(t => t.m && t.m.status === 'partial');
   else if (ST.fstatus === 'duplicate') r = r.filter(t => t.m && t.m.status === 'duplicate');
   if (ST.view === 'unmatched') r = r.filter(t => !isLinked(t));
-  if (ST.q) { const q = ST.q.toLowerCase(); r = r.filter(t => { const b = billFor(t); return ((t.desc || '') + ' ' + (t.ref || '') + ' ' + (b ? (b.party || b.sup || '') : '')).toLowerCase().includes(q); }); }
+  if (ST.q) { const q = ST.q.toLowerCase(); r = r.filter(t => { const b = billFor(t); return ((t.clean || '') + ' ' + (t.raw || t.desc || '') + ' ' + (t.utr || '') + ' ' + (t.ref || '') + ' ' + (b ? (b.party || b.sup || '') : '')).toLowerCase().includes(q); }); }
   return r.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 }
-function badge(t) { const s = (t.m && STAT[t.m.status]) ? STAT[t.m.status] : STAT.unmatched; return `<span class="rc-badge" style="background:${s[1]};color:${s[2]}">${s[0]}${t.m && t.m.manual ? ' ✓' : ''}</span>`; }
+function badge(t) {
+  const m = t.m || {}, s = STAT[m.status] || STAT.unmatched;
+  const showConf = m.confidence != null && ['matched', 'partial', 'review', 'overpayment', 'amountdiff', 'datemismatch'].indexOf(m.status) >= 0;
+  const dot = m.tier ? `<span class="rc-dot ${m.tier}"></span>` : '';
+  return `<span class="rc-badge" style="background:${s[1]};color:${s[2]}">${dot}${s[0]}${m.manual ? ' ✓' : ''}${showConf ? ' · ' + m.confidence + '%' : ''}</span>`;
+}
 function matchCell(t) {
   const b = billFor(t);
   if (b) { const ref = t.m.kind === 'sale' ? b.inv : b.bill; const nm = t.m.kind === 'sale' ? b.party : b.sup; return `<div class="rc-match"><b>${esc(ref || '—')}</b><span>${esc(nm || '')}${t.m.kind === 'purchase' && b.emoji ? ' · ' + b.emoji : ''}</span></div>`; }
@@ -278,9 +261,9 @@ function viewHTML() {
   if (ST.view === 'ledger') return ledgerHTML();
   const rows = filteredTxns();
   if (!rows.length) return `<div class="rc-none">${ST.month && ST.month !== 'all' ? 'No matching transactions for ' + esc(monthLabel()) : 'No transactions match these filters'}.</div>`;
-  const body = rows.map((t, i) => `<tr data-tid="${t.id}">
+  const body = rows.map((t, i) => `<tr data-open="${t.id}" class="rc-clk">
     <td class="rc-mut">${fDS(t.date)}</td>
-    <td><div class="rc-desc">${esc((t.desc || '—').slice(0, 60))}</div>${t.ref ? `<div class="rc-ref">${esc(t.ref)}</div>` : ''}</td>
+    <td><div class="rc-desc">${esc(t.clean || t.desc || '—')}</div><div class="rc-ref">${esc((t.raw || t.desc || '').slice(0, 54))}${t.utr ? ' · ' + esc(t.utr) : ''}</div></td>
     <td class="r ${t.debit ? 'rc-dr' : 'rc-mut'}">${t.debit ? fC(t.debit) : '—'}</td>
     <td class="r ${t.credit ? 'rc-cr' : 'rc-mut'}">${t.credit ? fC(t.credit) : '—'}</td>
     <td class="r rc-mut">${t.balance ? fC(t.balance) : '—'}</td>
@@ -330,7 +313,7 @@ function openMark(tid, anchor) {
   const cats = ['Advance payment', 'Partner transfer', 'Loan / EMI', 'Cash withdrawal', 'GST payment', 'Petcoke', 'Limestone', 'Plastic Bags', 'Royalty', 'Bank charges', 'Other'];
   const m = document.createElement('div'); m.className = 'rc-menu';
   m.innerHTML = `<div class="rc-menu-h">Mark as</div>${cats.map(c => `<button class="rc-menu-i" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}`;
-  m.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { t.m = { kind: 'other', idx: null, status: 'other', cat: b.dataset.cat, manual: true }; Q.saveRecon(); closeRcMenu(); render(); toast('Marked as ' + b.dataset.cat, 'ok'); });
+  m.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { t.m = { kind: 'other', idx: null, status: 'other', cat: b.dataset.cat, manual: true, confidence: 100, matchedBy: 'manual', reasons: ['Categorized as ' + b.dataset.cat + ' by user'], at: new Date().toISOString() }; Q.saveRecon(); closeRcMenu(); render(); toast('Marked as ' + b.dataset.cat, 'ok'); });
   placeRcMenu(m, anchor);
 }
 
@@ -377,9 +360,54 @@ function openLink(tid) {
   const close = () => b.remove();
   document.getElementById('rcLX').onclick = close;
   const relist = q => { const f = q ? list.filter(x => { const r = x.r; return ((isCr ? r.inv + ' ' + r.party : r.bill + ' ' + r.sup) || '').toLowerCase().includes(q); }) : list; document.getElementById('rcPickList').innerHTML = f.slice(0, 40).map(row).join('') || '<div class="rc-none">No matches.</div>'; wirePicks(); };
-  const wirePicks = () => b.querySelectorAll('[data-idx]').forEach(btn => btn.onclick = () => { t.m = { kind: isCr ? 'sale' : 'purchase', idx: +btn.dataset.idx, status: 'manual', manual: true }; Q.saveRecon(); close(); render(); toast('Linked to bill', 'ok'); });
+  const wirePicks = () => b.querySelectorAll('[data-idx]').forEach(btn => btn.onclick = () => {
+    const idx = +btn.dataset.idx, bill = (isCr ? Q.salesRows() : Q.purchaseRows()).find(r => r.idx === idx);
+    const party = bill ? (isCr ? bill.party : bill.sup) : '';
+    if (t.clean && party) learnAlias(t.clean, party);       // remember this mapping forever
+    const paidPartial = bill && amt < (bill.outstanding != null ? bill.outstanding : bill.total) - 1;
+    t.m = { kind: isCr ? 'sale' : 'purchase', idx, status: paidPartial ? 'partial' : 'manual', manual: true, confidence: 100, matchedBy: 'manual', reasons: ['Manually linked' + (party && t.clean ? ' — learned "' + t.clean + '" → ' + party : '')], at: new Date().toISOString() };
+    runMatchAll();                                          // let the new alias re-match siblings
+    close(); render(); toast(party ? 'Linked · learned "' + t.clean + '" → ' + party : 'Linked to bill', 'ok');
+  });
   wirePicks();
   document.getElementById('rcPickQ').oninput = e => relist(e.target.value.toLowerCase());
+}
+
+/* ══════════════════ TRANSACTION DETAIL DRAWER ══════════════════ */
+function openDetail(tid) {
+  const t = txns().find(x => x.id === tid); if (!t) return;
+  const m = t.m || {}, b = billFor(t), tier = m.tier || (isLinked(t) ? 'green' : 'red'), tc = tierColor(tier);
+  const kv = (l, v) => v ? `<div class="rc-dp-kv"><span>${esc(l)}</span><b>${v}</b></div>` : '';
+  const reasons = (m.reasons || []).map(r => `<li>${esc(r)}</li>`).join('') || '<li>No matching signals found.</li>';
+  let back = document.getElementById('rcDp'); if (!back) { back = document.createElement('div'); back.id = 'rcDp'; document.body.appendChild(back); }
+  back.className = 'rc-dp-back open'; back.onclick = e => { if (e.target === back) back.classList.remove('open'); };
+  back.innerHTML = `<aside class="rc-dp">
+    <div class="rc-dp-h"><div><div class="rc-dp-ey">Bank transaction · ${fDS(t.date)}</div><div class="rc-dp-amt ${t.credit ? 'rc-cr' : 'rc-dr'}">${t.credit ? '+' : '−'}${fC(t.credit || t.debit)}</div></div><button class="rc-dp-x" id="rcDpX">${svg(IC.x)}</button></div>
+    <div class="rc-dp-b">
+      <div class="rc-conf" style="background:${tc[0]};color:${tc[1]}"><span class="rc-conf-n">${m.confidence != null ? m.confidence + '%' : '—'}</span><span>${(STAT[m.status] || STAT.unmatched)[0]} · ${tier === 'green' ? 'auto-matched' : tier === 'yellow' ? 'needs review' : 'low confidence'}</span></div>
+      <div class="rc-dp-sec">Narration</div>
+      <div class="rc-dp-narr"><div class="rc-dp-nl">Clean (matched on)</div><div class="rc-dp-nc">${esc(t.clean || '—')}</div><div class="rc-dp-nl" style="margin-top:9px">Raw (verbatim from statement)</div><div class="rc-dp-nr">${esc(t.raw || t.desc || '—')}</div></div>
+      <div class="rc-dp-sec">Statement fields</div>
+      ${kv('Bank', t.bank)}${kv('Mode', t.mode)}${kv('UTR / Ref', t.utr)}${kv('Cheque no.', t.cheque)}${kv('Running balance', t.balance ? fC(t.balance) : '')}${kv('Firm', esc(Q.co.short || ''))}
+      <div class="rc-dp-sec">Match</div>
+      ${b ? (kv(m.kind === 'sale' ? 'Sales invoice' : 'Purchase bill', esc((m.kind === 'sale' ? b.inv : b.bill) || '—') + ' · ' + esc((m.kind === 'sale' ? b.party : b.sup) || '')) + kv('Bill total', fC(b.total)) + kv('Outstanding', fC(b.outstanding || 0))) : (m.cat ? kv('Category', esc(m.cat)) : '<div class="rc-mut" style="font-size:12.5px">Not linked to any bill yet.</div>')}
+      <div class="rc-dp-sec">Why the AI decided this</div>
+      <ul class="rc-dp-why">${reasons}</ul>
+      <div class="rc-dp-sec">Audit trail</div>
+      ${kv('Matched by', m.matchedBy === 'manual' ? 'Manual (you)' : m.matchedBy === 'rule' ? 'Rule engine' : 'AI engine')}${kv('When', m.at ? new Date(m.at).toLocaleString('en-IN') : '')}
+      <div class="rc-dp-acts">
+        ${(m.status === 'review' && b) ? `<button class="rc-btn rc-btn-primary" id="rcDpConfirm">${svg(IC.ck)}<span>Confirm match</span></button>` : ''}
+        <button class="rc-btn" id="rcDpLink">${svg(IC.link)}<span>Link / change</span></button>
+        <button class="rc-btn" id="rcDpMark">${svg(IC.tag)}<span>Categorize</span></button>
+        ${isLinked(t) ? `<button class="rc-btn" id="rcDpUnlink">${svg(IC.x)}<span>Unlink</span></button>` : ''}
+      </div>
+    </div></aside>`;
+  const $ = id => document.getElementById(id);
+  $('rcDpX').onclick = () => back.classList.remove('open');
+  if ($('rcDpConfirm')) $('rcDpConfirm').onclick = () => { const party = m.kind === 'sale' ? b.party : b.sup; if (t.clean && party) learnAlias(t.clean, party); const paidPartial = t.credit && t.credit < (b.outstanding != null ? b.outstanding : b.total) - 1; t.m = Object.assign({}, m, { status: paidPartial ? 'partial' : 'matched', manual: true, matchedBy: 'manual', confidence: 100, at: new Date().toISOString() }); runMatchAll(); back.classList.remove('open'); render(); toast('Confirmed · alias learned', 'ok'); };
+  if ($('rcDpLink')) $('rcDpLink').onclick = () => { back.classList.remove('open'); openLink(tid); };
+  if ($('rcDpMark')) $('rcDpMark').onclick = e => openMark(tid, e.currentTarget);
+  if ($('rcDpUnlink')) $('rcDpUnlink').onclick = () => { t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched', confidence: 0, tier: 'red', matchedBy: 'manual', reasons: ['Unlinked by user'], at: new Date().toISOString() }; Q.saveRecon(); back.classList.remove('open'); render(); };
 }
 
 /* ══════════════════ EXPORT ══════════════════ */
@@ -413,6 +441,7 @@ function wire() {
   root.querySelectorAll('[data-link]').forEach(b => b.onclick = () => openLink(b.dataset.link));
   root.querySelectorAll('[data-unlink]').forEach(b => b.onclick = () => { const t = txns().find(x => x.id === b.dataset.unlink); if (t) { t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched' }; Q.saveRecon(); render(); } });
   root.querySelectorAll('[data-mark]').forEach(b => b.onclick = e => openMark(b.dataset.mark, e.currentTarget));
+  root.querySelectorAll('[data-open]').forEach(tr => tr.addEventListener('click', e => { if (e.target.closest('button,a,input,select')) return; openDetail(tr.dataset.open); }));
 }
 function s2focus() { const s = document.getElementById('rcSearch'); if (s) { s.focus(); const v = s.value; s.value = ''; s.value = v; } }
 
