@@ -186,9 +186,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       <span class="tb-badge" id="tbNotifBadge" hidden>0</span>
     </button>
-    <button class="tb-action is-ai" title="Ask AI" onclick="QLShell.openAssistant()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9 12 2"/></svg>
-    </button>
     <button class="tb-avatar" id="tbAvatar" data-profile-trigger data-avatar>D</button>
   </header>
 
