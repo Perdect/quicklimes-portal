@@ -44,7 +44,7 @@ function stCell(r) { const st = r.isOverdue ? 'overdue' : r.status; return `<sel
 function stPill(r) { const st = r.isOverdue ? 'overdue' : r.status; return `<span class="qx-pill s-${st}">${st[0].toUpperCase() + st.slice(1)}</span>`; }
 function groupChip(r) { const gc = GCOL[r.group] || GCOL.other; return `<span class="qx-pill" style="background:${gc[0]};color:${gc[1]}">${r.emoji} ${esc(r.groupLabel)}</span>`; }
 function supCell(r) { return `<span class="qx-party-n" style="font-weight:600">${esc(r.sup)}</span>`; }
-function itemCell(r) { return `<span class="qx-party"><span class="qx-av qx-av-sq" style="background:var(--ql-neutral-100);color:inherit">${r.itemIconEmoji || r.emoji || '📦'}</span><span class="qx-party-n">${esc(r.item)}</span></span>${r.freight ? ' <span class="qx-frt">freight</span>' : ''}`; }
+function itemCell(r) { return `<span class="qx-party"><span class="qx-party-n">${esc(r.item)}</span></span>${r.freight ? ' <span class="qx-frt">freight</span>' : ''}`; }
 
 /* ══════════════════ PDF (drawer/print) ══════════════════ */
 function billHTML(r) {
@@ -196,7 +196,7 @@ function aiInsightsPanel(rows) {
   const cardHTML = c => {
     const big = c.a ? fC(c.a) : '₹0';
     const sub = c.act + inMon + (c.q && c.unit ? ' · ' + fmt(c.q, c.unit === 'bags' ? 0 : 1) + ' ' + c.unit : '');
-    return `<div class="qx-aip-card"><span class="qx-aip-ic t-${c.tint}">${c.ic}</span><div class="qx-aip-b"><div class="qx-aip-top"><span class="qx-aip-n">${big}</span><span class="qx-aip-l">${c.label}</span></div><div class="qx-aip-s">${sub}</div></div></div>`;
+    return `<div class="qx-aip-card"><div class="qx-aip-b"><div class="qx-aip-top"><span class="qx-aip-n">${big}</span><span class="qx-aip-l">${c.label}</span></div><div class="qx-aip-s">${sub}</div></div></div>`;
   };
   return `<div class="qx-aip"><div class="qx-aip-h"><span class="qx-aip-h-t">${svg(IC.ai)} AI Insights · ${esc(mon)}</span><span class="qx-aip-badge">Auto</span></div><div class="qx-aip-row">${cards.map(cardHTML).join('')}</div></div>`;
 }
@@ -240,8 +240,8 @@ QLX.mount({
     { key: 'sup', label: 'Supplier', options: rows => [...new Set(rows.map(r => r.sup))].filter(s => s && s !== '—').sort().map(s => [s, s]), test: (r, v) => r.sup === v }
   ],
   groupBy: [
-    { key: 'group', label: 'Purchase Group', of: r => r.group, title: r => `${r.emoji} ${esc(r.groupLabel)}`, dot: r => (GCOL[r.group] || GCOL.other)[1] },
-    { key: 'item', label: 'Purchase Item', of: r => r.item || '—', title: r => `${r.emoji} ${esc(ITEM_SHORT[r.item] || r.item || '—')}`, dot: r => (GCOL[r.group] || GCOL.other)[1] },
+    { key: 'group', label: 'Purchase Group', of: r => r.group, title: r => esc(r.groupLabel), dot: r => (GCOL[r.group] || GCOL.other)[1] },
+    { key: 'item', label: 'Purchase Item', of: r => r.item || '—', title: r => esc(ITEM_SHORT[r.item] || r.item || '—'), dot: r => (GCOL[r.group] || GCOL.other)[1] },
     { key: 'status', label: 'Payment status', of: r => (r.isOverdue ? 'overdue' : r.status), title: r => (r.isOverdue ? 'Overdue' : r.status[0].toUpperCase() + r.status.slice(1)), dot: r => STDOT[r.isOverdue ? 'overdue' : r.status] },
     { key: 'sup', label: 'Supplier', of: r => r.sup, title: r => esc(r.sup), dot: () => 'var(--qx)' },
     { key: 'dept', label: 'Department', of: r => r.dept, title: r => esc(r.dept || '—'), dot: () => 'var(--qx)' }

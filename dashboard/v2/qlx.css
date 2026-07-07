@@ -280,9 +280,9 @@
 .qx-grp-bar.first { border-top: none; }
 .qx-grp-chev { width: 18px; height: 18px; color: var(--ql-text-muted); transition: transform .18s var(--ql-ease-out); flex: none; }
 .qx-grp.collapsed .qx-grp-chev { transform: rotate(-90deg); }
-.qx-grp-dot { width: 10px; height: 10px; border-radius: 4px; flex: none; }
+/* colour dot + count badge removed from group headers per request — just chevron · name · total */
+.qx-grp-dot, .qx-grp-ct { display: none; }
 .qx-grp-name { font-weight: 700; font-size: 13px; color: var(--ql-text); }
-.qx-grp-ct { font-size: 11px; font-weight: 700; color: var(--ql-text-muted); background: rgba(15,23,42,.05); padding: 1px 8px; border-radius: 99px; }
 .qx-grp-sum { margin-left: auto; display: flex; gap: 18px; align-items: center; }
 .qx-grp-sum span { font-size: 11px; color: var(--ql-text-muted); }
 .qx-grp-sum b { font-weight: 800; color: var(--ql-text); font-variant-numeric: tabular-nums; }
