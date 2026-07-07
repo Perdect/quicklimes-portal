@@ -237,9 +237,7 @@ QLX.mount({
     { key: 'status', label: 'Status', options: () => [['pending', 'Pending'], ['partial', 'Partial'], ['paid', 'Paid'], ['overdue', 'Overdue'], ['cancelled', 'Cancelled']], test: (r, v) => v === 'overdue' ? r.isOverdue : v === 'pending' ? (r.status === 'pending' && !r.isOverdue) : r.status === v },
     { key: 'group', label: 'Group', options: rows => Q.purchaseGroups.filter(g => rows.some(r => r.group === g.key)).map(g => [g.key, g.emoji + ' ' + g.label]), test: (r, v) => r.group === v },
     { key: 'item', label: 'Item', allLabel: 'All items', options: rows => [...new Set(rows.map(r => r.item))].filter(Boolean).sort().map(it => [it, ITEM_SHORT[it] || it]), test: (r, v) => r.item === v },
-    { key: 'sup', label: 'Supplier', options: rows => [...new Set(rows.map(r => r.sup))].filter(s => s && s !== '—').sort().map(s => [s, s]), test: (r, v) => r.sup === v },
-    { key: 'dept', label: 'Department', options: rows => Q.departments.filter(d => rows.some(r => r.dept === d)).map(d => [d, d]), test: (r, v) => r.dept === v },
-    { key: 'gst', label: 'GST', options: rows => [...new Set(rows.map(r => r.grate))].sort((a, b) => a - b).map(g => [String(g), g + '% GST']), test: (r, v) => String(r.grate) === v }
+    { key: 'sup', label: 'Supplier', options: rows => [...new Set(rows.map(r => r.sup))].filter(s => s && s !== '—').sort().map(s => [s, s]), test: (r, v) => r.sup === v }
   ],
   groupBy: [
     { key: 'group', label: 'Purchase Group', of: r => r.group, title: r => `${r.emoji} ${esc(r.groupLabel)}`, dot: r => (GCOL[r.group] || GCOL.other)[1] },
