@@ -379,8 +379,6 @@
   }
   function overviewCards() {
     const q = Q(); const k = q.kpis(); const bal = q.accountBalances ? q.accountBalances() : { cash: 0, bank: 0 };
-    const todayISO = q.fDS ? null : null;
-    const today = (q.salesRows ? q.salesRows() : []).filter(r => r.date === new Date(2026, 6, 5).toISOString().slice(0, 10)); // guarded below
     const ps = q.purchaseSummary ? q.purchaseSummary() : { pending: 0 };
     return [
       kpiCard({ label: 'Sales (month)', value: k.sales.v, tint: 'blue', icon: IC.sales, trend: k.sales.trend, href: 'sales.html' }),

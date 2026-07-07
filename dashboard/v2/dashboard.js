@@ -213,9 +213,9 @@ function flowWidget(prod) {
   const limeT = matTons('limestone'), monthT = prod.month, todayT = prod.today;
   const stages = [
     { e: '🪨', n: 'Limestone', t: limeT ? fmt(limeT, 0) + ' T' : '—', m: fC(matAmt('limestone')), st: limeT ? 'ok' : 'idle' },
-    { e: '⛏️', n: 'Crusher', t: limeT ? fmt(limeT * .96, 0) + ' T' : '—', m: 'feed', st: limeT ? 'ok' : 'idle' },
+    { e: '⛏️', n: 'Crusher', t: limeT ? fmt(limeT, 0) + ' T' : '—', m: 'feed', st: limeT ? 'ok' : 'idle' },
     { e: '🔥', n: 'Kiln', t: monthT ? 'Active' : '—', m: fmt(monthT, 0) + ' T', st: monthT ? 'run' : 'idle' },
-    { e: '💧', n: 'Hydration', t: fmt(monthT * .98, 0) + ' T', m: 'hydrated', st: monthT ? 'ok' : 'idle' },
+    { e: '💧', n: 'Hydration', t: monthT ? fmt(monthT, 0) + ' T' : '—', m: 'hydrated', st: monthT ? 'ok' : 'idle' },
     { e: '📦', n: 'Packing', t: fmt(monthT, 0) + ' T', m: 'bagged', st: monthT ? 'ok' : 'idle' },
     { e: '🚚', n: 'Dispatch', t: fmt(todayT, 1) + ' T', m: 'today', st: todayT ? 'run' : 'idle' }
   ];
@@ -308,7 +308,7 @@ function wire() {
   root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
   root.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', e => { if (e.target.closest('.dx-fab-i') || b.classList.contains('dx-fab-i') || !b.closest('.dx-fab')) go(b.dataset.go); }));
   const cmp = document.getElementById('dxCompare'); if (cmp) cmp.onclick = () => { compare = !compare; render(); };
-  const ask = document.getElementById('dxAskAi'); if (ask) ask.onclick = () => QLShell.toast && QLShell.toast('AI assistant coming to your workspace');
+  const ask = document.getElementById('dxAskAi'); if (ask) ask.onclick = () => { if (QLShell.openAssistant) QLShell.openAssistant(); else if (QLShell.toast) QLShell.toast('AI assistant unavailable'); };
   const full = document.getElementById('dxFull'); if (full) full.onclick = () => { const c = document.querySelector('.dx-analytics'); if (c) c.classList.toggle('dx-fs'); };
   // party segmented
   root.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => { root.querySelectorAll('[data-pt]').forEach(x => x.classList.remove('on')); b.classList.add('on'); root.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== b.dataset.pt); });

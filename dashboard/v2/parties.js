@@ -9,6 +9,16 @@ const esc = QLX.esc, svg = QLX.svg, IC = QLX.icons;
 const toast = (m, t) => QLX.toast(m, t);
 const up = s => (s || '').toUpperCase();
 function waLink(phone, text) { const d = (phone || '').replace(/\D/g, ''); const n = d.length === 10 ? '91' + d : d; return 'https://wa.me/' + n + '?text=' + encodeURIComponent(text || ''); }
+/* Compose the WhatsApp message from real data: pending amount + oldest overdue invoice. */
+function waReminder(r) {
+  const co = Q.co.short || Q.co.name || 'us';
+  if (r && r.salesDue > 0.5) {
+    const oldest = (r.invoices || []).filter(s => s.outstanding > 0.5).sort((a, b) => (a.date || '').localeCompare(b.date || ''))[0];
+    const ref = oldest ? `\nOldest pending: invoice #${oldest.inv || '—'} dated ${Q.fDS(oldest.date)} — ${fC(oldest.outstanding)}.` : '';
+    return `Dear ${r.name},\nGentle reminder from ${co}: ${fC(r.salesDue)} is currently outstanding on your account.${ref}\nKindly arrange the payment at your convenience. Thank you.`;
+  }
+  return `Dear ${r ? r.name : 'Sir/Madam'},\nThank you for your business with ${co}. Please let us know if you need a fresh quote or a dispatch — happy to help.`;
+}
 const hash = () => (location.hash || '').toLowerCase();
 const isSup = () => hash().indexOf('supplier') >= 0, isCust = () => hash().indexOf('customer') >= 0;
 
@@ -174,7 +184,7 @@ function statusPill(st) { const m = { paid: ['#dcfce7', '#166534'], cash: ['#dcf
 
 function tabOverview(r) {
   const comm = `<div class="qx-comm">
-    ${r.phone ? `<a class="wa" href="${waLink(r.phone, 'Dear ' + r.name + ', ')}" target="_blank">${svg(IC.wa)} WhatsApp</a>` : ''}
+    ${r.phone ? `<a class="wa" href="${waLink(r.phone, waReminder(r))}" target="_blank">${svg(IC.wa)} WhatsApp</a>` : ''}
     ${r.phone ? `<a class="call" href="tel:${esc(r.phone)}">${svg(IC.call)} Call</a>` : ''}
     ${!r.phone ? '<span class="qx-mut" style="font-size:12px">No phone on file — add it to enable contact.</span>' : ''}</div>`;
   const hero = `<div class="crm-dhero">
@@ -303,7 +313,7 @@ QLX.mount({
   ],
   rowActions: r => [
     { tt: 'Profile', icon: IC.eye, onClick: r => QLX.open(r.idx) },
-    ...(r.phone ? [{ tt: 'WhatsApp', icon: IC.wa, cls: 'qx-ib-ok', onClick: r => window.open(waLink(r.phone, 'Dear ' + r.name + ', '), '_blank') }] : []),
+    ...(r.phone ? [{ tt: 'WhatsApp', icon: IC.wa, cls: 'qx-ib-ok', onClick: r => window.open(waLink(r.phone, waReminder(r)), '_blank') }] : []),
     { tt: 'Edit', icon: IC.edit, onClick: r => QLShell.openPartyForm(r.idx) }
   ],
   rowMenu: r => [
@@ -334,7 +344,7 @@ QLX.mount({
     eyebrow: (SEG[r.seg] || SEG.regular).label + (r.type === 'supplier' ? ' · Supplier' : r.type === 'both' ? ' · Customer & Supplier' : ' · Customer'),
     title: esc(r.name), sub: (r.gstin ? 'GSTIN ' + esc(r.gstin) : 'No GSTIN') + (r.phone ? ' · ' + esc(r.phone) : ''),
     actions: [
-      ...(r.phone ? [{ label: 'WhatsApp', icon: IC.wa, onClick: r => window.open(waLink(r.phone, 'Dear ' + r.name + ', '), '_blank') }, { label: 'Call', icon: IC.call, onClick: r => location.href = 'tel:' + r.phone }] : []),
+      ...(r.phone ? [{ label: 'WhatsApp', icon: IC.wa, onClick: r => window.open(waLink(r.phone, waReminder(r)), '_blank') }, { label: 'Call', icon: IC.call, onClick: r => location.href = 'tel:' + r.phone }] : []),
       { label: 'Edit', icon: IC.edit, primary: true, onClick: r => QLShell.openPartyForm(r.idx) }
     ],
     tabs: [

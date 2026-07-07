@@ -32,7 +32,25 @@ function buildData() {
     words: Q.amountInWords(Math.round(total))
   };
 }
-function updatePreview() { const f = document.getElementById('invFrame'); if (f) f.srcdoc = QLShell.renderInvoice(buildData()); }
+/* Live preview. Resetting the iframe's srcdoc reloads it, and the reloading
+   iframe steals focus from the field being typed in (→ "type one letter and the
+   field goes away"). Instead we patch the iframe document IN PLACE
+   (documentElement.innerHTML) which does NOT reload it and never steals focus.
+   Debounced so we don't rebuild the preview on every keystroke. */
+function previewDoc() { const f = document.getElementById('invFrame'); return f ? (f.contentDocument || (f.contentWindow && f.contentWindow.document)) : null; }
+function updatePreview() {
+  const html = QLShell.renderInvoice(buildData());
+  const doc = previewDoc();
+  try {
+    if (doc && doc.documentElement) {
+      doc.documentElement.innerHTML = html.replace(/^[\s\S]*?<html[^>]*>/i, '').replace(/<\/html>\s*$/i, '');
+      return;
+    }
+  } catch (_) {}
+  const f = document.getElementById('invFrame'); if (f) f.srcdoc = html;   // fallback (first paint)
+}
+let _prevTimer = null;
+function schedulePreview() { clearTimeout(_prevTimer); _prevTimer = setTimeout(updatePreview, 250); }
 
 function field(id, label, opts) {
   opts = opts || {};
@@ -117,7 +135,7 @@ function onInput(e) {
     const p = Q.partyRows().find(x => (x.name || '').toUpperCase() === e.target.value.trim().toUpperCase());
     if (p) { const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; }; set('i_bgst', p.gstin); set('i_baddr', p.address); set('i_bstate', p.state); }
   }
-  updatePreview();
+  schedulePreview();
 }
 
 window.__qlRefresh = render;
