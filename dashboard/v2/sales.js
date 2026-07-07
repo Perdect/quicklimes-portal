@@ -163,11 +163,16 @@ function salesInsightsPanel(rows) {
   const tons = rows.reduce((a, r) => a + (r.qty || 0), 0);
   const trucks = rows.filter(r => r.veh && r.veh.trim()).length || rows.length;
   const sales = rows.reduce((a, r) => a + (r.taxable || 0), 0);
+  const isM = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width:768px)').matches;
   const cards = [
     { ic: '🏭', tint: 'indigo', n: fmt(tons, 1) + ' T', label: 'Production', sub: 'dispatched' + inMon },
     { ic: '🚚', tint: 'amber', n: String(trucks), label: 'Trucks Loaded', sub: 'loaded' + inMon },
-    { ic: '₹', tint: 'green', n: fC(sales), label: 'Sales', sub: 'billed' + inMon },
-    { ic: '🧾', tint: 'blue', n: String(rows.length), label: 'Invoices', sub: 'raised' + inMon }
+    // Sales total + invoice count already sit in the top KPI cards — drop them on
+    // mobile so the insight strip doesn't just repeat the stat cards above.
+    ...(isM ? [] : [
+      { ic: '₹', tint: 'green', n: fC(sales), label: 'Sales', sub: 'billed' + inMon },
+      { ic: '🧾', tint: 'blue', n: String(rows.length), label: 'Invoices', sub: 'raised' + inMon }
+    ])
   ];
   const cardHTML = c => `<div class="qx-aip-card"><span class="qx-aip-ic t-${c.tint}">${c.ic}</span><div class="qx-aip-b"><div class="qx-aip-top"><span class="qx-aip-n">${c.n}</span><span class="qx-aip-l">${c.label}</span></div><div class="qx-aip-s">${c.sub}</div></div></div>`;
   return `<div class="qx-aip"><div class="qx-aip-h"><span class="qx-aip-h-t">${svg(IC.ai)} AI Insights · ${esc(mon)}</span><span class="qx-aip-badge">Auto</span></div><div class="qx-aip-row">${cards.map(cardHTML).join('')}</div></div>`;

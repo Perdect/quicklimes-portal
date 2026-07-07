@@ -267,10 +267,11 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-pill.mut { background: var(--ql-neutral-100); color: var(--ql-text-secondary); }
 
 /* ═══════════════ 9 · QLX SURFACES → NATIVE ON MOBILE ═══════════════ */
-/* hero (page title + month) — trimmed, title comes from header */
-.qx-hero { padding: 0 0 12px !important; flex-wrap: wrap; gap: 10px; }
-.qx-hero-tt { font-size: 22px !important; }
-.qx-hero-l > .qx-sub, .qx-hero-l p { font-size: 13px; }
+/* hero — the mobile header already shows the page title, so hide the duplicate
+   title block and keep only the month picker + tools (which live in .qx-hero-r) */
+.qx-hero { padding: 0 0 12px !important; flex-wrap: wrap; gap: 10px; justify-content: flex-start !important; }
+.qx-hero-l { display: none !important; }
+.qx-hero-r { margin-left: 0 !important; width: 100%; }
 
 /* stat cards — 2 per row, compact */
 .qx-stats { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
