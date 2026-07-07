@@ -1088,7 +1088,14 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     return null;
   }
   function exportCSV(name, headers, rows) {
-    const esc2 = c => `"${String(c == null ? '' : c).replace(/"/g, '""')}"`;
+    // Round numeric cells (and numeric strings) to 2 dp so floating-point noise
+    // like 1765.1500000000001 / 35303.00000000000 exports as 1765.15 / 35303.
+    const num = c => {
+      if (typeof c === 'number' && isFinite(c)) return Math.round(c * 100) / 100;
+      if (typeof c === 'string' && /^-?\d+(\.\d+)?$/.test(c.trim())) { const n = parseFloat(c); if (isFinite(n)) return Math.round(n * 100) / 100; }
+      return c;
+    };
+    const esc2 = c => { c = num(c); return `"${String(c == null ? '' : c).replace(/"/g, '""')}"`; };
     const csv = [headers.join(','), ...rows.map(r => r.map(esc2).join(','))].join('\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
     a.download = name + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
