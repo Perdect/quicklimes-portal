@@ -35,15 +35,15 @@ function receivePaymentModal() {
   QLShell.openForm({
     title: 'Receive Payment', sub: 'Marks the invoice Paid or Partial automatically.',
     specs: [
-      { k: 'inv', label: 'Invoice', type: 'select', req: true, full: true, opts: unpaid.map(r => [String(r.idx), `${r.inv || '—'} · ${r.party} · ${fC(r.outstanding)} due`]) },
+      { k: 'inv', label: 'Invoice', type: 'searchselect', req: true, full: true, ph: 'Search invoice no. or customer…', opts: unpaid.map(r => [String(r.idx), `${r.inv || '—'} · ${r.party} · ${fC(r.outstanding)} due`]) },
       { k: 'amount', label: 'Amount received (₹)', type: 'number', req: true, reqNonZero: true },
       { k: 'method', label: 'Payment method', type: 'select', opts: Q.paymentMethods.map(m => [m, m]) },
       { k: 'ref', label: 'Reference no.', ph: 'UTR / cheque / txn id' },
       { k: 'date', label: 'Date', type: 'date', req: true },
       { k: 'notes', label: 'Notes', type: 'textarea', full: true }
     ],
-    initial: { inv: String(unpaid[0].idx), amount: unpaid[0].outstanding, method: 'Bank', date: todayISO },
-    onRender: () => { const s = document.getElementById('qf_inv'), a = document.getElementById('qf_amount'); if (s && a) s.onchange = () => { const r = unpaid.find(x => String(x.idx) === s.value); if (r) a.value = r.outstanding; }; },
+    initial: { inv: String(unpaid[0].idx), amount: Math.round(unpaid[0].outstanding), method: 'Bank', date: todayISO },
+    onRender: () => { const s = document.getElementById('qf_inv'), a = document.getElementById('qf_amount'); if (s && a) s.onchange = () => { const r = unpaid.find(x => String(x.idx) === s.value); if (r) a.value = Math.round(r.outstanding); }; },
     saveLabel: 'Receive payment',
     onSave: v => { Q.receiveSalesPayment(+v.inv, { amount: +v.amount, method: v.method, ref: v.ref, date: v.date, notes: v.notes }); QLX.toast('Payment received — invoice updated', 'ok'); QLX.refresh(); }
   });
@@ -54,15 +54,15 @@ function payBillModal() {
   QLShell.openForm({
     title: 'Pay Supplier Bill', sub: 'Marks the purchase bill Paid or Partial automatically.',
     specs: [
-      { k: 'bill', label: 'Purchase bill', type: 'select', req: true, full: true, opts: unpaid.map(r => [String(r.idx), `${r.bill || '—'} · ${r.sup} · ${fC(r.outstanding)} due`]) },
+      { k: 'bill', label: 'Purchase bill', type: 'searchselect', req: true, full: true, ph: 'Search bill no. or supplier…', opts: unpaid.map(r => [String(r.idx), `${r.bill || '—'} · ${r.sup} · ${fC(r.outstanding)} due`]) },
       { k: 'amount', label: 'Amount paid (₹)', type: 'number', req: true, reqNonZero: true },
       { k: 'method', label: 'Payment method', type: 'select', opts: Q.paymentMethods.map(m => [m, m]) },
       { k: 'ref', label: 'Reference no.' },
       { k: 'date', label: 'Date', type: 'date', req: true },
       { k: 'notes', label: 'Notes', type: 'textarea', full: true }
     ],
-    initial: { bill: String(unpaid[0].idx), amount: unpaid[0].outstanding, method: 'Bank', date: todayISO },
-    onRender: () => { const s = document.getElementById('qf_bill'), a = document.getElementById('qf_amount'); if (s && a) s.onchange = () => { const r = unpaid.find(x => String(x.idx) === s.value); if (r) a.value = r.outstanding; }; },
+    initial: { bill: String(unpaid[0].idx), amount: Math.round(unpaid[0].outstanding), method: 'Bank', date: todayISO },
+    onRender: () => { const s = document.getElementById('qf_bill'), a = document.getElementById('qf_amount'); if (s && a) s.onchange = () => { const r = unpaid.find(x => String(x.idx) === s.value); if (r) a.value = Math.round(r.outstanding); }; },
     saveLabel: 'Pay bill',
     onSave: v => { Q.payPurchaseBill(+v.bill, { amount: +v.amount, method: v.method, ref: v.ref, date: v.date, notes: v.notes }); QLX.toast('Payment made — bill updated', 'ok'); QLX.refresh(); }
   });

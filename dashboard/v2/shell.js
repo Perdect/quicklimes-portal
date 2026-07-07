@@ -509,6 +509,16 @@
     let ctrl;
     if (f.type === 'select') {
       ctrl = `<select class="qlf-input" id="${id}">${f.opts.map(o => { const ov = Array.isArray(o) ? o[0] : o, ol = Array.isArray(o) ? o[1] : o; return `<option value="${esc(ov)}" ${String(ov) === String(val) ? 'selected' : ''}>${esc(ol)}</option>`; }).join('')}</select>`;
+    } else if (f.type === 'searchselect') {
+      const hit = f.opts.find(o => String(Array.isArray(o) ? o[0] : o) === String(val));
+      const selLabel = hit ? (Array.isArray(hit) ? hit[1] : hit) : '';
+      const optsHtml = f.opts.map(o => { const ov = Array.isArray(o) ? o[0] : o, ol = Array.isArray(o) ? o[1] : o; return `<div class="qlf-combo-opt${String(ov) === String(val) ? ' sel' : ''}" role="option" data-v="${esc(ov)}" data-l="${esc(ol)}" onmousedown="QLShell._comboPick(event,'${esc(f.k)}')">${esc(ol)}</div>`; }).join('');
+      ctrl = `<div class="qlf-combo">
+        <input type="hidden" id="${id}" value="${esc(val)}">
+        <input class="qlf-input qlf-combo-search" id="${id}_s" autocomplete="off" role="combobox" aria-expanded="false" placeholder="${esc(f.ph || 'Search…')}" value="${esc(selLabel)}"
+          oninput="QLShell._comboFilter('${esc(f.k)}')" onfocus="QLShell._comboFocus('${esc(f.k)}')" onblur="QLShell._comboBlur('${esc(f.k)}')" onkeydown="QLShell._comboKey(event,'${esc(f.k)}')">
+        <div class="qlf-combo-list" id="${id}_l">${optsHtml}</div>
+      </div>`;
     } else if (f.type === 'textarea') {
       ctrl = `<textarea class="qlf-input" id="${id}" rows="2" placeholder="${esc(f.ph || '')}">${esc(val)}</textarea>`;
     } else {
@@ -1275,6 +1285,101 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     /* ───── FALLBACK ───── */
     return `<p>I can pull invoices, a party's bills/ledger, overdue & collections, top customers, supplier rates & payments, profit, GST, production, comparisons and forecasts — and create invoices/parties, draft reminders, download PDFs or export CSV. Try a suggestion below 👇</p>`;
   }
+  /* ════════════════════════ Searchable combobox (type: 'searchselect') ══════════════════════════ */
+  function _combo(k) { return { s: $('qf_' + k + '_s'), l: $('qf_' + k + '_l'), h: $('qf_' + k) }; }
+  function _comboFilter(k) {
+    const c = _combo(k); if (!c.l) return;
+    const q = (c.s.value || '').toLowerCase().trim();
+    c.l.classList.add('open'); c.s.setAttribute('aria-expanded', 'true');
+    let any = false;
+    c.l.querySelectorAll('.qlf-combo-opt').forEach(o => {
+      const show = !q || (o.getAttribute('data-l') || o.textContent).toLowerCase().includes(q);
+      o.style.display = show ? '' : 'none'; o.classList.remove('active'); if (show) any = true;
+    });
+    let empty = c.l.querySelector('.qlf-combo-empty');
+    if (!any && !empty) { empty = document.createElement('div'); empty.className = 'qlf-combo-empty'; empty.textContent = 'No matches'; c.l.appendChild(empty); }
+    if (empty) empty.style.display = any ? 'none' : '';
+  }
+  function _comboFocus(k) {
+    const c = _combo(k); if (!c.l) return;
+    if (c.s) c.s.select();                 // text is selected → about to be replaced, so show ALL options
+    c.l.classList.add('open'); c.s && c.s.setAttribute('aria-expanded', 'true');
+    c.l.querySelectorAll('.qlf-combo-opt').forEach(o => { o.style.display = ''; o.classList.remove('active'); });
+    const empty = c.l.querySelector('.qlf-combo-empty'); if (empty) empty.style.display = 'none';
+    const sel = c.l.querySelector('.qlf-combo-opt.sel'); if (sel) sel.scrollIntoView({ block: 'nearest' });
+  }
+  function _comboBlur(k) { const c = _combo(k); if (c.l) setTimeout(() => { c.l.classList.remove('open'); c.s && c.s.setAttribute('aria-expanded', 'false'); }, 150); }
+  function _comboPick(e, k) {
+    e.preventDefault();
+    const el = e.currentTarget, c = _combo(k);
+    c.h.value = el.getAttribute('data-v');
+    c.s.value = el.getAttribute('data-l') || el.textContent;
+    c.l.querySelectorAll('.qlf-combo-opt').forEach(o => o.classList.remove('sel')); el.classList.add('sel');
+    c.l.classList.remove('open'); c.s.setAttribute('aria-expanded', 'false');
+    c.h.dispatchEvent(new Event('change', { bubbles: true }));   // fire so onRender autofill (amount) runs
+  }
+  function _comboKey(e, k) {
+    const c = _combo(k); if (!c.l) return;
+    const vis = [].slice.call(c.l.querySelectorAll('.qlf-combo-opt')).filter(o => o.style.display !== 'none');
+    let i = vis.findIndex(o => o.classList.contains('active'));
+    if (e.key === 'ArrowDown') { e.preventDefault(); c.l.classList.add('open'); i = Math.min(i + 1, vis.length - 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); i = Math.max(i - 1, 0); }
+    else if (e.key === 'Enter') { if (i >= 0 && vis[i]) { e.preventDefault(); _comboPick({ preventDefault() {}, currentTarget: vis[i] }, k); } return; }
+    else if (e.key === 'Escape') { c.l.classList.remove('open'); return; }
+    else return;
+    vis.forEach(o => o.classList.remove('active')); if (vis[i]) { vis[i].classList.add('active'); vis[i].scrollIntoView({ block: 'nearest' }); }
+  }
+
+  /* ════════════════════════ PWA (installable app) ══════════════════════════ */
+  let _pwaDone = false, _deferredInstall = null;
+  function initPWA() {
+    if (_pwaDone) { refreshInstallItem(); return; }
+    _pwaDone = true;
+    // Register the service worker (scope /v2/) once.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/v2/sw.js', { scope: '/v2/' }).catch(() => {});
+      });
+    }
+    // Capture the install prompt so we can offer "Install app" in the profile menu.
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      _deferredInstall = e;
+      refreshInstallItem();
+    });
+    window.addEventListener('appinstalled', () => {
+      _deferredInstall = null;
+      refreshInstallItem();
+      try { toast('QuickLimes installed 🎉'); } catch (_) {}
+    });
+    refreshInstallItem();
+  }
+  function isStandalone() {
+    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  }
+  // Add / remove an "Install app" item at the top of the profile menu.
+  function refreshInstallItem() {
+    const menu = $('profileMenu'); if (!menu) return;
+    let item = $('pmInstall');
+    const want = !!_deferredInstall && !isStandalone();
+    if (want && !item) {
+      const sep = menu.querySelector('.profile-menu-head');
+      item = document.createElement('button');
+      item.className = 'profile-menu-item'; item.id = 'pmInstall';
+      item.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span>Install app</span>';
+      item.onclick = promptInstall;
+      if (sep && sep.nextSibling) menu.insertBefore(item, sep.nextSibling); else menu.appendChild(item);
+    } else if (!want && item) {
+      item.remove();
+    }
+  }
+  async function promptInstall() {
+    if (!_deferredInstall) { try { toast('Use your browser menu → “Add to Home screen”.'); } catch (_) {} return; }
+    const e = _deferredInstall; _deferredInstall = null;
+    try { e.prompt(); await e.userChoice; } catch (_) {}
+    refreshInstallItem();
+  }
+
   /* ════════════════════════ PUBLIC API ══════════════════════════ */
   window.QLShell = {
     toggleSidebar, toggleMobileSidebar, toggleGroup, openPalette, closePalette, toast,
@@ -1288,6 +1393,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     // form modals + row action menus
     closeModal, openForm, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
     rowMenu, printInvoice, exportCSV,
+    _comboFilter, _comboFocus, _comboBlur, _comboPick, _comboKey,
     formPrompt(title, specs, onSave, sub) { openForm({ title, sub, specs, saveLabel: 'Save', initial: {}, onSave(v) { onSave(v); } }); },
     getInvoiceHTML(idx) { const d = window.QLD.invoiceData(idx); return d ? invoiceHTML(d) : ''; },
     renderInvoice(d) { return invoiceHTML(d); },
@@ -1322,7 +1428,10 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       this.applyFeatureVisibility();
       // mobile app layer (no-op on desktop)
       try { if (window.QLMobile) QLMobile.init({ active: _active, title: opts.title }); } catch (_) {}
+      // installable PWA (service worker + install prompt)
+      try { initPWA(); } catch (_) {}
     },
+    promptInstall,
     // expose nav + active for the mobile layer (bottom-nav "More" respects Feature Management)
     nav() { return NAV; },
     get _active() { return _active; }

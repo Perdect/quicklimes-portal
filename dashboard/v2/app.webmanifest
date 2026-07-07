@@ -1,0 +1,26 @@
+{
+  "name": "QuickLimes — AI ERP for Lime Manufacturers",
+  "short_name": "QuickLimes",
+  "description": "Run your whole quick-lime & hydrated-lime plant from one AI app — sales, GST invoicing, purchase, labour, cashbook, payments and bank reconciliation.",
+  "id": "/v2/dashboard.html",
+  "start_url": "/v2/dashboard.html",
+  "scope": "/v2/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#F8FAFC",
+  "theme_color": "#2563EB",
+  "lang": "en-IN",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    { "src": "/v2/pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/v2/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/v2/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "New GST Invoice", "url": "/v2/invoice.html", "description": "Create a sales invoice" },
+    { "name": "Sales Register", "url": "/v2/sales.html" },
+    { "name": "Purchase Register", "url": "/v2/purchase.html" },
+    { "name": "Payments Center", "url": "/v2/payments.html" }
+  ]
+}

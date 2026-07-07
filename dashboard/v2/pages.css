@@ -456,6 +456,18 @@ table.sr tbody tr:hover td { background: var(--ql-surface-2, #f8fafc); }
   background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); padding: 9px 11px; }
 .qlf-input:focus { outline: none; border-color: var(--ql-brand-400); box-shadow: 0 0 0 3px var(--ql-brand-50); background: var(--ql-card); }
 textarea.qlf-input { resize: vertical; min-height: 40px; }
+/* Searchable combobox (type: 'searchselect') */
+.qlf-combo { position: relative; }
+.qlf-combo-search { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 10px center; padding-left: 34px; }
+.qlf-combo-list { position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 30; max-height: 236px; overflow-y: auto;
+  background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); box-shadow: var(--ql-shadow-lg);
+  padding: 5px; display: none; }
+.qlf-combo-list.open { display: block; animation: qlModalIn .1s var(--ql-ease-out); }
+.qlf-combo-opt { padding: 9px 11px; border-radius: var(--ql-radius-md); font-size: var(--ql-text-sm); color: var(--ql-text);
+  cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qlf-combo-opt:hover, .qlf-combo-opt.active { background: var(--ql-neutral-100); }
+.qlf-combo-opt.sel { background: var(--ql-brand-50); color: var(--ql-brand-700); font-weight: var(--ql-weight-semibold); }
+.qlf-combo-empty { padding: 10px 11px; font-size: var(--ql-text-sm); color: var(--ql-text-secondary); }
 @media (max-width: 560px) { .qlf-grid { grid-template-columns: 1fr; } .ql-modal-backdrop { padding-top: 3vh; } }
 
 /* Row action menu (table kebabs) */
