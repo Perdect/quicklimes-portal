@@ -66,7 +66,23 @@ function billHTML(r) {
     <div class="tot"><div class="row"><span>Taxable value</span><span>${money(r.taxable)}</span></div>${r.freightAmt ? `<div class="row"><span>Freight (incl.)</span><span>${money(r.freightAmt)}</span></div>` : ''}<div class="row"><span>CGST @ ${r.grate / 2}%</span><span>${money(cg)}</span></div><div class="row"><span>SGST @ ${r.grate / 2}%</span><span>${money(cg)}</span></div><div class="row g"><span>Total</span><span>${money(r.total)}</span></div></div>
     <div class="ft">System-generated from ${esc(co.name || 'QuickLimes')} · QuickLimes Purchase Register.</div>`;
 }
-function pdfWindow(r) { const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups to open the PDF'); return; } w.document.write('<html><head><title>Purchase Bill ' + esc(r.bill || '') + '</title></head><body>' + billHTML(r) + '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print()},250)}</scr' + 'ipt></body></html>'); w.document.close(); }
+const isMobileP = () => (window.QLMobile ? QLMobile.isMobile() : window.matchMedia('(max-width:768px)').matches);
+// open the generated purchase bill in the same full-screen viewer the sales invoice
+// uses on phones (fit-to-width · pinch-zoom · PDF · Print · WhatsApp)
+function mobileBillViewer(r) {
+  QLMobile.invoiceViewer({
+    html: billHTML(r),
+    printHtml: '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Purchase Bill ' + esc(r.bill || '') + '</title></head><body>' + billHTML(r) + '</body></html>',
+    title: 'Purchase Bill ' + (r.bill || '—'),
+    shareText: Q.co.short + ' · Bill ' + (r.bill || '') + ' · ' + r.sup + ' · ' + fC(r.total) + ' · ' + r.status,
+    onShare: () => shareBill(r)
+  });
+}
+function pdfWindow(r) {
+  if (isMobileP() && window.QLMobile && QLMobile.invoiceViewer) return mobileBillViewer(r);
+  const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups to open the PDF'); return; }
+  w.document.write('<html><head><title>Purchase Bill ' + esc(r.bill || '') + '</title></head><body>' + billHTML(r) + '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print()},250)}</scr' + 'ipt></body></html>'); w.document.close();
+}
 /* The "PDF" / "Download PDF" buttons: open the UPLOADED scan in a new tab when
    one is attached (the real document), else fall back to the generated bill. */
 async function openBillPdf(r) {
@@ -99,7 +115,9 @@ async function viewBill(r) {
       if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
     } catch (_) { if (w) w.close(); toast('Could not open the uploaded bill', 'err'); return; }
   }
-  // no upload on this bill → show the bill generated from the entry
+  // no upload on this bill → the generated bill. On phones open it as a full-screen
+  // PDF (like the sales invoice); on desktop keep the in-app preview drawer.
+  if (isMobileP() && window.QLMobile && QLMobile.invoiceViewer) return mobileBillViewer(r);
   QLX.viewDoc({ eyebrow: 'Purchase bill', title: 'Bill ' + (r.bill || '—'), sub: r.sup + ' · generated (no file uploaded)', html: billHTML(r), onPrint: () => pdfWindow(r), onShare: () => shareBill(r) });
 }
 
