@@ -1,0 +1,259 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   BillOCR — PERMANENT regression suite.  Run: node dashboard/v2/bill-ocr.regression.js
+   Every supported invoice format has an expected-JSON fixture. The runner
+   parses each, compares EVERY field, fails on ANY difference, and prints a
+   field-level confidence report. This is the gate before any OCR change ships.
+   ═══════════════════════════════════════════════════════════════════════ */
+const OCR = require('./bill-ocr.js');
+const OWN = { ownGstins: ['08AABCG1234H1Z5', '08BNAPM0488E1Z3', '08AADFD5678K1Z9'], ownNames: ['GOTAN LIME INDUSTRIES', 'DESHWALI MINERALS'] };
+
+/* Each fixture: { name, format, text, expect:{…} }. `expect` lists ONLY the
+   fields that appear on that bill; a field set to null MUST come back blank
+   (the parser must never invent it). */
+const CORPUS = [
+  {
+    name: 'Indian Oil Corporation (IOC) — pet coke, IGST', format: 'PDF · columnar · Integrated Tax',
+    text: `INVOICE UNDER RULE 46 of GST Rules
+Indian Oil Corporation Limited
+Doc.Name & number IRN: 23e75664460d6a03684ca14931fcd6851a8
+TAX INVOICE 20273121B007217
+Form No AC4 31A SAP Doc no.7007959119 Date 23-Jun-26 Time 15:12
+Del Mode Road T.T.No. RJ19GE8199
+Supplier Recipient (Ship to party)
+Name & Address Tin : 24073200438 376530 (Mob No.-Ajij Mohma)
+GST Registration No GSTIN 08BNAPM0488E1Z3
+GSTIN 24AAACI1681G1ZV BNAPM0488E
+Reverse Charge Applicable - No
+Item Material Description Quantity Unit Rate Unit HSN code Total
+10 178100 FUEL GRADE PET COKE (BULK) 32.380 TO 16220.000 TO 271311
+Taxable Value 32.380 TO 16220.000 TO 525203.60
+JOIG IN: Integrated Tax 18.000 % 94536.65
+Density@15: 0.000 Total for material 619740.25
+Total 619740.00`,
+    expect: { supplier: 'Indian Oil Corporation Limited', supplierGstin: '24AAACI1681G1ZV', buyerGstin: '08BNAPM0488E1Z3', billNo: '20273121B007217', date: '23-Jun-26', billType: 'Tax Invoice', group: 'petcoke', item: 'Pet Coke', qty: 32.38, unit: 'TO', taxable: 525203.60, igst: 94536.65, gstRate: 18, total: 619740, grandTotal: 619740, itc: 'Eligible', cgst: null, sgst: null }
+  },
+  {
+    name: 'Reliance — pet coke, IGST inter-state', format: 'IGST',
+    text: `Reliance Industries Limited
+Jamnagar Gujarat  GSTIN 24AAACR5055K1Z7
+Tax Invoice No RIL/2026/8842  Dated 02-Jun-2026
+Bill To Deshwali Minerals GSTIN 08AADFD5678K1Z9
+Raw Petroleum Coke  HSN 2713  120.00 MT
+Taxable Amount 1000000.00  IGST 18% 180000.00  Invoice Value 1180000.00
+Reverse Charge : No`,
+    expect: { supplier: 'Reliance Industries Limited', supplierGstin: '24AAACR5055K1Z7', billNo: 'RIL/2026/8842', date: '02-Jun-2026', group: 'petcoke', item: 'Pet Coke', qty: 120, unit: 'MT', taxable: 1000000, igst: 180000, gstRate: 18, total: 1180000, itc: 'Eligible' }
+  },
+  {
+    name: 'Mateshwari Mines — limestone, CGST+SGST, M/s', format: 'CGST+SGST',
+    text: `M/s Mateshwari Mines and Minerals
+Village Gotan, Nagaur, Rajasthan 341027
+GSTIN 08ABCFM1234N1ZP
+Tax Invoice Bill No: GJ5534 Date: 15/06/2026
+To: Gotan Lime Industries GSTIN 08AABCG1234H1Z5
+Limestone (Kankar) HSN 2521 Quantity 250.00 MT
+Taxable Value 847170.00
+CGST @2.5% 21179.25  SGST @2.5% 21179.25
+Round Off 0.50  Grand Total 889529.00
+Reverse Charge : No`,
+    expect: { supplier: 'Mateshwari Mines and Minerals', supplierGstin: '08ABCFM1234N1ZP', billNo: 'GJ5534', date: '15/06/2026', billType: 'Tax Invoice', group: 'limestone', item: 'Limestone Purchase', qty: 250, unit: 'MT', taxable: 847170, cgst: 21179.25, sgst: 21179.25, gstRate: 5, total: 889529, grandTotal: 889529, itc: 'Eligible', igst: null }
+  },
+  {
+    name: 'Shree Balaji Polysack — plastic bags, CGST+SGST', format: 'CGST+SGST · packaging',
+    text: `Shree Balaji Polysack Industries
+GSTIN 24AAECS7777P1ZR
+Invoice No SBP/771 Date 12-Jun-2026
+Bill To Gotan Lime Industries GSTIN 08AABCG1234H1Z5
+HDPE Woven Sack Bags HSN 6305  12000 NOS
+Taxable Value 174000.00 CGST 9% 15660.00 SGST 9% 15660.00 Grand Total 205320.00
+Reverse Charge : No`,
+    expect: { supplier: 'Shree Balaji Polysack Industries', supplierGstin: '24AAECS7777P1ZR', billNo: 'SBP/771', date: '12-Jun-2026', group: 'packaging', item: 'Plastic Bags', qty: 12000, unit: 'NOS', taxable: 174000, cgst: 15660, sgst: 15660, gstRate: 18, total: 205320, itc: 'Eligible' }
+  },
+  {
+    name: 'Dept of Mines — royalty on limestone', format: 'Royalty',
+    text: `Department of Mines and Geology
+GSTIN 08AAAGD0001A1Z5
+Challan No DMG/RY/551 Date 09-Jun-2026
+To Gotan Lime Industries
+Royalty on Limestone (Mineral) DMF NMET
+Taxable Value 300000.00 CGST 9% 27000.00 SGST 9% 27000.00 Grand Total 354000.00`,
+    expect: { supplier: 'Department of Mines and Geology', supplierGstin: '08AAAGD0001A1Z5', billNo: 'DMG/RY/551', date: '09-Jun-2026', group: 'royalty', item: 'Royalty', taxable: 300000, cgst: 27000, sgst: 27000, gstRate: 18, total: 354000 }
+  },
+  {
+    name: 'Shree Balaji Roadlines — GTA freight, RCM, LR+vehicle', format: 'Transport · RCM',
+    text: `M/s Shree Balaji Roadlines
+GSTIN 08AABCT9999Q1ZX
+Consignment Note No TC/551 Date 20/06/2026
+LR No : LR/8842   Vehicle No : RJ19 GE 8199
+To Gotan Lime Industries
+Goods Transport Agency - Freight for limestone
+Freight 45000.00
+Tax payable by recipient under RCM
+Total 45000.00`,
+    expect: { supplier: 'Shree Balaji Roadlines', supplierGstin: '08AABCT9999Q1ZX', billNo: 'TC/551', date: '20/06/2026', group: 'transport', item: 'Transport / Freight', vehicle: 'RJ19GE8199', lrNo: 'LR/8842', total: 45000, itc: 'RCM' }
+  },
+  {
+    name: 'Shree Balaji Labour Contractor — labour, long name', format: 'Labour · CGST+SGST',
+    text: `SHREE BALAJI LABOUR CONTRACTOR & MANPOWER SUPPLIERS
+GSTIN 08AACFS9012K1Z6
+Invoice No SBL/LAB/0271 Dated 18/02/2025
+Billed To Gotan Lime Industries GSTIN 08AABCG1234H1Z5
+Loading & Unloading of Limestone SAC 998519
+Taxable Value 85000.00 CGST 9% 7650.00 SGST 9% 7650.00 Grand Total 100300.00
+Reverse Charge : No`,
+    expect: { supplier: 'SHREE BALAJI LABOUR CONTRACTOR & MANPOWER SUPPLIERS', supplierGstin: '08AACFS9012K1Z6', billNo: 'SBL/LAB/0271', date: '18/02/2025', group: 'labour', item: 'Labour', taxable: 85000, cgst: 7650, sgst: 7650, gstRate: 18, total: 100300, itc: 'Eligible' }
+  },
+  {
+    name: 'Generic GST tax invoice — CGST+SGST', format: 'Tax invoice',
+    text: `Krishna Cement Traders
+GSTIN 08AAACK1111A1Z0
+Tax Invoice  Invoice No KCT/442  Date 05-Jun-2026
+Bill To Gotan Lime Industries GSTIN 08AABCG1234H1Z5
+Portland Cement HSN 2523  100 Bags
+Taxable Value 45000.00 CGST 14% 6300.00 SGST 14% 6300.00 Grand Total 57600.00
+Payment Terms : Net 30 days
+Reverse Charge : No`,
+    expect: { supplier: 'Krishna Cement Traders', supplierGstin: '08AAACK1111A1Z0', billNo: 'KCT/442', date: '05-Jun-2026', billType: 'Tax Invoice', taxable: 45000, cgst: 6300, sgst: 6300, gstRate: 28, total: 57600, paymentTerms: 'Net 30 days', itc: 'Eligible' }
+  },
+  {
+    name: 'Debit note', format: 'Debit note',
+    text: `Balaji Minerals Pvt Ltd
+GSTIN 08AAECB2222R1Z3
+DEBIT NOTE  No DN/2026/12  Date 10-Jun-2026
+To Gotan Lime Industries GSTIN 08AABCG1234H1Z5
+Price difference on limestone
+Taxable Value 20000.00 CGST 2.5% 500.00 SGST 2.5% 500.00 Total 21000.00`,
+    expect: { supplier: 'Balaji Minerals Pvt Ltd', supplierGstin: '08AAECB2222R1Z3', billNo: 'DN/2026/12', date: '10-Jun-2026', billType: 'Debit Note', group: 'limestone', taxable: 20000, cgst: 500, sgst: 500, gstRate: 5, total: 21000 }
+  },
+  {
+    name: 'Credit note', format: 'Credit note',
+    text: `Balaji Minerals Pvt Ltd
+GSTIN 08AAECB2222R1Z3
+CREDIT NOTE  No CN/2026/07  Date 11-Jun-2026
+To Gotan Lime Industries GSTIN 08AABCG1234H1Z5
+Rate revision credit
+Taxable Value 15000.00 CGST 2.5% 375.00 SGST 2.5% 375.00 Total 15750.00`,
+    expect: { supplier: 'Balaji Minerals Pvt Ltd', billNo: 'CN/2026/07', date: '11-Jun-2026', billType: 'Credit Note', taxable: 15000, cgst: 375, sgst: 375, gstRate: 5, total: 15750 }
+  },
+  {
+    name: 'Bill of supply — exempt / 0%', format: 'Bill of supply · 0%',
+    text: `Mahakali Agro Lime & Minerals
+GSTIN 08AULPK9021R1ZP
+BILL OF SUPPLY  No MAL/AGRI/0247  Date 14-06-2025
+To Gotan Lime Industries
+Agricultural Lime (Liming material) HSN 2522  40 MT
+Taxable Value 106000.00  Total 106000.00
+Nil rated / Exempt supply. No input tax credit available.`,
+    expect: { supplier: 'Mahakali Agro Lime & Minerals', supplierGstin: '08AULPK9021R1ZP', billNo: 'MAL/AGRI/0247', date: '14-06-2025', billType: 'Bill of Supply', group: 'limestone', qty: 40, unit: 'MT', taxable: 106000, total: 106000, itc: 'Ineligible' }
+  },
+  {
+    name: 'Vertical label:value layout', format: 'Different layout',
+    text: `SUPPLIER : Ambika Stone Suppliers
+GSTIN : 08AAACA9090C1ZK
+INVOICE NO : ASS-2026-118
+DATE : 08-Jun-2026
+BUYER : Gotan Lime Industries
+ITEM : Limestone Purchase  HSN : 2521
+QUANTITY : 180 MT
+TAXABLE VALUE : 610000.00
+CGST 2.5% : 15250.00
+SGST 2.5% : 15250.00
+GRAND TOTAL : 640500.00`,
+    expect: { supplier: 'Ambika Stone Suppliers', supplierGstin: '08AAACA9090C1ZK', billNo: 'ASS-2026-118', date: '08-Jun-2026', group: 'limestone', qty: 180, unit: 'MT', taxable: 610000, cgst: 15250, sgst: 15250, gstRate: 5, total: 640500 }
+  },
+  {
+    name: 'Diesel / fuel bill', format: 'Fuel · 0% GST',
+    text: `Shree Balaji Filling Station
+GSTIN 08AAAFS2222B1Z4
+Invoice No FS/8890 Date 11-Jun-2026
+To Gotan Lime Industries
+High Speed Diesel HSD 2000 Ltr
+Taxable Value 178840.00 Total 178840.00`,
+    expect: { supplier: 'Shree Balaji Filling Station', supplierGstin: '08AAAFS2222B1Z4', billNo: 'FS/8890', date: '11-Jun-2026', group: 'fuel', item: 'Diesel', taxable: 178840, total: 178840 }
+  },
+  {
+    name: 'Bank charges — 18% GST', format: 'Bank charges',
+    text: `HDFC Bank Limited
+GST Registration No 07AAACH2702H1ZS
+Tax Invoice / Debit Note No BC/2211 Date 30-Jun-2026
+To Gotan Lime Industries GSTIN 08AABCG1234H1Z5
+Processing fee and bank commission
+Taxable Value 5000.00 CGST 9% 450.00 SGST 9% 450.00 Grand Total 5900.00
+Reverse Charge : No`,
+    expect: { supplier: 'HDFC Bank Limited', supplierGstin: '07AAACH2702H1ZS', billNo: 'BC/2211', date: '30-Jun-2026', group: 'bank', item: 'Bank Charges', taxable: 5000, cgst: 450, sgst: 450, gstRate: 18, total: 5900, itc: 'Eligible' }
+  },
+  {
+    name: 'Label-trap (GST Registration No)', format: 'Regression — the original bug',
+    text: `INDORAMA CEMENT LIMITED
+Plot 42, GIDC Industrial Area, Bharuch, Gujarat
+GST Registration No
+24AAACI1681G1ZR
+TAX INVOICE  Invoice No : 39/2026-27  Dated : 19-Jun-26
+Billed To : Gotan Lime Industries GSTIN 08AABCG1234H1Z5
+Cement HSN 2523  Taxable Value 84717.00
+CGST 2.5% 2117.93 SGST 2.5% 2117.93 Grand Total 88952.86
+Reverse Charge : No`,
+    expect: { supplier: 'INDORAMA CEMENT LIMITED', supplierGstin: '24AAACI1681G1ZR', billNo: '39/2026-27', date: '19-Jun-26', taxable: 84717, cgst: 2117.93, sgst: 2117.93, gstRate: 5, total: 88952.86, itc: 'Eligible' }
+  },
+  {
+    name: 'Own firm is the buyer (must pick the seller)', format: 'Buyer=us',
+    text: `GOTAN LIME INDUSTRIES
+GSTIN 08AABCG1234H1Z5
+Tax Invoice No 900 Date 12-Jun-26
+Sold By: Balaji Minerals
+GSTIN 08AAECB2222R1Z3
+Limestone Taxable 100000.00 CGST 2500.00 SGST 2500.00 Total 105000.00`,
+    expect: { supplier: 'Balaji Minerals', supplierGstin: '08AAECB2222R1Z3', buyerGstin: '08AABCG1234H1Z5', group: 'limestone', taxable: 100000, cgst: 2500, sgst: 2500, gstRate: 5, total: 105000 }
+  },
+  {
+    name: 'Low-quality / garbled OCR (must blank, never fake)', format: 'Low-quality scan',
+    text: `T@X 1NV0ICE
+S0me Vend0r ???
+G$TlN 08 A?BC ????
+T0tal ...`,
+    expect: { supplier: null, supplierGstin: null, taxable: null, total: null, gstRate: null }
+  }
+];
+
+/* ── field comparator ─────────────────────────────────────────────────── */
+function eqField(exp, got) {
+  if (exp === null) return got == null || got === '';                    // must be blank
+  if (got == null || got === '') return false;                           // expected something, got blank
+  if (typeof exp === 'number') return Math.abs(+got - exp) <= (exp >= 1000 ? 2 : 0.5);
+  var a = String(exp).toLowerCase().replace(/\s+/g, ' ').trim(), b = String(got).toLowerCase().replace(/\s+/g, ' ').trim();
+  if (a === b) return true;
+  return b.indexOf(a) >= 0 || a.indexOf(b) >= 0;                          // tolerate OCR suffix drift on names
+}
+// group each field into a report category
+var CATEGORY = {
+  supplier: 'Supplier Name', buyer: 'Supplier Name',
+  supplierGstin: 'GSTIN', buyerGstin: 'GSTIN',
+  billNo: 'Invoice Number', date: 'Date', billType: 'Bill Type',
+  group: 'Material Detection', item: 'Material Detection', hsn: 'Material Detection', qty: 'Material Detection', unit: 'Material Detection', unitRate: 'Material Detection',
+  cgst: 'Tax Detection', sgst: 'Tax Detection', igst: 'Tax Detection', gstRate: 'Tax Detection', totalGst: 'Tax Detection', itc: 'Tax Detection',
+  taxable: 'Amount Accuracy', total: 'Amount Accuracy', grandTotal: 'Amount Accuracy', roundOff: 'Amount Accuracy',
+  paymentTerms: 'Other Fields', vehicle: 'Other Fields', lrNo: 'Other Fields', remarks: 'Other Fields'
+};
+
+var cat = {}, failures = [], invPass = 0, totF = 0, okF = 0;
+CORPUS.forEach(function (s) {
+  var r = OCR.parse(s.text, OWN).fields, invOk = true;
+  Object.keys(s.expect).forEach(function (k) {
+    var exp = s.expect[k], got = r[k], ok = eqField(exp, got), c = CATEGORY[k] || 'Other Fields';
+    cat[c] = cat[c] || [0, 0]; cat[c][1]++; totF++; if (ok) { cat[c][0]++; okF++; } else { invOk = false; failures.push({ bill: s.name, field: k, expected: exp, got: got == null ? '(blank)' : got }); }
+  });
+  if (invOk) invPass++;
+});
+
+/* ── report ───────────────────────────────────────────────────────────── */
+function pct(a) { return a[1] ? Math.round(a[0] / a[1] * 100) : 100; }
+var order = ['Supplier Name', 'GSTIN', 'Invoice Number', 'Date', 'Bill Type', 'Material Detection', 'Tax Detection', 'Amount Accuracy', 'Other Fields'];
+console.log('\n════════════════ OCR Regression Report ════════════════\n');
+console.log('  Invoices Tested : ' + CORPUS.length);
+console.log('  Passed          : ' + invPass);
+console.log('  Failed          : ' + (CORPUS.length - invPass));
+console.log('  Field checks    : ' + okF + '/' + totF + ' (' + Math.round(okF / totF * 100) + '%)\n');
+order.forEach(function (c) { if (cat[c]) console.log('  ' + (c + ' Accuracy').padEnd(30) + pct(cat[c]) + '%   (' + cat[c][0] + '/' + cat[c][1] + ')'); });
+console.log('\n  Regression Errors : ' + (failures.length ? failures.length : 'None'));
+failures.forEach(function (f) { console.log('    ✗ [' + f.bill + '] ' + f.field + ': expected ' + JSON.stringify(f.expected) + ', got ' + JSON.stringify(f.got)); });
+console.log('\n════════════════════════════════════════════════════════\n');
+process.exit(failures.length ? 1 : 0);

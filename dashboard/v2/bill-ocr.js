@@ -131,8 +131,8 @@
     if (buyerG) set('buyerGstin', buyerG, 0.9);
 
     /* Bill number — labelled, must contain a digit and not be a date/GSTIN. */
-    var billNo = '', re = /(?:invoice|bill|inv|voucher|challan|document)[ \t]*(?:no\.?|number|#|id)?[ \t]*[:\-.#]?[ \t]*([A-Za-z0-9][A-Za-z0-9\/\-]{2,24})/ig, mm;
-    while ((mm = re.exec(T))) { var cand = mm[1].replace(/[^A-Za-z0-9\/\-]/g, ''); var digits = (cand.match(/\d/g) || []).length; if (digits && (digits >= 2 || /[\/\-]/.test(cand)) && !/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/i.test(cand) && !/^\d{1,2}[\/\-]\d/.test(cand)) { billNo = cand; break; } }
+    var billNo = '', re = /(?:invoice|bill(?:\s*of\s*supply)?|inv|voucher|challan|document|consignment(?:\s*note)?|note)[ \t]*(?:no\.?|number|#|id)?[ \t]*[:\-.#]?[ \t]*([A-Za-z0-9\/\-]{0,22}\d[A-Za-z0-9\/\-]{0,6})/ig, mm;
+    while ((mm = re.exec(T))) { var cand = mm[1].replace(/[^A-Za-z0-9\/\-]/g, ''); var digits = (cand.match(/\d/g) || []).length; if (digits && (digits >= 2 || /[\/\-]/.test(cand)) && !/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/i.test(cand) && !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(cand)) { billNo = cand; break; } }
     if (billNo) set('billNo', billNo, /no|number|#/i.test(T.slice(Math.max(0, T.toUpperCase().indexOf(billNo.toUpperCase()) - 24), T.toUpperCase().indexOf(billNo.toUpperCase()))) ? 0.9 : 0.7);
 
     /* Date */
@@ -170,10 +170,31 @@
     /* HSN, qty, rate/unit, vehicle */
     var hsn = (T.match(/\bHSN(?:\s*\/?\s*SAC)?\s*(?:code|no)?\s*[:\-]?\s*(\d{4,8})\b/i) || [])[1] || (T.match(/\b(2521|2522|2523|2701|2713|3923|6305|4819)\d{0,4}\b/) || [])[0];
     if (hsn) set('hsn', hsn, 0.75);
-    var qm = T.match(/([\d,]+\.?\d*)\s*(?:m\.?t\.?|tonne?s?|\bton\b|kgs?|nos|bags?|ltr|litre|units?)\b/i);
-    if (qm) set('qty', nMoney(qm[1]), 0.6);
+    // Quantity + unit. Try unambiguous units first (MT/TON/KG/NOS/BAGS/…); only
+    // then the ambiguous tonne "TO" (decimal qty, not the preposition "To:").
+    var qm = T.match(/([\d,]+(?:\.\d+)?)\s*(m\.?t\.?|tonnes?|\bton\b|kgs?|nos|bags?|ltrs?|litres?|units?|qtls?)\b/i)
+      || T.match(/([\d,]+\.\d{1,3})\s*(to)\b(?!\s*[:.])/i);
+    if (qm) set('qty', parseFloat(qm[1].replace(/,/g, '')), 0.6);
     var vm = norm(T).match(/\b([A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{1,3}[\s\-]?\d{3,4})\b/);
     if (vm) set('vehicle', vm[1].replace(/[\s\-]/g, ''), 0.6);
+    // Document type
+    var bt = /\bcredit\s*note\b/i.test(T) ? 'Credit Note' : /\bdebit\s*note\b/i.test(T) ? 'Debit Note'
+      : /\bbill\s*of\s*supply\b/i.test(T) ? 'Bill of Supply' : /\btax\s*invoice\b/i.test(T) ? 'Tax Invoice'
+        : /\binvoice\b/i.test(T) ? 'Invoice' : '';
+    if (bt) set('billType', bt, /credit\s*note|debit\s*note|bill\s*of\s*supply|tax\s*invoice/i.test(T) ? 0.9 : 0.5);
+    // Unit (captured with the quantity) + unit rate (taxable ÷ qty is most reliable)
+    if (qm && qm[2]) set('unit', qm[2].toUpperCase().replace(/\./g, ''), 0.6);
+    if (f.taxable != null && f.qty) set('unitRate', round2(f.taxable / f.qty), 0.55);
+    // LR / consignment note number
+    var lr = (T.match(/\b(?:l\.?r\.?|lorry\s*receipt)\s*(?:no|number)?\s*[:.\-#]*\s*([A-Z0-9\/\-]{3,20})/i) || [])[1];
+    if (lr && /\d/.test(lr)) set('lrNo', lr, 0.6);
+    // Payment terms
+    var pt = (T.match(/(?:payment\s*terms?|terms?\s*of\s*payment)\s*[:\-]?\s*([^\n]{2,40})/i) || [])[1];
+    if (!pt) { var pm = T.match(/\b(net\s*\d{1,3}\s*days?|due\s*on\s*receipt|advance\s*payment|\d{1,3}\s*days?\s*credit)\b/i); if (pm) pt = pm[1]; }
+    if (pt) set('paymentTerms', clean(pt).replace(/[.;].*$/, ''), 0.55);
+    // Remarks / narration
+    var rm = (T.match(/(?:remarks?|narration)\s*[:\-]?\s*([^\n]{2,60})/i) || [])[1];
+    if (rm) set('remarks', clean(rm), 0.5);
 
     /* Purchase group / item — from the DESCRIPTION lines only. Strip metadata
        lines first ("Transporter: …", "Vehicle No: …") so a transporter's name
@@ -191,6 +212,9 @@
     if (rcmYes && !rcmNo) set('itc', 'RCM', 0.7);
     else if (/itc\s*(?:not\s*(?:eligible|available)|inelig|blocked)|input\s*tax\s*credit\s*(?:not\s*available|blocked)|ineligible|exempt(?:ed)?\s*supply|nil\s*rated/i.test(T)) set('itc', 'Ineligible', 0.7);
     else if (totalGst != null && totalGst > 0) set('itc', 'Eligible', 0.65);
+
+    /* Grand total = the final payable (same as total on most bills). */
+    if (f.total != null) set('grandTotal', f.total, conf.total || 0.7);
 
     /* ── needs-review: any field we couldn't pin down confidently ───────── */
     var CORE = ['supplier', 'date', 'taxable', 'total', 'gstRate'];
@@ -286,7 +310,7 @@
       }
       return null;
     }
-    out.taxable = firstAmtAfter(/taxable\s*(?:value|amount|amt)|total\s*taxable|basic\s*(?:value|amount)|assessable\s*value|amount\s*before\s*tax/i);
+    out.taxable = firstAmtAfter(/taxable(?:\s*(?:value|amount|amt))?|total\s*taxable|basic\s*(?:value|amount)|assessable\s*value|amount\s*before\s*tax/i);
     if (out.taxable != null) out.conf.taxable = 0.85;
     out.cgst = firstAmtAfter(/\bc\s*gst\b|central\s*tax/i); if (out.cgst != null) out.conf.cgst = 0.8;
     out.sgst = firstAmtAfter(/\bs\s*gst\b|state\s*tax|\bugst\b/i); if (out.sgst != null) out.conf.sgst = 0.8;
