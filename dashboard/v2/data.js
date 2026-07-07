@@ -45,7 +45,7 @@
       bank: 'BANK OF BARODA', bankBranch: 'MERTA CITY', accNo: '33580500001254', ifsc: 'BARB0MERTAC',
       bank2: 'HDFC BANK', bankBranch2: 'UMAID STADIUM', accNo2: '50200084904066', ifsc2: 'HDFC0001845',
       product: 'MANUFACTURES OF QUICK LIME AND HYDRATED LIME', msme: 'UDYAM-RJ -25-0061325',
-      logo: '/v2/gotan-logo.svg', tan: '', jurisdiction: 'MERTA CITY'
+      logo: '/v2/gotan-logo.png', tan: '', jurisdiction: 'MERTA CITY'
     }
   };
 
