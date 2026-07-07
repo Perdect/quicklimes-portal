@@ -1,0 +1,103 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Customer Intelligence (parties.js) — CRM visual layer.
+   Avatars · segment pills · health bars/rings · sparklines · AI insights
+   band · payment cards · order timeline. Token-based so dark mode adapts.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── AI Insights band (glass) ── */
+.crm-ai { margin: 2px 0 16px; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-xl, 16px);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ql-brand-500) 6%, var(--ql-card)) 0%, var(--ql-card) 55%);
+  box-shadow: var(--ql-shadow-sm); overflow: hidden; }
+.crm-ai-head { display: flex; align-items: center; gap: 8px; padding: 11px 15px 3px; }
+.crm-ai-head svg { width: 16px; height: 16px; fill: var(--ql-brand-500); stroke: none; }
+.crm-ai-head span { font-weight: 800; font-size: 13px; letter-spacing: -.01em; background: linear-gradient(90deg, var(--ql-brand-600), #8b5cf6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.crm-ai-head em { font-style: normal; font-size: 11px; color: var(--ql-text-tertiary, var(--ql-text-secondary)); margin-left: auto; }
+.crm-ai-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 8px 13px 14px; }
+.crm-ai-c { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border-radius: var(--ql-radius-lg, 12px);
+  background: var(--ql-card); border: 1px solid var(--ql-border); }
+.crm-ai-ic { font-size: 19px; line-height: 1; flex: none; margin-top: 1px; }
+.crm-ai-tx { min-width: 0; }
+.crm-ai-tx b { display: block; font-size: 12.5px; font-weight: 700; color: var(--ql-text); line-height: 1.25; }
+.crm-ai-tx span { display: block; font-size: 11.5px; color: var(--ql-text-secondary); margin-top: 2px; line-height: 1.35; }
+.crm-ai-c.t-rose { border-left: 3px solid #ef4444; }
+.crm-ai-c.t-amber { border-left: 3px solid #f59e0b; }
+.crm-ai-c.t-blue { border-left: 3px solid var(--ql-brand-500); }
+.crm-ai-c.t-green { border-left: 3px solid #22c55e; }
+.crm-ai-c.t-slate { border-left: 3px solid #94a3b8; }
+
+/* ── customer cell (avatar + name) ── */
+.crm-cust { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.crm-av { flex: none; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #fff;
+  background: var(--av); box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); letter-spacing: -.02em; }
+.crm-cust-t { display: flex; flex-direction: column; min-width: 0; }
+.crm-cust-n { font-weight: 600; font-size: 13.5px; color: var(--ql-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crm-cust-s { font-size: 11px; color: var(--ql-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── segment pill ── */
+.crm-seg { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 7px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 700; background: var(--sb); color: var(--sf); white-space: nowrap; }
+.crm-seg i { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+
+/* ── health bar (in table) ── */
+.crm-hb { display: flex; align-items: center; gap: 7px; justify-content: flex-end; }
+.crm-hb-t { width: 46px; height: 6px; border-radius: 99px; background: var(--ql-neutral-150, #eef1f6); overflow: hidden; }
+.crm-hb-f { height: 100%; border-radius: 99px; transition: width .3s ease; }
+.crm-hb b { font-size: 12px; font-weight: 700; min-width: 20px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── health ring (drawer) ── */
+.crm-ring { position: relative; flex: none; }
+.crm-ring-v { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1; }
+.crm-ring-v b { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.crm-ring-v span { font-size: 10px; color: var(--ql-text-secondary); font-weight: 600; }
+
+/* ── sparkline ── */
+.crm-spark { display: block; overflow: visible; }
+
+/* ── mini month bars ── */
+.crm-mbars { display: flex; align-items: flex-end; gap: 8px; height: 78px; padding: 6px 2px 0; }
+.crm-mbar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; height: 100%; }
+.crm-mbar-t { flex: 1; width: 100%; max-width: 26px; display: flex; align-items: flex-end; }
+.crm-mbar-f { width: 100%; border-radius: 5px 5px 3px 3px; background: linear-gradient(180deg, var(--ql-brand-400), var(--ql-brand-600)); min-height: 3px; }
+.crm-mbar span { font-size: 10px; color: var(--ql-text-secondary); font-weight: 600; }
+
+/* ── drawer hero ── */
+.crm-dhero { display: flex; align-items: center; gap: 16px; padding: 4px 0 14px; margin-bottom: 4px; border-bottom: 1px solid var(--ql-border); }
+.crm-dhero-x { min-width: 0; }
+.crm-dhero-m { margin-top: 8px; }
+.crm-dhero-m b { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+.crm-dhero-m span { font-size: 11px; color: var(--ql-text-secondary); margin-left: 6px; }
+.crm-dhero-sub { font-size: 12px; color: var(--ql-text-secondary); margin-top: 3px; }
+
+/* ── health component breakdown ── */
+.crm-comp { margin: 12px 0; }
+.crm-comp-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+.crm-comp-h span { font-size: 12.5px; font-weight: 600; color: var(--ql-text); }
+.crm-comp-h b { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ql-text-secondary); }
+.crm-comp-d { font-size: 11.5px; color: var(--ql-text-secondary); margin-top: 4px; }
+.crm-note { margin-top: 16px; padding: 11px 13px; border-radius: var(--ql-radius-lg, 12px); background: var(--ql-bg);
+  border: 1px solid var(--ql-border); font-size: 12px; color: var(--ql-text-secondary); line-height: 1.45; }
+
+/* ── payments tab ── */
+.crm-paygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 6px 0 6px; }
+.crm-paycard { padding: 10px 12px; border-radius: var(--ql-radius-lg, 12px); background: var(--ql-bg); border: 1px solid var(--ql-border); }
+.crm-paycard span { display: block; font-size: 11px; color: var(--ql-text-secondary); font-weight: 600; }
+.crm-paycard b { display: block; font-size: 16px; font-weight: 800; margin-top: 3px; letter-spacing: -.01em; }
+
+/* ── order timeline ── */
+.crm-tlwrap { position: relative; margin-top: 8px; padding-left: 4px; }
+.crm-tl { position: relative; display: flex; gap: 11px; padding: 0 0 13px 14px; }
+.crm-tl::before { content: ""; position: absolute; left: 4px; top: 4px; bottom: -4px; width: 2px; background: var(--ql-border); }
+.crm-tl:last-child::before { display: none; }
+.crm-tl-dot { position: absolute; left: 0; top: 3px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--ql-card); box-shadow: 0 0 0 1px var(--ql-border); }
+.crm-tl-b { flex: 1; min-width: 0; }
+.crm-tl-r { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+.crm-tl-r b { font-size: 13px; font-weight: 700; }
+.crm-num { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.crm-mut { font-size: 12px; color: var(--ql-text-secondary); }
+.crm-st { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; }
+.crm-flag { display: inline-grid; place-content: center; width: 14px; height: 14px; border-radius: 50%; background: #ef4444;
+  color: #fff; font-size: 10px; font-weight: 800; font-style: normal; vertical-align: middle; }
+
+/* ── responsive ── */
+@media (max-width: 900px) { .crm-ai-grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .crm-paygrid { grid-template-columns: 1fr 1fr; } .crm-dhero-m b { font-size: 18px; } }
