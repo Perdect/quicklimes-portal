@@ -53,6 +53,48 @@ function tabBills(r) {
     <div class="qx-sec-h">Pending invoices</div>${bills}`;
 }
 
+/* Apply a received amount oldest-bill-first across a customer's pending
+   invoices (each posts to the cashbook via receiveSalesPayment). */
+function applyReceipt(r, amount, method) {
+  let remaining = amount, applied = 0;
+  r.invs.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach(b => {
+    if (remaining <= 0.5) return;
+    const pay = Math.min(remaining, b.outstanding);
+    if (pay > 0.5) { Q.receiveSalesPayment(b.idx, { amount: pay, method }); remaining -= pay; applied += pay; }
+  });
+  return applied;
+}
+function receivePayment(r) {
+  let back = document.getElementById('collPayBack');
+  if (!back) { back = document.createElement('div'); back.id = 'collPayBack'; document.body.appendChild(back); }
+  back.setAttribute('style', 'position:fixed;inset:0;z-index:4000;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px)');
+  const inp = 'width:100%;font:inherit;font-size:15px;padding:11px 13px;border:1.5px solid var(--ql-border);border-radius:10px;outline:none;background:var(--ql-card);color:var(--ql-text);margin-top:6px';
+  const lbl = 'display:block;font-size:12.5px;font-weight:600;color:var(--ql-text-secondary);margin-top:14px';
+  back.innerHTML = `<div style="background:var(--ql-card);border-radius:16px;max-width:400px;width:100%;box-shadow:0 24px 60px rgba(15,23,42,.28);overflow:hidden;font-family:inherit">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--ql-border)">
+      <div style="font-size:15px;font-weight:700;color:var(--ql-text)">Receive payment</div>
+      <button id="cpX" style="border:none;background:transparent;font-size:22px;line-height:1;color:var(--ql-text-muted);cursor:pointer">&times;</button>
+    </div>
+    <div style="padding:18px 20px">
+      <div style="font-size:12.5px;color:var(--ql-text-muted)">${esc(r.party)} · ${r.bills} pending invoice${r.bills > 1 ? 's' : ''} · <b style="color:var(--ql-danger-600)">${fC(r.out)}</b> due</div>
+      <label style="${lbl}">Amount received<input id="cpAmt" type="number" min="0" value="${Math.round(r.out)}" style="${inp}"></label>
+      <label style="${lbl}">Method<select id="cpMode" style="${inp}"><option>Bank</option><option>Cash</option><option>UPI</option><option>Cheque</option></select></label>
+      <div style="font-size:11.5px;color:var(--ql-text-muted);margin-top:10px">Applied to the oldest bill first across their pending invoices, and posted to the cashbook.</div>
+      <button id="cpGo" class="ql-btn ql-btn-primary" style="width:100%;margin-top:16px;justify-content:center">Receive payment</button>
+    </div></div>`;
+  const close = () => back.remove();
+  back.onclick = e => { if (e.target === back) close(); };
+  document.getElementById('cpX').onclick = close;
+  document.getElementById('cpGo').onclick = () => {
+    const amt = +document.getElementById('cpAmt').value || 0, method = document.getElementById('cpMode').value;
+    if (amt <= 0) { toast('Enter an amount', 'err'); return; }
+    const applied = applyReceipt(r, amt, method);
+    close(); if (QLX.close) QLX.close();
+    toast('Received ' + fC(applied) + ' from ' + r.party, 'ok');
+    QLX.refresh();
+  };
+}
+
 QLX.mount({
   active: 'collections', title: 'Collections', accent: 'blue', noun: 'customer', nounPl: 'customers',
   icon: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>',
@@ -91,9 +133,11 @@ QLX.mount({
   ],
   rowActions: r => [
     { tt: 'Details', icon: IC.eye, onClick: r => QLX.open(r.idx) },
-    ...(r.phone ? [{ tt: 'Send WhatsApp reminder', icon: IC.wa, cls: 'qx-ib-ok', onClick: r => window.open(waLink(r.phone, reminderMsg(r)), '_blank') }] : [])
+    ...(r.phone ? [{ tt: 'Send WhatsApp reminder', icon: IC.wa, onClick: r => window.open(waLink(r.phone, reminderMsg(r)), '_blank') }] : []),
+    { tt: 'Receive payment', icon: IC.check, cls: 'qx-ib-ok', onClick: r => receivePayment(r) }
   ],
   rowMenu: r => [
+    { label: 'Receive payment', icon: IC.check, onClick: r => receivePayment(r) },
     { label: 'Details', icon: IC.eye, onClick: r => QLX.open(r.idx) },
     ...(r.phone ? [{ label: 'WhatsApp reminder', icon: IC.wa, onClick: r => window.open(waLink(r.phone, reminderMsg(r)), '_blank') }, { label: 'Call', icon: IC.call, onClick: r => location.href = 'tel:' + r.phone }] : [])
   ],
@@ -102,7 +146,8 @@ QLX.mount({
   detail: r => ({
     eyebrow: 'Collection', title: esc(r.party), sub: fC(r.out) + ' across ' + r.bills + ' invoice' + (r.bills > 1 ? 's' : ''),
     actions: [
-      ...(r.phone ? [{ label: 'Send reminder', icon: IC.wa, primary: true, onClick: r => window.open(waLink(r.phone, reminderMsg(r)), '_blank') }, { label: 'Call', icon: IC.call, onClick: r => location.href = 'tel:' + r.phone }] : [])
+      { label: 'Receive payment', icon: IC.check, primary: true, onClick: r => receivePayment(r) },
+      ...(r.phone ? [{ label: 'Send reminder', icon: IC.wa, onClick: r => window.open(waLink(r.phone, reminderMsg(r)), '_blank') }, { label: 'Call', icon: IC.call, onClick: r => location.href = 'tel:' + r.phone }] : [])
     ],
     tabs: [{ label: 'Outstanding', icon: IC.file, render: tabBills }]
   })
