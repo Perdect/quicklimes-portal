@@ -81,15 +81,22 @@ function monthMetrics() {
 }
 function openDashMonthMenu(anchor) {
   document.querySelectorAll('.dx-month-menu').forEach(x => x.remove());
-  const months = availMonths(), menu = document.createElement('div');
+  const have = new Set(availMonths()), cur = monthSel();
+  let year = +((cur || new Date().toISOString().slice(0, 7)).slice(0, 4)) || new Date().getFullYear();
+  const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const menu = document.createElement('div');
   menu.className = 'dx-month-menu';
-  const lbl = m => { try { return new Date(m + '-01T00:00').toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }); } catch (_) { return m; } };
-  menu.innerHTML = months.map(m => `<button class="dx-mm-i${m === dashMonth ? ' on' : ''}" data-m="${m}">${lbl(m)}</button>`).join('') +
-    `<button class="dx-mm-i${!monthSel() ? ' on' : ''}" data-m="all">All months</button>`;
   const r = anchor.getBoundingClientRect();
-  menu.style.cssText = `position:fixed;top:${r.bottom + 6}px;left:${r.left}px;min-width:160px;max-height:280px;overflow:auto;background:#fff;border:1px solid var(--ql-border);border-radius:12px;box-shadow:var(--ql-shadow-lg);z-index:500;padding:6px`;
+  menu.style.cssText = `position:fixed;top:${r.bottom + 6}px;left:${Math.min(r.left, window.innerWidth - 280)}px;z-index:1500`;
+  function paint() {
+    menu.innerHTML = `<div class="dx-mm-yr"><button class="dx-mm-nav" data-yr="-1">${svg('<polyline points="15 18 9 12 15 6"/>')}</button><span>${year}</span><button class="dx-mm-nav" data-yr="1">${svg('<polyline points="9 18 15 12 9 6"/>')}</button></div>
+      <div class="dx-mm-grid">${MN.map((mn, i) => { const ym = year + '-' + String(i + 1).padStart(2, '0'); return `<button class="dx-mm-cell${cur === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-m="${ym}">${mn}</button>`; }).join('')}</div>
+      <button class="dx-mm-all${!cur ? ' on' : ''}" data-m="all">All months</button>`;
+    menu.querySelectorAll('[data-yr]').forEach(b => b.onclick = () => { year += +b.dataset.yr; paint(); });
+    menu.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { dashMonth = b.dataset.m; menu.remove(); render(); });
+  }
+  paint();
   document.body.appendChild(menu);
-  menu.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { dashMonth = b.dataset.m; menu.remove(); render(); });
   setTimeout(() => document.addEventListener('click', function h(e) { if (!menu.contains(e.target) && e.target.id !== 'dxMonth' && !anchor.contains(e.target)) { menu.remove(); document.removeEventListener('click', h); } }), 0);
 }
 

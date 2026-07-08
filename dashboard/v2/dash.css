@@ -148,3 +148,21 @@
 @media(max-width:1180px){.dx-kpis,.dx-mks{grid-template-columns:repeat(3,1fr)}.dx-hero{grid-template-columns:1fr}.dx-fin{grid-template-columns:1fr 1fr}}
 @media(max-width:820px){.dx-mid{grid-template-columns:1fr}}
 @media(max-width:640px){.dx-kpis,.dx-mks{grid-template-columns:1fr 1fr}.dx-fin{grid-template-columns:1fr 1fr}.dx-h1{font-size:21px}.dx-fbar{padding:12px 2px}.dx-fbar-r{width:100%}.dx-range{flex:1}.dx-range button{flex:1;padding:6px 4px}.dx-kpi-sp{display:none}.dx-fab{right:16px;bottom:16px}}
+
+/* Dashboard month picker — calendar grid (matches the QLX month picker) */
+.dx-month-menu { position: fixed; background: var(--ql-card, #fff); border: 1px solid var(--ql-border); border-radius: 14px; box-shadow: var(--ql-shadow-lg); padding: 12px; width: 264px; animation: dxMmIn .13s var(--ql-ease-out, ease-out); }
+@keyframes dxMmIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+.dx-mm-yr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.dx-mm-yr span { font-size: 14px; font-weight: 700; color: var(--ql-text); font-variant-numeric: tabular-nums; }
+.dx-mm-nav { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--ql-border); border-radius: 8px; background: var(--ql-card); color: var(--ql-text-secondary); cursor: pointer; transition: background .15s, border-color .15s; }
+.dx-mm-nav:hover { background: var(--ql-neutral-50, #f8fafc); }
+.dx-mm-nav svg { width: 15px; height: 15px; }
+.dx-mm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.dx-mm-cell { position: relative; height: 38px; border: 1px solid var(--ql-border); border-radius: 9px; background: var(--ql-card); color: var(--ql-text-secondary); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all .13s; }
+.dx-mm-cell:hover { border-color: var(--ql-brand-400, #60a5fa); color: var(--ql-brand-600); background: var(--ql-brand-50, #eff4ff); }
+.dx-mm-cell.has::after { content: ""; position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--ql-brand-500); }
+.dx-mm-cell.on { background: var(--ql-brand-600); border-color: var(--ql-brand-600); color: #fff; box-shadow: 0 4px 10px -4px rgba(37, 99, 235, .6); }
+.dx-mm-cell.on.has::after { background: #fff; }
+.dx-mm-all { width: 100%; margin-top: 10px; height: 36px; border: 1px solid var(--ql-border); border-radius: 9px; background: var(--ql-neutral-50, #f8fafc); color: var(--ql-text); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all .13s; }
+.dx-mm-all:hover { border-color: var(--ql-brand-400, #60a5fa); color: var(--ql-brand-600); }
+.dx-mm-all.on { background: var(--ql-brand-600); border-color: var(--ql-brand-600); color: #fff; }
