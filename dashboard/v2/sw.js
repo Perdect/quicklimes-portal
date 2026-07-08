@@ -1,7 +1,7 @@
 /* QuickLimes v2 — service worker (installable PWA + offline shell).
    Local-first app: data lives in localStorage, so once the CSS/JS shell is cached
    the app opens offline. Never caches the /api backend or cross-origin requests. */
-const CACHE = 'ql-v2-cache-3';   // bumped: new Gotan branding icons/splash — clears old cached icons
+const CACHE = 'ql-v2-cache-4';   // bumped: purge stale cached pages so updates (month picker etc.) show
 
 self.addEventListener('install', () => self.skipWaiting());
 
