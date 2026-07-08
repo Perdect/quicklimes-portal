@@ -637,6 +637,9 @@
     { k: 'gstin', label: 'GSTIN', upper: true },
     { k: 'phone', label: 'Phone' },
     { k: 'state', label: 'State' },
+    { k: 'opening', label: 'Opening balance (₹)', type: 'number', ph: '+ they owe you · − you owe them' },
+    { k: 'creditLimit', label: 'Credit limit (₹)', type: 'number', ph: '0 = none' },
+    { k: 'creditDays', label: 'Credit days', type: 'number', ph: 'e.g. 30' },
     { k: 'address', label: 'Address', type: 'textarea', full: true },
     { k: 'notes', label: 'Notes', type: 'textarea', full: true }
   ];
@@ -649,7 +652,11 @@
       initial: row || { type: 'customer' },
       onSave(v) {
         if (editing) { Object.assign(window.QLD.state.PARTIES[idx], v); window.QLD.commit(); }
-        else window.QLD.upsertParty(v.name, v.gstin, v.phone, v.address, v.state, v.type);
+        else {
+          window.QLD.upsertParty(v.name, v.gstin, v.phone, v.address, v.state, v.type);
+          const p = window.QLD.state.PARTIES.find(x => (x.name || '').toUpperCase() === (v.name || '').toUpperCase());
+          if (p) { p.opening = +v.opening || 0; p.creditLimit = +v.creditLimit || 0; p.creditDays = +v.creditDays || 0; if (v.notes) p.notes = v.notes; window.QLD.commit(); }
+        }
         refresh(editing ? 'Party updated' : 'Party added');
       }
     });

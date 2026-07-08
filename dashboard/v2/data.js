@@ -274,7 +274,7 @@
       if (state && !p.state) p.state = state;
       if (type && p.type !== type && p.type !== 'both') p.type = type;
     } else {
-      S.PARTIES.push({ id: 'p' + idStamp(), name: name.trim(), gstin: upper(gstin), phone: phone || '', address: address || '', state: state || '', type: type || 'customer', notes: '' });
+      S.PARTIES.push({ id: 'p' + idStamp(), name: name.trim(), gstin: upper(gstin), phone: phone || '', address: address || '', state: state || '', type: type || 'customer', notes: '', opening: 0, creditLimit: 0, creditDays: 0 });
     }
     commit();
   }
@@ -647,7 +647,10 @@
   function partyRows() {
     return S.PARTIES.map((p, i) => ({
       idx: i, name: p.name, gstin: p.gstin || '', phone: p.phone || '',
-      address: p.address || '', state: p.state || '', type: p.type || 'customer', notes: p.notes || ''
+      address: p.address || '', state: p.state || '', type: p.type || 'customer', notes: p.notes || '',
+      // Running-account fields (bank-ledger model): opening balance (+ = they owe us),
+      // credit limit & credit days for terms/overdue tracking.
+      opening: +p.opening || 0, creditLimit: +p.creditLimit || 0, creditDays: +p.creditDays || 0
     }));
   }
   function partySummary() {

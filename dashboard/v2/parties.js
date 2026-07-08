@@ -78,8 +78,8 @@ function enriched() {
   });
   Q.purchaseRows().forEach(p => {
     const k = resolve(p.sup, p.gstin); if (k < 0) return;
-    const b = purBy[k] || (purBy[k] = { amt: 0, due: 0, n: 0, last: '', rows: [] });
-    b.amt += p.total; b.due += p.outstanding; b.n++; if (p.date > b.last) b.last = p.date; b.rows.push(p);
+    const b = purBy[k] || (purBy[k] = { amt: 0, due: 0, paid: 0, n: 0, last: '', rows: [] });
+    b.amt += p.total; b.due += p.outstanding; b.paid += (p.paid || 0); b.n++; if (p.date > b.last) b.last = p.date; b.rows.push(p);
   });
   const totalRev = Object.values(salesBy).reduce((a, b) => a + b.amt, 0) || 1;
   const revSorted = Object.values(salesBy).map(b => b.amt).sort((a, b) => b - a);
@@ -87,7 +87,7 @@ function enriched() {
 
   return parties.map(r => {
     const s = salesBy[r.idx] || { amt: 0, due: 0, paid: 0, n: 0, last: '', rows: [], overdue: 0 };
-    const p = purBy[r.idx] || { amt: 0, due: 0, n: 0, last: '', rows: [] };
+    const p = purBy[r.idx] || { amt: 0, due: 0, paid: 0, n: 0, last: '', rows: [] };
     const salesRec = s.last ? dDays(s.last) : 99999;
     const recDays = s.last ? salesRec : (p.last ? dDays(p.last) : 99999);
     const collRate = s.amt > 0 ? Math.min(1, s.paid / s.amt) : 1;
@@ -107,12 +107,19 @@ function enriched() {
     else if (s.amt >= top20cut && health >= 64) seg = 'vip';
     else if (s.n <= 1 && salesRec <= 45) seg = 'new';
     else seg = 'regular';
+    // ── Running account (bank-ledger model): receivable-positive convention ──
+    const opening = +r.opening || 0;
+    const currentBalance = opening + s.amt - s.paid - p.amt + p.paid;  // + = they owe us, − = we owe them
+    const advance = currentBalance < 0 ? -currentBalance : 0;
+    const creditLimit = +r.creditLimit || 0;
+    const creditUtil = creditLimit > 0 ? Math.max(0, currentBalance) / creditLimit : null;
     return Object.assign({}, r, {
       salesAmt: s.amt, salesDue: s.due, salesPaid: s.paid, salesN: s.n, salesLast: s.last, overdue: s.overdue,
       invoices: s.rows.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')),
-      purAmt: p.amt, purDue: p.due, purN: p.n, purLast: p.last, purRows: p.rows,
+      purAmt: p.amt, purDue: p.due, purPaid: p.paid, purN: p.n, purLast: p.last, purRows: p.rows,
       business: s.amt + p.amt, due: s.due + p.due, recDays, salesRec, collRate, health,
-      hc: { pay: hPay, time: hTime, rec: hRec, loy: hLoy }, avgOrder, share, spark, seg
+      hc: { pay: hPay, time: hTime, rec: hRec, loy: hLoy }, avgOrder, share, spark, seg,
+      opening, currentBalance, advance, creditLimit, creditUtil
     });
   });
 }
@@ -187,12 +194,13 @@ function tabOverview(r) {
     ${r.phone ? `<a class="wa" href="${waLink(r.phone, waReminder(r))}" target="_blank">${svg(IC.wa)} WhatsApp</a>` : ''}
     ${r.phone ? `<a class="call" href="tel:${esc(r.phone)}">${svg(IC.call)} Call</a>` : ''}
     ${!r.phone ? '<span class="qx-mut" style="font-size:12px">No phone on file — add it to enable contact.</span>' : ''}</div>`;
+  const bc = r.currentBalance > 0.5 ? 'var(--ql-danger-600)' : r.currentBalance < -0.5 ? '#16a34a' : 'var(--ql-text)';
   const hero = `<div class="crm-dhero">
     ${healthRing(r.health)}
     <div class="crm-dhero-x">
       <div>${segPill(r)}</div>
-      <div class="crm-dhero-m"><b>${fC(r.business)}</b><span>lifetime business</span></div>
-      <div class="crm-dhero-sub">${r.salesN} orders · last ${relDays(r.salesRec)}${r.due ? ' · <span style="color:var(--ql-danger-600)">' + fC(r.due) + ' due</span>' : ''}</div>
+      <div class="crm-dhero-m"><b style="color:${bc}">${drcr(r.currentBalance)}</b><span>current balance</span></div>
+      <div class="crm-dhero-sub">${fC(r.business)} lifetime · ${r.salesN} orders${r.advance > 0.5 ? ' · <span style="color:#16a34a">' + fC(Math.round(r.advance)) + ' advance</span>' : ''}</div>
     </div></div>`;
   return hero +
     `<div class="qx-sec-h">Contact</div>
@@ -248,6 +256,58 @@ function tabOrders(r) {
         ${s.outstanding > 0.5 ? `<div class="crm-mut" style="color:var(--ql-danger-600);font-size:11.5px">${fC(s.outstanding)} outstanding</div>` : ''}
       </div></div>`).join('');
   return chart + `<div class="qx-sec-h">Order history (${r.invoices.length})</div><div class="crm-tlwrap">${list}</div>`;
+}
+
+/* ═══════════ RUNNING ACCOUNT LEDGER (bank-statement model) ═══════════
+   Merges every money event chronologically into one running balance — NOT
+   1-payment-1-invoice. Receivable-positive convention:
+     Sales invoice = Debit (they owe more) · Receipt = Credit
+     Purchase bill = Credit (we owe them) · Payment made = Debit
+   Opening balance seeds the running total; advances fall out naturally as a
+   negative balance. */
+function buildLedger(r) {
+  const ev = [];
+  (r.invoices || []).forEach(s => {
+    ev.push({ date: s.date, o: 1, ref: s.inv, desc: 'Sales Invoice', dr: s.total, cr: 0 });
+    const pays = (s.payments && s.payments.length) ? s.payments : (s.paid > 0.5 ? [{ date: s.paidDate || s.date, amount: s.paid }] : []);
+    pays.forEach(p => ev.push({ date: p.date || s.date, o: 2, ref: s.inv, desc: 'Payment received', dr: 0, cr: +p.amount || 0 }));
+  });
+  (r.purRows || []).forEach(b => {
+    ev.push({ date: b.date, o: 1, ref: b.bill, desc: 'Purchase Bill', dr: 0, cr: b.total });
+    const pays = (b.payments && b.payments.length) ? b.payments : (b.paid > 0.5 ? [{ date: b.date, amount: b.paid }] : []);
+    pays.forEach(p => ev.push({ date: p.date || b.date, o: 2, ref: b.bill, desc: 'Payment made', dr: +p.amount || 0, cr: 0 }));
+  });
+  ev.sort((a, b) => (a.date || '').localeCompare(b.date || '') || a.o - b.o);
+  let bal = +r.opening || 0;
+  ev.forEach(e => { bal += e.dr - e.cr; e.bal = bal; });
+  return { opening: +r.opening || 0, rows: ev, closing: bal };
+}
+function drcr(v) { const a = Math.round(Math.abs(v)); if (a < 1) return '₹0'; return fC(a) + ' ' + (v >= 0 ? 'Dr' : 'Cr'); }
+function creditBar(r) {
+  if (!(r.creditLimit > 0)) return '';
+  const util = Math.max(0, r.currentBalance) / r.creditLimit, pct = Math.round(util * 100), over = util > 1;
+  const col = over ? '#dc2626' : util > 0.8 ? '#d97706' : '#16a34a';
+  return `<div class="qx-sec-h">Credit utilization</div><div class="crm-hb" style="margin-bottom:2px"><div class="crm-hb-t"><div class="crm-hb-f" style="width:${Math.min(100, pct)}%;background:${col}"></div></div><b style="color:${col}">${pct}%</b></div>` +
+    (over ? `<div class="crm-note" style="margin-top:6px;color:#b91c1c">⚠️ Over credit limit by ${fC(Math.round(r.currentBalance - r.creditLimit))}.</div>` : '');
+}
+function tabLedger(r) {
+  const L = buildLedger(r), bal = L.closing;
+  const balCol = bal > 0.5 ? 'var(--ql-danger-600)' : bal < -0.5 ? '#16a34a' : 'var(--ql-text)';
+  const head = `<div class="crm-paygrid">
+      <div class="crm-paycard"><span>Opening balance</span><b>${drcr(L.opening)}</b></div>
+      <div class="crm-paycard"><span>Current balance</span><b style="color:${balCol}">${drcr(bal)}</b></div>
+      ${r.advance > 0.5 ? `<div class="crm-paycard"><span>Advance held</span><b style="color:#16a34a">${fC(Math.round(r.advance))}</b></div>` : ''}
+      ${r.creditLimit > 0 ? `<div class="crm-paycard"><span>Credit limit</span><b>${fC(r.creditLimit)}</b></div>` : ''}
+    </div>${creditBar(r)}`;
+  if (!L.rows.length) return head + `<div class="qx-empty" style="padding:24px">No ledger entries yet.</div>`;
+  const rows = L.rows.slice().reverse().map(e => {
+    const amt = e.dr ? `<span class="crm-num" style="color:var(--ql-danger-600)">+${fC(e.dr)}</span>` : `<span class="crm-num" style="color:#16a34a">−${fC(e.cr)}</span>`;
+    return `<div class="crm-lrow"><div class="crm-ldot" style="background:${e.cr ? '#22c55e' : '#f59e0b'}"></div>
+      <div class="crm-lmain"><div class="crm-lr"><b>${esc(e.desc)}${e.ref ? ' · #' + esc(e.ref) : ''}</b>${amt}</div>
+      <div class="crm-lr"><span class="crm-mut">${Q.fDS(e.date)} · ${e.dr ? 'Debit' : 'Credit'}</span><span class="crm-mut">Bal ${drcr(e.bal)}</span></div></div></div>`;
+  }).join('');
+  return head + `<div class="qx-sec-h">Running statement (${L.rows.length})</div><div class="crm-ledger">${rows}</div>
+    <div class="crm-note">Every invoice, receipt and payment posts to one running balance — partial payments, advances and overpayments all settle automatically against the account, not a single invoice.</div>`;
 }
 
 /* ═══════════ MOUNT ═══════════ */
@@ -349,6 +409,7 @@ QLX.mount({
     ],
     tabs: [
       { label: 'Overview', icon: IC.file, render: tabOverview },
+      { label: 'Ledger', icon: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="9" y1="7" x2="15" y2="7"/>', render: tabLedger },
       { label: 'Health', icon: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l7.8-8.6a5.5 5.5 0 0 0 0-7.8z"/>', render: tabHealth },
       { label: 'Payments', icon: (IC.cash || IC.clock), render: tabPayments },
       { label: 'Orders', icon: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/>', render: tabOrders }

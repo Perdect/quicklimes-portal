@@ -98,6 +98,16 @@
 .crm-flag { display: inline-grid; place-content: center; width: 14px; height: 14px; border-radius: 50%; background: #ef4444;
   color: #fff; font-size: 10px; font-weight: 800; font-style: normal; vertical-align: middle; }
 
+/* ── running-account ledger (bank statement) ── */
+.crm-ledger { margin-top: 4px; }
+.crm-lrow { display: flex; gap: 11px; padding: 9px 0; border-bottom: 1px solid var(--ql-border); }
+.crm-lrow:last-child { border-bottom: none; }
+.crm-ldot { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-top: 5px; }
+.crm-lmain { flex: 1; min-width: 0; }
+.crm-lr { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.crm-lr b { font-size: 13px; font-weight: 600; color: var(--ql-text); }
+.crm-lr + .crm-lr { margin-top: 2px; }
+
 /* ── responsive ── */
 @media (max-width: 900px) { .crm-ai-grid { grid-template-columns: 1fr; } }
 @media (max-width: 560px) { .crm-paygrid { grid-template-columns: 1fr 1fr; } .crm-dhero-m b { font-size: 18px; } }
