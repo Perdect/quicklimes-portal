@@ -109,7 +109,7 @@ function enriched() {
     else seg = 'regular';
     // ── Running account (bank-ledger model): receivable-positive convention ──
     const opening = +r.opening || 0;
-    const currentBalance = opening + s.amt - s.paid - p.amt + p.paid;  // + = they owe us, − = we owe them
+    const currentBalance = opening + s.amt - s.paid - p.amt + p.paid + (Q.ledgerNet ? Q.ledgerNet(r.idx) : 0);  // + = they owe us, − = we owe them
     const advance = currentBalance < 0 ? -currentBalance : 0;
     const creditLimit = +r.creditLimit || 0;
     const creditUtil = creditLimit > 0 ? Math.max(0, currentBalance) / creditLimit : null;
@@ -290,10 +290,35 @@ function creditBar(r) {
   return `<div class="qx-sec-h">Credit utilization</div><div class="crm-hb" style="margin-bottom:2px"><div class="crm-hb-t"><div class="crm-hb-f" style="width:${Math.min(100, pct)}%;background:${col}"></div></div><b style="color:${col}">${pct}%</b></div>` +
     (over ? `<div class="crm-note" style="margin-top:6px;color:#b91c1c">⚠️ Over credit limit by ${fC(Math.round(r.currentBalance - r.creditLimit))}.</div>` : '');
 }
+/* Record a receipt / payment straight against the party's running balance. */
+function recordReceipt(r) {
+  const isSupp = r.type === 'supplier';
+  QLShell.openForm({
+    title: isSupp ? 'Record payment made' : 'Record receipt', sub: r.name + ' · posts to the running balance',
+    specs: [
+      { k: 'amount', label: (isSupp ? 'Amount paid' : 'Amount received') + ' (₹)', type: 'number', req: true, reqNonZero: true },
+      { k: 'date', label: 'Date', type: 'date', req: true },
+      { k: 'mode', label: 'Mode', type: 'select', opts: Q.paymentMethods.map(m => [m, m]) },
+      { k: 'ref', label: 'Reference no.', ph: 'UTR / cheque / txn id' },
+      { k: 'desc', label: 'Note', type: 'textarea', full: true, ph: 'e.g. advance for July dispatch' }
+    ],
+    initial: { date: new Date().toISOString().slice(0, 10), mode: 'Bank' },
+    saveLabel: isSupp ? 'Record payment' : 'Record receipt',
+    onSave: v => {
+      Q.recordLedgerEntry(r.idx, isSupp ? { dr: +v.amount, date: v.date, mode: v.mode, ref: v.ref, desc: v.desc } : { cr: +v.amount, date: v.date, mode: v.mode, ref: v.ref, desc: v.desc });
+      toast(isSupp ? 'Payment recorded' : 'Receipt recorded', 'ok'); QLX.refresh();
+    }
+  });
+}
 function tabLedger(r) {
-  const L = buildLedger(r), bal = L.closing;
+  const L = Q.partyLedger(r.idx) || { opening: 0, rows: [], closing: 0 };
+  const bal = L.closing;
   const balCol = bal > 0.5 ? 'var(--ql-danger-600)' : bal < -0.5 ? '#16a34a' : 'var(--ql-text)';
-  const head = `<div class="crm-paygrid">
+  const head = `<div class="crm-ledger-act">
+      <button class="ql-btn ql-btn-primary" onclick="PartiesLedger.receipt(${r.idx})">${svg(IC.plus)} ${r.type === 'supplier' ? 'Record payment' : 'Record receipt'}</button>
+      <button class="ql-btn ql-btn-secondary" onclick="location.href='ledger.html?party=${r.idx}'">Full statement →</button>
+    </div>
+    <div class="crm-paygrid">
       <div class="crm-paycard"><span>Opening balance</span><b>${drcr(L.opening)}</b></div>
       <div class="crm-paycard"><span>Current balance</span><b style="color:${balCol}">${drcr(bal)}</b></div>
       ${r.advance > 0.5 ? `<div class="crm-paycard"><span>Advance held</span><b style="color:#16a34a">${fC(Math.round(r.advance))}</b></div>` : ''}
@@ -405,6 +430,8 @@ QLX.mount({
     title: esc(r.name), sub: (r.gstin ? 'GSTIN ' + esc(r.gstin) : 'No GSTIN') + (r.phone ? ' · ' + esc(r.phone) : ''),
     actions: [
       ...(r.phone ? [{ label: 'WhatsApp', icon: IC.wa, onClick: r => window.open(waLink(r.phone, waReminder(r)), '_blank') }, { label: 'Call', icon: IC.call, onClick: r => location.href = 'tel:' + r.phone }] : []),
+      { label: r.type === 'supplier' ? 'Pay' : 'Receipt', icon: IC.plus, onClick: r => recordReceipt(r) },
+      { label: 'Statement', icon: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="9" y1="7" x2="15" y2="7"/>', onClick: r => location.href = 'ledger.html?party=' + r.idx },
       { label: 'Edit', icon: IC.edit, primary: true, onClick: r => QLShell.openPartyForm(r.idx) }
     ],
     tabs: [
@@ -420,5 +447,8 @@ QLX.mount({
 /* deep-link pre-filter (#supplier / #customer) → type filter */
 (function () { const S = QLX.state(); if (isSup()) S.adv.type = 'supplier'; else if (isCust()) S.adv.type = 'customer'; QLX.refresh(); })();
 window.addEventListener('hashchange', () => { const S = QLX.state(); S.adv.type = isSup() ? 'supplier' : isCust() ? 'customer' : ''; QLX.refresh(); });
+
+// global for inline onclick in the ledger tab
+window.PartiesLedger = { receipt(idx) { const r = enriched().find(x => x.idx === idx); if (r) recordReceipt(r); } };
 
 function exportParties() { const r = enriched(); QLShell.exportCSV('customers_' + (Q.co.short || 'list').replace(/\s+/g, '_'), ['Name', 'Type', 'Segment', 'Health', 'GSTIN', 'Phone', 'State', 'Orders', 'Business', 'Receivable', 'Overdue', 'LastOrder'], r.map(x => [x.name, x.type, (SEG[x.seg] || {}).label, x.salesN ? x.health : '', x.gstin, x.phone, x.state, x.salesN, Math.round(x.business), Math.round(x.salesDue), Math.round(x.overdue), x.salesLast])); toast('Exported ' + r.length + ' parties'); }

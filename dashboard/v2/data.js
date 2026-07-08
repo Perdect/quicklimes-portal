@@ -662,6 +662,72 @@
     };
   }
 
+  /* ── Running party ledger (bank-statement model) — single source of truth ──
+     Assigns each sale/purchase to exactly one party (GSTIN → normalized name →
+     first token, same as the CRM) and merges every money event + manual
+     on-account entry into one running balance. Receivable-positive:
+       Sales invoice = Dr(+) · Receipt = Cr(−) · Purchase bill = Cr(−) · Payment made = Dr(+) */
+  const _lnorm = s => (s || '').toString().toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+  function _partyResolver() {
+    const byGst = {}, byNorm = {}, byTok = {};
+    S.PARTIES.forEach((p, i) => {
+      if (p.gstin) byGst[_lnorm(p.gstin).replace(/ /g, '')] = i;
+      const nm = _lnorm(p.name); if (nm) byNorm[nm] = i;
+      const t = nm.split(' ')[0]; if (t && byTok[t] === undefined) byTok[t] = i;
+    });
+    return (name, gstin) => {
+      const g = _lnorm(gstin).replace(/ /g, ''); if (g && byGst[g] !== undefined) return byGst[g];
+      const nm = _lnorm(name); if (nm && byNorm[nm] !== undefined) return byNorm[nm];
+      const t = nm.split(' ')[0]; if (t && byTok[t] !== undefined) return byTok[t];
+      return -1;
+    };
+  }
+  function ledgerNet(idx) { const p = S.PARTIES[idx]; return (p && p.ledger || []).reduce((a, e) => a + (+e.dr || 0) - (+e.cr || 0), 0); }
+  function partyLedger(idx, opts) {
+    opts = opts || {};
+    const p = S.PARTIES[idx]; if (!p) return null;
+    const resolve = _partyResolver();
+    const ev = [];
+    salesRows().forEach(s => {
+      if (resolve(s.party, s.gstin) !== idx) return;
+      ev.push({ date: s.date, o: 1, ref: s.inv || '', desc: 'Sales Invoice', dr: s.total, cr: 0, kind: 'sale', link: { kind: 'sale', idx: s.idx } });
+      const pays = (s.payments && s.payments.length) ? s.payments : (s.paid > 0.5 ? [{ date: s.paidDate || s.date, amount: s.paid, mode: s.paidMode }] : []);
+      pays.forEach(x => ev.push({ date: x.date || s.date, o: 2, ref: s.inv || '', desc: x.mode ? 'Receipt · ' + x.mode : 'Payment received', dr: 0, cr: +x.amount || 0, kind: 'receipt' }));
+    });
+    purchaseRows().forEach(b => {
+      if (resolve(b.sup, b.gstin) !== idx) return;
+      ev.push({ date: b.date, o: 1, ref: b.bill || '', desc: 'Purchase Bill', dr: 0, cr: b.total, kind: 'bill', link: { kind: 'purchase', idx: b.idx } });
+      const pays = (b.payments && b.payments.length) ? b.payments : (b.paid > 0.5 ? [{ date: b.date, amount: b.paid, mode: b.paidMode }] : []);
+      pays.forEach(x => ev.push({ date: x.date || b.date, o: 2, ref: b.bill || '', desc: 'Payment made', dr: +x.amount || 0, cr: 0, kind: 'paymade' }));
+    });
+    (p.ledger || []).forEach(a => ev.push({ date: a.date, o: 2, ref: a.ref || '', desc: a.desc || (a.dr ? 'Adjustment' : 'On-account receipt'), dr: +a.dr || 0, cr: +a.cr || 0, kind: a.kind || 'manual', manualId: a.id }));
+    ev.sort((a, b) => (a.date || '').localeCompare(b.date || '') || a.o - b.o);
+    const opening = +p.opening || 0;
+    let bal = opening; ev.forEach(e => { bal += e.dr - e.cr; e.bal = bal; });
+    let rows = ev, openingForRange = opening;
+    if (opts.from || opts.to) {
+      const before = opts.from ? ev.filter(e => (e.date || '') < opts.from) : [];
+      openingForRange = before.length ? before[before.length - 1].bal : opening;
+      rows = ev.filter(e => (!opts.from || (e.date || '') >= opts.from) && (!opts.to || (e.date || '') <= opts.to));
+    }
+    return {
+      party: p, idx, opening, openingForRange, rows, closing: bal,
+      totalDr: rows.reduce((a, e) => a + e.dr, 0), totalCr: rows.reduce((a, e) => a + e.cr, 0),
+      advance: bal < 0 ? -bal : 0, creditLimit: +p.creditLimit || 0, creditDays: +p.creditDays || 0
+    };
+  }
+  // Record a receipt / payment / adjustment straight against the running balance
+  // (not tied to one invoice). Mirrors it to the CASHBOOK so the money ledger agrees.
+  function recordLedgerEntry(idx, e) {
+    const p = S.PARTIES[idx]; if (!p) return;
+    const date = e.date || fmtISO(new Date()), cr = +e.cr || 0, dr = +e.dr || 0;
+    p.ledger = p.ledger || [];
+    p.ledger.push({ id: 'lg' + idStamp(), date, desc: e.desc || (cr ? 'On-account receipt' : 'Adjustment'), dr, cr, ref: e.ref || '', mode: e.mode || '', kind: e.kind || 'manual' });
+    if (cr > 0) S.CASHBOOK.push({ id: 'cb' + idStamp(), date, type: 'credit', mode: methodToMode(e.mode || 'bank'), method: e.mode || 'Bank', ptype: 'Sales Payment', party: p.name, ref: e.ref || '', amount: cr, notes: e.desc || 'On-account receipt', link: { kind: 'party', idx } });
+    else if (dr > 0) S.CASHBOOK.push({ id: 'cb' + idStamp(), date, type: 'debit', mode: methodToMode(e.mode || 'bank'), method: e.mode || 'Bank', ptype: 'Purchase Payment', party: p.name, ref: e.ref || '', amount: dr, notes: e.desc || 'On-account payment', link: { kind: 'party', idx } });
+    commit();
+  }
+
   /* ── Labour helpers ──────────────────────────────────────────── */
   function labourRows() {
     return S.WORKERS.map((w, i) => {
@@ -1130,6 +1196,7 @@
     kpis, monthSeries, collections, insights, production, topProducts, activity,
     salesRows, salesSummary,
     purchaseRows, purchaseSummary, partyRows, partySummary,
+    partyLedger, recordLedgerEntry, ledgerNet,
     purchaseGroups: PURCHASE_GROUPS, departments: DEPARTMENTS, purchaseByGroup, purchaseInsights,
     recordPurchasePayment, billInsights, relatedBills, itemIcon,
     // ── Payments Center (one unified money ledger) ──
