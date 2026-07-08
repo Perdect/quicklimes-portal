@@ -16,7 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css?v=m1">
 <script src="ql-api.js"></script>
-<script src="./data.js?v=m10"></script>
+<script src="./data.js?v=m11"></script>
 <link rel="stylesheet" href="./mobile.css?v=m4">
 </head>
 <body class="ql-v2">
@@ -43,6 +43,16 @@
 
       <div class="ft-section-label" style="margin-top:var(--ql-space-5)">Optional modules <span class="ft-hint" id="ftOptCount"></span></div>
       <div class="ft-list" id="ftOpt"></div>
+    </div>
+
+    <div class="card" style="border-color:#fecaca;margin-top:var(--ql-space-5)">
+      <div class="ft-head">
+        <div>
+          <h3 class="ft-title" style="color:#b91c1c">Danger zone</h3>
+          <div class="ft-note">Permanently delete <b>every record for <span id="dzCo">this company</span></b> — all sales, purchases, parties, payments, labour, cashbook, TDS, production and loan entries. Use this to clear demo / test data and start on a clean slate. <b>This cannot be undone</b>, and there is no server backup yet — anything you don't re-enter is gone.</div>
+        </div>
+        <button class="ql-btn" id="dzClear" style="background:#dc2626;color:#fff;border:none;flex:none">Clear all data</button>
+      </div>
     </div>
   </div>
 </div>
@@ -76,6 +86,7 @@ function render() {
   $('#ftOptCount').textContent = onCount + ' of ' + opt.length + ' on';
   const total = feats.filter(f => f.active).length;
   $('#setSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + total + ' of ' + feats.length + ' modules active';
+  const dz = $('#dzCo'); if (dz && QLD.co) dz.textContent = QLD.co.short || QLD.co.name || 'this company';
   if (window.QLShell && QLShell.paintWorkspace) QLShell.paintWorkspace();
   document.querySelectorAll('.ft-row input[type=checkbox]').forEach(inp => inp.addEventListener('change', () => {
     QLShell.setFeature(inp.dataset.key, inp.checked);
@@ -87,6 +98,15 @@ function render() {
 $('#ftReset').addEventListener('click', () => {
   if (!confirm('Reset feature visibility to the default (Dashboard, Sales, Purchase, Finance, Settings)?')) return;
   QLShell.resetFeatures(); toast('Reset to defaults'); render();
+});
+$('#dzClear').addEventListener('click', () => {
+  const co = QLD.co ? (QLD.co.short || QLD.co.name) : 'this company';
+  if (!confirm('Delete ALL records for ' + co + '?\n\nThis removes every sale, purchase, party, payment, labour, cashbook, TDS, production and loan entry. This cannot be undone.')) return;
+  const typed = prompt('This is permanent and there is no backup yet.\nType CLEAR to confirm:');
+  if ((typed || '').trim().toUpperCase() !== 'CLEAR') { toast('Cancelled — nothing deleted'); return; }
+  try { QLD.wipeData(); } catch (e) { toast('Could not clear data'); return; }
+  toast('All data cleared — starting fresh');
+  setTimeout(() => location.href = 'dashboard.html', 900);
 });
 window.__qlOnSwitchCompany = () => render();
 window.__qlRefresh = render;

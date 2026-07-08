@@ -134,7 +134,7 @@ function kpi(o) {
     <div class="dx-kpi-top"><span class="dx-kpi-ic dx-t-${o.tint}">${svg(o.ic)}</span>${o.g != null ? growth(o.g) : (o.badge || '')}</div>
     <div class="dx-kpi-l">${o.label}</div>
     <div class="dx-kpi-v"><span class="dx-countup" data-to="${o.raw != null ? o.raw : ''}" data-pre="${o.pre || ''}" data-suf="${o.suf || ''}">${o.val}</span></div>
-    <div class="dx-kpi-b">${o.spark ? `<div class="dx-kpi-sp">${o.spark}</div>` : ''}<span class="dx-kpi-m">${o.meta}</span></div>
+    ${o.spark ? `<div class="dx-kpi-b"><div class="dx-kpi-sp">${o.spark}</div></div>` : ''}
   </button>`;
 }
 function kpiRow1() {

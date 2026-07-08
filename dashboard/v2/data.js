@@ -245,6 +245,15 @@
     saveLocal();
     if (DB) { clearTimeout(_cloudTimer); _cloudTimer = setTimeout(saveCloudNow, 300); }
   }
+  // Wipe EVERY record for the active company (sales, purchases, parties, labour,
+  // cashbook, chunna, TDS, attendance, finance, recon + this company's loans),
+  // then persist the empty state locally and to the cloud. Irreversible.
+  function wipeData() {
+    clearState();
+    ALL_LOANS = ALL_LOANS.filter(l => l.company !== ACTIVE_CO);
+    saveLoans();
+    commit();
+  }
 
   /* ── Mutations (each updates S.* then persists) ──────────────── */
   const upper = s => (s || '').toString().trim().toUpperCase();
@@ -1141,7 +1150,7 @@
     saveRecon() { commit(); try { if (window.QLReconAPI) window.QLReconAPI.mirror(ACTIVE_CO, S.RECON); } catch (_) {} },
 
     // ── Writes (persist local immediately + cloud debounced) ──
-    commit, saveLocal,
+    commit, saveLocal, wipeData,
     upsertParty, deleteParty,
     addSale, updateSale, deleteSale, setSaleStatus,
     addPurchase, updatePurchase, deletePurchase, setPurchaseStatus,
