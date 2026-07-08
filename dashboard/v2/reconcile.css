@@ -128,6 +128,10 @@
 .rc-err { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; font-size: 12.5px; padding: 11px 13px; border-radius: 10px; font-weight: 600; }
 .rc-note { font-size: 11.5px; color: var(--ql-text-muted); margin-top: 14px; line-height: 1.5; }
 .rc-picklist { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; }
+.rc-onacct { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--ql-border); }
+.rc-onacct-row { display: flex; gap: 8px; }
+.rc-onacct-row select.rc-search { flex: 1; min-width: 0; }
+.rc-onacct-row .ql-btn { white-space: nowrap; }
 .rc-pick { text-align: left; border: 1px solid var(--ql-border); border-radius: 11px; background: var(--ql-card); padding: 11px 13px; cursor: pointer; font: inherit; transition: all .13s; }
 .rc-pick:hover { border-color: var(--ql-brand-500); background: var(--ql-brand-50, #eff4ff); }
 .rc-pick b { color: var(--ql-text); } .rc-pick-m { font-size: 11px; color: var(--ql-text-muted); margin-top: 3px; }

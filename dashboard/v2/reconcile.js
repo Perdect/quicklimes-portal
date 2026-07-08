@@ -49,6 +49,15 @@ const RC = window.ReconCore;                         // pure, unit-tested engine
 function aliases() { return (Q.recon.aliases || (Q.recon.aliases = {})); }
 function aliasOf(clean) { return aliases()[RC.normName(clean)] || null; }
 function learnAlias(clean, party) { if (clean && party) { aliases()[RC.normName(clean)] = party; } }
+// Resolve a bank narration to a party index (learned alias → exact name → first token).
+function rcTxnParty(t) {
+  const al = (aliases()[RC.normName(t.clean || '')]) || t.clean || '';
+  const norm = s => (s || '').toString().toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+  const target = norm(al); if (!target) return -1;
+  const ps = Q.partyRows();
+  let hit = ps.find(p => norm(p.name) === target) || ps.find(p => norm(p.name).split(' ')[0] === target.split(' ')[0]);
+  return hit ? hit.idx : -1;
+}
 function ymOf(d) { return (d || '').slice(0, 7); }
 function inMonth(d) { return !ST.month || ST.month === 'all' || ymOf(d) === ST.month; }
 function monthLabel() { if (!ST.month || ST.month === 'all') return 'All months'; try { return new Date(ST.month + '-01T00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); } catch (_) { return ST.month; } }
@@ -264,6 +273,7 @@ function badge(t) {
 }
 function matchCell(t) {
   if (isSplit(t)) { const bl = billsFor(t); const names = bl.map(x => x.kind === 'sale' ? x.bill.party : x.bill.sup).filter(Boolean); const uniq = [...new Set(names)]; return `<div class="rc-match"><b>${bl.length} bills · ${fC(bl.reduce((a, x) => a + x.amount, 0))}</b><span>${esc(uniq.slice(0, 2).join(', '))}${uniq.length > 2 ? ' +' + (uniq.length - 2) : ''}</span></div>`; }
+  if (t.m && t.m.kind === 'ledger') return `<div class="rc-match"><b>Running a/c</b><span>${esc(t.m.party || '')}</span></div>`;
   const b = billFor(t);
   if (b) { const ref = t.m.kind === 'sale' ? b.inv : b.bill; const nm = t.m.kind === 'sale' ? b.party : b.sup; return `<div class="rc-match"><b>${esc(ref || '—')}</b><span>${esc(nm || '')}${t.m.kind === 'purchase' && b.emoji ? ' · ' + b.emoji : ''}</span></div>`; }
   if (t.m && t.m.status === 'other') return `<div class="rc-match"><b>${esc(t.m.cat || 'Categorized')}</b><span>non-bill entry</span></div>`;
@@ -365,13 +375,33 @@ function openLink(tid) {
     .sort((a, b) => a.sc - b.sc);
   const b = overlay();
   const row = x => { const r = x.r; const ref = isCr ? r.inv : r.bill; const nm = isCr ? r.party : r.sup; return `<button class="rc-pick" data-idx="${r.idx}"><div><b>${esc(ref || '—')}</b> · ${esc(nm || '')}</div><div class="rc-pick-m">${fDS(r.date)} · total ${fC(r.total)} · due ${fC(r.outstanding || 0)}</div></button>`; };
+  const detIdx = rcTxnParty(t);
+  const partyOpts = ['<option value="-1">Select party…</option>'].concat(Q.partyRows().slice().sort((a, c) => (a.name || '').localeCompare(c.name || '')).map(p => `<option value="${p.idx}"${p.idx === detIdx ? ' selected' : ''}>${esc(p.name)}</option>`)).join('');
   b.innerHTML = `<div class="rc-modal"><div class="rc-modal-h"><div class="rc-modal-t">Link ${isCr ? 'credit' : 'debit'} ${fC(amt)} to a ${isCr ? 'sales invoice' : 'purchase bill'}</div><button class="rc-modal-x" id="rcLX">&times;</button></div>
     <div class="rc-modal-b"><div class="rc-splitrow"><div class="rc-mut" style="font-size:12px">${fDS(t.date)} · ${esc((t.desc || '').slice(0, 48))}</div><button class="rc-linkbtn" id="rcToSplit">${svg(IC.split)}<span>Split across bills</span></button></div>
       <input class="rc-search" id="rcPickQ" placeholder="Search ${isCr ? 'invoice / customer' : 'bill / supplier'}…" style="width:100%;margin:10px 0">
-      <div class="rc-picklist" id="rcPickList">${list.slice(0, 40).map(row).join('') || '<div class="rc-none">No bills found.</div>'}</div></div></div>`;
+      <div class="rc-picklist" id="rcPickList">${list.slice(0, 40).map(row).join('') || '<div class="rc-none">No bills found.</div>'}</div>
+      <div class="rc-onacct">
+        <div class="rc-mut" style="font-size:12px;margin-bottom:7px">Or post it <b>on-account</b> to a party's running balance — not tied to one bill (partial / advance / lump-sum):</div>
+        <div class="rc-onacct-row">
+          <select class="rc-search" id="rcOaParty">${partyOpts}</select>
+          <button class="ql-btn ql-btn-primary" id="rcOaPost">Post ${fC(amt)}</button>
+        </div>
+      </div></div></div>`;
   const close = () => b.remove();
   document.getElementById('rcLX').onclick = close;
   document.getElementById('rcToSplit').onclick = () => { close(); openSplit(tid); };
+  document.getElementById('rcOaPost').onclick = () => {
+    const pidx = +document.getElementById('rcOaParty').value;
+    if (!(pidx >= 0)) { toast('Pick a party first', 'err'); return; }
+    const p = Q.partyRows().find(x => x.idx === pidx); if (!p) return;
+    const entry = { date: t.date, ref: t.utr || t.ref || '', mode: 'Bank', desc: 'Bank ' + (isCr ? 'receipt' : 'payment') + (t.desc ? ' · ' + String(t.desc).slice(0, 36) : '') };
+    if (isCr) entry.cr = amt; else entry.dr = amt;
+    const lid = Q.recordLedgerEntry(pidx, entry);
+    if (t.clean) learnAlias(t.clean, p.name);
+    t.m = { kind: 'ledger', partyIdx: pidx, party: p.name, ledgerEntryId: lid, status: 'matched', manual: true, matchedBy: 'ledger', confidence: 100, reasons: ['Posted on-account to ' + p.name + ' running balance'], at: new Date().toISOString() };
+    runMatchAll(); close(); render(); toast('Posted ' + fC(amt) + ' to ' + p.name + ' · running a/c', 'ok');
+  };
   const relist = q => { const f = q ? list.filter(x => { const r = x.r; return ((isCr ? r.inv + ' ' + r.party : r.bill + ' ' + r.sup) || '').toLowerCase().includes(q); }) : list; document.getElementById('rcPickList').innerHTML = f.slice(0, 40).map(row).join('') || '<div class="rc-none">No matches.</div>'; wirePicks(); };
   const wirePicks = () => b.querySelectorAll('[data-idx]').forEach(btn => btn.onclick = () => {
     const idx = +btn.dataset.idx, bill = (isCr ? Q.salesRows() : Q.purchaseRows()).find(r => r.idx === idx);
@@ -461,7 +491,7 @@ function openDetail(tid) {
       <div class="rc-dp-sec">Match${isSplit(t) ? ' · split across ' + billsFor(t).length + ' bills' : ''}</div>
       ${isSplit(t)
         ? billsFor(t).map(x => `<div class="rc-dp-kv"><span>${esc((x.kind === 'sale' ? x.bill.inv : x.bill.bill) || '—')} · ${esc((x.kind === 'sale' ? x.bill.party : x.bill.sup) || '')}</span><b>${fC(x.amount)}</b></div>`).join('') + kv('Total allocated', fC(billsFor(t).reduce((a, x) => a + x.amount, 0)))
-        : (b ? (kv(m.kind === 'sale' ? 'Sales invoice' : 'Purchase bill', esc((m.kind === 'sale' ? b.inv : b.bill) || '—') + ' · ' + esc((m.kind === 'sale' ? b.party : b.sup) || '')) + kv('Bill total', fC(b.total)) + kv('Outstanding', fC(b.outstanding || 0))) : (m.cat ? kv('Category', esc(m.cat)) : '<div class="rc-mut" style="font-size:12.5px">Not linked to any bill yet.</div>'))}
+        : (m.kind === 'ledger' ? (kv('Posted on-account', esc(m.party || '') + ' · running a/c') + kv('Amount', fC(t.credit || t.debit || 0))) : (b ? (kv(m.kind === 'sale' ? 'Sales invoice' : 'Purchase bill', esc((m.kind === 'sale' ? b.inv : b.bill) || '—') + ' · ' + esc((m.kind === 'sale' ? b.party : b.sup) || '')) + kv('Bill total', fC(b.total)) + kv('Outstanding', fC(b.outstanding || 0))) : (m.cat ? kv('Category', esc(m.cat)) : '<div class="rc-mut" style="font-size:12.5px">Not linked to any bill yet.</div>')))}
       <div class="rc-dp-sec">Why the AI decided this</div>
       <ul class="rc-dp-why">${reasons}</ul>
       <div class="rc-dp-sec">Audit trail</div>
@@ -480,7 +510,7 @@ function openDetail(tid) {
   if ($('rcDpLink')) $('rcDpLink').onclick = () => { back.classList.remove('open'); openLink(tid); };
   if ($('rcDpSplit')) $('rcDpSplit').onclick = () => { back.classList.remove('open'); openSplit(tid); };
   if ($('rcDpMark')) $('rcDpMark').onclick = e => openMark(tid, e.currentTarget);
-  if ($('rcDpUnlink')) $('rcDpUnlink').onclick = () => { t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched', confidence: 0, tier: 'red', matchedBy: 'manual', reasons: ['Unlinked by user'], at: new Date().toISOString() }; Q.saveRecon(); back.classList.remove('open'); render(); };
+  if ($('rcDpUnlink')) $('rcDpUnlink').onclick = () => { if (m.kind === 'ledger' && m.ledgerEntryId && Q.reverseLedgerEntry) { Q.reverseLedgerEntry(m.partyIdx, m.ledgerEntryId); toast('Reversed on-account entry', 'ok'); } t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched', confidence: 0, tier: 'red', matchedBy: 'manual', reasons: ['Unlinked by user'], at: new Date().toISOString() }; Q.saveRecon(); back.classList.remove('open'); render(); };
 }
 
 /* ══════════════════ EXPORT ══════════════════ */

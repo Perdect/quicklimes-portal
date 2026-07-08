@@ -719,12 +719,20 @@
   // Record a receipt / payment / adjustment straight against the running balance
   // (not tied to one invoice). Mirrors it to the CASHBOOK so the money ledger agrees.
   function recordLedgerEntry(idx, e) {
-    const p = S.PARTIES[idx]; if (!p) return;
-    const date = e.date || fmtISO(new Date()), cr = +e.cr || 0, dr = +e.dr || 0;
+    const p = S.PARTIES[idx]; if (!p) return null;
+    const date = e.date || fmtISO(new Date()), cr = +e.cr || 0, dr = +e.dr || 0, lid = 'lg' + idStamp();
     p.ledger = p.ledger || [];
-    p.ledger.push({ id: 'lg' + idStamp(), date, desc: e.desc || (cr ? 'On-account receipt' : 'Adjustment'), dr, cr, ref: e.ref || '', mode: e.mode || '', kind: e.kind || 'manual' });
-    if (cr > 0) S.CASHBOOK.push({ id: 'cb' + idStamp(), date, type: 'credit', mode: methodToMode(e.mode || 'bank'), method: e.mode || 'Bank', ptype: 'Sales Payment', party: p.name, ref: e.ref || '', amount: cr, notes: e.desc || 'On-account receipt', link: { kind: 'party', idx } });
-    else if (dr > 0) S.CASHBOOK.push({ id: 'cb' + idStamp(), date, type: 'debit', mode: methodToMode(e.mode || 'bank'), method: e.mode || 'Bank', ptype: 'Purchase Payment', party: p.name, ref: e.ref || '', amount: dr, notes: e.desc || 'On-account payment', link: { kind: 'party', idx } });
+    p.ledger.push({ id: lid, date, desc: e.desc || (cr ? 'On-account receipt' : 'Adjustment'), dr, cr, ref: e.ref || '', mode: e.mode || '', kind: e.kind || 'manual' });
+    if (cr > 0) S.CASHBOOK.push({ id: 'cb' + idStamp(), date, type: 'credit', mode: methodToMode(e.mode || 'bank'), method: e.mode || 'Bank', ptype: 'Sales Payment', party: p.name, ref: e.ref || '', amount: cr, notes: e.desc || 'On-account receipt', link: { kind: 'party', idx, ledgerId: lid } });
+    else if (dr > 0) S.CASHBOOK.push({ id: 'cb' + idStamp(), date, type: 'debit', mode: methodToMode(e.mode || 'bank'), method: e.mode || 'Bank', ptype: 'Purchase Payment', party: p.name, ref: e.ref || '', amount: dr, notes: e.desc || 'On-account payment', link: { kind: 'party', idx, ledgerId: lid } });
+    commit();
+    return lid;
+  }
+  // Reverse an on-account entry (used when a reconciliation post is un-linked).
+  function reverseLedgerEntry(idx, lid) {
+    const p = S.PARTIES[idx]; if (!p || !lid) return;
+    if (p.ledger) p.ledger = p.ledger.filter(e => e.id !== lid);
+    S.CASHBOOK = S.CASHBOOK.filter(c => !(c.link && c.link.ledgerId === lid));
     commit();
   }
 
@@ -1196,7 +1204,7 @@
     kpis, monthSeries, collections, insights, production, topProducts, activity,
     salesRows, salesSummary,
     purchaseRows, purchaseSummary, partyRows, partySummary,
-    partyLedger, recordLedgerEntry, ledgerNet,
+    partyLedger, recordLedgerEntry, reverseLedgerEntry, ledgerNet,
     purchaseGroups: PURCHASE_GROUPS, departments: DEPARTMENTS, purchaseByGroup, purchaseInsights,
     recordPurchasePayment, billInsights, relatedBills, itemIcon,
     // ── Payments Center (one unified money ledger) ──
