@@ -1330,6 +1330,19 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     vis.forEach(o => o.classList.remove('active')); if (vis[i]) { vis[i].classList.add('active'); vis[i].scrollIntoView({ block: 'nearest' }); }
   }
 
+  /* ════════════════════════ Launch splash ══════════════════════════ */
+  // Fade out the branded splash once the shell + first page paint are done.
+  // Kept on screen a minimum time so it reads as intentional, not a flash.
+  function hideSplash() {
+    const s = document.getElementById('ql-splash'); if (!s || s.classList.contains('qs-hide')) return;
+    const go = () => requestAnimationFrame(() => {
+      s.classList.add('qs-hide');
+      setTimeout(() => { if (s && s.parentNode) s.parentNode.removeChild(s); const css = document.getElementById('ql-splash-css'); if (css) css.remove(); }, 600);
+    });
+    // ensure the page has actually painted content, and a graceful minimum dwell
+    setTimeout(go, 450);
+  }
+
   /* ════════════════════════ PWA (installable app) ══════════════════════════ */
   let _pwaDone = false, _deferredInstall = null;
   function initPWA() {
@@ -1430,8 +1443,10 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       try { if (window.QLMobile) QLMobile.init({ active: _active, title: opts.title }); } catch (_) {}
       // installable PWA (service worker + install prompt)
       try { initPWA(); } catch (_) {}
+      // fade out the launch splash now the app is on screen
+      try { hideSplash(); } catch (_) {}
     },
-    promptInstall,
+    promptInstall, hideSplash,
     // expose nav + active for the mobile layer (bottom-nav "More" respects Feature Management)
     nav() { return NAV; },
     get _active() { return _active; }

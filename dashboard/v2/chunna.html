@@ -5,12 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Chunna Sales — QuickLimes v2</title>
 <meta name="theme-color" content="#2563EB">
-<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
 <link rel="manifest" href="/v2/app.webmanifest">
-<link rel="apple-touch-icon" href="/v2/pwa-apple.png">
+<link rel="apple-touch-icon" href="/v2/pwa-apple.png?v=g1">
+<link rel="icon" type="image/png" sizes="32x32" href="/v2/favicon-32.png?v=g1">
+<link rel="icon" type="image/png" sizes="16x16" href="/v2/favicon-16.png?v=g1">
+<link rel="apple-touch-startup-image" media="screen and (device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/ios-splash-1125x2436.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/ios-splash-1170x2532.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/ios-splash-1179x2556.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/ios-splash-1206x2622.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/ios-splash-1284x2778.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/ios-splash-1290x2796.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/ios-splash-1320x2868.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="QuickLimes">
+<meta name="apple-mobile-web-app-title" content="Gotan Lime">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -20,6 +29,28 @@
 <link rel="stylesheet" href="./mobile.css?v=m4">
 </head>
 <body class="ql-v2">
+<div id="ql-splash" aria-hidden="true"><div class="qs-box">
+<div class="qs-badge"><img src="/v2/pwa-192.png?v=g1" alt="Gotan Lime Industries" width="96" height="96" decoding="async"></div>
+<div class="qs-name">Gotan Lime Industries</div><div class="qs-sub">Business Intelligence System</div>
+<div class="qs-dots"><i></i><i></i><i></i></div></div></div>
+<style id="ql-splash-css">
+#ql-splash{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);background:radial-gradient(130% 100% at 50% 0%,#fff 0%,#eef3fb 55%,#e4ecf7 100%);transition:opacity .5s ease,visibility .5s ease}
+#ql-splash.qs-hide{opacity:0;visibility:hidden;pointer-events:none}
+#ql-splash .qs-box{display:flex;flex-direction:column;align-items:center;text-align:center;animation:qs-rise .55s cubic-bezier(.2,.7,.2,1) both}
+#ql-splash .qs-badge{width:96px;height:96px;border-radius:24px;overflow:hidden;background:#0b1220;box-shadow:0 22px 48px -14px rgba(11,18,32,.55),0 0 0 1px rgba(11,18,32,.05);animation:qs-pop .6s cubic-bezier(.2,.8,.2,1) both}
+#ql-splash .qs-badge img{width:100%;height:100%;object-fit:cover;display:block}
+#ql-splash .qs-name{margin-top:22px;font:800 22px/1.15 'Geist',system-ui,-apple-system,sans-serif;letter-spacing:-.02em;color:#0f1b2d}
+#ql-splash .qs-sub{margin-top:6px;font:600 11.5px/1.4 'Geist',system-ui,-apple-system,sans-serif;color:#64748b;letter-spacing:.09em;text-transform:uppercase}
+#ql-splash .qs-dots{display:flex;gap:7px;margin-top:28px}
+#ql-splash .qs-dots i{width:8px;height:8px;border-radius:50%;background:#2563eb;animation:qs-pulse 1.1s ease-in-out infinite}
+#ql-splash .qs-dots i:nth-child(2){animation-delay:.15s}#ql-splash .qs-dots i:nth-child(3){animation-delay:.3s}
+@keyframes qs-pulse{0%,100%{opacity:.25;transform:translateY(0)}45%{opacity:1;transform:translateY(-5px)}}
+@keyframes qs-rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes qs-pop{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#ql-splash .qs-box,#ql-splash .qs-badge,#ql-splash .qs-dots i{animation:none}}
+@media (prefers-color-scheme:dark){#ql-splash{background:radial-gradient(130% 100% at 50% 0%,#101a2b 0%,#0b1120 60%,#070b14 100%)}#ql-splash .qs-name{color:#f1f5f9}#ql-splash .qs-sub{color:#8ea2bd}}
+</style>
+<script>setTimeout(function(){var s=document.getElementById('ql-splash');if(s)s.classList.add('qs-hide')},4500);</script>
 <div id="ql-page">
   <div class="dash">
     <div class="page-head">
@@ -44,7 +75,7 @@
     </div>
   </div>
 </div>
-<script src="./shell.js?v=m12"></script>
+<script src="./shell.js?v=m13"></script>
 <script src="./mobile.js?v=m4"></script>
 <script>
 QLShell.mount({ active: 'chunna', title: 'Chunna Sales' });
