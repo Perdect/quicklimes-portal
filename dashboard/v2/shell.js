@@ -650,7 +650,8 @@
       { k: 'taxable', label: 'Taxable (₹)', type: 'number', req: true, reqNonZero: true },
       { k: 'freightAmt', label: 'Freight / transport (₹)', type: 'number', ph: 'optional — you enter this directly' },
       { k: 'grate', label: 'GST rate', type: 'select', opts: GST_OPTS },
-      { k: 'itc', label: 'ITC', type: 'select', opts: [['Eligible', 'ITC Eligible'], ['Ineligible', 'ITC Ineligible'], ['RCM', 'RCM']] }
+      { k: 'itc', label: 'ITC', type: 'select', opts: [['Eligible', 'ITC Eligible'], ['Ineligible', 'ITC Ineligible'], ['RCM', 'RCM']] },
+      { k: 'veh', label: 'Vehicle No.', upper: true, ph: 'e.g. RJ19GE8199' }
     ];
     openForm({
       title: editing ? 'Edit bill' : 'New purchase bill', sub: 'Purchase register',
