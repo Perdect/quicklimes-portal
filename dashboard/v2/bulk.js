@@ -299,15 +299,8 @@
     var old = document.getElementById('qlbDrawer'); if (old) old.remove();
     var d = document.createElement('div'); d.id = 'qlbDrawer'; d.className = 'qlb-drawer';
 
-    // document preview (image inline / pdf in a frame)
-    var docHtml = '<div class="qlb-nodoc">No preview</div>';
-    if (bill.file) {
-      try {
-        BATCH.url = URL.createObjectURL(bill.file);
-        var isPdf = /\.pdf$/i.test(bill.file.name || '') || bill.file.type === 'application/pdf';
-        docHtml = isPdf ? '<iframe class="qlb-doc" src="' + BATCH.url + '#toolbar=0&navpanes=0"></iframe>' : '<img class="qlb-doc" src="' + BATCH.url + '" alt="bill">';
-      } catch (_) {}
-    }
+    // No document preview — the file is already uploaded; just show the fields
+    // to confirm. (The original scan stays attached to the bill on save.)
 
     var fields = cfg.fields || [];
     var g = bill.g || {};
@@ -336,7 +329,6 @@
       (bill.flag ? '<div class="qlb-warn">⚠ ' + esc(bill.flag) + '</div>' : '') +
       (g._warn && g._warn.length ? '<div class="qlb-warn">⚠ ' + g._warn.map(esc).join(' · ') + '</div>' : '') +
       '<div class="qlb-dbody">' +
-        '<div class="qlb-dprev">' + docHtml + '</div>' +
         '<div class="qlb-dform">' +
           '<div class="qlb-dform-h"><b>' + got + ' of ' + fields.length + '</b> fields read' + (bill.reviewFields.length ? ' · <span class="qlb-hr">' + bill.reviewFields.length + ' need a look</span>' : '') + '</div>' +
           fields.map(function (f) {
