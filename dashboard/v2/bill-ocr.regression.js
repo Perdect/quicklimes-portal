@@ -66,12 +66,20 @@ Total 474627.00`,
     // GST-arithmetic reconciliation (total = taxable+CGST+SGST+roundoff, and can
     // never be below taxable). This fixture locks that behaviour.
     name: 'Tally e-invoice (Mateshwari Mines) — limestone, qty-as-total trap', format: 'PDF · Tally e-invoice · CGST+SGST',
-    text: `|| SHREE ||
-TAX INVOICE            e-Invoice
+    // Verbatim pdf.js line reconstruction of the REAL bill (2026-07-10). Two
+    // traps this locks: (1) the invoice number "222/26-27" is on a SEPARATE line
+    // from its "Invoice No. Dated" label (Tally grid), and (2) the taxable value
+    // 11,60,333.10 appears ONLY in the HSN-summary column (no "Taxable: <amt>"
+    // label), so it must be recovered via total − GST − round-off.
+    text: `e-Invoice
+|| SHREE ||
+TAX INVOICE
 IRN : 92cc1955831b58d1cb463cd068a7d0bb5325257e4-2d12add7c0ca5c5c15883bd
 Ack No. : 172620567484822
 Ack Date : 29-Jun-26
+Invoice No. Dated
 Mateshwari Mines and Minerals
+222/26-27 29-Jun-26
 ML No 349/2005, ML No.350/2005,
 Gotan Road, Village- Borunda, Tehsil- Pipar City
 342604 Dist- Jodhpur Rural (Rajasthan)
@@ -79,24 +87,21 @@ GSTIN/UIN: 08ABWFM4111F1Z6
 State Name : Rajasthan, Code : 08
 Consignee (Ship to)
 Gotan Lime Industries
-Khasara No. 1787/7 , Boroonda, New Khata 918
 GSTIN/UIN : 08BNAPM0488E1Z3
 Buyer (Bill to)
 Gotan Lime Industries
 GSTIN/UIN : 08BNAPM0488E1Z3
-Invoice No. 222/26-27    Dated 29-Jun-26
-Dispatched through By Road   Destination Borunda
 Motor Vehicle No. Tmxxxxxx
-1  Lime Stone  25210010  1,432.510 MTS  810.00 MTS  11,60,333.10
-CGST OUTPUT  29,008.33
-SGST OUTPUT  29,008.33
-ROUNDOFF  0.24
-Total  1,432.510 MTS  ₹ 12,18,350.00
+1 Lime Stone 25210010 1,432.510 MTS 810.00 MTS 11,60,333.10
+CGST OUTPUT 29,008.33
+SGST OUTPUT 29,008.33
+ROUNDOFF 0.24
+Total 1,432.510 MTS ī12,18,350.00
 Amount Chargeable (in words)
 INR Twelve Lakh Eighteen Thousand Three Hundred Fifty Only
-HSN/SAC  Taxable Value  CGST Rate Amount  SGST Rate Amount  Total Tax Amount
-25210010  11,60,333.10  2.50%  29,008.33  2.50%  29,008.33  58,016.66
-Total  11,60,333.10  29,008.33  29,008.33  58,016.66
+HSN/SAC Taxable CGST SGST/UTGST Total
+25210010 11,60,333.10 2.50% 29,008.33 2.50% 29,008.33 58,016.66
+Total 11,60,333.10 29,008.33 29,008.33 58,016.66
 Tax Amount (in words) : INR Fifty Eight Thousand Sixteen and Sixty Six paise Only`,
     expect: { supplier: 'Mateshwari Mines and Minerals', supplierGstin: '08ABWFM4111F1Z6', buyerGstin: '08BNAPM0488E1Z3', billNo: '222/26-27', date: '29-Jun-26', group: 'limestone', taxable: 1160333.10, cgst: 29008.33, sgst: 29008.33, gstRate: 5, total: 1218350, grandTotal: 1218350, itc: 'Eligible' }
   },

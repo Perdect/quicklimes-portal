@@ -222,7 +222,29 @@
     /* Bill number — labelled, must contain a digit and not be a date/GSTIN. */
     var billNo = '', re = /(?:invoice|bill(?:\s*of\s*supply)?|inv|voucher|challan|document|consignment(?:\s*note)?|note)[ \t]*(?:no\.?|number|#|id)?[ \t]*[:\-.#]?[ \t]*([A-Za-z0-9\/\-]{0,22}\d[A-Za-z0-9\/\-]{0,6})/ig, mm;
     while ((mm = re.exec(T))) { var cand = mm[1].replace(/[^A-Za-z0-9\/\-]/g, ''); var digits = (cand.match(/\d/g) || []).length; if (digits && (digits >= 2 || /[\/\-]/.test(cand)) && !/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/i.test(cand) && !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(cand)) { billNo = cand; break; } }
-    if (billNo) set('billNo', billNo, /no|number|#/i.test(T.slice(Math.max(0, T.toUpperCase().indexOf(billNo.toUpperCase()) - 24), T.toUpperCase().indexOf(billNo.toUpperCase()))) ? 0.9 : 0.7);
+    // Tally / e-invoice grids print the label ("Invoice No.") and its value on
+    // SEPARATE lines ("Invoice No.  Dated" ↵ "222/26-27  29-Jun-26"). If the
+    // inline scan missed it, find the label line and take the first invoice-ish
+    // token from that line or the next two.
+    if (!billNo) {
+      var BL = T.split('\n');
+      for (var _bi = 0; _bi < BL.length && !billNo; _bi++) {
+        if (!/invoice\s*(?:no|number|#)|bill\s*no|voucher\s*no/i.test(BL[_bi]) || /purchase|order|e-?way/i.test(BL[_bi])) continue;
+        for (var _si = 0; _si < 3 && !billNo; _si++) {
+          var toks = (BL[_bi + _si] || '').split(/\s+/);
+          for (var _ti = 0; _ti < toks.length; _ti++) {
+            var tk = toks[_ti].replace(/[^A-Za-z0-9\/\-]/g, '');
+            if (!/\d/.test(tk) || tk.length < 2 || tk.length > 24) continue;
+            if ((tk.match(/\d/g) || []).length < 2 && !/[\/\-]/.test(tk)) continue;
+            if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(tk)) continue;                 // date
+            if (/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/i.test(tk)) continue;              // GSTIN
+            if (/^(?:invoice|no|dated|date|number)$/i.test(tk)) continue;
+            billNo = tk; break;
+          }
+        }
+      }
+    }
+    if (billNo) set('billNo', billNo, /no|number|#/i.test(T.slice(Math.max(0, T.toUpperCase().indexOf(billNo.toUpperCase()) - 24), T.toUpperCase().indexOf(billNo.toUpperCase()))) ? 0.9 : 0.75);
 
     /* Date */
     var dt = findDate(T); if (dt) set('date', dt, 0.85);
@@ -293,7 +315,21 @@
     else if (A.total != null && expect != null && Math.abs(A.total - expect) > 2) {
       warn.push('Amounts don\'t reconcile: taxable + GST (' + expect + ') ≠ total (' + A.total + ')');
     }
-    // (d) recover a missing taxable (never guess a rate)
+    // (d) recover a missing taxable. Prefer the GST accounting identity —
+    //     taxable = total − totalGST − round-off — which is EXACT when the tax
+    //     amounts were read (Tally/e-invoice bills list CGST/SGST amounts but
+    //     print the taxable value only in the HSN summary table, which the
+    //     amount scan can miss). Fall back to backing it out of the rate.
+    if (f.taxable == null && A.total != null && totalGst != null && totalGst > 0) {
+      var txg = round2(A.total - totalGst - (A.roundOff || 0));
+      // Only trust the identity when the implied rate (GST ÷ taxable) is a REAL
+      // GST slab — this rejects a garbage/partial GST leg (e.g. a mis-read
+      // "S G S T" that captured 8 instead of 9,360, which would otherwise make
+      // taxable ≈ total). A bad leg falls through to the rate-based recovery.
+      var impRate = txg > 0 ? totalGst / txg * 100 : -1;
+      var std = [3, 5, 12, 18, 28].filter(function (x) { return Math.abs(x - impRate) <= 0.7; })[0];
+      if (txg > 0 && txg < A.total && std != null) { set('taxable', txg, 0.85); A.taxable = txg; ver.taxable = 'gst_sum'; }
+    }
     if (f.taxable == null && A.total != null && rate != null) { var txv = round2(A.total / (1 + rate / 100)); set('taxable', txv, 0.6); A.taxable = txv; }
     if (f.total == null && A.taxable != null && totalGst != null) { set('total', round2(A.taxable + totalGst + (A.roundOff || 0)), 0.7); A.total = f.total; ver.total = 'gst_sum'; }
     // (e) taxable must be < total
