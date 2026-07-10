@@ -64,10 +64,38 @@ function monthLabel() { if (!ST.month || ST.month === 'all') return 'All months'
 
 /* ── matching engine (ReconCore) ─────────────────────────────────────── */
 function npOf(t) { return { raw: t.raw || t.desc || '', clean: t.clean || '', utr: t.utr || '', cheque: t.cheque || '', mode: t.mode || '' }; }
+// Names of the user's OWN firms (all plants) — for inter-firm transfer detection.
+function ownNames() {
+  const n = [].concat(Q.ownFirmNames || []);
+  try { if (Q.co) { if (Q.co.name) n.push(Q.co.name); if (Q.co.short) n.push(Q.co.short); } Object.values(Q.COMPANIES || {}).forEach(c => { if (c.name) n.push(c.name); if (c.short) n.push(c.short); }); } catch (_) {}
+  return [...new Set(n)];
+}
 function autoMatch(t) {
   const np = npOf(t);
+  // 1) hard rules first: charges, interest, GST, cash, self — these narrations
+  //    are bank-generated and never party names, so they never reach the
+  //    matcher (a ₹29 "Charges for PORD Customer Payment" is a fee, not an
+  //    unknown party). LOAN keywords are the exception: a real supplier can be
+  //    named "Shriram Transport" — so a loan hit only sticks when no confident
+  //    invoice match exists.
+  const hard = RC.classifyTxn ? RC.classifyTxn(np, t) : null;
+  const hardM = hard ? { kind: 'other', idx: null, status: 'other', cat: hard.cat, catKey: hard.key, auto: true, confidence: hard.confidence, tier: 'green', matchedBy: 'rule', reasons: hard.reasons, at: new Date().toISOString() } : null;
+  // 2) invoice matching (sister firms pay real invoices — matching wins).
   const bills = (t.credit || 0) > 0 ? Q.salesRows() : Q.purchaseRows();
   const res = RC.bestMatch(np, t, bills, { aliasParty: aliasOf(np.clean) });
+  // A CONFIDENT invoice match (real party + amount) overrides ANY hard rule —
+  // so "EMI Transport" (customer) / "Shriram Transport" (freight supplier) book
+  // to their bill, never swallowed as a loan/fee. Otherwise the hard rule wins.
+  const strongMatch = res && res.idx != null && res.confidence >= 80;
+  if (strongMatch) return Object.assign(res, { at: new Date().toISOString(), matchedBy: res.matchedBy || 'ai' });
+  if (hardM) return hardM;
+  // 3) residual: an UNMATCHED transfer whose narration IS one of our own firms
+  //    is a likely inter-firm transfer — surfaced for REVIEW (never auto-hidden)
+  //    so a real third-party receipt sharing our root token still reaches you.
+  if ((res.status === 'unknown' || res.status === 'unmatched') && res.idx == null && RC.classifyResidual) {
+    const resid = RC.classifyResidual(np, t, { ownNames: ownNames() });
+    if (resid) return { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'review', cat: resid.cat, catKey: resid.key, suggestInterfirm: true, confidence: resid.confidence, tier: 'yellow', matchedBy: 'ai', reasons: resid.reasons, at: new Date().toISOString() };
+  }
   res.at = res.at || new Date().toISOString();
   res.matchedBy = res.matchedBy || 'ai';
   return res;
@@ -75,14 +103,35 @@ function autoMatch(t) {
 function runMatchAll(force) {
   const arr = txns();
   arr.forEach(t => { if (!t.m || !t.m.manual || force) t.m = autoMatch(t); });
+  // pair the two legs of self transfers (cross-account: Dr in one a/c, Cr in
+  // the other, same EBANK:SELF id) so both read as one internal movement
+  if (RC.selfPairs) {
+    try {
+      RC.selfPairs(arr).forEach(p => {
+        const c = arr[p.creditIdx], d = arr[p.debitIdx];
+        [c, d].forEach(t => {
+          if (t.m && t.m.manual) return;
+          // never override a DIFFERENT hard classification (e.g. Loan / EMI)
+          if (t.m && t.m.status === 'other' && t.m.catKey && t.m.catKey !== 'self') return;
+          const other = t === c ? d : c;
+          t.m = Object.assign({}, t.m, { kind: 'other', idx: null, status: 'other', cat: 'Self transfer', catKey: 'self', auto: true, confidence: 98, tier: 'green', matchedBy: 'rule', reasons: ['Two legs of one self transfer' + (p.id ? ' · ref ' + p.id : '') + ' — ' + fC(t.credit || t.debit) + ' ' + (t === c ? 'in' : 'out') + ' on ' + fDS(other.date)] });
+        });
+      });
+    } catch (_) {}
+  }
   // duplicate detection — UTR first, else amount + clean-name + date
   const seenKey = {}, seenBill = {};
   arr.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach(t => {
-    if (t.m && t.m.manual) return;
+    // manual rows keep their status but still REGISTER their key, so a
+    // re-imported copy of a manually-confirmed line is caught as a duplicate
     const key = RC.dedupeKey(npOf(t), t);
-    if (seenKey[key]) { t.m.status = 'duplicate'; t.m.reasons = ['Duplicate of an earlier transaction']; }
+    if (seenKey[key]) { if (!(t.m && t.m.manual)) { t.m.status = 'duplicate'; t.m.reasons = ['Duplicate of an earlier transaction']; } }
     else seenKey[key] = 1;
-    if (t.m && t.m.idx != null) { const bk = t.m.kind + t.m.idx; if (seenBill[bk]) t.m.status = 'duplicate'; else seenBill[bk] = 1; }
+    if (t.m && t.m.manual) return;
+    // Two txns claiming the same bill is only a duplicate when BOTH claim it
+    // in full ('matched') — several partial/over payments against one running
+    // bill are perfectly normal (instalments), not duplicates.
+    if (t.m && t.m.idx != null && t.m.status === 'matched') { const bk = t.m.kind + t.m.idx; if (seenBill[bk]) t.m.status = 'duplicate'; else seenBill[bk] = 1; }
   });
   Q.saveRecon();
 }
@@ -96,7 +145,14 @@ function bankHeaderRow(rows) {
   return 0;
 }
 async function parseBankFile(file) {
-  const parsed = await QLFin.fileToRows(file);
+  // PDFs go through the x-aware bank-table extractor (keeps the Withdrawal vs
+  // Deposit columns apart); CSV/Excel through the generic reader as before.
+  const isPdf = /\.pdf$/i.test(file.name || '') || file.type === 'application/pdf';
+  let parsed = null;
+  if (isPdf && QLFin.pdfBankTable) {
+    try { const tbl = await QLFin.pdfBankTable(file); if (tbl && tbl.length > 1) parsed = { rows: tbl, kind: 'pdf' }; } catch (_) {}
+  }
+  if (!parsed) parsed = await QLFin.fileToRows(file);
   const rows = parsed.rows || [];
   if (rows.length < 2) throw new Error('No rows found — export the statement as CSV/Excel and retry.');
   const hi = bankHeaderRow(rows), header = rows[hi] || [], col = (...k) => QLFin.colOf(header, ...k);
@@ -135,8 +191,36 @@ async function parseBankFile(file) {
     if (!debit && !credit) continue;
     const np = RC.parseNarration(narr || refVal);
     if (!np.utr && refVal) np.utr = refVal;
-    out.push({ id: 'bt' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) + r, date, raw: np.raw || narr, desc: narr, clean: np.clean, utr: np.utr, cheque: np.cheque, mode: np.mode, bank, debit: debit || 0, credit: credit || 0, balance: QLFin.parseNum(g(cBal)) || 0, ref: refVal });
+    const balRaw = String(g(cBal) || '');
+    const balSigned = RC.signedBalance ? RC.signedBalance(balRaw) : null;
+    // Did this balance cell carry an EXPLICIT Dr/Cr marker (or minus)? Only then
+    // is the sign trustworthy enough to override the parsed Debit/Credit columns.
+    const balHasSign = /(cr|dr)\.?\s*$/i.test(balRaw) || /^-/.test(balRaw.trim());
+    out.push({ id: 'bt' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) + r, date, raw: np.raw || narr, desc: narr, clean: np.clean, utr: np.utr, cheque: np.cheque, mode: np.mode, bank, debit: debit || 0, credit: credit || 0, balance: balSigned != null ? balSigned : (QLFin.parseNum(balRaw) || 0), _balSigned: balHasSign, ref: refVal });
   }
+  // Balance-chain verification: the running balance is arithmetic truth. A
+  // Cash-Credit account runs a NEGATIVE (Dr) balance that GROWS with
+  // withdrawals, so a naive Dr/Cr guess inverts the whole statement. BUT the
+  // chain itself is sign-blind (negating every balance yields an equally
+  // consistent inverse chain), so we ONLY trust it to override the columns when
+  // the source actually printed Dr/Cr markers — otherwise we keep the columns
+  // that pdfBankTable already assigned by position. This prevents silently
+  // inverting an unsigned statement.
+  try {
+    const signedRows = out.filter(t => t._balSigned).length;
+    if (RC.inferDirections && out.length >= 3 && signedRows >= Math.max(2, Math.floor(out.length * 0.5))) {
+      const inf = RC.inferDirections(out.map(t => ({ amt: (t.credit || t.debit || 0), bal: t.balance })));
+      if (inf.ok >= Math.max(3, Math.floor(out.length * 0.6))) {
+        let fixed = 0;
+        out.forEach((t, i) => {
+          const d = inf.dirs[i]; if (!d) return;
+          if (d === 'C' && t.debit) { t.credit = t.debit; t.debit = 0; fixed++; t._dirFixed = 1; }
+          else if (d === 'D' && t.credit) { t.debit = t.credit; t.credit = 0; fixed++; t._dirFixed = 1; }
+        });
+        if (fixed) console.warn('[recon] balance chain corrected ' + fixed + ' of ' + out.length + ' transaction direction(s)');
+      }
+    }
+  } catch (_) {}
   return out;
 }
 
@@ -175,8 +259,43 @@ function partyLedger() {
   monthTxns().forEach(t => billsFor(t).forEach(x => { const name = x.kind === 'sale' ? x.bill.party : x.bill.sup; const p = touch(name || '—'); if (t.credit) p.recv += x.amount; else if (t.debit) p.paid += x.amount; }));
   return Object.values(by).map(p => ({ ...p, pending: p.pendS - p.pendP, business: p.sales + p.purchases })).sort((a, b) => b.business - a.business);
 }
+/* What the AI understood this month — the digest that leads the insights bar. */
+function categoryDigest() {
+  const tt = monthTxns();
+  const d = { receipts: 0, payments: 0, charges: 0, loan: 0, internal: 0, gst: 0, dup: 0, exceptions: 0, understood: 0 };
+  tt.forEach(t => {
+    const m = t.m || {};
+    if (m.status === 'duplicate') { d.dup++; d.exceptions++; return; }
+    if (m.status === 'other') {
+      d.understood++;
+      const k = m.catKey || '';
+      if (k === 'charges' || k === 'interest' || /charge|interest|fee/i.test(m.cat || '')) d.charges++;
+      else if (k === 'loan' || /loan|emi/i.test(m.cat || '')) d.loan++;
+      else if (k === 'self' || k === 'interfirm' || k === 'cash' || /self|inter-firm|cash|partner/i.test(m.cat || '')) d.internal++;
+      else if (k === 'gst' || /gst/i.test(m.cat || '')) d.gst++;
+      return;
+    }
+    if (isLinked(t)) { d.understood++; if (t.credit) d.receipts++; else d.payments++; return; }
+    d.exceptions++;
+  });
+  d.total = tt.length;
+  return d;
+}
 function aiSuggestions() {
   const out = [], tt = monthTxns();
+  // Lead with the digest — "AI understood X of Y" + what needs the accountant.
+  if (tt.length) {
+    const d = categoryDigest();
+    const bits = [];
+    if (d.receipts) bits.push(d.receipts + ' customer receipt' + (d.receipts === 1 ? '' : 's'));
+    if (d.payments) bits.push(d.payments + ' supplier payment' + (d.payments === 1 ? '' : 's'));
+    if (d.charges) bits.push(d.charges + ' bank charge' + (d.charges === 1 ? '' : 's'));
+    if (d.loan) bits.push(d.loan + ' loan/EMI');
+    if (d.internal) bits.push(d.internal + ' internal');
+    if (d.gst) bits.push(d.gst + ' GST');
+    if (d.dup) bits.push(d.dup + ' duplicate' + (d.dup === 1 ? '' : 's'));
+    out.push({ ic: '🤖', tone: d.exceptions ? 'warn' : 'ok', t: `AI understood ${d.understood} of ${d.total} transactions`, s: (bits.join(' · ') || 'nothing categorized yet') + (d.exceptions ? ` — ${d.exceptions} exception${d.exceptions === 1 ? '' : 's'} need${d.exceptions === 1 ? 's' : ''} you.` : ' — nothing needs review. ✓') });
+  }
   tt.filter(t => (t.credit || 0) > 5000 && !isLinked(t)).slice(0, 3).forEach(t => out.push({ ic: '💰', tone: 'warn', t: `Unmatched credit ${fC(t.credit)} on ${fDS(t.date)}`, s: 'Customer payment received but no invoice linked — ' + (t.m && t.m.status === 'unknown' ? 'party not recognised.' : 'link it to a sales bill.') }));
   tt.filter(t => (t.debit || 0) > 5000 && !isLinked(t)).slice(0, 3).forEach(t => out.push({ ic: '📤', tone: 'info', t: `Unmatched debit ${fC(t.debit)} on ${fDS(t.date)}`, s: 'Money paid out — link to a purchase bill, or mark as GST / EMI / transfer.' }));
   tt.filter(t => t.m && t.m.status === 'duplicate').slice(0, 2).forEach(t => out.push({ ic: '⚠️', tone: 'bad', t: `Possible duplicate: ${fC((t.credit || 0) + (t.debit || 0))}`, s: esc((t.desc || '').slice(0, 46)) + ' appears twice this month.' }));
@@ -206,7 +325,7 @@ function heroHTML() {
     <div><div class="rc-h1">Bank Reconciliation</div><div class="rc-sub">${esc(monthLabel())} · <b>${esc(Q.co.short || 'Company')}</b> · ${monthTxns().length} transaction${monthTxns().length === 1 ? '' : 's'}</div></div>
     <div class="rc-hero-r">
       <button class="rc-btn" id="rcMonth">${svg(IC.cal)}<span>${esc(monthLabel())}</span>${svg('<polyline points="6 9 12 15 18 9"/>')}</button>
-      ${txns().length ? `<button class="rc-btn" id="rcMatch" title="Re-run auto match">${svg(IC.refresh)}<span>Re-match</span></button><button class="rc-btn" id="rcExport">${svg(IC.dl)}<span>Export</span></button>` : ''}
+      ${txns().length ? `<button class="rc-btn rc-btn-ai" id="rcMatch" title="Run the AI matching engine">${svg(IC.ai)}<span>AI Reconcile</span></button><button class="rc-btn" id="rcExport">${svg(IC.dl)}<span>Export</span></button>` : ''}
       <button class="rc-btn rc-btn-primary" id="rcUpload">${svg(IC.up)}<span>Upload statement</span></button>
     </div></div>`;
 }
@@ -221,7 +340,9 @@ function statusKey(t) {
   const m = t.m || {};
   if (m.status === 'duplicate') return 'duplicate';
   if (m.status === 'partial') return 'partial';
-  if (m.kind === 'ledger' || m.status === 'matched' || m.status === 'manual' || m.status === 'other' || (m.idx != null && !m.manual === false)) return isLinked(t) ? 'matched' : 'unmatched';
+  // A yellow-tier suggestion (review / overpayment / mismatch) has a linked
+  // idx but still NEEDS A HUMAN — it must never count as matched.
+  if (!m.manual && (m.status === 'review' || m.status === 'overpayment' || m.status === 'amountdiff' || m.status === 'datemismatch')) return 'review';
   if (isLinked(t)) return 'matched';
   if (m.status === 'unknown') return 'unknown';
   return 'unmatched';
@@ -232,7 +353,9 @@ function needsReview(t) { return statusKey(t) !== 'matched'; }
 function summaryHTML() {
   const c = cards(), tt = monthTxns();
   const credN = tt.filter(t => (t.credit || 0) > 0).length, debN = tt.filter(t => (t.debit || 0) > 0).length;
-  const matchN = tt.filter(t => statusKey(t) === 'matched').length;
+  const matchedRows = tt.filter(t => statusKey(t) === 'matched');
+  const matchN = matchedRows.length;
+  c.matched = matchedRows.reduce((a, t) => a + (t.credit || 0) + (t.debit || 0), 0);   // same definition as the count
   const rev = tt.filter(needsReview); const revAmt = rev.reduce((a, t) => a + (t.credit || 0) + (t.debit || 0), 0);
   const seg = (cls, ic, label, val, sub) => `<div class="rc-sum-seg"><span class="rc-sum-ic ${cls}">${ic}</span><div class="rc-sum-x"><span class="rc-sum-l">${label}</span><span class="rc-sum-v">${val}</span><span class="rc-sum-sub">${sub}</span></div></div>`;
   return `<div class="rc-summary">
@@ -334,16 +457,34 @@ function viewHTML() {
     <tbody>${body}</tbody></table></div>`;
 }
 /* ── table cells ── */
+function titleCase(s) { return (s || '').toString().toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()); }
 function partyCell(t) {
-  const b = billFor(t), alias = (aliases()[RC.normName(t.clean || '')] || '');
-  const known = b ? (t.credit ? b.party : b.sup) : (alias || '');
-  const name = t.clean || t.desc || '—';
-  const narr = ((t.raw || t.desc || '').slice(0, 46)) + (t.utr ? ' · ' + t.utr : '');
+  const b = billFor(t), m = t.m || {}, alias = (aliases()[RC.normName(t.clean || '')] || '');
+  const known = b ? (t.credit ? b.party : b.sup) : (m.party || alias || '');
+  // Primary line: the resolved PARTY (or the category for non-bill entries) —
+  // never the raw bank blob. Secondary: normalized "mode · ref", not narration.
+  const isOther = m.status === 'other';
+  const name = known || (isOther ? m.cat : '') || titleCase(t.clean) || (t.raw || t.desc || '—').slice(0, 36);
+  const mode = t.mode || (t.cheque ? 'CHQ' : '');
+  const shortRef = t.utr ? String(t.utr).slice(-10) : (t.cheque || '');
+  const norm2 = [mode, shortRef].filter(Boolean).join(' · ') || (t.raw || t.desc || '').slice(0, 38);
   const sub = known ? `<div class="rc-party-r">${svg('<path d="M20 6 9 17l-5-5"/>')}Recognized as <b>${esc(known)}</b></div>`
-    : ((t.m && t.m.status === 'unknown') || (!isLinked(t) && !known) ? `<div class="rc-party-u"><span class="rc-uk">Unknown party</span><button class="rc-idbtn" data-link="${t.id}">Identify</button></div>` : '');
-  return `<div class="rc-party-n">${esc(name)}</div><div class="rc-party-nar">${esc(narr)}</div>${sub}`;
+    : (!isOther && ((m.status === 'unknown') || !isLinked(t)) ? `<div class="rc-party-u"><span class="rc-uk">Unknown party</span><button class="rc-idbtn" data-link="${t.id}">Identify</button></div>` : '');
+  return `<div class="rc-party-n">${esc(name)}</div><div class="rc-party-nar">${esc(norm2)}</div>${sub}`;
 }
-function typeCell(t) { return t.credit ? '<span class="rc-tp rc-tp-c">Credit</span>' : '<span class="rc-tp rc-tp-d">Debit</span>'; }
+/* Transaction column — WHAT this money movement is, not just Credit/Debit. */
+function typeCell(t) {
+  const m = t.m || {};
+  const chip = (l, cls) => `<span class="rc-tp ${cls}">${esc(l)}</span>`;
+  if (m.status === 'other') {
+    const key = m.catKey || '';
+    const cls = key === 'self' || key === 'interfirm' ? 'rc-tp-i' : key === 'loan' ? 'rc-tp-l' : key === 'gst' ? 'rc-tp-g' : key === 'cash' ? 'rc-tp-a' : 'rc-tp-x';
+    return chip(m.cat || 'Categorized', cls);
+  }
+  if (m.kind === 'ledger') return chip(t.credit ? 'On-account receipt' : 'On-account payment', t.credit ? 'rc-tp-c' : 'rc-tp-d');
+  if (m.idx != null || isSplit(t)) return t.credit ? chip('Customer payment', 'rc-tp-c') : chip('Supplier payment', 'rc-tp-d');
+  return t.credit ? chip('Credit', 'rc-tp-c') : chip('Debit', 'rc-tp-d');
+}
 function amountCell(t) { return t.credit ? `<span class="rc-amt rc-cr">+ ${fC(t.credit)}</span>` : `<span class="rc-amt rc-dr">− ${fC(t.debit)}</span>`; }
 function suggestCell(t) {
   if (isSplit(t)) { const bl = billsFor(t); return `<div class="rc-sg"><b>${bl.length} bills · ${fC(bl.reduce((a, x) => a + x.amount, 0))}</b><span class="rc-sg-p">split allocation</span></div>`; }
@@ -351,10 +492,13 @@ function suggestCell(t) {
   const b = billFor(t);
   if (b) {
     const ref = t.m.kind === 'sale' ? b.inv : b.bill, nm = t.m.kind === 'sale' ? b.party : b.sup;
-    const alloc = t.credit || t.debit || 0, tot = b.total || alloc, pct = Math.min(100, Math.round(alloc / (tot || 1) * 100));
-    const col = pct >= 99 ? '#16a34a' : '#f59e0b';
+    const alloc = t.credit || t.debit || 0, tot = b.total || alloc;
+    const over = alloc > tot + 1;
+    const pct = Math.min(100, Math.round(alloc / (tot || 1) * 100));
+    const col = over ? '#dc2626' : pct >= 99 ? '#16a34a' : '#f59e0b';
+    const line = over ? `${fC(alloc)} — exceeds bill by ${fC(alloc - tot)}` : `${fC(alloc)} of ${fC(tot)}`;
     return `<div class="rc-sg"><b>${esc(ref || '—')}</b><span class="rc-sg-p">${esc(nm || '')}</span>
-      <div class="rc-sg-of">${fC(alloc)} of ${fC(tot)}</div><div class="rc-sg-bar"><i style="width:${pct}%;background:${col}"></i></div></div>`;
+      <div class="rc-sg-of"${over ? ' style="color:#dc2626;font-weight:600"' : ''}>${line}</div><div class="rc-sg-bar"><i style="width:${pct}%;background:${col}"></i></div></div>`;
   }
   if (t.m && t.m.status === 'other') return `<div class="rc-sg"><b>${esc(t.m.cat || 'Categorized')}</b><span class="rc-sg-p">non-bill entry</span></div>`;
   return '<span class="rc-mut">— no match —</span>';
@@ -404,7 +548,7 @@ function openMonthMenu(anchor) {
 function openMark(tid, anchor) {
   closeRcMenu();
   const t = txns().find(x => x.id === tid); if (!t) return;
-  const cats = ['Advance payment', 'Partner transfer', 'Loan / EMI', 'Cash withdrawal', 'GST payment', 'Petcoke', 'Limestone', 'Plastic Bags', 'Royalty', 'Bank charges', 'Other'];
+  const cats = ['Advance payment', 'Self transfer', 'Inter-firm transfer', 'Partner transfer', 'Loan / EMI', 'Cash withdrawal', 'GST payment', 'Bank charges', 'Interest', 'Petcoke', 'Limestone', 'Plastic Bags', 'Royalty', 'Ignore', 'Other'];
   const m = document.createElement('div'); m.className = 'rc-menu';
   m.innerHTML = `<div class="rc-menu-h">Mark as</div>${cats.map(c => `<button class="rc-menu-i" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}`;
   m.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { t.m = { kind: 'other', idx: null, status: 'other', cat: b.dataset.cat, manual: true, confidence: 100, matchedBy: 'manual', reasons: ['Categorized as ' + b.dataset.cat + ' by user'], at: new Date().toISOString() }; Q.saveRecon(); closeRcMenu(); render(); toast('Marked as ' + b.dataset.cat, 'ok'); });
@@ -419,6 +563,7 @@ function openKebab(tid, anchor) {
   m.appendChild(item('Match to a bill', () => openLink(tid)));
   m.appendChild(item('Change party / identify', () => openLink(tid)));
   m.appendChild(item('Split across bills', () => openSplit(tid)));
+  if (!isLinked(t) && rcTxnParty(t) >= 0) m.appendChild(item('Mark as advance (on-account)', () => { const pidx = rcTxnParty(t); if (postOnAccount(t, pidx, (t.credit ? 'Advance received' : 'Advance paid'))) { runMatchAll(); render(); } }));
   m.appendChild(item('Categorize', () => openMark(tid, anchor)));
   const isDup = t.m && t.m.status === 'duplicate';
   m.appendChild(item(isDup ? 'Unmark duplicate' : 'Mark duplicate', () => { markDuplicate(t, !isDup); render(); }));
@@ -446,9 +591,17 @@ function openUpload() {
         <span class="rc-drop-ic">${svg(IC.up)}</span><b>Choose a file or drop it here</b><span class="rc-drop-s">PDF · Excel (.xlsx/.xls) · CSV — one row per transaction with Date, Debit/Credit &amp; Balance</span></label>
       <div id="rcUpMsg" class="rc-upmsg"></div>
       <div class="rc-note">Statement is read on your device. Credits match sales invoices, debits match purchase bills — for <b>${esc(Q.co.short || 'this firm')}</b>.</div>
+      ${txns().length ? `<div class="rc-note" style="margin-top:8px">Re-importing a statement you fixed? <a href="#" id="rcClearAll" style="color:var(--ql-danger-600);font-weight:600">Clear the ${txns().length} imported transaction${txns().length === 1 ? '' : 's'}</a> first so the fresh rows don't read as duplicates. Manual links posted to party ledgers are reversed too.</div>` : ''}
     </div></div>`;
   const close = () => b.remove();
   document.getElementById('rcUX').onclick = close;
+  const clearBtn = document.getElementById('rcClearAll');
+  if (clearBtn) clearBtn.onclick = e => {
+    e.preventDefault();
+    if (!confirm('Remove all ' + txns().length + ' imported bank transactions?\n\nOn-account ledger postings made from them will be reversed. Your invoices, bills and payments are untouched.')) return;
+    txns().forEach(t => { const m = t.m || {}; if (m.kind === 'ledger' && m.ledgerEntryId && Q.reverseLedgerEntry) { try { Q.reverseLedgerEntry(m.partyIdx, m.ledgerEntryId); } catch (_) {} } });
+    Q.recon.txns = []; Q.saveRecon(); close(); render(); toast('Imported transactions cleared — upload the statement again', 'ok');
+  };
   const drop = document.getElementById('rcDrop'), file = document.getElementById('rcFile'), msg = document.getElementById('rcUpMsg');
   const go = async f => {
     if (!f) return;
@@ -463,6 +616,29 @@ function openUpload() {
   ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); go(e.dataTransfer.files[0]); });
+}
+/* Reverse an on-account ledger entry safely: party indexes shift when parties
+   are edited/deleted, so verify the stored idx actually holds the entry and
+   fall back to scanning all parties for the (globally unique) ledger id. */
+function reverseLedgerSafe(pidx, lid) {
+  if (!lid || !Q.reverseLedgerEntry) return false;
+  const holds = i => { const p = (Q.state.PARTIES || [])[i]; return p && (p.ledger || []).some(e => e.id === lid); };
+  let idx = (pidx >= 0 && holds(pidx)) ? pidx : (Q.state.PARTIES || []).findIndex((_, i) => holds(i));
+  if (idx >= 0) { Q.reverseLedgerEntry(idx, lid); return true; }
+  return false;
+}
+/* Post a bank transaction on-account to a party's running balance (advance /
+   partial / lump-sum). One shared path for the link modal AND the drawer. */
+function postOnAccount(t, pidx, label) {
+  const isCr = (t.credit || 0) > 0, amt = isCr ? t.credit : t.debit;
+  const p = Q.partyRows().find(x => x.idx === pidx); if (!p) return false;
+  const entry = { date: t.date, ref: t.utr || t.ref || '', mode: 'Bank', desc: (label || ('Bank ' + (isCr ? 'receipt' : 'payment'))) + (t.desc ? ' · ' + String(t.desc).slice(0, 36) : '') };
+  if (isCr) entry.cr = amt; else entry.dr = amt;
+  const lid = Q.recordLedgerEntry(pidx, entry);
+  if (t.clean) learnAlias(t.clean, p.name);
+  t.m = { kind: 'ledger', partyIdx: pidx, party: p.name, ledgerEntryId: lid, status: 'matched', manual: true, matchedBy: 'ledger', confidence: 100, reasons: [(label || 'Posted on-account') + ' → ' + p.name + ' running balance'], at: new Date().toISOString() };
+  toast('Posted ' + fC(amt) + ' to ' + p.name + ' · running a/c', 'ok');
+  return true;
 }
 function openLink(tid) {
   const t = txns().find(x => x.id === tid); if (!t) return;
@@ -491,13 +667,7 @@ function openLink(tid) {
   document.getElementById('rcOaPost').onclick = () => {
     const pidx = +document.getElementById('rcOaParty').value;
     if (!(pidx >= 0)) { toast('Pick a party first', 'err'); return; }
-    const p = Q.partyRows().find(x => x.idx === pidx); if (!p) return;
-    const entry = { date: t.date, ref: t.utr || t.ref || '', mode: 'Bank', desc: 'Bank ' + (isCr ? 'receipt' : 'payment') + (t.desc ? ' · ' + String(t.desc).slice(0, 36) : '') };
-    if (isCr) entry.cr = amt; else entry.dr = amt;
-    const lid = Q.recordLedgerEntry(pidx, entry);
-    if (t.clean) learnAlias(t.clean, p.name);
-    t.m = { kind: 'ledger', partyIdx: pidx, party: p.name, ledgerEntryId: lid, status: 'matched', manual: true, matchedBy: 'ledger', confidence: 100, reasons: ['Posted on-account to ' + p.name + ' running balance'], at: new Date().toISOString() };
-    runMatchAll(); close(); render(); toast('Posted ' + fC(amt) + ' to ' + p.name + ' · running a/c', 'ok');
+    if (postOnAccount(t, pidx)) { runMatchAll(); close(); render(); }
   };
   const relist = q => { const f = q ? list.filter(x => { const r = x.r; return ((isCr ? r.inv + ' ' + r.party : r.bill + ' ' + r.sup) || '').toLowerCase().includes(q); }) : list; document.getElementById('rcPickList').innerHTML = f.slice(0, 40).map(row).join('') || '<div class="rc-none">No matches.</div>'; wirePicks(); };
   const wirePicks = () => b.querySelectorAll('[data-idx]').forEach(btn => btn.onclick = () => {
@@ -569,6 +739,23 @@ function openSplit(tid) {
   paint();
 }
 
+/* Party context inside the drawer: running balance + the last few ledger
+   entries + open invoices — so the accountant decides without leaving. */
+function partyContextHTML(t) {
+  try {
+    const m = t.m || {};
+    const pidx = m.kind === 'ledger' ? m.partyIdx : rcTxnParty(t);
+    if (!(pidx >= 0) || !Q.partyLedger) return '';
+    const led = Q.partyLedger(pidx); if (!led) return '';
+    const recent = led.rows.slice(-3).reverse();
+    const openInv = led.rows.filter(e => e.kind === 'sale' || e.kind === 'bill').length;
+    const balCol = led.closing > 0 ? 'var(--ql-danger-600)' : led.closing < 0 ? '#16a34a' : 'inherit';
+    return `<div class="rc-dp-sec">Party · ${esc(led.party.name || '')}</div>
+      <div class="rc-dp-kv"><span>Running balance</span><b style="color:${balCol}">${fC(Math.abs(led.closing))} ${led.closing > 0 ? 'due from party' : led.closing < 0 ? 'advance held' : 'settled'}</b></div>
+      ${recent.map(e => `<div class="rc-dp-kv rc-dp-led"><span>${fDS(e.date)} · ${esc((e.desc || '').slice(0, 26))}</span><b>${e.dr ? fC(e.dr) + ' Dr' : fC(e.cr) + ' Cr'}</b></div>`).join('')}
+      <div class="rc-dp-kv"><span>Ledger entries</span><b><a href="./ledger.html?party=${pidx}" style="color:var(--ql-brand-600)">${led.rows.length} · open full statement →</a></b></div>`;
+  } catch (_) { return ''; }
+}
 /* ══════════════════ TRANSACTION DETAIL DRAWER ══════════════════ */
 function openDetail(tid) {
   const t = txns().find(x => x.id === tid); if (!t) return;
@@ -591,12 +778,14 @@ function openDetail(tid) {
         : (m.kind === 'ledger' ? (kv('Posted on-account', esc(m.party || '') + ' · running a/c') + kv('Amount', fC(t.credit || t.debit || 0))) : (b ? (kv(m.kind === 'sale' ? 'Sales invoice' : 'Purchase bill', esc((m.kind === 'sale' ? b.inv : b.bill) || '—') + ' · ' + esc((m.kind === 'sale' ? b.party : b.sup) || '')) + kv('Bill total', fC(b.total)) + kv('Outstanding', fC(b.outstanding || 0))) : (m.cat ? kv('Category', esc(m.cat)) : '<div class="rc-mut" style="font-size:12.5px">Not linked to any bill yet.</div>')))}
       <div class="rc-dp-sec">Why the AI decided this</div>
       <ul class="rc-dp-why">${reasons}</ul>
+      ${partyContextHTML(t)}
       <div class="rc-dp-sec">Audit trail</div>
       ${kv('Matched by', m.matchedBy === 'manual' ? 'Manual (you)' : m.matchedBy === 'rule' ? 'Rule engine' : 'AI engine')}${kv('When', m.at ? new Date(m.at).toLocaleString('en-IN') : '')}
       <div class="rc-dp-acts">
         ${(m.status === 'review' && b) ? `<button class="rc-btn rc-btn-primary" id="rcDpConfirm">${svg(IC.ck)}<span>Confirm match</span></button>` : ''}
         <button class="rc-btn" id="rcDpLink">${svg(IC.link)}<span>Link / change</span></button>
         <button class="rc-btn" id="rcDpSplit">${svg(IC.split)}<span>${isSplit(t) ? 'Edit split' : 'Split across bills'}</span></button>
+        ${(!isLinked(t) && rcTxnParty(t) >= 0) ? `<button class="rc-btn" id="rcDpAdvance">${svg(IC.wallet)}<span>Mark as advance</span></button>` : ''}
         <button class="rc-btn" id="rcDpMark">${svg(IC.tag)}<span>Categorize</span></button>
         ${isLinked(t) ? `<button class="rc-btn" id="rcDpUnlink">${svg(IC.x)}<span>Unlink</span></button>` : ''}
       </div>
@@ -605,6 +794,7 @@ function openDetail(tid) {
   $('rcDpX').onclick = () => back.classList.remove('open');
   if ($('rcDpConfirm')) $('rcDpConfirm').onclick = () => { const party = m.kind === 'sale' ? b.party : b.sup; if (t.clean && party) learnAlias(t.clean, party); const paidPartial = t.credit && t.credit < (b.outstanding != null ? b.outstanding : b.total) - 1; t.m = Object.assign({}, m, { status: paidPartial ? 'partial' : 'matched', manual: true, matchedBy: 'manual', confidence: 100, at: new Date().toISOString() }); runMatchAll(); back.classList.remove('open'); render(); toast('Confirmed · alias learned', 'ok'); };
   if ($('rcDpLink')) $('rcDpLink').onclick = () => { back.classList.remove('open'); openLink(tid); };
+  if ($('rcDpAdvance')) $('rcDpAdvance').onclick = () => { const pidx = rcTxnParty(t); if (pidx >= 0 && postOnAccount(t, pidx, (t.credit ? 'Advance received' : 'Advance paid'))) { runMatchAll(); back.classList.remove('open'); render(); } };
   if ($('rcDpSplit')) $('rcDpSplit').onclick = () => { back.classList.remove('open'); openSplit(tid); };
   if ($('rcDpMark')) $('rcDpMark').onclick = e => openMark(tid, e.currentTarget);
   if ($('rcDpUnlink')) $('rcDpUnlink').onclick = () => { if (m.kind === 'ledger' && m.ledgerEntryId && Q.reverseLedgerEntry) { Q.reverseLedgerEntry(m.partyIdx, m.ledgerEntryId); toast('Reversed on-account entry', 'ok'); } t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched', confidence: 0, tier: 'red', matchedBy: 'manual', reasons: ['Unlinked by user'], at: new Date().toISOString() }; Q.saveRecon(); back.classList.remove('open'); render(); };
@@ -635,7 +825,12 @@ function wire() {
   const $ = id => document.getElementById(id), root = document.getElementById('rcRoot'); if (!root) return;
   ['rcUpload', 'rcUpload2'].forEach(id => { if ($(id)) $(id).onclick = openUpload; });
   if ($('rcMonth')) $('rcMonth').onclick = e => openMonthMenu(e.currentTarget);
-  if ($('rcMatch')) $('rcMatch').onclick = () => { runMatchAll(true); render(); toast('Re-matched ' + txns().length + ' transactions', 'ok'); };
+  if ($('rcMatch')) $('rcMatch').onclick = () => {
+    runMatchAll(false);                       // false = never clobber manual work
+    render();
+    const d = categoryDigest();
+    toast('AI reconciled: ' + d.understood + ' of ' + d.total + ' understood · ' + (d.exceptions ? d.exceptions + ' exception' + (d.exceptions === 1 ? '' : 's') + ' need you' : 'nothing needs review ✓'), d.exceptions ? '' : 'ok');
+  };
   if ($('rcExport')) $('rcExport').onclick = exportRecon;
   if ($('rcLedgerExp')) $('rcLedgerExp').onclick = exportLedger;
   if ($('rcAiReview')) $('rcAiReview').onclick = () => { ST.fstatus = 'review'; render(); };
@@ -656,6 +851,69 @@ function wire() {
   const fo = root.querySelector('.rc-fo'); if (fo) fo.addEventListener('toggle', () => { ST.foOpen = fo.open; });
 }
 function s2focus() { const s = document.getElementById('rcSearch'); if (s) { s.focus(); const v = s.value; s.value = ''; s.value = v; } }
+
+/* ── Copilot: reconciliation Q&A (registered into the shared assistant) ── */
+if (QLShell.registerAssistIntent) QLShell.registerAssistIntent((q, t) => {
+  const tt = monthTxns();
+  const money = t2 => fC(t2.credit || t2.debit || 0);
+  const line = (t2, why) => `<li><b>${money(t2)}</b> · ${fDS(t2.date)} · ${esc((t2.clean || t2.desc || '').slice(0, 34))}${why ? ' — ' + esc(why) : ''}</li>`;
+  if (/duplicate|paid twice|double payment/.test(t)) {
+    const d = tt.filter(x => x.m && x.m.status === 'duplicate');
+    return d.length ? `<p><b>${d.length} possible duplicate${d.length === 1 ? '' : 's'}</b> this month:</p><ul>${d.slice(0, 6).map(x => line(x)).join('')}</ul><p>Open each row's Review to confirm or unmark.</p>` : `<p>No duplicate payments detected in ${esc(monthLabel())}. ✓</p>`;
+  }
+  if (/\badvance/.test(t) && /show|list|which|all|any/.test(t)) {
+    const a = tt.filter(x => x.m && (x.m.kind === 'ledger' || x.m.status === 'overpayment' || /advance/i.test(x.m.cat || '')));
+    return a.length ? `<p><b>${a.length} advance / on-account entr${a.length === 1 ? 'y' : 'ies'}</b>:</p><ul>${a.slice(0, 6).map(x => line(x, x.m.party || x.m.cat)).join('')}</ul>` : `<p>No advances recorded from the bank statement this month.</p>`;
+  }
+  if (/unknown part|not recognised|not recognized|unidentified/.test(t)) {
+    const u = tt.filter(x => x.m && x.m.status === 'unknown');
+    return u.length ? `<p><b>${u.length} unidentified transaction${u.length === 1 ? '' : 's'}</b> — teach me who they are via Review → Identify:</p><ul>${u.slice(0, 6).map(x => line(x)).join('')}</ul>` : `<p>Every transaction has a recognized party. ✓</p>`;
+  }
+  if (/why.*(unmatch|not match|no match)|unmatched|exception/.test(t)) {
+    const u = tt.filter(needsReview);
+    if (!u.length) return `<p>Nothing needs review in ${esc(monthLabel())} — all matched or categorized. ✓</p>`;
+    const top = u[0], why = (top.m && top.m.reasons || []).join('; ') || 'no matching signals';
+    return `<p><b>${u.length} transaction${u.length === 1 ? '' : 's'} need${u.length === 1 ? 's' : ''} review.</b> Top one: ${money(top)} on ${fDS(top.date)} — ${esc(why)}.</p><p>Common causes: the invoice isn't uploaded yet, the party name differs from your books (use Identify once — it learns), or it's an advance.</p>`;
+  }
+  if (/bank charge|charges|fees/.test(t) && /how much|total|show|list/.test(t)) {
+    const c = tt.filter(x => x.m && x.m.status === 'other' && /charge|interest/i.test(x.m.cat || ''));
+    const sum = c.reduce((a, x) => a + (x.debit || 0), 0);
+    return `<p>Bank charges + interest in ${esc(monthLabel())}: <b>${fC(sum)}</b> across ${c.length} entr${c.length === 1 ? 'y' : 'ies'}.</p>`;
+  }
+  if (/self transfer|internal transfer|inter.?firm/.test(t)) {
+    const s = tt.filter(x => x.m && x.m.status === 'other' && /self|inter-firm/i.test(x.m.cat || ''));
+    return s.length ? `<p><b>${s.length} internal transfer${s.length === 1 ? '' : 's'}</b> (own accounts / sister firm):</p><ul>${s.slice(0, 6).map(x => line(x, x.m.cat)).join('')}</ul>` : `<p>No internal transfers detected this month.</p>`;
+  }
+  return null;   // fall through to the shell's built-in intents
+});
+
+/* ══════════════════ COPILOT — reconciliation Q&A ══════════════════
+   Registered so "why wasn't this matched / show duplicates / which suppliers
+   were paid twice / show all advances / all Indian Oil payments" answer from
+   LIVE recon state. Runs before the shell's generic intents (first match wins). */
+if (QLShell.registerAssistIntent) QLShell.registerAssistIntent((q, t, H) => {
+  if (!/reconcil|transaction|bank statement|unmatch|duplicate|paid twice|advance|exception|matched|\bdebit\b|\bcredit\b|\butr\b|inter.?firm|self transfer/.test(t) && !/why.*(match|link)/.test(t)) return '';
+  const tt = txns().filter(x => inMonth(x.date));
+  if (!tt.length) return `<p>No bank transactions loaded for ${esc(monthLabel())}. Open <b>Bank Reconciliation</b> and upload a statement.</p>`;
+  const fc = H.fc, row = (t2) => `${fDS(t2.date)} · ${esc(titleCase(t2.clean) || (t2.desc || '').slice(0, 24))} · <b>${t2.credit ? '+' : '−'}${fc(t2.credit || t2.debit)}</b>`;
+  const listOf = arr => arr.length ? '<ul class="ql-ai-list">' + arr.slice(0, 12).map(x => `<li>${row(x)}</li>`).join('') + (arr.length > 12 ? `<li>…and ${arr.length - 12} more</li>` : '') + '</ul>' : '<p>None. ✓</p>';
+  // duplicates / paid twice
+  if (/duplicate|paid twice|twice|double/.test(t)) { const d = tt.filter(x => statusKey(x) === 'duplicate'); return `<p><b>${d.length}</b> duplicate transaction${d.length === 1 ? '' : 's'} this month:</p>${listOf(d)}`; }
+  // advances
+  if (/advance/.test(t)) { const a = tt.filter(x => x.m && x.m.kind === 'ledger'); return `<p><b>${a.length}</b> on-account / advance posting${a.length === 1 ? '' : 's'}:</p>${listOf(a)}`; }
+  // exceptions / needs review / why unmatched
+  if (/exception|unmatch|why.*(match|link)|need.*review|unknown/.test(t)) {
+    const ex = tt.filter(needsReview);
+    const d = categoryDigest();
+    return `<p>The AI understood <b>${d.understood} of ${d.total}</b> transactions. <b>${ex.length}</b> need${ex.length === 1 ? 's' : ''} your review:</p>${listOf(ex)}<div class="ql-ai-acts"><button onclick="location.href='./reconcile.html'">Open reconciliation</button></div>`;
+  }
+  // a named party's bank transactions ("all Indian Oil payments")
+  const pm = q.match(/(?:all|show|list)\s+([a-z][a-z &.]{2,32})\s+(?:payment|transaction|entr|receipt)/i);
+  if (pm) { const nmq = RC.normName(pm[1]); const hits = tt.filter(x => RC.normName(x.clean || '').indexOf(nmq) >= 0 || (billFor(x) && RC.normName((billFor(x).party || billFor(x).sup || '')).indexOf(nmq) >= 0)); return `<p><b>${hits.length}</b> bank transaction${hits.length === 1 ? '' : 's'} for “${esc(pm[1].trim())}”:</p>${listOf(hits)}`; }
+  // default recon digest
+  const d = categoryDigest();
+  return `<p><b>${monthLabel()} · ${esc(Q.co.short || '')}</b></p><p>${d.understood} of ${d.total} understood — ${d.receipts} receipts, ${d.payments} supplier payments, ${d.charges} charges, ${d.loan} loan/EMI, ${d.internal} internal, ${d.dup} duplicate. <b>${d.exceptions}</b> exception${d.exceptions === 1 ? '' : 's'} to review.</p><div class="ql-ai-acts"><button onclick="location.href='./reconcile.html'">Open reconciliation</button></div>`;
+});
 
 window.__qlRefresh = render;
 window.__qlOnSwitchCompany = id => { ST.monthInit = false; Q.switchCompany(id, render); };

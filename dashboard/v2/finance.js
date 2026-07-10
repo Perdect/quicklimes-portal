@@ -173,6 +173,109 @@
     return out;
   }
 
+  /* ── x-position-aware bank-statement table from a digital PDF ─────
+     pdfToRows() flattens columns to [Date,Narration,Amount,Balance], which
+     LOSES the Withdrawal-vs-Deposit distinction — every transaction then
+     imports as a credit. This extractor keeps each text item's x position,
+     locates the column headers (WITHDRAWAL/DEPOSIT/BALANCE…), and assigns
+     every numeric token to its nearest column, so Dr/Cr survive. Wrapped
+     narration lines (no date, no amount-column tokens) are appended to the
+     previous transaction. Balance keeps its Cr/Dr suffix for sign checks. */
+  async function pdfBankTable(file) {
+    const pdfjs = await loadPDF();
+    const doc = await pdfjs.getDocument({ data: await readAsBuffer(file) }).promise;
+    const out = [['Date', 'Narration', 'Cheque', 'Debit', 'Credit', 'Balance']];
+    let cols = null;                        // header anchors: [{key, x}] using label right edges
+    let pending = null;                     // dated line still waiting for its amounts
+    const NUMRE = /^-?[\d,]+\.?\d*(\s*(CR|DR))?\.?$/i;
+    const DATERE = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/;
+    for (let p = 1; p <= Math.min(doc.numPages, 300); p++) {
+      const page = await doc.getPage(p);
+      const content = await page.getTextContent();
+      const byY = {};
+      content.items.forEach(it => {
+        const s = (it.str || '').trim(); if (!s) return;
+        const y = Math.round(it.transform[5] / 2) * 2;      // absorb 1-2px baseline jitter
+        (byY[y] = byY[y] || []).push({ x: it.transform[4], w: it.width || 0, s });
+      });
+      const lines = Object.keys(byY).map(Number).sort((a, b) => b - a).map(y => byY[y].sort((a, b) => a.x - b.x));
+      for (const rawItems of lines) {
+        // pdf.js may pack several words into ONE item ("22/06/2026 22/06/2026")
+        // — split every item into word tokens with proportionally interpolated
+        // x positions, so dates/amounts are detected regardless of packing.
+        const items = [];
+        rawItems.forEach(o => {
+          const parts = o.s.split(/\s+/).filter(Boolean);
+          if (parts.length <= 1) { items.push(o); return; }
+          let cursor = 0;
+          parts.forEach(pt => {
+            const idx = o.s.indexOf(pt, cursor); cursor = idx + pt.length;
+            items.push({ x: o.x + (o.w || 0) * (idx / o.s.length), w: (o.w || 0) * (pt.length / o.s.length), s: pt });
+          });
+        });
+        const text = items.map(o => o.s).join(' ').replace(/\s+/g, ' ').trim();
+        const U = text.toUpperCase();
+        if (!cols) {
+          if (/(WITHDRAW|DEBIT|\(DR\))/.test(U) && /(DEPOSIT|CREDIT|\(CR\))/.test(U) && /BALANCE/.test(U)) {
+            const edge = re => { const it = items.find(o => re.test(o.s.toUpperCase())); return it ? it.x + (it.w || 0) : null; };
+            cols = [];
+            const push = (key, x) => { if (x != null) cols.push({ key, x }); };
+            push('debit', edge(/WITHDRAW|DEBIT|\(DR\)/)); push('credit', edge(/DEPOSIT|CREDIT|\(CR\)/));
+            push('balance', edge(/BALANCE/)); push('cheque', edge(/CHQ|CHEQUE|INSTRUMENT/));
+          }
+          continue;
+        }
+        const nearest = o => {               // nearest column by right-edge distance; far tokens = narration
+          const r = o.x + (o.w || 0); let best = null, bd = 1e9;
+          cols.forEach(c => { const d = Math.abs(r - c.x); if (d < bd) { bd = d; best = c.key; } });
+          return bd <= 60 ? best : 'narr';
+        };
+        // leading date(s): BoB prints TRAN DATE + VALUE DATE — take the first, skip both
+        let di = 0; while (di < items.length && DATERE.test(items[di].s)) di++;
+        const dateTok = di > 0 ? items[0].s : null;
+        const rest = items.slice(di);
+        const cells = { debit: '', credit: '', balance: '', cheque: '' };
+        const narrParts = [];
+        rest.forEach(o => {
+          const raw = (o.s || '').trim();
+          // A standalone "Dr"/"Cr" is the SIGN for the balance to its left — glue
+          // it on so signedBalance() can read it (else the whole chain unsigns and
+          // the direction inference can silently invert the statement).
+          if (/^(cr|dr)\.?$/i.test(raw)) {
+            if (cells.balance && !/(cr|dr)/i.test(cells.balance)) cells.balance += raw.replace(/\.$/, '');
+            return;                          // amount-column indicators are redundant (column already implies dir)
+          }
+          const isNum = NUMRE.test(raw.replace(/\s+/g, ''));
+          const col = isNum ? nearest(o) : 'narr';
+          if (col !== 'narr' && !cells[col]) cells[col] = raw;
+          else narrParts.push(raw);
+        });
+        if (!dateTok) {
+          // A dated line without amounts may be waiting for THIS line to carry
+          // them (some layouts put the figures beside the wrapped 2nd line).
+          if (pending && (cells.debit || cells.credit)) {
+            pending[1] = (pending[1] + ' ' + narrParts.join(' ')).replace(/\s+/g, ' ').trim();
+            pending[2] = pending[2] || cells.cheque; pending[3] = cells.debit; pending[4] = cells.credit; pending[5] = cells.balance || pending[5];
+            out.push(pending); pending = null; continue;
+          }
+          // continuation line: text only, nothing landed in an amount column
+          if (narrParts.length && !cells.debit && !cells.credit && !cells.balance) {
+            if (pending) pending[1] = (pending[1] + ' ' + narrParts.join(' ')).replace(/\s+/g, ' ').trim();
+            else if (out.length > 1) { const last = out[out.length - 1]; last[1] = (last[1] + ' ' + narrParts.join(' ')).replace(/\s+/g, ' ').trim(); }
+          }
+          continue;
+        }
+        pending = null;                                       // a new dated line supersedes any unfinished one
+        if (!cells.debit && !cells.credit) {                  // amounts may follow on the next visual line
+          pending = [dateTok, narrParts.join(' ').trim(), cells.cheque, '', '', cells.balance];
+          continue;
+        }
+        out.push([dateTok, narrParts.join(' ').trim(), cells.cheque, cells.debit, cells.credit, cells.balance]);
+      }
+    }
+    return out.length > 1 ? out : null;      // null → caller falls back to the generic path
+  }
+
   /* ── OCR (Tesseract.js) — read a photo/PDF of a bill on-device ──── */
   const loadTesseract = () => loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js', 'tesseract').then(() => window.Tesseract);
   // Pull embedded text from a digital PDF (no OCR) — one entry per page, with
@@ -257,7 +360,10 @@
     // Party master (GSTIN → official name) from the user's own supplier list, so a
     // known/corrected supplier auto-resolves on future bills (grows the built-in seed).
     const pm = {};
-    try { (window.QLD && QLD.partyRows ? QLD.partyRows() : []).forEach(p => { if (p.gstin && p.name) pm[String(p.gstin).toUpperCase().replace(/\s/g, '')] = p.name; }); } catch (_) {}
+    // Skip implausible names (declaration fragments saved under the old buggy
+    // parser, e.g. "the buyer. For") — they'd re-poison every future bill.
+    const sane = n => !(window.BillOCR && BillOCR.plausibleName) || BillOCR.plausibleName(n);
+    try { (window.QLD && QLD.partyRows ? QLD.partyRows() : []).forEach(p => { if (p.gstin && p.name && sane(p.name)) pm[String(p.gstin).toUpperCase().replace(/\s/g, '')] = p.name; }); } catch (_) {}
     return { ownGstins: g, ownNames: n, aliases: billAliases(), partyMaster: pm };
   }
   // Learned supplier corrections: normalized header line → canonical name.
@@ -995,7 +1101,7 @@
   window.QLFin = {
     CATS, CREDIT_CATS, DEBIT_CATS, STATUSES, CHECKLIST, DOC_KINDS,
     fileToRows, extract, parseDate, parseNum, findHeaderRow, colOf, importSheet, ocrScan, parseInvoiceText, learnBillAlias,
-    pdfPages, splitPdfPages, ownInfo,
+    pdfPages, splitPdfPages, ownInfo, pdfBankTable,
     importTxns, reclassifyAll, setTxn, deleteTxn, findDuplicates,
     summary, byCategory, customerOutstanding, supplierOutstanding, accBalance, accLabel,
     gstMonths, setGst,

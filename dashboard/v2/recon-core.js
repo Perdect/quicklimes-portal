@@ -67,11 +67,136 @@
       }).join(' ').trim();
       if (kept && /[A-Za-z]{2,}/.test(kept)) parts.push(kept);
     });
+    // Drop a TRAILING segment that is the beneficiary's BANK, not the party:
+    // "SHUBHAM MINCHEM PVT LTD-AXIS" / "MATESHWARI MINES-PUNJAB NATI" — the
+    // last dash-segment names the receiving bank on NEFT/RTGS narrations.
+    while (parts.length > 1 && BANK_TAIL.test(normName(parts[parts.length - 1]))) parts.pop();
     var clean = normName(parts.join(' '));
     if (!clean) {   // fallback: keep alphabetic tokens from the whole raw
       clean = normName(U.split(/\s+/).filter(function (w) { return /^[A-Z][A-Z.&]{1,}$/.test(w) && !NOISE.has(w) && MODE_WORDS.indexOf(w) < 0; }).join(' '));
     }
     return { raw: raw, clean: clean, utr: utr, cheque: cheque, mode: mode };
+  }
+  // Trailing beneficiary-bank segments (whole-segment match only, so a party
+  // genuinely named "AXIS ROADLINES" is never touched).
+  var BANK_TAIL = /^(AXIS|HDFC|ICICI?|SBI N?|SBIN|PNB|PUNJAB NATI(ONAL)?( BANK)?|KOTAK( MAH(INDRA)?)?|YES( BANK)?|IDBI|BOB|BARODA|BANK OF BARODA|CANARA|UNION( BANK)?( OF INDIA)?|INDUSIND|FEDERAL|BANDHAN|AU SMALL( FIN(ANCE)?)?( BANK)?|UCO|CENTRAL BANK( OF INDIA)?|IOB|INDIAN OVERSEAS( BANK)?|IDFC( FIRST)?|RBL|DBS|HSBC|CITI|STANDARD CHARTERED|KARUR VYSYA|KVB|SOUTH INDIAN( BANK)?)( BANK)?( LTD| LIMITED)?$/;
+
+  /* ── balance signing + direction inference ──────────────────────────────
+     Indian statements print running balance as "26,836.73Cr" / "9,57,515.37Dr".
+     A Cash-Credit account runs a Dr balance that GROWS with withdrawals, so any
+     direction guess that ignores the Dr/Cr suffix inverts every transaction.
+     signedBalance: Cr → +, Dr → −.  inferDirections: walks the balance chain
+     (tries both latest-first and oldest-first row orders) and returns the
+     arithmetically-certain direction of each row. */
+  function signedBalance(s) {
+    if (s == null) return null;
+    var str = String(s).trim(); if (!str) return null;
+    var neg = /D\s*R\.?\s*$/i.test(str) || /^-/.test(str);
+    var n = parseFloat(str.replace(/[^0-9.]/g, ''));
+    if (!isFinite(n)) return null;
+    return neg ? -n : n;
+  }
+  function inferDirections(rows) {
+    var n = rows.length;
+    function attempt(prevOf) {
+      var ok = 0, dirs = new Array(n).fill('');
+      for (var i = 0; i < n; i++) {
+        var j = prevOf(i); if (j < 0 || j >= n) continue;
+        var b = rows[i].bal, pb = rows[j].bal, a = +rows[i].amt || 0;
+        if (b == null || pb == null || !a) continue;
+        var d = Math.round((b - pb) * 100) / 100;
+        if (Math.abs(d - a) <= 0.05) { dirs[i] = 'C'; ok++; }
+        else if (Math.abs(d + a) <= 0.05) { dirs[i] = 'D'; ok++; }
+      }
+      return { ok: ok, dirs: dirs };
+    }
+    var desc = attempt(function (i) { return i + 1; });   // latest-first: balance before txn i sits on the NEXT row
+    var asc = attempt(function (i) { return i - 1; });    // oldest-first
+    var best = desc.ok >= asc.ok ? desc : asc;
+    return { dirs: best.dirs, ok: best.ok, order: desc.ok >= asc.ok ? 'desc' : 'asc', n: n };
+  }
+
+  /* ── full-transaction classifier (both directions) ──────────────────────
+     Hard rules that identify NON-BILL money movements before any invoice
+     matching runs — bank charges, interest, loan EMIs, GST, self transfers,
+     cash. Built from real Bank-of-Baroda narrations. Order matters: loan
+     keywords beat SELF ("EBANK:SELF/…/Icic Loaninstalment" is a loan, not a
+     self transfer); charges beat cash ("CHARGES FOR :ATM/CASH" is a fee). */
+  // Each rule: [label, key, dir, regex]. dir gates by direction so a debit-only
+  // marker never fires on a credit and vice-versa ('D' debit, 'C' credit, ''
+  // both). Patterns are STRUCTURAL bank markers only — deliberately NOT generic
+  // brand/word tokens like bare "EMI" or "SHRIRAM" that collide with real party
+  // names (freight to "Shriram Transport" is a purchase, a customer named "EMI
+  // Transport" is a receipt). The caller additionally lets a confident invoice
+  // match override any rule, so a party payment is never swallowed as a fee.
+  var TXN_RULES = [
+    ['Bank charges', 'charges', 'D', /CHARGES? FOR PORD|PORD CUSTOMER PAYMENT|LEDGER FOLIO|FOLIO CHARGE|PENAL CHARGE|HRETCHARGE|DCARDFEE|ANNUAL ?FEE|CHARGES? FOR ?:? ?ATM|SMS (CHG|CHARGE)|\bAMC\b|MIN(IMUM)? ?BAL|PROCESSING (FEE|CHG|CHARGE)|SERVICE CHARGE|CHRG COLL/],
+    ['Interest (CC/OD)', 'interest', 'D', /\bINT\.? ?COLL\b|\bINTEREST (COLL|DEBIT|CHARGED|RECOVER|APPLIED)/],
+    ['Loan recovery', 'loanrec', 'D', /LOAN ?RECOVERY/],
+    ['Loan / EMI', 'loan', 'D', /LOAN ?INSTAL|LOANINSTAL|\bACHDR\b|CMS\/ ?CHOLA|CHOLACSEL|CHOLAMANDALAM|HDB ?FIN|LOAN A\/?C\b/],
+    ['GST refund', 'gst', 'C', /GST REFUNDS?( THRO)?|\bPAO GST|E ?PAO GST/],
+    ['GST payment', 'gst', 'D', /\bGST\b.{0,12}(PAYMENT|EPAY|CHALLAN)|EPAY.{0,8}GST|\bCBIC\b/],
+    ['Cash', 'cash', '', /^ ?TO CASH\b|ATM ?\/ ?CASH|CASH ?WDL|CASH ?WITHDRAW|\bCWDR\b|SELF ?WD/],
+    ['Self transfer', 'self', '', /EBANK ?:? ?SELF|\bSELF\b.{0,24}(TRF|TRANSFER)|BOB TO BOB|OWN A\/?C|INTERNAL TRANSFER/]
+  ];
+  function classifyTxn(np, txn) {
+    var U = ' ' + String(np.raw || '').toUpperCase().replace(/\s+/g, ' ') + ' ';
+    var isCr = (txn.credit || 0) > 0;
+    for (var i = 0; i < TXN_RULES.length; i++) {
+      var rule = TXN_RULES[i], dir = rule[2];
+      if (dir === 'D' && isCr) continue;                 // debit-only rule, credit txn
+      if (dir === 'C' && !isCr) continue;                // credit-only rule, debit txn
+      if (!rule[3].test(U)) continue;
+      var cat = rule[0], key = rule[1];
+      if (key === 'gst') cat = isCr ? 'GST refund' : 'GST payment';
+      if (key === 'cash') cat = isCr ? 'Cash deposit' : 'Cash withdrawal';
+      if (key === 'loanrec') key = 'loan';
+      return { cat: cat, key: key, internal: key === 'self' || key === 'cash', confidence: 96, reasons: ['Recognized from narration: ' + cat] };
+    }
+    return null;
+  }
+  /* Residual classifier — runs AFTER invoice matching fails. Own sister firms
+     (e.g. Deshwali Minerals ↔ Gotan Lime) often pay each other's invoices, so
+     invoice matching must win; only an UNMATCHED own-firm transfer becomes an
+     "Inter-firm transfer" instead of a scary "Unknown party". */
+  function classifyResidual(np, txn, opts) {
+    var own = (opts && opts.ownNames) || [];
+    var cDist = distinctive(tokens(np.clean));
+    if (!cDist.length) return null;
+    var cSet = new Set(cDist);
+    for (var i = 0; i < own.length; i++) {
+      var oDist = distinctive(tokens(own[i]));
+      if (!oDist.length) continue;
+      // Own firm fully present AND the narration carries NO extra distinctive
+      // token — so "DESHWALI MINERALS" matches our Deshwali, but "GOTAN STONE
+      // AND LIME COMPANY" (foreign token STONE) does NOT match "Gotan Lime".
+      var allOwnPresent = oDist.every(function (t) { return cSet.has(t); });
+      var noForeign = cDist.every(function (t) { return oDist.indexOf(t) >= 0; });
+      if (allOwnPresent && noForeign) {
+        // review-level ONLY (never auto-hidden): a real third-party receipt that
+        // happens to share our root token still surfaces for the accountant.
+        return { cat: 'Inter-firm transfer', key: 'interfirm', internal: true, review: true, confidence: 62, reasons: ['Narration matches your own firm "' + own[i] + '" — confirm it is an inter-firm transfer, or link it to a bill'] };
+      }
+    }
+    return null;
+  }
+  /* Pair the two legs of a self transfer across accounts: same EBANK:SELF id
+     (or same amount within 3 days, both self-ish), opposite directions. */
+  function selfPairs(list) {
+    var selfish = function (t) { return /EBANK ?:? ?SELF|BOB TO BOB|OWN A\/?C/i.test(String(t.raw || t.desc || '')); };
+    var idOf = function (t) { var m = String(t.raw || '').toUpperCase().match(/SELF ?\/ ?(\d{6,})/); return m ? m[1] : ''; };
+    var cr = [], dr = [];
+    list.forEach(function (t, i) { if (!selfish(t)) return; ((t.credit || 0) > 0 ? cr : dr).push({ t: t, i: i, id: idOf(t), amt: (t.credit || t.debit || 0) }); });
+    var used = {}, pairs = [];
+    cr.forEach(function (c) {
+      // id match is authoritative; the amount+date fallback only applies when
+      // NEITHER leg carries an id — different ids are different transfers
+      // ("EBANK:SELF/…/Icic Loaninstalment" must never pair with "Bob to Bob").
+      var hit = dr.find(function (d) { return !used[d.i] && c.id && d.id === c.id && Math.abs(d.amt - c.amt) < 0.5; })
+             || dr.find(function (d) { return !used[d.i] && !c.id && !d.id && Math.abs(d.amt - c.amt) < 0.5 && Math.abs(daysBetween(c.t.date, d.t.date)) <= 3; });
+      if (hit) { used[hit.i] = 1; pairs.push({ creditIdx: c.i, debitIdx: hit.i, id: c.id || hit.id || '' }); }
+    });
+    return pairs;
   }
 
   /* ── name matching ──────────────────────────────────────────────────────
@@ -217,6 +342,8 @@
     normName: normName, tokens: tokens, distinctive: distinctive, daysBetween: daysBetween,
     parseNarration: parseNarration, nameMatch: nameMatch, classifyDebit: classifyDebit,
     scoreMatch: scoreMatch, bestMatch: bestMatch, dedupeKey: dedupeKey, detectBank: detectBank,
-    splitStatus: splitStatus, suggestAlloc: suggestAlloc, STOP: STOP
+    splitStatus: splitStatus, suggestAlloc: suggestAlloc, STOP: STOP,
+    signedBalance: signedBalance, inferDirections: inferDirections,
+    classifyTxn: classifyTxn, classifyResidual: classifyResidual, selfPairs: selfPairs
   };
 });

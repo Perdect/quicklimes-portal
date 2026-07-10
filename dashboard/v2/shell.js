@@ -1156,11 +1156,19 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
     a.download = name + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
+  // Pages can register their own copilot intents (first match wins) — e.g.
+  // reconcile.html answers "which payments are duplicates" from live recon state.
+  const _assistIntents = [];
+  function registerAssistIntent(fn) { if (typeof fn === 'function') _assistIntents.push(fn); }
   function assistAnswer(q) {
     const Q = window.QLD, t = q.toLowerCase(), fc = Q.fC, ym = new Date().toISOString().slice(0, 7), todayISO = new Date().toISOString().slice(0, 10);
     const party = findPartyInQuery(t);
     const list = (rows, cols) => `<table class="ql-ai-tbl"><tbody>${rows.map(r => '<tr>' + cols.map(c => `<td${c.r ? ' class="r"' : ''}>${c.v(r)}</td>`).join('') + '</tr>').join('')}</tbody></table>`;
     const acts = btns => `<div class="ql-ai-acts">${btns}</div>`;
+    // Page-registered intents run FIRST (first match wins) — e.g. the Bank
+    // Reconciliation page answers "which payments are duplicates" with live
+    // recon state the shell knows nothing about.
+    for (const h of _assistIntents) { try { const r = h(q, t, { list, acts, esc, fc }); if (r) return r; } catch (_) {} }
     const pPhone = nm => { const p = Q.partyRows().find(x => (x.name || '').toUpperCase() === (nm || '').toUpperCase()); return p ? p.phone : ''; };
     const waBtn = (nm, amt, bills) => { const ph = pPhone(nm); if (!ph) return ''; const msg = `Dear ${nm},\nGentle reminder: ${fc(amt)} is pending with us${bills ? ` (${bills} bill${bills > 1 ? 's' : ''})` : ''}. Kindly arrange payment.\nThank you,\n${Q.co.short}`; return `<button onclick="window.open('${waLink(ph, msg)}','_blank')">WhatsApp ${esc(nm.split(' ')[0])}</button>`; };
 
@@ -1442,6 +1450,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     toggleSidebar, toggleMobileSidebar, toggleGroup, openPalette, closePalette, toast,
     openNotifications, openAssistant, closeDrawer, assistAsk,
     notifOpen, notifWA, notifDone, notifSnooze, addRenewal, refreshNotifDot,
+    registerAssistIntent,
     closePhotoModal() { $('photoBack').classList.remove('open'); },
     savePhoto() {}, removePhoto() {},
     paintWorkspace,

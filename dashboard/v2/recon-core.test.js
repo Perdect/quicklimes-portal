@@ -98,5 +98,113 @@ ok('different parties same amount/day are not dups',
 eq('detect ICICI', RC.detectBank('ICICI BANK LTD STATEMENT'), 'ICICI');
 eq('detect BOB', RC.detectBank('BANK OF BARODA A/C 3358'), 'Bank of Baroda');
 
+/* ── signed balances + direction inference (real BoB statements) ── */
+console.log('signed balance + direction inference');
+eq('Cr balance is positive', RC.signedBalance('26,836.73Cr'), 26836.73);
+eq('Dr balance is negative (Cash Credit a/c)', RC.signedBalance('9,57,515.37Dr'), -957515.37);
+eq('plain number stays positive', RC.signedBalance('12345.50'), 12345.5);
+eq('spaced suffix', RC.signedBalance('1,23,456.00 Dr'), -123456);
+ok('null for garbage', RC.signedBalance('—') === null);
+// Real June-2026 Cash-Credit account slice (latest first, Dr balances):
+// 22/06 RTGS INDIAN OIL 5,00,000 Dr → 9,49,497.37Dr ; charges 29 Dr → 4,49,497.37Dr… wait:
+// file order (latest first): bal after each txn, prev balance is the row BELOW.
+const ccRows = [
+  { amt: 1364.75, bal: RC.signedBalance('9,57,515.37Dr') },   // penal charge (D)
+  { amt: 6653.25, bal: RC.signedBalance('9,56,150.62Dr') },   // int coll (D)
+  { amt: 500000, bal: RC.signedBalance('9,49,497.37Dr') },    // Indian Oil RTGS (D)
+  { amt: 29, bal: RC.signedBalance('4,49,497.37Dr') },        // PORD charge (D)
+  { amt: 15000, bal: RC.signedBalance('4,49,468.37Dr') },     // EBANK self (D)
+  { amt: 497490, bal: RC.signedBalance('4,34,468.37Dr') },    // AMAN ENTERPRISES (C)
+  { amt: 147.5, bal: RC.signedBalance('9,31,958.37Dr') },     // folio charges (D)
+  { amt: 500000, bal: RC.signedBalance('9,31,810.87Dr') }     // Indian Oil (D)
+];
+const inf = RC.inferDirections(ccRows);
+eq('CC account: order detected desc', inf.order, 'desc');
+ok('CC account: >=6 of 8 rows resolved', inf.ok >= 6, inf);
+eq('penal charge = debit', inf.dirs[0], 'D');
+eq('Indian Oil 5L = debit (was shown as credit!)', inf.dirs[2], 'D');
+eq('AMAN ENTERPRISES receipt = credit', inf.dirs[5], 'C');
+// Current account (Cr balances, latest first)
+const caRows = [
+  { amt: 55107, bal: RC.signedBalance('26,836.73Cr') },       // loan recovery (D)
+  { amt: 54000, bal: RC.signedBalance('81,943.73Cr') },       // Charbhuja transport (D)
+  { amt: 5.6, bal: RC.signedBalance('1,35,943.73Cr') },       // charge (D)
+  { amt: 52375, bal: RC.signedBalance('1,35,949.33Cr') }      // Gota Barmer transport (D)
+];
+const inf2 = RC.inferDirections(caRows);
+eq('Loan Recovery = debit (was shown as credit!)', inf2.dirs[0], 'D');
+eq('Charbhuja transport = debit', inf2.dirs[1], 'D');
+
+/* ── full-transaction classifier on the REAL narration corpus ── */
+console.log('transaction classifier (real BoB corpus)');
+function cls(raw, cr, dr) { return RC.classifyTxn(RC.parseNarration(raw), { credit: cr || 0, debit: dr || 0 }); }
+eq('PORD charge', (cls('Charges for PORD Customer Payment :003749134560', 0, 29) || {}).cat, 'Bank charges');
+eq('Ledger folio', (cls('LEDGER FOLIO CHARGES - CC/OD', 0, 147.5) || {}).cat, 'Bank charges');
+eq('Penal charge', (cls('33580500001254:Penal Charge Coll:01-06-2026 to 30', 0, 1364.75) || {}).cat, 'Bank charges');
+eq('Int.Coll', (cls('33580500001254:Int.Coll:01-06-2026 to 30-06-2026', 0, 6653.25) || {}).cat, 'Interest (CC/OD)');
+eq('Card annual fee', (cls('DCARDFEE/3099/ANNUALFEE JUN26MAY27', 0, 354) || {}).cat, 'Bank charges');
+eq('ATM charge (charges beat cash)', (cls('CHARGES FOR :ATM/CASH/616217391584/XXXXXXXX', 0, 27.14) || {}).cat, 'Bank charges');
+eq('HRET charge', (cls('ACHRE/BARB7021003262015675/HRETCHARGE/111363774236', 0, 295) || {}).cat, 'Bank charges');
+eq('Loan recovery', (cls('Loan Recovery For33580600003245', 0, 55107) || {}).cat, 'Loan recovery');
+// A SELF-marked credit ("EBANK:SELF/…/Icic Loaninstalment") is internal money
+// movement — 'Self transfer' is correct (loan markers are debit-only now, so a
+// loan EMI leaving the account still classifies, but this incoming leg is SELF).
+ok('SELF-marked loan-instalment credit is internal (self/loan)', ['Self transfer', 'Loan / EMI'].indexOf((cls('EBANK:SELF/1511896672/Icic Loaninstalment', 25000, 0) || {}).cat) >= 0);
+eq('ACH debit = loan/EMI', (cls('ACHDR/HDFC BANK LIMITED/3721700828/111360133033', 0, 55764) || {}).cat, 'Loan / EMI');
+eq('Cholamandalam CMS = loan', (cls('CMS/CHOLACSEL/202603209535239', 0, 28450) || {}).cat, 'Loan / EMI');
+eq('GST refund credit', (cls('RTGS-SBINR52026060410382938-e PAO GST REFUNDS THRO', 734797, 0) || {}).cat, 'GST refund');
+eq('Self transfer', (cls('EBANK:SELF/1513780689/Bob to Bob', 0, 15000) || {}).cat, 'Self transfer');
+eq('TO CASH = withdrawal', (cls('TO CASH', 0, 150000) || {}).cat, 'Cash withdrawal');
+eq('ATM cash', (cls('ATM/CASH/615616389836/XXXXXXXXXXX3099', 0, 10000) || {}).cat, 'Cash withdrawal');
+ok('supplier RTGS is NOT classified (goes to matcher)', cls('RTGS-BARBR52026062200778789-INDIAN OIL CORPORATION', 0, 500000) === null);
+ok('customer receipt is NOT classified', cls('RTGS-ICICR42026062100511668-AMAN ENTERPRISES', 497490, 0) === null);
+
+/* ── beneficiary-bank suffix stripping ── */
+console.log('bank-suffix stripping');
+eq('strips -AXIS', RC.parseNarration('NEFT-BARBT26156370985-SHUBHAM MINCHEM PVT LTD-AXIS').clean, 'SHUBHAM MINCHEM PVT LTD');
+eq('strips -PUNJAB NATI (truncated PNB)', RC.parseNarration('NEFT-BARBQ26154195223-MATESHWARI MINES-PUNJAB NATI').clean, 'MATESHWARI MINES');
+ok('does not strip a real party starting with a bank word', RC.parseNarration('NEFT-REF123456789-AXIS ROADLINES PVT LTD').clean.indexOf('AXIS ROADLINES') >= 0, RC.parseNarration('NEFT-REF123456789-AXIS ROADLINES PVT LTD').clean);
+ok('never strips the only segment', RC.parseNarration('HDFC BANK').clean.length > 0);
+
+/* ── inter-firm residual + self-transfer pairing ── */
+console.log('inter-firm + self pairs');
+const own = { ownNames: ['DESHWALI MINERALS', 'GOTAN LIME INDUSTRIES'] };
+let res = RC.classifyResidual(RC.parseNarration('RTGS-HDFCR52026061771764698-DESHWALI MINERALS'), { credit: 440000, debit: 0 }, own);
+eq('unmatched own-firm credit → inter-firm', (res || {}).cat, 'Inter-firm transfer');
+ok('random party is NOT inter-firm', RC.classifyResidual(RC.parseNarration('RTGS-X-AMAN ENTERPRISES'), { credit: 1000, debit: 0 }, own) === null);
+const legs = [
+  { raw: 'EBANK:SELF/1513780689/Bob to Bob', desc: '', date: '2026-06-22', credit: 15000, debit: 0 },
+  { raw: 'RTGS-AMAN', desc: '', date: '2026-06-21', credit: 497490, debit: 0 },
+  { raw: 'EBANK:SELF/1513780689/Bob to Bob', desc: '', date: '2026-06-22', credit: 0, debit: 15000 }
+];
+const pairs = RC.selfPairs(legs);
+ok('pairs the two 15k SELF legs by shared id', pairs.length === 1 && pairs[0].creditIdx === 0 && pairs[0].debitIdx === 2, pairs);
+
+/* ── review-fix regressions (adversarial findings) ── */
+console.log('adversarial-finding regressions');
+// #3 classifyResidual must NOT fire when a foreign distinctive token is present
+ok('third-party "GOTAN STONE AND LIME COMPANY" is NOT inter-firm',
+  RC.classifyResidual(RC.parseNarration('RTGS-GOTAN STONE AND LIME COMPANY-PAYMENT'), { credit: 5000, debit: 0 }, { ownNames: ['GOTAN LIME UDYOG'] }) === null);
+ok('own firm exact-token match IS flagged (review-level, not hidden)', (function () {
+  const r = RC.classifyResidual(RC.parseNarration('NEFT-DESHWALI MINERALS-X'), { credit: 5000, debit: 0 }, { ownNames: ['DESHWALI MINERALS'] });
+  return r && r.review === true && r.confidence < 75;
+})());
+// #5 loose loan tokens removed: bare EMI / SHRIRAM TRANS no longer classify
+ok('customer "EMI TRANSPORT" credit is NOT a loan', RC.classifyTxn(RC.parseNarration('NEFT-BARB0X-EMI TRANSPORT PVT LTD-PAYMENT'), { credit: 90000, debit: 0 }) === null);
+ok('freight to SHRIRAM TRANSPORT (debit) is NOT a loan', RC.classifyTxn(RC.parseNarration('RTGS DR-SHRIRAM TRANSPORT COMPANY-UTIB0001234'), { credit: 0, debit: 54000 }) === null);
+ok('"PRINT COLLECTION" is NOT interest', RC.classifyTxn(RC.parseNarration('NEFT-X-PRINT COLLECTION SERVICES'), { credit: 0, debit: 12000 }) === null);
+// direction gating: a charge/interest/loan marker on the WRONG direction is ignored
+ok('bank-charge marker on a CREDIT is ignored', RC.classifyTxn(RC.parseNarration('SOMEONE PENAL CHARGE REFUND'), { credit: 500, debit: 0 }) === null);
+eq('penal charge on a DEBIT still classifies', (RC.classifyTxn(RC.parseNarration('Penal Charge Coll'), { credit: 0, debit: 1364 }) || {}).key, 'charges');
+// #1 signed-balance: inferDirections is only trusted with sign evidence (caller-side),
+// but confirm it still resolves the real signed chain correctly
+eq('real signed CC chain still resolves Indian Oil as debit', RC.inferDirections(ccRows).dirs[2], 'D');
+// DIFFERENT SELF ids + same amount must NOT pair (loan instalment vs Bob-to-Bob)
+const legs2 = [
+  { raw: 'EBANK:SELF/1511896672/Icic Loaninstalment', desc: '', date: '2026-06-09', credit: 25000, debit: 0 },
+  { raw: 'EBANK:SELF/1512391877/BOB to BOb', desc: '', date: '2026-06-11', credit: 0, debit: 25000 }
+];
+ok('different SELF ids never pair by amount alone', RC.selfPairs(legs2).length === 0, RC.selfPairs(legs2));
+
 console.log('\n' + (fail === 0 ? '✅ ALL ' + pass + ' TESTS PASSED' : '❌ ' + fail + ' FAILED, ' + pass + ' passed'));
 process.exit(fail ? 1 : 0);

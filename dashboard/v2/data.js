@@ -1197,6 +1197,9 @@
   /* ── Public API ──────────────────────────────────────────────── */
   window.QLD = {
     plant: QL_PLANT, COMPANIES,
+    // All of the user's own firm names (sister companies) — recon uses these
+    // to tell an inter-firm transfer from an unknown party.
+    ownFirmNames: Object.keys(SELLER_DEFAULTS),
     get activeCo() { return ACTIVE_CO; },
     get co() { return COMPANIES[ACTIVE_CO]; },
     state: S,

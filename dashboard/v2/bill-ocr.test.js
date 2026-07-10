@@ -219,5 +219,19 @@ ok('self-test: 0 fabricated-data errors', st.fakeErrors === 0);
 ok('self-test: field accuracy >= 95%', st.fieldAccuracy >= 95, st.fieldAccuracy);
 ok('self-test: duplicate detection works', st.duplicateAccuracy === 100);
 
+/* ═══ 19. poisoned party-master / alias healing ═══
+   The OLD parser once saved a bill with supplier "the buyer. For" under
+   Indian Oil's GSTIN. That row feeds opts.partyMaster on every later scan —
+   without a plausibility gate the poison re-applies itself at 99% forever. */
+console.log('poisoned party-master healing');
+ok('plausibleName rejects "the buyer. For"', OCR.plausibleName('the buyer. For') === false);
+ok('plausibleName rejects a label', OCR.plausibleName('GST Registration No') === false);
+ok('plausibleName accepts a real firm', OCR.plausibleName('Indian Oil Corporation Limited') === true);
+const iocTxt = 'Indian Oil Corporation Limited\nTAX INVOICE Doc no 20273121B007217 Date 23-Jun-26\nGSTIN 24AAACI1681G1ZV\nRecipient GOTAN LIME INDUSTRIES GSTIN 08BNAPM0488E1Z3\nFUEL GRADE PET COKE HSN 271311\nTaxable Value 525203.60\nIGST 18% 94536.65\nTotal 619740.25\nWe hereby certify that the goods covered by this document\nhave suffered applicable Taxes on clearance to the buyer. For';
+const poisoned = p(iocTxt, { partyMaster: { '24AAACI1681G1ZV': 'the buyer. For' } });
+eq('poisoned partyMaster is healed by the built-in seed', poisoned.fields.supplier, 'Indian Oil Corporation Limited');
+const aliasPoison = p(iocTxt, { aliases: { 'INDIAN OIL CORPORATION LIMITED': 'the buyer. For' } });
+ok('poisoned alias never returns a fragment', aliasPoison.fields.supplier !== 'the buyer. For', aliasPoison.fields.supplier);
+
 console.log('\n' + (fail === 0 ? '✅ ALL ' + pass + ' TESTS PASSED' : '❌ ' + fail + ' FAILED, ' + pass + ' passed'));
 process.exit(fail ? 1 : 0);

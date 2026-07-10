@@ -95,10 +95,27 @@
     '24AAACI1681G1ZV': 'Indian Oil Corporation Limited',
     '08ABWFM4111F1Z6': 'Mateshwari Mines and Minerals'
   };
+  /* Is this string a believable company name — as opposed to a declaration
+     fragment ("the buyer. For"), a label, or an address? Used to gate BOTH the
+     user party-master and learned aliases: a bill saved under the OLD buggy
+     parser can poison the party list with fragment names, and without this
+     check that poison re-applies itself to every future bill at 99%. */
+  function plausibleName(s) {
+    var c = String(s == null ? '' : s).replace(/\s+/g, ' ').trim().replace(/[.,;:]+$/, '');
+    if (c.length < 3 || c.length > 72) return false;
+    if (isLabel(c)) return false;
+    if (!/[A-Za-z]{3}/.test(c) || /^\d/.test(c) || /\d{6}/.test(c)) return false;
+    if (/^(?:the|for|to|from|as|we|i|received|certified|authoris|authoriz|payer|payee|ordering|declaration|subject|being|goods|value|amount|total|net|place|date|terms|note|remarks?)\b/i.test(c)) return false;
+    if (/\b(?:buyer|signator|signature|hereby|certif|declaration|digitally signed)\b/i.test(c)) return false;
+    if (/\bfor\b/i.test(c) && !CO_SUFFIX.test(c)) return false;
+    return true;
+  }
   function masterName(gstin, extra) {
     if (!gstin) return '';
     var g = norm(gstin).replace(/\s/g, '');
-    if (extra && extra[g]) return extra[g];
+    // The user's own party list wins ONLY when it holds a believable name;
+    // otherwise the built-in verified name heals the poisoned entry.
+    if (extra && extra[g] && plausibleName(extra[g])) return extra[g];
     return PARTY_MASTER[g] || '';
   }
 
@@ -360,7 +377,9 @@
   }
   function pickSupplier(lines, sellerG, ownNames, aliases) {
     // 0) learned alias: if any header line was previously corrected → use it
-    for (var a = 0; a < lines.length; a++) { var key = norm(lines[a]); if (aliases[key]) return { name: aliases[key], conf: 1 }; }
+    //    (gated by plausibleName — an alias learned while the old parser was
+    //    saving fragments like "the buyer. For" must never re-apply itself)
+    for (var a = 0; a < lines.length; a++) { var key = norm(lines[a]); if (aliases[key] && plausibleName(aliases[key])) return { name: aliases[key], conf: 1 }; }
     // 1) explicit seller block ("Seller / Supplier / Sold By / From : NAME")
     for (var i = 0; i < lines.length; i++) {
       var m = lines[i].match(/^(?:seller|supplier|sold\s*by|vendor|from|billed\s*by)\s*[:\-]?\s*(.*)$/i);
@@ -542,7 +561,7 @@
   }
 
   return {
-    parse: parse, legacy: legacy, isLabel: isLabel, validGstin: validGstin,
+    parse: parse, legacy: legacy, isLabel: isLabel, validGstin: validGstin, plausibleName: plausibleName,
     detectGroup: detectGroup, goodName: goodName, findDate: findDate, nMoney: nMoney, LABEL_RE: LABEL_RE,
     SAMPLES: SAMPLES, selfTest: selfTest
   };

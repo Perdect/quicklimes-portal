@@ -280,7 +280,6 @@ QLX.mount({
     { key: 'item', label: 'Purchase Item', sort: true, cell: itemCell },
     { key: 'grate', label: 'GST', sort: true, num: true, cell: r => `<span class="qx-mut qx-num">${r.grate}%</span>` },
     { key: 'taxable', label: 'Taxable', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` },
-    { key: 'freightAmt', label: 'Freight', sort: true, num: true, cell: r => r.freightAmt ? `<span class="qx-num" style="color:#b7791f">🚚 ${fC(r.freightAmt)}</span>` : '<span class="qx-mut">—</span>' },
     { key: 'total', label: 'Total', sort: true, num: true, cell: r => `<span class="qx-num qx-strong">${fC(r.total)}</span>` },
     { key: 'status', label: 'Status', sort: true, cell: stCell },
     { key: 'dueDate', label: 'Due Date', hidden: true, cell: r => `<span class="qx-mut">${r.dueDate ? fDS(r.dueDate) : '—'}</span>` },
@@ -313,7 +312,7 @@ QLX.mount({
     chips: [groupChip(r), r.freight ? '<span class="qx-frt">freight</span>' : ''].filter(Boolean),
     rows: [['Item', r.itemIconEmoji + ' ' + esc(r.item)], ['Taxable', fC(r.taxable)], ['GST', fC(r.gst)], ['Status', stPill(r)]]
   }),
-  footer: rows => { const t = rows.reduce((a, r) => ({ tax: a.tax + r.taxable, frt: a.frt + r.freightAmt, gst: a.gst + r.gst, tot: a.tot + r.total, paid: a.paid + r.paid, out: a.out + r.outstanding }), { tax: 0, frt: 0, gst: 0, tot: 0, paid: 0, out: 0 }); return [{ label: 'Taxable', value: fC(t.tax) }, { label: 'Freight', value: fC(t.frt) }, { label: 'GST', value: fC(t.gst) }, { label: 'Grand Total', value: fC(t.tot), strong: true }, { label: 'Paid', value: fC(t.paid) }, { label: 'Pending', value: fC(t.out) }]; },
+  footer: rows => { const t = rows.reduce((a, r) => ({ tax: a.tax + r.taxable, gst: a.gst + r.gst, tot: a.tot + r.total, paid: a.paid + r.paid, out: a.out + r.outstanding }), { tax: 0, gst: 0, tot: 0, paid: 0, out: 0 }); return [{ label: 'Taxable', value: fC(t.tax) }, { label: 'GST', value: fC(t.gst) }, { label: 'Grand Total', value: fC(t.tot), strong: true }, { label: 'Paid', value: fC(t.paid) }, { label: 'Pending', value: fC(t.out) }]; },
   analytics: () => {
     const g = Q.purchaseByGroup();
     const bars = g.map(x => ({ label: x.emoji + ' ' + x.label, value: x.total, display: fC(x.total), color: (GCOL[x.key] || GCOL.other)[1] }));
