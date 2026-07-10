@@ -237,7 +237,7 @@ QLX.mount({
   banner: rows => aiInsightsPanel(rows),
   primary: { label: 'Add Bill', icon: IC.plus, onClick: () => QLShell.openPurchaseForm() },
   tools: [
-    { label: 'Import', icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => importBills() },
+    { label: 'Upload Bills', icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => importBills() },
     { label: 'Export', icon: IC.dl, onClick: () => exportRows(QLX.rows()) },
     { label: 'Report', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>', onClick: () => openPurchaseReport(QLX.rows()) }
   ],
@@ -386,11 +386,12 @@ function importBills() {
     const b = String(p.bill || '').trim(), id = String(p.gstin || p.sup || '').trim(), amt = Math.round(+p.taxable || 0);
     return (b || id) ? (b + '|' + id + '|' + amt + '|' + (p.date || '')).toUpperCase() : '';
   };
-  QLFin.importSheet({
+  const cfg = {
+    kind: 'purchase',
     title: 'Import purchase bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',
     dropTitle: 'Choose a file', dropSub: '.csv / .xlsx list, or a photo / PDF of one bill',
     tip: 'A spreadsheet imports many bills; a photo/PDF is read with OCR. A "Purchase Group / Item" column is auto-detected.',
-    noun: 'bill', addLabel: 'Add Bill', accept: '.csv,.xlsx,.xls,.pdf,image/*', ocr: true,
+    noun: 'bill', addLabel: 'Add Bill', accept: '.csv,.xlsx,.xls,.pdf,image/*,.zip', ocr: true,
     ocrMap: { bill: 'docno', date: 'date', sup: 'name', gstin: 'gstin', taxable: 'taxable', total: 'total', grate: 'rate', group: 'group', item: 'item', itc: 'itc' },
     errText: 'No usable bills found. Ensure Date, Supplier and a taxable/total column are mapped.',
     headerGroups: [['date', 'bill', 'invoice', 'voucher'], ['supplier', 'vendor', 'party', 'seller', 'name', 'amount', 'taxable', 'total']],
@@ -417,6 +418,8 @@ function importBills() {
     keyOf: dupKeyP,
     preview: { headers: ['Bill', 'Date', 'Supplier', 'Group', 'Taxable', 'GST%'], right: [4, 5], row: p => [p.bill || '—', p.date || '—', p.sup || '—', (Q.purchaseGroups.find(g => g.key === p.group) || { label: p.cat || '—' }).label, Q.fC(p.taxable), p.grate + '%'] },
     add: (p, file) => { Q.addPurchase(p); if (file) { try { addAttach(Q.state.PURCHASES.length - 1, file, 'Invoice'); } catch (_) {} } },
-    done: n => { toast('Imported ' + n + ' bill' + (n === 1 ? '' : 's'), 'ok'); QLX.refresh(); }
-  });
+    done: n => { if (n) toast('Imported ' + n + ' bill' + (n === 1 ? '' : 's'), 'ok'); QLX.refresh(); }
+  };
+  // Fast path: native picker → background OCR → drawer (1) / review table (N).
+  if (window.QLBulk) QLBulk.open(cfg); else QLFin.importSheet(cfg);
 }

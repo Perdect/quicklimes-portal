@@ -188,7 +188,7 @@ QLX.mount({
   banner: rows => salesInsightsPanel(rows),
   primary: { label: 'New invoice', icon: IC.plus, onClick: () => QLShell.openSaleForm() },
   tools: [
-    { label: 'Import', icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => importInvoices() },
+    { label: 'Upload Bills', icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => importInvoices() },
     { label: 'Export', icon: IC.dl, onClick: () => exportRows(QLX.rows()) },
     { label: 'Report', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>', onClick: () => openSalesReport(QLX.rows()) }
   ],
@@ -336,11 +336,12 @@ function openSalesReport(rows) {
   w.document.write(html); w.document.close();
 }
 function importInvoices() {
-  QLFin.importSheet({
+  const cfg = {
+    kind: 'sales',
     title: 'Import sales bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',
     dropTitle: 'Choose a file', dropSub: '.csv / .xlsx list, or a photo / PDF of one bill',
     tip: 'A spreadsheet imports many invoices at once. A photo or PDF of one bill is read with OCR.',
-    noun: 'invoice', addLabel: 'New invoice', accept: '.csv,.xlsx,.xls,.pdf,image/*', ocr: true,
+    noun: 'invoice', addLabel: 'New invoice', accept: '.csv,.xlsx,.xls,.pdf,image/*,.zip', ocr: true,
     ocrMap: { inv: 'docno', date: 'date', party: 'name', gstin: 'gstin', qty: 'qty', taxable: 'taxable', total: 'total', gstr: 'rate', veh: 'veh' },
     errText: 'No usable invoices found. Check that Date, Party and an amount column are mapped.',
     headerGroups: [['date', 'invoice', 'bill', 'voucher'], ['party', 'customer', 'buyer', 'consignee', 'name', 'amount', 'taxable', 'total', 'rate']],
@@ -361,6 +362,8 @@ function importInvoices() {
     keyOf: s => s.inv ? s.inv.toUpperCase() : '',
     preview: { headers: ['Invoice', 'Date', 'Party', 'Qty', 'Taxable', 'GST%'], right: [3, 4, 5], row: s => [s.inv || '—', s.date || '—', s.party || '—', s.qty || '', Q.fC(s.qty * s.rate), s.gstR + '%'] },
     add: (s, file) => { Q.addSale(s); if (file) { try { addAttach(Q.state.SALES.length - 1, file, 'Invoice'); } catch (_) {} } },
-    done: n => { toast('Imported ' + n + ' invoice' + (n === 1 ? '' : 's'), 'ok'); QLX.refresh(); }
-  });
+    done: n => { if (n) toast('Imported ' + n + ' invoice' + (n === 1 ? '' : 's'), 'ok'); QLX.refresh(); }
+  };
+  // Fast path: native picker → background OCR → drawer (1) / review table (N).
+  if (window.QLBulk) QLBulk.open(cfg); else QLFin.importSheet(cfg);
 }
