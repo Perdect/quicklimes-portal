@@ -70,7 +70,7 @@ function billHTML(r) {
       <div style="text-align:right"><div class="lbl">ITC</div><div class="nm">${r.itc ? 'Eligible' : '—'}</div></div></div>
     <table><thead><tr><th>Purchase Group / Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Taxable</th></tr></thead>
       <tbody><tr><td>${esc(r.emoji + ' ' + r.groupLabel)}<div class="it">${esc(r.item)}${r.desc ? ' — ' + esc(r.desc) : ''}</div></td><td class="r">${r.qty ? fmt(r.qty, 2) + (r.unit ? ' ' + esc(r.unit) : '') : '—'}</td><td class="r">${r.rate ? money(r.rate) : '—'}</td><td class="r">${money(r.taxable)}</td></tr></tbody></table>
-    <div class="tot"><div class="row"><span>Taxable value</span><span>${money(r.taxable)}</span></div>${r.freightAmt ? `<div class="row"><span>Freight (incl.)</span><span>${money(r.freightAmt)}</span></div>` : ''}${gstRows}<div class="row g"><span>Total${rcm ? ' payable' : ''}</span><span>${money(r.total)}</span></div></div>
+    <div class="tot"><div class="row"><span>Taxable value</span><span>${money(r.taxable)}</span></div>${gstRows}<div class="row g"><span>Total${rcm ? ' payable' : ''}</span><span>${money(r.total)}</span></div>${r.freightAddon ? `<div class="row"><span>Freight / transport (add-on)</span><span>${money(r.freightAddon)}</span></div><div class="row g"><span>Landed cost</span><span>${money(r.total + r.freightAddon)}</span></div>` : ''}</div>
     <div class="ft">System-generated from ${esc(co.name || 'QuickLimes')} · QuickLimes Purchase Register.</div>`;
 }
 const isMobileP = () => (window.QLMobile ? QLMobile.isMobile() : window.matchMedia('(max-width:768px)').matches);
@@ -146,8 +146,8 @@ function tabOverview(r) {
     ${kv('Invoice / Bill No', esc(r.bill || '—'))}${kv('Bill date', fDS(r.date))}${kv('Due date', r.dueDate ? fDS(r.dueDate) : '—')}
     ${kv('Group · Item', r.emoji + ' ' + esc(r.groupLabel) + ' → ' + esc(r.item))}${kv('Created by', esc(r.createdBy))}
     <div class="qx-sec-h">Amount</div>
-    ${kv('Taxable value', fC(r.taxable))}${r.freightAmt ? kv('Freight / transport', '🚚 ' + fC(r.freightAmt)) : ''}${kv('GST @ ' + r.grate + '%', fC(r.gst))}${kv('ITC', r.itc ? fC(r.itc) : '—')}
-    <div class="qx-kv qx-kv-tot"><span>Grand total</span><b>${fC(r.total)}</b></div>`;
+    ${kv('Taxable value', fC(r.taxable))}${kv('GST @ ' + r.grate + '%', fC(r.gst))}${kv('ITC', r.itc ? fC(r.itc) : '—')}
+    <div class="qx-kv qx-kv-tot"><span>Grand total</span><b>${fC(r.total)}</b></div>${r.freightAddon ? kv('Freight / transport', '🚚 ' + fC(r.freightAddon)) + `<div class="qx-kv qx-kv-tot"><span>Landed cost</span><b>${fC(r.total + r.freightAddon)}</b></div>` : ''}`;
 }
 function pdfByIdx(idx) { openBillPdf(Q.purchaseRows()[idx]); }
 function shareByIdx(idx) { shareBill(Q.purchaseRows()[idx]); }

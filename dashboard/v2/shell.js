@@ -648,6 +648,7 @@
       { k: 'unit', label: 'Unit', ph: 'MT' },
       { k: 'rate', label: 'Rate', type: 'number' },
       { k: 'taxable', label: 'Taxable (₹)', type: 'number', req: true, reqNonZero: true },
+      { k: 'freightAmt', label: 'Freight / transport (₹)', type: 'number', ph: 'optional — you enter this directly' },
       { k: 'grate', label: 'GST rate', type: 'select', opts: GST_OPTS },
       { k: 'itc', label: 'ITC', type: 'select', opts: [['Eligible', 'ITC Eligible'], ['Ineligible', 'ITC Ineligible'], ['RCM', 'RCM']] }
     ];

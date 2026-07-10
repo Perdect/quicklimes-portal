@@ -549,7 +549,14 @@
         veh: p.veh || p.vehicle || '',
         remarks: p.remarks || '', dueDate: p.dueDate || '', createdBy: p.createdBy || (QL_PLANT.owner_name || QL_PLANT.plant_name || 'Owner'),
         paid, outstanding, payments: p.payments || [], attach: p.attach || [], isOverdue,
-        freight: isFreightItem(g.item), freightAmt: isFreightItem(g.item) ? (p.taxable || 0) : 0
+        // Freight: a dedicated freight-item bill IS freight (its whole taxable);
+        // a material bill can carry a MANUAL freight add-on (p.freightAmt) the
+        // user enters directly — it rolls into landed cost but NOT into this
+        // bill's GST/total (transport is paid/taxed separately). freightAddon =
+        // the part not already inside `total`, so landed cost never double-counts.
+        freight: isFreightItem(g.item) || (+p.freightAmt || 0) > 0,
+        freightAmt: isFreightItem(g.item) ? (p.taxable || 0) : (+p.freightAmt || 0),
+        freightAddon: isFreightItem(g.item) ? 0 : (+p.freightAmt || 0)
       };
     });
   }
@@ -606,8 +613,9 @@
     PURCHASE_GROUPS.forEach(g => { map[g.key] = { key: g.key, label: g.label, emoji: g.emoji, taxable: 0, gst: 0, total: 0, itc: 0, count: 0, freight: 0, items: {} }; });
     rows.forEach(r => {
       const m = map[r.group] || map.other;
-      m.taxable += r.taxable; m.gst += r.gst; m.total += r.total; m.itc += r.itc; m.count++;
-      if (r.freight) m.freight += r.taxable;
+      // Landed cost = bill totals + any manual freight add-on not already in them.
+      m.taxable += r.taxable; m.gst += r.gst; m.total += r.total + (r.freightAddon || 0); m.itc += r.itc; m.count++;
+      m.freight += r.freightAmt || (r.freight ? r.taxable : 0);
       const it = m.items[r.item] || (m.items[r.item] = { item: r.item, taxable: 0, total: 0, count: 0, freight: r.freight });
       it.taxable += r.taxable; it.total += r.total; it.count++;
     });
