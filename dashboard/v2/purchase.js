@@ -36,27 +36,6 @@ function setStatus(r, val) { const patch = { status: val }; if (val === 'paid') 
 function markPaid(r) { Q.recordPurchasePayment(r.idx, r.outstanding, 'bank'); toast('Marked paid', 'ok'); QLX.refresh(); }
 function dupBill(r) { const p = Q.state.PURCHASES[r.idx]; Q.addPurchase(Object.assign({}, p, { bill: (p.bill || '') + '-COPY', status: 'pending', paid: 0, payments: [], attach: [] })); toast('Bill duplicated'); QLX.refresh(); }
 function delBill(r) { if (confirm('Delete bill ' + (r.bill || '') + ' from ' + r.sup + '?')) { Q.deletePurchase(r.idx); toast('Bill deleted'); QLX.refresh(); } }
-// Find + remove duplicate purchase bills (same supplier · amount · date · bill no.),
-// keeping the BEST copy of each group (real supplier name / has a bill no. / has a scan).
-function removeDuplicateBills() {
-  const P = Q.state.PURCHASES;
-  const BADNAME = /delivery\s*note|mode\s*\/?\s*terms|terms\s*of|the\s*buyer|reference\s*no|dispatch|^[—\-\s]*$/i;
-  const sig = p => [(p.gstin || p.sup || '').toString().trim().toUpperCase(), Math.round(+p.taxable || 0), (p.date || ''), (p.bill || '').toString().trim().toUpperCase()].join('|');
-  const score = p => (p.bill ? 4 : 0) + ((p.attach || []).length ? 2 : 0) + ((p.sup && !BADNAME.test(p.sup)) ? 1 : 0);
-  const groups = {};
-  P.forEach((p, i) => { const k = sig(p); (groups[k] = groups[k] || []).push(i); });
-  const remove = [];
-  Object.values(groups).forEach(idxs => {
-    if (idxs.length < 2) return;
-    let keep = idxs[0]; idxs.forEach(i => { if (score(P[i]) > score(P[keep])) keep = i; });
-    idxs.forEach(i => { if (i !== keep) remove.push(i); });
-  });
-  if (!remove.length) { toast('No duplicate bills found', 'ok'); return; }
-  if (!confirm('Remove ' + remove.length + ' duplicate bill' + (remove.length > 1 ? 's' : '') + '? One (best) copy of each is kept.')) return;
-  remove.sort((a, b) => b - a).forEach(i => Q.deletePurchase(i));   // delete from the end so indices stay valid
-  toast('Removed ' + remove.length + ' duplicate bill' + (remove.length > 1 ? 's' : ''), 'ok');
-  QLX.refresh();
-}
 function shareBill(r) { const co = supContact(r.sup); window.open(waLink(co.phone || '', `Purchase bill ${r.bill || ''} — ${r.item} · ${fC(r.total)} · ${r.status}`), '_blank'); }
 function copyLink(r) { const text = `${Q.co.short} · Bill ${r.bill || ''} · ${r.sup} · ${r.item} · ${fC(r.total)} · ${r.status}`; (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast('Bill summary copied'), () => toast('Copy not available', 'err')); }
 

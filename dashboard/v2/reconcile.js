@@ -41,7 +41,7 @@ const STAT = {
 function tierColor(t) { return t === 'green' ? ['#dcfce7', '#15803d'] : t === 'yellow' ? ['#fef9c3', '#a16207'] : ['#fef2f2', '#dc2626']; }
 const toast = (m, t) => (QLShell.toast ? QLShell.toast(m, t) : 0);
 
-let ST = { view: 'recon', month: 'all', monthInit: false, ftype: 'all', fstatus: 'all', q: '' };
+let ST = { view: 'recon', month: 'all', monthInit: false, ftype: 'all', fstatus: 'all', q: '', sel: new Set(), foOpen: false };
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
 function txns() { return (Q.recon.txns || []); }
@@ -196,14 +196,14 @@ function render() {
   let root = document.getElementById('rcRoot');
   if (!root) { main.innerHTML = '<div class="rc" id="rcRoot"></div>'; root = document.getElementById('rcRoot'); }
   try {
-    root.innerHTML = heroHTML() + (txns().length ? cardsHTML() + aiHTML() + tabsHTML() + `<div class="rc-panel">${viewHTML()}</div>` : emptyHTML());
+    root.innerHTML = heroHTML() + (txns().length ? summaryHTML() + finOverviewHTML() + aiHTML() + toolbarHTML() + `<div class="rc-panel">${viewHTML()}</div>` + bulkBarHTML() : emptyHTML());
     wire();
   } catch (e) { console.warn('recon render deferred:', e); }
   QLShell.paintWorkspace && QLShell.paintWorkspace();
 }
 function heroHTML() {
   return `<div class="rc-hero">
-    <div><div class="rc-h1">Bank Reconciliation</div><div class="rc-sub"><b>${esc(Q.co.short || 'Company')}</b> · ${txns().length} bank transactions · auto-matched to sales &amp; purchase</div></div>
+    <div><div class="rc-h1">Bank Reconciliation</div><div class="rc-sub">${esc(monthLabel())} · <b>${esc(Q.co.short || 'Company')}</b> · ${monthTxns().length} transaction${monthTxns().length === 1 ? '' : 's'}</div></div>
     <div class="rc-hero-r">
       <button class="rc-btn" id="rcMonth">${svg(IC.cal)}<span>${esc(monthLabel())}</span>${svg('<polyline points="6 9 12 15 18 9"/>')}</button>
       ${txns().length ? `<button class="rc-btn" id="rcMatch" title="Re-run auto match">${svg(IC.refresh)}<span>Re-match</span></button><button class="rc-btn" id="rcExport">${svg(IC.dl)}<span>Export</span></button>` : ''}
@@ -216,53 +216,86 @@ function emptyHTML() {
     <div class="rc-empty-s">PDF, Excel or CSV. We read Date, Description, Debit, Credit, Balance &amp; UTR/Ref, then auto-match credits to your sales invoices and debits to your purchase bills for <b>${esc(Q.co.short || 'this firm')}</b>.</div>
     <button class="rc-btn rc-btn-primary" id="rcUpload2">${svg(IC.up)}<span>Upload bank statement</span></button></div>`;
 }
-function statCard(tint, ic, label, val, sub) {
-  return `<div class="rc-kpi rc-t-${tint}"><div class="rc-kpi-top"><span class="rc-kpi-ic i-${tint}">${typeof ic === 'string' && ic.length <= 3 ? ic : svg(ic)}</span><span class="rc-kpi-l">${label}</span></div><div class="rc-kpi-v">${val}</div><div class="rc-kpi-s">${sub || ''}</div></div>`;
+/* One transaction's clear status (fewer, clearer statuses). */
+function statusKey(t) {
+  const m = t.m || {};
+  if (m.status === 'duplicate') return 'duplicate';
+  if (m.status === 'partial') return 'partial';
+  if (m.kind === 'ledger' || m.status === 'matched' || m.status === 'manual' || m.status === 'other' || (m.idx != null && !m.manual === false)) return isLinked(t) ? 'matched' : 'unmatched';
+  if (isLinked(t)) return 'matched';
+  if (m.status === 'unknown') return 'unknown';
+  return 'unmatched';
 }
-function cardsHTML() {
-  const c = cards();
-  return `<div class="rc-kpis">
-    ${statCard('green', '↓', 'Total Credits', fC(c.credits), 'money received')}
-    ${statCard('red', '↑', 'Total Debits', fC(c.debits), 'money paid')}
-    ${statCard('blue', IC.ck, 'Matched', fC(c.matched), 'linked to bills')}
-    ${statCard('amber', '?', 'Unmatched', fC(c.unmatched), 'needs review')}
-    ${statCard('indigo', '📥', 'Pending Receivables', fC(c.recv), 'customers owe you')}
-    ${statCard('rose', '🧾', 'Pending Payables', fC(c.pay), 'you owe suppliers')}
-    ${statCard('violet', '🏛️', 'GST Input (ITC)', fC(c.gstIn), 'available credit')}
-    ${statCard('teal', '🧮', 'GST Output', fC(c.gstOut), 'collected GST')}
-    ${statCard(c.net >= 0 ? 'green' : 'red', c.net >= 0 ? '📈' : '📉', 'Net Cash Flow', fC(c.net), monthLabel())}
+function needsReview(t) { return statusKey(t) !== 'matched'; }
+
+/* ── ONE compact summary strip (4 segments) — replaces the 9-card dashboard ── */
+function summaryHTML() {
+  const c = cards(), tt = monthTxns();
+  const credN = tt.filter(t => (t.credit || 0) > 0).length, debN = tt.filter(t => (t.debit || 0) > 0).length;
+  const matchN = tt.filter(t => statusKey(t) === 'matched').length;
+  const rev = tt.filter(needsReview); const revAmt = rev.reduce((a, t) => a + (t.credit || 0) + (t.debit || 0), 0);
+  const seg = (cls, ic, label, val, sub) => `<div class="rc-sum-seg"><span class="rc-sum-ic ${cls}">${ic}</span><div class="rc-sum-x"><span class="rc-sum-l">${label}</span><span class="rc-sum-v">${val}</span><span class="rc-sum-sub">${sub}</span></div></div>`;
+  return `<div class="rc-summary">
+    ${seg('g', svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>'), 'Money In', fC(c.credits), credN + ' credit' + (credN === 1 ? '' : 's'))}
+    ${seg('r', svg('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>'), 'Money Out', fC(c.debits), debN + ' debit' + (debN === 1 ? '' : 's'))}
+    ${seg('b', svg(IC.ck), 'Matched', fC(c.matched), matchN + ' linked')}
+    ${seg('p', svg('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'), 'Needs Review', fC(revAmt), rev.length + ' transaction' + (rev.length === 1 ? '' : 's'))}
   </div>`;
+}
+/* Secondary metrics live in a collapsed accordion, out of the primary flow. */
+function finOverviewHTML() {
+  const c = cards();
+  const kv = (l, v, col) => `<div class="rc-fo-kv"><span>${l}</span><b${col ? ` style="color:${col}"` : ''}>${fC(v)}</b></div>`;
+  return `<details class="rc-fo"${ST.foOpen ? ' open' : ''}><summary class="rc-fo-h">${svg('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>')}<span>Financial overview</span><em>receivables · payables · GST · net flow</em>${svg('<polyline points="6 9 12 15 18 9"/>')}</summary>
+    <div class="rc-fo-grid">
+      ${kv('Pending receivable', c.recv)}${kv('Pending payable', c.pay)}${kv('GST input (ITC)', c.gstIn)}${kv('GST output', c.gstOut)}${kv('Net cash flow', c.net, c.net >= 0 ? '#16a34a' : 'var(--ql-danger-600)')}
+    </div></details>`;
 }
 function aiHTML() {
   const items = aiSuggestions();
   if (!items.length) return '';
-  const TONE = { ok: 'i-green', bad: 'i-red', warn: 'i-amber', info: 'i-blue' };
-  return `<div class="rc-ai"><div class="rc-ai-h"><span class="rc-ai-t">${svg(IC.ai)} AI Suggestions · ${esc(monthLabel())}</span><span class="rc-ai-badge">Auto</span></div>
-    <div class="rc-ai-grid">${items.map(x => `<div class="rc-ai-i"><span class="rc-ai-ic ${TONE[x.tone] || 'i-blue'}">${x.ic}</span><div><div class="rc-ai-it">${esc(x.t)}</div><div class="rc-ai-is">${x.s}</div></div></div>`).join('')}</div></div>`;
-}
-function tabsHTML() {
-  const tab = (k, l) => `<button class="rc-tab ${ST.view === k ? 'on' : ''}" data-view="${k}">${l}</button>`;
-  const unm = monthTxns().filter(t => !isLinked(t)).length;
-  const tabs = `<div class="rc-tabs">${tab('recon', 'Reconciliation')}${tab('ledger', 'Party Ledger')}${tab('unmatched', 'Unmatched' + (unm ? ' · ' + unm : ''))}</div>`;
-  if (ST.view === 'ledger') return `<div class="rc-toolbar">${tabs}<div class="rc-tb-sp"></div><button class="rc-mini" id="rcLedgerExp">${svg(IC.dl)} Export ledger</button></div>`;
-  const typ = (k, l) => `<button class="rc-chip ${ST.ftype === k ? 'on' : ''}" data-ftype="${k}">${l}</button>`;
-  const sta = (k, l) => `<button class="rc-chip ${ST.fstatus === k ? 'on' : ''}" data-fstatus="${k}">${l}</button>`;
-  return `<div class="rc-toolbar">${tabs}<div class="rc-tb-sp"></div>
-    <div class="rc-chips">${typ('all', 'All')}${typ('credit', 'Credit')}${typ('debit', 'Debit')}</div>
-    <div class="rc-chips">${sta('all', 'Any')}${sta('matched', 'Matched')}${sta('partial', 'Partial')}${sta('unmatched', 'Unmatched')}${sta('duplicate', 'Duplicate')}</div>
-    <input class="rc-search" id="rcSearch" placeholder="Search party / ref…" value="${esc(ST.q)}">
+  const top = items[0];
+  return `<div class="rc-aibar">
+    <span class="rc-aibar-ic">${svg(IC.ai)}</span>
+    <span class="rc-aibar-t"><b>${esc(top.t)}</b><em>${top.s}</em></span>
+    ${items.length > 1 ? `<span class="rc-aibar-more">+${items.length - 1} more</span>` : ''}
+    <button class="rc-aibar-btn" id="rcAiReview">Review needs-action</button>
   </div>`;
+}
+/* ── ONE clean filter toolbar: status tabs (with counts) + type toggle + search ── */
+function toolbarHTML() {
+  const tt = monthTxns();
+  const cnt = k => k === 'all' ? tt.length : k === 'review' ? tt.filter(needsReview).length : tt.filter(t => statusKey(t) === k).length;
+  const tab = (k, l) => `<button class="rc-ftab ${ST.fstatus === k ? 'on' : ''} k-${k}" data-fstatus="${k}">${l}<span class="rc-ftab-n">${cnt(k)}</span></button>`;
+  if (ST.view === 'ledger') return `<div class="rc-toolbar2"><div class="rc-ftabs"><button class="rc-ftab on" data-view="recon">${svg('<polyline points="15 18 9 12 15 6"/>')} Back to reconciliation</button></div><div class="rc-tb-r"><button class="rc-mini2" id="rcLedgerExp">${svg(IC.dl)} Export ledger</button></div></div>`;
+  const typ = (k, l) => `<button class="rc-typ ${ST.ftype === k ? 'on' : ''}" data-ftype="${k}">${l}</button>`;
+  return `<div class="rc-toolbar2">
+    <div class="rc-ftabs">${tab('all', 'All')}${tab('review', 'Needs review')}${tab('matched', 'Matched')}${tab('partial', 'Partial')}${tab('unmatched', 'Unmatched')}${tab('duplicate', 'Duplicate')}</div>
+    <div class="rc-tb-r">
+      <div class="rc-typtog">${typ('all', 'All')}${typ('credit', 'Credit')}${typ('debit', 'Debit')}</div>
+      <div class="rc-searchw">${svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')}<input class="rc-search2" id="rcSearch" placeholder="Search party, ref, amount…" value="${esc(ST.q)}"></div>
+      <button class="rc-mini2" data-view="ledger" title="Party ledger">${svg('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>')}<span>Ledger</span></button>
+    </div></div>`;
+}
+function bulkBarHTML() {
+  if (!ST.sel || !ST.sel.size) return '';
+  return `<div class="rc-bulk"><span class="rc-bulk-n">${ST.sel.size} selected</span>
+    <button class="rc-bulk-b" data-bulk="confirm">${svg(IC.ck)} Confirm suggested</button>
+    <button class="rc-bulk-b" data-bulk="dup">Mark duplicate</button>
+    <button class="rc-bulk-b" data-bulk="ignore">Ignore</button>
+    <button class="rc-bulk-b" data-bulk="export">${svg(IC.dl)} Export</button>
+    <button class="rc-bulk-x" data-bulk="clear" title="Clear">${svg(IC.x)}</button></div>`;
 }
 function filteredTxns() {
   let r = monthTxns();
   if (ST.ftype === 'credit') r = r.filter(t => (t.credit || 0) > 0);
   if (ST.ftype === 'debit') r = r.filter(t => (t.debit || 0) > 0);
-  if (ST.fstatus === 'matched') r = r.filter(t => t.m && (t.m.status === 'matched' || t.m.status === 'manual' || t.m.status === 'other'));
-  else if (ST.fstatus === 'unmatched') r = r.filter(t => !isLinked(t));
-  else if (ST.fstatus === 'partial') r = r.filter(t => t.m && t.m.status === 'partial');
-  else if (ST.fstatus === 'duplicate') r = r.filter(t => t.m && t.m.status === 'duplicate');
-  if (ST.view === 'unmatched') r = r.filter(t => !isLinked(t));
-  if (ST.q) { const q = ST.q.toLowerCase(); r = r.filter(t => { const b = billFor(t); return ((t.clean || '') + ' ' + (t.raw || t.desc || '') + ' ' + (t.utr || '') + ' ' + (t.ref || '') + ' ' + (b ? (b.party || b.sup || '') : '')).toLowerCase().includes(q); }); }
+  if (ST.fstatus === 'review') r = r.filter(needsReview);
+  else if (ST.fstatus === 'matched') r = r.filter(t => statusKey(t) === 'matched');
+  else if (ST.fstatus === 'unmatched') r = r.filter(t => statusKey(t) === 'unmatched');
+  else if (ST.fstatus === 'partial') r = r.filter(t => statusKey(t) === 'partial');
+  else if (ST.fstatus === 'duplicate') r = r.filter(t => statusKey(t) === 'duplicate');
+  if (ST.q) { const q = ST.q.toLowerCase(); r = r.filter(t => { const b = billFor(t); return ((t.clean || '') + ' ' + (t.raw || t.desc || '') + ' ' + (t.utr || '') + ' ' + (t.ref || '') + ' ' + (t.credit || t.debit || '') + ' ' + (b ? (b.party || b.sup || '') + ' ' + (b.inv || b.bill || '') : '')).toLowerCase().includes(q); }); }
   return r.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 }
 function badge(t) {
@@ -283,17 +316,56 @@ function viewHTML() {
   if (ST.view === 'ledger') return ledgerHTML();
   const rows = filteredTxns();
   if (!rows.length) return `<div class="rc-none">${ST.month && ST.month !== 'all' ? 'No matching transactions for ' + esc(monthLabel()) : 'No transactions match these filters'}.</div>`;
-  const body = rows.map((t, i) => `<tr data-open="${t.id}" class="rc-clk">
-    <td class="rc-mut">${fDS(t.date)}</td>
-    <td><div class="rc-desc">${esc(t.clean || t.desc || '—')}</div><div class="rc-ref">${esc((t.raw || t.desc || '').slice(0, 54))}${t.utr ? ' · ' + esc(t.utr) : ''}</div></td>
-    <td class="r ${t.debit ? 'rc-dr' : 'rc-mut'}">${t.debit ? fC(t.debit) : '—'}</td>
-    <td class="r ${t.credit ? 'rc-cr' : 'rc-mut'}">${t.credit ? fC(t.credit) : '—'}</td>
-    <td class="r rc-mut">${t.balance ? fC(t.balance) : '—'}</td>
-    <td>${matchCell(t)}</td>
+  const body = rows.map(t => {
+    const sel = ST.sel && ST.sel.has(t.id);
+    return `<tr data-open="${t.id}" class="rc-clk${sel ? ' rc-selrow' : ''}">
+    <td class="rc-cbx"><button class="rc-cb${sel ? ' on' : ''}" data-sel="${t.id}" title="Select">${sel ? svg(IC.ck) : ''}</button></td>
+    <td class="rc-mut rc-nowrap">${fDS(t.date)}</td>
+    <td class="rc-party">${partyCell(t)}</td>
+    <td>${typeCell(t)}</td>
+    <td class="r">${amountCell(t)}</td>
+    <td>${suggestCell(t)}</td>
+    <td class="rc-cf">${confCell(t)}</td>
     <td>${badge(t)}</td>
-    <td class="rc-actcell">${isLinked(t) ? `<button class="rc-ib" data-unlink="${t.id}" title="Unlink">${svg(IC.x)}</button>` : ''}<button class="rc-ib" data-link="${t.id}" title="Link to bill">${svg(IC.link)}</button><button class="rc-ib" data-mark="${t.id}" title="Categorize">${svg(IC.tag)}</button></td>
-  </tr>`).join('');
-  return `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th>Date</th><th>Description</th><th class="r">Debit</th><th class="r">Credit</th><th class="r">Balance</th><th>Matched to</th><th>Status</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`;
+    <td class="rc-actcell">${actionCell(t)}</td>
+  </tr>`; }).join('');
+  return `<div class="rc-tablewrap"><table class="rc-table rc-table2">
+    <thead><tr><th class="rc-cbx"></th><th>Date</th><th>Party / Description</th><th>Type</th><th class="r">Amount</th><th>Suggested match</th><th>Confidence</th><th>Status</th><th></th></tr></thead>
+    <tbody>${body}</tbody></table></div>`;
+}
+/* ── table cells ── */
+function partyCell(t) {
+  const b = billFor(t), alias = (aliases()[RC.normName(t.clean || '')] || '');
+  const known = b ? (t.credit ? b.party : b.sup) : (alias || '');
+  const name = t.clean || t.desc || '—';
+  const narr = ((t.raw || t.desc || '').slice(0, 46)) + (t.utr ? ' · ' + t.utr : '');
+  const sub = known ? `<div class="rc-party-r">${svg('<path d="M20 6 9 17l-5-5"/>')}Recognized as <b>${esc(known)}</b></div>`
+    : ((t.m && t.m.status === 'unknown') || (!isLinked(t) && !known) ? `<div class="rc-party-u"><span class="rc-uk">Unknown party</span><button class="rc-idbtn" data-link="${t.id}">Identify</button></div>` : '');
+  return `<div class="rc-party-n">${esc(name)}</div><div class="rc-party-nar">${esc(narr)}</div>${sub}`;
+}
+function typeCell(t) { return t.credit ? '<span class="rc-tp rc-tp-c">Credit</span>' : '<span class="rc-tp rc-tp-d">Debit</span>'; }
+function amountCell(t) { return t.credit ? `<span class="rc-amt rc-cr">+ ${fC(t.credit)}</span>` : `<span class="rc-amt rc-dr">− ${fC(t.debit)}</span>`; }
+function suggestCell(t) {
+  if (isSplit(t)) { const bl = billsFor(t); return `<div class="rc-sg"><b>${bl.length} bills · ${fC(bl.reduce((a, x) => a + x.amount, 0))}</b><span class="rc-sg-p">split allocation</span></div>`; }
+  if (t.m && t.m.kind === 'ledger') return `<div class="rc-sg"><b>Running account</b><span class="rc-sg-p">${esc(t.m.party || '')}</span></div>`;
+  const b = billFor(t);
+  if (b) {
+    const ref = t.m.kind === 'sale' ? b.inv : b.bill, nm = t.m.kind === 'sale' ? b.party : b.sup;
+    const alloc = t.credit || t.debit || 0, tot = b.total || alloc, pct = Math.min(100, Math.round(alloc / (tot || 1) * 100));
+    const col = pct >= 99 ? '#16a34a' : '#f59e0b';
+    return `<div class="rc-sg"><b>${esc(ref || '—')}</b><span class="rc-sg-p">${esc(nm || '')}</span>
+      <div class="rc-sg-of">${fC(alloc)} of ${fC(tot)}</div><div class="rc-sg-bar"><i style="width:${pct}%;background:${col}"></i></div></div>`;
+  }
+  if (t.m && t.m.status === 'other') return `<div class="rc-sg"><b>${esc(t.m.cat || 'Categorized')}</b><span class="rc-sg-p">non-bill entry</span></div>`;
+  return '<span class="rc-mut">— no match —</span>';
+}
+function confCell(t) {
+  const m = t.m || {}; if (m.confidence == null || !isLinked(t)) return '<span class="rc-mut">—</span>';
+  const c = m.confidence, col = c >= 90 ? '#16a34a' : c >= 70 ? '#f59e0b' : '#dc2626';
+  return `<span class="rc-conf-dot" style="--cc:${col}"><i></i>${c}%</span>`;
+}
+function actionCell(t) {
+  return `<button class="rc-review" data-open="${t.id}">Review</button><button class="rc-kebab" data-more="${t.id}" title="More">${svg(IC.dots || '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>')}</button>`;
 }
 function ledgerHTML() {
   const rows = partyLedger().filter(p => p.party !== '—');
@@ -337,6 +409,31 @@ function openMark(tid, anchor) {
   m.innerHTML = `<div class="rc-menu-h">Mark as</div>${cats.map(c => `<button class="rc-menu-i" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}`;
   m.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { t.m = { kind: 'other', idx: null, status: 'other', cat: b.dataset.cat, manual: true, confidence: 100, matchedBy: 'manual', reasons: ['Categorized as ' + b.dataset.cat + ' by user'], at: new Date().toISOString() }; Q.saveRecon(); closeRcMenu(); render(); toast('Marked as ' + b.dataset.cat, 'ok'); });
   placeRcMenu(m, anchor);
+}
+/* Row 3-dot menu: one place for the secondary actions (keeps the row clean). */
+function openKebab(tid, anchor) {
+  closeRcMenu();
+  const t = txns().find(x => x.id === tid); if (!t) return;
+  const m = document.createElement('div'); m.className = 'rc-menu';
+  const item = (label, fn, cls) => { const b = document.createElement('button'); b.className = 'rc-menu-i' + (cls ? ' ' + cls : ''); b.textContent = label; b.onclick = () => { closeRcMenu(); fn(); }; return b; };
+  m.appendChild(item('Match to a bill', () => openLink(tid)));
+  m.appendChild(item('Change party / identify', () => openLink(tid)));
+  m.appendChild(item('Split across bills', () => openSplit(tid)));
+  m.appendChild(item('Categorize', () => openMark(tid, anchor)));
+  const isDup = t.m && t.m.status === 'duplicate';
+  m.appendChild(item(isDup ? 'Unmark duplicate' : 'Mark duplicate', () => { markDuplicate(t, !isDup); render(); }));
+  if (isLinked(t)) m.appendChild(item('Undo match', () => { undoMatch(t); render(); }, 'del'));
+  placeRcMenu(m, anchor);
+}
+function markDuplicate(t, on) { t.m = Object.assign({}, t.m || {}, { status: on ? 'duplicate' : (t.m && t.m.idx != null ? 'matched' : 'unmatched'), manual: true }); Q.saveRecon(); }
+function undoMatch(t) { if (t.m && t.m.kind === 'ledger' && t.m.ledgerEntryId && Q.reverseLedgerEntry) Q.reverseLedgerEntry(t.m.partyIdx, t.m.ledgerEntryId); t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched', confidence: 0, matchedBy: 'manual', reasons: ['Unlinked by user'], at: new Date().toISOString() }; Q.saveRecon(); }
+function bulkAction(a) {
+  const rows = txns().filter(t => ST.sel.has(t.id));
+  if (a === 'clear') { ST.sel.clear(); render(); return; }
+  if (a === 'confirm') { rows.forEach(t => { if (t.m && t.m.idx != null) t.m = Object.assign({}, t.m, { status: (t.credit || t.debit) < ((billFor(t) || {}).outstanding != null ? billFor(t).outstanding : Infinity) - 1 ? 'partial' : 'matched', manual: true, confidence: 100 }); }); Q.saveRecon(); ST.sel.clear(); render(); toast('Confirmed ' + rows.length + ' match' + (rows.length === 1 ? '' : 'es'), 'ok'); return; }
+  if (a === 'dup') { rows.forEach(t => markDuplicate(t, true)); ST.sel.clear(); render(); toast('Marked ' + rows.length + ' as duplicate', 'ok'); return; }
+  if (a === 'ignore') { rows.forEach(t => { t.m = { kind: 'other', idx: null, status: 'other', cat: 'Ignored', manual: true, confidence: 100 }; }); Q.saveRecon(); ST.sel.clear(); render(); toast('Ignored ' + rows.length, 'ok'); return; }
+  if (a === 'export') { exportRecon(); ST.sel.clear(); render(); return; }
 }
 
 /* ══════════════════ MODALS ══════════════════ */
@@ -541,6 +638,7 @@ function wire() {
   if ($('rcMatch')) $('rcMatch').onclick = () => { runMatchAll(true); render(); toast('Re-matched ' + txns().length + ' transactions', 'ok'); };
   if ($('rcExport')) $('rcExport').onclick = exportRecon;
   if ($('rcLedgerExp')) $('rcLedgerExp').onclick = exportLedger;
+  if ($('rcAiReview')) $('rcAiReview').onclick = () => { ST.fstatus = 'review'; render(); };
   root.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { ST.view = b.dataset.view; render(); });
   root.querySelectorAll('[data-ftype]').forEach(b => b.onclick = () => { ST.ftype = b.dataset.ftype; render(); });
   root.querySelectorAll('[data-fstatus]').forEach(b => b.onclick = () => { ST.fstatus = b.dataset.fstatus; render(); });
@@ -548,7 +646,14 @@ function wire() {
   root.querySelectorAll('[data-link]').forEach(b => b.onclick = () => openLink(b.dataset.link));
   root.querySelectorAll('[data-unlink]').forEach(b => b.onclick = () => { const t = txns().find(x => x.id === b.dataset.unlink); if (t) { t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched' }; Q.saveRecon(); render(); } });
   root.querySelectorAll('[data-mark]').forEach(b => b.onclick = e => openMark(b.dataset.mark, e.currentTarget));
-  root.querySelectorAll('[data-open]').forEach(tr => tr.addEventListener('click', e => { if (e.target.closest('button,a,input,select')) return; openDetail(tr.dataset.open); }));
+  root.querySelectorAll('.rc-review').forEach(b => b.onclick = e => { e.stopPropagation(); openDetail(b.dataset.open); });
+  root.querySelectorAll('[data-more]').forEach(b => b.onclick = e => { e.stopPropagation(); openKebab(b.dataset.more, e.currentTarget); });
+  root.querySelectorAll('.rc-clk[data-open]').forEach(tr => tr.addEventListener('click', e => { if (e.target.closest('button,a,input,select')) return; openDetail(tr.dataset.open); }));
+  // selection + bulk bar
+  root.querySelectorAll('[data-sel]').forEach(b => b.onclick = e => { e.stopPropagation(); const id = b.dataset.sel; ST.sel.has(id) ? ST.sel.delete(id) : ST.sel.add(id); render(); });
+  root.querySelectorAll('[data-bulk]').forEach(b => b.onclick = () => bulkAction(b.dataset.bulk));
+  // financial-overview accordion — persist open/closed across re-renders
+  const fo = root.querySelector('.rc-fo'); if (fo) fo.addEventListener('toggle', () => { ST.foOpen = fo.open; });
 }
 function s2focus() { const s = document.getElementById('rcSearch'); if (s) { s.focus(); const v = s.value; s.value = ''; s.value = v; } }
 

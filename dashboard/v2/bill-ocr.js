@@ -34,6 +34,21 @@
   function nMoney(s) { s = String(s == null ? '' : s).replace(/[^0-9.,]/g, ''); if (!s) return null; var last = Math.max(s.lastIndexOf('.'), s.lastIndexOf(',')); if (last >= 0 && s.length - last <= 3 && (s.match(/[.,]/g) || []).length) { s = s.slice(0, last).replace(/[.,]/g, '') + '.' + s.slice(last + 1); } else { s = s.replace(/[.,]/g, ''); } var n = parseFloat(s); return isFinite(n) ? n : null; }
   function money(s) { return (String(s).match(/\d[\d,]*\.?\d{0,2}/g) || []).map(function (x) { return parseFloat(x.replace(/,/g, '')); }).filter(function (n) { return isFinite(n); }); }
   function round2(n) { return Math.round(n * 100) / 100; }
+  // Remove percentages and quantities (a number followed by a unit) from a string
+  // so only true monetary amounts remain. Handles MT / MTS / M.T. / TON / KG / etc.
+  function stripUnits(s) {
+    return String(s)
+      .replace(/\d[\d.,]*\s*%/g, ' ')
+      .replace(/\d[\d.,]*\s*(?:m\.?t\.?s?\.?|mts?|tonnes?|\bton\b|kgs?|nos\.?|ltrs?|litres?|bags?|pcs?|units?|qtls?|\bkl\b|cbm|\bto\b|sq\.?\s*(?:ft|mt|m)|cu\.?\s*(?:ft|mt|m))\b/gi, ' ');
+  }
+  // Every monetary amount in the text (values with paise, or round totals with .00).
+  // Excludes HSN codes / pincodes / GSTIN fragments (bare 4+ digit integers) and,
+  // via stripUnits, quantities — so a quantity can never be mistaken for money.
+  function moneyAmounts(T) {
+    return (stripUnits(String(T)).match(/\d[\d,]*\.\d{1,2}\b/g) || [])
+      .map(function (x) { return round2(parseFloat(x.replace(/,/g, ''))); })
+      .filter(function (n) { return isFinite(n) && n > 0; });
+  }
 
   /* ── label detector: the anti-"GST Registration No" guard ────────────────
      A value candidate is rejected if it IS a label (or begins with one). */
@@ -69,6 +84,22 @@
       return true;
     }
     return false;
+  }
+
+  /* ── Party master: a known GSTIN → the official company name (Step 4). This is
+     the strongest, OCR-INDEPENDENT supplier signal — when the supplier GSTIN is
+     recognised we use the master name and ignore whatever the text scanner found
+     (so footer/declaration text can never win). Callers can extend it with their
+     own parties via opts.partyMaster (GSTIN → name). ── */
+  var PARTY_MASTER = {
+    '24AAACI1681G1ZV': 'Indian Oil Corporation Limited',
+    '08ABWFM4111F1Z6': 'Mateshwari Mines and Minerals'
+  };
+  function masterName(gstin, extra) {
+    if (!gstin) return '';
+    var g = norm(gstin).replace(/\s/g, '');
+    if (extra && extra[g]) return extra[g];
+    return PARTY_MASTER[g] || '';
   }
 
   /* ── GSTIN ───────────────────────────────────────────────────────────── */
@@ -157,7 +188,7 @@
     opts = opts || {};
     var T = String(text || '').replace(/\r/g, '');
     var lines = T.split('\n').map(clean).filter(Boolean);
-    var f = {}, conf = {}, review = [], warn = [];
+    var f = {}, conf = {}, review = [], warn = [], ver = {};
     function set(k, v, c) { if (v === '' || v == null) return; f[k] = v; conf[k] = c; }
     var ownG = (opts.ownGstins || []).map(norm);
     var ownNames = (opts.ownNames || []).map(norm);
@@ -180,8 +211,12 @@
     var dt = findDate(T); if (dt) set('date', dt, 0.85);
 
     /* ── SELLER (supplier) name — the crux. Never a label. ──────────────── */
-    var supplier = pickSupplier(lines, sellerG, ownNames, aliases);
-    if (supplier.name) set('supplier', supplier.name, supplier.conf);
+    var master = masterName(sellerG, opts.partyMaster);
+    if (master) { set('supplier', master, 0.99); ver.supplier = 'party_master'; }
+    else {
+      var supplier = pickSupplier(lines, sellerG, ownNames, aliases);
+      if (supplier.name) { set('supplier', supplier.name, supplier.conf); if (supplier.conf >= 0.7) ver.supplier = 'layout'; }
+    }
 
     /* Buyer name (separate) */
     var buyer = pickBuyer(lines, ownNames);
@@ -198,17 +233,7 @@
     var rate = pickRate(T, A);
     if (rate != null) set('gstRate', rate, A.rateFromMath ? 0.85 : 0.7);
 
-    /* reconcile: taxable + gst ≈ total */
-    if (A.taxable != null && totalGst != null && A.total != null) {
-      var expect = round2(A.taxable + totalGst + (A.roundOff || 0));
-      if (Math.abs(expect - A.total) <= 2) { conf.total = Math.max(conf.total || 0, 0.95); conf.taxable = Math.max(conf.taxable || 0, 0.95); }
-      else warn.push('Amounts don\'t reconcile: taxable + GST (' + expect + ') ≠ total (' + A.total + ')');
-    }
-    /* fill a missing leg ONLY when we can compute it exactly (never guess a rate) */
-    if (f.taxable == null && A.total != null && rate != null) { var tx = round2(A.total / (1 + rate / 100)); set('taxable', tx, 0.55); }
-    if (f.total == null && A.taxable != null && totalGst != null) { set('total', round2(A.taxable + totalGst + (A.roundOff || 0)), 0.6); }
-
-    /* HSN, qty, rate/unit, vehicle */
+    /* HSN, qty, rate/unit, vehicle (moved up: qty is needed for the amount guards) */
     var hsn = (T.match(/\bHSN(?:\s*\/?\s*SAC)?\s*(?:code|no)?\s*[:\-]?\s*(\d{4,8})\b/i) || [])[1] || (T.match(/\b(2521|2522|2523|2701|2713|3923|6305|4819)\d{0,4}\b/) || [])[0];
     if (hsn) set('hsn', hsn, 0.75);
     // Quantity + unit. Try unambiguous units first (MT/TON/KG/NOS/BAGS/…); only
@@ -216,6 +241,50 @@
     var qm = T.match(/([\d,]+(?:\.\d+)?)\s*(m\.?t\.?|tonnes?|\bton\b|kgs?|nos|bags?|ltrs?|litres?|units?|qtls?)\b/i)
       || T.match(/([\d,]+\.\d{1,3})\s*(to)\b(?!\s*[:.])/i);
     if (qm) set('qty', parseFloat(qm[1].replace(/,/g, '')), 0.6);
+
+    /* ── cross-validation & business rules (Steps 4–5) ──────────────────────
+       The grand total is the amount that satisfies taxable + CGST + SGST + IGST
+       + round-off. It can NEVER be smaller than the taxable value, and never the
+       quantity — this is what stops a quantity being stored as the total. */
+    var qtyVal = f.qty != null ? f.qty : null;
+    var expect = (A.taxable != null && totalGst != null) ? round2(A.taxable + totalGst + (A.roundOff || 0)) : null;
+    // (a) reject an IMPOSSIBLE total — below taxable, or equal to the quantity.
+    //     (A valid grand total that merely disagrees with `expect` is NOT rejected
+    //      here; the taxable could be the wrong leg — see (c2).)
+    if (A.total != null && ((A.taxable != null && A.total < A.taxable - 1) || (qtyVal != null && Math.abs(A.total - qtyVal) < 0.5))) {
+      warn.push('Rejected total ' + A.total + ' — not a valid grand total (below taxable / equals quantity)');
+      A.total = null; delete f.total; delete conf.total;
+    }
+    // (b) recover a missing/rejected total: prefer an amount on the bill equal to
+    //     taxable + GST + round-off; else the computed sum; else the largest amount.
+    if (A.total == null) {
+      if (expect != null) {
+        var hit = moneyAmounts(T).filter(function (n) { return Math.abs(n - expect) <= 2 && (qtyVal == null || Math.abs(n - qtyVal) > 0.5); })[0];
+        var chosen = hit != null ? hit : expect;
+        set('total', chosen, hit != null ? 0.95 : 0.85); A.total = chosen; ver.total = hit != null ? 'gst_calc' : 'gst_sum';
+      } else {
+        var all = moneyAmounts(T).filter(function (n) { return qtyVal == null || Math.abs(n - qtyVal) > 0.5; });
+        if (all.length) { var mx = Math.max.apply(null, all); if (A.taxable == null || mx >= A.taxable - 1) { set('total', mx, 0.7); A.total = mx; } }
+      }
+    }
+    // (c1) total present AND reconciles → verified by GST calculation
+    if (A.total != null && expect != null && Math.abs(A.total - expect) <= 2) {
+      conf.total = Math.max(conf.total || 0, 0.96); ver.total = 'gst_calc';
+      conf.taxable = Math.max(conf.taxable || 0, 0.95); ver.taxable = 'gst_calc';
+    }
+    // (c2) total present but does NOT reconcile → keep it, but warn (a leg is off)
+    else if (A.total != null && expect != null && Math.abs(A.total - expect) > 2) {
+      warn.push('Amounts don\'t reconcile: taxable + GST (' + expect + ') ≠ total (' + A.total + ')');
+    }
+    // (d) recover a missing taxable (never guess a rate)
+    if (f.taxable == null && A.total != null && rate != null) { var txv = round2(A.total / (1 + rate / 100)); set('taxable', txv, 0.6); A.taxable = txv; }
+    if (f.total == null && A.taxable != null && totalGst != null) { set('total', round2(A.taxable + totalGst + (A.roundOff || 0)), 0.7); A.total = f.total; ver.total = 'gst_sum'; }
+    // (e) taxable must be < total
+    if (f.taxable != null && f.total != null && f.taxable > f.total + 1) { warn.push('Taxable exceeds total'); if (review.indexOf('taxable') < 0) review.push('taxable'); if (review.indexOf('total') < 0) review.push('total'); }
+    // (f) GST% from the now-trusted taxable + GST amounts — only when still missing,
+    //     and only from a real (non-zero) GST total (never overwrite a good rate).
+    if (f.gstRate == null && f.taxable && totalGst != null && totalGst > 0) { var rr = totalGst / f.taxable * 100; var snap = [3, 5, 12, 18, 28].filter(function (x) { return Math.abs(x - rr) <= 0.7; })[0]; if (snap != null) { set('gstRate', snap, 0.9); ver.gstRate = 'gst_calc'; } }
+
     var vm = norm(T).match(/\b([A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{1,3}[\s\-]?\d{3,4})\b/);
     if (vm) set('vehicle', vm[1].replace(/[\s\-]/g, ''), 0.6);
     // Document type
@@ -264,7 +333,7 @@
     /* validation */
     if (f.supplierGstin && !validGstin(f.supplierGstin) && warn.indexOf('Supplier GSTIN format looks off') < 0) warn.push('Supplier GSTIN invalid');
 
-    return { fields: f, confidence: conf, review: review, warnings: warn, raw: T };
+    return { fields: f, confidence: conf, review: review, warnings: warn, verify: ver, raw: T };
   }
 
   /* ── supplier picker ─────────────────────────────────────────────────── */
@@ -281,6 +350,10 @@
     if (/^\d/.test(c) || /\d{6}/.test(c)) return '';             // starts with a number / has a pin
     if (ADDR_RE.test(c)) return '';                              // address line, not a name
     if (/\b(?:from|to)\s*:/i.test(c) || /\bconsign(?:or|ee)\b/i.test(c) || /\broute\b/i.test(c)) return '';   // transport route line
+    // Declaration / footer / signature fragments — never a supplier name (Step 10).
+    if (/^(?:the|for|to|from|as|we|i|received|certified|authoris|authoriz|payer|payee|ordering|declaration|subject|being|goods|value|amount|total|net|place|date|terms|note|remarks?)\b/i.test(c)) return '';
+    if (/\b(?:buyer|signator|signature|hereby|certif|received|good\s*condition|amount\s*indicated|terms\s*(?:and|&|of)\b|payer\b|ordering\s*party|declaration|reconciliation|subject\s*to|digitally\s*signed|e-?way|original\s*for|duplicate\s*for|triplicate)\b/i.test(c)) return '';
+    if (/\bfor\b/i.test(c) && !CO_SUFFIX.test(c)) return '';   // "the buyer. For", "For & on behalf" — not a company unless it carries a real suffix
     if (/\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]/i.test(norm(c).replace(/\s/g, ''))) return '';    // contains a GSTIN → not a name
     var n = norm(c); for (var i = 0; i < (ownNames || []).length; i++) { if (ownNames[i] && (n.indexOf(ownNames[i]) >= 0 || ownNames[i].indexOf(n) >= 0)) return ''; }
     return c;
@@ -343,13 +416,24 @@
     // Strip numbers that are a rate/percentage OR a quantity (a number followed
     // by a unit like TO/MT/KG/%): on "Taxable Value 32.380 TO 16220.000 TO
     // 525203.60" this leaves only the true amount 525203.60, never the qty/rate.
-    function strip(s) { return String(s).replace(/\d[\d.,]*\s*%/g, ' ').replace(/\d[\d.,]*\s*(?:to|mt|m\.t\.?|kgs?|nos|ltr|litres?|tonnes?|\bton\b|bags?|pcs?|units?|qtls?|\bkl\b|cbm)\b/gi, ' '); }
+    function strip(s) { return stripUnits(s); }
+    // Prefer a DECIMAL-bearing amount (real GST amounts carry paise, e.g.
+    // 11,60,333.10) over a bare integer — so a leading HSN code / pincode in the
+    // data row (e.g. "25210010  11,60,333.10 …") is never taken as the amount.
+    function decimals(s) { return (String(s).match(/\d[\d,]*\.\d{1,2}\b/g) || []).map(function (x) { return round2(parseFloat(x.replace(/,/g, ''))); }).filter(function (n) { return isFinite(n); }); }
+    function notHsn(n) { return !(n >= 1000000 && n === Math.floor(n)); }   // drop bare 7+ digit integers (HSN / id)
     function firstAmtAfter(re, skip) {
       for (var i = 0; i < lines.length; i++) {
         if (skip && skip.test(lines[i])) continue;
         var m = re.exec(lines[i]); if (!m) continue;
-        var mo = money(strip(lines[i].slice(m.index + m[0].length))); if (mo.length) return mo[0];
-        if (i + 1 < lines.length) { var mo2 = money(strip(lines[i + 1])); if (mo2.length) return mo2[0]; }
+        var tail = strip(lines[i].slice(m.index + m[0].length));
+        var d = decimals(tail); if (d.length) return d[0];
+        var mo = money(tail).filter(notHsn); if (mo.length) return mo[0];
+        if (i + 1 < lines.length) {
+          var nx = strip(lines[i + 1]);
+          var d2 = decimals(nx); if (d2.length) return d2[0];
+          var mo2 = money(nx).filter(notHsn); if (mo2.length) return mo2[0];
+        }
       }
       return null;
     }
@@ -388,11 +472,12 @@
     // Fill the best-guess value for every field (so nothing is silently empty);
     // the UI still flags low-confidence fields for review via _review.
     function ok(k, v) { return v == null ? '' : v; }
-    var gconf = {}, grev = [];
+    var gconf = {}, grev = [], gver = {};
     Object.keys(res.confidence || {}).forEach(function (k) { gconf[GEN[k] || k] = res.confidence[k]; });
+    Object.keys(res.verify || {}).forEach(function (k) { gver[GEN[k] || k] = res.verify[k]; });
     rev.forEach(function (k) { grev.push(GEN[k] || k); });
     return {
-      _text: res.raw, _conf: gconf, _review: grev, _warn: res.warnings, _fields: f,
+      _text: res.raw, _conf: gconf, _review: grev, _verify: gver, _warn: res.warnings, _fields: f,
       docno: ok('billNo', f.billNo), date: ok('date', f.date),
       name: ok('supplier', f.supplier), gstin: ok('supplierGstin', f.supplierGstin), buyergstin: f.buyerGstin || '',
       taxable: ok('taxable', f.taxable), total: ok('total', f.total), rate: ok('gstRate', f.gstRate),
@@ -406,7 +491,7 @@
      ground-truth. Powers the "Run Import Test Suite" button. */
   var OWN = { ownGstins: ['08AABCG1234H1Z5', '08AADFD5678K1Z9'], ownNames: ['GOTAN LIME INDUSTRIES', 'DESHWALI MINERALS'] };
   var SAMPLES = [
-    { name: 'Label-trap (the reported bug)', cat: 'limestone/CGST+SGST', text: 'INDORAMA CEMENT LIMITED\nPlot 42, GIDC Industrial Area, Bharuch, Gujarat\nGST Registration No\n24AAACI1681G1ZV\nTAX INVOICE\nInvoice No : 20273121B006913   Dated : 19-Jun-2026\nBilled To : Gotan Lime Industries  GSTIN 08AABCG1234H1Z5\nLimestone HSN 2521\nTaxable Value 84717.00\nCGST 2.5% 2117.93\nSGST 2.5% 2117.93\nGrand Total 88952.86\nReverse Charge : No', expect: { supplier: 'INDORAMA CEMENT LIMITED', supplierGstin: '24AAACI1681G1ZV', billNo: '20273121B006913', date: '19-Jun-2026', taxable: 84717, total: 88952.86, gstRate: 5, itc: 'Eligible' } },
+    { name: 'Label-trap (the reported bug)', cat: 'limestone/CGST+SGST', text: 'INDORAMA CEMENT LIMITED\nPlot 42, GIDC Industrial Area, Bharuch, Gujarat\nGST Registration No\n24AABCI2929N1ZK\nTAX INVOICE\nInvoice No : 20273121B006913   Dated : 19-Jun-2026\nBilled To : Gotan Lime Industries  GSTIN 08AABCG1234H1Z5\nLimestone HSN 2521\nTaxable Value 84717.00\nCGST 2.5% 2117.93\nSGST 2.5% 2117.93\nGrand Total 88952.86\nReverse Charge : No', expect: { supplier: 'INDORAMA CEMENT LIMITED', supplierGstin: '24AABCI2929N1ZK', billNo: '20273121B006913', date: '19-Jun-2026', taxable: 84717, total: 88952.86, gstRate: 5, itc: 'Eligible' } },
     { name: 'Limestone (M/s)', cat: 'limestone/CGST+SGST', text: 'M/s Mateshwari Mines and Minerals\nGSTIN 08ABCFM1234N1ZP\nBill No: GJ5534   Date: 15/06/2026\nTo: Gotan Lime Industries GSTIN 08AABCG1234H1Z5\nLimestone (Kankar) HSN 2521\nTaxable Value 847170.00 CGST 2.5% 21179.25 SGST 2.5% 21179.25 Grand Total 889529.00\nReverse Charge : No', expect: { supplier: 'Mateshwari Mines and Minerals', group: 'limestone', gstRate: 5, taxable: 847170, itc: 'Eligible' } },
     { name: 'Petcoke IGST inter-state', cat: 'petcoke/IGST', text: 'Reliance Industries Limited\nJamnagar Gujarat\nGSTIN 24AAACR5055K1Z7\nTax Invoice No RIL/2026/8842 Dt 02-Jun-2026\nBill To Deshwali Minerals GSTIN 08AADFD5678K1Z9\nPet Coke HSN 2713\nTaxable Amount 1000000.00 IGST 18% 180000.00 Invoice Value 1180000.00', expect: { supplier: 'Reliance Industries Limited', group: 'petcoke', gstRate: 18, igst: 180000, total: 1180000 } },
     { name: 'Zero-GST exempt', cat: 'no-GST', text: 'Krishna Traders\nGSTIN 08AAACK1111A1Z0\nBill No 771 Date 10-Jun-26\nTo Gotan Lime Industries\nExempt agricultural produce\nTaxable Value 50000.00 Total 50000.00', expect: { supplier: 'Krishna Traders', total: 50000 } },

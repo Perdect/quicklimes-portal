@@ -254,7 +254,11 @@
       if (QLD.co) { if (QLD.co.gstin) g.push(QLD.co.gstin); if (QLD.co.short) n.push(QLD.co.short); if (QLD.co.name) n.push(QLD.co.name); }
       Object.values(QLD.COMPANIES || {}).forEach(c => { if (c.gstin) g.push(c.gstin); if (c.short) n.push(c.short); if (c.name) n.push(c.name); });
     }
-    return { ownGstins: g, ownNames: n, aliases: billAliases() };
+    // Party master (GSTIN → official name) from the user's own supplier list, so a
+    // known/corrected supplier auto-resolves on future bills (grows the built-in seed).
+    const pm = {};
+    try { (window.QLD && QLD.partyRows ? QLD.partyRows() : []).forEach(p => { if (p.gstin && p.name) pm[String(p.gstin).toUpperCase().replace(/\s/g, '')] = p.name; }); } catch (_) {}
+    return { ownGstins: g, ownNames: n, aliases: billAliases(), partyMaster: pm };
   }
   // Learned supplier corrections: normalized header line → canonical name.
   function billAliasKey() { const co = (window.QLD && QLD.activeCo) || 'x'; return 'ql_bill_aliases_' + co; }
@@ -856,11 +860,24 @@
       const val = f => { const k = gk(f); return (k && g[k] != null) ? g[k] : ''; };
       const confOf = f => { const k = gk(f); return (g._conf && k) ? g._conf[k] : undefined; };
       const revOf = f => { const k = gk(f); return !!(g._review && k && g._review.indexOf(k) >= 0); };
+      const verOf = f => { const k = gk(f); return (g._verify && k) ? g._verify[k] : undefined; };
       const fields = cfg.fields || [];
       const got = fields.filter(f => val(f) !== '').length;
       const revCount = fields.filter(revOf).length;
       const warns = g._warn || [];
-      const badge = f => { if (revOf(f)) return '<span class="ocr2-cf ocr2-cf-r">● Needs review</span>'; const c = confOf(f); if (c == null) return ''; if (c >= 0.8) return '<span class="ocr2-cf ocr2-cf-g">● High</span>'; if (c >= 0.5) return '<span class="ocr2-cf ocr2-cf-y">● Medium</span>'; return '<span class="ocr2-cf ocr2-cf-y">● Low</span>'; };
+      // Step 9: show HOW a field was verified (GST calc / layout / confidence %),
+      // not a generic High/Medium.
+      const pct = c => Math.round(c * 100) + '%';
+      const badge = f => {
+        if (revOf(f)) return '<span class="ocr2-cf ocr2-cf-r">⚠ Needs review</span>';
+        const c = confOf(f); if (c == null) return '';
+        const v = verOf(f);
+        if (v === 'gst_calc') return '<span class="ocr2-cf ocr2-cf-g">✓ Verified by GST · ' + pct(c) + '</span>';
+        if (v === 'gst_sum') return '<span class="ocr2-cf ocr2-cf-g">✓ Verified · ' + pct(c) + '</span>';
+        if (v === 'layout') return '<span class="ocr2-cf ocr2-cf-g">✓ Verified by layout · ' + pct(c) + '</span>';
+        if (c >= 0.8) return '<span class="ocr2-cf ocr2-cf-g">✓ Auto-verified · ' + pct(c) + '</span>';
+        return '<span class="ocr2-cf ocr2-cf-y">' + pct(c) + '</span>';
+      };
       // left: the uploaded bill (image inline, PDF in a frame)
       let docUrl = ''; try { docUrl = file ? URL.createObjectURL(file) : ''; } catch (_) {}
       const isPdf = file && (/\.pdf$/i.test(file.name || '') || file.type === 'application/pdf');
@@ -874,7 +891,7 @@
       res().innerHTML =
         '<div class="ocr2-steps"><span class="ocr2-st done">1 Upload</span><span class="ocr2-st done">2 AI read</span><span class="ocr2-st on">3 Review &amp; save</span></div>' +
         '<div class="ocr2-hd"><b>Read ' + got + ' of ' + fields.length + ' fields.</b> ' +
-        (revCount ? '<span class="ocr2-hd-r">' + revCount + ' need' + (revCount === 1 ? 's' : '') + ' your review</span>' : '<span class="ocr2-hd-g">Looks clean — please confirm.</span>') + '</div>' +
+        (revCount ? '<span class="ocr2-hd-r">⚠ ' + revCount + ' field' + (revCount === 1 ? '' : 's') + ' need' + (revCount === 1 ? 's' : '') + ' your review</span>' : '<span class="ocr2-hd-g">✓ All required fields verified — please confirm.</span>') + '</div>' +
         (warns.length ? '<div class="ocr2-warn"><b>⚠ Please check:</b> ' + warns.map(esc).join(' · ') + '</div>' : '') +
         '<div class="ocr2-grid">' +
           '<div class="ocr2-left">' + docHtml + '</div>' +

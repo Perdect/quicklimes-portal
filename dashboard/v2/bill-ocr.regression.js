@@ -60,6 +60,81 @@ Total 474627.00`,
     expect: { supplier: 'Indian Oil Corporation Limited', supplierGstin: '24AAACI1681G1ZV', buyerGstin: '08BNAPM0488E1Z3', billNo: '20263121B024217', date: '15-Jan-26', group: 'petcoke', item: 'Pet Coke', taxable: 402226.20, igst: 72400.72, gstRate: 18, total: 474627, itc: 'Eligible' }
   },
   {
+    // User-reported (2026-07-08): Tally e-invoice (Mateshwari Mines, limestone).
+    // The "Total 1,432.510 MTS ₹12,18,350.00" row made the parser store the
+    // QUANTITY (1432.51) as the grand total. Fixed by unit-stripping (MTS) +
+    // GST-arithmetic reconciliation (total = taxable+CGST+SGST+roundoff, and can
+    // never be below taxable). This fixture locks that behaviour.
+    name: 'Tally e-invoice (Mateshwari Mines) — limestone, qty-as-total trap', format: 'PDF · Tally e-invoice · CGST+SGST',
+    text: `|| SHREE ||
+TAX INVOICE            e-Invoice
+IRN : 92cc1955831b58d1cb463cd068a7d0bb5325257e4-2d12add7c0ca5c5c15883bd
+Ack No. : 172620567484822
+Ack Date : 29-Jun-26
+Mateshwari Mines and Minerals
+ML No 349/2005, ML No.350/2005,
+Gotan Road, Village- Borunda, Tehsil- Pipar City
+342604 Dist- Jodhpur Rural (Rajasthan)
+GSTIN/UIN: 08ABWFM4111F1Z6
+State Name : Rajasthan, Code : 08
+Consignee (Ship to)
+Gotan Lime Industries
+Khasara No. 1787/7 , Boroonda, New Khata 918
+GSTIN/UIN : 08BNAPM0488E1Z3
+Buyer (Bill to)
+Gotan Lime Industries
+GSTIN/UIN : 08BNAPM0488E1Z3
+Invoice No. 222/26-27    Dated 29-Jun-26
+Dispatched through By Road   Destination Borunda
+Motor Vehicle No. Tmxxxxxx
+1  Lime Stone  25210010  1,432.510 MTS  810.00 MTS  11,60,333.10
+CGST OUTPUT  29,008.33
+SGST OUTPUT  29,008.33
+ROUNDOFF  0.24
+Total  1,432.510 MTS  ₹ 12,18,350.00
+Amount Chargeable (in words)
+INR Twelve Lakh Eighteen Thousand Three Hundred Fifty Only
+HSN/SAC  Taxable Value  CGST Rate Amount  SGST Rate Amount  Total Tax Amount
+25210010  11,60,333.10  2.50%  29,008.33  2.50%  29,008.33  58,016.66
+Total  11,60,333.10  29,008.33  29,008.33  58,016.66
+Tax Amount (in words) : INR Fifty Eight Thousand Sixteen and Sixty Six paise Only`,
+    expect: { supplier: 'Mateshwari Mines and Minerals', supplierGstin: '08ABWFM4111F1Z6', buyerGstin: '08BNAPM0488E1Z3', billNo: '222/26-27', date: '29-Jun-26', group: 'limestone', taxable: 1160333.10, cgst: 29008.33, sgst: 29008.33, gstRate: 5, total: 1218350, grandTotal: 1218350, itc: 'Eligible' }
+  },
+  {
+    // User-reported (2026-07-08): IOC SAP invoice extracted supplier = "the buyer.
+    // For" (footer/declaration text) and still said "Looks clean". Fixed by (1) the
+    // party master (GSTIN 24AAACI1681G1ZV → Indian Oil Corporation Limited, OCR-
+    // independent) and (2) hard rejection of declaration/footer fragments as names.
+    name: 'Indian Oil (IOC) — SAP invoice, footer-declaration supplier trap', format: 'PDF · SAP · IGST',
+    text: `INVOICE UNDER RULE 46 of GST Rules
+Indian Oil Corporation Limited
+We hereby certify that the goods covered by this document have suffered applicable Taxes on clearance
+Doc.Name & number  TAX INVOICE  20273121B007217
+Form No AC4 31A   SAP Doc no.7007959119   Date 23-Jun-26
+Supplier
+GST Registration No  GSTIN 24AAACI1681G1ZV
+Recipient (Ship to party)
+GOTAN LIME INDUSTRIES
+GSTIN 08BNAPM0488E1Z3
+Supplier TAN: DELIO9652G
+Reverse Charge Applicable - No
+PAYER - 376530 GOTAN LIME INDUSTRIES
+Ordering Party(Bill to party) : 376530
+Item  Material Code / Material Description  Quantity Unit  Rate Unit  HSN code  Total
+10  178100  FUEL GRADE PET COKE (BULK)  32.380 TO  16220.000 TO  271311  525203.60
+ZAVL Transaction Value  32.380 TO  16220.000 TO  525203.60
+Taxable Value  525203.60
+JOIG IN: Integrated Tax  18.000 %  94536.65
+Total for material  619740.30
+ZRND Rounding Difference  -0.25
+Total  619740.00
+Provisional Balance Subject to reconciliation: 22763.00- ( CR )
+This Document is Digitally Signed
+Signed by: CHAUDHARI BHIKHUBHAI DAYALJI
+received in good condition by the buyer. For Indian Oil Corporation Limited Authorised Signatory`,
+    expect: { supplier: 'Indian Oil Corporation Limited', supplierGstin: '24AAACI1681G1ZV', buyerGstin: '08BNAPM0488E1Z3', billNo: '20273121B007217', date: '23-Jun-26', group: 'petcoke', item: 'Pet Coke', taxable: 525203.60, igst: 94536.65, gstRate: 18, total: 619740, grandTotal: 619740, itc: 'Eligible' }
+  },
+  {
     // User-reported (2026-07-07): Tally e-invoice (Pooja Enterprises, plastic bags).
     // Was reading supplier="Delivery Note Mode/Terms of Payment" (Tally header cell)
     // and date=Ack Date (31 May 25) instead of the invoice Dated (29 May 25).

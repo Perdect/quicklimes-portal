@@ -73,7 +73,27 @@
     return f;
   }
   let FEAT = loadFeatures();
-  const featOn = k => FEAT[k] !== false;
+
+  /* ── Roles & access (frontend RBAC layer; each role = a preset of modules).
+        Real server-enforced multi-user is the backend follow-up — this is the
+        access layer + a "work as role" switcher, always reachable from the
+        profile menu so you can never lock yourself out. ── */
+  const ROLES = [
+    { key: 'admin',      label: 'Admin',      desc: 'Full access to every module',                 feats: '*' },
+    { key: 'partner',    label: 'Partner',    desc: 'Owner-level view of the whole business',       feats: '*' },
+    { key: 'accountant', label: 'Accountant', desc: 'Sales, purchase, finance, GST/TDS/P&L, reports', feats: ['sales', 'purchase', 'finance', 'advfinance', 'monthreg', 'reports', 'people'] },
+    { key: 'sales',      label: 'Sales',      desc: 'GST invoices, sales register, customers',      feats: ['sales', 'people', 'reports'] },
+    { key: 'purchase',   label: 'Purchase',   desc: 'Purchase register, suppliers, stock',          feats: ['purchase', 'people', 'inventory'] },
+    { key: 'production', label: 'Production',  desc: 'Production, kiln & stock',                     feats: ['production', 'inventory', 'monthreg'] },
+    { key: 'dispatch',   label: 'Dispatch',   desc: 'Dispatch, invoices & stock',                   feats: ['sales', 'production', 'inventory'] }
+  ];
+  const ROLE_KEY = 'ql_role';
+  function currentRole() { try { return localStorage.getItem(ROLE_KEY) || 'admin'; } catch (_) { return 'admin'; } }
+  function roleDef() { return ROLES.find(r => r.key === currentRole()) || ROLES[0]; }
+  function roleAllows(k) { const r = roleDef(); if (r.feats === '*') return true; if (k === 'dashboard') return true; return r.feats.indexOf(k) >= 0; }
+  function setRole(k) { if (!ROLES.some(r => r.key === k)) return; try { localStorage.setItem(ROLE_KEY, k); } catch (_) {} }
+
+  const featOn = k => FEAT[k] !== false && roleAllows(k);
   function setFeat(k, on) { const x = FEATURES.find(y => y.key === k); if (!x || x.locked) return; FEAT[k] = !!on; try { localStorage.setItem(FEAT_KEY, JSON.stringify(FEAT)); } catch (_) {} }
 
   const NAV = [
@@ -203,6 +223,7 @@
   <button class="profile-menu-item" id="pmChangePhoto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span>Change photo</span></button>
   <button class="profile-menu-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Edit profile</span></button>
   <button class="profile-menu-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06A2 2 0 1 1 4.29 16.96l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Account settings</span></button>
+  <button class="profile-menu-item" id="pmRole"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Working as: <b id="pmRoleName">Admin</b></span></button>
   <div class="profile-menu-sep"></div>
   <button class="profile-menu-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>Help & support</span></button>
   <button class="profile-menu-item profile-menu-item-danger" id="pmSignout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Sign out</span></button>
@@ -435,8 +456,24 @@
     else { m.classList.add('open'); m.style.top = (r.top - 8 - m.offsetHeight) + 'px'; m.style.left = r.left + 'px'; return; }
     m.classList.add('open');
   }
+  function updateRoleLabel() { const el = $('pmRoleName'); if (el) el.textContent = roleDef().label; }
+  function openRolePicker() {
+    openForm({
+      title: 'Work as role', sub: 'The sidebar shows only this role’s modules. Switch back anytime from here.',
+      specs: [{ k: 'role', label: 'Role', type: 'select', full: true, opts: ROLES.map(r => [r.key, r.label + ' — ' + r.desc]) }],
+      initial: { role: currentRole() }, saveLabel: 'Apply role',
+      onSave(v) {
+        setRole(v.role);
+        const nav = document.querySelector('.sb-nav'); if (nav) nav.innerHTML = navHTML(_active);
+        document.querySelectorAll('[data-feat]').forEach(el => { el.style.display = featOn(el.getAttribute('data-feat')) ? '' : 'none'; });
+        updateRoleLabel(); refreshNotifDot(); toast('Now working as ' + roleDef().label);
+      }
+    });
+  }
   function wireProfile() {
     const m = $('profileMenu');
+    updateRoleLabel();
+    const pr = $('pmRole'); if (pr) pr.addEventListener('click', () => { m.classList.remove('open'); openRolePicker(); });
     document.querySelectorAll('[data-profile-trigger]').forEach(btn => btn.addEventListener('click', e => {
       e.stopPropagation();
       if (m.classList.contains('open')) m.classList.remove('open'); else openProfileMenu(btn);
@@ -1421,6 +1458,10 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     // ── Feature Management (Settings) ──
     feat: featOn,
     features() { return FEATURES.map(x => ({ key: x.key, label: x.label, desc: x.desc, core: !!x.core, locked: !!x.locked, active: featOn(x.key) })); },
+    // Roles & access
+    openRolePicker, currentRole, setRole,
+    roles() { return ROLES.map(r => ({ key: r.key, label: r.label, desc: r.desc, modules: r.feats === '*' ? FEATURES.map(f => f.key) : r.feats.slice() })); },
+    applyRole(k) { setRole(k); this.refreshNav(); this.applyFeatureVisibility(); const el = $('pmRoleName'); if (el) el.textContent = roleDef().label; },
     setFeature(k, on) { setFeat(k, on); this.refreshNav(); this.applyFeatureVisibility(); },
     resetFeatures() { try { localStorage.removeItem(FEAT_KEY); } catch (_) {} FEAT = loadFeatures(); this.refreshNav(); this.applyFeatureVisibility(); },
     refreshNav() { const nav = document.querySelector('.sb-nav'); if (nav) { nav.innerHTML = navHTML(_active); refreshNotifDot(); } },

@@ -16,7 +16,7 @@ console.log('the reported bug: label-as-value');
 const bug = `INDORAMA CEMENT LIMITED
 Plot 42, GIDC Industrial Area, Bharuch, Gujarat
 GST Registration No
-24AAACI1681G1ZV
+24AABCI2929N1ZK
 TAX INVOICE
 Invoice No : 20273121B006913    Dated : 19-Jun-26
 Billed To : Gotan Lime Industries
@@ -29,7 +29,7 @@ Grand Total          88952.86`;
 let r = p(bug);
 ok('supplier is NOT the label', r.fields.supplier !== 'GST Registration No' && r.fields.supplier !== 'GST Registration', r.fields.supplier);
 eq('supplier is the real seller', r.fields.supplier, 'INDORAMA CEMENT LIMITED');
-eq('supplier GSTIN = seller (not buyer)', r.fields.supplierGstin, '24AAACI1681G1ZV');
+eq('supplier GSTIN = seller (not buyer)', r.fields.supplierGstin, '24AABCI2929N1ZK');
 eq('buyer GSTIN = our own', r.fields.buyerGstin, '08AABCG1234H1Z5');
 eq('bill no', r.fields.billNo, '20273121B006913');
 near('taxable', r.fields.taxable, 84717, 1);
@@ -143,7 +143,7 @@ ok('our own name not used as supplier', r.fields.supplier !== 'GOTAN LIME INDUST
 
 /* ═══ 13. GSTIN validation ═══ */
 console.log('gstin validation');
-ok('valid gstin', OCR.validGstin('24AAACI1681G1ZV'));
+ok('valid gstin', OCR.validGstin('24AABCI2929N1ZK'));
 ok('bad state code rejected', !OCR.validGstin('99AAACI1681G1ZV'));
 ok('malformed rejected', !OCR.validGstin('24AAACI1681G1Z'));
 
@@ -206,7 +206,7 @@ console.log('legacy adapter');
 const lg = OCR.legacy(p(bug));
 eq('legacy name = supplier (not label)', lg.name, 'INDORAMA CEMENT LIMITED');
 eq('legacy docno = billNo', lg.docno, '20273121B006913');
-eq('legacy gstin = supplier gstin', lg.gstin, '24AAACI1681G1ZV');
+eq('legacy gstin = supplier gstin', lg.gstin, '24AABCI2929N1ZK');
 eq('legacy rate = gstRate', String(lg.rate), '5');
 ok('legacy blanks review fields (never fake)', (() => { const l = OCR.legacy(p('T@X 1NV0ICE garbled ????')); return l.name === '' && l.total === ''; })());
 
