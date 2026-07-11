@@ -16,7 +16,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') ql_out(['ok' => false, 'er
 
 $b = ql_body();
 $plantId = (string)($b['plant_id'] ?? '');
-if (!ql_verify_token(ql_token(), $plantId)) ql_out(['ok' => false, 'error' => 'Unauthorized'], 401);
+$ctx = ql_token_ctx($plantId);
+if (!$ctx) ql_out(['ok' => false, 'error' => 'Unauthorized'], 401);
+if (!ql_role_can($ctx['role'], 'extract')) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
 
 $llm = ql_llm();
 if ($llm['key'] === '') ql_out(['ok' => false, 'fallback' => true, 'error' => 'llm_not_configured']);

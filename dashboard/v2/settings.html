@@ -47,6 +47,18 @@
       <div class="ft-list" id="ftOpt"></div>
     </div>
 
+    <!-- TEAM & ACCESS (owner only; hidden for employee logins) -->
+    <div class="card" id="teamCard" style="margin-top:var(--ql-space-5);display:none">
+      <div class="ft-head">
+        <div>
+          <h3 class="ft-title">Team &amp; access</h3>
+          <div class="ft-note">Give staff their own login. Each employee's role decides which modules they can open and what they can save — <b>enforced on the server</b>, not just hidden in the menu.</div>
+        </div>
+        <button class="ql-btn ql-btn-secondary" id="teamAdd" style="flex:none">+ Add employee</button>
+      </div>
+      <div id="teamList" style="margin-top:var(--ql-space-4)"></div>
+    </div>
+
     <div class="card" style="border-color:#fecaca;margin-top:var(--ql-space-5)">
       <div class="ft-head">
         <div>
@@ -61,7 +73,7 @@
 
 <div id="setToast" class="fin-toast" hidden></div>
 
-<script src="./shell.js?v=m17"></script>
+<script src="./shell.js?v=m18"></script>
 <script src="./mobile.js?v=m4"></script>
 <script>
 QLShell.mount({ active: 'settings', title: 'Settings' });
@@ -110,9 +122,72 @@ $('#dzClear').addEventListener('click', () => {
   toast('All data cleared — starting fresh');
   setTimeout(() => location.href = 'dashboard.html', 900);
 });
+// ── Team & access: owner-only employee accounts (server-enforced roles) ──
+const TEAM_ROLES = [
+  ['accountant', 'Accountant — sales, purchase, finance, GST, reports'],
+  ['sales', 'Sales — invoices, sales register, customers'],
+  ['purchase', 'Purchase — purchase register, suppliers, stock'],
+  ['production', 'Production — production & stock'],
+  ['dispatch', 'Dispatch — dispatch, invoices, stock']
+];
+function _plant() { try { return JSON.parse(localStorage.getItem('ql_plant') || 'null') || {}; } catch (_) { return {}; } }
+function _isOwner() { return ['owner', 'admin', 'partner'].indexOf(_plant().role || 'owner') >= 0; }
+function _roleLabel(k) { const m = TEAM_ROLES.find(r => r[0] === k); return m ? m[1].split(' — ')[0] : k; }
+async function teamApi(body) {
+  const p = _plant();
+  const res = await fetch('/api/users.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ plant_id: p.id, token: p.token }, body))
+  });
+  let j = {}; try { j = await res.json(); } catch (_) {}
+  if (!res.ok || j.error) throw new Error(j.error || ('HTTP ' + res.status));
+  return j;
+}
+async function renderTeam() {
+  if (!_isOwner()) return;                       // employees never see this card
+  $('#teamCard').style.display = '';
+  let j; try { j = await teamApi({ action: 'list' }); }
+  catch (e) { $('#teamList').innerHTML = '<div class="ft-note">Could not load team (' + esc(e.message) + ')</div>'; return; }
+  const us = j.users || [];
+  $('#teamList').innerHTML = us.length ? us.map(u => `
+    <div class="ft-row" style="align-items:center">
+      <div class="ft-info">
+        <div class="ft-label">${esc(u.name || u.phone)} ${u.active ? '' : '<span class="ft-lock" style="background:#fee2e2;color:#b91c1c">inactive</span>'}</div>
+        <div class="ft-desc">${esc(u.phone)} · ${esc(_roleLabel(u.role))}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex:none">
+        <button class="ql-btn ql-btn-secondary" data-team-pw="${u.id}">Reset pw</button>
+        <button class="ql-btn ql-btn-secondary" data-team-toggle="${u.id}" data-active="${u.active}">${u.active ? 'Deactivate' : 'Activate'}</button>
+      </div>
+    </div>`).join('') : '<div class="ft-note">No employees yet. Add one to give staff their own login.</div>';
+  $('#teamList').querySelectorAll('[data-team-toggle]').forEach(b => b.onclick = async () => {
+    try { await teamApi({ action: 'update', id: b.dataset.teamToggle, active: b.dataset.active === '1' ? 0 : 1 }); toast('Updated'); renderTeam(); }
+    catch (e) { toast(e.message); }
+  });
+  $('#teamList').querySelectorAll('[data-team-pw]').forEach(b => b.onclick = async () => {
+    const pw = prompt('New password for this employee (min 6 characters):'); if (!pw) return;
+    if (pw.length < 6) { toast('Password must be 6+ characters'); return; }
+    try { await teamApi({ action: 'setpw', id: b.dataset.teamPw, password: pw }); toast('Password reset'); }
+    catch (e) { toast(e.message); }
+  });
+}
+$('#teamAdd').addEventListener('click', () => {
+  const name = prompt('Employee name:'); if (name === null) return;
+  const phone = prompt('Login phone number:'); if (!phone) return;
+  const pw = prompt('Temporary password (min 6 characters):'); if (!pw) return;
+  if (pw.length < 6) { toast('Password must be 6+ characters'); return; }
+  const pick = prompt('Role — enter a number:\n' + TEAM_ROLES.map((r, i) => (i + 1) + '. ' + r[1]).join('\n'), '1');
+  const idx = parseInt(pick, 10) - 1;
+  if (isNaN(idx) || !TEAM_ROLES[idx]) { toast('Cancelled'); return; }
+  teamApi({ action: 'create', name: name.trim(), phone: phone.trim(), password: pw, role: TEAM_ROLES[idx][0] })
+    .then(() => { toast('Employee added'); renderTeam(); })
+    .catch(e => toast(e.message));
+});
+
 window.__qlOnSwitchCompany = () => render();
 window.__qlRefresh = render;
 QLD.init(render);
+renderTeam();
 </script>
 </body>
 </html>

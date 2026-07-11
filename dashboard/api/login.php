@@ -14,6 +14,10 @@ if ($phone === '' || $password === '') {
   ql_out(['error' => 'Please enter phone and password']);
 }
 
+$role = 'owner';       // owner login = full access (legacy token shape)
+$userId = '';
+$userName = '';
+
 try {
   // The account = the plant that carries the password (the primary, no parent).
   $st = ql_db()->prepare(
@@ -26,7 +30,26 @@ try {
   ql_out(['error' => 'Server error'], 500);
 }
 
+// Owner credentials didn't match → try an employee account (users table).
 if (!$primary || !password_verify($password, $primary['password_hash'])) {
+  $primary = null;
+  try {
+    ql_ensure_tables();                         // idempotent — users table may not exist yet
+    $us = ql_db()->prepare('SELECT * FROM users WHERE phone = ? AND active = 1');
+    $us->execute([$phone]);
+    foreach ($us->fetchAll() as $u) {
+      if (password_verify($password, $u['password_hash'])) {
+        $pp = ql_db()->prepare('SELECT * FROM plants WHERE id = ? LIMIT 1');
+        $pp->execute([$u['plant_id']]);
+        $primary = $pp->fetch();
+        if ($primary) { $role = $u['role']; $userId = $u['id']; $userName = $u['name']; }
+        break;
+      }
+    }
+  } catch (Throwable $e) { /* fall through to invalid */ }
+}
+
+if (!$primary) {
   ql_out(['error' => 'Invalid phone or password']);
 }
 
@@ -55,5 +78,7 @@ ql_out([
   'plant'      => $pub($primary),
   'plants'     => array_map($pub, $rows),
   'plan_limit' => (int)$primary['plan_limit'],
-  'token'      => ql_sign_token($primary['id']),
+  'role'       => $role,
+  'user'       => $userId ? ['id' => $userId, 'name' => $userName, 'role' => $role] : null,
+  'token'      => ql_sign_token($primary['id'], 2592000, $userId, $role),
 ]);

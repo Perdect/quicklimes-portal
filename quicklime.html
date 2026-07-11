@@ -993,7 +993,7 @@ async function doLogin(){
       // primary plant object so the dashboard can build a company switcher.
       // Include the login token — the Hostinger PHP backend authenticates
       // every data call with it (read from ql_plant.token by ql-api.js).
-      const _primary = { ...data.plant, plants: data.plants || [data.plant], plan_limit: data.plan_limit, token: data.token };
+      const _primary = { ...data.plant, plants: data.plants || [data.plant], plan_limit: data.plan_limit, token: data.token, role: data.role || 'owner', user: data.user || null };
       localStorage.setItem('ql_plant', JSON.stringify(_primary));
       const plantName = (data.plant.plant_name || '').toString();
       _qlAuthOverlay({

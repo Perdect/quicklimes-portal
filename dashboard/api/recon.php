@@ -54,7 +54,7 @@ function ql_txn_row($r) {
 if ($method === 'GET') {
   $plantId   = (string)($_GET['plant_id'] ?? '');
   $companyId = (string)($_GET['company_id'] ?? '');
-  if (!ql_verify_token(ql_token(), $plantId)) ql_out(['error' => 'Unauthorized'], 401);
+  ql_require_cap('recon', $plantId);
   if ($companyId === '') ql_out(['error' => 'Missing company_id'], 400);
 
   $where  = 'plant_id = ? AND company_id = ?';
@@ -102,7 +102,7 @@ if ($method === 'POST') {
   $plantId   = (string)($b['plant_id'] ?? '');
   $companyId = (string)($b['company_id'] ?? '');
   $action    = (string)($b['action'] ?? '');
-  if (!ql_verify_token(ql_token(), $plantId)) ql_out(['error' => 'Unauthorized'], 401);
+  ql_require_cap('recon', $plantId);
   if ($companyId === '') ql_out(['error' => 'Missing company_id'], 400);
   $db = ql_db();
 

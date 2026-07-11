@@ -88,10 +88,20 @@
     { key: 'dispatch',   label: 'Dispatch',   desc: 'Dispatch, invoices & stock',                   feats: ['sales', 'production', 'inventory'] }
   ];
   const ROLE_KEY = 'ql_role';
-  function currentRole() { try { return localStorage.getItem(ROLE_KEY) || 'admin'; } catch (_) { return 'admin'; } }
+  const FULL_ROLES = ['owner', 'admin', 'partner'];
+  // The server-issued role from login (employees carry a restricted role in
+  // their token). For a real employee this is AUTHORITATIVE — the UI can't
+  // widen it, and the backend enforces it regardless. The owner (full role)
+  // keeps the personal "work as role" view switcher below.
+  function serverRole() { try { return (JSON.parse(localStorage.getItem('ql_plant') || 'null') || {}).role || ''; } catch (_) { return ''; } }
+  function isEmployee() { const r = serverRole(); return !!r && FULL_ROLES.indexOf(r) < 0; }
+  function currentRole() {
+    if (isEmployee()) return serverRole();                       // locked to server role
+    try { return localStorage.getItem(ROLE_KEY) || 'admin'; } catch (_) { return 'admin'; }
+  }
   function roleDef() { return ROLES.find(r => r.key === currentRole()) || ROLES[0]; }
   function roleAllows(k) { const r = roleDef(); if (r.feats === '*') return true; if (k === 'dashboard') return true; return r.feats.indexOf(k) >= 0; }
-  function setRole(k) { if (!ROLES.some(r => r.key === k)) return; try { localStorage.setItem(ROLE_KEY, k); } catch (_) {} }
+  function setRole(k) { if (isEmployee()) return; if (!ROLES.some(r => r.key === k)) return; try { localStorage.setItem(ROLE_KEY, k); } catch (_) {} }
 
   const featOn = k => FEAT[k] !== false && roleAllows(k);
   function setFeat(k, on) { const x = FEATURES.find(y => y.key === k); if (!x || x.locked) return; FEAT[k] = !!on; try { localStorage.setItem(FEAT_KEY, JSON.stringify(FEAT)); } catch (_) {} }
@@ -456,7 +466,14 @@
     else { m.classList.add('open'); m.style.top = (r.top - 8 - m.offsetHeight) + 'px'; m.style.left = r.left + 'px'; return; }
     m.classList.add('open');
   }
-  function updateRoleLabel() { const el = $('pmRoleName'); if (el) el.textContent = roleDef().label; }
+  function updateRoleLabel() {
+    const el = $('pmRoleName'); if (el) el.textContent = roleDef().label;
+    // Employees can't switch their view — lock the "Work as role" control.
+    const pr = $('pmRole');
+    if (pr && isEmployee()) {
+      pr.style.opacity = '.55'; pr.style.pointerEvents = 'none'; pr.title = 'Your role is set by the account owner';
+    }
+  }
   function openRolePicker() {
     openForm({
       title: 'Work as role', sub: 'The sidebar shows only this role’s modules. Switch back anytime from here.',

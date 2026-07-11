@@ -7,9 +7,11 @@ ql_cors();
 
 $b       = ql_body();
 $plantId = (string)($b['p_plant_id'] ?? '');
-$tokPid  = ql_verify_token(ql_token(), '');   // any valid token for this account
-if (!$tokPid)          ql_out(['error' => 'Unauthorized'], 401);
-if ($plantId === '')   ql_out(['error' => 'Missing plant id'], 400);
+$ctx = ql_token_ctx('');                       // any valid token for this account
+if (!$ctx)                              ql_out(['error' => 'Unauthorized'], 401);
+if (!ql_role_can($ctx['role'], '*'))    ql_out(['error' => 'Forbidden'], 403);   // company profile = owner-level
+$tokPid = $ctx['plant'];
+if ($plantId === '')                    ql_out(['error' => 'Missing plant id'], 400);
 
 // Ensure the plant being edited is the account's primary or one of its children.
 $chk = ql_db()->prepare('SELECT id FROM plants WHERE id = ? AND (id = ? OR parent_plant_id = ?)');

@@ -18,7 +18,7 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 if ($method === 'GET') {
   $plantId = (string)($_GET['plant_id'] ?? '');
-  if (!ql_verify_token(ql_token(), $plantId)) ql_out(['error' => 'Unauthorized'], 401);
+  ql_require_cap('parties', $plantId);
   $db = ql_db();
   $master = [];
   $st = $db->prepare('SELECT gstin, legal_name FROM party_master WHERE plant_id = ?');
@@ -34,7 +34,7 @@ if ($method === 'GET') {
 $b = ql_body();
 $plantId = (string)($b['plant_id'] ?? '');
 $companyId = (string)($b['company_id'] ?? '');
-if (!ql_verify_token(ql_token(), $plantId)) ql_out(['error' => 'Unauthorized'], 401);
+ql_require_cap('parties', $plantId);
 $action = (string)($b['action'] ?? '');
 $db = ql_db();
 $GST = '/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/';
