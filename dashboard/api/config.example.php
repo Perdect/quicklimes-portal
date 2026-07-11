@@ -19,4 +19,11 @@ return [
   // Generate one with:   openssl rand -hex 32
   // (or just type 50+ random characters). Keep it secret.
   'APP_SECRET' => 'change-me-to-a-long-random-string-of-at-least-32-characters',
+
+  // ── AI invoice extraction (optional) — the vision model that reads any bill.
+  //    Paste your Anthropic key here (server-side only; never committed, never
+  //    sent to the browser). Leave blank to keep the offline regex parser.
+  'LLM_API_KEY' => '',                          // sk-ant-...  (from console.anthropic.com)
+  'LLM_MODEL'   => 'claude-sonnet-5',           // vision-capable model id
+  'LLM_MAX_IMAGES' => 3,                         // page images per bill (cost cap)
 ];

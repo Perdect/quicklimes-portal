@@ -186,4 +186,51 @@ function ql_ensure_tables() {
     updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (plant_id, company_id, alias_key)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  // GSTIN-keyed party master — the authoritative legal name for a GSTIN, so a
+  // recognised GSTIN never gets a declaration/footer fragment as its name.
+  $db->exec("CREATE TABLE IF NOT EXISTS party_master (
+    plant_id    VARCHAR(64)  NOT NULL,
+    gstin       VARCHAR(20)  NOT NULL,
+    legal_name  VARCHAR(190) NOT NULL,
+    pan         VARCHAR(12)  DEFAULT NULL,
+    aliases     TEXT         DEFAULT NULL,   -- JSON array of seen spellings
+    updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (plant_id, gstin)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  // Correction memory — a field the user fixed on a given supplier/pattern is
+  // reused next time (application-level learning, NOT model retraining).
+  $db->exec("CREATE TABLE IF NOT EXISTS doc_corrections (
+    plant_id    VARCHAR(64)  NOT NULL,
+    scope_key   VARCHAR(190) NOT NULL,   -- gstin or normalized supplier
+    field       VARCHAR(48)  NOT NULL,
+    value       VARCHAR(190) NOT NULL,
+    updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (plant_id, scope_key, field)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  // Imported-document ledger — file-hash + invoice-key dedup + audit trail.
+  $db->exec("CREATE TABLE IF NOT EXISTS imported_docs (
+    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    plant_id    VARCHAR(64)  NOT NULL,
+    company_id  VARCHAR(96)  NOT NULL,
+    file_hash   CHAR(64)     NOT NULL,
+    inv_key     VARCHAR(190) DEFAULT NULL,   -- gstin|invno|date|amount
+    kind        VARCHAR(12)  DEFAULT NULL,
+    source      VARCHAR(190) DEFAULT NULL,
+    created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_file (plant_id, company_id, file_hash),
+    KEY k_inv (plant_id, company_id, inv_key)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/* ── AI key + model from config (server-side only; '' when unconfigured) ── */
+function ql_llm() {
+  $c = ql_config();
+  return [
+    'key'   => (string)($c['LLM_API_KEY'] ?? ''),
+    'model' => (string)($c['LLM_MODEL'] ?? 'claude-sonnet-5'),
+    'maxImg'=> (int)($c['LLM_MAX_IMAGES'] ?? 3),
+  ];
 }

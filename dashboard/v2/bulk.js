@@ -121,6 +121,15 @@
     var isSheet = /\.(csv|xlsx|xls)$/.test(name) || /csv|excel|spreadsheet/.test(type);
     var bills = [];
 
+    // ── AI-first: one model call reads ANY layout (key server-side). One bill
+    //    per file. Any failure / no key ⇒ fall through to the regex parser. ──
+    if ((isPdf || isImg) && window.QLExtractAPI && QLExtractAPI.ready()) {
+      try {
+        var ag = await QLExtractAPI.extract(file, cfg.kind);
+        if (ag) return [makeBill(ag, file, file.name, cfg)];
+      } catch (_) {}
+    }
+
     if (isPdf) {
       var pages = [];
       try { pages = await F().pdfPages(file); } catch (_) {}
@@ -357,10 +366,17 @@
       d.querySelectorAll('input[data-k]').forEach(function (i) { bill.vals[i.dataset.k] = i.value; });
       recompute(bill, cfg);
       if (bill.status === 'invalid') { toast('Please fill: ' + (bill.missing.join(', ') || 'required fields'), 'err'); return; }
-      // learn a supplier correction for next time
+      // learn a supplier correction for next time (local alias + GSTIN party master)
       try {
         var nk = nameKey(cfg);
         if (bill.kind === 'ocr' && nk && g._text) { var first = (g._text.split('\n').map(function (s) { return s.trim(); }).filter(Boolean)[0]) || ''; var orig = g[cfg.ocrMap[nk]] || ''; var now = bill.vals[nk] || ''; if (first && now && now !== orig) F().learnBillAlias(first, now); }
+        // GSTIN → verified legal name: pin the confirmed name to the party master
+        var gk = Object.keys(cfg.ocrMap || {}).filter(function (k) { return cfg.ocrMap[k] === 'gstin'; })[0];
+        var gv = gk ? String(bill.vals[gk] || '').toUpperCase().replace(/\s/g, '') : '';
+        var nv = nk ? String(bill.vals[nk] || '').trim() : '';
+        if (window.QLExtractAPI && gv && nv && window.QLExtract && QLExtract.validGstin(gv) && QLExtract.plausibleName(nv)) {
+          QLExtractAPI.saveParty(gv, nv, g._ai ? (g._fields && (g._fields.supplierName || g._fields.buyerName) || '') : '');
+        }
       } catch (_) {}
       bill.confirmed = true;
       if (opts.solo) {
