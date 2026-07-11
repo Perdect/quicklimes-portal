@@ -127,10 +127,9 @@
     // become empty — but never override a deliberate pick of an EXISTING month.
     const dl = latestMonth(rows);
     if (rows.length) {
-      if (!S.monthInit) { S.month = dl; S.monthInit = true; }
-      else if (dl !== 'all' && dl > (S._dl || '') && dl !== S.month) { S.month = dl; }   // newer data imported → jump to it
-      else if (S.month && S.month !== 'all' && !rows.some(r => monthOf(r) === S.month)) { S.month = dl; }   // selected month emptied
-      S._dl = dl;
+      if (!S.monthInit) { S.month = dl; S.monthInit = true; }               // first load → latest month with data
+      else if (dl !== 'all' && dl > (S._dl || '') && dl !== S.month) { S.month = dl; }   // NEWER data imported → jump to it
+      S._dl = dl;                                                            // (never override a deliberate pick of an empty month)
     }
     if (S.month && S.month !== 'all') rows = rows.filter(r => monthOf(r) === S.month);
     return rows;
