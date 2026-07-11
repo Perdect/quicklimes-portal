@@ -193,7 +193,11 @@
       vals[f.key] = (k && g[k] != null) ? String(g[k]) : '';
     });
     var bill = { id: 'b' + (SEQ++), kind: 'ocr', g: g, file: file, source: source, vals: vals };
-    var det = detectType(g, cfg); bill.type = det.type; bill.flag = det.flag;
+    var det = detectType(g, cfg); bill.type = det.type;
+    // A confidently-detected opposite register is AUTO-ROUTED on import (not a
+    // blocker): a purchase uploaded on Sales still lands in Purchase.
+    if ((det.type === 'purchase' || det.type === 'sales') && cfg.kind && det.type !== cfg.kind) { bill.crossKind = det.type; bill.flag = ''; }
+    else bill.flag = det.flag;
     bill.reviewFields = (cfg.fields || []).filter(function (f) { var k = cfg.ocrMap ? cfg.ocrMap[f.key] : f.key; return k && g._review && g._review.indexOf(k) >= 0; }).map(function (f) { return f.key; });
     recompute(bill, cfg);
     return bill;
@@ -264,7 +268,8 @@
     else if (missing.length) {
       if (onlyPartyMissing && hasGstin) { bill.reason = 'Customer name unread — recognised by GSTIN ' + gv + '. Confirm the party.'; }
       else bill.reason = 'Missing: ' + bill.missing.join(', ') + (hasGstin ? '' : (nk && !hasName ? ' · no GSTIN detected either' : ''));
-    } else if (bill.flag) bill.reason = bill.flag;
+    } else if (bill.crossKind) bill.reason = '→ imports to ' + (bill.crossKind === 'purchase' ? 'Purchase' : 'Sales') + ' register';
+    else if (bill.flag) bill.reason = bill.flag;
 
     if (!built) bill.status = 'invalid';
     else if (missing.length) bill.status = (onlyPartyMissing && hasGstin) ? 'review' : 'invalid';   // GSTIN present ⇒ resolvable
@@ -467,7 +472,7 @@
             '<td class="qlb-tname"><b>' + esc(b.vals[nk] || (b.error ? '—' : 'Unknown')) + '</b><span>' + esc(b.source || '') + '</span></td>' +
             '<td>' + esc(b.vals[ik] || '—') + '</td>' +
             '<td class="r">' + (b.error ? '—' : fC(amtOf(b))) + '</td>' +
-            '<td>' + statBadge(b) + (b.reason ? '<div class="qlb-miss ' + (b.status === 'review' ? 'qlb-miss-r' : '') + '">' + esc(b.reason) + '</div>' : '') + '</td>' +
+            '<td>' + statBadge(b) + (b.reason ? '<div class="qlb-miss ' + (b.status === 'ready' ? 'qlb-miss-i' : b.status === 'review' ? 'qlb-miss-r' : '') + '">' + esc(b.reason) + '</div>' : '') + '</td>' +
             '<td class="r">' + (b.status === 'failed' ? '' : '<button class="qlb-rev" data-id="' + b.id + '">Review ›</button>') + '</td>' +
           '</tr>';
         }).join('') +
@@ -491,7 +496,18 @@
     if (jumpTo) openDrawer(jumpTo, { back: true });
   }
 
+  // Map the (possibly edited) review-table vals back to GENERIC OCR keys, so a
+  // cross-register bill can be rebuilt for the OTHER register.
+  function valsToGeneric(bill, cfg) {
+    var g = Object.assign({}, bill.g || {});
+    Object.keys(cfg.ocrMap || {}).forEach(function (fk) { var gk = cfg.ocrMap[fk]; if (gk && bill.vals[fk] != null && bill.vals[fk] !== '') g[gk] = bill.vals[fk]; });
+    return g;
+  }
   function postOne(bill, cfg) {
+    // route a confidently-detected opposite-register bill to the CORRECT register
+    if (bill.crossKind && window.QLD && QLD.importGenericBill) {
+      try { QLD.importGenericBill(bill.crossKind, valsToGeneric(bill, cfg)); bill.status = 'imported'; bill.routed = bill.crossKind; return true; } catch (_) {}
+    }
     try { var row = cfg.buildRow(function (k) { return bill.vals[k] != null ? bill.vals[k] : ''; }); if (row) { cfg.add(row, bill.file || undefined); bill.status = 'imported'; return true; } } catch (_) {}
     return false;
   }
@@ -566,7 +582,7 @@
       '.qlb-tbl tr[data-id]{cursor:pointer}.qlb-tbl tr[data-id]:hover td{background:var(--ql-bg-subtle,#f8fafc)}',
       '.qlb-tbl .r{text-align:right}.qlb-trf td{opacity:.6}',
       '.qlb-tname b{display:block;font-weight:650;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.qlb-tname span{font-size:10.5px;color:var(--ql-text-muted,#94a3b8);display:block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.qlb-miss{font-size:10px;color:#b91c1c;margin-top:2px;max-width:260px}.qlb-miss-r{color:#b45309}',
+      '.qlb-miss{font-size:10px;color:#b91c1c;margin-top:2px;max-width:260px}.qlb-miss-r{color:#b45309}.qlb-miss-i{color:#64748b}',
       '.qlb-rev{border:none;background:none;color:var(--ql-brand-600,#2563eb);font-weight:650;font-size:12.5px;cursor:pointer;white-space:nowrap}',
       '.qlb-empty{text-align:center;color:var(--ql-text-muted,#94a3b8);padding:34px !important;font-size:13px}',
       /* tags */

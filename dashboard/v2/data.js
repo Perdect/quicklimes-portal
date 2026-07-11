@@ -285,6 +285,26 @@
   function setSaleStatus(i, st, pay) { if (S.SALES[i]) { Object.assign(S.SALES[i], { status: st }, pay || {}); commit(); } }
   // Purchases
   function addPurchase(e) { S.PURCHASES.push({ ...e, status: e.status || 'pending' }); if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); else commit(); }
+  /* Import a bill from GENERIC OCR/AI fields into the CORRECT register based on
+     its detected kind — so a purchase uploaded on the Sales page (or vice-versa)
+     still lands in the right place. Returns the new row's index. */
+  function importGenericBill(kind, g) {
+    const num = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : 0; };
+    let rate = num(g.rate); if (!rate) rate = 5; if (rate > 0 && rate < 1) rate *= 100;
+    let taxable = num(g.taxable); const total = num(g.total);
+    if (!taxable && total) taxable = Math.round(total / (1 + rate / 100) * 100) / 100;
+    const veh = (g.veh || '').toString().trim().toUpperCase();
+    const gstin = (g.gstin || '').toString().trim().toUpperCase();
+    const date = g.date || fmtISO(new Date());
+    const cat = ((g.group || '') + ' ' + (g.item || '')).trim();
+    if (kind === 'sales') {
+      let qty = num(g.qty) || 1, r = taxable ? Math.round(taxable / qty * 100) / 100 : num(g.rate);
+      addSale({ inv: (g.docno || '').toString().trim(), date, party: (g.name || '').toString().trim(), gstin, qty, rate: r, gstR: rate, veh, status: 'pending' });
+      return S.SALES.length - 1;
+    }
+    addPurchase({ bill: (g.docno || '').toString().trim(), date, sup: (g.name || '').toString().trim(), gstin, taxable, grate: rate, itc: g.itc || 'Eligible', veh, cat: cat || undefined, status: 'pending' });
+    return S.PURCHASES.length - 1;
+  }
   function updatePurchase(i, e) { if (S.PURCHASES[i]) { S.PURCHASES[i] = { ...S.PURCHASES[i], ...e }; if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); else commit(); } }
   function deletePurchase(i) { if (S.PURCHASES[i]) { S.PURCHASES.splice(i, 1); commit(); } }
   function setPurchaseStatus(i, st, pay) { if (S.PURCHASES[i]) { Object.assign(S.PURCHASES[i], { status: st }, pay || {}); commit(); } }
@@ -1242,7 +1262,7 @@
     commit, saveLocal, wipeData,
     upsertParty, deleteParty,
     addSale, updateSale, deleteSale, setSaleStatus,
-    addPurchase, updatePurchase, deletePurchase, setPurchaseStatus,
+    addPurchase, updatePurchase, deletePurchase, setPurchaseStatus, importGenericBill,
     addWorker, updateWorker, deleteWorker,
     addCashEntry, deleteCashEntry,
     addChunna, deleteChunna,
