@@ -500,7 +500,7 @@
         rowsFor().map(function (b) {
           return '<tr data-id="' + b.id + '" class="' + (b.status === 'failed' ? 'qlb-trf' : '') + '">' +
             '<td>' + typeBadge(b) + '</td>' +
-            '<td class="qlb-tname"><b>' + esc(b.vals[nk] || (b.error ? '—' : 'Unknown')) + '</b><span>' + esc(b.source || '') + '</span></td>' +
+            '<td class="qlb-tname"><b>' + esc(b.vals[nk] || (b.error ? '—' : 'Unknown')) + '</b><span>' + esc(b.source || '') + (b.vals.veh ? ' · 🚚 ' + esc(b.vals.veh) : '') + '</span></td>' +
             '<td>' + esc(b.vals[ik] || '—') + '</td>' +
             '<td class="r">' + (b.error ? '—' : fC(amtOf(b))) + '</td>' +
             '<td>' + statBadge(b) + (b.reason ? '<div class="qlb-miss ' + (b.status === 'ready' ? 'qlb-miss-i' : b.status === 'review' ? 'qlb-miss-r' : '') + '">' + esc(b.reason) + '</div>' : '') + '</td>' +

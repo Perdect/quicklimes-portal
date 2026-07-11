@@ -232,6 +232,7 @@ QLX.mount({
     { key: 'inv', label: 'Invoice', sort: true, cell: r => `<span class="qx-ref">${esc(r.inv || '—')}</span>` },
     { key: 'date', label: 'Date', sort: true, cell: r => `<span class="qx-mut">${fDS(r.date)}</span>` },
     { key: 'party', label: 'Party', sort: true, cell: partyCell },
+    { key: 'veh', label: 'Vehicle No', sort: true, cell: r => r.veh ? `<span class="qx-mut">🚚 ${esc(r.veh)}</span>` : '<span class="qx-mut">—</span>' },
     { key: 'qty', label: 'Qty (T)', sort: true, num: true, cell: r => `<span class="qx-num">${fmt(r.qty, 2)}</span>` },
     { key: 'taxable', label: 'Taxable', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` },
     { key: 'gst', label: 'GST', sort: true, num: true, cell: r => `<span class="qx-num qx-mut">${fC(r.gst)}</span>` },
