@@ -177,6 +177,66 @@ for Pooja Enterprises`,
     expect: { supplier: 'Pooja Enterprises', supplierGstin: '08BOLPB2694P1ZA', buyerGstin: '08BNAPM0488E1Z3', billNo: '165', date: '29 May 25', group: 'packaging', item: 'Plastic Bags', taxable: 104000, gstRate: 18, total: 122720, itc: 'Eligible' }
   },
   {
+    // Adversarial-QA find (2026-07-10): Busy-software multi-item bill where the
+    // qty line sits BETWEEN "Grand Total" and its value — the parser read total
+    // = 1,04,000 (the taxable, from the HSN "Total" row), then fabricated taxable
+    // 95,412.84 and gstRate 9. Locks: total from a value 2 lines below its label
+    // + GST% = combined 18 (not the per-component 9) + buyer not "(Bill to)".
+    name: 'Busy multi-item — plastic bags, qty line between Grand Total & value', format: 'PDF · Busy · CGST+SGST',
+    text: `Tax Invoice
+SHREE BALAJI POLYMERS
+GSTIN/UIN: 08AACFS1234R1ZP
+Invoice No.
+SBP/2526/0417
+Dated
+08-Jul-2026
+Buyer (Bill to)
+GOTAN LIME INDUSTRIES
+GSTIN/UIN : 08BNAPM0488E1Z3
+1
+HDPE Woven Sacks 50 Kg
+39232990
+20,000 Nos
+4.20
+Nos
+84,000.00
+2
+PP Laminated Bags 25 Kg
+39232990
+5,000 Nos
+3.00
+Nos
+15,000.00
+Total
+26,000 Nos
+1,04,000.00
+CGST 9%
+9,360.00
+SGST 9%
+9,360.00
+Grand Total
+26,000 Nos
+1,22,720.00
+HSN/SAC
+Taxable Value
+Central Tax
+State Tax
+Total Tax Amount
+39232990
+1,04,000.00
+9%
+9,360.00
+9%
+9,360.00
+18,720.00
+Total
+1,04,000.00
+9,360.00
+9,360.00
+18,720.00`,
+    expect: { supplier: 'SHREE BALAJI POLYMERS', supplierGstin: '08AACFS1234R1ZP', buyerGstin: '08BNAPM0488E1Z3', billNo: 'SBP/2526/0417', date: '08-Jul-2026', group: 'packaging', taxable: 104000, cgst: 9360, sgst: 9360, gstRate: 18, total: 122720, itc: 'Eligible' }
+  },
+  {
     name: 'Reliance — pet coke, IGST inter-state', format: 'IGST',
     text: `Reliance Industries Limited
 Jamnagar Gujarat  GSTIN 24AAACR5055K1Z7

@@ -334,9 +334,12 @@
     if (f.total == null && A.taxable != null && totalGst != null) { set('total', round2(A.taxable + totalGst + (A.roundOff || 0)), 0.7); A.total = f.total; ver.total = 'gst_sum'; }
     // (e) taxable must be < total
     if (f.taxable != null && f.total != null && f.taxable > f.total + 1) { warn.push('Taxable exceeds total'); if (review.indexOf('taxable') < 0) review.push('taxable'); if (review.indexOf('total') < 0) review.push('total'); }
-    // (f) GST% from the now-trusted taxable + GST amounts — only when still missing,
-    //     and only from a real (non-zero) GST total (never overwrite a good rate).
-    if (f.gstRate == null && f.taxable && totalGst != null && totalGst > 0) { var rr = totalGst / f.taxable * 100; var snap = [3, 5, 12, 18, 28].filter(function (x) { return Math.abs(x - rr) <= 0.7; })[0]; if (snap != null) { set('gstRate', snap, 0.9); ver.gstRate = 'gst_calc'; } }
+    // (f) GST% from the now-trusted taxable + GST amounts. The tax MATH is the
+    //     source of truth, so it also OVERRIDES a rate that was only read from a
+    //     single "CGST 9%" token — which is HALF the combined 18% on an intra-
+    //     state (CGST+SGST) bill. It never overrides a rate already derived from
+    //     math (A.rateFromMath).
+    if (f.taxable && totalGst != null && totalGst > 0 && (f.gstRate == null || !A.rateFromMath)) { var rr = totalGst / f.taxable * 100; var snap = [3, 5, 12, 18, 28].filter(function (x) { return Math.abs(x - rr) <= 0.7; })[0]; if (snap != null) { set('gstRate', snap, 0.9); ver.gstRate = 'gst_calc'; } }
 
     var vm = norm(T).match(/\b([A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{1,3}[\s\-]?\d{3,4})\b/);
     if (vm) set('vehicle', vm[1].replace(/[\s\-]/g, ''), 0.6);
@@ -456,7 +459,7 @@
     return { name: '', conf: 0 };
   }
   // buyer can BE our own firm, so don't exclude own names here
-  function goodNameAny(s) { var c = clean(s).replace(/[.,;:]+$/, ''); if (c.length < 3 || c.length > 48 || isLabel(c) || !/[A-Za-z]{3}/.test(c) || /^\d/.test(c) || /\d{6}/.test(c)) return ''; if (/road|street|nagar|\bpin\b|tehsil/i.test(c)) return ''; return c; }
+  function goodNameAny(s) { var c = clean(s).replace(/^[\s(\[{]+/, '').replace(/[\s)\]}.,;:]+$/, ''); if (c.length < 3 || c.length > 48 || isLabel(c) || !/[A-Za-z]{3}/.test(c) || /^\d/.test(c) || /\d{6}/.test(c)) return ''; if (/road|street|nagar|\bpin\b|tehsil/i.test(c)) return ''; return c; }
 
   /* ── amount picker ───────────────────────────────────────────────────── */
   function labelled(text, re) { var m = text.match(re); return m ? nMoney(m[1]) : null; }
@@ -484,10 +487,17 @@
         var tail = strip(lines[i].slice(m.index + m[0].length));
         var d = decimals(tail); if (d.length) return d[0];
         var mo = money(tail).filter(notHsn); if (mo.length) return mo[0];
-        if (i + 1 < lines.length) {
-          var nx = strip(lines[i + 1]);
+        // Value on a LATER line: a Tally/Busy grid can wrap a quantity line
+        // BETWEEN the label and its amount ("Grand Total" ↵ "26,000 Nos" ↵
+        // "1,22,720.00"). Scan the next few lines, skipping quantity-only lines
+        // (nothing left after stripUnits), and take the first real amount. Stop
+        // if a line introduces a DIFFERENT amount label so "Taxable" never drifts
+        // into the CGST value.
+        for (var j = i + 1; j <= i + 3 && j < lines.length; j++) {
+          var nx = strip(lines[j]);
           var d2 = decimals(nx); if (d2.length) return d2[0];
           var mo2 = money(nx).filter(notHsn); if (mo2.length) return mo2[0];
+          if (/\b(?:c\s*gst|s\s*gst|i\s*gst|central\s*tax|state\s*tax|integrated\s*tax|grand\s*total|round)/i.test(lines[j])) break;
         }
       }
       return null;
