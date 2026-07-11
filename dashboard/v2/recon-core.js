@@ -219,6 +219,21 @@
     return { s: Math.max(distRatio, contain, allShared * 0.75), shared: sharedDist };
   }
 
+  /* ── direction fallback ────────────────────────────────────────────────
+     Last resort for an UNMATCHED bank line that still names a real party:
+     money IN from a party = customer receipt, money OUT = supplier payment.
+     Keeps anything with a counterparty out of a bare "Unknown". Runs only
+     AFTER classifyTxn (charges/interest/self/loan) and invoice matching. */
+  function directionCat(np, txn) {
+    var party = distinctive(tokens(np.clean));
+    if (!party.length) return null;                    // no party token → truly unknown
+    var isCr = (txn.credit || 0) > 0;
+    var who = np.clean || 'a party';
+    return isCr
+      ? { cat: 'Customer receipt', key: 'receipt', confidence: 60, reasons: ['Credit from ' + who + ' — not yet linked to a sales invoice'] }
+      : { cat: 'Supplier payment', key: 'payment', confidence: 60, reasons: ['Debit to ' + who + ' — not yet linked to a purchase bill'] };
+  }
+
   /* ── debit classification (non-bill outflows) ──────────────────────────── */
   function classifyDebit(np) {
     var d = normName(np.raw) + ' ' + normName(np.clean);
@@ -344,6 +359,6 @@
     scoreMatch: scoreMatch, bestMatch: bestMatch, dedupeKey: dedupeKey, detectBank: detectBank,
     splitStatus: splitStatus, suggestAlloc: suggestAlloc, STOP: STOP,
     signedBalance: signedBalance, inferDirections: inferDirections,
-    classifyTxn: classifyTxn, classifyResidual: classifyResidual, selfPairs: selfPairs
+    classifyTxn: classifyTxn, classifyResidual: classifyResidual, directionCat: directionCat, selfPairs: selfPairs
   };
 });

@@ -96,6 +96,13 @@ function autoMatch(t) {
     const resid = RC.classifyResidual(np, t, { ownNames: ownNames() });
     if (resid) return { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'review', cat: resid.cat, catKey: resid.key, suggestInterfirm: true, confidence: resid.confidence, tier: 'yellow', matchedBy: 'ai', reasons: resid.reasons, at: new Date().toISOString() };
   }
+  // 4) direction fallback: an unmatched line that still names a party is a
+  //    customer receipt (credit) or supplier payment (debit) awaiting a link —
+  //    never leave a real counterparty as a bare "Unknown".
+  if ((res.status === 'unknown' || res.status === 'unmatched') && res.idx == null && RC.directionCat) {
+    const dc = RC.directionCat(np, t);
+    if (dc) return { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'review', cat: dc.cat, catKey: dc.key, confidence: dc.confidence, tier: 'yellow', matchedBy: 'ai', needsLink: true, reasons: dc.reasons, at: new Date().toISOString() };
+  }
   res.at = res.at || new Date().toISOString();
   res.matchedBy = res.matchedBy || 'ai';
   return res;

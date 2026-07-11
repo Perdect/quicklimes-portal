@@ -130,6 +130,7 @@
     { group: 'royalty', item: 'Royalty', kw: /royalty|\bdmf\b|district\s*mineral|mineral\s*fund|\bnmet\b/i },
     { group: 'transport', item: 'Transport / Freight', kw: /transport|freight|lorry|truck\s*(?:hire|freight)|carriage|goods\s*transport|\bgta\b|cartage/i },
     { group: 'labour', item: 'Labour', kw: /labour|\blabor\b|wages|mazdoor|manpower|loading\s*(?:&|and)?\s*unloading|hamali/i },
+    { group: 'maintenance', item: 'Maintenance', kw: /maintenance|repair(?:s|ing)?|servicing|spare\s*parts?|\bamc\b|overhaul|refractory|kiln\s*(?:repair|lining)|conveyor\s*belt|welding\s*(?:job|work)/i },
     { group: 'fuel', item: 'Diesel', kw: /\bdiesel\b|\bhsd\b|\bpetrol\b|furnace\s*oil|\bfuel\s*oil\b|high\s*speed\s*diesel/i },
     { group: 'electricity', item: 'Electricity', kw: /electricity|power\s*bill|discom|jvvnl|avvnl|energy\s*charges|units?\s*consumed|kwh/i },
     { group: 'bank', item: 'Bank Charges', kw: /bank\s*charge|processing\s*fee|commission|neft\s*charge|folio|\brtgs\s*charge/i },
@@ -276,6 +277,21 @@
           }
         }
         if (best) billNo = best;
+      }
+    }
+    // SAP / IOC tax-invoice number ("20273121B005870") — a run of digits, one or
+    // two letters, then more digits — printed under "Doc.Name TAX INVOICE / & number"
+    // with NO "Invoice No" label. Last resort only, and never the IRN / Ack / e-way.
+    if (!billNo) {
+      var DL = T.split('\n');
+      for (var _di = 0; _di < DL.length && !billNo; _di++) {
+        if (!/doc\.?\s*name|tax\s*invoice|&\s*number/i.test(DL[_di])) continue;
+        for (var _dj = 0; _dj <= 2 && !billNo; _dj++) {
+          var dline = DL[_di + _dj] || '';
+          if (/\birn\b|\back\b|e-?\s*way/i.test(dline)) continue;
+          var dmm = dline.match(/\b(\d{6,10}[A-Z]{1,2}\d{4,8})\b/);
+          if (dmm) { billNo = dmm[1]; break; }
+        }
       }
     }
     if (billNo) set('billNo', billNo, /no|number|#/i.test(T.slice(Math.max(0, T.toUpperCase().indexOf(billNo.toUpperCase()) - 24), T.toUpperCase().indexOf(billNo.toUpperCase()))) ? 0.9 : 0.75);

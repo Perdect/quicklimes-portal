@@ -206,5 +206,16 @@ const legs2 = [
 ];
 ok('different SELF ids never pair by amount alone', RC.selfPairs(legs2).length === 0, RC.selfPairs(legs2));
 
+// ── directionCat: unmatched party lines get a receipt/payment category ──────
+// (real narrations from the Bank of Baroda cash-credit statement, Jun 2026)
+(function () {
+  var cr = RC.directionCat(RC.parseNarration('RTGS-ICICR42026062100511668-AMAN'), { credit: 497490, debit: 0 });
+  ok('credit from a party → Customer receipt', cr && cr.cat === 'Customer receipt' && cr.key === 'receipt', cr);
+  var dr = RC.directionCat(RC.parseNarration('NEFT-BARBT26161997932-NAGAUR'), { credit: 0, debit: 50000 });
+  ok('debit to a party → Supplier payment', dr && dr.cat === 'Supplier payment' && dr.key === 'payment', dr);
+  var none = RC.directionCat(RC.parseNarration('   '), { credit: 1000, debit: 0 });
+  ok('no party token → null (stays Unknown, never fabricated)', none === null, none);
+})();
+
 console.log('\n' + (fail === 0 ? '✅ ALL ' + pass + ' TESTS PASSED' : '❌ ' + fail + ' FAILED, ' + pass + ' passed'));
 process.exit(fail ? 1 : 0);

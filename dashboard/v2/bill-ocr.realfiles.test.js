@@ -1,12 +1,10 @@
 /* bill-ocr.realfiles.test.js — REAL invoice regression fixtures.
-   These are the actual pdftotext-layout extractions of purchase bills supplied by
-   the business (Indian Oil petcoke ×3, Pooja Enterprises plastic bags, Mateshwari
-   limestone). Ground truth was read field-by-field off the original PDFs. This
-   locks the parser fixes for: HSN-code-read-as-amount, letter-spaced C/S/GST
-   headers, MTS quantity unit, tax-summary header rows, and invoice-number column
-   alignment. Run: node bill-ocr.realfiles.test.js
-   Known gap: IOC invoice number is intentionally left for review (two candidate
-   numbers on the bill — 20273121B… vs GJ…; we don't guess). */
+   Actual pdftotext-layout extractions of purchase bills the business supplied
+   (Indian Oil petcoke x3, Pooja Enterprises plastic bags, Mateshwari limestone).
+   Ground truth read field-by-field off the original PDFs. Locks the parser fixes
+   for: HSN-read-as-amount, letter-spaced C/S/GST headers, MTS quantity unit,
+   tax-summary header rows, invoice-number column alignment, and the SAP/IOC
+   invoice-number fallback (20273121B...). Run: node bill-ocr.realfiles.test.js */
 const O = require('./bill-ocr.js');
 const OPTS = {
   ownGstins: ['08BNAPM0488E1Z3','08NLIPS9801K1Z5'],
@@ -27,6 +25,7 @@ const CASES = [
    "supplierGstin": "24AAACI1681G1ZV",
    "buyerGstin": "08BNAPM0488E1Z3",
    "direction": "purchase",
+   "billNo": "20273121B005870",
    "taxable": 566179.6,
    "igst": 101912.33,
    "total": 668092,
@@ -43,6 +42,7 @@ const CASES = [
    "supplierGstin": "24AAACI1681G1ZV",
    "buyerGstin": "08BNAPM0488E1Z3",
    "direction": "purchase",
+   "billNo": "20273121B006913",
    "taxable": 531367.2,
    "igst": 95646.1,
    "total": 627013,
@@ -59,6 +59,7 @@ const CASES = [
    "supplierGstin": "24AAACI1681G1ZV",
    "buyerGstin": "08BNAPM0488E1Z3",
    "direction": "purchase",
+   "billNo": "20273121B007217",
    "taxable": 525203.6,
    "igst": 94536.65,
    "total": 619740,
@@ -110,9 +111,7 @@ CASES.forEach(c=>{
   const F = O.parse(c.text, OPTS).fields;
   for (const [k,exp] of Object.entries(c.expect)) {
     const got = F[k];
-    let okk;
-    if (typeof exp === 'number') okk = near(got, exp);
-    else okk = String(got||'').replace(/\s/g,'') === String(exp).replace(/\s/g,'');
+    const okk = (typeof exp === 'number') ? near(got, exp) : String(got||'').replace(/\s/g,'') === String(exp).replace(/\s/g,'');
     if (okk) pass++; else { fail++; fails.push('['+c.label+'] '+k+': expected '+JSON.stringify(exp)+', got '+JSON.stringify(got)); }
   }
 });
