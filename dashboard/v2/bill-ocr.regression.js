@@ -409,6 +409,185 @@ Limestone Taxable 100000.00 CGST 2500.00 SGST 2500.00 Total 105000.00`,
     expect: { supplier: 'Balaji Minerals', supplierGstin: '08AAECB2222R1Z3', buyerGstin: '08AABCG1234H1Z5', group: 'limestone', taxable: 100000, cgst: 2500, sgst: 2500, gstRate: 5, total: 105000 }
   },
   {
+    // Adversarial-QA find (2026-07-11) — locked.
+    name: 'GTA freight — RCM, no GST charged, consignment note', format: 'PDF · GTA · RCM',
+    text: `                    CONSIGNMENT NOTE
+Shree Ganesh Roadlines Transport Co.
+Transport Nagar, Beawar Road, Ajmer, Rajasthan 305001
+GSTIN
+08AACFS4521P1Z9
+PAN AACFS4521P
+State Code : 08 Rajasthan
+Consignment Note No.
+CN/2026-27/1187
+Dated : 22-Jun-2026
+Vehicle No RJ14 GC 8829
+Consignor / Billed To
+GOTAN LIME INDUSTRIES
+GSTIN 08BNAPM0488E1Z3
+Village Gotan, Nagaur, Rajasthan
+Description of Service
+Goods Transport Agency Service - Transportation of Limestone
+SAC 996511
+From Gotan To Beawar Plant
+Weight 28.500 MT
+Freight Charges
+79800.00
+Taxable Value
+79800.00
+CGST 0.00
+SGST 0.00
+IGST 0.00
+Total
+79800.00
+GST Payable by Recipient under Reverse Charge (RCM) - Section 9(3)
+Tax to be paid by consignee under RCM
+This is a Goods Transport Agency bill. No GST charged by transporter.`,
+    expect: { supplier: 'Shree Ganesh Roadlines Transport Co', supplierGstin: '08AACFS4521P1Z9', buyerGstin: '08BNAPM0488E1Z3', billNo: 'CN/2026-27/1187', group: 'transport', taxable: 79800, total: 79800, itc: 'RCM' }
+  },
+  {
+    // Adversarial-QA find (2026-07-11) — locked.
+    name: 'Credit Note (sales return) — CGST+SGST, own number not the original invoice', format: 'PDF · Credit Note',
+    text: `SHREE BALAJI MINERALS PVT LTD
+Plot 47, RIICO Industrial Area, Nagaur Road
+Gotan, Dist. Nagaur, Rajasthan - 342902
+GSTIN/UIN: 08AACCS1234F1ZP
+State Name : Rajasthan, Code : 08
+
+CREDIT NOTE
+(Sales Return)
+
+Credit Note No.          Dated
+CN/042/2026-27           28-Jun-26
+Original Invoice No.     Date
+218/2026-27              12-May-26
+Mode/Terms of Payment
+Against Sales Return
+
+Buyer (Bill to)
+GOTAN LIME INDUSTRIES
+Gotan, Dist. Nagaur, Rajasthan
+GSTIN/UIN : 08BNAPM0488E1Z3
+State Name : Rajasthan, Code : 08
+
+Sl  Description of Goods           HSN/SAC    Quantity    Rate      per    Amount
+1   Hydrated Lime Powder (Return)  25221000   30.00 MT    1,500.00  MT     45,000.00
+
+                                              Taxable Value              45,000.00
+                                   CGST @ 9%                              4,050.00
+                                   SGST @ 9%                              4,050.00
+                                              Round Off                       0.00
+Total                                                                    53,100.00
+
+Amount Chargeable (in words)
+INR Fifty Three Thousand One Hundred Only
+
+HSN/SAC    Taxable Value   CGST Rate   CGST Amt    SGST Rate   SGST Amt    Total Tax
+25221000    45,000.00        9%        4,050.00       9%       4,050.00     8,100.00
+
+Being credit note issued for goods returned vide your despatch note.
+Company's GSTIN : 08AACCS1234F1ZP
+This is a Credit Note and not a Tax Invoice for any fresh supply.
+for SHREE BALAJI MINERALS PVT LTD
+Authorised Signatory`,
+    expect: { supplier: 'SHREE BALAJI MINERALS PVT LTD', supplierGstin: '08AACCS1234F1ZP', billNo: 'CN/042/2026-27', taxable: 45000, cgst: 4050, sgst: 4050, gstRate: 18, total: 53100, billType: 'Credit Note', itc: 'Ineligible' }
+  },
+  {
+    // Adversarial-QA find (2026-07-11) — locked.
+    name: 'Exempt Bill of Supply — zero GST, no fabricated CGST', format: 'PDF · Bill of Supply · exempt',
+    text: `BHANDARI AGRO PRODUCE COMPANY
+Krishi Upaj Mandi, Nagaur Road, Merta City, Rajasthan - 341510
+GSTIN/UIN
+08AAKFB3421H1ZP
+State Name : Rajasthan, Code : 08
+BILL OF SUPPLY
+(Exempted Goods - No GST)
+Invoice No.
+Dated
+BAP/342/26-27
+05-Jul-26
+Buyer (Bill to)
+GOTAN LIME INDUSTRIES
+Village Gotan, Dist. Nagaur, Rajasthan
+GSTIN/UIN
+08BNAPM0488E1Z3
+Sl
+Description of Goods
+HSN/SAC
+Quantity
+Rate
+per
+Amount
+1
+Agricultural Liming Material (Exempt Produce)
+2521
+500.00 MT
+550.00
+MT
+2,75,000.00
+Total
+500.00 MT
+2,75,000.00
+Amount Chargeable (in words)
+INR Two Lakh Seventy Five Thousand Only
+Taxable Value
+2,75,000.00
+Total Tax
+NIL
+Round Off
+0.00
+Grand Total
+2,75,000.00
+Declaration : Goods are exempt from GST vide Notification No. 2/2017-Central Tax (Rate).
+This is a Bill of Supply issued under Section 31(3)(c) - no tax is chargeable.
+Reverse Charge : No
+for BHANDARI AGRO PRODUCE COMPANY
+Authorised Signatory`,
+    expect: { supplier: 'BHANDARI AGRO PRODUCE COMPANY', supplierGstin: '08AAKFB3421H1ZP', billNo: 'BAP/342/26-27', cgst: null, taxable: 275000, total: 275000, itc: 'Ineligible' }
+  },
+  {
+    // Adversarial-QA find (2026-07-11) — locked.
+    name: 'Govt mining royalty challan — DMF/NMET, not a limestone purchase', format: 'PDF · royalty challan',
+    text: `GOVERNMENT OF RAJASTHAN
+DEPARTMENT OF MINES & GEOLOGY
+Office of the Mining Engineer, Jodhpur
+GSTIN
+08AAAGR2021D1ZP
+State Code : 08
+eRAVANA MINERAL DESPATCH CHALLAN-cum-TAX INVOICE
+Challan No.
+Dated
+RY/DMG/JOD/2026-27/04417
+27-Jun-2026
+Recipient / Lessee
+GOTAN LIME INDUSTRIES
+GSTIN 08BNAPM0488E1Z3
+Village Gotan, Dist. Nagaur, Rajasthan
+Mineral : Limestone (Chemical Grade)
+HSN/SAC
+9973
+Royalty on Limestone   Qty 5610.00 MT
+Particulars                         Amount
+Royalty Charges                     425000.00
+DMF Contribution (30%)              127500.00
+NMET Contribution (2%)              8500.00
+Taxable Value
+561000.00
+CGST
+9%
+50490.00
+SGST
+9%
+50490.00
+Round Off
+0.00
+Total Invoice Value
+661980.00
+Reverse Charge : No
+This is a computer generated challan-cum-invoice.`,
+    expect: { supplierGstin: '08AAAGR2021D1ZP', billNo: 'RY/DMG/JOD/2026-27/04417', group: 'royalty', taxable: 561000, cgst: 50490, sgst: 50490, gstRate: 18, total: 661980 }
+  },
+  {
     name: 'Low-quality / garbled OCR (must blank, never fake)', format: 'Low-quality scan',
     text: `T@X 1NV0ICE
 S0me Vend0r ???

@@ -155,6 +155,10 @@
   }
   function detectGroup(text) {
     var T = String(text || ''), matHit = null, svcHit = null, i, g;
+    // A royalty / DMF / NMET mining challan IS a royalty charge even though it
+    // names the mineral (limestone) — the mineral is a description, not the
+    // billed item, so it must not be classified as a limestone purchase.
+    if (/\broyalty\s*(?:charges?|amount|on\b)|\bdmf\s*(?:contribution|fund)|\bnmet\b|mineral\s*despatch|district\s*mineral\s*found/i.test(T)) return { group: 'royalty', item: 'Royalty' };
     for (i = 0; i < GROUPS.length; i++) {
       g = GROUPS[i]; if (!g.kw.test(T)) continue;
       if (MATERIAL[g.group]) { if (!matHit && materialStrong(T, g.kw)) matHit = g; }
@@ -221,7 +225,14 @@
 
     /* Bill number — labelled, must contain a digit and not be a date/GSTIN. */
     var billNo = '', re = /(?:invoice|bill(?:\s*of\s*supply)?|inv|voucher|challan|document|consignment(?:\s*note)?|note)[ \t]*(?:no\.?|number|#|id)?[ \t]*[:\-.#]?[ \t]*([A-Za-z0-9\/\-]{0,22}\d[A-Za-z0-9\/\-]{0,6})/ig, mm;
-    while ((mm = re.exec(T))) { var cand = mm[1].replace(/[^A-Za-z0-9\/\-]/g, ''); var digits = (cand.match(/\d/g) || []).length; if (digits && (digits >= 2 || /[\/\-]/.test(cand)) && !/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/i.test(cand) && !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(cand)) { billNo = cand; break; } }
+    while ((mm = re.exec(T))) {
+      // Never take the E-WAY BILL / IRN / Ack / ORIGINAL-invoice number as THIS
+      // bill's number — those labels also contain "bill/invoice no".
+      var pre = T.slice(Math.max(0, mm.index - 14), mm.index);
+      if (/e-?\s*way|\birn\b|ack\b|original/i.test(pre)) continue;
+      var cand = mm[1].replace(/[^A-Za-z0-9\/\-]/g, ''); var digits = (cand.match(/\d/g) || []).length;
+      if (digits && (digits >= 2 || /[\/\-]/.test(cand)) && !/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/i.test(cand) && !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(cand)) { billNo = cand; break; }
+    }
     // Tally / e-invoice grids print the label ("Invoice No.") and its value on
     // SEPARATE lines ("Invoice No.  Dated" ↵ "222/26-27  29-Jun-26"). If the
     // inline scan missed it, find the label line and take the first invoice-ish
@@ -229,7 +240,7 @@
     if (!billNo) {
       var BL = T.split('\n');
       for (var _bi = 0; _bi < BL.length && !billNo; _bi++) {
-        if (!/invoice\s*(?:no|number|#)|bill\s*no|voucher\s*no/i.test(BL[_bi]) || /purchase|order|e-?way/i.test(BL[_bi])) continue;
+        if (!/invoice\s*(?:no|number|#)|bill\s*no|voucher\s*no|(?:credit|debit|consignment)\s*note\s*(?:no|number)|challan\s*(?:no|number)/i.test(BL[_bi]) || /purchase|order|e-?way|original|reference|\back\b|\birn\b/i.test(BL[_bi])) continue;
         for (var _si = 0; _si < 3 && !billNo; _si++) {
           var toks = (BL[_bi + _si] || '').split(/\s+/);
           for (var _ti = 0; _ti < toks.length; _ti++) {
@@ -373,10 +384,18 @@
 
     /* ITC — RCM only when reverse charge is AFFIRMATIVELY yes (bills mandatorily
        print "Reverse Charge : No", which must NOT flip a normal bill to RCM). */
-    var rcmNo = /reverse\s*charge[^\n]*[:\-]?\s*(?:no|not\s*applicable|nil|n)\b/i.test(T);
-    var rcmYes = /reverse\s*charge[^\n]*[:\-]?\s*(?:yes|applicable)\b/i.test(T) || /payable\s*(?:by\s*recipient\s*)?under\s*(?:rcm|reverse\s*charge)/i.test(T) || /\bunder\s*rcm\b/i.test(T) || /rcm\s*applicable/i.test(T);
+    // "no|not applicable|nil" ONLY — a bare "n\b" wrongly matched the trailing n
+    // of "Section 9(3)" on a GTA/RCM bill and cancelled a real RCM.
+    var rcmNo = /reverse\s*charge[^\n]{0,20}[:\-]?\s*(?:no|not\s*applicable|nil)\b/i.test(T);
+    var rcmYes = /reverse\s*charge[^\n]*[:\-]?\s*(?:yes|applicable)\b/i.test(T) || /payable\s*(?:by\s*recipient\s*)?under\s*(?:rcm|reverse\s*charge)/i.test(T) || /\bunder\s*rcm\b/i.test(T) || /rcm\s*applicable/i.test(T) || /tax\s*(?:to\s*be\s*)?paid\s*by\s*(?:the\s*)?(?:recipient|consignee)/i.test(T);
+    // A CREDIT note (sales return) reverses input tax — not a fresh eligible
+    // input. A DEBIT note ADDS liability (e.g. bank charges) and keeps normal
+    // ITC, so only a genuine credit-note DOCUMENT flips ITC (a bill that merely
+    // carries a "Debit Note No." label does not).
+    var isCreditNote = /\bcredit\s*note\b/i.test(T);   // a DEBIT note (bank charges) says "debit", so this is credit-only
     if (rcmYes && !rcmNo) set('itc', 'RCM', 0.7);
-    else if (/itc\s*(?:not\s*(?:eligible|available)|inelig|blocked)|input\s*tax\s*credit\s*(?:not\s*available|blocked)|ineligible|exempt(?:ed)?\s*supply|nil\s*rated/i.test(T)) set('itc', 'Ineligible', 0.7);
+    else if (isCreditNote) set('itc', 'Ineligible', 0.7);
+    else if (/itc\s*(?:not\s*(?:eligible|available)|inelig|blocked)|input\s*tax\s*credit\s*(?:not\s*available|blocked)|ineligible|exempt(?:ed)?(?:\s*(?:supply|goods|produce))?|nil\s*rated|bill\s*of\s*supply|total\s*tax\s*[:\-]?\s*nil/i.test(T)) set('itc', 'Ineligible', 0.7);
     else if (totalGst != null && totalGst > 0) set('itc', 'Eligible', 0.65);
 
     /* Grand total = the final payable (same as total on most bills). */
@@ -406,10 +425,12 @@
     if (/^\d/.test(c) || /\d{6}/.test(c)) return '';             // starts with a number / has a pin
     if (ADDR_RE.test(c)) return '';                              // address line, not a name
     if (/\b(?:from|to)\s*:/i.test(c) || /\bconsign(?:or|ee)\b/i.test(c) || /\broute\b/i.test(c)) return '';   // transport route line
+    if (/\bto\b/i.test(c) && /\b(?:plant|depot|godown|works|factory|branch|refinery|terminal|siding|station|site)\b/i.test(c)) return '';   // "Gotan To Beawar Plant" — a route, not a firm
     // Declaration / footer / signature fragments — never a supplier name (Step 10).
     if (/^(?:the|for|to|from|as|we|i|received|certified|authoris|authoriz|payer|payee|ordering|declaration|subject|being|goods|value|amount|total|net|place|date|terms|note|remarks?)\b/i.test(c)) return '';
     if (/\b(?:buyer|signator|signature|hereby|certif|received|good\s*condition|amount\s*indicated|terms\s*(?:and|&|of)\b|payer\b|ordering\s*party|declaration|reconciliation|subject\s*to|digitally\s*signed|e-?way|original\s*for|duplicate\s*for|triplicate)\b/i.test(c)) return '';
     if (/\bfor\b/i.test(c) && !CO_SUFFIX.test(c)) return '';   // "the buyer. For", "For & on behalf" — not a company unless it carries a real suffix
+    if (/^(?:tax\s*invoice|consignment\s*note|credit\s*note|debit\s*note|delivery\s*challan|bill\s*of\s*supply|proforma|quotation|estimate|cash\s*memo|receipt|challan)\b/i.test(c)) return '';   // a document TITLE, not a firm
     if (/\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]/i.test(norm(c).replace(/\s/g, ''))) return '';    // contains a GSTIN → not a name
     var n = norm(c); for (var i = 0; i < (ownNames || []).length; i++) { if (ownNames[i] && (n.indexOf(ownNames[i]) >= 0 || ownNames[i].indexOf(n) >= 0)) return ''; }
     return c;
@@ -421,7 +442,9 @@
     for (var a = 0; a < lines.length; a++) { var key = norm(lines[a]); if (aliases[key] && plausibleName(aliases[key])) return { name: aliases[key], conf: 1 }; }
     // 1) explicit seller block ("Seller / Supplier / Sold By / From : NAME")
     for (var i = 0; i < lines.length; i++) {
-      var m = lines[i].match(/^(?:seller|supplier|sold\s*by|vendor|from|billed\s*by)\s*[:\-]?\s*(.*)$/i);
+      // "From" as a seller label needs a colon/dash — bare "From Gotan To Beawar
+      // Plant" is a transport route, not "From: <seller>".
+      var m = lines[i].match(/^(?:(?:seller|supplier|sold\s*by|vendor|billed\s*by)\s*[:\-]?|from\s*[:\-])\s*(.*)$/i);
       if (m) { var v = goodName(m[1], ownNames); if (v) return { name: v, conf: 0.9 }; var nx = lines[i + 1] && goodName(lines[i + 1], ownNames); if (nx) return { name: nx, conf: 0.85 }; }
     }
     // 2) "M/s NAME" anywhere (strong seller signal on Indian bills)
@@ -450,7 +473,9 @@
     return { name: '', conf: 0 };
   }
   function pickBuyer(lines, ownNames) {
-    var bi = lines.findIndex(function (l) { return /^(?:billed\s*to|bill\s*to|buyer|consignee|ship\s*to|sold\s*to)\b/i.test(l); });
+    // Skip the Tally header cell "Buyer's Order No." — it's a grid label, not the
+    // buyer-name line (it was yielding buyer="'s Order No. Dated").
+    var bi = lines.findIndex(function (l) { return /^(?:billed\s*to|bill\s*to|buyer|consignee|ship\s*to|sold\s*to)\b/i.test(l) && !/buyer'?s\s*order|order\s*no|\bp\.?o\.?\s*no|reference\s*no/i.test(l); });
     if (bi >= 0) {
       var head = lines[bi].replace(/^(?:billed\s*to|bill\s*to|buyer|consignee|ship\s*to|sold\s*to)\b\s*[:\-]?\s*/i, '');
       var v = goodNameAny(head); if (v) return { name: v, conf: 0.8 };
@@ -459,7 +484,7 @@
     return { name: '', conf: 0 };
   }
   // buyer can BE our own firm, so don't exclude own names here
-  function goodNameAny(s) { var c = clean(s).replace(/^[\s(\[{]+/, '').replace(/[\s)\]}.,;:]+$/, ''); if (c.length < 3 || c.length > 48 || isLabel(c) || !/[A-Za-z]{3}/.test(c) || /^\d/.test(c) || /\d{6}/.test(c)) return ''; if (/road|street|nagar|\bpin\b|tehsil/i.test(c)) return ''; return c; }
+  function goodNameAny(s) { var c = clean(s).replace(/^['`\s(\[{]+/, '').replace(/[\s)\]}.,;:'`]+$/, ''); if (c.length < 3 || c.length > 48 || isLabel(c) || /^s\s+order|order\s*no|\bdated\b|reference\s*no/i.test(c) || !/[A-Za-z]{3}/.test(c) || /^\d/.test(c) || /\d{6}/.test(c)) return ''; if (/road|street|nagar|\bpin\b|tehsil/i.test(c)) return ''; return c; }
 
   /* ── amount picker ───────────────────────────────────────────────────── */
   function labelled(text, re) { var m = text.match(re); return m ? nMoney(m[1]) : null; }
@@ -504,10 +529,17 @@
     }
     out.taxable = firstAmtAfter(/taxable(?:\s*(?:value|amount|amt))?|total\s*taxable|basic\s*(?:value|amount)|assessable\s*value|amount\s*before\s*tax/i);
     if (out.taxable != null) out.conf.taxable = 0.85;
-    out.cgst = firstAmtAfter(/\bc\s*gst\b|central\s*tax/i); if (out.cgst != null) out.conf.cgst = 0.8;
-    out.sgst = firstAmtAfter(/\bs\s*gst\b|state\s*tax|\bugst\b/i); if (out.sgst != null) out.conf.sgst = 0.8;
-    out.igst = firstAmtAfter(/\bi\s*gst\b|integrated\s*tax/i); if (out.igst != null) out.conf.igst = 0.8;
-    out.roundOff = labelled(T, /round(?:ed|ing)?\s*(?:off|difference)?[^0-9\-]{0,12}(-?[0-9][0-9,]*\.?[0-9]{0,2})/i);
+    // Skip declaration / notification / legal-citation lines — "Notification No.
+    // 2/2017-Central Tax (Rate)" and "Section 31(3)(c)" must NEVER be read as a
+    // CGST amount (that fabricated cgst=31 on an exempt Bill of Supply).
+    var LEGAL = /notification|declaration|vide|under\s*section|section\s*\d|\(rate\)|computer\s*gen|subject\s*to|certif/i;
+    out.cgst = firstAmtAfter(/\bc\s*gst\b|central\s*tax/i, LEGAL); if (out.cgst != null) out.conf.cgst = 0.8;
+    out.sgst = firstAmtAfter(/\bs\s*gst\b|state\s*tax|\bugst\b/i, LEGAL); if (out.sgst != null) out.conf.sgst = 0.8;
+    out.igst = firstAmtAfter(/\bi\s*gst\b|integrated\s*tax/i, LEGAL); if (out.igst != null) out.conf.igst = 0.8;
+    // Round-off keeps its SIGN — a SAP "ZRND Rounding Difference -0.18" is
+    // negative; nMoney() strips the minus, so parse it sign-aware here.
+    var roM = T.match(/round(?:ed|ing)?\s*(?:off|difference)?[^0-9\-]{0,12}(-?[0-9][0-9,]*\.?[0-9]{0,2})/i);
+    out.roundOff = roM ? round2(parseFloat(roM[1].replace(/,/g, ''))) : null;
     // Grand total first; then a bare "Total" — skipping sub-total / "total for
     // material" / taxable / qty lines.
     out.total = firstAmtAfter(/grand\s*total|invoice\s*(?:value|total)|amount\s*payable|net\s*(?:amount|payable)|bill\s*(?:amount|total)/i);
