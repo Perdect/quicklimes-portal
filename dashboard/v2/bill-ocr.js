@@ -272,6 +272,21 @@
     var buyer = pickBuyer(lines, ownNames);
     if (buyer.name) set('buyer', buyer.name, buyer.conf);
 
+    /* ── Multi-pass counterparty fallback ──────────────────────────────────
+       The COUNTERPARTY (supplier on a purchase, customer on a sale) is "the
+       party that isn't us". If the seller-name pass came up blank (unusual
+       customer-block layout on a sales invoice, a wrapped name, etc.) fall back
+       to the Bill-To / Consignee name — as long as it is NOT one of our own
+       firms. GSTIN remains the identity, so a recognised GSTIN never yields
+       "Unknown" even when the printed name is unreadable. */
+    if (!f.supplier) {
+      var cands = [];
+      if (buyer.name && !isOwnName(buyer.name, ownNames)) cands.push([buyer.name, buyer.conf]);
+      var cn = pickNamedBlock(lines, /^(?:consignee|ship(?:ped)?\s*to|receiver)\b/i, ownNames); if (cn.name) cands.push([cn.name, 0.6]);
+      var bn = pickNamedBlock(lines, /^(?:bill(?:ed)?\s*to|buyer|sold\s*to|customer|party)\b/i, ownNames); if (bn.name) cands.push([bn.name, 0.6]);
+      for (var _ci = 0; _ci < cands.length; _ci++) { if (plausibleName(cands[_ci][0])) { set('supplier', cands[_ci][0], Math.min(cands[_ci][1] || 0.55, 0.6)); ver.supplier = 'counterparty'; break; } }
+    }
+
     /* ── amounts ────────────────────────────────────────────────────────── */
     var A = pickAmounts(T, lines);
     ['taxable', 'cgst', 'sgst', 'igst', 'total', 'roundOff'].forEach(function (k) { if (A[k] != null) set(k, A[k], A.conf[k]); });
@@ -482,6 +497,17 @@
       for (var k = bi + 1; k <= bi + 2 && k < lines.length; k++) { var v2 = goodNameAny(lines[k]); if (v2) return { name: v2, conf: 0.75 }; }
     }
     return { name: '', conf: 0 };
+  }
+  function isOwnName(s, ownNames) { var n = norm(s); for (var i = 0; i < (ownNames || []).length; i++) { var o = norm(ownNames[i]); if (o && (n.indexOf(o) >= 0 || o.indexOf(n) >= 0)) return true; } return false; }
+  // Find the name inside a labelled block ("Consignee", "Bill To", …) that is
+  // NOT one of our own firms — the counterparty on a sales invoice.
+  function pickNamedBlock(lines, labelRe, ownNames) {
+    var bi = lines.findIndex(function (l) { return labelRe.test(l) && !/order\s*no|reference/i.test(l); });
+    if (bi < 0) return { name: '' };
+    var head = lines[bi].replace(labelRe, '').replace(/^[\s:().\-]+/, '');
+    var v = goodNameAny(head); if (v && !isOwnName(v, ownNames)) return { name: v };
+    for (var k = bi + 1; k <= bi + 2 && k < lines.length; k++) { var v2 = goodNameAny(lines[k]); if (v2 && !isOwnName(v2, ownNames)) return { name: v2 }; }
+    return { name: '' };
   }
   // buyer can BE our own firm, so don't exclude own names here
   function goodNameAny(s) { var c = clean(s).replace(/^['`\s(\[{]+/, '').replace(/[\s)\]}.,;:'`]+$/, ''); if (c.length < 3 || c.length > 48 || isLabel(c) || /^s\s+order|order\s*no|\bdated\b|reference\s*no/i.test(c) || !/[A-Za-z]{3}/.test(c) || /^\d/.test(c) || /\d{6}/.test(c)) return ''; if (/road|street|nagar|\bpin\b|tehsil/i.test(c)) return ''; return c; }

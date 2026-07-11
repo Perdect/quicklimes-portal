@@ -121,37 +121,45 @@
     var isSheet = /\.(csv|xlsx|xls)$/.test(name) || /csv|excel|spreadsheet/.test(type);
     var bills = [];
 
-    // ── AI-first: one model call reads ANY layout (key server-side). One bill
-    //    per file. Any failure / no key ⇒ fall through to the regex parser. ──
-    if ((isPdf || isImg) && window.QLExtractAPI && QLExtractAPI.ready()) {
-      try {
-        var ag = await QLExtractAPI.extract(file, cfg.kind);
-        if (ag) return [makeBill(ag, file, file.name, cfg)];
-      } catch (_) {}
-    }
+    var aiReady = window.QLExtractAPI && QLExtractAPI.ready();
+    // AI on ONE file (a whole file or a single split page) → g, or null to fall back.
+    async function aiOne(f) { if (!aiReady) return null; try { return await QLExtractAPI.extract(f, cfg.kind); } catch (_) { return null; } }
 
     if (isPdf) {
       var pages = [];
       try { pages = await F().pdfPages(file); } catch (_) {}
       var hasText = function (t) { return t && /\d/.test(t) && t.replace(/\s+/g, '').length > 60; };
       var textPages = [];
-      pages.forEach(function (t, i) { if (hasText(t)) textPages.push({ g: F().parseInvoiceText(t), page: i }); });
-      if (textPages.length) {
-        // each text page = one bill; split that page out as its own PDF for the attachment
+      pages.forEach(function (t, i) { if (hasText(t)) textPages.push({ text: t, page: i }); });
+
+      // MULTI-invoice PDF (2+ text pages): split, then read EACH page independently
+      // — AI per page when configured, else the tested regex per-page parser.
+      if (textPages.length >= 2) {
         var slices = [];
         try { slices = await F().splitPdfPages(file, textPages.map(function (x) { return x.page; }), name.replace(/\.[^.]+$/, '')); } catch (_) {}
-        textPages.forEach(function (tp, i) {
-          bills.push(makeBill(tp.g, slices[i] || file, file.name + (textPages.length > 1 ? ' · page ' + (tp.page + 1) : ''), cfg));
-        });
+        for (var pi = 0; pi < textPages.length; pi++) {
+          var pf = slices[pi] || file, src = file.name + ' · page ' + (textPages[pi].page + 1);
+          var pg = (slices[pi] ? await aiOne(slices[pi]) : null) || F().parseInvoiceText(textPages[pi].text);
+          bills.push(makeBill(pg, pf, src, cfg));
+        }
         return bills;
       }
-      // scanned PDF (no embedded text) → OCR the whole doc as one bill
+
+      // Single-invoice PDF: AI whole-file → else embedded text → else scanned OCR.
+      if (textPages.length === 1) {
+        var g0 = await aiOne(file); if (!g0) g0 = F().parseInvoiceText(textPages[0].text);
+        bills.push(makeBill(g0, file, file.name, cfg)); return bills;
+      }
+      var gs = await aiOne(file);
+      if (gs) { bills.push(makeBill(gs, file, file.name, cfg)); return bills; }
       try { var g1 = await F().ocrScan(file, function () {}); bills.push(makeBill(g1, file, file.name, cfg)); }
       catch (_) { bills.push(failBill(file, cfg, 'OCR failed on this scan')); }
       return bills;
     }
 
     if (isImg) {
+      var gi = await aiOne(file);
+      if (gi) { bills.push(makeBill(gi, file, file.name, cfg)); return bills; }
       try { var g2 = await F().ocrScan(file, function () {}); bills.push(makeBill(g2, file, file.name, cfg)); }
       catch (_) { bills.push(failBill(file, cfg, 'Couldn\'t read this photo — try a clearer, straight shot')); }
       return bills;
@@ -211,10 +219,14 @@
   /* auto-classify document type + a review flag when it doesn't fit the register */
   function detectType(g, cfg) {
     var t = (g._text || '').toLowerCase();
+    // A document that carries real invoice content (taxable / GST amounts / HSN /
+    // grand total) IS an invoice — an E-Way-Bill NUMBER printed on it does not
+    // make it an e-way bill. Only call it a non-invoice when that content is absent.
+    var hasInvoiceContent = /taxable|c\s*gst|s\s*gst|i\s*gst|\bhsn\b|grand\s*total|invoice\s*(?:no|value)/.test(t) || (g.taxable || g.total);
     if (/credit\s*note/.test(t)) return { type: 'creditnote', flag: 'Credit note — confirm before posting' };
-    if (/debit\s*note/.test(t)) return { type: 'debitnote', flag: 'Debit note — confirm before posting' };
-    if (/e-?\s?way\s*bill/.test(t) && !/tax\s*invoice/.test(t)) return { type: 'ewaybill', flag: 'Looks like an E-way bill, not an invoice' };
-    if (/bank\s*statement|account\s*statement|(opening|closing)\s*balance/.test(t) && !/gstin|hsn|taxable/.test(t)) return { type: 'bankstmt', flag: 'Looks like a bank statement — use Reconciliation' };
+    if (/debit\s*note/.test(t) && !/tax\s*invoice/.test(t)) return { type: 'debitnote', flag: 'Debit note — confirm before posting' };
+    if (!hasInvoiceContent && /e-?\s?way\s*bill/.test(t)) return { type: 'ewaybill', flag: 'Looks like an E-way bill, not an invoice' };
+    if (!hasInvoiceContent && /bank\s*statement|account\s*statement|(opening|closing)\s*balance/.test(t)) return { type: 'bankstmt', flag: 'Looks like a bank statement — use Reconciliation' };
     // own company as BUYER (our GSTIN in the buyer slot) ⇒ we purchased
     var type = cfg.kind || 'purchase';
     if (g.buyergstin) type = 'purchase';
@@ -236,7 +248,27 @@
     // live review-field recompute (a field the user filled is no longer "review")
     bill.reviewFields = (bill.reviewFields || []).filter(function (k) { return !String(bill.vals[k] || '').trim() ? true : false; });
     var nonInvoice = ['creditnote', 'debitnote', 'ewaybill', 'bankstmt', 'unknown'].indexOf(bill.type) >= 0;
-    if (!built || missing.length || oneOfFail) bill.status = 'invalid';
+
+    // GSTIN-first resolvability: a missing PARTY NAME is only blocking-invalid
+    // when there is ALSO no counterparty GSTIN to identify it by. If a valid
+    // GSTIN is present (name just unreadable), keep it REVIEWABLE — the user
+    // confirms the customer once and the GSTIN→name mapping is remembered.
+    var nk = nameKey(cfg), gk = Object.keys(cfg.ocrMap || {}).filter(function (k) { return cfg.ocrMap[k] === 'gstin'; })[0];
+    var hasName = nk && String(bill.vals[nk] || '').trim();
+    var gv = gk ? String(bill.vals[gk] || '').toUpperCase().replace(/\s/g, '') : '';
+    var hasGstin = gv && window.QLExtract && QLExtract.validGstin(gv);
+    var onlyPartyMissing = missing.length === 1 && nk && missing[0] && cfg.fields.filter(function (f) { return f.required && !String(bill.vals[f.key] || '').trim(); }).every(function (f) { return f.key === nk; });
+
+    bill.reason = '';
+    if (!built) bill.reason = 'Could not build the row (check amounts).';
+    else if (missing.length) {
+      if (onlyPartyMissing && hasGstin) { bill.reason = 'Customer name unread — recognised by GSTIN ' + gv + '. Confirm the party.'; }
+      else bill.reason = 'Missing: ' + bill.missing.join(', ') + (hasGstin ? '' : (nk && !hasName ? ' · no GSTIN detected either' : ''));
+    } else if (bill.flag) bill.reason = bill.flag;
+
+    if (!built) bill.status = 'invalid';
+    else if (missing.length) bill.status = (onlyPartyMissing && hasGstin) ? 'review' : 'invalid';   // GSTIN present ⇒ resolvable
+    else if (oneOfFail) bill.status = 'invalid';
     else if (bill.reviewFields.length || bill.flag || nonInvoice) bill.status = 'review';
     else bill.status = 'ready';
   }
@@ -435,7 +467,7 @@
             '<td class="qlb-tname"><b>' + esc(b.vals[nk] || (b.error ? '—' : 'Unknown')) + '</b><span>' + esc(b.source || '') + '</span></td>' +
             '<td>' + esc(b.vals[ik] || '—') + '</td>' +
             '<td class="r">' + (b.error ? '—' : fC(amtOf(b))) + '</td>' +
-            '<td>' + statBadge(b) + (b.missing && b.missing.length ? '<div class="qlb-miss">missing ' + esc(b.missing.join(', ')) + '</div>' : '') + '</td>' +
+            '<td>' + statBadge(b) + (b.reason ? '<div class="qlb-miss ' + (b.status === 'review' ? 'qlb-miss-r' : '') + '">' + esc(b.reason) + '</div>' : '') + '</td>' +
             '<td class="r">' + (b.status === 'failed' ? '' : '<button class="qlb-rev" data-id="' + b.id + '">Review ›</button>') + '</td>' +
           '</tr>';
         }).join('') +
@@ -534,7 +566,7 @@
       '.qlb-tbl tr[data-id]{cursor:pointer}.qlb-tbl tr[data-id]:hover td{background:var(--ql-bg-subtle,#f8fafc)}',
       '.qlb-tbl .r{text-align:right}.qlb-trf td{opacity:.6}',
       '.qlb-tname b{display:block;font-weight:650;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.qlb-tname span{font-size:10.5px;color:var(--ql-text-muted,#94a3b8);display:block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.qlb-miss{font-size:10px;color:#b91c1c;margin-top:2px}',
+      '.qlb-miss{font-size:10px;color:#b91c1c;margin-top:2px;max-width:260px}.qlb-miss-r{color:#b45309}',
       '.qlb-rev{border:none;background:none;color:var(--ql-brand-600,#2563eb);font-weight:650;font-size:12.5px;cursor:pointer;white-space:nowrap}',
       '.qlb-empty{text-align:center;color:var(--ql-text-muted,#94a3b8);padding:34px !important;font-size:13px}',
       /* tags */
