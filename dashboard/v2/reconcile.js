@@ -514,11 +514,32 @@ function actionCell(t) {
 function ledgerHTML() {
   const rows = partyLedger().filter(p => p.party !== '—');
   if (!rows.length) return `<div class="rc-none">No party data yet.</div>`;
-  const body = rows.map(p => `<tr><td><b>${esc(p.party)}</b></td>
-    <td class="r">${fC(p.sales)}</td><td class="r">${fC(p.purchases)}</td>
-    <td class="r rc-cr">${p.recv ? fC(p.recv) : '—'}</td><td class="r rc-dr">${p.paid ? fC(p.paid) : '—'}</td>
-    <td class="r"><b style="color:${p.pending > 0 ? 'var(--ql-danger-600)' : p.pending < 0 ? 'var(--ql-success-600)' : 'inherit'}">${p.pending ? fC(p.pending) : '—'}</b></td></tr>`).join('');
-  return `<div class="rc-tablewrap"><table class="rc-table rc-ledger"><thead><tr><th>Party</th><th class="r">Sales</th><th class="r">Purchases</th><th class="r">Received</th><th class="r">Paid</th><th class="r">Net pending</th></tr></thead><tbody>${body}</tbody></table></div>`;
+  const initial = n => ((n || '').trim()[0] || '?').toUpperCase();
+  const hue = n => { let h = 0; for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) % 360; return h; };
+  const recvTot = rows.reduce((a, p) => a + (p.pending > 0 ? p.pending : 0), 0);
+  const payTot = rows.reduce((a, p) => a + (p.pending < 0 ? -p.pending : 0), 0);
+  const chip = (l, v, cls) => v ? `<span class="rc-lg-chip ${cls || ''}">${l} ${fC(v)}</span>` : '';
+  const body = rows.map(p => {
+    const net = p.pending, h = hue(p.party);
+    const dir = net > 0.5 ? ['owes you', 'r'] : net < -0.5 ? ['advance held', 'g'] : ['settled', 'm'];
+    return `<div class="rc-lg-row" data-ledger="${esc(p.party)}">
+      <div class="rc-lg-av" style="background:hsl(${h} 70% 93%);color:hsl(${h} 52% 38%)">${esc(initial(p.party))}</div>
+      <div class="rc-lg-main">
+        <div class="rc-lg-name">${esc(p.party)}</div>
+        <div class="rc-lg-sub">${chip('Sales', p.sales)}${chip('Purch', p.purchases)}${p.recv ? `<span class="rc-lg-chip rc-cr">↓ ${fC(p.recv)}</span>` : ''}${p.paid ? `<span class="rc-lg-chip rc-dr">↑ ${fC(p.paid)}</span>` : ''}</div>
+      </div>
+      <div class="rc-lg-net rc-lg-${dir[1]}">
+        <div class="rc-lg-amt">${net ? fC(Math.abs(net)) : '—'}</div>
+        <div class="rc-lg-dir">${net ? dir[0] : 'settled'}</div>
+      </div>
+    </div>`;
+  }).join('');
+  const head = `<div class="rc-lg-head">
+    <div class="rc-lg-hcard rc-lg-r"><span>To receive</span><b>${fC(recvTot)}</b></div>
+    <div class="rc-lg-hcard rc-lg-g"><span>To pay</span><b>${fC(payTot)}</b></div>
+    <div class="rc-lg-hcard"><span>Parties</span><b>${rows.length}</b></div>
+  </div>`;
+  return `<div class="rc-ledger2">${head}<div class="rc-lg-list">${body}</div></div>`;
 }
 
 /* ══════════════════ FLOATING MENU (month picker / mark) ══════════════════ */
@@ -833,6 +854,10 @@ function wire() {
   };
   if ($('rcExport')) $('rcExport').onclick = exportRecon;
   if ($('rcLedgerExp')) $('rcLedgerExp').onclick = exportLedger;
+  root.querySelectorAll('[data-ledger]').forEach(row => row.onclick = () => {
+    const nm = row.dataset.ledger, ps = Q.partyRows(); const norm = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const p = ps.find(x => norm(x.name) === norm(nm)); if (p) location.href = './ledger.html?party=' + p.idx;
+  });
   if ($('rcAiReview')) $('rcAiReview').onclick = () => { ST.fstatus = 'review'; render(); };
   root.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { ST.view = b.dataset.view; render(); });
   root.querySelectorAll('[data-ftype]').forEach(b => b.onclick = () => { ST.ftype = b.dataset.ftype; render(); });
