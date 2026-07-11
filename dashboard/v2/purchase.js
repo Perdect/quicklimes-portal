@@ -44,7 +44,7 @@ function stCell(r) { const st = r.isOverdue ? 'overdue' : r.status; return `<sel
 function stPill(r) { const st = r.isOverdue ? 'overdue' : r.status; return `<span class="qx-pill s-${st}">${st[0].toUpperCase() + st.slice(1)}</span>`; }
 function groupChip(r) { const gc = GCOL[r.group] || GCOL.other; return `<span class="qx-pill" style="background:${gc[0]};color:${gc[1]}">${r.emoji} ${esc(r.groupLabel)}</span>`; }
 function supCell(r) { return `<span class="qx-party-n" style="font-weight:600">${esc(r.sup)}</span>`; }
-function itemCell(r) { return `<span class="qx-party"><span class="qx-party-n">${esc(ITEM_SHORT[r.item] || r.item)}</span>${r.veh ? `<span class="qx-party-s">🚚 ${esc(r.veh)}</span>` : ''}</span>${r.freight ? ' <span class="qx-frt">freight</span>' : ''}`; }
+function itemCell(r) { return `<span class="qx-party"><span class="qx-party-n">${esc(ITEM_SHORT[r.item] || r.item)}</span></span>${r.freight ? ' <span class="qx-frt">freight</span>' : ''}`; }
 
 /* ══════════════════ PDF (drawer/print) ══════════════════ */
 function billHTML(r) {
@@ -278,6 +278,7 @@ QLX.mount({
     { key: 'date', label: 'Bill Date', sort: true, cell: r => `<span class="qx-mut">${fDS(r.date)}</span>` },
     { key: 'sup', label: 'Supplier', sort: true, cell: supCell },
     { key: 'item', label: 'Purchase Item', sort: true, cell: itemCell },
+    { key: 'veh', label: 'Vehicle No', sort: true, cell: r => r.veh ? `<span class="qx-mut">🚚 ${esc(r.veh)}</span>` : '<span class="qx-mut">—</span>' },
     { key: 'grate', label: 'GST', sort: true, num: true, cell: r => `<span class="qx-mut qx-num">${r.grate}%</span>` },
     { key: 'taxable', label: 'Taxable', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` },
     { key: 'total', label: 'Total', sort: true, num: true, cell: r => `<span class="qx-num qx-strong">${fC(r.total)}</span>` },
