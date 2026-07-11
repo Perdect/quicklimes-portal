@@ -142,6 +142,7 @@
           var pg = (slices[pi] ? await aiOne(slices[pi]) : null) || F().parseInvoiceText(textPages[pi].text);
           bills.push(makeBill(pg, pf, src, cfg));
         }
+        inheritParty(bills, cfg);      // same-PDF pages share a supplier → fill the unread ones
         return bills;
       }
 
@@ -214,6 +215,32 @@
     var bill = { id: 'b' + (SEQ++), kind: 'sheet', g: null, file: null, source: source, vals: vals, type: cfg.kind, flag: '', reviewFields: [] };
     recompute(bill, cfg);
     return bill;
+  }
+
+  /* Cross-page inheritance: a single PDF is usually ONE supplier's invoice run
+     (sequential invoice numbers). If some pages resolved a party and they are
+     UNANIMOUS (one supplier), fill that supplier into pages whose name/GSTIN
+     couldn't be read — so an 18-invoice run doesn't leave later pages "Unknown".
+     Only fires when the resolved pages agree, so a mixed-supplier PDF is never
+     mis-labelled. Inherited pages are importable but clearly flagged. */
+  function inheritParty(bills, cfg) {
+    var nk = nameKey(cfg); if (!nk) return;
+    var gk = Object.keys(cfg.ocrMap || {}).filter(function (k) { return cfg.ocrMap[k] === 'gstin'; })[0];
+    var norm = function (s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+    var resolved = bills.filter(function (b) { return b.kind === 'ocr' && String(b.vals[nk] || '').trim(); });
+    if (resolved.length < 1) return;
+    var names = {}; resolved.forEach(function (b) { names[norm(b.vals[nk])] = b.vals[nk]; });
+    var keys = Object.keys(names); if (keys.length !== 1) return;      // mixed suppliers → do NOT guess
+    var name = names[keys[0]];
+    var gstins = {}; if (gk) resolved.forEach(function (b) { var g = norm(b.vals[gk]); if (g) gstins[g] = b.vals[gk]; });
+    var gk1 = Object.keys(gstins); var gstin = gk1.length === 1 ? gstins[gk1[0]] : '';
+    bills.forEach(function (b) {
+      if (b.status === 'failed' || String(b.vals[nk] || '').trim()) return;
+      b.vals[nk] = name; if (gstin && gk && !String(b.vals[gk] || '').trim()) b.vals[gk] = gstin;
+      b.inherited = true; recompute(b, cfg);
+      b.reason = 'Supplier inherited from same PDF — ' + name + ' (confirm)';
+      if (b.status === 'invalid') b.status = 'review';                // resolvable, not blocked
+    });
   }
 
   function failBill(file, cfg, reason) {
