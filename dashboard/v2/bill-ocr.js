@@ -253,20 +253,29 @@
     // token from that line or the next two.
     if (!billNo) {
       var BL = T.split('\n');
+      var LBL = /invoice\s*(?:no|number|#)|bill\s*no|voucher\s*no|(?:credit|debit|consignment)\s*note\s*(?:no|number)|challan\s*(?:no|number)/i;
       for (var _bi = 0; _bi < BL.length && !billNo; _bi++) {
-        if (!/invoice\s*(?:no|number|#)|bill\s*no|voucher\s*no|(?:credit|debit|consignment)\s*note\s*(?:no|number)|challan\s*(?:no|number)/i.test(BL[_bi]) || /purchase|order|e-?way|original|reference|\back\b|\birn\b/i.test(BL[_bi])) continue;
-        for (var _si = 0; _si < 3 && !billNo; _si++) {
-          var toks = (BL[_bi + _si] || '').split(/\s+/);
-          for (var _ti = 0; _ti < toks.length; _ti++) {
-            var tk = toks[_ti].replace(/[^A-Za-z0-9\/\-]/g, '');
+        var lm = LBL.exec(BL[_bi]);
+        if (!lm || /purchase|order|e-?way|original|reference|\back\b|\birn\b/i.test(BL[_bi])) continue;
+        // In a column grid ("Invoice No." with the value one line below), the value
+        // sits roughly UNDER the label. A left-column fragment on the value line
+        // ("Plot No 87", "ML No 349/2005") must not win over the real number, so
+        // pick the valid token whose column is nearest the label's column.
+        var labelCol = lm.index, best = null, bestDist = 1e9;
+        for (var _si = 0; _si < 3; _si++) {
+          var ln = BL[_bi + _si] || '', tre = /[A-Za-z0-9][A-Za-z0-9\/\-]*/g, tm2;
+          while ((tm2 = tre.exec(ln))) {
+            var tk = tm2[0].replace(/[^A-Za-z0-9\/\-]/g, '');
             if (!/\d/.test(tk) || tk.length < 2 || tk.length > 24) continue;
             if ((tk.match(/\d/g) || []).length < 2 && !/[\/\-]/.test(tk)) continue;
             if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(tk)) continue;                 // date
             if (/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/i.test(tk)) continue;              // GSTIN
             if (/^(?:invoice|no|dated|date|number)$/i.test(tk)) continue;
-            billNo = tk; break;
+            var dist = Math.abs(tm2.index - labelCol);
+            if (dist < bestDist) { bestDist = dist; best = tk; }
           }
         }
+        if (best) billNo = best;
       }
     }
     if (billNo) set('billNo', billNo, /no|number|#/i.test(T.slice(Math.max(0, T.toUpperCase().indexOf(billNo.toUpperCase()) - 24), T.toUpperCase().indexOf(billNo.toUpperCase()))) ? 0.9 : 0.75);
@@ -317,7 +326,7 @@
     if (hsn) set('hsn', hsn, 0.75);
     // Quantity + unit. Try unambiguous units first (MT/TON/KG/NOS/BAGS/…); only
     // then the ambiguous tonne "TO" (decimal qty, not the preposition "To:").
-    var qm = T.match(/([\d,]+(?:\.\d+)?)\s*(m\.?t\.?|tonnes?|\bton\b|kgs?|nos|bags?|ltrs?|litres?|units?|qtls?)\b/i)
+    var qm = T.match(/([\d,]+(?:\.\d+)?)\s*(m\.?t\.?s?|tonnes?|\bton\b|kgs?|nos|bags?|ltrs?|litres?|units?|qtls?)\b/i)
       || T.match(/([\d,]+\.\d{1,3})\s*(to)\b(?!\s*[:.])/i);
     if (qm) set('qty', parseFloat(qm[1].replace(/,/g, '')), 0.6);
 
@@ -559,7 +568,13 @@
     // 11,60,333.10) over a bare integer — so a leading HSN code / pincode in the
     // data row (e.g. "25210010  11,60,333.10 …") is never taken as the amount.
     function decimals(s) { return (String(s).match(/\d[\d,]*\.\d{1,2}\b/g) || []).map(function (x) { return round2(parseFloat(x.replace(/,/g, ''))); }).filter(function (n) { return isFinite(n); }); }
-    function notHsn(n) { return !(n >= 1000000 && n === Math.floor(n)); }   // drop bare 7+ digit integers (HSN / id)
+    // The HSN/SAC code sits in the first column of the tax-summary rows and looks
+    // like a bare 4–8 digit number (e.g. 392310). Detect it once and never let it
+    // be read as taxable / CGST / SGST — that produced taxable = 392310 on bags.
+    var _hsn = (T.match(/\bHSN(?:\s*\/?\s*SAC)?\s*(?:code|no)?\s*[:\-]?\s*(\d{4,8})\b/i) || [])[1]
+      || (T.match(/\b(2521|2522|2523|2701|2713|3923|6305|4819)\d{0,4}\b/) || [])[0];
+    var _hsnNum = _hsn ? parseInt(_hsn, 10) : null;
+    function notHsn(n) { return !(n >= 1000000 && n === Math.floor(n)) && !(_hsnNum != null && n === _hsnNum); }   // drop bare 7+ digit integers + the HSN code
     function firstAmtAfter(re, skip) {
       for (var i = 0; i < lines.length; i++) {
         if (skip && skip.test(lines[i])) continue;
@@ -582,15 +597,24 @@
       }
       return null;
     }
-    out.taxable = firstAmtAfter(/taxable(?:\s*(?:value|amount|amt))?|total\s*taxable|basic\s*(?:value|amount)|assessable\s*value|amount\s*before\s*tax/i);
+    // A tax-summary COLUMN HEADER ("HSN/SAC  Taxable  Central Tax  State Tax  Total")
+    // must never be read as a data row — its amounts belong to the HSN line below
+    // it, so "Taxable"/"Central Tax" there would grab the HSN code or the first
+    // line-item, not the summary totals. Skip any line that pairs Taxable/tax
+    // labels together like a header.
+    var HEAD = /taxable[^\n]*?(?:central|state|integrated)\s*tax|(?:central|integrated)\s*tax[^\n]*?state\s*tax/i;
+    out.taxable = firstAmtAfter(/taxable(?:\s*(?:value|amount|amt))?|total\s*taxable|basic\s*(?:value|amount)|assessable\s*value|amount\s*before\s*tax/i, HEAD);
     if (out.taxable != null) out.conf.taxable = 0.85;
     // Skip declaration / notification / legal-citation lines — "Notification No.
     // 2/2017-Central Tax (Rate)" and "Section 31(3)(c)" must NEVER be read as a
     // CGST amount (that fabricated cgst=31 on an exempt Bill of Supply).
     var LEGAL = /notification|declaration|vide|under\s*section|section\s*\d|\(rate\)|computer\s*gen|subject\s*to|certif/i;
-    out.cgst = firstAmtAfter(/\bc\s*gst\b|central\s*tax/i, LEGAL); if (out.cgst != null) out.conf.cgst = 0.8;
-    out.sgst = firstAmtAfter(/\bs\s*gst\b|state\s*tax|\bugst\b/i, LEGAL); if (out.sgst != null) out.conf.sgst = 0.8;
-    out.igst = firstAmtAfter(/\bi\s*gst\b|integrated\s*tax/i, LEGAL); if (out.igst != null) out.conf.igst = 0.8;
+    var SKIP = new RegExp(LEGAL.source + '|' + HEAD.source, 'i');
+    // Letter-spaced headers ("C G S T", "S G S T") are common on e-invoice grids,
+    // so allow whitespace between every letter of the tax label.
+    out.cgst = firstAmtAfter(/\bc\s*g\s*s\s*t\b|central\s*tax/i, SKIP); if (out.cgst != null) out.conf.cgst = 0.8;
+    out.sgst = firstAmtAfter(/\bs\s*g\s*s\s*t\b|state\s*tax|\bu\s*g\s*s\s*t\b/i, SKIP); if (out.sgst != null) out.conf.sgst = 0.8;
+    out.igst = firstAmtAfter(/\bi\s*g\s*s\s*t\b|integrated\s*tax/i, SKIP); if (out.igst != null) out.conf.igst = 0.8;
     // Round-off keeps its SIGN — a SAP "ZRND Rounding Difference -0.18" is
     // negative; nMoney() strips the minus, so parse it sign-aware here.
     var roM = T.match(/round(?:ed|ing)?\s*(?:off|difference)?[^0-9\-]{0,12}(-?[0-9][0-9,]*\.?[0-9]{0,2})/i);
