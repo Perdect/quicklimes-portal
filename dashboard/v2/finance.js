@@ -353,18 +353,28 @@
   // Our own firms — so the parser treats us as the BUYER, never the supplier.
   function ownInfo() {
     const g = [], n = [];
+    const pm = {};
+    const norm = s => String(s || '').toUpperCase().replace(/\s/g, '');
+    const selfGstin = (window.QLD && QLD.co && QLD.co.gstin) ? norm(QLD.co.gstin) : '';
     if (window.QLD) {
       if (QLD.co) { if (QLD.co.gstin) g.push(QLD.co.gstin); if (QLD.co.short) n.push(QLD.co.short); if (QLD.co.name) n.push(QLD.co.name); }
-      Object.values(QLD.COMPANIES || {}).forEach(c => { if (c.gstin) g.push(c.gstin); if (c.short) n.push(c.short); if (c.name) n.push(c.name); });
+      // Own firms are also valid COUNTERPARTIES on inter-firm bills (Gotan ↔
+      // Deshwali), so map each own GSTIN → its legal name in the party master.
+      Object.values(QLD.COMPANIES || {}).forEach(c => {
+        if (c.gstin) g.push(c.gstin);
+        if (c.short) n.push(c.short); if (c.name) n.push(c.name);
+        if (c.gstin && (c.name || c.short)) pm[norm(c.gstin)] = c.name || c.short;
+      });
     }
     // Party master (GSTIN → official name) from the user's own supplier list, so a
     // known/corrected supplier auto-resolves on future bills (grows the built-in seed).
-    const pm = {};
     // Skip implausible names (declaration fragments saved under the old buggy
     // parser, e.g. "the buyer. For") — they'd re-poison every future bill.
-    const sane = n => !(window.BillOCR && BillOCR.plausibleName) || BillOCR.plausibleName(n);
-    try { (window.QLD && QLD.partyRows ? QLD.partyRows() : []).forEach(p => { if (p.gstin && p.name && sane(p.name)) pm[String(p.gstin).toUpperCase().replace(/\s/g, '')] = p.name; }); } catch (_) {}
-    return { ownGstins: g, ownNames: n, aliases: billAliases(), partyMaster: pm };
+    const sane = nm => !(window.BillOCR && BillOCR.plausibleName) || BillOCR.plausibleName(nm);
+    try { (window.QLD && QLD.partyRows ? QLD.partyRows() : []).forEach(p => { if (p.gstin && p.name && sane(p.name)) pm[norm(p.gstin)] = p.name; }); } catch (_) {}
+    // active company first in ownGstins (parser uses it as "self" for inter-firm)
+    if (selfGstin) g.sort((a, b) => (norm(a) === selfGstin ? -1 : norm(b) === selfGstin ? 1 : 0));
+    return { ownGstins: g, ownNames: n, selfGstin: selfGstin, aliases: billAliases(), partyMaster: pm };
   }
   // Learned supplier corrections: normalized header line → canonical name.
   function billAliasKey() { const co = (window.QLD && QLD.activeCo) || 'x'; return 'ql_bill_aliases_' + co; }

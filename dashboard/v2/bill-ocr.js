@@ -220,6 +220,14 @@
     gstins = gstins.filter(function (g, i) { return gstins.indexOf(g) === i; });
     var buyerG = gstins.filter(function (g) { return ownG.indexOf(g) >= 0; })[0] || '';
     var sellerG = gstins.filter(function (g) { return ownG.indexOf(g) < 0 && validGstin(g); })[0] || '';
+    // INTER-FIRM: both parties are OWN firms (e.g. Gotan → Deshwali Minerals).
+    // The counterparty is the own firm that is NOT the active company, so the
+    // bill resolves to that sister firm instead of "Unknown / no GSTIN".
+    if (!sellerG && ownG.length >= 2) {
+      var selfG = norm(opts.selfGstin || '') || ownG[0];
+      var otherOwn = gstins.filter(function (g) { return ownG.indexOf(g) >= 0 && g !== selfG && validGstin(g); });
+      if (otherOwn.length) { sellerG = otherOwn[0]; buyerG = selfG; }
+    }
     if (sellerG) { set('supplierGstin', sellerG, validGstin(sellerG) ? 0.97 : 0.5); if (!validGstin(sellerG)) warn.push('Supplier GSTIN format looks off'); }
     if (buyerG) set('buyerGstin', buyerG, 0.9);
 
@@ -430,8 +438,15 @@
   var CO_SUFFIX = /\b(ltd|limited|pvt|private|llp|traders?|trading|mines?|minerals?|industries|enterprises?|cement|company|corporation|corp|sons|agencies|associates|udyog|stores?|suppliers?|transport|roadlines|petro|petroleum|\boil\b|chemicals?|distributors?|marketing|steel|works)\b/i;
   var ADDR_RE = /\broad\b|street|\bnagar\b|\bdist\b|district|\bpin\b|tehsil|\bward\b|khasra|khasara|colony|\bmarg\b|\bsector\b|village|\bgidc\b|industrial|\barea\b|\bplot\b|\bnear\b|\bopp\b|behind|\bstate\b|rajasthan|gujarat|maharashtra|\bindia\b|\d{6}/i;
   function isCompanyish(s) { return CO_SUFFIX.test(s) || (/^[A-Z0-9 &.'()\-]{4,}$/.test(clean(s)) && clean(s).split(' ').length >= 2); }
+  // Collapse a phrase repeated twice — side-by-side "Bill To | Ship To" columns
+  // merge on one visual line as "ARIF CHEMICAL LIME ARIF CHEMICAL LIME".
+  function dedupePhrase(s) {
+    var w = String(s || '').trim().split(/\s+/);
+    if (w.length >= 2 && w.length % 2 === 0 && w.slice(0, w.length / 2).join(' ').toUpperCase() === w.slice(w.length / 2).join(' ').toUpperCase()) return w.slice(0, w.length / 2).join(' ');
+    return s;
+  }
   function goodName(s, ownNames) {
-    var c = clean(s).replace(/[.,;:]+$/, '');
+    var c = dedupePhrase(clean(s).replace(/[.,;:]+$/, ''));
     if (c.length < 3 || c.length > 72) return '';               // long Indian firm names are valid
     if (isLabel(c)) return '';                                   // <-- the fix: never a label
     if (/^(?:tan|pan|cin|tin|iec|code|no\.?|id|ref|regn?|gst(?:in)?|hsn|sac|state|udyam|msme|drug|lic|tel|ph)\b\s*[:.\-#]/i.test(c)) return '';   // "Supplier TAN: DEL…" → a label:value, never a name
@@ -510,7 +525,7 @@
     return { name: '' };
   }
   // buyer can BE our own firm, so don't exclude own names here
-  function goodNameAny(s) { var c = clean(s).replace(/^['`\s(\[{]+/, '').replace(/[\s)\]}.,;:'`]+$/, ''); if (c.length < 3 || c.length > 48 || isLabel(c) || /^s\s+order|order\s*no|\bdated\b|reference\s*no/i.test(c) || !/[A-Za-z]{3}/.test(c) || /^\d/.test(c) || /\d{6}/.test(c)) return ''; if (/road|street|nagar|\bpin\b|tehsil/i.test(c)) return ''; return c; }
+  function goodNameAny(s) { var c = dedupePhrase(clean(s).replace(/^['`\s(\[{]+/, '').replace(/[\s)\]}.,;:'`]+$/, '')); if (c.length < 3 || c.length > 48 || isLabel(c) || /^s\s+order|order\s*no|\bdated\b|reference\s*no/i.test(c) || !/[A-Za-z]{3}/.test(c) || /^\d/.test(c) || /\d{6}/.test(c)) return ''; if (/road|street|nagar|\bpin\b|tehsil/i.test(c)) return ''; return c; }
 
   /* ── amount picker ───────────────────────────────────────────────────── */
   function labelled(text, re) { var m = text.match(re); return m ? nMoney(m[1]) : null; }

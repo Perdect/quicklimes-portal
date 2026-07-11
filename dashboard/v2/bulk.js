@@ -236,6 +236,7 @@
     var gk1 = Object.keys(gstins); var gstin = gk1.length === 1 ? gstins[gk1[0]] : '';
     bills.forEach(function (b) {
       if (b.status === 'failed' || String(b.vals[nk] || '').trim()) return;
+      if (gk && String(b.vals[gk] || '').trim()) return;   // has its OWN GSTIN → let it resolve on its own, never inherit
       b.vals[nk] = name; if (gstin && gk && !String(b.vals[gk] || '').trim()) b.vals[gk] = gstin;
       b.inherited = true; recompute(b, cfg);
       b.reason = 'Supplier inherited from same PDF — ' + name + ' (confirm)';

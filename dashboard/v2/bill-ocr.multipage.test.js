@@ -45,5 +45,19 @@ seq.forEach(function (idx) {
 console.log('stateless: re-parsing the SAME text twice is byte-identical');
 for (var r = 0; r < pages.length; r++) ok('page ' + (r + 1) + ' deterministic', JSON.stringify(O.parse(pages[r].text, own).fields) === JSON.stringify(O.parse(pages[r].text, own).fields));
 
+console.log('inter-firm: counterparty is the OWN sister firm (Gotan → Deshwali), not Unknown');
+var own2 = { ownGstins: ['08BNAPM0488E1Z3', '08NLIPS9801K1Z5'], ownNames: ['GOTAN LIME INDUSTRIES', 'DESHWALI MINERALS'], selfGstin: '08BNAPM0488E1Z3', partyMaster: { '08NLIPS9801K1Z5': 'Deshwali Minerals', '08BNAPM0488E1Z3': 'Gotan Lime Industries' } };
+// Gotan's GST invoice to its own sister firm — BOTH GSTINs are own; the printed
+// name may even be absent. Must resolve to Deshwali, never "Unknown/no GSTIN".
+var interFirm = 'GOTAN LIME INDUSTRIES\nGSTIN : 08BNAPM0488E1Z3\nGST INVOICE\nInvoice No. : 42/2026-27\nGSTIN / UIN : 08NLIPS9801K1Z5\nGSTIN / UIN : 08NLIPS9801K1Z5\nHydrated Lime HSN 2522\nTaxable Value 190850 CGST 2.5% 4771.25 SGST 2.5% 4771.25 Grand Total 200392.50';
+var iff = O.parse(interFirm, own2).fields;
+ok('inter-firm resolves to Deshwali Minerals', /deshwali/i.test(iff.supplier || ''), { supplier: iff.supplier, gstin: iff.supplierGstin });
+ok('inter-firm keeps the counterparty GSTIN', iff.supplierGstin === '08NLIPS9801K1Z5', iff.supplierGstin);
+
+console.log('doubled-name collapse (Bill-To | Ship-To merged on one line)');
+var dbl = 'ARIF CHEMICAL LIME ARIF CHEMICAL LIME\nGSTIN 08ALAPD1927C1ZR\nTAX INVOICE\nInvoice No 39/2026-27 Dated 15-Jun-2026\nGOTAN LIME INDUSTRIES GSTIN 08BNAPM0488E1Z3\nLimestone HSN 2521\nTaxable Value 172200 CGST 2.5% 4305 SGST 2.5% 4305 Grand Total 180810';
+var df = O.parse(dbl, own).fields;
+ok('doubled name collapses to single', df.supplier === 'ARIF CHEMICAL LIME', df.supplier);
+
 console.log('\n' + (fail === 0 ? '✅ ALL ' + pass + ' TESTS PASSED' : '❌ ' + fail + ' FAILED, ' + pass + ' passed'));
 process.exit(fail ? 1 : 0);
