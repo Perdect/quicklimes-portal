@@ -311,7 +311,7 @@ function aiSuggestions() {
 /* ══════════════════ RENDER ══════════════════ */
 function render() {
   const main = document.getElementById('ql-main'); if (!main) return;
-  if (!ST.monthInit) { const ms = [...new Set(txns().map(t => ymOf(t.date)).filter(Boolean))].sort(); ST.month = ms.length ? ms[ms.length - 1] : 'all'; ST.monthInit = true; }
+  if (!ST.monthInit) { const saved = Q.uiMonth ? Q.uiMonth() : null; const ms = [...new Set(txns().map(t => ymOf(t.date)).filter(Boolean))].sort(); ST.month = saved || (ms.length ? ms[ms.length - 1] : 'all'); ST.monthInit = true; }
   let root = document.getElementById('rcRoot');
   if (!root) { main.innerHTML = '<div class="rc" id="rcRoot"></div>'; root = document.getElementById('rcRoot'); }
   try {
@@ -562,7 +562,7 @@ function openMonthMenu(anchor) {
       <div class="rc-mm-grid">${MN.map((mn, i) => { const ym = year + '-' + String(i + 1).padStart(2, '0'); return `<button class="rc-mm-c${ST.month === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-ym="${ym}">${mn}</button>`; }).join('')}</div>
       <button class="rc-mm-all${(!ST.month || ST.month === 'all') ? ' on' : ''}" data-ym="all">All months</button>`;
     m.querySelectorAll('[data-yr]').forEach(b => b.onclick = () => { year += +b.dataset.yr; paint(); });
-    m.querySelectorAll('[data-ym]').forEach(b => b.onclick = () => { ST.month = b.dataset.ym; ST.monthInit = true; closeRcMenu(); render(); });
+    m.querySelectorAll('[data-ym]').forEach(b => b.onclick = () => { ST.month = b.dataset.ym; ST.monthInit = true; if (Q.setUiMonth) Q.setUiMonth(b.dataset.ym); closeRcMenu(); render(); });
   };
   paint(); placeRcMenu(m, anchor);
 }

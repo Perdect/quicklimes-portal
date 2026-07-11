@@ -1229,6 +1229,12 @@
     // to tell an inter-firm transfer from an unknown party.
     ownFirmNames: Object.keys(SELLER_DEFAULTS),
     get activeCo() { return ACTIVE_CO; },
+    // Shared, persisted UI month filter — ONE source of truth across Sales,
+    // Purchase, Reconciliation and Dashboard, scoped per company, kept in
+    // sessionStorage so a deliberate pick survives navigation + refresh (a
+    // multi-page app reloads on every page change). Returns null until first set.
+    uiMonth() { try { return sessionStorage.getItem('ql_uimonth_' + ACTIVE_CO) || null; } catch (_) { return null; } },
+    setUiMonth(ym) { try { if (ym) sessionStorage.setItem('ql_uimonth_' + ACTIVE_CO, ym); } catch (_) {} },
     get co() { return COMPANIES[ACTIVE_CO]; },
     state: S,
     fmt, fC, fL, fDS, daysAgo, cS,

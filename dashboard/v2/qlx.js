@@ -90,7 +90,7 @@
     if (Q && Q.init) {
       Q.init(() => refresh());
       window.__qlRefresh = () => refresh();
-      window.__qlOnSwitchCompany = id => Q.switchCompany(id, () => refresh());
+      window.__qlOnSwitchCompany = id => Q.switchCompany(id, () => { S.monthInit = false; S._saved = false; S.month = null; refresh(); });   // re-read the new company's saved month
     } else { render(); }
     QLShell.paintWorkspace && QLShell.paintWorkspace();
   }
@@ -127,9 +127,15 @@
     // become empty — but never override a deliberate pick of an EXISTING month.
     const dl = latestMonth(rows);
     if (rows.length) {
-      if (!S.monthInit) { S.month = dl; S.monthInit = true; }               // first load → latest month with data
-      else if (dl !== 'all' && dl > (S._dl || '') && dl !== S.month) { S.month = dl; }   // NEWER data imported → jump to it
-      S._dl = dl;                                                            // (never override a deliberate pick of an empty month)
+      if (!S.monthInit) {
+        // First mount: a saved pick (survives navigation/refresh) wins even if
+        // that month is empty; otherwise default to the latest month with data.
+        const saved = (window.QLD && QLD.uiMonth) ? QLD.uiMonth() : null;
+        S.month = saved || dl; S.monthInit = true; S._saved = !!saved;
+      } else if (!S._saved && dl !== 'all' && dl > (S._dl || '') && dl !== S.month) {
+        S.month = dl;                                                        // no explicit pick yet → follow newly-imported later data
+      }
+      S._dl = dl;
     }
     if (S.month && S.month !== 'all') rows = rows.filter(r => monthOf(r) === S.month);
     return rows;
@@ -200,7 +206,8 @@
   }
   function setMonth(ym) {
     if (S.month === ym) return;
-    S.month = ym; S.monthInit = true; S.page = 1; S.sel = new Set();
+    S.month = ym; S.monthInit = true; S._saved = true; S.page = 1; S.sel = new Set();
+    if (window.QLD && QLD.setUiMonth) QLD.setUiMonth(ym);   // persist the deliberate pick (survives navigation/refresh)
     const root = document.getElementById('qxRoot');
     if (root) { root.innerHTML = skeletonHTML(); root.dataset.ready = ''; }   // loading skeleton on change
     setTimeout(() => refresh(), 230);

@@ -93,7 +93,7 @@ function openDashMonthMenu(anchor) {
       <div class="dx-mm-grid">${MN.map((mn, i) => { const ym = year + '-' + String(i + 1).padStart(2, '0'); return `<button class="dx-mm-cell${cur === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-m="${ym}">${mn}</button>`; }).join('')}</div>
       <button class="dx-mm-all${!cur ? ' on' : ''}" data-m="all">All months</button>`;
     menu.querySelectorAll('[data-yr]').forEach(b => b.onclick = () => { year += +b.dataset.yr; paint(); });
-    menu.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { dashMonth = b.dataset.m; menu.remove(); render(); });
+    menu.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { dashMonth = b.dataset.m; if (Q.setUiMonth) Q.setUiMonth(b.dataset.m); menu.remove(); render(); });
   }
   paint();
   document.body.appendChild(menu);
@@ -105,7 +105,7 @@ function render() {
   let root = document.getElementById('dxRoot');
   if (!root) { main.innerHTML = '<div class="dx" id="dxRoot"></div>'; root = document.getElementById('dxRoot'); }
   try {
-    if (dashMonth === null) { const ms = availMonths(); dashMonth = ms[0] || 'all'; }   // default to the latest data month
+    if (dashMonth === null) { const saved = Q.uiMonth ? Q.uiMonth() : null; const ms = availMonths(); dashMonth = saved || ms[0] || 'all'; }   // saved pick (shared, persisted) → else latest data month
     const co = Q.co, k = Q.kpis(), s = Q.salesSummary(), prod = Q.production(), bal = Q.accountBalances(), pay = Q.paymentsSummary(), pl = Q.getPL(), gst = Q.gstSummary();
     root.innerHTML =
       filterBar(co) +
@@ -327,5 +327,5 @@ function wire() {
 }
 
 window.__qlRefresh = render;
-window.__qlOnSwitchCompany = id => Q.switchCompany(id, render);
+window.__qlOnSwitchCompany = id => Q.switchCompany(id, () => { dashMonth = null; render(); });   // re-read the new company's saved month
 if (Q.init) Q.init(render); else render();
