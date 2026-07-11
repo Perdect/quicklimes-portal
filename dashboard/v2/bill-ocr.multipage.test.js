@@ -59,5 +59,9 @@ var dbl = 'ARIF CHEMICAL LIME ARIF CHEMICAL LIME\nGSTIN 08ALAPD1927C1ZR\nTAX INV
 var df = O.parse(dbl, own).fields;
 ok('doubled name collapses to single', df.supplier === 'ARIF CHEMICAL LIME', df.supplier);
 
+console.log('direction: issuer decides sale vs purchase');
+ok('own firm issues → SALE', O.legacy(O.parse(interFirm, own2)).dir === 'sales');
+ok('external issuer → PURCHASE', O.legacy(O.parse('INDIAN OIL CORPORATION LIMITED\nGSTIN 24AAACI1681G1ZV\nTAX INVOICE X1\nGOTAN LIME INDUSTRIES GSTIN 08BNAPM0488E1Z3\nPetcoke Taxable 100000 IGST 18% 18000 Total 118000', own2).dir === 'purchase'));
+
 console.log('\n' + (fail === 0 ? '✅ ALL ' + pass + ' TESTS PASSED' : '❌ ' + fail + ' FAILED, ' + pass + ' passed'));
 process.exit(fail ? 1 : 0);

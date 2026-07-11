@@ -230,6 +230,12 @@
     }
     if (sellerG) { set('supplierGstin', sellerG, validGstin(sellerG) ? 0.97 : 0.5); if (!validGstin(sellerG)) warn.push('Supplier GSTIN format looks off'); }
     if (buyerG) set('buyerGstin', buyerG, 0.9);
+    // DIRECTION — the ISSUER (first GSTIN, i.e. the seller header at the top of
+    // the bill) decides sale vs purchase: if OUR firm issued it, it's a SALE
+    // (the counterparty is the customer); otherwise it's a PURCHASE. This is
+    // right even for inter-firm bills (Gotan issues → sale to Deshwali).
+    var issuerG = gstins.filter(function (g) { return validGstin(g); })[0] || gstins[0] || '';
+    if (issuerG) f.direction = ownG.indexOf(issuerG) >= 0 ? 'sales' : 'purchase';
 
     /* Bill number — labelled, must contain a digit and not be a date/GSTIN. */
     var billNo = '', re = /(?:invoice|bill(?:\s*of\s*supply)?|inv|voucher|challan|document|consignment(?:\s*note)?|note)[ \t]*(?:no\.?|number|#|id)?[ \t]*[:\-.#]?[ \t]*([A-Za-z0-9\/\-]{0,22}\d[A-Za-z0-9\/\-]{0,6})/ig, mm;
@@ -617,7 +623,7 @@
     return {
       _text: res.raw, _conf: gconf, _review: grev, _verify: gver, _warn: res.warnings, _fields: f,
       docno: ok('billNo', f.billNo), date: ok('date', f.date),
-      name: ok('supplier', f.supplier), gstin: ok('supplierGstin', f.supplierGstin), buyergstin: f.buyerGstin || '',
+      name: ok('supplier', f.supplier), gstin: ok('supplierGstin', f.supplierGstin), buyergstin: f.buyerGstin || '', dir: f.direction || '',
       taxable: ok('taxable', f.taxable), total: ok('total', f.total), rate: ok('gstRate', f.gstRate),
       cgst: f.cgst, sgst: f.sgst, igst: f.igst, totalgst: f.totalGst, roundoff: f.roundOff,
       group: ok('group', f.group), item: ok('item', f.item), hsn: f.hsn, qty: f.qty, veh: f.vehicle, itc: f.itc

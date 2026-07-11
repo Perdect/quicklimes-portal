@@ -91,6 +91,7 @@
     var party = isSales ? { name: vr.buyerParty.name || f.buyerName, gstin: f.buyerGstin } : { name: f.supplierName, gstin: f.supplierGstin };
     var g = {
       _ai: true, _text: text || '', _fields: rawAI, _warn: vr.issues || [], _cls: vr.cls, _dupKey: vr.dupKey, _status: vr.status,
+      dir: (vr.cls && (vr.cls.kind === 'sales' || vr.cls.kind === 'purchase')) ? vr.cls.kind : '',
       docno: f.invoiceNo || '', date: f.invoiceDate || '', name: party.name || '', gstin: party.gstin || '',
       taxable: f.taxable != null ? f.taxable : '', total: f.grandTotal != null ? f.grandTotal : '', rate: f.gstRate != null ? f.gstRate : '',
       cgst: f.cgst, sgst: f.sgst, igst: f.igst, roundoff: f.roundOff, totalgst: vr.totalTax,

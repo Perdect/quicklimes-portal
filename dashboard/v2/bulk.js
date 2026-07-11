@@ -259,9 +259,12 @@
     if (/debit\s*note/.test(t) && !/tax\s*invoice/.test(t)) return { type: 'debitnote', flag: 'Debit note — confirm before posting' };
     if (!hasInvoiceContent && /e-?\s?way\s*bill/.test(t)) return { type: 'ewaybill', flag: 'Looks like an E-way bill, not an invoice' };
     if (!hasInvoiceContent && /bank\s*statement|account\s*statement|(opening|closing)\s*balance/.test(t)) return { type: 'bankstmt', flag: 'Looks like a bank statement — use Reconciliation' };
-    // own company as BUYER (our GSTIN in the buyer slot) ⇒ we purchased
+    // Direction from the parser: the ISSUER decides. If OUR firm issued the bill
+    // → SALE (we're the seller); else PURCHASE. Falls back to the buyer-GSTIN
+    // heuristic, then the register we're on.
     var type = cfg.kind || 'purchase';
-    if (g.buyergstin) type = 'purchase';
+    if (g.dir === 'sales' || g.dir === 'purchase') type = g.dir;
+    else if (g.buyergstin) type = 'purchase';
     var flag = '';
     if ((type === 'purchase' || type === 'sales') && cfg.kind && type !== cfg.kind) {
       flag = 'Looks like a ' + (type === 'sales' ? 'Sales invoice' : 'Purchase bill') + ' — you\'re on the ' + (cfg.kind === 'sales' ? 'Sales' : 'Purchase') + ' register';
