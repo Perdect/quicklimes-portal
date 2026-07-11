@@ -588,6 +588,23 @@ This is a computer generated challan-cum-invoice.`,
     expect: { supplierGstin: '08AAAGR2021D1ZP', billNo: 'RY/DMG/JOD/2026-27/04417', group: 'royalty', taxable: 561000, cgst: 50490, sgst: 50490, gstRate: 18, total: 661980 }
   },
   {
+    // Real IOC SAP e-invoice — "IRN :" sits on the line ABOVE "TAX INVOICE <no>";
+    // the same-line pre-context guard must not skip the invoice number.
+    name: "Indian Oil — IRN line above invoice number", format: "PDF · SAP · IGST",
+    text: `Indian Oil Corporation Limited
+We hereby certify that the goods covered by this document
+Doc.Name
+IRN :
+TAX INVOICE 20273121B005870
+& number 7e39562e641e10a67346fa5313c32a913e
+Date 23-Jun-26
+GSTIN 24AAACI1681G1ZV
+GOTAN LIME INDUSTRIES GSTIN 08BNAPM0488E1Z3
+FUEL GRADE PET COKE HSN 271311
+Taxable Value 566180.00 IGST 18% 101912.40 Total 668092.00`,
+    expect: { supplier: "Indian Oil Corporation Limited", supplierGstin: "24AAACI1681G1ZV", billNo: "20273121B005870", total: 668092, gstRate: 18 }
+  },
+  {
     name: 'Low-quality / garbled OCR (must blank, never fake)', format: 'Low-quality scan',
     text: `T@X 1NV0ICE
 S0me Vend0r ???

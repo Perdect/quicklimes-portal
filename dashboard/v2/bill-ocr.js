@@ -228,7 +228,7 @@
     while ((mm = re.exec(T))) {
       // Never take the E-WAY BILL / IRN / Ack / ORIGINAL-invoice number as THIS
       // bill's number — those labels also contain "bill/invoice no".
-      var pre = T.slice(Math.max(0, mm.index - 14), mm.index);
+      var pre = T.slice(T.lastIndexOf('\n', mm.index - 1) + 1, mm.index);   // same line only
       if (/e-?\s*way|\birn\b|ack\b|original/i.test(pre)) continue;
       var cand = mm[1].replace(/[^A-Za-z0-9\/\-]/g, ''); var digits = (cand.match(/\d/g) || []).length;
       if (digits && (digits >= 2 || /[\/\-]/.test(cand)) && !/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/i.test(cand) && !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(cand)) { billNo = cand; break; }
