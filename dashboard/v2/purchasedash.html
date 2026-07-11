@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Purchase Dashboard — QuickLimes</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="manifest" href="/v2/app.webmanifest">
+<link rel="apple-touch-icon" href="/v2/pwa-apple.png?v=g1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css?v=m1">
+<script src="ql-api.js"></script>
+<script src="./data.js?v=m8"></script>
+<link rel="stylesheet" href="./mobile.css?v=m4">
+<style>
+  .pd-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: var(--ql-space-5); }
+  .pd-kpi { background: var(--ql-surface); border: 1px solid var(--ql-border); border-radius: 14px; padding: 16px; box-shadow: var(--ql-shadow-sm); }
+  .pd-kpi .lb { font-size: 12px; color: var(--ql-text-soft); font-weight: 600; }
+  .pd-kpi .v { font-size: 25px; font-weight: 800; letter-spacing: -.02em; margin-top: 6px; }
+  .pd-kpi .m { font-size: 11.5px; color: var(--ql-text-soft); margin-top: 3px; }
+  .pd-sec-h { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ql-text-soft); margin: var(--ql-space-5) 0 var(--ql-space-3); }
+  .pd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+  .pd-cat { background: var(--ql-surface); border: 1px solid var(--ql-border); border-radius: 14px; padding: 14px 16px; box-shadow: var(--ql-shadow-sm); }
+  .pd-cat .top { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+  .pd-cat .ic { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 17px; flex: none; }
+  .pd-cat .nm { font-weight: 700; font-size: 14px; } .pd-cat .sub { font-size: 11.5px; color: var(--ql-text-soft); }
+  .pd-cat .v { font-size: 20px; font-weight: 800; }
+  .pd-kv { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-top: 1px dashed var(--ql-border); }
+  .pd-kv span:last-child { font-weight: 600; color: var(--ql-text); }
+  .pd-tbl { width: 100%; border-collapse: collapse; background: var(--ql-surface); border: 1px solid var(--ql-border); border-radius: 14px; overflow: hidden; }
+  .pd-tbl th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: var(--ql-text-soft); padding: 10px 14px; border-bottom: 1px solid var(--ql-border); }
+  .pd-tbl td { padding: 11px 14px; border-bottom: 1px solid var(--ql-border); font-size: 13.5px; }
+  .pd-tbl tr:last-child td { border-bottom: 0; }
+  .pd-tbl td.r, .pd-tbl th.r { text-align: right; }
+  .pd-due { color: #dc2626; font-weight: 600; }
+  .pd-alert { display: flex; gap: 10px; align-items: flex-start; padding: 11px 14px; border-radius: 11px; font-size: 13px; margin-bottom: 8px; }
+  .pd-alert.warn { background: color-mix(in srgb, #f59e0b 9%, var(--ql-surface)); border: 1px solid color-mix(in srgb, #f59e0b 28%, var(--ql-border)); }
+  .pd-alert.info { background: color-mix(in srgb, var(--ql-primary) 7%, var(--ql-surface)); border: 1px solid color-mix(in srgb, var(--ql-primary) 22%, var(--ql-border)); }
+  .pd-empty { color: var(--ql-text-soft); font-size: 14px; padding: var(--ql-space-5); text-align: center; }
+</style>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Purchase Dashboard</h1>
+        <div class="page-sub" id="pdSub">Spend, categories, suppliers & dues — from your purchase bills</div>
+      </div>
+    </div>
+    <div id="pdBody"></div>
+  </div>
+</div>
+
+<script src="./shell.js?v=m20"></script>
+<script src="./mobile.js?v=m4"></script>
+<script>
+QLShell.mount({ active: 'purchasedash', title: 'Purchase Dashboard' });
+const $ = s => document.querySelector(s);
+const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fC = v => (window.QLD && QLD.fC) ? QLD.fC(v) : ('₹' + Math.round(v || 0).toLocaleString('en-IN'));
+const nQ = v => (v || 0).toLocaleString('en-IN', { maximumFractionDigits: 1 });
+const ym = d => String(d || '').slice(0, 7);
+
+const CAT = {
+  petcoke:   { ic: '🔥', bg: '#fdeceb', tint: '#c0392b', unit: 'T' },
+  limestone: { ic: '🪨', bg: '#f6f0e4', tint: '#8a6d3b', unit: 'T' },
+  packaging: { ic: '📦', bg: '#eaf1ff', tint: '#2f5fd0', unit: 'bags' },
+  royalty:   { ic: '📜', bg: '#f2eefb', tint: '#6b3fa0', unit: '' },
+  transport: { ic: '🚚', bg: '#e9f9ee', tint: '#1c7c3a', unit: '' },
+  fuel:      { ic: '⛽', bg: '#fff5e0', tint: '#b7791f', unit: 'L' },
+  labour:    { ic: '👷', bg: '#e9f9ee', tint: '#1c7c3a', unit: '' },
+  maintenance: { ic: '🛠️', bg: '#f2eefb', tint: '#6b3fa0', unit: '' },
+  electricity: { ic: '⚡', bg: '#fff5e0', tint: '#b7791f', unit: '' },
+  bank:      { ic: '🏦', bg: '#eef2f7', tint: '#475569', unit: '' },
+  other:     { ic: '📄', bg: '#f1f5f9', tint: '#64748b', unit: '' }
+};
+
+function render() {
+  const rows = QLD.purchaseRows().filter(r => r.status !== 'cancelled');
+  $('#pdSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + 'from ' + rows.length + ' purchase bill' + (rows.length === 1 ? '' : 's');
+
+  if (!rows.length) {
+    $('#pdBody').innerHTML = '<div class="pd-empty">No purchase bills yet. Upload petcoke, limestone or bag invoices from the Purchase Register to see spend, categories and supplier dues here.</div>';
+    return;
+  }
+
+  // Latest data month for the "this month" KPI.
+  const months = [...new Set(rows.map(r => ym(r.date)).filter(Boolean))].sort();
+  const latest = months[months.length - 1] || '';
+  const monRows = rows.filter(r => ym(r.date) === latest);
+  const monLbl = latest ? new Date(latest + '-01').toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '—';
+
+  const sum = (rs, f) => rs.reduce((a, r) => a + (+f(r) || 0), 0);
+  const totVal = sum(rows, r => r.total), monVal = sum(monRows, r => r.total);
+  const gstPaid = sum(rows, r => r.gst);
+  const pend = rows.filter(r => r.outstanding > 0.5);
+  const pendVal = sum(pend, r => r.outstanding);
+  const supDue = [...new Set(pend.map(r => r.sup))].length;
+
+  const kpis = [
+    ['Purchases · ' + monLbl, fC(monVal), monRows.length + ' bills this month'],
+    ['Total purchases', fC(totVal), 'all bills · input GST ' + fC(gstPaid)],
+    ['Pending bills', pend.length + '', fC(pendVal) + ' to pay'],
+    ['Suppliers owed', supDue + '', supDue === 1 ? '1 supplier' : supDue + ' suppliers']
+  ].map(k => `<div class="pd-kpi"><div class="lb">${esc(k[0])}</div><div class="v">${k[1]}</div><div class="m">${esc(k[2])}</div></div>`).join('');
+
+  // Spend by category.
+  const byG = {};
+  rows.forEach(r => { const g = r.group || 'other'; (byG[g] = byG[g] || { qty: 0, val: 0, n: 0, label: r.groupLabel || g }).val += r.total; byG[g].qty += (+r.qty || 0); byG[g].n++; });
+  const catCards = Object.entries(byG).sort((a, b) => b[1].val - a[1].val).map(([g, d]) => {
+    const c = CAT[g] || CAT.other, avg = d.qty ? (sum(rows.filter(r => (r.group || 'other') === g), r => r.taxable) / d.qty) : 0;
+    return `<div class="pd-cat"><div class="top"><div class="ic" style="background:${c.bg};color:${c.tint}">${c.ic}</div>
+      <div><div class="nm">${esc(d.label)}</div><div class="sub">${d.n} bill${d.n > 1 ? 's' : ''}</div></div></div>
+      <div class="v">${fC(d.val)}</div>
+      ${d.qty ? `<div class="pd-kv"><span>Quantity</span><span>${nQ(d.qty)} ${c.unit}</span></div><div class="pd-kv"><span>Avg rate</span><span>${fC(avg)}/${c.unit || 'unit'}</span></div>` : ''}</div>`;
+  }).join('');
+
+  // Top suppliers by spend.
+  const bySup = {};
+  rows.forEach(r => { const k = r.sup || '—'; (bySup[k] = bySup[k] || { spend: 0, due: 0, n: 0, last: '', gstin: r.gstin }).spend += r.total; bySup[k].due += r.outstanding; bySup[k].n++; if (r.date > bySup[k].last) bySup[k].last = r.date; });
+  const topSup = Object.entries(bySup).sort((a, b) => b[1].spend - a[1].spend).slice(0, 10);
+  const supRows = topSup.map(([nm, d]) => `<tr><td>${esc(nm)}${d.gstin ? `<div style="font-size:11px;color:var(--ql-text-soft)">${esc(d.gstin)}</div>` : ''}</td>
+    <td class="r">${d.n}</td><td class="r">${fC(d.spend)}</td><td class="r ${d.due > 0.5 ? 'pd-due' : ''}">${d.due > 0.5 ? fC(d.due) : '—'}</td><td class="r">${esc(d.last)}</td></tr>`).join('');
+
+  // AI alerts (real, derived).
+  const alerts = [];
+  const worstDue = topSup.map(([nm, d]) => ({ nm, due: d.due })).filter(x => x.due > 0.5).sort((a, b) => b.due - a.due)[0];
+  if (worstDue) alerts.push(['warn', '💸', `<b>${esc(worstDue.nm)}</b> has the highest supplier due — <b>${fC(worstDue.due)}</b> pending. Prioritise this payment.`]);
+  const topCat = Object.entries(byG).sort((a, b) => b[1].val - a[1].val)[0];
+  if (topCat) alerts.push(['info', '📊', `<b>${esc(topCat[1].label)}</b> is your biggest spend at <b>${fC(topCat[1].val)}</b> (${Math.round(topCat[1].val / totVal * 100)}% of purchases).`]);
+  const overdue = pend.filter(r => r.isOverdue);
+  if (overdue.length) alerts.push(['warn', '⏰', `<b>${overdue.length}</b> bill${overdue.length > 1 ? 's are' : ' is'} overdue — ${fC(sum(overdue, r => r.outstanding))} past due.`]);
+
+  $('#pdBody').innerHTML = `
+    <div class="pd-kpis">${kpis}</div>
+    ${alerts.length ? `<div class="pd-sec-h">AI alerts</div>${alerts.map(a => `<div class="pd-alert ${a[0]}"><span>${a[1]}</span><div>${a[2]}</div></div>`).join('')}` : ''}
+    <div class="pd-sec-h">Spend by category</div>
+    <div class="pd-grid">${catCards}</div>
+    <div class="pd-sec-h">Top suppliers</div>
+    <table class="pd-tbl"><thead><tr><th>Supplier</th><th class="r">Bills</th><th class="r">Spend</th><th class="r">Outstanding</th><th class="r">Last bill</th></tr></thead><tbody>${supRows}</tbody></table>`;
+}
+
+window.__qlOnSwitchCompany = () => render();
+window.__qlRefresh = render;
+QLD.init(render);
+</script>
+</body>
+</html>

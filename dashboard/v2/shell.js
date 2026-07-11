@@ -119,6 +119,7 @@
       { id: 'monthreg',    label: 'Monthly Register', href: 'monthreg.html', icon: I.cal, feat: 'monthreg' }
     ]},
     { type: 'group', label: 'Purchase', feat: 'purchase', items: [
+      { id: 'purchasedash', label: 'Purchase Dashboard', href: 'purchasedash.html', icon: I.grid },
       { id: 'purchase',  label: 'Purchase Register', href: 'purchase.html', icon: I.bag },
       { id: 'payables',  label: 'Payments Due',      href: 'payables.html', icon: I.card, badgeKey: 'payables' },
       { id: 'suppliers', label: 'Suppliers',         href: 'parties.html#supplier', icon: I.factory }
