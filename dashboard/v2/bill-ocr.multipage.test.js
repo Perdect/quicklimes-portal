@@ -58,6 +58,10 @@ console.log('doubled-name collapse (Bill-To | Ship-To merged on one line)');
 var dbl = 'ARIF CHEMICAL LIME ARIF CHEMICAL LIME\nGSTIN 08ALAPD1927C1ZR\nTAX INVOICE\nInvoice No 39/2026-27 Dated 15-Jun-2026\nGOTAN LIME INDUSTRIES GSTIN 08BNAPM0488E1Z3\nLimestone HSN 2521\nTaxable Value 172200 CGST 2.5% 4305 SGST 2.5% 4305 Grand Total 180810';
 var df = O.parse(dbl, own).fields;
 ok('doubled name collapses to single', df.supplier === 'ARIF CHEMICAL LIME', df.supplier);
+// OCR mis-spelled the second copy ("ENTERPRISES" vs "ENTERPRIES") — still collapse
+var typo = 'AMAN ENTERPRISES AMAN ENTERPRIES\nGSTIN 24AABCI2929N1ZK\nTAX INVOICE\nInvoice No 36/2026-27\nGOTAN LIME INDUSTRIES GSTIN 08BNAPM0488E1Z3\nQuick Lime Taxable 100000 CGST 2.5% 2500 SGST 2.5% 2500 Grand Total 105000';
+ok('typo-doubled name collapses', O.parse(typo, own).fields.supplier === 'AMAN ENTERPRISES', O.parse(typo, own).fields.supplier);
+ok('genuine 4-word name is NOT collapsed', O.parse('SHREE BALAJI POLY PACK\nGSTIN 24AABCI2929N1ZK\nTAX INVOICE\nInvoice No 1\nGOTAN LIME INDUSTRIES GSTIN 08BNAPM0488E1Z3\nTaxable 100 CGST 2.5% 2.5 SGST 2.5% 2.5 Total 105', own).fields.supplier === 'SHREE BALAJI POLY PACK');
 
 console.log('direction: issuer decides sale vs purchase');
 ok('own firm issues → SALE', O.legacy(O.parse(interFirm, own2)).dir === 'sales');

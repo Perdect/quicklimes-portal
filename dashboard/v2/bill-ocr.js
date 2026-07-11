@@ -447,9 +447,17 @@
   // Collapse a phrase repeated twice — side-by-side "Bill To | Ship To" columns
   // merge on one visual line as "ARIF CHEMICAL LIME ARIF CHEMICAL LIME".
   function dedupePhrase(s) {
-    var w = String(s || '').trim().split(/\s+/);
-    if (w.length >= 2 && w.length % 2 === 0 && w.slice(0, w.length / 2).join(' ').toUpperCase() === w.slice(w.length / 2).join(' ').toUpperCase()) return w.slice(0, w.length / 2).join(' ');
-    return s;
+    var w = String(s || '').trim().split(/\s+/), n = w.length;
+    if (n < 2 || n % 2) return s;
+    var h = n / 2;
+    for (var i = 0; i < h; i++) {           // each token pair between halves must match (exactly or by prefix — OCR typos like "ENTERPRISES" vs "ENTERPRIES")
+      var a = w[i].toUpperCase(), b = w[h + i].toUpperCase();
+      if (a === b) continue;
+      var p = 0; while (p < a.length && p < b.length && a[p] === b[p]) p++;
+      if (p >= 4 || p >= Math.min(a.length, b.length) * 0.7) continue;
+      return s;                             // a genuine multi-word name, not a doubled column
+    }
+    return w.slice(0, h).join(' ');
   }
   function goodName(s, ownNames) {
     var c = dedupePhrase(clean(s).replace(/[.,;:]+$/, ''));
