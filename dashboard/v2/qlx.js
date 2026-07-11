@@ -122,7 +122,16 @@
   function allRows() {
     let rows = (CFG.data ? CFG.data() : []) || [];
     if (!CFG.monthFilter) return rows;
-    if (!S.monthInit && rows.length) { S.month = latestMonth(rows); S.monthInit = true; }
+    // Always default to the LATEST month that has data. Re-snap when a newer
+    // month appears (e.g. after importing bills) or when the selected month has
+    // become empty — but never override a deliberate pick of an EXISTING month.
+    const dl = latestMonth(rows);
+    if (rows.length) {
+      if (!S.monthInit) { S.month = dl; S.monthInit = true; }
+      else if (dl !== 'all' && dl > (S._dl || '') && dl !== S.month) { S.month = dl; }   // newer data imported → jump to it
+      else if (S.month && S.month !== 'all' && !rows.some(r => monthOf(r) === S.month)) { S.month = dl; }   // selected month emptied
+      S._dl = dl;
+    }
     if (S.month && S.month !== 'all') rows = rows.filter(r => monthOf(r) === S.month);
     return rows;
   }
