@@ -62,9 +62,12 @@
     { key: 'people',     label: 'Parties & Labour', desc: 'All parties, labour and attendance' },
     { key: 'production', label: 'Production',        desc: 'Quick Lime, Chunna, Kiln & Daily production' },
     { key: 'inventory',  label: 'Inventory',         desc: 'Raw material, stock and dispatch' },
-    { key: 'reports',    label: 'Reports & Analytics', desc: 'Reports hub and analytics' }
+    { key: 'reports',    label: 'Reports & Analytics', desc: 'Reports hub and analytics' },
+    { key: 'ai',         label: 'AI Assistant',      desc: 'Ask about your business — invoices, dues, GST, production' }
   ];
-  const FEAT_DEFAULT_ON = { dashboard: 1, sales: 1, purchase: 1, finance: 1, settings: 1 };
+  // Business-process default sidebar (matches the ERP spec's main nav):
+  // Dashboard · Sales · Purchase · Finance · Production · Inventory · Reports · AI · Settings.
+  const FEAT_DEFAULT_ON = { dashboard: 1, sales: 1, purchase: 1, finance: 1, production: 1, inventory: 1, reports: 1, ai: 1, settings: 1 };
   const FEAT_KEY = 'ql_features';
   function loadFeatures() {
     const f = {}; FEATURES.forEach(x => { f[x.key] = !!FEAT_DEFAULT_ON[x.key]; });
@@ -136,9 +139,9 @@
       { id: 'daily',    label: 'Daily Production',      href: SOON, icon: I.cal, soon: true }
     ]},
     { type: 'group', label: 'Inventory', feat: 'inventory', items: [
-      { id: 'raw',      label: 'Raw Material',     href: SOON, icon: I.layers, soon: true },
-      { id: 'stock',    label: 'Stock Management', href: SOON, icon: I.box, soon: true },
-      { id: 'dispatch', label: 'Dispatch',         href: SOON, icon: I.truck, soon: true }
+      { id: 'inventory', label: 'Overview',         href: 'inventory.html', icon: I.box },
+      { id: 'stock',    label: 'Stock Management',  href: SOON, icon: I.layers, soon: true },
+      { id: 'dispatch', label: 'Dispatch',          href: SOON, icon: I.truck, soon: true }
     ]},
     { type: 'group', label: 'People', feat: 'people', items: [
       { id: 'parties',    label: 'All Parties', href: 'parties.html', icon: I.users },
@@ -150,6 +153,7 @@
       { id: 'biz-an',  label: 'Business Analytics',   href: SOON, icon: I.pulse, soon: true },
       { id: 'prod-an', label: 'Production Analytics', href: SOON, icon: I.pulse, soon: true }
     ]},
+    { type: 'solo', id: 'ai', label: 'AI Assistant', href: 'ai.html', icon: I.pulse, feat: 'ai' },
     { type: 'solo', id: 'settings', label: 'Settings', href: 'settings.html', icon: I.gear, feat: 'settings', soloTop: true }
   ];
 
@@ -1467,7 +1471,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
   /* ════════════════════════ PUBLIC API ══════════════════════════ */
   window.QLShell = {
     toggleSidebar, toggleMobileSidebar, toggleGroup, openPalette, closePalette, toast,
-    openNotifications, openAssistant, closeDrawer, assistAsk,
+    openNotifications, openAssistant, closeDrawer, assistAsk, assistAnswer,
     notifOpen, notifWA, notifDone, notifSnooze, addRenewal, refreshNotifDot,
     registerAssistIntent,
     closePhotoModal() { $('photoBack').classList.remove('open'); },

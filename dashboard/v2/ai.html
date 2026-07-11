@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Assistant — QuickLimes</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="manifest" href="/v2/app.webmanifest">
+<link rel="apple-touch-icon" href="/v2/pwa-apple.png?v=g1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css?v=m1">
+<script src="ql-api.js"></script>
+<script src="./data.js?v=m8"></script>
+<link rel="stylesheet" href="./mobile.css?v=m4">
+<style>
+  .aiw { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; min-height: calc(100vh - 140px); }
+  .ai-hero { text-align: center; padding: var(--ql-space-5) 0 var(--ql-space-4); }
+  .ai-hero .ai-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ql-primary); background: color-mix(in srgb, var(--ql-primary) 10%, transparent); padding: 4px 10px; border-radius: 999px; }
+  .ai-hero h1 { font-size: 26px; font-weight: 800; margin: var(--ql-space-3) 0 4px; letter-spacing: -.02em; }
+  .ai-hero p { color: var(--ql-text-soft); font-size: 14px; }
+  .ai-ex { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: var(--ql-space-4) 0; }
+  .ai-ex button { text-align: left; background: var(--ql-surface); border: 1px solid var(--ql-border); border-radius: 12px; padding: 12px 14px; font: inherit; font-size: 13.5px; font-weight: 500; color: var(--ql-text); cursor: pointer; transition: .12s; display: flex; gap: 9px; align-items: center; }
+  .ai-ex button:hover { border-color: var(--ql-primary); background: color-mix(in srgb, var(--ql-primary) 5%, var(--ql-surface)); transform: translateY(-1px); }
+  .ai-ex button .ic { font-size: 16px; flex: none; }
+  .ai-conv { flex: 1; display: flex; flex-direction: column; gap: 12px; padding: var(--ql-space-3) 0 120px; }
+  .ai-bar { position: sticky; bottom: 0; background: linear-gradient(to top, var(--ql-bg) 70%, transparent); padding: var(--ql-space-3) 0 var(--ql-space-4); }
+  .ai-inp { display: flex; gap: 8px; align-items: center; background: var(--ql-surface); border: 1.5px solid var(--ql-border); border-radius: 14px; padding: 8px 8px 8px 16px; box-shadow: var(--ql-shadow-sm); }
+  .ai-inp:focus-within { border-color: var(--ql-primary); }
+  .ai-inp input { flex: 1; border: 0; background: transparent; font: inherit; font-size: 15px; color: var(--ql-text); outline: none; }
+  .ai-inp button { flex: none; width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--ql-primary); color: #fff; cursor: pointer; display: grid; place-items: center; }
+  .ai-inp button:disabled { opacity: .4; cursor: default; }
+  @media (max-width: 640px) { .ai-ex { grid-template-columns: 1fr; } .ai-hero h1 { font-size: 22px; } }
+</style>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="aiw">
+      <div class="ai-hero" id="aiHero">
+        <span class="ai-badge">✦ AI Assistant · LIVE</span>
+        <h1>Ask about your business</h1>
+        <p id="aiSub">Real answers from your invoices, payments and bank data — nothing made up.</p>
+      </div>
+      <div class="ai-ex" id="aiExamples"></div>
+      <div class="ai-conv" id="qlAiLog"></div>
+    </div>
+  </div>
+</div>
+
+<div class="ai-bar">
+  <div class="aiw">
+    <div class="ai-inp">
+      <input id="aiInput" placeholder="e.g. How much petcoke did we buy in June?" autocomplete="off">
+      <button id="aiSend" aria-label="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<script src="./shell.js?v=m19"></script>
+<script src="./mobile.js?v=m4"></script>
+<script>
+QLShell.mount({ active: 'ai', title: 'AI Assistant' });
+const $ = s => document.querySelector(s);
+const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// Example queries straight from the business spec — tap to run.
+const EXAMPLES = [
+  ['🔥', 'How much petcoke did we buy in June?'],
+  ['📥', 'Which suppliers are pending above ₹5 lakh?'],
+  ['⏰', 'Show invoices unpaid more than 30 days'],
+  ['🏦', 'Match unmatched bank entries'],
+  ['📈', 'Average petcoke price this month'],
+  ['🏆', 'Top 10 suppliers'],
+  ['🧾', 'How much GST paid?'],
+  ['💰', 'What is pending payment today?']
+];
+let started = false;
+
+function renderExamples() {
+  $('#aiExamples').innerHTML = EXAMPLES.map(([ic, q]) =>
+    `<button data-q="${esc(q)}"><span class="ic">${ic}</span><span>${esc(q)}</span></button>`).join('');
+  document.querySelectorAll('#aiExamples button').forEach(b => b.onclick = () => ask(b.dataset.q));
+}
+
+const log = [];
+function paint() {
+  $('#qlAiLog').innerHTML = log.map(m => `<div class="ql-ai-msg ${m.who}">${m.html}</div>`).join('');
+  const l = $('#qlAiLog'); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+function ask(q) {
+  q = (q || '').trim(); if (!q) return;
+  if (!started) { started = true; $('#aiHero').style.display = 'none'; $('#aiExamples').style.display = 'none'; }
+  log.push({ who: 'me', html: esc(q) });
+  let ans; try { ans = QLShell.assistAnswer(q); } catch (e) { ans = '<p>Sorry, I hit a snag answering that. Try rephrasing?</p>'; }
+  log.push({ who: 'ai', html: ans });
+  if (log.length > 60) log.splice(0, log.length - 60);
+  paint();
+}
+$('#aiSend').onclick = () => { const i = $('#aiInput'); ask(i.value); i.value = ''; };
+$('#aiInput').addEventListener('keydown', e => { if (e.key === 'Enter') { ask(e.target.value); e.target.value = ''; } });
+
+function boot() {
+  $('#aiSub').textContent = 'Real answers from ' + (QLD.co ? QLD.co.short : 'your business') + '’s invoices, payments and bank data — nothing made up.';
+  renderExamples();
+}
+window.__qlOnSwitchCompany = () => boot();
+window.__qlRefresh = boot;
+QLD.init(boot);
+</script>
+</body>
+</html>

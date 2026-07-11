@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Inventory — QuickLimes</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="manifest" href="/v2/app.webmanifest">
+<link rel="apple-touch-icon" href="/v2/pwa-apple.png?v=g1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css?v=m1">
+<script src="ql-api.js"></script>
+<script src="./data.js?v=m8"></script>
+<link rel="stylesheet" href="./mobile.css?v=m4">
+<style>
+  .inv-note { display: flex; gap: 10px; align-items: flex-start; background: color-mix(in srgb, #f59e0b 8%, var(--ql-surface)); border: 1px solid color-mix(in srgb, #f59e0b 30%, var(--ql-border)); border-radius: 12px; padding: 12px 14px; margin-bottom: var(--ql-space-4); font-size: 13px; color: var(--ql-text-soft); }
+  .inv-note b { color: var(--ql-text); }
+  .inv-sec-h { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ql-text-soft); margin: var(--ql-space-5) 0 var(--ql-space-3); }
+  .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .inv-card { background: var(--ql-surface); border: 1px solid var(--ql-border); border-radius: 14px; padding: 16px; box-shadow: var(--ql-shadow-sm); }
+  .inv-card .top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .inv-card .ic { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 20px; flex: none; }
+  .inv-card .nm { font-weight: 700; font-size: 15px; }
+  .inv-card .sub { font-size: 12px; color: var(--ql-text-soft); }
+  .inv-card .qty { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+  .inv-card .qty span { font-size: 14px; font-weight: 600; color: var(--ql-text-soft); }
+  .inv-kv { display: flex; justify-content: space-between; font-size: 12.5px; padding: 5px 0; border-top: 1px dashed var(--ql-border); }
+  .inv-kv:first-of-type { margin-top: 10px; }
+  .inv-kv span:last-child { font-weight: 600; color: var(--ql-text); }
+  .inv-empty { color: var(--ql-text-soft); font-size: 14px; padding: var(--ql-space-4); text-align: center; }
+</style>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Inventory</h1>
+        <div class="page-sub" id="invSub">Raw material inward & finished-goods dispatch</div>
+      </div>
+    </div>
+    <div id="invBody"></div>
+  </div>
+</div>
+
+<script src="./shell.js?v=m19"></script>
+<script src="./mobile.js?v=m4"></script>
+<script>
+QLShell.mount({ active: 'inventory', title: 'Inventory' });
+const $ = s => document.querySelector(s);
+const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fC = v => (window.QLD && QLD.fC) ? QLD.fC(v) : ('₹' + Math.round(v || 0).toLocaleString('en-IN'));
+const nQ = (v, d) => (v || 0).toLocaleString('en-IN', { maximumFractionDigits: d == null ? 1 : d });
+
+// Raw materials that arrive as PURCHASES, with their unit + accent.
+const RAW = [
+  { key: 'limestone', nm: 'Limestone', ic: '🪨', tint: '#8a6d3b', bg: '#f6f0e4', unit: 'T' },
+  { key: 'petcoke',   nm: 'Petcoke',   ic: '🔥', tint: '#c0392b', bg: '#fdeceb', unit: 'T' },
+  { key: 'packaging', nm: 'Plastic Bags', ic: '📦', tint: '#2f5fd0', bg: '#eaf1ff', unit: 'bags' },
+  { key: 'fuel',      nm: 'Diesel',    ic: '⛽', tint: '#b7791f', bg: '#fff5e0', unit: 'L' }
+];
+
+function rawCard(m, rows) {
+  const rs = rows.filter(r => r.group === m.key && r.status !== 'cancelled');
+  if (!rs.length) return '';
+  const qty = rs.reduce((a, r) => a + (+r.qty || 0), 0);
+  const val = rs.reduce((a, r) => a + (+r.taxable || +r.total || 0), 0);
+  const last = rs.map(r => r.date).sort().slice(-1)[0] || '—';
+  const avg = qty ? val / qty : 0;
+  return `<div class="inv-card">
+    <div class="top"><div class="ic" style="background:${m.bg};color:${m.tint}">${m.ic}</div>
+      <div><div class="nm">${m.nm}</div><div class="sub">${rs.length} purchase bill${rs.length > 1 ? 's' : ''}</div></div></div>
+    <div class="qty">${nQ(qty)} <span>${m.unit}</span></div>
+    <div class="inv-kv"><span>Purchase value</span><span>${fC(val)}</span></div>
+    <div class="inv-kv"><span>Avg rate</span><span>${fC(avg)}/${m.unit}</span></div>
+    <div class="inv-kv"><span>Last inward</span><span>${esc(last)}</span></div>
+  </div>`;
+}
+
+function render() {
+  const P = QLD.purchaseRows(), S = QLD.salesRows();
+  $('#invSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + 'derived from real purchase & sales bills';
+
+  const rawCards = RAW.map(m => rawCard(m, P)).filter(Boolean).join('');
+  // Finished goods = what actually left the plant (sales dispatch) + chunna.
+  const sQty = S.filter(r => r.status !== 'cancelled').reduce((a, r) => a + (+r.qty || 0), 0);
+  const sVal = S.filter(r => r.status !== 'cancelled').reduce((a, r) => a + (+r.taxable || 0), 0);
+  const ch = (QLD.chunnaRows ? QLD.chunnaRows() : []);
+  const chQty = ch.reduce((a, r) => a + (parseFloat(r.qty) || 0), 0);
+  const chVal = ch.reduce((a, r) => a + (parseFloat(r.total) || 0), 0);
+
+  const fgCards = [];
+  if (sQty) fgCards.push(`<div class="inv-card">
+    <div class="top"><div class="ic" style="background:#e9f9ee;color:#1c7c3a">🏭</div>
+      <div><div class="nm">Quick Lime dispatched</div><div class="sub">${S.filter(r => r.status !== 'cancelled').length} sales invoices</div></div></div>
+    <div class="qty">${nQ(sQty)} <span>T</span></div>
+    <div class="inv-kv"><span>Sales value</span><span>${fC(sVal)}</span></div>
+    <div class="inv-kv"><span>Avg realisation</span><span>${fC(sQty ? sVal / sQty : 0)}/T</span></div>
+  </div>`);
+  if (chQty) fgCards.push(`<div class="inv-card">
+    <div class="top"><div class="ic" style="background:#eef2ff;color:#4f46e5">🧱</div>
+      <div><div class="nm">Chunna dispatched</div><div class="sub">${ch.length} entries</div></div></div>
+    <div class="qty">${nQ(chQty)} <span>T</span></div>
+    <div class="inv-kv"><span>Value</span><span>${fC(chVal)}</span></div>
+  </div>`);
+
+  $('#invBody').innerHTML = `
+    <div class="inv-note">⚠️ <div><b>Live stock-on-hand needs production entries.</b> These figures are 100% real — <b>inward</b> from your purchase bills and <b>dispatch</b> from your sales invoices. Closing stock (limestone consumed → quick lime produced) will compute once daily production is recorded in the Production module.</div></div>
+    <div class="inv-sec-h">Raw material inward (from purchase bills)</div>
+    ${rawCards ? `<div class="inv-grid">${rawCards}</div>` : '<div class="inv-empty">No raw-material purchases yet. Upload purchase bills to see limestone, petcoke and bags here.</div>'}
+    <div class="inv-sec-h">Finished goods dispatched (from sales)</div>
+    ${fgCards.length ? `<div class="inv-grid">${fgCards.join('')}</div>` : '<div class="inv-empty">No dispatches yet. Raise sales invoices to track finished-goods movement.</div>'}`;
+}
+
+window.__qlOnSwitchCompany = () => render();
+window.__qlRefresh = render;
+QLD.init(render);
+</script>
+</body>
+</html>
