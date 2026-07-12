@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css?v=m1">
 <script src="ql-api.js"></script>
-<script src="./data.js?v=m8"></script>
+<script src="./data.js?v=m9"></script>
 <link rel="stylesheet" href="./mobile.css?v=m4">
 </head>
 <body class="ql-v2">
@@ -37,6 +37,15 @@
         <div class="card-head"><div><h3 class="card-title">Output by product</h3><div class="card-sub">Revenue by line · all time</div></div></div>
         <table class="tbl"><thead><tr><th>Product</th><th class="num">Qty</th><th class="num">Avg ₹/T</th><th class="num">Revenue</th></tr></thead><tbody id="prdProducts"></tbody></table>
       </div>
+    </div>
+
+    <div class="card" style="margin-top:var(--ql-space-4)">
+      <div class="card-head">
+        <div><h3 class="card-title">Production runs</h3><div class="card-sub" id="prdRunSub">Record what was consumed &amp; produced — this is what makes stock & cost/ton real</div></div>
+        <button class="ql-btn ql-btn-primary" id="prdAdd">+ Record production</button>
+      </div>
+      <div class="kpi-strip" id="prdStats" style="grid-template-columns:repeat(4,1fr);margin-bottom:var(--ql-space-3)"></div>
+      <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Date</th><th class="num">Limestone (T)</th><th class="num">Petcoke (T)</th><th class="num">Bags</th><th class="num">Quick Lime (T)</th><th class="num">Hydrated (T)</th><th class="num">Labour</th><th></th></tr></thead><tbody id="prdRuns"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -72,8 +81,44 @@ function render() {
   document.getElementById('prdProducts').innerHTML = QLD.topProducts().map(r => `
     <tr><td><div class="tbl-prod"><div class="tbl-prod-ic">${r.icon}</div><div><div class="tbl-prod-name">${r.name}</div><div class="tbl-prod-sub">${r.sub}</div></div></div></td>
     <td class="num">${r.qty}</td><td class="num">${r.avg}</td><td class="num">${r.rev}</td></tr>`).join('');
+  renderRuns();
   QLShell.paintWorkspace();
 }
+const fC = v => QLD.fC(v), nT = v => QLD.fmt(v || 0, 1);
+function renderRuns() {
+  const rows = QLD.productionRows(), st = QLD.prodStats();
+  const stat = (lb, v, m) => `<div class="kpi-tile"><div><div class="kpi-label">${lb}</div><div class="kpi-val">${v}</div><div class="kpi-meta">${m}</div></div></div>`;
+  document.getElementById('prdStats').innerHTML = st.runs ? [
+    stat('Consumed', nT(st.consumed.limestone) + ' T', 'limestone · ' + nT(st.consumed.petcoke) + ' T petcoke'),
+    stat('Produced', nT(st.output) + ' T', nT(st.produced.quicklime) + ' T QL · ' + nT(st.produced.hydrated) + ' T HL'),
+    stat('Cost / ton', st.costPerTon ? fC(st.costPerTon) : '—', 'material + labour'),
+    stat('Yield', st.yield ? st.yield.toFixed(0) + '%' : '—', 'output ÷ limestone')
+  ].join('') : '';
+  const tb = document.getElementById('prdRuns');
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--ql-text-muted);padding:20px">No production runs yet. Record a day to compute real stock &amp; cost per ton.</td></tr>'; return; }
+  tb.innerHTML = rows.map(r => `<tr>
+    <td>${r.date || '—'}</td><td class="num">${r.limestone ? nT(r.limestone) : '—'}</td><td class="num">${r.petcoke ? nT(r.petcoke) : '—'}</td>
+    <td class="num">${r.bags ? r.bags.toLocaleString('en-IN') : '—'}</td><td class="num">${r.quicklime ? nT(r.quicklime) : '—'}</td>
+    <td class="num">${r.hydrated ? nT(r.hydrated) : '—'}</td><td class="num">${r.labour ? fC(r.labour) : '—'}</td>
+    <td class="num"><button class="ql-btn ql-btn-ghost" data-del="${r.idx}" title="Delete">✕</button></td></tr>`).join('');
+  tb.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm('Delete this production run?')) { QLD.deleteProduction(+b.dataset.del); render(); } });
+}
+const PROD_SPECS = [
+  { k: 'date', label: 'Date', type: 'date', req: true },
+  { k: 'limestone', label: 'Limestone consumed (T)', type: 'number', ph: '0' },
+  { k: 'petcoke', label: 'Petcoke consumed (T)', type: 'number', ph: '0' },
+  { k: 'bags', label: 'Bags used', type: 'number', ph: '0' },
+  { k: 'quicklime', label: 'Quick lime produced (T)', type: 'number', ph: '0' },
+  { k: 'hydrated', label: 'Hydrated lime produced (T)', type: 'number', ph: '0' },
+  { k: 'labour', label: 'Labour cost (₹)', type: 'number', ph: '0' },
+  { k: 'note', label: 'Note', full: true }
+];
+document.addEventListener('click', e => {
+  if (e.target.closest('#prdAdd')) {
+    QLShell.openForm({ title: 'Record production', sub: 'Daily consumption & output', specs: PROD_SPECS, saveLabel: 'Save run',
+      initial: { date: new Date().toISOString().slice(0, 10) }, onSave(v) { QLD.addProduction(v); render(); } });
+  }
+});
 window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
 window.__qlRefresh = render;
 QLD.init(render);

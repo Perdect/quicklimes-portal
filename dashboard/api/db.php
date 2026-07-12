@@ -188,6 +188,7 @@ function ql_blob_caps() {
     'reconcile' => 'recon',
     'tds' => 'gst', 'challans' => 'gst',
     'workers' => 'labour', 'workLog' => 'labour', 'att' => 'labour',
+    'prod' => 'production',
   ];
 }
 /* Read filter: drop module keys the role may not see (full-access → untouched). */

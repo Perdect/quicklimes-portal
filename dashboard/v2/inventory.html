@@ -14,7 +14,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css?v=m1">
 <script src="ql-api.js"></script>
-<script src="./data.js?v=m8"></script>
+<script src="./data.js?v=m9"></script>
 <link rel="stylesheet" href="./mobile.css?v=m4">
 <style>
   .inv-note { display: flex; gap: 10px; align-items: flex-start; background: color-mix(in srgb, #f59e0b 8%, var(--ql-surface)); border: 1px solid color-mix(in srgb, #f59e0b 30%, var(--ql-border)); border-radius: 12px; padding: 12px 14px; margin-bottom: var(--ql-space-4); font-size: 13px; color: var(--ql-text-soft); }
@@ -108,8 +108,33 @@ function render() {
     <div class="inv-kv"><span>Value</span><span>${fC(chVal)}</span></div>
   </div>`);
 
+  // ── Closing stock = inward − consumed (raw) and produced − dispatched (finished).
+  //    Consumption comes from real Production runs; only shown once they exist.
+  const st = QLD.prodStats ? QLD.prodStats() : { runs: 0, consumed: {}, produced: {} };
+  const pQty = key => P.filter(r => r.group === key && r.status !== 'cancelled').reduce((a, r) => a + (+r.qty || 0), 0);
+  let closeCards = '';
+  if (st.runs) {
+    const stock = [
+      { nm: 'Limestone', ic: '🪨', bg: '#f6f0e4', tint: '#8a6d3b', unit: 'T', v: pQty('limestone') - (st.consumed.limestone || 0), inw: pQty('limestone'), used: st.consumed.limestone || 0 },
+      { nm: 'Petcoke', ic: '🔥', bg: '#fdeceb', tint: '#c0392b', unit: 'T', v: pQty('petcoke') - (st.consumed.petcoke || 0), inw: pQty('petcoke'), used: st.consumed.petcoke || 0 },
+      { nm: 'Plastic Bags', ic: '📦', bg: '#eaf1ff', tint: '#2f5fd0', unit: 'bags', v: pQty('packaging') - (st.consumed.bags || 0), inw: pQty('packaging'), used: st.consumed.bags || 0 },
+      { nm: 'Quick Lime', ic: '🏭', bg: '#e9f9ee', tint: '#1c7c3a', unit: 'T', v: (st.produced.quicklime || 0) - sQty, inw: st.produced.quicklime || 0, used: sQty, fg: 1 }
+    ].filter(s => s.inw || s.used);
+    closeCards = stock.map(s => `<div class="inv-card">
+      <div class="top"><div class="ic" style="background:${s.bg};color:${s.tint}">${s.ic}</div>
+        <div><div class="nm">${s.nm}</div><div class="sub">${s.fg ? 'produced − dispatched' : 'inward − consumed'}</div></div></div>
+      <div class="qty" style="${s.v < 0 ? 'color:#dc2626' : ''}">${nQ(s.v)} <span>${s.unit}</span></div>
+      <div class="inv-kv"><span>${s.fg ? 'Produced' : 'Inward'}</span><span>${nQ(s.inw)} ${s.unit}</span></div>
+      <div class="inv-kv"><span>${s.fg ? 'Dispatched' : 'Consumed'}</span><span>${nQ(s.used)} ${s.unit}</span></div>
+    </div>`).join('');
+  }
+  const banner = st.runs
+    ? `<div class="inv-note" style="background:color-mix(in srgb,#1c7c3a 8%,var(--ql-surface));border-color:color-mix(in srgb,#1c7c3a 28%,var(--ql-border))">✅ <div><b>Live closing stock is on.</b> Computed from real bills and ${st.runs} production run${st.runs > 1 ? 's' : ''}: raw = inward − consumed, finished = produced − dispatched. A red negative means more was consumed/dispatched than recorded inward/produced — check the entries.</div></div>`
+    : `<div class="inv-note">⚠️ <div><b>Live stock-on-hand needs production entries.</b> These figures are 100% real — <b>inward</b> from purchase bills and <b>dispatch</b> from sales invoices. Record daily production (limestone consumed → quick lime produced) in the <b>Production</b> module and closing stock computes automatically here.</div></div>`;
+
   $('#invBody').innerHTML = `
-    <div class="inv-note">⚠️ <div><b>Live stock-on-hand needs production entries.</b> These figures are 100% real — <b>inward</b> from your purchase bills and <b>dispatch</b> from your sales invoices. Closing stock (limestone consumed → quick lime produced) will compute once daily production is recorded in the Production module.</div></div>
+    ${banner}
+    ${closeCards ? `<div class="inv-sec-h">Closing stock (live)</div><div class="inv-grid">${closeCards}</div>` : ''}
     <div class="inv-sec-h">Raw material inward (from purchase bills)</div>
     ${rawCards ? `<div class="inv-grid">${rawCards}</div>` : '<div class="inv-empty">No raw-material purchases yet. Upload purchase bills to see limestone, petcoke and bags here.</div>'}
     <div class="inv-sec-h">Finished goods dispatched (from sales)</div>

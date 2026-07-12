@@ -79,7 +79,7 @@
   /* ── State ───────────────────────────────────────────────────── */
   const S = {
     SALES: [], PURCHASES: [], WORKERS: [], WORK_LOG: [], ATT: {},
-    TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: [],
+    TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: [], PROD: [],
     FINANCE: null,
     RECON: { txns: [] }   // bank-statement reconciliation (per company)
   };
@@ -148,7 +148,7 @@
   function clearState() {
     S.SALES.length = 0; S.PURCHASES.length = 0; S.WORKERS.length = 0; S.WORK_LOG.length = 0;
     S.TDS.length = 0; S.CHALLANS.length = 0; S.PARTIES.length = 0; S.CASHBOOK.length = 0;
-    S.LOANS.length = 0; S.CHUNNA.length = 0;
+    S.LOANS.length = 0; S.CHUNNA.length = 0; S.PROD.length = 0;
     Object.keys(S.ATT).forEach(k => delete S.ATT[k]);
     S.FINANCE = defaultFinance();
     S.RECON = { txns: [] };
@@ -166,6 +166,7 @@
     if (d.cashbook)  S.CASHBOOK.push(...d.cashbook);
     if (d.loans)     S.LOANS.push(...d.loans);
     if (d.chunna)    S.CHUNNA.push(...d.chunna);
+    if (d.prod)      S.PROD.push(...d.prod);
     if (d.finance)   S.FINANCE = normalizeFinance(d.finance);
     if (d.reconcile && Array.isArray(d.reconcile.txns)) S.RECON = d.reconcile;
   }
@@ -223,7 +224,7 @@
     const b = {
       sales: S.SALES, purchases: S.PURCHASES, workers: S.WORKERS, workLog: S.WORK_LOG,
       att: S.ATT, tds: S.TDS, challans: S.CHALLANS, parties: S.PARTIES,
-      cashbook: S.CASHBOOK, chunna: S.CHUNNA, finance: S.FINANCE || defaultFinance(),
+      cashbook: S.CASHBOOK, chunna: S.CHUNNA, prod: S.PROD, finance: S.FINANCE || defaultFinance(),
       reconcile: S.RECON || { txns: [] }
     };
     if (includePic) b.profile_pic = localStorage.getItem('dm_profile_pic') || null;
@@ -857,6 +858,61 @@
   }
   function deleteChunna(i) { if (S.CHUNNA[i]) { S.CHUNNA.splice(i, 1); commit(); } }
 
+  /* ── Production (daily manufacturing entries) ──────────────────────────
+     A run records what was CONSUMED (limestone, petcoke, bags) and what was
+     PRODUCED (quick lime, hydrated lime) that day, plus the labour cost. This
+     is the missing link that turns purchases + sales into true closing stock
+     and a real cost-per-ton. All quantities in tonnes (bags in count). */
+  const nQ = v => parseFloat(v) || 0;
+  function addProduction(e) {
+    S.PROD.push({
+      id: 'PR' + idStamp(), date: e.date,
+      limestone: nQ(e.limestone), petcoke: nQ(e.petcoke), bags: nQ(e.bags),
+      quicklime: nQ(e.quicklime), hydrated: nQ(e.hydrated), labour: nQ(e.labour),
+      note: (e.note || '').toString().slice(0, 200)
+    });
+    commit();
+  }
+  function updateProduction(i, e) {
+    if (!S.PROD[i]) return;
+    ['limestone', 'petcoke', 'bags', 'quicklime', 'hydrated', 'labour'].forEach(k => { if (e[k] != null) S.PROD[i][k] = nQ(e[k]); });
+    if (e.date) S.PROD[i].date = e.date;
+    if (e.note != null) S.PROD[i].note = e.note.toString().slice(0, 200);
+    commit();
+  }
+  function deleteProduction(i) { if (S.PROD[i]) { S.PROD.splice(i, 1); commit(); } }
+  function productionRows() {
+    return S.PROD.map((p, i) => ({
+      idx: i, date: p.date,
+      limestone: nQ(p.limestone), petcoke: nQ(p.petcoke), bags: nQ(p.bags),
+      quicklime: nQ(p.quicklime), hydrated: nQ(p.hydrated), labour: nQ(p.labour),
+      output: nQ(p.quicklime) + nQ(p.hydrated), note: p.note || ''
+    })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }
+  // Average purchase rate (₹ per T / per bag) for a material group — from real bills.
+  function avgRate(group) {
+    const rs = purchaseRows().filter(r => r.group === group && r.status !== 'cancelled');
+    const q = rs.reduce((a, r) => a + (nQ(r.qty)), 0), v = rs.reduce((a, r) => a + (nQ(r.taxable) || nQ(r.total)), 0);
+    return q ? v / q : 0;
+  }
+  // Consumed / produced totals + derived cost-per-ton and yield.
+  function prodStats() {
+    const rows = productionRows();
+    const sum = k => rows.reduce((a, r) => a + r[k], 0);
+    const consumed = { limestone: sum('limestone'), petcoke: sum('petcoke'), bags: sum('bags') };
+    const produced = { quicklime: sum('quicklime'), hydrated: sum('hydrated') };
+    const output = produced.quicklime + produced.hydrated;
+    const labour = sum('labour');
+    const matCost = consumed.limestone * avgRate('limestone') + consumed.petcoke * avgRate('petcoke') + consumed.bags * avgRate('packaging');
+    const totalCost = matCost + labour;
+    return {
+      runs: rows.length, consumed, produced, output, labour,
+      matCost, totalCost,
+      costPerTon: output ? totalCost / output : 0,
+      yield: consumed.limestone ? output / consumed.limestone * 100 : 0
+    };
+  }
+
   /* ── Loans helpers ───────────────────────────────────────────── */
   function loanRows() {
     return ALL_LOANS.filter(l => l.company === ACTIVE_CO).map((l, i) => {
@@ -1251,6 +1307,7 @@
     labourRows, labourSummary, cashbookRows, cashbookBalances,
     loanRows, loanSummary, gstSummary,
     getPL, chunnaRows, chunnaSummary, attendanceData,
+    productionRows, prodStats, addProduction, updateProduction, deleteProduction,
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
     invoiceData, amountInWords,
     notifications, getRenewals, addRenewal, removeRenewal, recommendations,
