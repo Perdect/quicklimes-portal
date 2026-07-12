@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css?v=m1">
 <script src="ql-api.js"></script>
-<script src="./data.js?v=m9"></script>
+<script src="./data.js?v=m10"></script>
 <link rel="stylesheet" href="./mobile.css?v=m4">
 </head>
 <body class="ql-v2">
@@ -59,11 +59,28 @@
       <div id="teamList" style="margin-top:var(--ql-space-4)"></div>
     </div>
 
+    <!-- DATA MANAGEMENT: Trash + Audit + Backup -->
+    <div class="card" id="dmCard" style="margin-top:var(--ql-space-5)">
+      <div class="ft-head">
+        <div>
+          <h3 class="ft-title">Data Management</h3>
+          <div class="ft-note">Deleted records are <b>never gone immediately</b> — they move to Trash for 90 days and can be restored. Download a backup anytime.</div>
+        </div>
+        <button class="ql-btn ql-btn-secondary" id="dmBackup" style="flex:none">⬇ Download backup</button>
+      </div>
+      <div class="dm-tabs" style="display:flex;gap:8px;margin:var(--ql-space-3) 0">
+        <button class="ql-btn ql-btn-secondary dm-tab" data-tab="trash">🗑 Trash <span id="dmTrashN" class="ft-lock" style="background:#fee2e2;color:#b91c1c"></span></button>
+        <button class="ql-btn ql-btn-secondary dm-tab" data-tab="audit">📋 Audit log</button>
+      </div>
+      <input id="dmSearch" class="ql-input" placeholder="Search trash / audit…" style="width:100%;margin-bottom:var(--ql-space-3);padding:9px 12px;border:1px solid var(--ql-border);border-radius:9px;font:inherit">
+      <div style="overflow-x:auto"><div id="dmBody"></div></div>
+    </div>
+
     <div class="card" style="border-color:#fecaca;margin-top:var(--ql-space-5)">
       <div class="ft-head">
         <div>
           <h3 class="ft-title" style="color:#b91c1c">Danger zone</h3>
-          <div class="ft-note">Permanently delete <b>every record for <span id="dzCo">this company</span></b> — all sales, purchases, parties, payments, labour, cashbook, TDS, production and loan entries. Use this to clear demo / test data and start on a clean slate. <b>This cannot be undone</b>, and there is no server backup yet — anything you don't re-enter is gone.</div>
+          <div class="ft-note">Clear <b>every record for <span id="dzCo">this company</span></b> — a fresh-start / demo reset. A <b>backup file downloads first</b>, and this is the only action that does not go to Trash.</div>
         </div>
         <button class="ql-btn" id="dzClear" style="background:#dc2626;color:#fff;border:none;flex:none">Clear all data</button>
       </div>
@@ -73,7 +90,7 @@
 
 <div id="setToast" class="fin-toast" hidden></div>
 
-<script src="./shell.js?v=m21"></script>
+<script src="./shell.js?v=m22"></script>
 <script src="./mobile.js?v=m4"></script>
 <script>
 QLShell.mount({ active: 'settings', title: 'Settings' });
@@ -110,18 +127,96 @@ function render() {
   }));
 }
 $('#ftReset').addEventListener('click', () => {
-  if (!confirm('Reset feature visibility to the default (Dashboard, Sales, Purchase, Finance, Settings)?')) return;
-  QLShell.resetFeatures(); toast('Reset to defaults'); render();
+  QLShell.confirmDelete({ title: 'Reset feature visibility?', desc: 'Restores the default sidebar (Dashboard, Sales, Purchase, Finance, Production, Inventory, Reports, AI, Settings). Your data is untouched.',
+    reason: false, confirmLabel: 'Reset', onConfirm() { QLShell.resetFeatures(); toast('Reset to defaults'); render(); } });
 });
+function downloadBackup() {
+  try {
+    const co = QLD.co ? (QLD.co.short || QLD.co.name || 'company') : 'company';
+    const blob = new Blob([QLD.backupJSON()], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'quicklimes-backup-' + co.replace(/\s+/g, '_') + '-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('Backup downloaded'); return true;
+  } catch (e) { toast('Backup failed'); return false; }
+}
+$('#dmBackup').addEventListener('click', downloadBackup);
 $('#dzClear').addEventListener('click', () => {
   const co = QLD.co ? (QLD.co.short || QLD.co.name) : 'this company';
-  if (!confirm('Delete ALL records for ' + co + '?\n\nThis removes every sale, purchase, party, payment, labour, cashbook, TDS, production and loan entry. This cannot be undone.')) return;
-  const typed = prompt('This is permanent and there is no backup yet.\nType CLEAR to confirm:');
-  if ((typed || '').trim().toUpperCase() !== 'CLEAR') { toast('Cancelled — nothing deleted'); return; }
-  try { QLD.wipeData(); } catch (e) { toast('Could not clear data'); return; }
-  toast('All data cleared — starting fresh');
-  setTimeout(() => location.href = 'dashboard.html', 900);
+  // No browser prompt — a modern modal with a typed confirmation, and a backup
+  // file downloads before anything is wiped.
+  QLShell.confirmDelete({
+    title: 'Clear ALL data for ' + co + '?',
+    desc: 'Every sale, purchase, party, payment, production and ledger entry for ' + co + ' will be removed. A backup file downloads first so you can restore. This is the only action that does NOT go to Trash.',
+    reasonLabel: 'Reason', needType: 'CLEAR', confirmLabel: 'Download backup & clear',
+    onConfirm() {
+      if (!downloadBackup()) return;
+      try { QLD.wipeData(); } catch (e) { toast('Could not clear data'); return; }
+      toast('Backup saved · all data cleared');
+      setTimeout(() => location.href = 'dashboard.html', 1200);
+    }
+  });
 });
+
+// ── Trash + Audit rendering ──────────────────────────────────────────────
+let dmTab = 'trash';
+const fCn = v => (window.QLD && QLD.fC) ? QLD.fC(v) : ('₹' + Math.round(v || 0).toLocaleString('en-IN'));
+const fdt = s => { try { return new Date(s).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (_) { return s || ''; } }
+function renderDM() {
+  const q = ($('#dmSearch').value || '').toLowerCase().trim();
+  $('#dmTrashN').textContent = QLD.trashCount ? (QLD.trashCount() || '') : '';
+  document.querySelectorAll('.dm-tab').forEach(b => b.style.background = b.dataset.tab === dmTab ? 'var(--ql-primary)' : '');
+  document.querySelectorAll('.dm-tab').forEach(b => b.style.color = b.dataset.tab === dmTab ? '#fff' : '');
+  if (dmTab === 'trash') {
+    let rows = QLD.trashRows ? QLD.trashRows() : [];
+    if (q) rows = rows.filter(r => (r.moduleLabel + ' ' + r.ref + ' ' + r.party + ' ' + r.deletedBy + ' ' + r.reason).toLowerCase().includes(q));
+    if (!rows.length) { $('#dmBody').innerHTML = '<div class="ft-note" style="padding:16px;text-align:center">Trash is empty. Deleted records will appear here for 90 days.</div>'; return; }
+    $('#dmBody').innerHTML = `<table class="ql-tbl" style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="text-align:left;color:var(--ql-text-soft);font-size:11px;text-transform:uppercase">
+        <th style="padding:8px">Type</th><th style="padding:8px">Reference</th><th style="padding:8px">Party</th><th style="padding:8px;text-align:right">Amount</th><th style="padding:8px">Deleted by</th><th style="padding:8px">When</th><th style="padding:8px">Days left</th><th style="padding:8px"></th></tr></thead>
+      <tbody>${rows.map(r => `<tr style="border-top:1px solid var(--ql-border)">
+        <td style="padding:8px"><b>${esc(r.moduleLabel)}</b></td>
+        <td style="padding:8px">${esc(r.ref)}${r.reason ? `<div style="font-size:11px;color:var(--ql-text-soft)">${esc(r.reason)}</div>` : ''}</td>
+        <td style="padding:8px">${esc(r.party || '—')}</td>
+        <td style="padding:8px;text-align:right">${r.amount ? fCn(r.amount) : '—'}</td>
+        <td style="padding:8px">${esc(r.deletedBy)}</td>
+        <td style="padding:8px">${fdt(r.deletedAt)}</td>
+        <td style="padding:8px;${r.daysLeft <= 7 ? 'color:#dc2626;font-weight:600' : ''}">${r.daysLeft}d</td>
+        <td style="padding:8px;white-space:nowrap;text-align:right">
+          <button class="ql-btn ql-btn-secondary" data-restore="${r.module}:${r.idx}" style="color:#1c7c3a">Restore</button>
+          <button class="ql-btn ql-btn-secondary" data-purge="${r.module}:${r.idx}" style="color:#b91c1c">Delete permanently</button>
+        </td></tr>`).join('')}</tbody></table>`;
+    $('#dmBody').querySelectorAll('[data-restore]').forEach(b => b.onclick = () => {
+      const [m, i] = b.dataset.restore.split(':'); const res = QLD.restoreRecord(m, +i);
+      if (res.conflict) toast('Restored — note: reference "' + res.conflict + '" now also exists on an active record');
+      else toast('Restored'); renderDM(); if (window.__qlRefresh) window.__qlRefresh();
+    });
+    $('#dmBody').querySelectorAll('[data-purge]').forEach(b => b.onclick = () => {
+      const [m, i] = b.dataset.purge.split(':');
+      QLShell.confirmDelete({ title: 'Permanently delete this record?', desc: 'This cannot be undone — the record will be erased, not moved to Trash. Consider downloading a backup first.',
+        reasonLabel: 'Reason (required)', needType: 'DELETE PERMANENTLY', confirmLabel: 'Delete permanently',
+        onConfirm() { QLD.purgeRecord(m, +i); toast('Permanently deleted'); renderDM(); } });
+    });
+  } else {
+    let rows = QLD.auditRows ? QLD.auditRows() : [];
+    if (q) rows = rows.filter(r => (r.action + ' ' + r.module + ' ' + r.ref + ' ' + r.party + ' ' + r.by + ' ' + r.reason).toLowerCase().includes(q));
+    rows = rows.slice(0, 300);
+    if (!rows.length) { $('#dmBody').innerHTML = '<div class="ft-note" style="padding:16px;text-align:center">No audit entries yet.</div>'; return; }
+    const badge = a => ({ trash: ['#fee2e2', '#b91c1c'], restore: ['#dcfce7', '#166534'], purge: ['#450a0a', '#fff'], archive: ['#fef3c7', '#92400e'], unarchive: ['#e0e7ff', '#3730a3'] }[a] || ['#f1f5f9', '#475569']);
+    $('#dmBody').innerHTML = `<table class="ql-tbl" style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="text-align:left;color:var(--ql-text-soft);font-size:11px;text-transform:uppercase">
+        <th style="padding:8px">Action</th><th style="padding:8px">Record</th><th style="padding:8px">By</th><th style="padding:8px">Reason</th><th style="padding:8px">When</th></tr></thead>
+      <tbody>${rows.map(r => { const bc = badge(r.action); return `<tr style="border-top:1px solid var(--ql-border)">
+        <td style="padding:8px"><span style="background:${bc[0]};color:${bc[1]};padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600">${esc(r.action)}</span></td>
+        <td style="padding:8px">${esc(r.module)} · ${esc(r.ref || r.recId || '')}${r.party ? ' · ' + esc(r.party) : ''}</td>
+        <td style="padding:8px">${esc(r.by)}${r.role ? ` <span style="font-size:11px;color:var(--ql-text-soft)">(${esc(r.role)})</span>` : ''}</td>
+        <td style="padding:8px">${esc(r.reason || '—')}</td>
+        <td style="padding:8px">${fdt(r.ts)}</td></tr>`; }).join('')}</tbody></table>`;
+  }
+}
+document.querySelectorAll('.dm-tab').forEach(b => b.addEventListener('click', () => { dmTab = b.dataset.tab; renderDM(); }));
+$('#dmSearch').addEventListener('input', renderDM);
 // ── Team & access: owner-only employee accounts (server-enforced roles) ──
 const TEAM_ROLES = [
   ['accountant', 'Accountant — sales, purchase, finance, GST, reports'],
@@ -184,9 +279,9 @@ $('#teamAdd').addEventListener('click', () => {
     .catch(e => toast(e.message));
 });
 
-window.__qlOnSwitchCompany = () => render();
-window.__qlRefresh = render;
-QLD.init(render);
+window.__qlOnSwitchCompany = () => { render(); renderDM(); };
+window.__qlRefresh = () => { render(); renderDM(); };
+QLD.init(() => { render(); renderDM(); });
 renderTeam();
 </script>
 </body>

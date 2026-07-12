@@ -624,6 +624,26 @@
     const first = $('qlModal').querySelector('.qlf-input'); if (first) setTimeout(() => first.focus(), 30);
   }
   function closeModal() { $('qlModalBack').classList.remove('open'); }
+  /* ── Recoverable-deletion modal (replaces browser confirm/prompt) ──
+     o: { title, desc, confirmLabel, reason (default true), needType, onConfirm(reason) }.
+     Reuses the form modal: an optional reason field, plus a typed-confirmation
+     for destructive actions (permanent delete / clear all). */
+  function confirmDelete(o) {
+    o = o || {};
+    const specs = [];
+    if (o.reason !== false) specs.push({ k: 'reason', label: o.reasonLabel || 'Reason (optional)', full: true, ph: o.reasonPh || 'e.g. duplicate · entered by mistake' });
+    if (o.needType) specs.push({ k: '_confirm', label: 'Type ' + o.needType + ' to confirm', full: true, up: true, ph: o.needType });
+    openForm({
+      title: o.title || 'Move to Trash?',
+      sub: o.desc || 'This record will move to Trash and can be restored from Settings → Data Management → Trash.',
+      specs, saveLabel: o.confirmLabel || 'Move to Trash', initial: {},
+      onSave(v) {
+        if (o.needType && (v._confirm || '').trim().toUpperCase() !== o.needType.toUpperCase()) { toast('Please type ' + o.needType + ' to confirm'); return false; }
+        try { o.onConfirm && o.onConfirm(v.reason || ''); } catch (e) { toast('Action failed'); }
+        return true;
+      }
+    });
+  }
   function refresh(msg) { if (msg) toast(msg); if (typeof window.__qlRefresh === 'function') window.__qlRefresh(); }
   const GST_OPTS = [[0, 'GST 0%'], [5, 'GST 5%'], [12, 'GST 12%'], [18, 'GST 18%'], [28, 'GST 28%']];
 
@@ -983,11 +1003,17 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
   let _rowMenu = null;
   function closeRowMenu() { if (_rowMenu) { _rowMenu.remove(); _rowMenu = null; } }
   function rowItems(type, idx) {
-    const Q = window.QLD, del = (msg, fn) => ({ label: 'Delete', icon: RICO.del, danger: true, onClick() { if (confirm(msg)) { fn(); refresh('Deleted'); } } });
-    if (type === 'sale') { const r = Q.state.SALES[idx]; const it = [{ label: 'Print invoice', icon: RICO.print, onClick: () => printInvoice(idx) }, { label: 'Edit invoice', icon: RICO.edit, onClick: () => openSaleForm(idx) }]; if ((r.status || 'pending') !== 'paid') it.push({ label: 'Mark paid', icon: RICO.pay, onClick: () => openPaymentForm('sale', idx) }); it.push(del('Delete invoice ' + r.inv + '?', () => Q.deleteSale(idx))); return it; }
-    if (type === 'purchase') { const r = Q.state.PURCHASES[idx]; const it = [{ label: 'Edit bill', icon: RICO.edit, onClick: () => openPurchaseForm(idx) }]; if ((r.status || 'pending') !== 'paid') it.push({ label: 'Mark paid', icon: RICO.pay, onClick: () => openPaymentForm('purchase', idx) }); it.push(del('Delete bill ' + r.bill + '?', () => Q.deletePurchase(idx))); return it; }
-    if (type === 'party') { const r = Q.state.PARTIES[idx]; return [{ label: 'Edit party', icon: RICO.edit, onClick: () => openPartyForm(idx) }, del('Delete party ' + r.name + '?', () => Q.deleteParty(idx))]; }
-    if (type === 'worker') { const r = Q.state.WORKERS[idx]; return [{ label: 'Edit worker', icon: RICO.edit, onClick: () => openWorkerForm(idx) }, del('Delete worker ' + r.name + '?', () => Q.deleteWorker(idx))]; }
+    const Q = window.QLD;
+    // Recoverable delete: opens a modal (no browser confirm), soft-deletes to
+    // Trash, records the reason. `title` = "Move invoice AC1315 to Trash?".
+    const del = (what, fn, extra) => ({ label: 'Move to Trash', icon: RICO.del, danger: true, onClick() {
+      confirmDelete({ title: 'Move ' + what + ' to Trash?', desc: (extra ? extra + ' — ' : '') + 'It will be removed from active records and kept for 90 days. Restore anytime from Settings → Data Management → Trash.',
+        onConfirm(reason) { fn(reason); refresh('Moved to Trash'); } });
+    } });
+    if (type === 'sale') { const r = Q.state.SALES[idx]; const it = [{ label: 'Print invoice', icon: RICO.print, onClick: () => printInvoice(idx) }, { label: 'Edit invoice', icon: RICO.edit, onClick: () => openSaleForm(idx) }]; if ((r.status || 'pending') !== 'paid') it.push({ label: 'Mark paid', icon: RICO.pay, onClick: () => openPaymentForm('sale', idx) }); it.push(del('invoice ' + (r.inv || ''), reason => Q.deleteSale(idx, reason), (r.party || '') + (r.date ? ' · ' + r.date : ''))); return it; }
+    if (type === 'purchase') { const r = Q.state.PURCHASES[idx]; const it = [{ label: 'Edit bill', icon: RICO.edit, onClick: () => openPurchaseForm(idx) }]; if ((r.status || 'pending') !== 'paid') it.push({ label: 'Mark paid', icon: RICO.pay, onClick: () => openPaymentForm('purchase', idx) }); it.push(del('bill ' + (r.bill || ''), reason => Q.deletePurchase(idx, reason), r.sup || r.name || '')); return it; }
+    if (type === 'party') { const r = Q.state.PARTIES[idx]; return [{ label: 'Edit party', icon: RICO.edit, onClick: () => openPartyForm(idx) }, del('party ' + (r.name || ''), reason => Q.deleteParty(idx, reason))]; }
+    if (type === 'worker') { const r = Q.state.WORKERS[idx]; return [{ label: 'Edit worker', icon: RICO.edit, onClick: () => openWorkerForm(idx) }, del('worker ' + (r.name || ''), reason => Q.deleteWorker(idx, reason))]; }
     if (type === 'cash') { return [del('Delete this entry?', () => Q.deleteCashEntry(idx))]; }
     if (type === 'chunna') { return [del('Delete this chunna sale?', () => Q.deleteChunna(idx))]; }
     if (type === 'tds') { return [{ label: 'Edit entry', icon: RICO.edit, onClick: () => openTdsForm(idx) }, del('Delete this TDS entry?', () => Q.deleteTds(idx))]; }
@@ -1481,7 +1507,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     setBreadcrumb(label) { const c = document.querySelector('.tb-crumb-active'); if (c) c.textContent = label; },
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
     // form modals + row action menus
-    closeModal, openForm, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
+    closeModal, openForm, confirmDelete, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
     rowMenu, printInvoice, exportCSV,
     _comboFilter, _comboFocus, _comboBlur, _comboPick, _comboKey,
     formPrompt(title, specs, onSave, sub) { openForm({ title, sub, specs, saveLabel: 'Save', initial: {}, onSave(v) { onSave(v); } }); },

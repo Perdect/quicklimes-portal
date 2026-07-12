@@ -189,6 +189,7 @@ function ql_blob_caps() {
     'tds' => 'gst', 'challans' => 'gst',
     'workers' => 'labour', 'workLog' => 'labour', 'att' => 'labour',
     'prod' => 'production',
+    'audit' => 'reports',
   ];
 }
 /* Read filter: drop module keys the role may not see (full-access → untouched). */

@@ -79,7 +79,7 @@
   /* ── State ───────────────────────────────────────────────────── */
   const S = {
     SALES: [], PURCHASES: [], WORKERS: [], WORK_LOG: [], ATT: {},
-    TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: [], PROD: [],
+    TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: [], PROD: [], AUDIT: [],
     FINANCE: null,
     RECON: { txns: [] }   // bank-statement reconciliation (per company)
   };
@@ -148,7 +148,7 @@
   function clearState() {
     S.SALES.length = 0; S.PURCHASES.length = 0; S.WORKERS.length = 0; S.WORK_LOG.length = 0;
     S.TDS.length = 0; S.CHALLANS.length = 0; S.PARTIES.length = 0; S.CASHBOOK.length = 0;
-    S.LOANS.length = 0; S.CHUNNA.length = 0; S.PROD.length = 0;
+    S.LOANS.length = 0; S.CHUNNA.length = 0; S.PROD.length = 0; S.AUDIT.length = 0;
     Object.keys(S.ATT).forEach(k => delete S.ATT[k]);
     S.FINANCE = defaultFinance();
     S.RECON = { txns: [] };
@@ -167,6 +167,7 @@
     if (d.loans)     S.LOANS.push(...d.loans);
     if (d.chunna)    S.CHUNNA.push(...d.chunna);
     if (d.prod)      S.PROD.push(...d.prod);
+    if (d.audit)     S.AUDIT.push(...d.audit);
     if (d.finance)   S.FINANCE = normalizeFinance(d.finance);
     if (d.reconcile && Array.isArray(d.reconcile.txns)) S.RECON = d.reconcile;
   }
@@ -224,7 +225,7 @@
     const b = {
       sales: S.SALES, purchases: S.PURCHASES, workers: S.WORKERS, workLog: S.WORK_LOG,
       att: S.ATT, tds: S.TDS, challans: S.CHALLANS, parties: S.PARTIES,
-      cashbook: S.CASHBOOK, chunna: S.CHUNNA, prod: S.PROD, finance: S.FINANCE || defaultFinance(),
+      cashbook: S.CASHBOOK, chunna: S.CHUNNA, prod: S.PROD, audit: S.AUDIT, finance: S.FINANCE || defaultFinance(),
       reconcile: S.RECON || { txns: [] }
     };
     if (includePic) b.profile_pic = localStorage.getItem('dm_profile_pic') || null;
@@ -282,7 +283,7 @@
   // Sales
   function addSale(e) { S.SALES.push({ ...e, status: e.status || 'pending' }); if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); else commit(); }
   function updateSale(i, e) { if (S.SALES[i]) { S.SALES[i] = { ...S.SALES[i], ...e }; if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); else commit(); } }
-  function deleteSale(i) { if (S.SALES[i]) { S.SALES.splice(i, 1); commit(); } }
+  function deleteSale(i, reason) { return softDelete('sales', i, reason); }
   function setSaleStatus(i, st, pay) { if (S.SALES[i]) { Object.assign(S.SALES[i], { status: st }, pay || {}); commit(); } }
   // Purchases
   function addPurchase(e) { S.PURCHASES.push({ ...e, status: e.status || 'pending' }); if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); else commit(); }
@@ -307,19 +308,104 @@
     return S.PURCHASES.length - 1;
   }
   function updatePurchase(i, e) { if (S.PURCHASES[i]) { S.PURCHASES[i] = { ...S.PURCHASES[i], ...e }; if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); else commit(); } }
-  function deletePurchase(i) { if (S.PURCHASES[i]) { S.PURCHASES.splice(i, 1); commit(); } }
+  function deletePurchase(i, reason) { return softDelete('purchase', i, reason); }
   function setPurchaseStatus(i, st, pay) { if (S.PURCHASES[i]) { Object.assign(S.PURCHASES[i], { status: st }, pay || {}); commit(); } }
   // Workers
   function addWorker(e) { S.WORKERS.push({ id: 'W' + idStamp(), ...e }); commit(); }
   function updateWorker(i, e) { if (S.WORKERS[i]) { S.WORKERS[i] = { ...S.WORKERS[i], ...e }; commit(); } }
-  function deleteWorker(i) { if (S.WORKERS[i]) { S.WORKERS.splice(i, 1); commit(); } }
+  function deleteWorker(i, reason) { return softDelete('worker', i, reason); }
   // Cashbook
   function addCashEntry(e) { S.CASHBOOK.push({ id: 'cb' + idStamp(), ...e }); commit(); }
-  function deleteCashEntry(i) { if (S.CASHBOOK[i]) { S.CASHBOOK.splice(i, 1); commit(); } }
+  function deleteCashEntry(i, reason) { return softDelete('payment', i, reason); }
   // Party direct edit/delete (by index into partyRows == index into S.PARTIES)
-  function deleteParty(i) { if (S.PARTIES[i]) { S.PARTIES.splice(i, 1); commit(); } }
+  function deleteParty(i, reason) { return softDelete('party', i, reason); }
   let _seq = 0;
   function idStamp() { return Date.now() + '' + (_seq++); }   // unique even within the same millisecond
+
+  /* ═══════════════════════════════════════════════════════════════════
+     SOFT-DELETE / TRASH / ARCHIVE / AUDIT — reusable service.
+     No business record is hard-deleted by default: delete() sets a `_del`
+     marker (kept ON the record so it persists with its module + firm), the
+     row builders exclude `_del`/`_arch`, Trash lists them for restore, and
+     every action is written to an append-only audit log. Records are only
+     physically removed by purge() (permanent delete). ─────────────────── */
+  const nowISO = () => new Date().toISOString();
+  function whoami() {
+    try { const p = JSON.parse(localStorage.getItem('ql_plant') || 'null') || {}; return { by: (p.user && p.user.name) || 'Owner', role: p.role || 'owner' }; }
+    catch (_) { return { by: 'Owner', role: 'owner' }; }
+  }
+  // module key → {arr, label, ref, party, amount, date}. One place to add modules.
+  const TRASHABLE = {
+    sales:      { arr: () => S.SALES,     label: 'Sales invoice',  ref: r => r.inv,  party: r => r.party,        amount: r => cS(r).tot,   date: r => r.date, protect: r => (r.status === 'paid' || r.status === 'cash') },
+    purchase:   { arr: () => S.PURCHASES, label: 'Purchase bill',  ref: r => r.bill, party: r => r.name || r.sup, amount: r => cP(r).tot,   date: r => r.date, protect: r => r.status === 'paid' },
+    party:      { arr: () => S.PARTIES,   label: 'Party',          ref: r => r.name, party: r => r.name,         amount: () => 0,           date: () => '' },
+    payment:    { arr: () => S.CASHBOOK,  label: 'Payment / entry', ref: r => r.ref || r.id, party: r => r.party, amount: r => +r.amount || 0, date: r => r.date },
+    chunna:     { arr: () => S.CHUNNA,    label: 'Chunna sale',    ref: r => r.id,   party: r => r.customer,     amount: r => +r.total || 0, date: r => r.date },
+    production: { arr: () => S.PROD,      label: 'Production run', ref: r => r.date, party: () => '',            amount: r => +r.labour || 0, date: r => r.date },
+    tds:        { arr: () => S.TDS,       label: 'TDS entry',      ref: r => r.id,   party: r => r.party,        amount: r => +r.tds || 0,  date: r => r.date },
+    worker:     { arr: () => S.WORKERS,   label: 'Worker',         ref: r => r.name, party: r => r.name,         amount: () => 0,           date: () => '' }
+  };
+  const isDel  = r => r && !!r._del;
+  const isArch = r => r && !!r._arch;
+  // Pair each ACTIVE record (not trashed/archived) with its RAW array index, so
+  // row builders exclude soft-deleted records while keeping idx stable for
+  // delete/restore. Usage: withIdx(S.SALES).map(([s, i]) => ({ idx: i, ... })).
+  const withIdx = arr => arr.map((r, i) => [r, i]).filter(([r]) => !r._del && !r._arch);
+  function logAudit(action, module, rec, meta) {
+    meta = meta || {}; const w = whoami();
+    S.AUDIT.push({
+      id: 'AU' + idStamp(), ts: nowISO(), action, module,
+      recId: (rec && (rec.id || rec.inv || rec.bill || rec.name)) || '',
+      ref: meta.ref || '', party: meta.party || '', amount: meta.amount || 0,
+      by: w.by, role: w.role, reason: meta.reason || '',
+      device: (typeof navigator !== 'undefined' ? (navigator.userAgent || '').slice(0, 80) : '')
+    });
+    if (S.AUDIT.length > 3000) S.AUDIT.splice(0, S.AUDIT.length - 3000);
+  }
+  function _meta(c, rec, reason) { return { ref: c.ref(rec) || '', party: c.party(rec) || '', amount: c.amount(rec) || 0, reason: reason || '' }; }
+  function softDelete(module, idx, reason) {
+    const c = TRASHABLE[module]; if (!c) return { ok: false, err: 'Unknown module' };
+    const rec = c.arr()[idx]; if (!rec || isDel(rec)) return { ok: false, err: 'Not found' };
+    const w = whoami();
+    rec._del = { at: nowISO(), by: w.by, role: w.role, reason: reason || '' };
+    logAudit('trash', module, rec, _meta(c, rec, reason)); commit();
+    return { ok: true };
+  }
+  function restoreRecord(module, idx) {
+    const c = TRASHABLE[module]; if (!c) return { ok: false, err: 'Unknown module' };
+    const rec = c.arr()[idx]; if (!rec || !isDel(rec)) return { ok: false, err: 'Not in trash' };
+    const ref = c.ref(rec);
+    const conflict = ref ? c.arr().some((x, i) => i !== idx && !isDel(x) && c.ref(x) === ref) : false;
+    delete rec._del;
+    logAudit('restore', module, rec, Object.assign(_meta(c, rec), conflict ? { reason: 'ref conflict: ' + ref } : {})); commit();
+    return { ok: true, conflict: conflict ? ref : null };
+  }
+  function purgeRecord(module, idx) {
+    const c = TRASHABLE[module]; if (!c) return { ok: false, err: 'Unknown module' };
+    const rec = c.arr()[idx]; if (!rec) return { ok: false, err: 'Not found' };
+    logAudit('purge', module, rec, _meta(c, rec)); c.arr().splice(idx, 1); commit();
+    return { ok: true };
+  }
+  function archiveRecord(module, idx, on) {
+    const c = TRASHABLE[module]; if (!c) return { ok: false }; const rec = c.arr()[idx]; if (!rec) return { ok: false };
+    if (on === false) { delete rec._arch; logAudit('unarchive', module, rec, _meta(c, rec)); }
+    else { const w = whoami(); rec._arch = { at: nowISO(), by: w.by }; logAudit('archive', module, rec, _meta(c, rec)); }
+    commit(); return { ok: true };
+  }
+  function trashRows(days) {
+    days = days || 90; const out = [];
+    Object.keys(TRASHABLE).forEach(m => { const c = TRASHABLE[m]; c.arr().forEach((rec, i) => {
+      if (!isDel(rec)) return; const d = rec._del;
+      const age = Math.floor((Date.parse(nowISO()) - Date.parse(d.at)) / 86400000);
+      out.push({ module: m, moduleLabel: c.label, idx: i, ref: c.ref(rec) || '—', party: c.party(rec) || '', amount: c.amount(rec) || 0,
+        date: c.date(rec) || '', deletedAt: d.at, deletedBy: d.by, reason: d.reason || '', daysLeft: Math.max(0, days - age), expired: age >= days });
+    }); });
+    return out.sort((a, b) => (b.deletedAt || '').localeCompare(a.deletedAt || ''));
+  }
+  function auditRows() { return S.AUDIT.slice().reverse(); }
+  function trashCount() { let n = 0; Object.keys(TRASHABLE).forEach(m => TRASHABLE[m].arr().forEach(r => { if (isDel(r)) n++; })); return n; }
+  // Full company snapshot for the "download backup" button (client-side JSON export).
+  function backupJSON() { return JSON.stringify({ company: (COMPANIES[ACTIVE_CO] || {}).name || ACTIVE_CO, exportedAt: nowISO(), data: blob(true) }, null, 2); }
 
   /* ── Aggregates for the dashboard ────────────────────────────── */
   function monthSeries(nMonths = 7) {
@@ -469,7 +555,7 @@
     return (c && c.gstin) ? c.gstin : '';
   }
   function salesRows() {
-    return S.SALES.map((s, i) => {
+    return withIdx(S.SALES).map(([s, i]) => {
       const c = cS(s);
       const paid = (s.status === 'paid' || s.status === 'cash') ? c.tot : (+s.paid || 0);
       return {
@@ -552,7 +638,7 @@
   function cleanSup(p) { const raw = (p.sup || '').trim(); if (raw && SUP_LEAK.test(raw)) { const rec = nameByGstin(p.gstin); if (rec) return rec; } return raw || '—'; }
   function purchaseRows() {
     const todayISO = fmtISO(new Date());
-    return S.PURCHASES.map((p, i) => {
+    return withIdx(S.PURCHASES).map(([p, i]) => {
       const c = cP(p);
       const g = catToGroupItem(p), gm = PGROUP_MAP[g.group] || PGROUP_MAP.other;
       let paid = +p.paid || 0;
@@ -674,7 +760,7 @@
 
   /* ── Parties helpers ─────────────────────────────────────────── */
   function partyRows() {
-    return S.PARTIES.map((p, i) => ({
+    return withIdx(S.PARTIES).map(([p, i]) => ({
       idx: i, name: p.name, gstin: p.gstin || '', phone: p.phone || '',
       address: p.address || '', state: p.state || '', type: p.type || 'customer', notes: p.notes || '',
       // Running-account fields (bank-ledger model): opening balance (+ = they owe us),
@@ -767,7 +853,7 @@
 
   /* ── Labour helpers ──────────────────────────────────────────── */
   function labourRows() {
-    return S.WORKERS.map((w, i) => {
+    return withIdx(S.WORKERS).map(([w, i]) => {
       const c = cW(w);
       return { idx: i, name: w.name, desig: w.desig || '', wage: w.wage, freq: w.freq || 'daily', days: c.days, gross: c.gross, adv: w.adv || 0, net: c.net };
     });
@@ -790,7 +876,7 @@
     const days = [];
     for (let d = 1; d <= dim; d++) { const dow = new Date(y, m, d).getDay(); days.push({ d, dow, dl: DOW[dow], isSun: dow === 0, isSat: dow === 6 }); }
     const monthLabel = new Date(y, m, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
-    const rows = S.WORKERS.map((w, i) => {
+    const rows = withIdx(S.WORKERS).map(([w, i]) => {
       const at = S.ATT[w.id] || {};
       const cells = days.map(({ d, dow, isSun }) => ({ d, isSun, status: at[d] || (dow === 0 ? 'S' : 'P') }));
       return {
@@ -817,7 +903,7 @@
 
   /* ── Cashbook helpers ────────────────────────────────────────── */
   function cashbookRows() {
-    return S.CASHBOOK.map((e, i) => ({ idx: i, date: e.date, type: e.type, mode: e.mode, category: e.category || '', party: e.party || '', amount: e.amount || 0, ref: e.ref || '', notes: e.notes || '' }))
+    return withIdx(S.CASHBOOK).map(([e, i]) => ({ idx: i, date: e.date, type: e.type, mode: e.mode, category: e.category || '', party: e.party || '', amount: e.amount || 0, ref: e.ref || '', notes: e.notes || '' }))
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   }
   function cashbookBalances() {
@@ -832,7 +918,7 @@
 
   /* ── Chunna (cash/PhonePe lime-powder sales) ─────────────────── */
   function chunnaRows() {
-    return S.CHUNNA.map((c, i) => ({
+    return withIdx(S.CHUNNA).map(([c, i]) => ({
       idx: i, date: c.date, customer: c.customer || 'Walk-in',
       qty: parseFloat(c.qty) || 0, rate: parseFloat(c.rate) || 0,
       total: parseFloat(c.total) || (parseFloat(c.qty) || 0) * (parseFloat(c.rate) || 0),
@@ -856,7 +942,7 @@
     S.CHUNNA.push({ id: 'CS' + idStamp(), date: e.date, customer: e.customer || 'Walk-in', qty, rate, total: +(qty * rate).toFixed(2), mode: e.mode || 'cash', photo: '' });
     commit();
   }
-  function deleteChunna(i) { if (S.CHUNNA[i]) { S.CHUNNA.splice(i, 1); commit(); } }
+  function deleteChunna(i, reason) { return softDelete('chunna', i, reason); }
 
   /* ── Production (daily manufacturing entries) ──────────────────────────
      A run records what was CONSUMED (limestone, petcoke, bags) and what was
@@ -880,9 +966,9 @@
     if (e.note != null) S.PROD[i].note = e.note.toString().slice(0, 200);
     commit();
   }
-  function deleteProduction(i) { if (S.PROD[i]) { S.PROD.splice(i, 1); commit(); } }
+  function deleteProduction(i, reason) { return softDelete('production', i, reason); }
   function productionRows() {
-    return S.PROD.map((p, i) => ({
+    return withIdx(S.PROD).map(([p, i]) => ({
       idx: i, date: p.date,
       limestone: nQ(p.limestone), petcoke: nQ(p.petcoke), bags: nQ(p.bags),
       quicklime: nQ(p.quicklime), hydrated: nQ(p.hydrated), labour: nQ(p.labour),
@@ -955,7 +1041,7 @@
     return { cash, bank, upi, total: cash + bank + upi };
   }
   function paymentsLedger() {
-    const asc = S.CASHBOOK.map((e, i) => ({
+    const asc = withIdx(S.CASHBOOK).map(([e, i]) => ({
       id: e.id || ('cb' + i), idx: i, date: e.date || '',
       party: e.party || e.category || '—', ptype: e.ptype || (e.type === 'credit' ? 'Receipt' : 'Payment'),
       ref: e.ref || '', method: e.method || modeToMethod(e.mode), mode: methodToMode(e.method || e.mode),
@@ -1008,7 +1094,7 @@
     S.CASHBOOK.push({ id: 'cb' + idStamp(), date: o.date || fmtISO(new Date()), type: 'debit', mode: methodToMode(o.method), method: o.method || 'Bank', ptype: 'Loan EMI', party: l.name || l.bank || 'Loan', ref: o.ref || '', amount: amt, notes: o.notes || '', link: { kind: 'loan', idx: i } });
     saveLoans(); commit();
   }
-  function deleteLedgerEntry(i) { if (S.CASHBOOK[i]) { S.CASHBOOK.splice(i, 1); commit(); } }
+  function deleteLedgerEntry(i, reason) { return softDelete('payment', i, reason); }
   function paymentsInsights() {
     const out = [], today = fmtISO(new Date()), led = paymentsLedger();
     const recv = salesRows().filter(r => r.status !== 'cancelled' && r.outstanding > 0).sort((a, b) => b.outstanding - a.outstanding);
@@ -1067,7 +1153,7 @@
 
   /* ── TDS (tax deducted at source) ────────────────────────────── */
   function tdsRows() {
-    return S.TDS.map((e, i) => {
+    return withIdx(S.TDS).map(([e, i]) => {
       const amount = +e.amount || 0, rate = +e.rate || 0;
       const tds = e.tds != null ? +e.tds : +(amount * rate / 100).toFixed(2);
       return { idx: i, date: e.date, party: e.party || '', pan: e.pan || '', sec: e.sec || e.secLabel || '—', rate, amount, tds, net: e.net != null ? +e.net : amount - tds, remarks: e.remarks || '' };
@@ -1088,7 +1174,7 @@
     S.TDS[i] = { ...S.TDS[i], date: e.date, party: e.party, pan: (e.pan || '').toUpperCase(), sec: e.sec, secLabel: e.sec, rate, amount, tds, net: amount - tds, remarks: e.remarks || '' };
     commit();
   }
-  function deleteTds(i) { if (S.TDS[i]) { S.TDS.splice(i, 1); commit(); } }
+  function deleteTds(i, reason) { return softDelete('tds', i, reason); }
 
   /* ── Monthly register (combined sales + purchase by month) ───── */
   function monthlyRegister() {
@@ -1308,6 +1394,8 @@
     loanRows, loanSummary, gstSummary,
     getPL, chunnaRows, chunnaSummary, attendanceData,
     productionRows, prodStats, addProduction, updateProduction, deleteProduction,
+    // ── Soft-delete / Trash / Archive / Audit (recoverable deletion) ──
+    softDelete, restoreRecord, purgeRecord, archiveRecord, trashRows, trashCount, auditRows, backupJSON, trashModules: () => Object.keys(TRASHABLE),
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
     invoiceData, amountInWords,
     notifications, getRenewals, addRenewal, removeRenewal, recommendations,
