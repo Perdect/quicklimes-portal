@@ -1560,3 +1560,5 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
   };
   let _active = 'dashboard';
 })();
+
+/* build: confirmDelete 1783845386 */
