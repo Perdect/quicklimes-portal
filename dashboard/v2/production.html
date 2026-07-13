@@ -95,7 +95,12 @@ function renderRuns() {
     stat('Yield', st.yield ? st.yield.toFixed(0) + '%' : '—', 'output ÷ limestone')
   ].join('') : '';
   const tb = document.getElementById('prdRuns');
-  if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--ql-text-muted);padding:20px">No production runs yet. Record a day to compute real stock &amp; cost per ton.</td></tr>'; return; }
+  if (!rows.length) { tb.innerHTML = `<tr><td colspan="8"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:36px 20px;text-align:center">
+    <div style="width:54px;height:54px;border-radius:15px;display:grid;place-items:center;background:#e9f9ee;font-size:25px;margin-bottom:4px">🏭</div>
+    <div style="font-weight:700;color:var(--ql-text)">No production runs yet</div>
+    <div style="color:var(--ql-text-soft);font-size:13px;max-width:340px">Record a day's consumption &amp; output to compute real stock and cost per ton.</div>
+    <button class="ql-btn ql-btn-primary" onclick="document.getElementById('prdAdd').click()" style="margin-top:10px">+ Record production</button>
+  </div></td></tr>`; return; }
   tb.innerHTML = rows.map(r => `<tr>
     <td>${r.date || '—'}</td><td class="num">${r.limestone ? nT(r.limestone) : '—'}</td><td class="num">${r.petcoke ? nT(r.petcoke) : '—'}</td>
     <td class="num">${r.bags ? r.bags.toLocaleString('en-IN') : '—'}</td><td class="num">${r.quicklime ? nT(r.quicklime) : '—'}</td>

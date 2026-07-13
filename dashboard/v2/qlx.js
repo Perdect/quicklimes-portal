@@ -47,7 +47,8 @@
     clock: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>',
     comment: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
     activity: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
-    plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'
+    plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+    inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'
   };
 
   /* ── engine state ── */
@@ -205,6 +206,16 @@
     if (CFG.monthFilter && S.month && S.month !== 'all') return `No ${esc(CFG.emptyLabel || CFG.noun || 'record')} data found for ${esc(monthLabel())}`;
     return `No ${esc(CFG.nounPl || 'records')} in this view`;
   }
+  // Rich empty state: icon + message + primary "Add" call-to-action (wired to
+  // the same action as the toolbar's + button). Used wherever a list is empty.
+  function emptyBlock(pad) {
+    const ic = CFG.emptyIcon || IC.inbox;
+    const add = CFG.primary ? `<button class="qx-btn qx-btn-primary" id="qxEmptyAdd" style="margin-top:14px">${svg(CFG.primary.icon || IC.plus)}<span>${esc(CFG.primary.label)}</span></button>` : '';
+    const sub = CFG.emptySub ? `<div style="font-size:12.5px;color:var(--qx-muted,#94a3b8);max-width:360px;margin-top:2px">${esc(CFG.emptySub)}</div>` : '';
+    return `<div class="qx-empty" style="padding:${pad || 48}px 20px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center">
+      <div style="width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:var(--qx-hover,#f1f5f9);color:var(--qx-muted,#94a3b8);margin-bottom:8px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ic}</svg></div>
+      <div style="font-weight:600;color:var(--qx-text,#0f172a)">${esc(emptyMsg())}</div>${sub}${add}</div>`;
+  }
   function setMonth(ym) {
     if (S.month === ym) return;
     S.month = ym; S.monthInit = true; S._saved = true; S.page = 1; S.sel = new Set();
@@ -322,7 +333,7 @@
     const groups = groupRows(rows);
     const span = cols.length + (hasSel ? 1 : 0);
     let body = '', sr = 0;
-    if (!rows.length) body = `<tr><td colspan="${span}"><div class="qx-empty">${emptyMsg()}</div></td></tr>`;
+    if (!rows.length) body = `<tr><td colspan="${span}">${emptyBlock()}</td></tr>`;
     groups.forEach((grp, gi) => {
       const grouped = grp.key !== '__all';
       const collapsed = S.collapsed.has(grp.key);
@@ -376,7 +387,7 @@
 
   /* ══════════════════ CARDS / GALLERY ══════════════════ */
   function cardsHTML(rows) {
-    if (!rows.length) return `<div class="qx-empty" style="padding:44px">${emptyMsg()}</div>`;
+    if (!rows.length) return emptyBlock();
     // phones: native list rows (avatar · name · vehicle · date · amount · status · ›)
     if (qxMobile() && window.QLMobile && QLMobile.listRow) {
       return `<div class="qx-cards">${rows.map(r => QLMobile.listRow(CFG.card ? CFG.card(r) : { id: rowId(r) }, { id: rowId(r) })).join('')}</div>`;
@@ -433,6 +444,7 @@
   function wire(rows) {
     const $ = s => document.getElementById(s), root = document.getElementById('qxRoot');
     if ($('qxPrimary') && CFG.primary) $('qxPrimary').onclick = () => CFG.primary.onClick();
+    if ($('qxEmptyAdd') && CFG.primary) $('qxEmptyAdd').onclick = () => CFG.primary.onClick();
     root.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => CFG.tools[+b.dataset.tool].onClick());
     if ($('qxMonthBtn')) $('qxMonthBtn').onclick = e => openMonthMenu(e.currentTarget);
     root.querySelectorAll('[data-qf]').forEach(b => b.onclick = () => { S.quick = b.dataset.qf; S.page = 1; render(); });

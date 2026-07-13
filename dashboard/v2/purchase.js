@@ -242,6 +242,7 @@ QLX.mount({
   views: ['table'],
   data: () => Q.purchaseRows(), rowId: r => r.idx, dateField: r => r.date,
   monthFilter: true, monthOf: r => r.date, emptyLabel: 'purchase',
+  emptySub: 'Add a purchase bill, or use “Upload Bills” to import petcoke / limestone / bag invoices.',
   subtitle: () => { const s = Q.purchaseSummary(); return `<b>${esc(Q.co.short)}</b> · ${s.count} bills · <b>${fC(s.total)}</b> purchase value`; },
   banner: rows => aiInsightsPanel(rows),
   primary: { label: 'Add Bill', icon: IC.plus, onClick: () => QLShell.openPurchaseForm() },

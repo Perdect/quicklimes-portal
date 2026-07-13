@@ -343,6 +343,7 @@ QLX.mount({
   data: enriched, rowId: r => r.idx,
   subtitle: () => { const rows = enriched(), cust = rows.filter(r => r.salesN > 0), active = cust.filter(r => r.salesRec <= 45).length; return `<b>${esc(Q.co.short)}</b> · ${cust.length} customers · ${active} active · AI health scoring live`; },
   primary: { label: 'Add Party', icon: IC.plus, onClick: () => QLShell.openPartyForm() },
+  emptySub: 'Add a customer or supplier to start tracking invoices, payments and ledgers.',
   tools: [{ label: 'Export', icon: IC.dl, onClick: () => exportParties() }],
   views: ['table', 'cards', 'analytics'],
   banner: rows => bannerHTML(rows),

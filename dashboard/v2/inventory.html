@@ -81,6 +81,14 @@ function rawCard(m, rows) {
   </div>`;
 }
 
+function invEmpty(icon, title, sub, href, btn) {
+  return `<div class="inv-empty" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:44px 20px">
+    <div style="width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:var(--ql-surface);border:1px solid var(--ql-border);font-size:26px;margin-bottom:4px">${icon}</div>
+    <div style="font-weight:700;font-size:15px;color:var(--ql-text)">${esc(title)}</div>
+    <div style="max-width:340px">${esc(sub)}</div>
+    <a class="ql-btn ql-btn-primary" href="${href}" style="margin-top:10px;text-decoration:none">${esc(btn)}</a>
+  </div>`;
+}
 function render() {
   const P = QLD.purchaseRows(), S = QLD.salesRows();
   $('#invSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + 'derived from real purchase & sales bills';
@@ -136,9 +144,9 @@ function render() {
     ${banner}
     ${closeCards ? `<div class="inv-sec-h">Closing stock (live)</div><div class="inv-grid">${closeCards}</div>` : ''}
     <div class="inv-sec-h">Raw material inward (from purchase bills)</div>
-    ${rawCards ? `<div class="inv-grid">${rawCards}</div>` : '<div class="inv-empty">No raw-material purchases yet. Upload purchase bills to see limestone, petcoke and bags here.</div>'}
+    ${rawCards ? `<div class="inv-grid">${rawCards}</div>` : invEmpty('🪨', 'No raw-material purchases yet', 'Add or upload limestone, petcoke and bag bills.', 'purchase', '+ Add / Upload Bills')}
     <div class="inv-sec-h">Finished goods dispatched (from sales)</div>
-    ${fgCards.length ? `<div class="inv-grid">${fgCards.join('')}</div>` : '<div class="inv-empty">No dispatches yet. Raise sales invoices to track finished-goods movement.</div>'}`;
+    ${fgCards.length ? `<div class="inv-grid">${fgCards.join('')}</div>` : invEmpty('🏭', 'No dispatches yet', 'Raise a sales invoice to track finished-goods movement.', 'invoice', '+ New invoice')}`;
 }
 
 window.__qlOnSwitchCompany = () => render();
