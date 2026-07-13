@@ -92,7 +92,10 @@ function openDashMonthMenu(anchor) {
     menu.innerHTML = `<div class="dx-mm-yr"><button class="dx-mm-nav" data-yr="-1">${svg('<polyline points="15 18 9 12 15 6"/>')}</button><span>${year}</span><button class="dx-mm-nav" data-yr="1">${svg('<polyline points="9 18 15 12 9 6"/>')}</button></div>
       <div class="dx-mm-grid">${MN.map((mn, i) => { const ym = year + '-' + String(i + 1).padStart(2, '0'); return `<button class="dx-mm-cell${cur === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-m="${ym}">${mn}</button>`; }).join('')}</div>
       <button class="dx-mm-all${!cur ? ' on' : ''}" data-m="all">All months</button>`;
-    menu.querySelectorAll('[data-yr]').forEach(b => b.onclick = () => { year += +b.dataset.yr; paint(); });
+    // stopPropagation: paint() replaces menu.innerHTML, detaching this button; without
+    // it the click bubbles to the document close-handler below, which sees a detached
+    // target (not inside the menu) and closes the picker — so year nav never worked.
+    menu.querySelectorAll('[data-yr]').forEach(b => b.onclick = e => { e.stopPropagation(); year += +b.dataset.yr; paint(); });
     menu.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { dashMonth = b.dataset.m; if (Q.setUiMonth) Q.setUiMonth(b.dataset.m); menu.remove(); render(); });
   }
   paint();
@@ -329,3 +332,5 @@ function wire() {
 window.__qlRefresh = render;
 window.__qlOnSwitchCompany = id => Q.switchCompany(id, () => { dashMonth = null; render(); });   // re-read the new company's saved month
 if (Q.init) Q.init(render); else render();
+
+/* build m16: dashboard month-picker year-nav stopPropagation (can now reach 2025) */
