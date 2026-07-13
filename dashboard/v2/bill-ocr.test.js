@@ -233,5 +233,12 @@ eq('poisoned partyMaster is healed by the built-in seed', poisoned.fields.suppli
 const aliasPoison = p(iocTxt, { aliases: { 'INDIAN OIL CORPORATION LIMITED': 'the buyer. For' } });
 ok('poisoned alias never returns a fragment', aliasPoison.fields.supplier !== 'the buyer. For', aliasPoison.fields.supplier);
 
+// Vehicle number — plate whose series contains a digit (RJ191R1049 = RJ-19-1R-1049)
+// must extract, just like a normal RF-series plate (real Feb-2026 sales file bug).
+const vehTxt = n => 'TAX INVOICE\nInvoice No. : 214/2025-26   Transport : Own\nDated : 25-02-2026   Vehicle No. : ' + n + '\nGSTIN 08NLIPS9801K1Z5\nQuick Lime 8.25 T\nTaxable 35475 CGST 887 SGST 887 Total 37249';
+['RJ191R1049', 'RJ21RF1437', 'HR69E6814', 'NL01AJ1150'].forEach(plate => {
+  eq('vehicle labelled "Vehicle No." extracts ' + plate, p(vehTxt(plate)).fields.vehicle, plate);
+});
+
 console.log('\n' + (fail === 0 ? '✅ ALL ' + pass + ' TESTS PASSED' : '❌ ' + fail + ' FAILED, ' + pass + ' passed'));
 process.exit(fail ? 1 : 0);

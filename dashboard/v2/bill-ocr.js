@@ -406,8 +406,13 @@
     //     math (A.rateFromMath).
     if (f.taxable && totalGst != null && totalGst > 0 && (f.gstRate == null || !A.rateFromMath)) { var rr = totalGst / f.taxable * 100; var snap = [3, 5, 12, 18, 28].filter(function (x) { return Math.abs(x - rr) <= 0.7; })[0]; if (snap != null) { set('gstRate', snap, 0.9); ver.gstRate = 'gst_calc'; } }
 
-    var vm = norm(T).match(/\b([A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{1,3}[\s\-]?\d{3,4})\b/);
-    if (vm) set('vehicle', vm[1].replace(/[\s\-]/g, ''), 0.6);
+    // Vehicle number — prefer the value explicitly labelled "Vehicle No /
+    // Motor Vehicle No" (handles ANY plate, incl. a digit inside the series like
+    // RJ191R1049 = RJ-19-1R-1049); else fall back to a structural plate match
+    // whose series may contain a digit but must end in a letter.
+    var vlab = norm(T).match(/\b(?:motor\s*)?vehicle\s*(?:no\.?)?\s*[:.\-]?\s*([A-Z]{2}[\s\-]?[A-Z0-9]{5,9})\b/i);
+    var vm = vlab || norm(T).match(/\b([A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z0-9]{0,2}[A-Z][\s\-]?\d{3,4})\b/);
+    if (vm) set('vehicle', vm[1].replace(/[\s\-]/g, '').toUpperCase(), vlab ? 0.85 : 0.6);
     // Document type
     var bt = /\bcredit\s*note\b/i.test(T) ? 'Credit Note' : /\bdebit\s*note\b/i.test(T) ? 'Debit Note'
       : /\bbill\s*of\s*supply\b/i.test(T) ? 'Bill of Supply' : /\btax\s*invoice\b/i.test(T) ? 'Tax Invoice'
