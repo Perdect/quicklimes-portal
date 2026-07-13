@@ -36,6 +36,15 @@ function setStatus(r, val) { const patch = { status: val }; if (val === 'paid') 
 function markPaid(r) { Q.recordPurchasePayment(r.idx, r.outstanding, 'bank'); toast('Marked paid', 'ok'); QLX.refresh(); }
 function dupBill(r) { const p = Q.state.PURCHASES[r.idx]; Q.addPurchase(Object.assign({}, p, { bill: (p.bill || '') + '-COPY', status: 'pending', paid: 0, payments: [], attach: [] })); toast('Bill duplicated'); QLX.refresh(); }
 function delBill(r) { QLShell.confirmDelete({ title: 'Move bill to Trash?', desc: (r.bill ? 'Bill ' + r.bill : 'This bill') + ' for ' + Q.fC(r.total) + ' · ' + r.sup + ' will move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { Q.deletePurchase(r.idx, reason); toast('Moved to Trash'); QLX.refresh(); } }); }
+function voidBill(r) {
+  if (r.status === 'cancelled') { toast('This bill is already voided'); return; }
+  QLShell.confirmDelete({
+    title: 'Void bill ' + (r.bill || '') + '?',
+    desc: 'Bill ' + (r.bill || '') + ' for ' + Q.fC(r.total) + ' · ' + r.sup + ' will be marked Cancelled. The document is kept for ITC & audit, and it drops out of live purchase totals. This is the compliant alternative to deleting a posted bill.',
+    reasonLabel: 'Reason for voiding', reasonPh: 'e.g. wrong supplier · duplicate · returned', confirmLabel: 'Void bill',
+    onConfirm: reason => { const res = Q.voidRecord('purchase', r.idx, reason); if (res.ok) { toast('Bill voided'); QLX.refresh(); } else { toast(res.err || 'Could not void'); } }
+  });
+}
 function shareBill(r) { const co = supContact(r.sup); window.open(waLink(co.phone || '', `Purchase bill ${r.bill || ''} — ${r.item} · ${fC(r.total)} · ${r.status}`), '_blank'); }
 function copyLink(r) { const text = `${Q.co.short} · Bill ${r.bill || ''} · ${r.sup} · ${r.item} · ${fC(r.total)} · ${r.status}`; (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast('Bill summary copied'), () => toast('Copy not available', 'err')); }
 
@@ -300,6 +309,7 @@ QLX.mount({
     { label: 'Share', icon: IC.share, onClick: shareBill },
     { label: 'Copy link', icon: IC.copy, onClick: copyLink },
     { divider: true },
+    { label: 'Void / Cancel', icon: IC.ban || IC.close, onClick: voidBill },
     { label: 'Delete', icon: IC.trash, cls: 'del', onClick: delBill }
   ],
   bulkActions: [

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css?v=m1">
 <script src="ql-api.js"></script>
-<script src="./data.js?v=m10"></script>
+<script src="./data.js?v=m11"></script>
 <link rel="stylesheet" href="./mobile.css?v=m4">
 </head>
 <body class="ql-v2">
@@ -194,9 +194,12 @@ function renderDM() {
     });
     $('#dmBody').querySelectorAll('[data-purge]').forEach(b => b.onclick = () => {
       const [m, i] = b.dataset.purge.split(':');
+      // Financial/compliance records can't be hard-deleted — surface the block up front.
+      const probe = QLD.purgeRecord.length >= 0 && (m === 'sales' || m === 'purchase' || m === 'payment');
+      if (probe) { QLShell.confirmDelete({ title: 'This record can’t be permanently deleted', desc: (m === 'sales' ? 'Sales invoice' : m === 'purchase' ? 'Purchase bill' : 'Payment') + ' records are protected for GST & audit compliance. Void / Cancel the record (it stays visible as Cancelled) or leave it in Trash — it can’t be erased.', reason: false, confirmLabel: 'Got it', onConfirm() {} }); return; }
       QLShell.confirmDelete({ title: 'Permanently delete this record?', desc: 'This cannot be undone — the record will be erased, not moved to Trash. Consider downloading a backup first.',
         reasonLabel: 'Reason (required)', needType: 'DELETE PERMANENTLY', confirmLabel: 'Delete permanently',
-        onConfirm() { QLD.purgeRecord(m, +i); toast('Permanently deleted'); renderDM(); } });
+        onConfirm() { const res = QLD.purgeRecord(m, +i); if (res && res.ok) { toast('Permanently deleted'); renderDM(); } else { toast(res && res.err ? res.err : 'Could not delete'); } } });
     });
   } else {
     let rows = QLD.auditRows ? QLD.auditRows() : [];

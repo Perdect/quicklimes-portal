@@ -380,10 +380,30 @@
     logAudit('restore', module, rec, Object.assign(_meta(c, rec), conflict ? { reason: 'ref conflict: ' + ref } : {})); commit();
     return { ok: true, conflict: conflict ? ref : null };
   }
+  // Financial/compliance records must NEVER be hard-deleted — only voided or
+  // archived — so GST, audit and ledger history stay intact.
+  const FINANCIAL = { sales: 1, purchase: 1, payment: 1 };
   function purgeRecord(module, idx) {
     const c = TRASHABLE[module]; if (!c) return { ok: false, err: 'Unknown module' };
     const rec = c.arr()[idx]; if (!rec) return { ok: false, err: 'Not found' };
+    if (FINANCIAL[module]) return { ok: false, blocked: true, err: c.label + ' records can’t be permanently deleted — Void / Cancel or Archive instead, so GST and audit history stay intact.' };
     logAudit('purge', module, rec, _meta(c, rec)); c.arr().splice(idx, 1); commit();
+    return { ok: true };
+  }
+  const isVoid = r => r && (r.status === 'cancelled' || !!r._void);
+  // Void / Cancel a posted financial record: keep the document + number, mark it
+  // Cancelled (so it drops out of live totals but stays in audit/compliance), and
+  // reverse any linked bank-ledger posting. This is the compliant alternative to
+  // deleting invoices, bills and payments.
+  function voidRecord(module, idx, reason) {
+    const c = TRASHABLE[module]; if (!c) return { ok: false, err: 'Unknown module' };
+    const rec = c.arr()[idx]; if (!rec) return { ok: false, err: 'Not found' };
+    if (isVoid(rec)) return { ok: false, err: 'Already voided' };
+    const w = whoami();
+    rec._void = { at: nowISO(), by: w.by, role: w.role, reason: reason || '' };
+    rec.status = 'cancelled';
+    if (module === 'payment' && rec.partyIdx != null && rec.ledgerEntryId) { try { reverseLedgerEntry(rec.partyIdx, rec.ledgerEntryId); } catch (_) {} }
+    logAudit('void', module, rec, _meta(c, rec, reason)); commit();
     return { ok: true };
   }
   function archiveRecord(module, idx, on) {
@@ -1395,7 +1415,7 @@
     getPL, chunnaRows, chunnaSummary, attendanceData,
     productionRows, prodStats, addProduction, updateProduction, deleteProduction,
     // ── Soft-delete / Trash / Archive / Audit (recoverable deletion) ──
-    softDelete, restoreRecord, purgeRecord, archiveRecord, trashRows, trashCount, auditRows, backupJSON, trashModules: () => Object.keys(TRASHABLE),
+    softDelete, restoreRecord, purgeRecord, voidRecord, archiveRecord, trashRows, trashCount, auditRows, backupJSON, trashModules: () => Object.keys(TRASHABLE),
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
     invoiceData, amountInWords,
     notifications, getRenewals, addRenewal, removeRenewal, recommendations,
@@ -1446,3 +1466,5 @@
 /* build: prod-module 2026-07-11 */
 
 /* build: trash-audit 1783845386 */
+
+/* build: void-protect 1783929898 */

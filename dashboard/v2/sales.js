@@ -104,6 +104,15 @@ function wireDocs(body, r) {
 }
 function setStatus(r, val) { Q.setSaleStatus(r.idx, val, (val === 'paid' || val === 'cash') ? { paidDate: todayISO, paidMode: val === 'cash' ? 'Cash' : 'Bank' } : {}); }
 function delInv(r) { QLShell.confirmDelete({ title: 'Move invoice to Trash?', desc: (r.inv ? 'Invoice ' + r.inv : 'This invoice') + ' for ' + Q.fC(r.total) + ' · ' + r.party + ' will move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { Q.deleteSale(r.idx, reason); toast('Moved to Trash'); QLX.refresh(); } }); }
+function voidInv(r) {
+  if (r.status === 'cancelled') { toast('This invoice is already voided'); return; }
+  QLShell.confirmDelete({
+    title: 'Void invoice ' + (r.inv || '') + '?',
+    desc: 'Invoice ' + (r.inv || '') + ' for ' + Q.fC(r.total) + ' · ' + r.party + ' will be marked Cancelled. The document and number are kept for GST & audit, and it drops out of live sales totals. This is the compliant alternative to deleting a posted invoice.',
+    reasonLabel: 'Reason for voiding', reasonPh: 'e.g. wrong party · duplicate · order cancelled', confirmLabel: 'Void invoice',
+    onConfirm: reason => { const res = Q.voidRecord('sales', r.idx, reason); if (res.ok) { toast('Invoice voided'); QLX.refresh(); } else { toast(res.err || 'Could not void'); } }
+  });
+}
 function dupInv(r) { const s = Q.state.SALES[r.idx]; Q.addSale(Object.assign({}, s, { inv: (s.inv || '') + '-COPY', status: 'pending', paid: 0, payments: [] })); toast('Invoice duplicated'); QLX.refresh(); }
 function shareInv(r) { const co = (Q.partyRows().find(x => (x.name || '').toUpperCase() === (r.party || '').toUpperCase()) || {}); const d = (co.phone || '').replace(/\D/g, ''); const n = d.length === 10 ? '91' + d : d; window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(`Invoice ${r.inv || ''} — ${fC(r.total)} · ${r.status}`), '_blank'); }
 
@@ -251,6 +260,7 @@ QLX.mount({
     { label: 'Duplicate', icon: IC.copy, onClick: dupInv },
     { label: 'Share', icon: IC.share, onClick: shareInv },
     { divider: true },
+    { label: 'Void / Cancel', icon: IC.ban || IC.close, onClick: voidInv },
     { label: 'Delete', icon: IC.trash, cls: 'del', onClick: delInv }
   ],
   bulkActions: [

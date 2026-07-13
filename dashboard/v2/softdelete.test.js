@@ -54,13 +54,33 @@ Q.addSale({ inv: 'S-2', date: '2026-06-09', party: 'NEW', qty: 1, rate: 1, gstR:
 const r2 = Q.restoreRecord('sales', 1);
 ok('restore flags duplicate ref', r2.ok && r2.conflict === 'S-2');
 
-// purge (permanent) — actually removes
+// PERMANENT-DELETE PROTECTION — financial records can't be purged
 Q.deleteSale(0, 'purge me');               // trash S-1 again (idx 0)
-const before = Q.state.SALES.length;
-const p = Q.purgeRecord('sales', 0);
-ok('purge ok', p && p.ok === true);
-ok('purge physically removes', Q.state.SALES.length === before - 1);
+const beforeS = Q.state.SALES.length;
+const pBlocked = Q.purgeRecord('sales', 0);
+ok('purge of a financial (sales) record is BLOCKED', pBlocked && pBlocked.ok === false && pBlocked.blocked === true);
+ok('blocked purge does NOT remove the record', Q.state.SALES.length === beforeS);
+Q.restoreRecord('sales', 0);               // bring S-1 back for later tests
+
+// purge IS allowed for a non-financial record (worker)
+Q.addWorker({ name: 'Ramu', wage: 500, freq: 'daily' });
+const wi = Q.state.WORKERS.length - 1;
+Q.deleteWorker(wi, 'left');
+const beforeW = Q.state.WORKERS.length;
+const pw = Q.purgeRecord('worker', wi);
+ok('purge ok for non-financial (worker)', pw && pw.ok === true);
+ok('worker physically removed', Q.state.WORKERS.length === beforeW - 1);
 ok('audit has purge entry', Q.auditRows().some(a => a.action === 'purge'));
+
+// VOID / CANCEL — posted financial record kept but marked Cancelled
+const vIdx = Q.state.SALES.findIndex(s => s.inv === 'S-1');
+const v = Q.voidRecord('sales', vIdx, 'wrong party');
+ok('voidRecord returns ok', v && v.ok === true);
+ok('voided record status is cancelled', Q.state.SALES[vIdx].status === 'cancelled');
+ok('voided record keeps _void metadata + reason', Q.state.SALES[vIdx]._void && Q.state.SALES[vIdx]._void.reason === 'wrong party');
+ok('voided invoice still EXISTS (not deleted)', !!Q.state.SALES[vIdx].inv);
+ok('void logs an audit entry', Q.auditRows().some(a => a.action === 'void'));
+ok('double-void is rejected', Q.voidRecord('sales', vIdx, 'again').ok === false);
 
 // backup JSON is valid + contains data
 let bk = null; try { bk = JSON.parse(Q.backupJSON()); } catch (_) {}
