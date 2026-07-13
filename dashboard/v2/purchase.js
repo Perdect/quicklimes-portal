@@ -309,6 +309,7 @@ QLX.mount({
     { label: 'Share', icon: IC.share, onClick: shareBill },
     { label: 'Copy link', icon: IC.copy, onClick: copyLink },
     { divider: true },
+    { label: 'Archive', icon: IC.file, onClick: r => { Q.archiveRecord('purchase', r.idx, true); toast('Bill archived — see Settings → Data Management → Archived'); QLX.refresh(); } },
     { label: 'Void / Cancel', icon: IC.ban || IC.close, onClick: voidBill },
     { label: 'Delete', icon: IC.trash, cls: 'del', onClick: delBill }
   ],

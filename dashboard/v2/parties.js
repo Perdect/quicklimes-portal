@@ -407,6 +407,7 @@ QLX.mount({
     ...(r.phone ? [{ label: 'Call', icon: IC.call, onClick: r => location.href = 'tel:' + r.phone }] : []),
     ...(r.salesDue ? [{ label: 'Send reminder', icon: IC.wa, onClick: r => window.open(waLink(r.phone, `Dear ${r.name}, a gentle reminder — ${fC(r.salesDue)} is pending on your account. Thank you.`), '_blank') }] : []),
     { divider: true },
+    { label: 'Archive', icon: IC.file, onClick: r => { Q.archiveRecord('party', r.idx, true); toast('Party archived — see Settings → Data Management → Archived'); QLX.refresh(); } },
     { label: 'Delete', icon: IC.trash, cls: 'del', onClick: r => { QLShell.confirmDelete({ title: 'Move party to Trash?', desc: r.name + ' will move to Trash and can be restored for 90 days. Their invoices and bills are not deleted.', confirmLabel: 'Move to Trash', onConfirm: reason => { Q.deleteParty(r.idx, reason); toast('Moved to Trash'); QLX.refresh(); } }); } }
   ],
   card: r => ({ id: r.name, title: esc(r.name), amount: fC(r.business), party: r.name, partySub: (SEG[r.seg] || SEG.regular).label + (r.salesN ? ' · health ' + r.health : ''), status: segPill(r), rows: [['Health', r.salesN ? healthBar(r.health) : '—'], ['Receivable', r.salesDue ? fC(r.salesDue) : '—'], ['Orders', r.salesN || '—']] }),

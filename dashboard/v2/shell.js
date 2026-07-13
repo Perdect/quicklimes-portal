@@ -106,6 +106,26 @@
   function roleAllows(k) { const r = roleDef(); if (r.feats === '*') return true; if (k === 'dashboard') return true; return r.feats.indexOf(k) >= 0; }
   function setRole(k) { if (isEmployee()) return; if (!ROLES.some(r => r.key === k)) return; try { localStorage.setItem(ROLE_KEY, k); } catch (_) {} }
 
+  /* ── Data-management permission matrix ───────────────────────────
+     Frontend gate for Archive/Trash/Void/Purge/Backup. The account OWNER (not an
+     employee sub-login) is super-admin. Employee logins are gated by their
+     server-assigned role; permanent delete is never granted below admin.
+     (Server-side enforcement of these is the employee-RBAC fast-follow.) */
+  const PERMS = {
+    admin:      ['viewArchived', 'archive', 'restoreArchived', 'trash', 'viewTrash', 'restore', 'void', 'viewAudit', 'backup', 'purge'],
+    partner:    ['*'],
+    accountant: ['viewArchived', 'archive', 'restoreArchived', 'trash', 'viewTrash', 'restore', 'void', 'viewAudit', 'backup'],
+    sales:      ['trash', 'viewTrash', 'restore', 'void'],
+    purchase:   ['trash', 'viewTrash', 'restore', 'void'],
+    production: ['trash', 'viewTrash', 'restore'],
+    dispatch:   ['trash', 'viewTrash', 'restore']
+  };
+  function can(perm) {
+    if (!isEmployee()) return true;                                // account owner = super-admin
+    const p = PERMS[serverRole()] || PERMS.sales;
+    return p.indexOf('*') >= 0 || p.indexOf(perm) >= 0;
+  }
+
   const featOn = k => FEAT[k] !== false && roleAllows(k);
   function setFeat(k, on) { const x = FEATURES.find(y => y.key === k); if (!x || x.locked) return; FEAT[k] = !!on; try { localStorage.setItem(FEAT_KEY, JSON.stringify(FEAT)); } catch (_) {} }
 
@@ -1500,7 +1520,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     toggleSidebar, toggleMobileSidebar, toggleGroup, openPalette, closePalette, toast,
     openNotifications, openAssistant, closeDrawer, assistAsk, assistAnswer,
     notifOpen, notifWA, notifDone, notifSnooze, addRenewal, refreshNotifDot,
-    registerAssistIntent,
+    registerAssistIntent, can, permMatrix: () => PERMS, currentRole,
     closePhotoModal() { $('photoBack').classList.remove('open'); },
     savePhoto() {}, removePhoto() {},
     paintWorkspace,
@@ -1562,3 +1582,5 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
 })();
 
 /* build: confirmDelete 1783845386 */
+
+/* build: archive-perms 1783930681 */

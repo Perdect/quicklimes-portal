@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css?v=m1">
 <script src="ql-api.js"></script>
-<script src="./data.js?v=m11"></script>
+<script src="./data.js?v=m12"></script>
 <link rel="stylesheet" href="./mobile.css?v=m4">
 </head>
 <body class="ql-v2">
@@ -70,6 +70,7 @@
       </div>
       <div class="dm-tabs" style="display:flex;gap:8px;margin:var(--ql-space-3) 0">
         <button class="ql-btn ql-btn-secondary dm-tab" data-tab="trash">🗑 Trash <span id="dmTrashN" class="ft-lock" style="background:#fee2e2;color:#b91c1c"></span></button>
+        <button class="ql-btn ql-btn-secondary dm-tab" data-tab="archived">🗄 Archived <span id="dmArchN" class="ft-lock" style="background:#fef3c7;color:#92400e"></span></button>
         <button class="ql-btn ql-btn-secondary dm-tab" data-tab="audit">📋 Audit log</button>
       </div>
       <input id="dmSearch" class="ql-input" placeholder="Search trash / audit…" style="width:100%;margin-bottom:var(--ql-space-3);padding:9px 12px;border:1px solid var(--ql-border);border-radius:9px;font:inherit">
@@ -90,7 +91,7 @@
 
 <div id="setToast" class="fin-toast" hidden></div>
 
-<script src="./shell.js?v=m22"></script>
+<script src="./shell.js?v=m23"></script>
 <script src="./mobile.js?v=m4"></script>
 <script>
 QLShell.mount({ active: 'settings', title: 'Settings' });
@@ -166,8 +167,27 @@ const fdt = s => { try { return new Date(s).toLocaleString('en-IN', { day: '2-di
 function renderDM() {
   const q = ($('#dmSearch').value || '').toLowerCase().trim();
   $('#dmTrashN').textContent = QLD.trashCount ? (QLD.trashCount() || '') : '';
+  const an = $('#dmArchN'); if (an) an.textContent = QLD.archiveCount ? (QLD.archiveCount() || '') : '';
+  const canPurge = !window.QLShell || !QLShell.can || QLShell.can('purge');
+  const canRestore = !window.QLShell || !QLShell.can || QLShell.can('restore');
   document.querySelectorAll('.dm-tab').forEach(b => b.style.background = b.dataset.tab === dmTab ? 'var(--ql-primary)' : '');
   document.querySelectorAll('.dm-tab').forEach(b => b.style.color = b.dataset.tab === dmTab ? '#fff' : '');
+  if (dmTab === 'archived') {
+    let rows = QLD.archiveRows ? QLD.archiveRows() : [];
+    if (q) rows = rows.filter(r => (r.moduleLabel + ' ' + r.ref + ' ' + r.party + ' ' + r.archivedBy).toLowerCase().includes(q));
+    if (!rows.length) { $('#dmBody').innerHTML = '<div class="ft-note" style="padding:16px;text-align:center">No archived records. Archive a record to keep it out of active lists but available for history.</div>'; return; }
+    $('#dmBody').innerHTML = `<table class="ql-tbl" style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="text-align:left;color:var(--ql-text-soft);font-size:11px;text-transform:uppercase">
+        <th style="padding:8px">Type</th><th style="padding:8px">Reference</th><th style="padding:8px">Party</th><th style="padding:8px;text-align:right">Amount</th><th style="padding:8px">Archived by</th><th style="padding:8px">When</th><th style="padding:8px"></th></tr></thead>
+      <tbody>${rows.map(r => `<tr style="border-top:1px solid var(--ql-border)">
+        <td style="padding:8px"><b>${esc(r.moduleLabel)}</b> <span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:6px">Archived</span></td>
+        <td style="padding:8px">${esc(r.ref)}</td><td style="padding:8px">${esc(r.party || '—')}</td>
+        <td style="padding:8px;text-align:right">${r.amount ? fCn(r.amount) : '—'}</td>
+        <td style="padding:8px">${esc(r.archivedBy || '—')}</td><td style="padding:8px">${fdt(r.archivedAt)}</td>
+        <td style="padding:8px;text-align:right">${canRestore ? `<button class="ql-btn ql-btn-secondary" data-unarch="${r.module}:${r.idx}" style="color:#1c7c3a">Restore</button>` : '<span class="ft-note">—</span>'}</td></tr>`).join('')}</tbody></table>`;
+    $('#dmBody').querySelectorAll('[data-unarch]').forEach(b => b.onclick = () => { const [m, i] = b.dataset.unarch.split(':'); QLD.archiveRecord(m, +i, false); toast('Restored from archive'); renderDM(); if (window.__qlRefresh) window.__qlRefresh(); });
+    return;
+  }
   if (dmTab === 'trash') {
     let rows = QLD.trashRows ? QLD.trashRows() : [];
     if (q) rows = rows.filter(r => (r.moduleLabel + ' ' + r.ref + ' ' + r.party + ' ' + r.deletedBy + ' ' + r.reason).toLowerCase().includes(q));
@@ -184,8 +204,9 @@ function renderDM() {
         <td style="padding:8px">${fdt(r.deletedAt)}</td>
         <td style="padding:8px;${r.daysLeft <= 7 ? 'color:#dc2626;font-weight:600' : ''}">${r.daysLeft}d</td>
         <td style="padding:8px;white-space:nowrap;text-align:right">
-          <button class="ql-btn ql-btn-secondary" data-restore="${r.module}:${r.idx}" style="color:#1c7c3a">Restore</button>
-          <button class="ql-btn ql-btn-secondary" data-purge="${r.module}:${r.idx}" style="color:#b91c1c">Delete permanently</button>
+          ${canRestore ? `<button class="ql-btn ql-btn-secondary" data-restore="${r.module}:${r.idx}" style="color:#1c7c3a">Restore</button>` : ''}
+          ${canPurge ? `<button class="ql-btn ql-btn-secondary" data-purge="${r.module}:${r.idx}" style="color:#b91c1c">Delete permanently</button>` : ''}
+          ${!canRestore && !canPurge ? '<span class="ft-note">View only</span>' : ''}
         </td></tr>`).join('')}</tbody></table>`;
     $('#dmBody').querySelectorAll('[data-restore]').forEach(b => b.onclick = () => {
       const [m, i] = b.dataset.restore.split(':'); const res = QLD.restoreRecord(m, +i);

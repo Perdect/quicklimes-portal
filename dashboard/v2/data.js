@@ -424,6 +424,17 @@
   }
   function auditRows() { return S.AUDIT.slice().reverse(); }
   function trashCount() { let n = 0; Object.keys(TRASHABLE).forEach(m => TRASHABLE[m].arr().forEach(r => { if (isDel(r)) n++; })); return n; }
+  // Archived records (hidden from active lists, kept for history, restorable).
+  function archiveRows() {
+    const out = [];
+    Object.keys(TRASHABLE).forEach(m => { const c = TRASHABLE[m]; c.arr().forEach((rec, i) => {
+      if (!isArch(rec) || isDel(rec)) return; const a = rec._arch;
+      out.push({ module: m, moduleLabel: c.label, idx: i, ref: c.ref(rec) || '—', party: c.party(rec) || '', amount: c.amount(rec) || 0,
+        date: c.date(rec) || '', archivedAt: a.at, archivedBy: a.by });
+    }); });
+    return out.sort((x, y) => (y.archivedAt || '').localeCompare(x.archivedAt || ''));
+  }
+  function archiveCount() { let n = 0; Object.keys(TRASHABLE).forEach(m => TRASHABLE[m].arr().forEach(r => { if (isArch(r) && !isDel(r)) n++; })); return n; }
   // Full company snapshot for the "download backup" button (client-side JSON export).
   function backupJSON() { return JSON.stringify({ company: (COMPANIES[ACTIVE_CO] || {}).name || ACTIVE_CO, exportedAt: nowISO(), data: blob(true) }, null, 2); }
 
@@ -1415,7 +1426,7 @@
     getPL, chunnaRows, chunnaSummary, attendanceData,
     productionRows, prodStats, addProduction, updateProduction, deleteProduction,
     // ── Soft-delete / Trash / Archive / Audit (recoverable deletion) ──
-    softDelete, restoreRecord, purgeRecord, voidRecord, archiveRecord, trashRows, trashCount, auditRows, backupJSON, trashModules: () => Object.keys(TRASHABLE),
+    softDelete, restoreRecord, purgeRecord, voidRecord, archiveRecord, archiveRows, archiveCount, trashRows, trashCount, auditRows, backupJSON, trashModules: () => Object.keys(TRASHABLE),
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
     invoiceData, amountInWords,
     notifications, getRenewals, addRenewal, removeRenewal, recommendations,
@@ -1468,3 +1479,5 @@
 /* build: trash-audit 1783845386 */
 
 /* build: void-protect 1783929898 */
+
+/* build: archive-perms 1783930681 */

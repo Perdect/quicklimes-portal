@@ -82,6 +82,20 @@ ok('voided invoice still EXISTS (not deleted)', !!Q.state.SALES[vIdx].inv);
 ok('void logs an audit entry', Q.auditRows().some(a => a.action === 'void'));
 ok('double-void is rejected', Q.voidRecord('sales', vIdx, 'again').ok === false);
 
+// ARCHIVE — hidden from active lists, listed in archiveRows, restorable
+Q.addSale({ inv: 'S-ARCH', date: '2026-06-03', party: 'KIRTI', qty: 3, rate: 100, gstR: 5, product: 'Quick Lime' });
+const ai = Q.state.SALES.findIndex(s => s.inv === 'S-ARCH');
+const activeBeforeArch = Q.salesRows().length;
+Q.archiveRecord('sales', ai, true);
+ok('archive hides from active list', Q.salesRows().length === activeBeforeArch - 1);
+ok('archiveCount is 1', Q.archiveCount() === 1);
+const ar = Q.archiveRows();
+ok('archiveRows lists the record', ar.length === 1 && ar[0].ref === 'S-ARCH');
+ok('archive logs audit', Q.auditRows().some(a => a.action === 'archive'));
+Q.archiveRecord('sales', ai, false);
+ok('unarchive returns it to active', Q.salesRows().length === activeBeforeArch && Q.archiveCount() === 0);
+ok('unarchive logs audit', Q.auditRows().some(a => a.action === 'unarchive'));
+
 // backup JSON is valid + contains data
 let bk = null; try { bk = JSON.parse(Q.backupJSON()); } catch (_) {}
 ok('backupJSON is valid JSON with data', !!(bk && bk.data && Array.isArray(bk.data.sales)));

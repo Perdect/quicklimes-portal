@@ -260,6 +260,7 @@ QLX.mount({
     { label: 'Duplicate', icon: IC.copy, onClick: dupInv },
     { label: 'Share', icon: IC.share, onClick: shareInv },
     { divider: true },
+    { label: 'Archive', icon: IC.file, onClick: r => { Q.archiveRecord('sales', r.idx, true); toast('Invoice archived — see Settings → Data Management → Archived'); QLX.refresh(); } },
     { label: 'Void / Cancel', icon: IC.ban || IC.close, onClick: voidInv },
     { label: 'Delete', icon: IC.trash, cls: 'del', onClick: delInv }
   ],
