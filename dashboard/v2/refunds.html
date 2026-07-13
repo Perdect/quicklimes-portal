@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GST Refunds — QuickLimes</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="manifest" href="/v2/app.webmanifest">
+<link rel="apple-touch-icon" href="/v2/pwa-apple.png?v=g1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r2"><link rel="stylesheet" href="./pages.css?v=m1">
+<script src="ql-api.js"></script>
+<script src="./data.js?v=m15"></script>
+<script src="./refund-ocr.js?v=r1"></script>
+<link rel="stylesheet" href="./mobile.css?v=m4">
+<style>
+  .rf-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: var(--ql-space-4); }
+  .rf-kpi { background: var(--ql-surface); border: 1px solid var(--ql-border); border-radius: 14px; padding: 15px 16px; box-shadow: var(--ql-shadow-sm); }
+  .rf-kpi .lb { font-size: 12px; color: var(--ql-text-soft); font-weight: 600; }
+  .rf-kpi .v { font-size: 22px; font-weight: 800; letter-spacing: -.02em; margin-top: 5px; }
+  .rf-kpi .m { font-size: 11.5px; color: var(--ql-text-soft); margin-top: 2px; }
+  .rf-tbl { width: 100%; border-collapse: collapse; background: var(--ql-surface); border: 1px solid var(--ql-border); border-radius: 14px; overflow: hidden; font-size: 13px; }
+  .rf-tbl th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--ql-text-soft); padding: 10px 12px; border-bottom: 1px solid var(--ql-border); white-space: nowrap; }
+  .rf-tbl td { padding: 11px 12px; border-bottom: 1px solid var(--ql-border); }
+  .rf-tbl tr:last-child td { border-bottom: 0; }
+  .rf-tbl td.r, .rf-tbl th.r { text-align: right; }
+  .rf-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+  .rf-pill.filed { background: #fef3c7; color: #92400e; } .rf-pill.sanctioned { background: #dbeafe; color: #1d4ed8; } .rf-pill.received { background: #dcfce7; color: #166534; }
+  .rf-act { border: 1px solid var(--ql-border); background: var(--ql-surface); border-radius: 8px; padding: 4px 9px; font: inherit; font-size: 12px; cursor: pointer; margin-left: 4px; }
+  .rf-act:hover { border-color: var(--ql-primary); color: var(--ql-primary); }
+  .rf-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 52px 20px; text-align: center; color: var(--ql-text-soft); }
+  .rf-note { display: flex; gap: 10px; align-items: flex-start; background: color-mix(in srgb, var(--ql-primary) 6%, var(--ql-surface)); border: 1px solid color-mix(in srgb, var(--ql-primary) 22%, var(--ql-border)); border-radius: 12px; padding: 11px 14px; font-size: 12.5px; color: var(--ql-text-soft); margin-bottom: var(--ql-space-4); }
+</style>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div><h1 class="page-title">GST Refunds</h1><div class="page-sub" id="rfSub">Petcoke / inverted-duty refunds · CA commission tracking</div></div>
+      <div class="page-actions">
+        <button class="ql-btn" id="rfUpload">⬆ Upload RFD</button>
+        <button class="ql-btn ql-btn-primary" id="rfAdd">+ Add refund</button>
+        <input type="file" id="rfFile" accept=".pdf,image/*" hidden>
+      </div>
+    </div>
+    <div id="rfBody"></div>
+  </div>
+</div>
+
+<script src="./shell.js?v=m24"></script>
+<script src="./mobile.js?v=m4"></script>
+<script>
+QLShell.mount({ active: 'refunds', title: 'GST Refunds' });
+const $ = s => document.querySelector(s);
+const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fC = v => (window.QLD && QLD.fC) ? QLD.fC(v) : ('₹' + Math.round(v || 0).toLocaleString('en-IN'));
+
+const SPECS = [
+  { k: 'arn', label: 'ARN (application ref no)', full: true, upper: true },
+  { k: 'appDate', label: 'Date filed (dd/mm/yyyy)' },
+  { k: 'fromPeriod', label: 'From period (e.g. JULY 2025)' },
+  { k: 'toPeriod', label: 'To period (e.g. SEPTEMBER 2025)' },
+  { k: 'reason', label: 'Reason', full: true },
+  { k: 'igst', label: 'IGST (₹)', type: 'number' },
+  { k: 'cgst', label: 'CGST (₹)', type: 'number' },
+  { k: 'sgst', label: 'SGST (₹)', type: 'number' },
+  { k: 'cess', label: 'CESS (₹)', type: 'number' },
+  { k: 'caRate', label: 'CA commission %', type: 'number' },
+  { k: 'status', label: 'Status', type: 'select', opts: [['filed', 'Filed (RFD-01)'], ['sanctioned', 'Sanctioned (RFD-06)'], ['received', 'Received in bank']] },
+  { k: 'receivedAmount', label: 'Amount received (₹)', type: 'number' },
+  { k: 'receivedDate', label: 'Date received' },
+  { k: 'note', label: 'Note', full: true }
+];
+function openRefundForm(initial, idx) {
+  QLShell.openForm({
+    title: idx == null ? 'Add GST refund' : 'Edit refund', sub: 'Petcoke / inverted-duty refund',
+    specs: SPECS, saveLabel: idx == null ? 'Add refund' : 'Save', initial: Object.assign({ caRate: 5, status: 'filed' }, initial || {}),
+    onSave(v) { if (idx == null) QLD.addRefund(v); else QLD.updateRefund(idx, v); render(); }
+  });
+}
+
+// ── PDF/image → text → parse RFD-01 → prefill the form ──
+let _pdfjs = null;
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
+async function pdfText(file) {
+  if (!_pdfjs) { if (!window.pdfjsLib) { await loadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'); window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'; } _pdfjs = window.pdfjsLib; }
+  const buf = await file.arrayBuffer();
+  const doc = await _pdfjs.getDocument({ data: buf }).promise;
+  let txt = '';
+  for (let i = 1; i <= doc.numPages; i++) { const c = await (await doc.getPage(i)).getTextContent(); txt += c.items.map(x => x.str).join('\n') + '\n'; }
+  return txt;
+}
+$('#rfUpload').onclick = () => $('#rfFile').click();
+$('#rfFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  if (!/\.pdf$/i.test(f.name)) { QLShell.toast('Please upload the RFD-01 PDF (image OCR coming soon)'); return; }
+  QLShell.toast('Reading RFD receipt…');
+  try {
+    const t = await pdfText(f);
+    const r = window.QLRefundOCR.parseRFD(t);
+    if (!r.total && !r.arn) { QLShell.toast('Could not read this as an RFD receipt — add it manually'); return; }
+    openRefundForm(r);
+    if (r.review && r.review.length) QLShell.toast('Review the highlighted amounts before saving');
+  } catch (err) { QLShell.toast('Could not read the PDF — add it manually'); }
+};
+
+function pill(s) { const lbl = { filed: 'Filed', sanctioned: 'Sanctioned', received: 'Received' }[s] || s; return `<span class="rf-pill ${s}">${lbl}</span>`; }
+function render() {
+  const rows = QLD.refundRows(), s = QLD.refundSummary();
+  $('#rfSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + rows.length + ' refund' + (rows.length === 1 ? '' : 's') + ' · CA commission tracked';
+  if (!rows.length) {
+    $('#rfBody').innerHTML = `<div class="rf-empty"><div style="width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:#eff4ff;font-size:26px">🏛️</div>
+      <div style="font-weight:700;font-size:16px;color:var(--ql-text)">No GST refunds yet</div>
+      <div style="max-width:360px">Upload an RFD-01 receipt to auto-fill the ARN, period and amounts — or add one manually. CA commission &amp; net retention compute automatically.</div>
+      <button class="ql-btn ql-btn-primary" onclick="document.getElementById('rfUpload').click()" style="margin-top:10px">⬆ Upload RFD-01</button></div>`;
+    return;
+  }
+  const kpis = [
+    ['Total claimed', fC(s.claimed), rows.length + ' applications'],
+    ['Received', fC(s.received), s.receivedCount + ' credited'],
+    ['Pending', fC(s.pending), (rows.length - s.receivedCount) + ' awaiting'],
+    ['CA commission', fC(s.caPaid), 'on received refunds'],
+    ['Net retention', fC(s.netRet), 'after CA fee']
+  ].map(k => `<div class="rf-kpi"><div class="lb">${esc(k[0])}</div><div class="v">${k[1]}</div><div class="m">${esc(k[2])}</div></div>`).join('');
+  const body = rows.map(r => `<tr>
+    <td><b>${esc(r.arn || '—')}</b><div style="font-size:11px;color:var(--ql-text-soft)">${esc(r.kind)}${r.appDate ? ' · ' + esc(r.appDate) : ''}</div></td>
+    <td>${esc(r.period || '—')}<div style="font-size:11px;color:var(--ql-text-soft)">${esc((r.reason || '').slice(0, 34))}</div></td>
+    <td class="r">${fC(r.total)}<div style="font-size:10.5px;color:var(--ql-text-soft)">I ${fC(r.igst)} · C ${fC(r.cgst)} · S ${fC(r.sgst)}</div></td>
+    <td>${pill(r.status)}</td>
+    <td class="r">${r.status === 'received' ? fC(r.received) : '—'}${r.receivedDate ? `<div style="font-size:10.5px;color:var(--ql-text-soft)">${esc(r.receivedDate)}</div>` : ''}</td>
+    <td class="r">${r.caRate}%</td>
+    <td class="r">${r.status === 'received' ? fC(r.caCommission) : `<span style="color:var(--ql-text-soft)" title="expected on receipt">~${fC(r.expectedComm)}</span>`}</td>
+    <td class="r"><b>${r.status === 'received' ? fC(r.netRetention) : '—'}</b></td>
+    <td class="r" style="white-space:nowrap">
+      ${r.status !== 'received' ? `<button class="rf-act" data-recv="${r.idx}">Mark received</button>` : ''}
+      <button class="rf-act" data-jrnl="${r.idx}">Journal</button>
+      <button class="rf-act" data-edit="${r.idx}">Edit</button>
+      <button class="rf-act" data-del="${r.idx}" style="color:#b91c1c">✕</button>
+    </td></tr>`).join('');
+  $('#rfBody').innerHTML = `
+    <div class="rf-note">ℹ️ <div>Petcoke input GST (18%) exceeds quick-lime output GST (5%), so ITC accumulates → refundable under the <b>Inverted Duty Structure §54(3)</b>. CA commission is charged only on amounts <b>received</b> (default 5%; editable per refund).</div></div>
+    <div class="rf-kpis">${kpis}</div>
+    <div style="overflow-x:auto"><table class="rf-tbl"><thead><tr><th>ARN</th><th>Period / reason</th><th class="r">Claimed</th><th>Status</th><th class="r">Received</th><th class="r">CA%</th><th class="r">CA fee</th><th class="r">Net</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`;
+
+  $('#rfBody').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { const r = QLD.refundRows().find(x => x.idx === +b.dataset.edit); openRefundForm(r, +b.dataset.edit); });
+  $('#rfBody').querySelectorAll('[data-del]').forEach(b => b.onclick = () => QLShell.confirmDelete({ title: 'Delete this refund record?', desc: 'The RFD entry and its commission tracking will be removed.', confirmLabel: 'Delete', onConfirm() { QLD.deleteRefund(+b.dataset.del); render(); } }));
+  $('#rfBody').querySelectorAll('[data-recv]').forEach(b => b.onclick = () => {
+    const row = QLD.refundRows().find(x => x.idx === +b.dataset.recv);
+    QLShell.openForm({ title: 'Mark refund received', sub: 'ARN ' + (row.arn || ''), saveLabel: 'Confirm received',
+      specs: [{ k: 'receivedAmount', label: 'Amount received (₹)', type: 'number', req: true }, { k: 'receivedDate', label: 'Date received (yyyy-mm-dd)' }],
+      initial: { receivedAmount: row.total, receivedDate: new Date().toISOString().slice(0, 10) },
+      onSave(v) { QLD.updateRefund(+b.dataset.recv, { status: 'received', receivedAmount: v.receivedAmount, receivedDate: v.receivedDate }); render(); } });
+  });
+  $('#rfBody').querySelectorAll('[data-jrnl]').forEach(b => b.onclick = () => {
+    const row = QLD.refundRows().find(x => x.idx === +b.dataset.jrnl);
+    const j = QLD.refundJournal(row);
+    const html = j.map(e => `<div style="margin-bottom:16px"><div style="font-weight:600;font-size:13px;color:var(--ql-text)">${esc(e.title)}${e.when ? ' · ' + esc(e.when) : ''}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:6px">${e.lines.map(l => `<tr><td style="padding:6px 8px;border-bottom:1px solid var(--ql-border)">${esc(l.acc)}</td><td style="padding:6px 8px;border-bottom:1px solid var(--ql-border);text-align:right;color:${l.dr ? '#0f172a' : 'var(--ql-text-soft)'}">${l.dr ? 'Dr ' + fC(l.dr) : ''}</td><td style="padding:6px 8px;border-bottom:1px solid var(--ql-border);text-align:right;color:${l.cr ? '#0f172a' : 'var(--ql-text-soft)'}">${l.cr ? 'Cr ' + fC(l.cr) : ''}</td></tr>`).join('')}</table></div>`).join('');
+    const back = document.createElement('div');
+    back.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+    back.innerHTML = `<div style="background:var(--ql-surface);border-radius:16px;max-width:520px;width:100%;max-height:82vh;overflow:auto;padding:22px;box-shadow:var(--ql-shadow-lg)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div><div style="font-weight:800;font-size:16px">Accounting journal</div><div style="font-size:12px;color:var(--ql-text-soft)">ARN ${esc(row.arn || '—')} · double-entry</div></div>
+      <button id="rfJx" style="border:none;background:var(--ql-neutral-100);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px">✕</button></div>${html}</div>`;
+    document.body.appendChild(back);
+    const close = () => back.remove();
+    back.onclick = e => { if (e.target === back) close(); };
+    back.querySelector('#rfJx').onclick = close;
+  });
+}
+window.__qlOnSwitchCompany = () => render();
+window.__qlRefresh = render;
+$('#rfAdd').onclick = () => openRefundForm();
+QLD.init(render);
+</script>
+</body>
+</html>

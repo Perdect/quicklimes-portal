@@ -147,6 +147,7 @@
     { type: 'group', label: 'Finance', feat: 'finance', items: [
       { id: 'finance',  label: 'Payments Center',          href: 'payments.html', icon: I.bank },
       { id: 'reconcile', label: 'Bank Reconciliation',     href: 'reconcile.html', icon: I.bank },
+      { id: 'refunds',  label: 'GST Refunds',              href: 'refunds.html', icon: I.receipt },
       { id: 'cashbook', label: 'Expenses',                 href: 'cashbook.html', icon: I.card },
       { id: 'loans',    label: 'Partner Ledger / Loans',   href: 'loans.html',    icon: I.receipt },
       { id: 'gst',      label: 'GST Filing', href: 'gst.html', icon: I.receipt, feat: 'advfinance' },
@@ -1584,3 +1585,5 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
 /* build: confirmDelete 1783845386 */
 
 /* build: archive-perms 1783930681 */
+
+/* build: refunds 1783950533 */

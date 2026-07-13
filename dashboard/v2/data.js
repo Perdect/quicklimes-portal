@@ -79,7 +79,7 @@
   /* ── State ───────────────────────────────────────────────────── */
   const S = {
     SALES: [], PURCHASES: [], WORKERS: [], WORK_LOG: [], ATT: {},
-    TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: [], PROD: [], AUDIT: [],
+    TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: [], PROD: [], AUDIT: [], REFUNDS: [],
     FINANCE: null,
     RECON: { txns: [] }   // bank-statement reconciliation (per company)
   };
@@ -148,7 +148,7 @@
   function clearState() {
     S.SALES.length = 0; S.PURCHASES.length = 0; S.WORKERS.length = 0; S.WORK_LOG.length = 0;
     S.TDS.length = 0; S.CHALLANS.length = 0; S.PARTIES.length = 0; S.CASHBOOK.length = 0;
-    S.LOANS.length = 0; S.CHUNNA.length = 0; S.PROD.length = 0; S.AUDIT.length = 0;
+    S.LOANS.length = 0; S.CHUNNA.length = 0; S.PROD.length = 0; S.AUDIT.length = 0; S.REFUNDS.length = 0;
     Object.keys(S.ATT).forEach(k => delete S.ATT[k]);
     S.FINANCE = defaultFinance();
     S.RECON = { txns: [] };
@@ -168,6 +168,7 @@
     if (d.chunna)    S.CHUNNA.push(...d.chunna);
     if (d.prod)      S.PROD.push(...d.prod);
     if (d.audit)     S.AUDIT.push(...d.audit);
+    if (d.refunds)   S.REFUNDS.push(...d.refunds);
     if (d.finance)   S.FINANCE = normalizeFinance(d.finance);
     if (d.reconcile && Array.isArray(d.reconcile.txns)) S.RECON = d.reconcile;
   }
@@ -248,7 +249,7 @@
     const b = {
       sales: S.SALES, purchases: S.PURCHASES, workers: S.WORKERS, workLog: S.WORK_LOG,
       att: S.ATT, tds: S.TDS, challans: S.CHALLANS, parties: S.PARTIES,
-      cashbook: S.CASHBOOK, chunna: S.CHUNNA, prod: S.PROD, audit: S.AUDIT, finance: S.FINANCE || defaultFinance(),
+      cashbook: S.CASHBOOK, chunna: S.CHUNNA, prod: S.PROD, audit: S.AUDIT, refunds: S.REFUNDS, finance: S.FINANCE || defaultFinance(),
       reconcile: S.RECON || { txns: [] }
     };
     if (includePic) b.profile_pic = localStorage.getItem('dm_profile_pic') || null;
@@ -1053,6 +1054,79 @@
     };
   }
 
+  /* ── GST Refunds (RFD-01 inverted-duty / petcoke refunds + CA commission) ──
+     status: filed → sanctioned → received. CA commission is charged only on an
+     amount RECEIVED (default 5%, per-refund override); net retention = received
+     − commission. A pending refund shows the expected commission for planning. */
+  function addRefund(r) {
+    const total = +r.total || ((+r.igst || 0) + (+r.cgst || 0) + (+r.sgst || 0) + (+r.cess || 0));
+    S.REFUNDS.push({
+      id: 'RF' + idStamp(), arn: (r.arn || '').toUpperCase().trim(), gstin: (r.gstin || '').toUpperCase().trim(),
+      fromPeriod: r.fromPeriod || '', toPeriod: r.toPeriod || '', reason: r.reason || '', appDate: r.appDate || '', kind: r.kind || 'RFD-01',
+      igst: +r.igst || 0, cgst: +r.cgst || 0, sgst: +r.sgst || 0, cess: +r.cess || 0, total,
+      status: r.status || 'filed', receivedAmount: +r.receivedAmount || 0, receivedDate: r.receivedDate || '',
+      caRate: r.caRate != null ? +r.caRate : 5, note: r.note || ''
+    });
+    commit();
+  }
+  function updateRefund(i, patch) {
+    const r = S.REFUNDS[i]; if (!r) return;
+    Object.assign(r, patch);
+    if (['igst', 'cgst', 'sgst', 'cess'].some(k => k in patch)) r.total = (+r.igst || 0) + (+r.cgst || 0) + (+r.sgst || 0) + (+r.cess || 0);
+    // marking received without an explicit amount defaults to the claimed total
+    if (patch.status === 'received' && !(+r.receivedAmount)) r.receivedAmount = r.total;
+    commit();
+  }
+  function deleteRefund(i) { if (S.REFUNDS[i]) { S.REFUNDS.splice(i, 1); commit(); } }
+  function refundRows() {
+    return S.REFUNDS.map((r, i) => {
+      const total = +r.total || 0, rate = r.caRate != null ? +r.caRate : 5;
+      const isRec = r.status === 'received';
+      const received = isRec ? (+r.receivedAmount || total) : 0;
+      const caCommission = +(received * rate / 100).toFixed(2);
+      const expectedComm = +(total * rate / 100).toFixed(2);
+      return {
+        idx: i, arn: r.arn || '', gstin: r.gstin || '', fromPeriod: r.fromPeriod || '', toPeriod: r.toPeriod || '',
+        period: (r.fromPeriod || '') + (r.toPeriod && r.toPeriod !== r.fromPeriod ? '–' + r.toPeriod : ''),
+        reason: r.reason || '', appDate: r.appDate || '', kind: r.kind || 'RFD-01',
+        igst: +r.igst || 0, cgst: +r.cgst || 0, sgst: +r.sgst || 0, cess: +r.cess || 0, total,
+        status: r.status || 'filed', received, receivedDate: r.receivedDate || '',
+        caRate: rate, caCommission, expectedComm, netRetention: +(received - caCommission).toFixed(2), note: r.note || ''
+      };
+    }).reverse();
+  }
+  function refundSummary() {
+    const rows = refundRows();
+    const rec = rows.filter(r => r.status === 'received');
+    return {
+      count: rows.length, receivedCount: rec.length,
+      claimed: rows.reduce((a, r) => a + r.total, 0),
+      received: rec.reduce((a, r) => a + r.received, 0),
+      pending: rows.filter(r => r.status !== 'received').reduce((a, r) => a + r.total, 0),
+      caPaid: rows.reduce((a, r) => a + r.caCommission, 0),
+      netRet: rows.reduce((a, r) => a + r.netRetention, 0)
+    };
+  }
+  // Double-entry journal entries for one refund (receipt + CA professional fee).
+  function refundJournal(row) {
+    const j = [];
+    j.push({ when: row.appDate || '', title: 'Refund application filed (' + (row.arn || '') + ')', lines: [
+      { acc: 'GST Refund Receivable', dr: row.total, cr: 0 },
+      { acc: 'Electronic Credit Ledger (ITC)', dr: 0, cr: row.total }
+    ] });
+    if (row.status === 'received') {
+      j.push({ when: row.receivedDate || '', title: 'Refund received in bank', lines: [
+        { acc: 'Bank', dr: row.received, cr: 0 },
+        { acc: 'GST Refund Receivable', dr: 0, cr: row.received }
+      ] });
+      if (row.caCommission > 0) j.push({ when: row.receivedDate || '', title: 'CA professional fee @ ' + row.caRate + '% on refund', lines: [
+        { acc: 'Professional Fees (CA)', dr: row.caCommission, cr: 0 },
+        { acc: 'Bank / CA Payable', dr: 0, cr: row.caCommission }
+      ] });
+    }
+    return j;
+  }
+
   /* ── Loans helpers ───────────────────────────────────────────── */
   function loanRows() {
     return ALL_LOANS.filter(l => l.company === ACTIVE_CO).map((l, i) => {
@@ -1341,7 +1415,8 @@
     { id: 'production', name: 'Production / Dispatch', icon: '🏭' },
     { id: 'topcustomers', name: 'Top Customers', icon: '⭐' },
     { id: 'topsuppliers', name: 'Top Suppliers', icon: '🚚' },
-    { id: 'cashflow', name: 'Cash Flow Summary', icon: '💵' }
+    { id: 'cashflow', name: 'Cash Flow Summary', icon: '💵' },
+    { id: 'refunds', name: 'GST Refunds', icon: '🏛️' }
   ];
   function buildReport(type, from, to) {
     const inR = d => (!from || (d || '') >= from) && (!to || (d || '') <= to);
@@ -1425,6 +1500,13 @@
       rows = r.map(x => [x.date, x.party || x.notes, x.mode, x.type === 'credit' ? 'In' : 'Out', x.amount]);
       totals = ['', '', '', 'Net', inn - out];
       kpis = [['Money in', fC(inn)], ['Money out', fC(out)], ['Balance', fC(b.total)]];
+    } else if (type === 'refunds') {
+      const rs = refundRows();
+      headers = ['ARN', 'Period', 'Reason', 'Claimed', 'Status', 'Received', 'CA %', 'CA Fee', 'Net Retention'];
+      rows = rs.map(r => [r.arn, r.period, (r.reason || '').slice(0, 30), r.total, r.status, r.status === 'received' ? r.received : '', r.caRate + '%', r.status === 'received' ? r.caCommission : '', r.status === 'received' ? r.netRetention : '']);
+      const claimed = rs.reduce((a, r) => a + r.total, 0), rec = rs.filter(r => r.status === 'received').reduce((a, r) => a + r.received, 0), ca = rs.reduce((a, r) => a + r.caCommission, 0), net = rs.reduce((a, r) => a + r.netRetention, 0);
+      totals = ['Total', '', rs.length + ' refunds', claimed, '', rec, '', ca, net];
+      kpis = [['Refunds', rs.length], ['Received', fC(rec)], ['CA commission', fC(ca)], ['Net retention', fC(net)]];
     }
     return { id: type, title: meta.name, icon: meta.icon, period, kpis, headers, rows, totals, count: rows.length };
   }
@@ -1471,6 +1553,7 @@
     loanRows, loanSummary, gstSummary,
     getPL, chunnaRows, chunnaSummary, attendanceData,
     productionRows, prodStats, addProduction, updateProduction, deleteProduction,
+    refundRows, refundSummary, addRefund, updateRefund, deleteRefund, refundJournal,
     // ── Soft-delete / Trash / Archive / Audit (recoverable deletion) ──
     softDelete, restoreRecord, purgeRecord, voidRecord, archiveRecord, archiveRows, archiveCount, trashRows, trashCount, auditRows, backupJSON, trashModules: () => Object.keys(TRASHABLE),
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
@@ -1531,3 +1614,5 @@
 /* build: reports-fix 1783933534 */
 
 /* build: pullcloud-guard 1783938945 */
+
+/* build: refunds 1783950533 */
