@@ -1325,49 +1325,72 @@
     const period = from || to ? `${from ? fDS2(from) : 'start'} – ${to ? fDS2(to) : 'today'}` : 'All time';
     const meta = REPORT_TYPES.find(r => r.id === type) || { name: type };
     let headers = [], rows = [], totals = null, kpis = [];
+    // Date-scoped + cancelled/voided-excluded working set — the report period
+    // filter is honoured everywhere, and voided invoices/bills never inflate totals.
+    const active = arr => arr.filter(x => inR(x.date) && (x.status || 'pending') !== 'cancelled');
+    const gstSplit = sr => { let cg = 0, sg = 0, ig = 0; sr.forEach(x => { const inter = !!(x.gstin && x.gstin.length >= 2 && x.gstin.slice(0, 2) !== '08'); if (inter) ig += x.gst; else { cg += x.gst / 2; sg += x.gst / 2; } }); return { cg, sg, ig, out: cg + sg + ig }; };
     if (type === 'sales') {
-      const r = salesRows().filter(x => inR(x.date));
+      const r = active(salesRows());
       headers = ['Invoice', 'Date', 'Party', 'GSTIN', 'Vehicle', 'Qty (T)', 'Taxable', 'GST', 'Total', 'Status'];
       rows = r.map(x => [x.inv, x.date, x.party, x.gstin || '—', x.veh || '—', x.qty, x.taxable, x.gst, x.total, x.status]);
       const tx = r.reduce((a, x) => a + x.taxable, 0), gst = r.reduce((a, x) => a + x.gst, 0), tot = r.reduce((a, x) => a + x.total, 0);
       totals = ['Total', '', r.length + ' inv', '', '', r.reduce((a, x) => a + x.qty, 0), tx, gst, tot, ''];
       kpis = [['Invoices', r.length], ['Taxable sales', fC(tx)], ['GST', fC(gst)], ['Total', fC(tot)]];
     } else if (type === 'purchase') {
-      const r = purchaseRows().filter(x => inR(x.date));
+      const r = active(purchaseRows());
       headers = ['Bill', 'Date', 'Supplier', 'Category', 'Taxable', 'GST', 'ITC', 'Total', 'Status'];
-      rows = r.map(x => [x.bill, x.date, x.sup, x.cat, x.taxable, x.gst, x.itc, x.total, x.status]);
+      rows = r.map(x => [x.bill, x.date, x.sup, x.groupLabel || x.cat || 'Other', x.taxable, x.gst, x.itc, x.total, x.status]);
       const tx = r.reduce((a, x) => a + x.taxable, 0), itc = r.reduce((a, x) => a + x.itc, 0);
       totals = ['Total', '', r.length + ' bills', '', tx, r.reduce((a, x) => a + x.gst, 0), itc, r.reduce((a, x) => a + x.total, 0), ''];
       kpis = [['Bills', r.length], ['Taxable', fC(tx)], ['ITC', fC(itc)]];
-    } else if (type === 'collections' || type === 'outstanding') {
+    } else if (type === 'collections') {
+      // Customer receivables — a point-in-time snapshot (what's owed right now).
       const c = collections('all');
-      headers = ['Party', 'Bills', 'Outstanding', 'Oldest', 'Days'];
+      headers = ['Customer', 'Bills', 'Outstanding', 'Oldest', 'Days'];
       rows = c.rows.map(x => [x.party, x.bills, x.total, x.oldest, x.days]);
       totals = ['Total', '', c.total, '', ''];
-      kpis = [['Parties', c.parties], ['Outstanding', fC(c.total)], ['Overdue 30d+', c.overdue]];
+      kpis = [['Customers', c.parties], ['To collect', fC(c.total)], ['Overdue 30d+', c.overdue]];
+    } else if (type === 'outstanding') {
+      // Supplier payables — what WE owe (distinct from customer collections).
+      const pend = purchaseRows().filter(r => r.outstanding > 0.5 && (r.status || 'pending') !== 'cancelled');
+      const by = {};
+      pend.forEach(r => { const k = r.sup || '—'; (by[k] = by[k] || { sup: k, bills: 0, total: 0, oldest: r.date }); by[k].bills++; by[k].total += r.outstanding; if ((r.date || '') < by[k].oldest) by[k].oldest = r.date; });
+      const list = Object.values(by).map(r => ({ ...r, days: daysAgo(r.oldest) })).sort((a, b) => b.total - a.total);
+      const tot = list.reduce((a, x) => a + x.total, 0);
+      headers = ['Supplier', 'Bills', 'Outstanding', 'Oldest', 'Days'];
+      rows = list.map(x => [x.sup, x.bills, x.total, x.oldest, x.days]);
+      totals = ['Total', '', tot, '', ''];
+      kpis = [['Suppliers', list.length], ['To pay', fC(tot)], ['Overdue 30d+', list.filter(x => x.days > 30).length]];
     } else if (type === 'pl') {
-      const p = getPL();
+      const sr = active(salesRows()), pr = active(purchaseRows());
+      const rev = sr.reduce((a, x) => a + x.taxable, 0), cogs = pr.reduce((a, x) => a + x.taxable, 0), gp = rev - cogs;
+      const labour = cashbookRows().filter(x => inR(x.date) && x.type === 'debit' && /labour|labor|wage|salary|mazdoor|hamali|payroll/i.test((x.category || '') + ' ' + (x.notes || '') + ' ' + (x.party || ''))).reduce((a, x) => a + x.amount, 0);
+      const ebitda = gp - labour;
+      const gs = gstSplit(sr), itc = pr.reduce((a, x) => a + x.itc, 0), netGST = Math.max(0, gs.out - itc), np = ebitda - netGST;
       headers = ['Line', 'Amount'];
-      rows = [['Revenue (taxable)', p.rev], ['Less: Material cost', -p.cogs], ['Gross profit', p.gp], ['Less: Labour', -p.labour], ['EBITDA', p.ebitda], ['Less: Net GST', -p.netGST], ['Net profit', p.np]];
-      kpis = [['Revenue', fC(p.rev)], ['Gross profit', fC(p.gp) + ' (' + p.gpm.toFixed(1) + '%)'], ['Net profit', fC(p.np) + ' (' + p.npm.toFixed(1) + '%)']];
+      rows = [['Revenue (taxable)', rev], ['Less: Material cost', -cogs], ['Gross profit', gp], ['Less: Labour', -labour], ['EBITDA', ebitda], ['Less: Net GST', -netGST], ['Net profit', np]];
+      const gpm = rev ? gp / rev * 100 : 0, npm = rev ? np / rev * 100 : 0;
+      kpis = [['Revenue', fC(rev)], ['Gross profit', fC(gp) + ' (' + gpm.toFixed(1) + '%)'], ['Net profit', fC(np) + ' (' + npm.toFixed(1) + '%)']];
     } else if (type === 'gst') {
-      const g = gstSummary();
+      const sr = active(salesRows()), pr = active(purchaseRows());
+      const gs = gstSplit(sr), itc = pr.reduce((a, x) => a + x.itc, 0), net = Math.max(0, gs.out - itc);
+      const txS = sr.reduce((a, x) => a + x.taxable, 0), txP = pr.reduce((a, x) => a + x.taxable, 0);
       headers = ['Particulars', 'Amount'];
-      rows = [['CGST (output)', g.cgst], ['SGST (output)', g.sgst], ['IGST (output)', g.igst], ['Total output GST', g.outGST], ['Less: Input tax credit', -g.itc], ['Net GST payable', g.net], ['Taxable sales', g.taxable], ['Taxable purchases', g.purchaseTaxable]];
-      kpis = [['Output GST', fC(g.outGST)], ['ITC', fC(g.itc)], ['Net payable', fC(g.net)]];
+      rows = [['CGST (output)', gs.cg], ['SGST (output)', gs.sg], ['IGST (output)', gs.ig], ['Total output GST', gs.out], ['Less: Input tax credit', -itc], ['Net GST payable', net], ['Taxable sales', txS], ['Taxable purchases', txP]];
+      kpis = [['Output GST', fC(gs.out)], ['ITC', fC(itc)], ['Net payable', fC(net)]];
     } else if (type === 'production') {
       const pr = production(), ser = monthSeries(6);
       headers = ['Month', 'Dispatch (T)', 'Invoices'];
       rows = ser.slice().reverse().map(m => [m.m, +m.qty.toFixed(1), m.invoices]);
       kpis = [['Today', fmt(pr.today, 1) + ' T'], ['This month', fmt(pr.month, 1) + ' T'], ['Chunna (month)', fmt(pr.chunnaMonth, 1) + ' T']];
     } else if (type === 'topcustomers') {
-      const by = {}; salesRows().filter(x => inR(x.date)).forEach(x => { by[x.party] = (by[x.party] || 0) + x.total; });
+      const by = {}; active(salesRows()).forEach(x => { by[x.party] = (by[x.party] || 0) + x.total; });
       const list = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 20);
       headers = ['#', 'Customer', 'Total'];
       rows = list.map((x, i) => [i + 1, x[0], x[1]]);
       kpis = [['Customers', Object.keys(by).length], ['Top', list[0] ? list[0][0] : '—']];
     } else if (type === 'topsuppliers') {
-      const by = {}; purchaseRows().filter(x => inR(x.date)).forEach(x => { by[x.sup] = (by[x.sup] || 0) + x.taxable; });
+      const by = {}; active(purchaseRows()).forEach(x => { by[x.sup] = (by[x.sup] || 0) + x.taxable; });
       const list = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 20);
       headers = ['#', 'Supplier', 'Taxable'];
       rows = list.map((x, i) => [i + 1, x[0], x[1]]);
@@ -1481,3 +1504,5 @@
 /* build: void-protect 1783929898 */
 
 /* build: archive-perms 1783930681 */
+
+/* build: reports-fix 1783933534 */
