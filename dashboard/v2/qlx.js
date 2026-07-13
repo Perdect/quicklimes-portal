@@ -234,7 +234,10 @@
       m.innerHTML = `<div class="qx-mm-yr"><button class="qx-mm-nav" data-yr="-1">${svg('<polyline points="15 18 9 12 15 6"/>')}</button><span>${year}</span><button class="qx-mm-nav" data-yr="1">${svg('<polyline points="9 18 15 12 9 6"/>')}</button></div>
         <div class="qx-mm-grid">${MN.map((mn, i) => { const ym = year + '-' + String(i + 1).padStart(2, '0'); return `<button class="qx-mm-cell${S.month === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-ym="${ym}">${mn}</button>`; }).join('')}</div>
         <button class="qx-mm-all${(!S.month || S.month === 'all') ? ' on' : ''}" data-ym="all">All months</button>`;
-      m.querySelectorAll('[data-yr]').forEach(b => b.onclick = () => { year += +b.dataset.yr; paint(); });
+      // stopPropagation: paint() re-renders the menu, detaching this button; without
+      // it the click bubbles to the document close-handler which then sees a detached
+      // target (not inside .qx-menu) and closes the picker — so year nav never worked.
+      m.querySelectorAll('[data-yr]').forEach(b => b.onclick = e => { e.stopPropagation(); year += +b.dataset.yr; paint(); });
       m.querySelectorAll('[data-ym]').forEach(b => b.onclick = () => { const ym = b.dataset.ym; closeMenu(); setMonth(ym); });
     }
     paint();
