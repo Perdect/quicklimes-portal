@@ -120,7 +120,8 @@ function csvReport(rep) {
 }
 function reportSummaryMsg(rep) {
   const lines = rep.kpis.map(k => `• ${k[0]}: ${k[1]}`).join('\n');
-  return `${rep.icon||''} ${rep.title} — ${QLD.co.short}\nPeriod: ${rep.period}\n${lines}\n\n(Full report attached — generated from QuickLimes.)`;
+  // Clean text header (no leading emoji — wa.me / mailto clients can mangle it to �).
+  return `*${rep.title}* — ${QLD.co.short}\nPeriod: ${rep.period}\n${lines}\n\n(Full report attached — generated from QuickLimes.)`;
 }
 function sendToGroup(groupId) {
   const rep = QLD.buildReport(selType, curRange().from, curRange().to);
