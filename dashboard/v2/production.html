@@ -101,7 +101,7 @@ function renderRuns() {
     <td class="num">${r.bags ? r.bags.toLocaleString('en-IN') : '—'}</td><td class="num">${r.quicklime ? nT(r.quicklime) : '—'}</td>
     <td class="num">${r.hydrated ? nT(r.hydrated) : '—'}</td><td class="num">${r.labour ? fC(r.labour) : '—'}</td>
     <td class="num"><button class="ql-btn ql-btn-ghost" data-del="${r.idx}" title="Delete">✕</button></td></tr>`).join('');
-  tb.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm('Delete this production run?')) { QLD.deleteProduction(+b.dataset.del); render(); } });
+  tb.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { QLShell.confirmDelete({ title: 'Move production run to Trash?', desc: 'This production run will move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { QLD.deleteProduction(+b.dataset.del, reason); render(); } }); });
 }
 const PROD_SPECS = [
   { k: 'date', label: 'Date', type: 'date', req: true },

@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css"><link rel="stylesheet" href="./pages.css?v=m1"><link rel="stylesheet" href="./finance.css">
 <script src="ql-api.js"></script>
 <script src="./data.js?v=m10"></script>
-<script src="./finance.js?v=ocr17"></script>
+<script src="./finance.js?v=ocr18"></script>
 <link rel="stylesheet" href="./mobile.css?v=m4">
 </head>
 <body class="ql-v2">
@@ -210,7 +210,7 @@ function wireTxnRows() {
     const t = F.setTxn(sel.dataset.id, { cat: sel.value, match: '' }); sel.className = 'fin-cat ' + catClass(sel.value);
     toast('Category updated'); if (FIN.tab === 'overview') renderOverview();
   });
-  $('#finBody').querySelectorAll('.fin-del').forEach(b => b.onclick = () => { if (confirm('Delete this transaction?')) { F.deleteTxn(b.dataset.del); toast('Transaction deleted'); renderTxns(); } });
+  $('#finBody').querySelectorAll('.fin-del').forEach(b => b.onclick = () => { QLShell.confirmDelete({ title: 'Delete transaction?', desc: 'This bank transaction will be removed.', confirmLabel: 'Delete', onConfirm: () => { F.deleteTxn(b.dataset.del); toast('Transaction deleted'); renderTxns(); } }); });
 }
 
 /* ══════════════════ GST TRACKING ══════════════════ */
@@ -286,7 +286,7 @@ function renderCa() {
   ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', e => { if (e.dataTransfer.files.length) handleDocs([...e.dataTransfer.files]); });
   $('#finBody').querySelectorAll('[data-dl]').forEach(b => b.onclick = () => { const d = F.caMonth(ym).docs.find(x => x.id === b.dataset.dl); F.downloadDoc(d); });
-  $('#finBody').querySelectorAll('[data-docdel]').forEach(b => b.onclick = async () => { if (confirm('Remove this document?')) { await F.deleteDoc(ym, b.dataset.docdel); toast('Document removed'); renderCa(); } });
+  $('#finBody').querySelectorAll('[data-docdel]').forEach(b => b.onclick = () => { QLShell.confirmDelete({ title: 'Remove document?', desc: 'This uploaded document will be removed from this browser.', confirmLabel: 'Remove', onConfirm: async () => { await F.deleteDoc(ym, b.dataset.docdel); toast('Document removed'); renderCa(); } }); });
 }
 async function handleDocs(files) {
   const kind = $('#finDocKind').value, ym = FIN.caMonth;

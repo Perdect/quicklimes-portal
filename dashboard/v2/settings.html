@@ -259,24 +259,31 @@ async function renderTeam() {
     try { await teamApi({ action: 'update', id: b.dataset.teamToggle, active: b.dataset.active === '1' ? 0 : 1 }); toast('Updated'); renderTeam(); }
     catch (e) { toast(e.message); }
   });
-  $('#teamList').querySelectorAll('[data-team-pw]').forEach(b => b.onclick = async () => {
-    const pw = prompt('New password for this employee (min 6 characters):'); if (!pw) return;
-    if (pw.length < 6) { toast('Password must be 6+ characters'); return; }
-    try { await teamApi({ action: 'setpw', id: b.dataset.teamPw, password: pw }); toast('Password reset'); }
-    catch (e) { toast(e.message); }
+  $('#teamList').querySelectorAll('[data-team-pw]').forEach(b => b.onclick = () => {
+    QLShell.openForm({ title: 'Reset password', sub: 'Set a new login password for this employee', saveLabel: 'Reset password', initial: {},
+      specs: [{ k: 'pw', label: 'New password (min 6 characters)', type: 'password', req: true, full: true }],
+      onSave(v) {
+        if (!v.pw || v.pw.length < 6) { toast('Password must be 6+ characters'); return false; }
+        teamApi({ action: 'setpw', id: b.dataset.teamPw, password: v.pw }).then(() => toast('Password reset')).catch(e => toast(e.message));
+      } });
   });
 }
 $('#teamAdd').addEventListener('click', () => {
-  const name = prompt('Employee name:'); if (name === null) return;
-  const phone = prompt('Login phone number:'); if (!phone) return;
-  const pw = prompt('Temporary password (min 6 characters):'); if (!pw) return;
-  if (pw.length < 6) { toast('Password must be 6+ characters'); return; }
-  const pick = prompt('Role — enter a number:\n' + TEAM_ROLES.map((r, i) => (i + 1) + '. ' + r[1]).join('\n'), '1');
-  const idx = parseInt(pick, 10) - 1;
-  if (isNaN(idx) || !TEAM_ROLES[idx]) { toast('Cancelled'); return; }
-  teamApi({ action: 'create', name: name.trim(), phone: phone.trim(), password: pw, role: TEAM_ROLES[idx][0] })
-    .then(() => { toast('Employee added'); renderTeam(); })
-    .catch(e => toast(e.message));
+  QLShell.openForm({ title: 'Add employee', sub: 'Create a login for a staff member', saveLabel: 'Add employee', initial: { role: TEAM_ROLES[0][1] },
+    specs: [
+      { k: 'name', label: 'Employee name', req: true, full: true },
+      { k: 'phone', label: 'Login phone number', req: true },
+      { k: 'pw', label: 'Temporary password (min 6)', type: 'password', req: true },
+      { k: 'role', label: 'Role', type: 'select', opts: TEAM_ROLES.map(r => r[1]) }
+    ],
+    onSave(v) {
+      if (!v.name || !v.phone || !v.pw) { toast('Name, phone and password are required'); return false; }
+      if (v.pw.length < 6) { toast('Password must be 6+ characters'); return false; }
+      const role = (TEAM_ROLES.find(r => r[1] === v.role) || TEAM_ROLES[0])[0];
+      teamApi({ action: 'create', name: v.name.trim(), phone: v.phone.trim(), password: v.pw, role })
+        .then(() => { toast('Employee added'); renderTeam(); })
+        .catch(e => toast(e.message));
+    } });
 });
 
 window.__qlOnSwitchCompany = () => { render(); renderDM(); };

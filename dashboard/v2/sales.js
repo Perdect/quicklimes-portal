@@ -103,7 +103,7 @@ function wireDocs(body, r) {
   drop.addEventListener('drop', e => { if (e.dataTransfer.files.length) handle([...e.dataTransfer.files]); });
 }
 function setStatus(r, val) { Q.setSaleStatus(r.idx, val, (val === 'paid' || val === 'cash') ? { paidDate: todayISO, paidMode: val === 'cash' ? 'Cash' : 'Bank' } : {}); }
-function delInv(r) { if (confirm('Delete invoice ' + (r.inv || '') + ' for ' + r.party + '?')) { Q.deleteSale(r.idx); toast('Invoice deleted'); QLX.refresh(); } }
+function delInv(r) { QLShell.confirmDelete({ title: 'Move invoice to Trash?', desc: (r.inv ? 'Invoice ' + r.inv : 'This invoice') + ' for ' + Q.fC(r.total) + ' · ' + r.party + ' will move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { Q.deleteSale(r.idx, reason); toast('Moved to Trash'); QLX.refresh(); } }); }
 function dupInv(r) { const s = Q.state.SALES[r.idx]; Q.addSale(Object.assign({}, s, { inv: (s.inv || '') + '-COPY', status: 'pending', paid: 0, payments: [] })); toast('Invoice duplicated'); QLX.refresh(); }
 function shareInv(r) { const co = (Q.partyRows().find(x => (x.name || '').toUpperCase() === (r.party || '').toUpperCase()) || {}); const d = (co.phone || '').replace(/\D/g, ''); const n = d.length === 10 ? '91' + d : d; window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(`Invoice ${r.inv || ''} — ${fC(r.total)} · ${r.status}`), '_blank'); }
 
@@ -256,7 +256,7 @@ QLX.mount({
   bulkActions: [
     { label: 'Mark paid', icon: IC.check, onClick: rows => { rows.forEach(r => r.outstanding > 0 && Q.receiveSalesPayment(r.idx, { amount: r.outstanding, method: 'Bank' })); toast(rows.length + ' invoices collected', 'ok'); QLX.refresh(); } },
     { label: 'Export', icon: IC.dl, onClick: rows => exportRows(rows) },
-    { label: 'Delete', icon: IC.trash, cls: 'del', onClick: rows => { if (confirm('Delete ' + rows.length + ' invoices?')) { rows.map(r => r.idx).sort((a, b) => b - a).forEach(i => Q.deleteSale(i)); toast(rows.length + ' deleted'); QLX.refresh(); } } }
+    { label: 'Delete', icon: IC.trash, cls: 'del', onClick: rows => { QLShell.confirmDelete({ title: 'Move ' + rows.length + ' invoices to Trash?', desc: 'All ' + rows.length + ' selected invoices move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { rows.map(r => r.idx).sort((a, b) => b - a).forEach(i => Q.deleteSale(i, reason)); toast(rows.length + ' moved to Trash'); QLX.refresh(); } }); } }
   ],
   card: r => ({ id: r.inv || '—', title: `<span style="color:var(--qx)">${esc(r.inv || '—')}</span>`, amount: fC(r.total), party: r.party, partySub: r.gstin || '', sub: r.veh ? '🚚 ' + r.veh : 'Invoice: ' + (r.inv || '—'), date: r.date, calLabel: r.party, status: stPill(r), rows: [['Qty', fmt(r.qty, 2) + ' T'], ['Taxable', fC(r.taxable)], ['GST', fC(r.gst)], ['Status', stPill(r)]] }),
   footer: rows => { const t = rows.reduce((a, r) => ({ qty: a.qty + r.qty, tax: a.tax + r.taxable, gst: a.gst + r.gst, tot: a.tot + r.total, paid: a.paid + r.paid, out: a.out + r.outstanding }), { qty: 0, tax: 0, gst: 0, tot: 0, paid: 0, out: 0 }); return [{ label: 'Qty', value: fmt(t.qty, 1) + ' T' }, { label: 'Taxable', value: fC(t.tax) }, { label: 'GST', value: fC(t.gst) }, { label: 'Grand Total', value: fC(t.tot), strong: true }, { label: 'Collected', value: fC(t.paid) }, { label: 'Pending', value: fC(t.out) }]; },

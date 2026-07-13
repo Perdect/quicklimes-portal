@@ -626,9 +626,15 @@ function openUpload() {
   const clearBtn = document.getElementById('rcClearAll');
   if (clearBtn) clearBtn.onclick = e => {
     e.preventDefault();
-    if (!confirm('Remove all ' + txns().length + ' imported bank transactions?\n\nOn-account ledger postings made from them will be reversed. Your invoices, bills and payments are untouched.')) return;
-    txns().forEach(t => { const m = t.m || {}; if (m.kind === 'ledger' && m.ledgerEntryId && Q.reverseLedgerEntry) { try { Q.reverseLedgerEntry(m.partyIdx, m.ledgerEntryId); } catch (_) {} } });
-    Q.recon.txns = []; Q.saveRecon(); close(); render(); toast('Imported transactions cleared — upload the statement again', 'ok');
+    QLShell.confirmDelete({
+      title: 'Remove all ' + txns().length + ' bank transactions?',
+      desc: 'On-account ledger postings made from them will be reversed. Your invoices, bills and payments are untouched. This clears the imported statement so you can re-upload.',
+      needType: 'CLEAR', confirmLabel: 'Remove all',
+      onConfirm() {
+        txns().forEach(t => { const m = t.m || {}; if (m.kind === 'ledger' && m.ledgerEntryId && Q.reverseLedgerEntry) { try { Q.reverseLedgerEntry(m.partyIdx, m.ledgerEntryId); } catch (_) {} } });
+        Q.recon.txns = []; Q.saveRecon(); close(); render(); toast('Imported transactions cleared — upload the statement again', 'ok');
+      }
+    });
   };
   const drop = document.getElementById('rcDrop'), file = document.getElementById('rcFile'), msg = document.getElementById('rcUpMsg');
   const go = async f => {

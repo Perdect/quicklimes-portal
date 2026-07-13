@@ -35,7 +35,7 @@ async function delAttach(idx, id) { const p = Q.state.PURCHASES[idx]; Q.updatePu
 function setStatus(r, val) { const patch = { status: val }; if (val === 'paid') patch.paid = r.total; else if (val === 'pending') patch.paid = 0; Q.updatePurchase(r.idx, patch); }
 function markPaid(r) { Q.recordPurchasePayment(r.idx, r.outstanding, 'bank'); toast('Marked paid', 'ok'); QLX.refresh(); }
 function dupBill(r) { const p = Q.state.PURCHASES[r.idx]; Q.addPurchase(Object.assign({}, p, { bill: (p.bill || '') + '-COPY', status: 'pending', paid: 0, payments: [], attach: [] })); toast('Bill duplicated'); QLX.refresh(); }
-function delBill(r) { if (confirm('Delete bill ' + (r.bill || '') + ' from ' + r.sup + '?')) { Q.deletePurchase(r.idx); toast('Bill deleted'); QLX.refresh(); } }
+function delBill(r) { QLShell.confirmDelete({ title: 'Move bill to Trash?', desc: (r.bill ? 'Bill ' + r.bill : 'This bill') + ' for ' + Q.fC(r.total) + ' · ' + r.sup + ' will move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { Q.deletePurchase(r.idx, reason); toast('Moved to Trash'); QLX.refresh(); } }); }
 function shareBill(r) { const co = supContact(r.sup); window.open(waLink(co.phone || '', `Purchase bill ${r.bill || ''} — ${r.item} · ${fC(r.total)} · ${r.status}`), '_blank'); }
 function copyLink(r) { const text = `${Q.co.short} · Bill ${r.bill || ''} · ${r.sup} · ${r.item} · ${fC(r.total)} · ${r.status}`; (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast('Bill summary copied'), () => toast('Copy not available', 'err')); }
 
@@ -305,7 +305,7 @@ QLX.mount({
   bulkActions: [
     { label: 'Mark paid', icon: IC.check, onClick: rows => { rows.forEach(r => r.outstanding > 0 && Q.recordPurchasePayment(r.idx, r.outstanding, 'bank')); toast(rows.length + ' bills marked paid', 'ok'); QLX.refresh(); } },
     { label: 'Export', icon: IC.dl, onClick: rows => { exportRows(rows); } },
-    { label: 'Delete', icon: IC.trash, cls: 'del', onClick: rows => { if (confirm('Delete ' + rows.length + ' bills?')) { rows.map(r => r.idx).sort((a, b) => b - a).forEach(i => Q.deletePurchase(i)); toast(rows.length + ' bills deleted'); QLX.refresh(); } } }
+    { label: 'Delete', icon: IC.trash, cls: 'del', onClick: rows => { QLShell.confirmDelete({ title: 'Move ' + rows.length + ' bills to Trash?', desc: 'All ' + rows.length + ' selected bills move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { rows.map(r => r.idx).sort((a, b) => b - a).forEach(i => Q.deletePurchase(i, reason)); toast(rows.length + ' moved to Trash'); QLX.refresh(); } }); } }
   ],
   card: r => ({
     id: r.bill || '—', title: `<span style="color:var(--qx)">${esc(r.bill || '—')}</span>`, amount: fC(r.total),

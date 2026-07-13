@@ -41,7 +41,7 @@ QLX.mount({
     { tt: 'Details', icon: IC.eye, onClick: r => QLX.open(r.idx) },
     { tt: 'Edit', icon: IC.edit, onClick: r => QLShell.openTdsForm(r.idx) }
   ],
-  rowMenu: r => [{ label: 'Edit', icon: IC.edit, onClick: r => QLShell.openTdsForm(r.idx) }, { divider: true }, { label: 'Delete', icon: IC.trash, cls: 'del', onClick: r => { if (confirm('Delete this TDS entry?')) { Q.deleteTds(r.idx); toast('Deleted'); QLX.refresh(); } } }],
+  rowMenu: r => [{ label: 'Edit', icon: IC.edit, onClick: r => QLShell.openTdsForm(r.idx) }, { divider: true }, { label: 'Delete', icon: IC.trash, cls: 'del', onClick: r => { QLShell.confirmDelete({ title: 'Move TDS entry to Trash?', desc: 'This TDS entry will move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { Q.deleteTds(r.idx, reason); toast('Moved to Trash'); QLX.refresh(); } }); } }],
   card: r => ({ id: r.party, title: esc(r.party), amount: fC(r.tds), party: r.party, partySub: r.sec, rows: [['Amount', fC(r.amount)], ['TDS', fC(r.tds)], ['Net', fC(r.net)]] }),
   footer: rows => { const a = rows.reduce((x, r) => x + r.amount, 0), t = rows.reduce((x, r) => x + r.tds, 0), n = rows.reduce((x, r) => x + r.net, 0); return [{ label: 'Entries', value: rows.length }, { label: 'Gross', value: fC(a) }, { label: 'TDS', value: fC(t), strong: true }, { label: 'Net', value: fC(n) }]; },
   detail: r => ({ eyebrow: 'TDS · ' + esc(r.sec), title: esc(r.party), sub: 'TDS ' + fC(r.tds) + ' · ' + fDS(r.date), actions: [{ label: 'Edit', icon: IC.edit, primary: true, onClick: r => QLShell.openTdsForm(r.idx) }], tabs: [{ label: 'Overview', icon: IC.file, render: tabOverview }] })

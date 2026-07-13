@@ -692,7 +692,7 @@
   }
   async function getDocBlob(id) { return idbOp('readonly', st => st.get(id)); }
   async function downloadDoc(doc) {
-    const blob = await getDocBlob(doc.id); if (!blob) { alert('File not found in this browser'); return; }
+    const blob = await getDocBlob(doc.id); if (!blob) { if (window.QLShell && QLShell.toast) QLShell.toast('File not found in this browser'); return; }
     const url = URL.createObjectURL(blob); const a = document.createElement('a');
     a.href = url; a.download = doc.name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1500);

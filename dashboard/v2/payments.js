@@ -111,7 +111,7 @@ function recordModal() {
     }
   });
 }
-function delPayment(r) { if (confirm('Delete this ledger entry? (The linked invoice/bill status is not reverted.)')) { Q.deleteLedgerEntry(r.idx); QLX.close(); QLX.toast('Entry deleted'); QLX.refresh(); } }
+function delPayment(r) { QLShell.confirmDelete({ title: 'Move payment to Trash?', desc: 'This ledger entry will move to Trash (restorable 90 days). The linked invoice/bill status is not reverted.', confirmLabel: 'Move to Trash', onConfirm: reason => { Q.deleteLedgerEntry(r.idx, reason); QLX.close(); QLX.toast('Moved to Trash'); QLX.refresh(); } }); }
 function openSource(r) { if (r.link && r.link.kind === 'sale') location.href = 'sales.html'; else if (r.link && r.link.kind === 'purchase') location.href = 'purchase.html'; else if (r.link && r.link.kind === 'loan') location.href = 'loans.html'; }
 
 /* ══════════════════ DETAIL TAB ══════════════════ */

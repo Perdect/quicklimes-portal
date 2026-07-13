@@ -39,7 +39,7 @@ QLX.mount({
     { tt: 'Details', icon: IC.eye, onClick: r => QLX.open(r.idx) },
     { tt: 'Edit', icon: IC.edit, onClick: r => QLShell.openWorkerForm(r.idx) }
   ],
-  rowMenu: r => [{ label: 'Edit', icon: IC.edit, onClick: r => QLShell.openWorkerForm(r.idx) }, { divider: true }, { label: 'Delete', icon: IC.trash, cls: 'del', onClick: r => { if (confirm('Delete ' + r.name + '?')) { Q.deleteWorker(r.idx); toast('Deleted'); QLX.refresh(); } } }],
+  rowMenu: r => [{ label: 'Edit', icon: IC.edit, onClick: r => QLShell.openWorkerForm(r.idx) }, { divider: true }, { label: 'Delete', icon: IC.trash, cls: 'del', onClick: r => { QLShell.confirmDelete({ title: 'Move worker to Trash?', desc: r.name + ' will move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { Q.deleteWorker(r.idx, reason); toast('Moved to Trash'); QLX.refresh(); } }); } }],
   card: r => ({ id: r.name, title: esc(r.name), amount: fC(r.net), party: r.name, partySub: r.desig, rows: [['Wage', fC(r.wage)], ['Days', r.days], ['Net', fC(r.net)]] }),
   footer: rows => { const g = rows.reduce((a, r) => a + r.gross, 0), a2 = rows.reduce((a, r) => a + r.adv, 0), n = rows.reduce((a, r) => a + r.net, 0); return [{ label: 'Workers', value: rows.length }, { label: 'Gross', value: fC(g) }, { label: 'Advance', value: fC(a2) }, { label: 'Net Payable', value: fC(n), strong: true }]; },
   detail: r => ({ eyebrow: 'Worker', title: esc(r.name), sub: (r.desig || '—') + ' · Net ' + fC(r.net), actions: [{ label: 'Edit', icon: IC.edit, primary: true, onClick: r => QLShell.openWorkerForm(r.idx) }], tabs: [{ label: 'Overview', icon: IC.file, render: tabOverview }] })

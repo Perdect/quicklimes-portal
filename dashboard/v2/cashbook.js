@@ -57,7 +57,7 @@ QLX.mount({
   ],
   rowActions: r => [
     { tt: 'Edit', icon: IC.edit, onClick: r => QLShell.openCashForm(r.idx) },
-    { tt: 'Delete', icon: IC.trash, onClick: r => { if (confirm('Delete this entry?')) { Q.deleteCashEntry(r.idx); toast('Deleted'); QLX.refresh(); } } }
+    { tt: 'Delete', icon: IC.trash, onClick: r => { QLShell.confirmDelete({ title: 'Move entry to Trash?', desc: 'This cashbook entry will move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { Q.deleteCashEntry(r.idx, reason); toast('Moved to Trash'); QLX.refresh(); } }); } }
   ],
   card: r => ({ id: r.category || r.type, title: esc(r.category || 'Entry'), amount: (r.type === 'credit' ? '+' : '−') + fC(r.amount), party: r.party || '—', partySub: (MODE[r.mode] || MODE.bank)[0], rows: [['Date', fDS(r.date)], ['Account', (MODE[r.mode] || MODE.bank)[0]], ['Amount', (r.type === 'credit' ? '+' : '−') + fC(r.amount)]] }),
   footer: rows => { const cin = rows.filter(r => r.type === 'credit').reduce((a, r) => a + r.amount, 0), cout = rows.filter(r => r.type === 'debit').reduce((a, r) => a + r.amount, 0); return [{ label: 'Money In', value: fC(cin) }, { label: 'Money Out', value: fC(cout) }, { label: 'Net', value: fC(cin - cout), strong: true }]; },
