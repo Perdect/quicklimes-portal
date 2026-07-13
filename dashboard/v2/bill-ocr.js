@@ -231,12 +231,25 @@
     }
     if (sellerG) { set('supplierGstin', sellerG, validGstin(sellerG) ? 0.97 : 0.5); if (!validGstin(sellerG)) warn.push('Supplier GSTIN format looks off'); }
     if (buyerG) set('buyerGstin', buyerG, 0.9);
-    // DIRECTION — the ISSUER (first GSTIN, i.e. the seller header at the top of
-    // the bill) decides sale vs purchase: if OUR firm issued it, it's a SALE
-    // (the counterparty is the customer); otherwise it's a PURCHASE. This is
-    // right even for inter-firm bills (Gotan issues → sale to Deshwali).
-    var issuerG = gstins.filter(function (g) { return validGstin(g); })[0] || gstins[0] || '';
-    if (issuerG) f.direction = ownG.indexOf(issuerG) >= 0 ? 'sales' : 'purchase';
+    // DIRECTION — is OUR firm the RECIPIENT (buyer) or the ISSUER (seller)?
+    // Primary signal: if our own GSTIN is printed in a buyer / bill-to / consignee
+    // context, we bought it → PURCHASE. This must come first because some SAP / IOC
+    // petcoke layouts print the RECIPIENT block ABOVE the seller block, so the naive
+    // "first GSTIN = issuer" test wrongly flips a purchase into a sale.
+    // Fallback: the issuer (first valid GSTIN) decides — our GSTIN issuing → SALE.
+    var dir = '';
+    var selfG = norm(opts.selfGstin || '');
+    var meG = (selfG && ownG.indexOf(selfG) >= 0) ? selfG : buyerG;
+    if (meG) {
+      var nT = norm(T), bi = nT.indexOf(meG);
+      var ctx = bi >= 0 ? nT.slice(Math.max(0, bi - 90), bi) : '';
+      if (/BILL\s*TO|BILLED\s*TO|BUYER|CONSIGNEE|SHIP\s*TO|RECIPIENT|RECEIVER|DETAILS\s*OF\s*RECEIVER/.test(ctx)) dir = 'purchase';
+    }
+    if (!dir) {
+      var issuerG = gstins.filter(function (g) { return validGstin(g); })[0] || gstins[0] || '';
+      if (issuerG) dir = ownG.indexOf(issuerG) >= 0 ? 'sales' : 'purchase';
+    }
+    if (dir) f.direction = dir;
 
     /* Bill number — labelled, must contain a digit and not be a date/GSTIN. */
     var billNo = '', re = /(?:invoice|bill(?:\s*of\s*supply)?|inv|voucher|challan|document|consignment(?:\s*note)?|note)[ \t]*(?:no\.?|number|#|id)?[ \t]*[:\-.#]?[ \t]*([A-Za-z0-9\/\-]{0,22}\d[A-Za-z0-9\/\-]{0,6})/ig, mm;
@@ -744,3 +757,5 @@
     SAMPLES: SAMPLES, selfTest: selfTest
   };
 });
+
+/* build ocr22: direction uses buyer-context on own GSTIN before issuer heuristic (IOC petcoke buyer-block-first layout no longer flips purchase→sale) */

@@ -305,12 +305,12 @@
     commit();
   }
   // Sales
-  function addSale(e) { S.SALES.push({ ...e, status: e.status || 'pending' }); if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); else commit(); }
+  function addSale(e) { S.SALES.push({ ...e, date: toISODate(e.date) || e.date, status: e.status || 'pending' }); if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); else commit(); }
   function updateSale(i, e) { if (S.SALES[i]) { S.SALES[i] = { ...S.SALES[i], ...e }; if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); else commit(); } }
   function deleteSale(i, reason) { return softDelete('sales', i, reason); }
   function setSaleStatus(i, st, pay) { if (S.SALES[i]) { Object.assign(S.SALES[i], { status: st }, pay || {}); commit(); } }
   // Purchases
-  function addPurchase(e) { S.PURCHASES.push({ ...e, status: e.status || 'pending' }); if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); else commit(); }
+  function addPurchase(e) { S.PURCHASES.push({ ...e, date: toISODate(e.date) || e.date, status: e.status || 'pending' }); if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); else commit(); }
   /* Import a bill from GENERIC OCR/AI fields into the CORRECT register based on
      its detected kind — so a purchase uploaded on the Sales page (or vice-versa)
      still lands in the right place. Returns the new row's index. */
@@ -321,7 +321,7 @@
     if (!taxable && total) taxable = Math.round(total / (1 + rate / 100) * 100) / 100;
     const veh = (g.veh || '').toString().trim().toUpperCase();
     const gstin = (g.gstin || '').toString().trim().toUpperCase();
-    const date = g.date || fmtISO(new Date());
+    const date = toISODate(g.date) || fmtISO(new Date());
     const cat = ((g.group || '') + ' ' + (g.item || '')).trim();
     if (kind === 'sales') {
       let qty = num(g.qty) || 1, r = taxable ? Math.round(taxable / qty * 100) / 100 : num(g.rate);
@@ -723,6 +723,20 @@
     });
   }
   function fmtISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  // Normalise ANY bill date to ISO YYYY-MM-DD so it always groups into a month.
+  // Handles "10-Dec-25" / "10-Dec-2025" / "10/12/2025" / "10-12-2025" / ISO.
+  const _MON = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+  function toISODate(s) {
+    if (!s) return '';
+    s = String(s).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;                                    // already ISO
+    var m = s.match(/^(\d{1,2})[\-\/ .]([A-Za-z]{3,})[\-\/ .](\d{2,4})$/);          // 10-Dec-25 / 10 Dec 2025
+    if (m) { var mm = _MON[m[2].slice(0, 3).toLowerCase()]; if (mm) { var y = m[3].length === 2 ? '20' + m[3] : m[3]; return y + '-' + mm + '-' + m[1].padStart(2, '0'); } }
+    m = s.match(/^(\d{1,2})[\-\/.](\d{1,2})[\-\/.](\d{2,4})$/);                      // 10/12/2025 (DD/MM/YYYY)
+    if (m) { var yy = m[3].length === 2 ? '20' + m[3] : m[3]; return yy + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0'); }
+    var d = new Date(s); if (!isNaN(d.getTime())) return fmtISO(d);                 // last resort
+    return s;
+  }
   // Record a (possibly partial) payment against a purchase bill. Also posts
   // ONE debit to the unified money ledger (CASHBOOK) so the payment flows into
   // account balances, the Cash Book and the Payments Center automatically.
@@ -1616,3 +1630,5 @@
 /* build: pullcloud-guard 1783938945 */
 
 /* build: refunds 1783950533 */
+
+/* build m16: toISODate normalises bill dates at every entry point (fixes Dec purchases stored as "10-Dec-25" → never grouped into a month) */
