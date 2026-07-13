@@ -201,16 +201,39 @@
     } catch (e) { console.warn('v2 loans cloud pull failed', e); }
     return false;
   }
+  // Count the business records in a blob — used to guard against an empty/stale
+  // cloud response silently wiping good local data.
+  function blobCount(d) {
+    if (!d) return 0;
+    return (d.sales || []).length + (d.purchases || []).length + (d.parties || []).length +
+      (d.cashbook || []).length + (d.workers || []).length + (d.chunna || []).length +
+      (d.tds || []).length + (d.prod || []).length;
+  }
   async function pullCloud() {
     if (!DB) return false;
     try {
       const { data: rows, error } = await DB.rpc('get_my_data', { p_plant_id: QL_PLANT.id });
       if (error || !rows || !rows.length) return false;
       const row = rows.find(r => r.id === ACTIVE_CO);
-      if (!row || !row.data) { clearState(); return true; }   // no data for this company yet
-      clearState(); hydrate(row.data);
-      try { localStorage.setItem(COMPANIES[ACTIVE_CO].dataKey, JSON.stringify(row.data)); } catch (_) {}
-      if (row.data.profile_pic) { try { localStorage.setItem('dm_profile_pic', row.data.profile_pic); } catch (_) {} }
+      const cd = row && row.data;
+      const cloudN = blobCount(cd);
+      // ── DATA-LOSS GUARD ──────────────────────────────────────────────
+      // Never let an EMPTY cloud row overwrite non-empty local data. A paused /
+      // mid-migration backend can return 0 records; without this guard pullCloud
+      // would clearState() + cache an empty blob, silently destroying the last
+      // local copy. When the cloud is empty but local has data, keep local — a
+      // real edit later re-pushes local → cloud and restores it.
+      let localN = 0;
+      try { const raw = localStorage.getItem(COMPANIES[ACTIVE_CO].dataKey); if (raw) localN = blobCount(JSON.parse(raw)); } catch (_) {}
+      const stateN = S.SALES.length + S.PURCHASES.length + S.PARTIES.length;
+      if (cloudN === 0 && (localN > 0 || stateN > 0)) {
+        if (!stateN) loadLocal();          // surface the surviving cache into state
+        return true;                       // …but do NOT overwrite the cache with empty cloud
+      }
+      if (!row || !cd) { if (!localN) clearState(); return true; }   // genuinely new/empty company
+      clearState(); hydrate(cd);
+      try { localStorage.setItem(COMPANIES[ACTIVE_CO].dataKey, JSON.stringify(cd)); } catch (_) {}
+      if (cd.profile_pic) { try { localStorage.setItem('dm_profile_pic', cd.profile_pic); } catch (_) {} }
       return true;
     } catch (e) { console.warn('v2 cloud pull failed', e); return false; }
   }
@@ -1506,3 +1529,5 @@
 /* build: archive-perms 1783930681 */
 
 /* build: reports-fix 1783933534 */
+
+/* build: pullcloud-guard 1783938945 */
