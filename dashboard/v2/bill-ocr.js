@@ -180,23 +180,62 @@
     // date regex (never a fixed-width filler, which used to eat the day's first
     // digit: "Dated : 12/06/2025" → "2/06/2025"). SKIP e-invoice / logistics dates
     // ("Ack Date", "Delivery Note Date", "Due Date", "E-Way") so the INVOICE date wins.
-    var lines = text.split('\n');
-    var skip = /due\s*date|ack(?:nowledgement)?\s*date|delivery\s*note\s*date|e-?way/i;
-    // pass 1 — an explicit invoice/bill "Dated" line
+    //
+    // A line-based skip is NOT enough. pdf.js groups text runs by y-position, so a
+    // Tally e-invoice header extracts with the label and its value on SEPARATE lines:
+    //     Ack Date :        ← label alone, matches skip
+    //     3-Jan-26          ← value alone, matches nothing → sneaks through
+    //     Invoice No. Dated ← label row, no value
+    //     58 31-Dec-25      ← the REAL invoice date, no label on the line
+    // The old fallback took "first date in the doc" = the Ack Date, silently filing
+    // a 31-Dec bill into January. So we (1) block the follower line of a dangling
+    // skip label, and (2) let a "Dated" label reach forward to its value row.
+    // Blocking is BY LINE POSITION, never by value: e-invoices are often acked the
+    // same day, and blocking the string would kill the real date too.
+    var lines = text.split('\n').map(function (l) { return clean(l); });
+    var skip = /due\s*date|ack(?:nowledgement)?\s*(?:date|no)|delivery\s*note\s*date|e-?way|\birn\b/i;
+    var noReach = /buyer'?s?\s*order|delivery\s*note|reference\s*no/i;
+
+    var blocked = {};
     for (var i = 0; i < lines.length; i++) {
-      if (skip.test(lines[i])) continue;
-      if (/invoice\s*date|bill\s*date|\bdated\b/i.test(lines[i])) {
-        var mi1 = lines[i].search(/\bdate[d]?\b/i); var v1 = firstDate(lines[i].slice(mi1).replace(/^date[d]?/i, '')); if (v1) return v1;
+      if (!skip.test(lines[i])) continue;
+      blocked[i] = 1;
+      if (firstDate(lines[i])) continue;            // label carried its own value
+      for (var k = i + 1; k < Math.min(i + 3, lines.length); k++) {
+        if (!lines[k]) continue;
+        if (firstDate(lines[k])) blocked[k] = 1;    // dangling label → next line is its value
+        break;                                       // only the first follower can hold it
       }
     }
-    // pass 2 — any date-labelled line that isn't ack/due/delivery-note/e-way
+    var free = function (n) { return !blocked[n] && !skip.test(lines[n]); };
+
+    // pass 1 — an explicit invoice/bill "Dated" label: on the line, else the value row below it
+    var lab = /invoice\s*date|bill\s*date|\bdated\b/i;
     for (var j = 0; j < lines.length; j++) {
-      if (skip.test(lines[j])) continue;
-      var mi = lines[j].search(/\bdate[d]?\b/i);
-      if (mi >= 0) { var v = firstDate(lines[j].slice(mi).replace(/^date[d]?/i, '')); if (v) return v; }
+      if (!free(j) || !lab.test(lines[j])) continue;
+      var mi1 = lines[j].search(/\bdate[d]?\b/i);
+      var v1 = firstDate(lines[j].slice(mi1).replace(/^date[d]?/i, ''));
+      if (v1) return v1;
+      if (noReach.test(lines[j])) continue;
+      for (var n = j + 1; n < Math.min(j + 4, lines.length); n++) {
+        if (!free(n)) continue;
+        var v2 = firstDate(lines[n]);
+        if (v2) return v2;
+      }
     }
-    // fallback — first date anywhere, but still not from an ack/logistics line
-    return firstDate(lines.filter(function (l) { return !skip.test(l); }).join('\n'));
+    // pass 2 — any other date-labelled line that isn't ack/due/delivery-note/e-way
+    for (var p = 0; p < lines.length; p++) {
+      if (!free(p)) continue;
+      var mi = lines[p].search(/\bdate[d]?\b/i);
+      if (mi >= 0) { var v = firstDate(lines[p].slice(mi).replace(/^date[d]?/i, '')); if (v) return v; }
+    }
+    // fallback — first date on a line that isn't blocked
+    for (var q = 0; q < lines.length; q++) {
+      if (!free(q)) continue;
+      var v3 = firstDate(lines[q]);
+      if (v3) return v3;
+    }
+    return null;
   }
   function validateDate(s) {
     var m = String(s).match(DATE_RE); if (!m) return null;
@@ -759,3 +798,5 @@
 });
 
 /* build ocr22: direction uses buyer-context on own GSTIN before issuer heuristic (IOC petcoke buyer-block-first layout no longer flips purchase→sale) */
+
+/* build ocr23: e-invoice Ack Date (dangling label, value on next line) no longer taken as the bill date */
