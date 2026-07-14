@@ -269,6 +269,15 @@
 /* 4) single filter toolbar (sticky) */
 .rc-toolbar2 { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 0; margin-bottom: 8px; background: var(--ql-bg); }
 .rc-ftabs { display: flex; gap: 4px; flex-wrap: wrap; }
+/* Account chips (multi-bank): which bank account the whole screen is scoped to */
+.rc-accbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin: 2px 0 12px; }
+.rc-accbar > svg { width: 16px; height: 16px; color: var(--ql-text-muted, #94a3b8); flex: none; }
+.rc-acc-chip { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; border: 1px solid var(--ql-border); border-radius: 99px; background: var(--ql-card); font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ql-text-secondary); cursor: pointer; transition: all .13s; }
+.rc-acc-chip:hover { border-color: var(--ql-brand-300, #93b6f8); color: var(--ql-text); }
+.rc-acc-chip.on { background: var(--ql-brand-600, #2563eb); border-color: var(--ql-brand-600, #2563eb); color: #fff; box-shadow: 0 3px 10px rgba(37, 99, 235, .25); }
+.rc-acc-n { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--ql-neutral-150, #eef1f6); color: var(--ql-text-secondary); }
+.rc-acc-chip.on .rc-acc-n { background: rgba(255, 255, 255, .22); color: #fff; }
+
 .rc-ftab { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 11px; border: 1px solid transparent; border-radius: 9px; background: transparent; font: inherit; font-size: 13px; font-weight: 600; color: var(--ql-text-secondary); cursor: pointer; transition: all .13s; }
 .rc-ftab:hover { background: var(--ql-neutral-100); }
 .rc-ftab.on { background: var(--ql-card); border-color: var(--ql-border); color: var(--ql-text); box-shadow: var(--ql-shadow-sm); }

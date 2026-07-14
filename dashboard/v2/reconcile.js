@@ -44,7 +44,7 @@ const STAT = {
 function tierColor(t) { return t === 'green' ? ['#dcfce7', '#15803d'] : t === 'yellow' ? ['#fef9c3', '#a16207'] : ['#fef2f2', '#dc2626']; }
 const toast = (m, t) => (QLShell.toast ? QLShell.toast(m, t) : 0);
 
-let ST = { view: 'recon', month: 'all', monthInit: false, ftype: 'all', fstatus: 'all', q: '', sel: new Set(), foOpen: false };
+let ST = { view: 'recon', month: 'all', monthInit: false, ftype: 'all', fstatus: 'all', q: '', sel: new Set(), foOpen: false, acc: '' };
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
 function txns() { return (Q.recon.txns || []); }
@@ -250,7 +250,12 @@ async function parseBankFile(file, password) {
 }
 
 /* ── analytics ───────────────────────────────────────────────────────── */
-function monthTxns() { return txns().filter(t => inMonth(t.date)); }
+/* Account scoping (multi-bank Phase 3): ST.acc = '' → all accounts,
+   '__none' → legacy/unassigned rows, else a BANK_ACCOUNT id. Everything
+   downstream (summary, counts, tabs, list, export, AI bar) reads monthTxns(),
+   so one filter scopes the whole screen. */
+function accMatch(t) { return !ST.acc || (ST.acc === '__none' ? !t.accountId : t.accountId === ST.acc); }
+function monthTxns() { return txns().filter(t => inMonth(t.date) && accMatch(t)); }
 /* A transaction links to one bill (t.m.idx) OR many (t.m.allocs). allocsOf
    normalises both into an array of { kind, idx, amount } so every downstream
    consumer — ledger, cards, export, drawer — is split-aware for free. */
@@ -340,10 +345,29 @@ function render() {
   let root = document.getElementById('rcRoot');
   if (!root) { main.innerHTML = '<div class="rc" id="rcRoot"></div>'; root = document.getElementById('rcRoot'); }
   try {
-    root.innerHTML = heroHTML() + (txns().length ? summaryHTML() + finOverviewHTML() + aiHTML() + toolbarHTML() + `<div class="rc-panel">${viewHTML()}</div>` + bulkBarHTML() : emptyHTML());
+    root.innerHTML = heroHTML() + (txns().length ? accBarHTML() + summaryHTML() + finOverviewHTML() + aiHTML() + toolbarHTML() + `<div class="rc-panel">${viewHTML()}</div>` + bulkBarHTML() : emptyHTML());
     wire();
   } catch (e) { console.warn('recon render deferred:', e); }
   QLShell.paintWorkspace && QLShell.paintWorkspace();
+}
+/* Account chips — "All accounts | BOB Current | HDFC | Unassigned". Counts are
+   month-scoped but account-blind, so a chip's number is what you'd see after
+   clicking it. Hidden entirely until the firm has accounts or stamped txns. */
+function accBarHTML() {
+  const inM = txns().filter(t => inMonth(t.date));
+  const accounts = (Q.bankAccounts ? Q.bankAccounts() : []);
+  const stamped = inM.some(t => t.accountId);
+  if (!accounts.length && !stamped) return '';
+  const valid = new Set(['', '__none', ...accounts.map(a => a.id)]);
+  if (!valid.has(ST.acc)) ST.acc = '';                       // company switch / archived account
+  const nFor = id => inM.filter(t => id === '' ? true : id === '__none' ? !t.accountId : t.accountId === id).length;
+  const unassigned = nFor('__none');
+  const chip = (id, label) => `<button class="rc-acc-chip ${ST.acc === id ? 'on' : ''}" data-facc="${esc(id)}">${esc(label)}<span class="rc-acc-n">${nFor(id)}</span></button>`;
+  return `<div class="rc-accbar">${svg('<line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/>')}
+    ${chip('', 'All accounts')}
+    ${accounts.map(a => chip(a.id, a.label)).join('')}
+    ${unassigned && accounts.length ? chip('__none', 'Unassigned') : ''}
+  </div>`;
 }
 function heroHTML() {
   return `<div class="rc-hero">
@@ -980,6 +1004,7 @@ function wire() {
   root.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { ST.view = b.dataset.view; render(); });
   root.querySelectorAll('[data-ftype]').forEach(b => b.onclick = () => { ST.ftype = b.dataset.ftype; render(); });
   root.querySelectorAll('[data-fstatus]').forEach(b => b.onclick = () => { ST.fstatus = b.dataset.fstatus; render(); });
+  root.querySelectorAll('[data-facc]').forEach(b => b.onclick = () => { ST.acc = b.dataset.facc; ST.sel.clear(); render(); });
   if ($('rcSearch')) { const s = $('rcSearch'); s.oninput = () => { ST.q = s.value; const p = document.querySelector('.rc-panel'); if (p) { p.innerHTML = viewHTML(); wire(); s2focus(); } }; }
   root.querySelectorAll('[data-link]').forEach(b => b.onclick = () => openLink(b.dataset.link));
   root.querySelectorAll('[data-unlink]').forEach(b => b.onclick = () => { const t = txns().find(x => x.id === b.dataset.unlink); if (t) { t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched' }; Q.saveRecon(); render(); } });
@@ -1036,7 +1061,7 @@ if (QLShell.registerAssistIntent) QLShell.registerAssistIntent((q, t) => {
    LIVE recon state. Runs before the shell's generic intents (first match wins). */
 if (QLShell.registerAssistIntent) QLShell.registerAssistIntent((q, t, H) => {
   if (!/reconcil|transaction|bank statement|unmatch|duplicate|paid twice|advance|exception|matched|\bdebit\b|\bcredit\b|\butr\b|inter.?firm|self transfer/.test(t) && !/why.*(match|link)/.test(t)) return '';
-  const tt = txns().filter(x => inMonth(x.date));
+  const tt = monthTxns();   // month + account scoped, same as every other block
   if (!tt.length) return `<p>No bank transactions loaded for ${esc(monthLabel())}. Open <b>Bank Reconciliation</b> and upload a statement.</p>`;
   const fc = H.fc, row = (t2) => `${fDS(t2.date)} · ${esc(titleCase(t2.clean) || (t2.desc || '').slice(0, 24))} · <b>${t2.credit ? '+' : '−'}${fc(t2.credit || t2.debit)}</b>`;
   const listOf = arr => arr.length ? '<ul class="ql-ai-list">' + arr.slice(0, 12).map(x => `<li>${row(x)}</li>`).join('') + (arr.length > 12 ? `<li>…and ${arr.length - 12} more</li>` : '') + '</ul>' : '<p>None. ✓</p>';
@@ -1067,3 +1092,5 @@ if (Q.init) Q.init(render); else render();
 /* build rd8: eye toggle on the statement password field */
 
 /* build rd9: statement imports into a chosen bank account (multi-bank Phase 2) */
+
+/* build rd10: account chips scope the whole Reconcile screen (multi-bank Phase 3) */
