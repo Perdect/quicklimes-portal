@@ -12,14 +12,36 @@
   const SUPA_URL = 'https://iteaawedfmaujujyrqdu.supabase.co';
   const SUPA_KEY = 'sb_publishable_9MNYdrZ_ddJKTLL97amK4w_85iF6vlU';
 
-  /* ── Auth guard — identical contract to v1 ──────────────────── */
+  /* ── Auth guard ─────────────────────────────────────────────── */
   let QL_PLANT = null;
   try { QL_PLANT = JSON.parse(localStorage.getItem('ql_plant') || 'null'); } catch (_) {}
-  // Cross-subdomain handoff (#auth=base64) — same as v1 login flow
-  if (!QL_PLANT && location.hash.startsWith('#auth=')) {
+  // Every account-scoped localStorage key. Wiped when a DIFFERENT account signs
+  // in on this browser, so a new login can never see the previous account's
+  // cached data. ql_BACKUP_* (explicit user backups) and ql_features (device
+  // preference) survive on purpose.
+  function wipeAccountCaches() {
+    const kill = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (/^ql_data_/.test(k) || /^ql_bill_aliases_/.test(k)) kill.push(k);
+    }
+    kill.push('dm_active_co', 'dm_loans', 'dm_profile_pic', 'ql_notif_state');
+    kill.forEach(k => { try { localStorage.removeItem(k); } catch (_) {} });
+  }
+  // Cross-subdomain handoff (#auth=base64). A FRESH handoff ALWAYS wins over a
+  // stored session: signing up / logging in as another account used to be
+  // silently ignored when this browser already held a session, so the new user
+  // landed on the previous account's dashboard with its cached data. Now the
+  // incoming identity replaces the session, and if it is a different account
+  // the previous account's local caches are wiped first.
+  if (location.hash.startsWith('#auth=')) {
     try {
-      QL_PLANT = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(6)))));
-      localStorage.setItem('ql_plant', JSON.stringify(QL_PLANT));
+      const fresh = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(6)))));
+      if (fresh && fresh.id) {
+        if (QL_PLANT && QL_PLANT.id && QL_PLANT.id !== fresh.id) wipeAccountCaches();
+        QL_PLANT = fresh;
+        localStorage.setItem('ql_plant', JSON.stringify(QL_PLANT));
+      }
       history.replaceState(null, '', location.pathname);
     } catch (_) {}
   }
@@ -28,6 +50,14 @@
     location.replace(isLocal ? '/quicklime.html' : 'https://quicklimes.com/portal');
     throw new Error('ql_v2_no_session');
   }
+  // Identity marker — catches the OTHER login path too (login page writing
+  // ql_plant directly, no #auth hash): if the session's account differs from
+  // the one that wrote these caches, the caches belong to someone else.
+  try {
+    const owner = localStorage.getItem('ql_cache_owner');
+    if (owner && owner !== QL_PLANT.id) wipeAccountCaches();
+    localStorage.setItem('ql_cache_owner', QL_PLANT.id);
+  } catch (_) {}
 
   /* ── Seller details for tax invoices (ported from v1, keyed by name) ── */
   const HSN = '25221000';   // Quick Lime / Hydrated Lime
@@ -1750,3 +1780,5 @@
 /* build m19: payments carry accountId (multi-bank Phase 5) */
 
 /* build m20: addFreightPayment/deleteFreightPayment + freightPays landed-cost derivation */
+
+/* build m21: #auth handoff always wins + ql_cache_owner identity guard (session isolation) */
