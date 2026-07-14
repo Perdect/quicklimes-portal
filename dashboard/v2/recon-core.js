@@ -344,6 +344,43 @@
     ['IDFC', /IDFC/], ['IndusInd', /INDUSIND/], ['Federal', /FEDERAL BANK/], ['YES', /\bYES BANK\b/], ['AU', /\bAU (SMALL|BANK)/], ['IOB', /INDIAN OVERSEAS/]];
   function detectBank(text) { var U = (text || '').toString().toUpperCase(); for (var i = 0; i < BANKS.length; i++) if (BANKS[i][1].test(U)) return BANKS[i][0]; return ''; }
 
+  /* ── multi-bank backfill (Phase 6) ────────────────────────────────────────
+     Pure planner: given the stored txns and the firm's BANK_ACCOUNTS, decide
+     which txns get which accountId (matching each txn's import-time t.bank to
+     an account by bank name, label as fallback) and which accounts must be
+     created first (a distinct t.bank with no matching account). Blank-bank
+     txns are left untouched — they stay in the "Unassigned" bucket for manual
+     reassignment. NO-REGRESSION RULE: a firm with zero accounts and at most
+     one distinct bank keeps today's single-implicit-account behaviour. */
+  function bankAccountMatch(bank, accounts) {
+    var bl = (bank || '').toLowerCase().trim();
+    if (!bl) return null;
+    for (var i = 0; i < (accounts || []).length; i++) {
+      var ab = (accounts[i].bank || '').toLowerCase().trim();
+      if (ab && (ab.indexOf(bl) >= 0 || bl.indexOf(ab) >= 0)) return accounts[i];
+    }
+    for (var j = 0; j < (accounts || []).length; j++) {
+      if (((accounts[j].label || '').toLowerCase()).indexOf(bl) >= 0) return accounts[j];
+    }
+    return null;
+  }
+  function backfillPlan(txns, accounts) {
+    txns = txns || []; accounts = accounts || [];
+    var pending = txns.filter(function (t) { return !t.accountId; });
+    var banks = {};
+    pending.forEach(function (t) { var b = (t.bank || '').trim(); if (b) banks[b] = (banks[b] || 0) + 1; });
+    var names = Object.keys(banks);
+    if (!accounts.length && names.length <= 1) return { creates: [], assigns: [], map: {}, skipped: 'implicit-single-bank' };
+    var creates = [], map = {};
+    names.forEach(function (b) {
+      var hit = bankAccountMatch(b, accounts);
+      if (hit) map[b] = hit.id; else { creates.push(b); map[b] = ''; }   // '' → create, then fill in
+    });
+    var assigns = [];
+    pending.forEach(function (t) { var b = (t.bank || '').trim(); if (b && b in map) assigns.push({ id: t.id, bank: b }); });
+    return { creates: creates, assigns: assigns, map: map, blank: pending.length - assigns.length };
+  }
+
   /* ── split: allocate one payment across many bills ─────────────────────── */
   // Decide the status of a split. allocs = [{amount}]. tol absorbs rounding.
   function splitStatus(payment, allocs, tol) {
@@ -366,6 +403,7 @@
     normName: normName, tokens: tokens, distinctive: distinctive, daysBetween: daysBetween,
     parseNarration: parseNarration, nameMatch: nameMatch, classifyDebit: classifyDebit,
     scoreMatch: scoreMatch, bestMatch: bestMatch, dedupeKey: dedupeKey, dedupeKeyBase: dedupeKeyBase, detectBank: detectBank,
+    bankAccountMatch: bankAccountMatch, backfillPlan: backfillPlan,
     splitStatus: splitStatus, suggestAlloc: suggestAlloc, STOP: STOP,
     signedBalance: signedBalance, inferDirections: inferDirections,
     classifyTxn: classifyTxn, classifyResidual: classifyResidual, directionCat: directionCat, selfPairs: selfPairs
@@ -373,3 +411,5 @@
 });
 
 /* build: account-scoped dedupeKey + dedupeKeyBase */
+
+/* build: backfillPlan + bankAccountMatch */

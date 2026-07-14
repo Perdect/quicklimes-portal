@@ -234,5 +234,38 @@ ok('different SELF ids never pair by amount alone', RC.selfPairs(legs2).length =
   ok('base key preserves UTR form', RC.dedupeKeyBase(np, line).indexOf('|UTR|') > 0);
 })();
 
+// ── backfill planner (multi-bank Phase 6) ──────────────────────────────────
+(function () {
+  var ACCTS = [
+    { id: 'BA1', bank: 'Bank of Baroda', label: 'BOB Current — Merta City' },
+    { id: 'BA2', bank: 'HDFC Bank', label: 'HDFC — Umaid Stadium' }
+  ];
+  var T = [
+    { id: 't1', bank: 'Bank of Baroda' },                       // → BA1
+    { id: 't2', bank: 'Bank of Baroda' },                       // → BA1
+    { id: 't3', bank: 'HDFC' },                                  // partial name → BA2
+    { id: 't4', bank: 'ICICI' },                                 // no account → create
+    { id: 't5', bank: '' },                                      // blank → stays Unassigned
+    { id: 't6', bank: 'Bank of Baroda', accountId: 'BA9' }       // already assigned → untouched
+  ];
+  var p = RC.backfillPlan(T, ACCTS);
+  ok('BOB rows matched to the BOB account', p.map['Bank of Baroda'] === 'BA1');
+  ok('partial bank name (HDFC ⊂ HDFC Bank) matches', p.map['HDFC'] === 'BA2');
+  ok('unknown bank queued for creation', p.creates.length === 1 && p.creates[0] === 'ICICI');
+  ok('assigns cover only unassigned rows with a bank', p.assigns.length === 4);
+  ok('already-assigned row untouched', !p.assigns.some(function (a) { return a.id === 't6'; }));
+  ok('blank-bank row counted, not assigned', p.blank === 1 && !p.assigns.some(function (a) { return a.id === 't5'; }));
+
+  // no-regression rule: zero accounts + one distinct bank → do nothing
+  var solo = RC.backfillPlan([{ id: 'x1', bank: 'Bank of Baroda' }], []);
+  ok('zero accounts + single bank → skipped (implicit single account)', solo.skipped === 'implicit-single-bank' && !solo.assigns.length);
+  // ...but zero accounts + TWO distinct banks is real multi-bank → create both
+  var duo = RC.backfillPlan([{ id: 'x1', bank: 'Bank of Baroda' }, { id: 'x2', bank: 'ICICI' }], []);
+  ok('zero accounts + two banks → both created', duo.creates.length === 2 && duo.assigns.length === 2);
+  // label fallback: account with blank bank field but a matching label
+  var lbl = RC.backfillPlan([{ id: 'y1', bank: 'ICICI' }], [{ id: 'BA7', bank: '', label: 'ICICI CC' }]);
+  ok('label fallback matches when bank field is blank', lbl.map['ICICI'] === 'BA7' && !lbl.creates.length);
+})();
+
 console.log('\n' + (fail === 0 ? '✅ ALL ' + pass + ' TESTS PASSED' : '❌ ' + fail + ' FAILED, ' + pass + ' passed'));
 process.exit(fail ? 1 : 0);

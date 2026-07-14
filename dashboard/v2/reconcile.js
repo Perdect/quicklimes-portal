@@ -451,8 +451,10 @@ function toolbarHTML() {
 }
 function bulkBarHTML() {
   if (!ST.sel || !ST.sel.size) return '';
+  const hasAccounts = Q.bankAccounts && Q.bankAccounts().length;
   return `<div class="rc-bulk"><span class="rc-bulk-n">${ST.sel.size} selected</span>
     <button class="rc-bulk-b" data-bulk="confirm">${svg(IC.ck)} Confirm suggested</button>
+    ${hasAccounts ? `<button class="rc-bulk-b" data-bulk="acct">${svg('<line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/>')} Assign account</button>` : ''}
     <button class="rc-bulk-b" data-bulk="dup">Mark duplicate</button>
     <button class="rc-bulk-b" data-bulk="ignore">Ignore</button>
     <button class="rc-bulk-b" data-bulk="export">${svg(IC.dl)} Export</button>
@@ -649,6 +651,46 @@ function bulkAction(a) {
   if (a === 'dup') { rows.forEach(t => markDuplicate(t, true)); ST.sel.clear(); render(); toast('Marked ' + rows.length + ' as duplicate', 'ok'); return; }
   if (a === 'ignore') { rows.forEach(t => { t.m = { kind: 'other', idx: null, status: 'other', cat: 'Ignored', manual: true, confidence: 100 }; }); Q.saveRecon(); ST.sel.clear(); render(); toast('Ignored ' + rows.length, 'ok'); return; }
   if (a === 'export') { exportRecon(); ST.sel.clear(); render(); return; }
+  // Reassign the selected txns to a bank account (or back to Unassigned).
+  // Dedupe keys are account-scoped, so duplicates are re-evaluated after.
+  if (a === 'acct') {
+    const accounts = Q.bankAccounts();
+    QLShell.openForm({
+      title: 'Assign bank account', sub: rows.length + ' transaction' + (rows.length === 1 ? '' : 's') + ' selected',
+      specs: [{ k: 'acc', label: 'Move to account', type: 'select', full: true,
+        opts: accounts.map(x => [x.id, x.label]).concat([['', '— Unassigned —']]) }],
+      saveLabel: 'Assign', initial: { acc: ST.acc && ST.acc !== '__none' ? ST.acc : (accounts[0] || {}).id || '' },
+      onSave(v) {
+        rows.forEach(t => { if (v.acc) t.accountId = v.acc; else delete t.accountId; });
+        runMatchAll(); ST.sel.clear(); render();
+        toast('Moved ' + rows.length + ' to ' + (v.acc ? Q.bankAccountLabel(v.acc) : 'Unassigned'), 'ok');
+      }
+    });
+    return;
+  }
+}
+
+/* ── Phase 6: one-time backfill — give pre-multi-bank txns their account ──
+   Matches each stored txn's import-time t.bank to a BANK_ACCOUNT (creating
+   accounts for distinct banks that have none), stamps accountId, and re-runs
+   matching so the account-scoped dedupe keys settle. Blank-bank rows stay
+   Unassigned for the bulk "Assign account" action. Guarded by recon.backfillV
+   so it runs once per company; a firm with zero accounts and a single distinct
+   bank is left exactly as-is (single implicit account — no regression). */
+function runBackfill() {
+  try {
+    const r = Q.recon;
+    if (!r || r.backfillV || !(r.txns || []).length) return;
+    if (!Q.bankAccounts || !RC.backfillPlan) return;
+    const plan = RC.backfillPlan(r.txns, Q.bankAccounts());
+    r.backfillV = 1;
+    if (plan.skipped || (!plan.assigns.length && !plan.creates.length)) { Q.saveRecon(); return; }
+    plan.creates.forEach(b => { const acc = Q.addBankAccount({ bank: b }); plan.map[b] = acc.id; });
+    let n = 0;
+    r.txns.forEach(t => { const b = (t.bank || '').trim(); if (!t.accountId && b && plan.map[b]) { t.accountId = plan.map[b]; n++; } });
+    runMatchAll();   // saves + mirrors; account-scoped dedupe re-evaluated
+    if (n) toast('Assigned ' + n + ' past transaction' + (n === 1 ? '' : 's') + ' to your bank accounts', 'ok');
+  } catch (e) { console.warn('bank backfill skipped:', e); }
 }
 
 /* ══════════════════ MODALS ══════════════════ */
@@ -1084,8 +1126,8 @@ if (QLShell.registerAssistIntent) QLShell.registerAssistIntent((q, t, H) => {
 });
 
 window.__qlRefresh = render;
-window.__qlOnSwitchCompany = id => { ST.monthInit = false; Q.switchCompany(id, render); };
-if (Q.init) Q.init(render); else render();
+window.__qlOnSwitchCompany = id => { ST.monthInit = false; ST.acc = ''; Q.switchCompany(id, () => { runBackfill(); render(); }); };
+if (Q.init) Q.init(() => { runBackfill(); render(); }); else render();
 
 /* build rd7: ask for the password on a locked bank statement instead of showing pdf.js raw error */
 
@@ -1094,3 +1136,5 @@ if (Q.init) Q.init(render); else render();
 /* build rd9: statement imports into a chosen bank account (multi-bank Phase 2) */
 
 /* build rd10: account chips scope the whole Reconcile screen (multi-bank Phase 3) */
+
+/* build rd11: one-time account backfill + bulk Assign account (multi-bank Phase 6) */
