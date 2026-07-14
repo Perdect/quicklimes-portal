@@ -705,6 +705,10 @@
       const outstanding = Math.max(0, c.tot - paid);
       const active = p.status !== 'paid' && p.status !== 'cancelled';
       const isOverdue = active && p.dueDate && p.dueDate < todayISO;
+      // Freight PAYMENTS (multi-entry, cash/UPI/bank each) supersede the single
+      // manual freightAmt number when any exist — payments are the truth.
+      const fPays = p.freightPays || [];
+      const fTotal = fPays.length ? fPays.reduce((s, f) => s + (+f.amount || 0), 0) : (+p.freightAmt || 0);
       return {
         idx: i, bill: p.bill, date: p.date, sup: cleanSup(p), cat: p.cat || 'Other',
         group: g.group, groupLabel: gm.label, emoji: gm.emoji, item: g.item, dept: g.dept,
@@ -720,9 +724,10 @@
         // user enters directly — it rolls into landed cost but NOT into this
         // bill's GST/total (transport is paid/taxed separately). freightAddon =
         // the part not already inside `total`, so landed cost never double-counts.
-        freight: isFreightItem(g.item) || (+p.freightAmt || 0) > 0,
-        freightAmt: isFreightItem(g.item) ? (p.taxable || 0) : (+p.freightAmt || 0),
-        freightAddon: isFreightItem(g.item) ? 0 : (+p.freightAmt || 0)
+        freight: isFreightItem(g.item) || fTotal > 0,
+        freightAmt: isFreightItem(g.item) ? (p.taxable || 0) : fTotal,
+        freightAddon: isFreightItem(g.item) ? 0 : fTotal,
+        freightPays: fPays
       };
     });
   }
@@ -1280,6 +1285,43 @@
     commit();
   }
   function payPurchaseBill(i, o) { o = o || {}; recordPurchasePayment(i, o.amount, methodToMode(o.method), o.date, { method: o.method, ref: o.ref, notes: o.notes, accountId: o.accountId || '' }); }
+
+  /* ── Freight payments on a purchase bill (multi-bank aware) ──────────
+     Every petcoke/limestone truck usually has a SEPARATE freight payment —
+     cash to the driver, UPI or bank to the transporter. Each entry lives on
+     the bill (p.freightPays[]) so landed cost = material + freight, AND posts
+     one linked 'Freight' row to the Payments ledger (with the bank account it
+     left from, when online). Freight is an expense — no GST/ITC is claimed
+     (GTA transport is typically RCM); the bill's own GST math is untouched. */
+  function addFreightPayment(i, f) {
+    const p = S.PURCHASES[i]; if (!p) return null; f = f || {};
+    const fr = {
+      id: 'fr' + idStamp(), date: toISODate(f.date) || fmtISO(new Date()), amount: +f.amount || 0,
+      method: f.method || 'Cash', accountId: f.accountId || '', paidTo: (f.paidTo || '').toString().trim(),
+      veh: (f.veh || '').toString().trim().toUpperCase(), ref: f.ref || '', notes: f.notes || ''
+    };
+    if (!(fr.amount > 0)) return null;
+    p.freightPays = (p.freightPays || []).concat([fr]);
+    S.CASHBOOK.push({
+      id: 'cb' + idStamp(), date: fr.date, type: 'debit', mode: methodToMode(fr.method), method: fr.method,
+      ptype: 'Freight', party: fr.paidTo || ('Freight · ' + (p.sup || '—')), ref: fr.ref || p.bill || '',
+      amount: fr.amount, notes: (fr.veh ? '🚚 ' + fr.veh + ' · ' : '') + 'Freight for bill ' + (p.bill || '—'),
+      accountId: fr.accountId, link: { kind: 'purchase', idx: i, freightId: fr.id }
+    });
+    logAudit('create', 'freight', fr, { ref: p.bill || '', party: fr.paidTo, amount: fr.amount });
+    commit();
+    return fr;
+  }
+  function deleteFreightPayment(i, fid, reason) {
+    const p = S.PURCHASES[i]; if (!p || !fid) return false;
+    const fr = (p.freightPays || []).find(x => x.id === fid); if (!fr) return false;
+    p.freightPays = p.freightPays.filter(x => x.id !== fid);
+    const ci = S.CASHBOOK.findIndex(e => e && e.link && e.link.freightId === fid && !e._del);
+    if (ci >= 0) softDelete('payment', ci, reason || 'freight removed from bill');   // ledger row → Trash
+    logAudit('delete', 'freight', fr, { ref: p.bill || '', amount: fr.amount, reason: reason || '' });
+    commit();
+    return true;
+  }
   function addLedgerPayment(o) {
     o = o || {};
     S.CASHBOOK.push({ id: 'cb' + idStamp(), date: o.date || fmtISO(new Date()), type: o.dir === 'in' ? 'credit' : 'debit', mode: methodToMode(o.method), method: o.method || 'Cash', ptype: o.ptype || 'Other', party: o.party || '—', ref: o.ref || '', amount: +o.amount || 0, notes: o.notes || '', category: o.category || '', accountId: o.accountId || '', link: o.link || null });
@@ -1657,6 +1699,7 @@
     upsertParty, deleteParty,
     addSale, updateSale, deleteSale, setSaleStatus,
     addPurchase, updatePurchase, deletePurchase, setPurchaseStatus, importGenericBill,
+    addFreightPayment, deleteFreightPayment,
     addWorker, updateWorker, deleteWorker,
     addCashEntry, deleteCashEntry,
     addChunna, deleteChunna,
@@ -1705,3 +1748,5 @@
 /* build m17: BANK_ACCOUNTS store (multi-bank Phase 1) */
 
 /* build m19: payments carry accountId (multi-bank Phase 5) */
+
+/* build m20: addFreightPayment/deleteFreightPayment + freightPays landed-cost derivation */

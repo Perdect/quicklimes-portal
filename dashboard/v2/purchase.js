@@ -164,6 +164,59 @@ function tabInvoice(r) {
   return `<div class="qx-inv-bar"><button class="qx-btn qx-btn-sm" onclick="pdfByIdx(${r.idx})">${svg(IC.dl)} Download</button><button class="qx-btn qx-btn-sm" onclick="pdfByIdx(${r.idx})">${svg(IC.print)} Print</button><button class="qx-btn qx-btn-sm" onclick="shareByIdx(${r.idx})">${svg(IC.share)} Share</button></div>
     <iframe class="qx-inv-frame" srcdoc="${esc(billHTML(r))}" title="bill preview"></iframe>`;
 }
+/* ── Freight tab: every truck's freight payment (cash / UPI / bank), living on
+   the bill so landed cost = material + freight. Posts to the Payments ledger. */
+function tabFreight(r) {
+  const rows = r.freightPays || [];
+  const hist = rows.length
+    ? rows.map(f => `<div class="qx-kv"><span>${fDS(f.date)} · ${esc(f.method)}${f.accountId && Q.bankAccountLabel(f.accountId) ? ' · ' + esc(Q.bankAccountLabel(f.accountId)) : ''}${f.paidTo ? ' · ' + esc(f.paidTo) : ''}${f.veh ? ' · 🚚 ' + esc(f.veh) : ''}</span><b>${fC(f.amount)} <button class="qx-ib" data-fr-del="${esc(f.id)}" title="Remove freight payment" style="margin-left:6px">✕</button></b></div>`).join('')
+    : (r.freightAmt ? `<div class="qx-kv"><span>Freight (entered on the bill, no payment detail)</span><b>${fC(r.freightAmt)}</b></div>` : '<div class="qx-empty">No freight recorded for this bill yet.</div>');
+  const ft = rows.length ? rows.reduce((s, f) => s + (+f.amount || 0), 0) : (r.freightAmt || 0);
+  const landed = r.total + (r.freightAddon || 0);
+  const perMT = r.qty ? landed / r.qty : 0;
+  return `<div class="qx-sec-h">Freight payments</div>${hist}
+    <button class="qx-btn qx-btn-primary" id="pxFrAdd" style="margin-top:10px">+ Add freight payment</button>
+    <div class="qx-sec-h" style="margin-top:14px">Landed cost</div>
+    <div class="qx-kv"><span>Material (bill total)</span><b>${fC(r.total)}</b></div>
+    <div class="qx-kv"><span>Freight</span><b>${fC(ft)}</b></div>
+    <div class="qx-kv qx-kv-tot"><span>Landed cost</span><b>${fC(landed)}</b></div>
+    ${r.qty ? `<div class="qx-kv"><span>Effective rate</span><b>${fC(perMT)} / ${esc(r.unit || 'MT')}</b></div>` : ''}
+    <div class="qx-mut" style="font-size:11.5px;margin-top:8px">Freight is recorded as an expense (no ITC) — the bill's own GST is untouched. Each payment also appears in the Payments ledger${rows.some(f => f.accountId) ? ' with its bank account' : ''}.</div>`;
+}
+function wireFreight(body, r) {
+  const add = document.getElementById('pxFrAdd');
+  if (add) add.onclick = () => {
+    const accounts = Q.bankAccounts ? Q.bankAccounts() : [];
+    QLShell.openForm({
+      title: 'Add freight payment', sub: (r.bill || '—') + ' · ' + r.sup + (r.qty ? ' · ' + r.qty + ' ' + (r.unit || 'MT') : ''),
+      specs: [
+        { k: 'amount', label: 'Amount (₹)', type: 'number', req: true, reqNonZero: true },
+        { k: 'method', label: 'Paid via', type: 'select', opts: Q.paymentMethods.map(m => [m, m]) },
+        ...(accounts.length ? [{ k: 'accountId', label: 'Bank account (if online)', type: 'select', opts: [['', '—']].concat(accounts.map(a => [a.id, a.label])) }] : []),
+        { k: 'paidTo', label: 'Transporter / paid to', ph: 'e.g. Ramesh Transport' },
+        { k: 'veh', label: 'Vehicle no.', upper: true },
+        { k: 'date', label: 'Date', type: 'date', req: true },
+        { k: 'ref', label: 'Reference', ph: 'UTR / note' }
+      ],
+      initial: { method: 'Cash', date: r.date || '', veh: r.veh || '' },
+      saveLabel: 'Add freight',
+      onSave(v) {
+        Q.addFreightPayment(r.idx, v);
+        toast('Freight recorded — landed cost updated');
+        QLX.refresh(); QLX.open(r.idx);
+      }
+    });
+  };
+  document.querySelectorAll('[data-fr-del]').forEach(b => b.onclick = () => {
+    QLShell.confirmDelete({
+      title: 'Remove this freight payment?', reason: false,
+      desc: 'The linked entry in the Payments ledger moves to Trash (restorable for 90 days). The bill itself is untouched.',
+      confirmLabel: 'Remove freight',
+      onConfirm() { Q.deleteFreightPayment(r.idx, b.dataset.frDel); toast('Freight payment removed'); QLX.refresh(); QLX.open(r.idx); }
+    });
+  });
+}
+
 function tabPayments(r) {
   const hist = (r.payments || []).length ? r.payments.map(p => `<div class="qx-kv"><span>${fDS(p.date)} · ${esc(p.mode)}</span><b>${fC(p.amount)}</b></div>`).join('') : '<div class="qx-empty">No payments recorded yet.</div>';
   const form = (r.status !== 'paid' && r.status !== 'cancelled') ? `<div class="qx-sec-h">Record a payment</div>
@@ -345,6 +398,7 @@ QLX.mount({
       { label: 'Overview', icon: IC.file, render: tabOverview },
       { label: 'Invoice', icon: IC.doc2, render: tabInvoice },
       { label: 'Payments', icon: IC.clock, render: tabPayments, onMount: wirePayments },
+      { label: 'Freight', icon: IC.truck || IC.box, count: (r.freightPays || []).length || null, render: tabFreight, onMount: wireFreight },
       { label: 'Documents', icon: IC.dl, count: (r.attach || []).length || null, render: tabDocs, onMount: wireDocs },
       { label: 'AI', icon: IC.ai, render: tabAI }
     ]
@@ -435,3 +489,5 @@ function importBills() {
   // Fast path: native picker → background OCR → drawer (1) / review table (N).
   if (window.QLBulk) QLBulk.open(cfg); else QLFin.importSheet(cfg);
 }
+
+/* build m22: Freight tab on the purchase drawer */

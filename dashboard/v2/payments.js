@@ -16,7 +16,7 @@ const thisMonth = todayISO.slice(0, 7);
 const PTYPE = {
   'Sales Payment': ['#ecfdf3', '#15803d', '💰'], 'Purchase Payment': ['#fef6ee', '#b45309', '🧾'],
   'Expense': ['#fff1f3', '#be123c', '💸'], 'Salary': ['#eef2ff', '#4338ca', '👷'],
-  'Loan EMI': ['#f4f3ff', '#6d28d9', '🏦'], 'Cash Deposit': ['#ecfeff', '#0e7490', '🏧'],
+  'Loan EMI': ['#f4f3ff', '#6d28d9', '🏦'], 'Freight': ['#fff7ed', '#c2410c', '🚚'], 'Cash Deposit': ['#ecfeff', '#0e7490', '🏧'],
   'Cash Withdrawal': ['#ecfeff', '#0e7490', '🏧'], 'Bank Transfer': ['#eff4ff', '#1d4ed8', '🔁'],
   'UPI Transfer': ['#eff4ff', '#1d4ed8', '🔁'], 'Transfer': ['#eff4ff', '#1d4ed8', '🔁'],
   'Partner Withdrawal': ['#fff4ed', '#c2410c', '🤝'], 'Partner Investment': ['#ecfdf3', '#15803d', '🤝'],
@@ -226,3 +226,5 @@ function exportPayments() {
 }
 
 /* build: bank-account field in payment modals + account line in ledger */
+
+/* build m2c: Freight ptype pill */
