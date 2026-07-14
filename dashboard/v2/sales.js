@@ -378,7 +378,18 @@ function importInvoices() {
     keyOf: s => s.inv ? s.inv.toUpperCase() : '',
     preview: { headers: ['Invoice', 'Date', 'Party', 'Qty', 'Taxable', 'GST%'], right: [3, 4, 5], row: s => [s.inv || '—', s.date || '—', s.party || '—', s.qty || '', Q.fC(s.qty * s.rate), s.gstR + '%'] },
     add: (s, file) => { Q.addSale(s); if (file) { try { addAttach(Q.state.SALES.length - 1, file, 'Invoice'); } catch (_) {} } },
-    done: n => { if (n) toast('Imported ' + n + ' invoice' + (n === 1 ? '' : 's'), 'ok'); QLX.refresh(); }
+    // Jump the month filter to the imported invoice's month so it is VISIBLE
+    // immediately (same fix as the purchase register).
+    done: (n, lastBill) => {
+      if (!n) { QLX.refresh(); return; }
+      const last = Q.state.SALES.filter(x => !x._del).slice(-1)[0];   // store dates are ISO-normalised
+      const ym = last && String(last.date || '').slice(0, 7);
+      const cur = QLX.month && QLX.month();
+      if (ym && /^\d{4}-\d{2}$/.test(ym) && cur && cur !== 'all' && cur !== ym && QLX.setMonth) {
+        toast('Imported ' + n + ' invoice' + (n === 1 ? '' : 's') + ' — showing ' + ym, 'ok');
+        QLX.setMonth(ym);
+      } else { toast('Imported ' + n + ' invoice' + (n === 1 ? '' : 's'), 'ok'); QLX.refresh(); }
+    }
   };
   // Fast path: native picker → background OCR → drawer (1) / review table (N).
   if (window.QLBulk) QLBulk.open(cfg); else QLFin.importSheet(cfg);

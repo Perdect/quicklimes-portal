@@ -484,7 +484,19 @@ function importBills() {
     keyOf: dupKeyP,
     preview: { headers: ['Bill', 'Date', 'Supplier', 'Group', 'Taxable', 'GST%'], right: [4, 5], row: p => [p.bill || '—', p.date || '—', p.sup || '—', (Q.purchaseGroups.find(g => g.key === p.group) || { label: p.cat || '—' }).label, Q.fC(p.taxable), p.grate + '%'] },
     add: (p, file) => { Q.addPurchase(p); if (file) { try { addAttach(Q.state.PURCHASES.length - 1, file, 'Invoice'); } catch (_) {} } },
-    done: n => { if (n) toast('Imported ' + n + ' bill' + (n === 1 ? '' : 's'), 'ok'); QLX.refresh(); }
+    // After an import, JUMP the month filter to the imported bill's month —
+    // otherwise a bill from another month is saved but invisible behind the
+    // current filter, which reads as "uploaded but not showing in the table".
+    done: (n, lastBill) => {
+      if (!n) { QLX.refresh(); return; }
+      const last = Q.state.PURCHASES.filter(x => !x._del).slice(-1)[0];   // store dates are ISO-normalised
+      const ym = last && String(last.date || '').slice(0, 7);
+      const cur = QLX.month && QLX.month();
+      if (ym && /^\d{4}-\d{2}$/.test(ym) && cur && cur !== 'all' && cur !== ym && QLX.setMonth) {
+        toast('Imported ' + n + ' bill' + (n === 1 ? '' : 's') + ' — showing ' + ym, 'ok');
+        QLX.setMonth(ym);
+      } else { toast('Imported ' + n + ' bill' + (n === 1 ? '' : 's'), 'ok'); QLX.refresh(); }
+    }
   };
   // Fast path: native picker → background OCR → drawer (1) / review table (N).
   if (window.QLBulk) QLBulk.open(cfg); else QLFin.importSheet(cfg);

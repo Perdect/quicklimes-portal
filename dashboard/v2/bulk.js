@@ -448,10 +448,22 @@
       } catch (_) {}
       bill.confirmed = true;
       if (opts.solo) {
-        postOne(bill, cfg);
-        toast('Saved 1 ' + noun, 'ok');
-        if (cfg.done) cfg.done(1);
-        closeAll();
+        // Duplicate guard: this exact bill (bill no + supplier identity) already
+        // exists. First click warns; a deliberate second click saves anyway.
+        if (bill.dupe && !bill.forceDupe) {
+          bill.forceDupe = true;
+          toast('This bill already exists in the register. Click Save again to add it anyway.', 'err');
+          return;
+        }
+        // Only claim "Saved" when the save actually happened; on failure keep
+        // the drawer open and say exactly why.
+        if (postOne(bill, cfg)) {
+          toast('Saved 1 ' + noun + (bill.routed ? ' → moved to the ' + bill.routed + ' register' : ''), 'ok');
+          if (cfg.done) cfg.done(1, bill);
+          closeAll();
+        } else {
+          toast('NOT saved — ' + (bill.err || 'could not build the record') + '.', 'err');
+        }
       } else {
         bill.status = 'ready';
         openTable(nextReview(bill));   // return to table, optionally jump to next needy bill
@@ -537,9 +549,17 @@
   function postOne(bill, cfg) {
     // route a confidently-detected opposite-register bill to the CORRECT register
     if (bill.crossKind && window.QLD && QLD.importGenericBill) {
-      try { QLD.importGenericBill(bill.crossKind, valsToGeneric(bill, cfg)); bill.status = 'imported'; bill.routed = bill.crossKind; return true; } catch (_) {}
+      try { QLD.importGenericBill(bill.crossKind, valsToGeneric(bill, cfg)); bill.status = 'imported'; bill.routed = bill.crossKind; return true; }
+      catch (e) { bill.err = (e && e.message) || 'cross-register import failed'; }
     }
-    try { var row = cfg.buildRow(function (k) { return bill.vals[k] != null ? bill.vals[k] : ''; }); if (row) { cfg.add(row, bill.file || undefined); bill.status = 'imported'; return true; } } catch (_) {}
+    // NEVER swallow a failure silently — the caller must know, or the UI says
+    // "Saved" while the table stays empty (the exact bug users reported).
+    try {
+      var row = cfg.buildRow(function (k) { return bill.vals[k] != null ? bill.vals[k] : ''; });
+      if (row) { cfg.add(row, bill.file || undefined); bill.status = 'imported'; bill.savedRow = row; return true; }
+      bill.err = 'missing supplier / amount — nothing to save';
+    } catch (e) { bill.err = (e && e.message) || 'could not save the bill'; }
+    bill.status = 'failed';
     return false;
   }
 
@@ -548,8 +568,9 @@
     if (!ready.length) { toast('Nothing ready to import', 'err'); return; }
     var n = 0;
     ready.forEach(function (b) { if (postOne(b, cfg)) n++; });
-    toast('Imported ' + n + ' ' + (cfg.noun || 'bill') + (n === 1 ? '' : 's'), 'ok');
-    if (cfg.done) cfg.done(n);
+    var failedN = ready.length - n;
+    toast('Imported ' + n + ' ' + (cfg.noun || 'bill') + (n === 1 ? '' : 's') + (failedN ? ' · ' + failedN + ' FAILED — see the Failed tab' : ''), failedN ? 'err' : 'ok');
+    if (cfg.done) cfg.done(n, ready.filter(function (b) { return b.status === 'imported'; }).slice(-1)[0]);
     // any leftover (review/invalid/duplicate) stay open so the user can resolve them
     var left = BATCH.bills.filter(function (b) { return b.status !== 'imported' && b.status !== 'failed'; });
     if (left.length) { toast(left.length + ' left to review', ''); openTable(); }
@@ -639,3 +660,5 @@
 
   window.QLBulk = { open: open, ingest: ingest, LIMITS: LIMITS };
 })();
+
+/* build b7: postOne reports failures; solo save honest + dup guard */
