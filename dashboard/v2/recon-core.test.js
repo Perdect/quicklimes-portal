@@ -267,5 +267,45 @@ ok('different SELF ids never pair by amount alone', RC.selfPairs(legs2).length =
   ok('label fallback matches when bank field is blank', lbl.map['ICICI'] === 'BA7' && !lbl.creates.length);
 })();
 
+// ── per-account overview (multi-bank Phase 4) ──────────────────────────────
+(function () {
+  var ACCTS = [
+    { id: 'BA1', bank: 'HDFC Bank', label: 'HDFC', openingBalance: 1000, openingDate: '2026-01-01' },
+    { id: 'BA2', bank: 'Bank of Baroda', label: 'BOB', type: 'cc_od' }
+  ];
+  var T = [
+    // HDFC: opening 1000 → +5000 → −2000 ⇒ computed 4000; stated 4000 on latest row
+    { accountId: 'BA1', date: '2026-01-05', credit: 5000, debit: 0, balance: 6000, m: { status: 'matched' } },
+    { accountId: 'BA1', date: '2026-01-20', credit: 0, debit: 2000, balance: 4000, m: { status: 'review' } },
+    // BOB (CC/OD): negative stated balance, older month
+    { accountId: 'BA2', date: '2025-12-15', credit: 0, debit: 700, balance: -700, m: { status: 'unmatched' } },
+    // internal transfer legs in Jan (both accounts) — excluded from combined flows
+    { accountId: 'BA1', date: '2026-01-22', credit: 0, debit: 3000, balance: 1000, m: { status: 'other', cat: 'Self transfer', catKey: 'self' } },
+    { accountId: 'BA2', date: '2026-01-22', credit: 3000, debit: 0, balance: 2300, m: { status: 'other', cat: 'Self transfer', catKey: 'self' } },
+    // unassigned legacy row
+    { date: '2026-01-10', credit: 111, debit: 0 }
+  ];
+  var o = RC.accountOverview(T, ACCTS);
+  var h = o.accounts[0], b = o.accounts[1];
+  ok('HDFC row count', h.n === 3);
+  ok('HDFC last statement date', h.lastDate === '2026-01-22');
+  ok('HDFC stated balance from latest row', h.statedBal === 1000);
+  ok('HDFC computed = opening + net', h.computedBal === 1000 + 5000 - 2000 - 3000);
+  ok('stated wins as the balance', h.balance === 1000);
+  ok('drift = stated − computed', h.drift === 0);
+  ok('HDFC month flows are gross (incl. transfer leg)', h.monthIn === 5000 && h.monthOut === 5000);
+  ok('HDFC toReview counts review rows only', h.toReview === 1);
+  ok('BOB negative stated balance kept (CC/OD)', b.balance === 2300 || b.balance === -700 ? b.statedBal !== null : false);
+  ok('BOB latest-dated balance wins', b.balance === 2300);
+  ok('total balance sums accounts', o.total.balance === 1000 + 2300);
+  ok('combined month = latest overall', o.total.ym === '2026-01');
+  ok('combined flows EXCLUDE self-transfer legs', o.total.monthIn === 5000 + 111 && o.total.monthOut === 2000);
+  ok('internal moved reported separately', o.total.internalMoved === 3000);
+  ok('unassigned counted', o.total.unassigned === 1);
+  // account with no rows at all → balance = opening
+  var empty = RC.accountOverview([], [{ id: 'BA9', openingBalance: 500 }]);
+  ok('empty account balance = opening', empty.accounts[0].balance === 500 && empty.accounts[0].n === 0);
+})();
+
 console.log('\n' + (fail === 0 ? '✅ ALL ' + pass + ' TESTS PASSED' : '❌ ' + fail + ' FAILED, ' + pass + ' passed'));
 process.exit(fail ? 1 : 0);

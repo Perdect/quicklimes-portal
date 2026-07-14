@@ -1113,9 +1113,12 @@ if (QLShell.registerAssistIntent) QLShell.registerAssistIntent((q, t, H) => {
 
 window.__qlRefresh = render;
 window.__qlOnSwitchCompany = id => { ST.monthInit = false; ST.acc = ''; Q.switchCompany(id, () => { runBackfill(); render(); }); };
-// ?upload=1 deep-link (e.g. "Upload statement" on the Loans page) opens the
-// upload modal straight away, once, after the first paint.
+// Deep-links: ?upload=1 (e.g. "Upload statement" on the Loans page) opens the
+// upload modal after the first paint; ?acc=<id> (a Banks-overview card) lands
+// with that account's chip pre-selected. Both fire once.
 let _autoUpload = /[?&]upload=/.test(location.search);
+const _autoAcc = (location.search.match(/[?&]acc=([^&]+)/) || [])[1];
+if (_autoAcc) { try { ST.acc = decodeURIComponent(_autoAcc); } catch (_) {} }   // validated by accBarHTML
 if (Q.init) Q.init(() => { runBackfill(); render(); if (_autoUpload) { _autoUpload = false; try { openUpload(); } catch (_) {} } }); else render();
 
 /* build rd7: ask for the password on a locked bank statement instead of showing pdf.js raw error */
@@ -1129,3 +1132,5 @@ if (Q.init) Q.init(() => { runBackfill(); render(); if (_autoUpload) { _autoUplo
 /* build rd11: one-time account backfill + bulk Assign account (multi-bank Phase 6) */
 
 /* build rd12: ?upload=1 deep-link; clear-all note removed (dedupe handles re-imports) */
+
+/* build rd13: ?acc= deep-link from Banks cards */

@@ -147,6 +147,7 @@
     ]},
     { type: 'group', label: 'Finance', feat: 'finance', items: [
       { id: 'finance',  label: 'Payments Center',          href: 'payments.html', icon: I.bank },
+      { id: 'banks',    label: 'Banks',                    href: 'banks.html', icon: I.bank },
       { id: 'reconcile', label: 'Bank Reconciliation',     href: 'reconcile.html', icon: I.bank },
       { id: 'refunds',  label: 'GST Refunds',              href: 'refunds.html', icon: I.receipt },
       { id: 'cashbook', label: 'Expenses',                 href: 'cashbook.html', icon: I.card },
@@ -1599,3 +1600,5 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
 /* build m25: openForm section/html/quarter specs + wide modal */
 
 /* build m26: Customers (Customer Intelligence) in the Sales sidebar group */
+
+/* build m27: Banks nav item (multi-bank Phase 4) */

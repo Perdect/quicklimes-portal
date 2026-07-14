@@ -381,6 +381,67 @@
     return { creates: creates, assigns: assigns, map: map, blank: pending.length - assigns.length };
   }
 
+  /* ── per-account overview (multi-bank Phase 4) ──────────────────────────
+     Pure math for the Banks dashboard. For each account:
+       • statedBal   — the running balance printed on the LATEST imported row
+                       (statement truth; already signed for CC/OD/loan rows).
+       • computedBal — openingBalance + Σcredits − Σdebits (rows on/after the
+                       opening date). With no rows at all it IS the opening.
+       • balance     — stated wins when present, computed otherwise.
+       • drift       — stated − computed when BOTH are known and an opening
+                       was configured: a non-zero drift means rows are missing
+                       between the opening date and the first statement.
+       • ym / in / out — the account's LATEST data month and its gross flows.
+       • toReview    — rows still needing a human (review/unmatched/unknown).
+     Totals NET OF INTERNAL TRANSFERS: a self-transfer A→B moves money between
+     own accounts, so the combined in/out excludes those legs — otherwise the
+     firm's "money in" inflates by every internal move. Balances are unaffected
+     (the legs cancel across accounts). */
+  function isSelfLeg(t) { var m = t && t.m || {}; return m.catKey === 'self' || /self\s*transfer/i.test(m.cat || ''); }
+  function needsHuman(t) { var s = (t && t.m || {}).status; return !s || s === 'review' || s === 'unmatched' || s === 'unknown'; }
+  function accountOverview(txns, accounts) {
+    txns = txns || []; accounts = accounts || [];
+    var ymOf = function (d) { return (d || '').slice(0, 7); };
+    var rows = accounts.map(function (a) {
+      var mine = txns.filter(function (t) { return t.accountId === a.id; });
+      mine.sort(function (x, y) { return (x.date || '').localeCompare(y.date || ''); });
+      var last = mine.length ? mine[mine.length - 1] : null;
+      var lastDate = last ? last.date : '';
+      // stated balance: the balance on the latest DATED row that carries one
+      var statedBal = null;
+      for (var i = mine.length - 1; i >= 0; i--) { if (mine[i].balance != null && mine[i].date === lastDate) { statedBal = mine[i].balance; break; } }
+      if (statedBal == null) for (var j = mine.length - 1; j >= 0; j--) { if (mine[j].balance != null) { statedBal = mine[j].balance; break; } }
+      var open = +a.openingBalance || 0, openDate = a.openingDate || '';
+      var flowRows = openDate ? mine.filter(function (t) { return (t.date || '') >= openDate; }) : mine;
+      var computedBal = flowRows.reduce(function (s, t) { return s + (t.credit || 0) - (t.debit || 0); }, open);
+      var ym = mine.length ? ymOf(lastDate) : '';
+      var inM = mine.filter(function (t) { return ymOf(t.date) === ym; });
+      return {
+        id: a.id, n: mine.length, lastDate: lastDate, ym: ym,
+        statedBal: statedBal, computedBal: computedBal,
+        balance: statedBal != null ? statedBal : computedBal,
+        drift: (statedBal != null && (open || openDate)) ? Math.round((statedBal - computedBal) * 100) / 100 : null,
+        monthIn: inM.reduce(function (s, t) { return s + (t.credit || 0); }, 0),
+        monthOut: inM.reduce(function (s, t) { return s + (t.debit || 0); }, 0),
+        toReview: mine.filter(needsHuman).length
+      };
+    });
+    // combined flows for the latest overall data month, EXCLUDING self-transfer legs
+    var ymAll = txns.reduce(function (m, t) { var y = ymOf(t.date); return y > m ? y : m; }, '');
+    var extern = txns.filter(function (t) { return ymOf(t.date) === ymAll && !isSelfLeg(t); });
+    return {
+      accounts: rows,
+      total: {
+        balance: rows.reduce(function (s, r) { return s + (r.balance || 0); }, 0),
+        ym: ymAll,
+        monthIn: extern.reduce(function (s, t) { return s + (t.credit || 0); }, 0),
+        monthOut: extern.reduce(function (s, t) { return s + (t.debit || 0); }, 0),
+        internalMoved: txns.filter(function (t) { return ymOf(t.date) === ymAll && isSelfLeg(t); }).reduce(function (s, t) { return s + (t.credit || 0); }, 0),
+        unassigned: txns.filter(function (t) { return !t.accountId; }).length
+      }
+    };
+  }
+
   /* ── split: allocate one payment across many bills ─────────────────────── */
   // Decide the status of a split. allocs = [{amount}]. tol absorbs rounding.
   function splitStatus(payment, allocs, tol) {
@@ -404,6 +465,7 @@
     parseNarration: parseNarration, nameMatch: nameMatch, classifyDebit: classifyDebit,
     scoreMatch: scoreMatch, bestMatch: bestMatch, dedupeKey: dedupeKey, dedupeKeyBase: dedupeKeyBase, detectBank: detectBank,
     bankAccountMatch: bankAccountMatch, backfillPlan: backfillPlan,
+    accountOverview: accountOverview, isSelfLeg: isSelfLeg,
     splitStatus: splitStatus, suggestAlloc: suggestAlloc, STOP: STOP,
     signedBalance: signedBalance, inferDirections: inferDirections,
     classifyTxn: classifyTxn, classifyResidual: classifyResidual, directionCat: directionCat, selfPairs: selfPairs
@@ -413,3 +475,5 @@
 /* build: account-scoped dedupeKey + dedupeKeyBase */
 
 /* build: backfillPlan + bankAccountMatch */
+
+/* build rc3d: accountOverview (per-account balances + net-of-transfer totals) */

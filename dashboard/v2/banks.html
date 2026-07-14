@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Banks — QuickLimes</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="manifest" href="/v2/app.webmanifest">
+<link rel="apple-touch-icon" href="/v2/pwa-apple.png?v=g1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r2"><link rel="stylesheet" href="./pages.css?v=m2">
+<script src="ql-api.js"></script>
+<script src="./data.js?v=m18"></script>
+<script src="./recon-core.js?v=rc3d"></script>
+<link rel="stylesheet" href="./mobile.css?v=m4">
+<style>
+  .bk-total { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; border-radius: 16px; padding: 20px 24px; margin-bottom: var(--ql-space-5); }
+  .bk-total .t-main .l { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: #93b6f8; font-weight: 700; }
+  .bk-total .t-main .v { font-size: 30px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 3px; }
+  .bk-total .t-kv { border-left: 1px solid rgba(255,255,255,.14); padding-left: 22px; }
+  .bk-total .t-kv .l { font-size: 11px; color: #94a3b8; }
+  .bk-total .t-kv .v { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .bk-total .t-kv .v.in { color: #4ade80; } .bk-total .t-kv .v.out { color: #f87171; }
+  .bk-note { font-size: 11.5px; color: #94a3b8; width: 100%; }
+  .bk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .bk-card { background: var(--ql-surface, #fff); border: 1px solid var(--ql-border); border-radius: 16px; padding: 18px; cursor: pointer; transition: box-shadow .15s, transform .15s, border-color .15s; display: flex; flex-direction: column; gap: 12px; }
+  .bk-card:hover { border-color: var(--ql-brand-300, #93b6f8); box-shadow: var(--ql-shadow-md, 0 6px 18px rgba(15,23,42,.08)); transform: translateY(-1px); }
+  .bk-head { display: flex; align-items: flex-start; gap: 11px; }
+  .bk-ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--ql-brand-50, #eff4ff); color: var(--ql-brand-600, #2563eb); flex: none; }
+  .bk-ic svg { width: 20px; height: 20px; }
+  .bk-name { font-weight: 700; font-size: 14.5px; color: var(--ql-text); line-height: 1.25; }
+  .bk-sub { font-size: 11.5px; color: var(--ql-text-secondary); margin-top: 2px; }
+  .bk-type { margin-left: auto; flex: none; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; background: var(--ql-neutral-100, #f1f5f9); color: var(--ql-text-secondary); }
+  .bk-bal .l { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--ql-text-secondary); font-weight: 700; }
+  .bk-bal .v { font-size: 26px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ql-text); }
+  .bk-bal .v.neg { color: var(--ql-danger-600, #dc2626); }
+  .bk-bal .m { font-size: 11.5px; color: var(--ql-text-secondary); margin-top: 2px; }
+  .bk-flows { display: flex; gap: 10px; }
+  .bk-flow { flex: 1; background: var(--ql-bg, #f8fafc); border: 1px solid var(--ql-border); border-radius: 10px; padding: 8px 11px; }
+  .bk-flow .l { font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--ql-text-secondary); font-weight: 700; }
+  .bk-flow .v { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 1px; }
+  .bk-flow .v.in { color: #16a34a; } .bk-flow .v.out { color: var(--ql-danger-600, #dc2626); }
+  .bk-foot { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ql-text-secondary); flex-wrap: wrap; }
+  .bk-pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+  .bk-pill.warn { background: #fef9c3; color: #a16207; }
+  .bk-pill.ok { background: #dcfce7; color: #15803d; }
+  .bk-pill.drift { background: #ffedd5; color: #c2410c; }
+  .bk-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 56px 20px; text-align: center; color: var(--ql-text-secondary); }
+  @media (max-width: 640px) { .bk-total { gap: 14px; padding: 16px; } .bk-total .t-kv { border: none; padding-left: 0; } }
+</style>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div><h1 class="page-title">Banks</h1><div class="page-sub" id="bkSub">Every account's balance, flows and reconciliation health</div></div>
+      <div class="page-actions">
+        <button class="ql-btn" id="bkManage">⚙ Manage accounts</button>
+        <button class="ql-btn ql-btn-primary" id="bkUpload">⬆ Import statement</button>
+      </div>
+    </div>
+    <div id="bkBody"></div>
+  </div>
+</div>
+
+<script src="./shell.js?v=m27"></script>
+<script src="./mobile.js?v=m4"></script>
+<script>
+QLShell.mount({ active: 'banks', title: 'Banks' });
+const $ = s => document.querySelector(s);
+const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fC = v => QLD.fC(v);
+const RC = window.ReconCore;
+const BANK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>';
+const monLabel = ym => { try { return new Date(ym + '-01T00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); } catch (_) { return ym || ''; } };
+const dLabel = d => { try { return QLD.fDS(d); } catch (_) { return d || '—'; } };
+
+function render() {
+  const accounts = QLD.bankAccounts();
+  $('#bkSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + accounts.length + ' account' + (accounts.length === 1 ? '' : 's');
+  if (!accounts.length) {
+    $('#bkBody').innerHTML = `<div class="bk-empty"><div style="width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:#eff4ff;color:#2563eb">${BANK_SVG}</div>
+      <div style="font-weight:700;font-size:16px;color:var(--ql-text)">No bank accounts yet</div>
+      <div style="max-width:380px">Add the accounts this firm banks with, then import each account's statement — every bank keeps its own balance here.</div>
+      <button class="ql-btn ql-btn-primary" onclick="location.href='settings.html'" style="margin-top:8px">+ Add accounts in Settings</button></div>`;
+    return;
+  }
+  const o = RC.accountOverview(QLD.recon.txns || [], accounts);
+  const byId = {}; o.accounts.forEach(r => { byId[r.id] = r; });
+
+  const t = o.total;
+  const totalHTML = `<div class="bk-total">
+    <div class="t-main"><div class="l">Total across all banks</div><div class="v">${fC(t.balance)}</div></div>
+    ${t.ym ? `<div class="t-kv"><div class="l">Money in · ${esc(monLabel(t.ym))}</div><div class="v in">+${fC(t.monthIn)}</div></div>
+    <div class="t-kv"><div class="l">Money out · ${esc(monLabel(t.ym))}</div><div class="v out">−${fC(t.monthOut)}</div></div>` : ''}
+    ${t.internalMoved ? `<div class="t-kv"><div class="l">Moved between own accounts</div><div class="v">${fC(t.internalMoved)}</div></div>` : ''}
+    <div class="bk-note">Flows exclude transfers between your own accounts — moving money bank-to-bank never counts as income or expense.${t.unassigned ? ` <b>${t.unassigned}</b> transaction${t.unassigned === 1 ? '' : 's'} not assigned to any account yet — assign them from Bank Reconciliation.` : ''}</div>
+  </div>`;
+
+  const card = a => {
+    const r = byId[a.id] || { n: 0, balance: +a.openingBalance || 0, monthIn: 0, monthOut: 0, toReview: 0, lastDate: '', ym: '', drift: null };
+    const neg = (r.balance || 0) < 0;
+    return `<div class="bk-card" data-acc="${esc(a.id)}" role="button" tabindex="0" aria-label="Open ${esc(a.label)} in reconciliation">
+      <div class="bk-head"><span class="bk-ic">${BANK_SVG}</span>
+        <div><div class="bk-name">${esc(a.label)}</div><div class="bk-sub">${esc(a.bank)}${a.acctNo ? ' · ··' + esc(String(a.acctNo).slice(-4)) : ''}</div></div>
+        <span class="bk-type">${esc(QLD.BANK_TYPES[a.type] || 'Current')}</span></div>
+      <div class="bk-bal"><div class="l">${neg ? (a.type === 'loan' ? 'Outstanding' : 'Overdrawn (Dr)') : 'Balance'}</div>
+        <div class="v ${neg ? 'neg' : ''}">${fC(r.balance)}</div>
+        <div class="m">${r.n ? 'as per statement · ' + dLabel(r.lastDate) : (+a.openingBalance ? 'opening balance — no statement yet' : 'no statement imported yet')}</div></div>
+      ${r.n ? `<div class="bk-flows">
+        <div class="bk-flow"><div class="l">In · ${esc(r.ym ? monLabel(r.ym).split(' ')[0] : '')}</div><div class="v in">+${fC(r.monthIn)}</div></div>
+        <div class="bk-flow"><div class="l">Out · ${esc(r.ym ? monLabel(r.ym).split(' ')[0] : '')}</div><div class="v out">−${fC(r.monthOut)}</div></div>
+      </div>` : ''}
+      <div class="bk-foot">
+        ${r.toReview ? `<span class="bk-pill warn">⚠ ${r.toReview} to review</span>` : (r.n ? '<span class="bk-pill ok">✓ reconciled</span>' : '')}
+        ${r.drift != null && Math.abs(r.drift) > 1 ? `<span class="bk-pill drift" title="Statement balance differs from opening balance + imported flows — some months may be missing">± ${fC(Math.abs(r.drift))} unexplained</span>` : ''}
+        <span style="margin-left:auto">${r.n} txn${r.n === 1 ? '' : 's'} →</span>
+      </div>
+    </div>`;
+  };
+
+  $('#bkBody').innerHTML = totalHTML + `<div class="bk-grid">${accounts.map(card).join('')}</div>`;
+  document.querySelectorAll('[data-acc]').forEach(c => {
+    const go = () => { location.href = 'reconcile.html?acc=' + encodeURIComponent(c.dataset.acc); };
+    c.onclick = go;
+    c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } };
+  });
+}
+
+$('#bkManage').onclick = () => { location.href = 'settings.html'; };
+$('#bkUpload').onclick = () => { location.href = 'reconcile.html?upload=1'; };
+window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+window.__qlRefresh = render;
+QLD.init(render);
+</script>
+</body>
+</html>
