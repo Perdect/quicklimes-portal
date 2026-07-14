@@ -583,6 +583,11 @@
   const today = () => new Date().toISOString().slice(0, 10);
 
   function fieldHTML(f, v) {
+    // Layout-only specs: a section divider, or a raw read-only HTML block (used
+    // by importers to show exactly what was read off the document). Neither
+    // carries a value, so readForm skips them.
+    if (f.type === 'section') return `<div class="qlf-section"><span>${esc(f.label)}</span></div>`;
+    if (f.type === 'html') return `<div class="qlf-html">${f.html || ''}</div>`;
     const id = 'qf_' + f.k;
     const val = v == null ? '' : v;
     const lbl = `<label class="qlf-label" for="${id}">${f.label}${f.req ? ' <span class="qlf-req">*</span>' : ''}</label>`;
@@ -604,11 +609,12 @@
     } else {
       ctrl = `<input class="qlf-input" id="${id}" type="${f.type || 'text'}" value="${esc(val)}" placeholder="${esc(f.ph || '')}" ${f.type === 'number' ? 'inputmode="decimal" step="any"' : ''}>`;
     }
-    return `<div class="qlf-field ${f.full ? 'qlf-full' : ''}">${lbl}${ctrl}</div>`;
+    return `<div class="qlf-field ${f.full ? 'qlf-full' : ''}${f.quarter ? ' qlf-quarter' : ''}">${lbl}${ctrl}</div>`;
   }
   function readForm(specs) {
     const out = {};
     for (const f of specs) {
+      if (f.type === 'section' || f.type === 'html') continue;
       const el = $('qf_' + f.k); if (!el) continue;
       let val = el.value;
       if (f.type === 'number') val = parseFloat(val) || 0;
@@ -621,6 +627,7 @@
   function openForm(cfg) {
     const specs = cfg.specs, init = cfg.initial || {};
     const grid = specs.map(f => fieldHTML(f, init[f.k])).join('');
+    $('qlModal').classList.toggle('wide', !!cfg.wide);
     $('qlModal').innerHTML = `
       <div class="ql-modal-head">
         <div><h3 class="ql-modal-title">${esc(cfg.title)}</h3>${cfg.sub ? `<div class="ql-modal-sub">${esc(cfg.sub)}</div>` : ''}</div>
@@ -1587,3 +1594,5 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
 /* build: archive-perms 1783930681 */
 
 /* build: refunds 1783950533 */
+
+/* build m25: openForm section/html/quarter specs + wide modal */

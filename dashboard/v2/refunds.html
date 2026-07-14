@@ -12,10 +12,10 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r2"><link rel="stylesheet" href="./pages.css?v=m1">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r2"><link rel="stylesheet" href="./pages.css?v=m2">
 <script src="ql-api.js"></script>
 <script src="./data.js?v=m16"></script>
-<script src="./refund-ocr.js?v=r1"></script>
+<script src="./refund-ocr.js?v=r2"></script>
 <link rel="stylesheet" href="./mobile.css?v=m4">
 <style>
   .rf-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: var(--ql-space-4); }
@@ -51,7 +51,7 @@
   </div>
 </div>
 
-<script src="./shell.js?v=m24"></script>
+<script src="./shell.js?v=m25"></script>
 <script src="./mobile.js?v=m4"></script>
 <script>
 QLShell.mount({ active: 'refunds', title: 'GST Refunds' });
@@ -59,26 +59,68 @@ const $ = s => document.querySelector(s);
 const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fC = v => (window.QLD && QLD.fC) ? QLD.fC(v) : ('₹' + Math.round(v || 0).toLocaleString('en-IN'));
 
-const SPECS = [
-  { k: 'arn', label: 'ARN (application ref no)', full: true, upper: true },
-  { k: 'appDate', label: 'Date filed (dd/mm/yyyy)' },
-  { k: 'fromPeriod', label: 'From period (e.g. JULY 2025)' },
-  { k: 'toPeriod', label: 'To period (e.g. SEPTEMBER 2025)' },
-  { k: 'reason', label: 'Reason', full: true },
-  { k: 'igst', label: 'IGST (₹)', type: 'number' },
-  { k: 'cgst', label: 'CGST (₹)', type: 'number' },
-  { k: 'sgst', label: 'SGST (₹)', type: 'number' },
-  { k: 'cess', label: 'CESS (₹)', type: 'number' },
-  { k: 'caRate', label: 'CA commission %', type: 'number' },
-  { k: 'status', label: 'Status', type: 'select', opts: [['filed', 'Filed (RFD-01)'], ['sanctioned', 'Sanctioned (RFD-06)'], ['received', 'Received in bank']] },
-  { k: 'receivedAmount', label: 'Amount received (₹)', type: 'number' },
-  { k: 'receivedDate', label: 'Date received' },
-  { k: 'note', label: 'Note', full: true }
-];
+/* Summary of what the parser actually read off the RFD-01, so the numbers going
+   into the form can be checked against the receipt at a glance. The heads must
+   sum to the total — we show that verdict rather than leaving it implied. */
+function readCard(r) {
+  const ok = r.balanced && !(r.review || []).length;
+  const fact = (k, v) => v ? `<div class="f"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>` : '';
+  const head = (k, v, cls) => `<div class="h ${cls || ''}"><div class="k">${esc(k)}</div><div class="v">${fC(v)}</div></div>`;
+  const period = [r.fromPeriod, r.toPeriod].filter(Boolean).join(' → ');
+  const flags = { arn: 'ARN', gstin: 'GSTIN', amount: 'amounts', total: 'printed total' };
+  const bad = (r.review || []).map(x => flags[x] || x).join(', ');
+  return `<div class="qlf-read">
+    <div class="qlf-read-top">
+      <span class="qlf-read-badge${ok ? '' : ' warn'}">${ok ? '✓ Read from ' + esc(r.kind || 'RFD-01') : '⚠ Check ' + esc(bad || 'values')}</span>
+      <span class="qlf-read-title">${esc(r.tradeName || 'GST refund application')}</span>
+      ${r.inverted ? '<span class="qlf-read-badge">Inverted duty · §54(3)</span>' : ''}
+    </div>
+    <div class="qlf-read-facts">
+      ${fact('ARN', r.arn)}${fact('GSTIN', r.gstin)}${fact('Filed on', r.appDate)}
+      ${fact('Period', period)}${fact('Legal name', r.legalName)}
+    </div>
+    <div class="qlf-read-heads">
+      ${head('IGST', r.igst)}${head('CGST', r.cgst)}${head('SGST', r.sgst)}${head('CESS', r.cess)}
+      ${head('Total claimed', r.total, 'total')}
+    </div>
+    ${r.reason ? `<div class="qlf-read-note"><b>Reason:</b> ${esc(r.reason)}</div>` : ''}
+    <div class="qlf-read-note">${r.balanced
+      ? 'IGST + CGST + SGST + CESS = Total ✓ matches the receipt.'
+      : 'Heads do not add up to the printed total — verify against the receipt before saving.'}</div>
+  </div>`;
+}
+
+function specsFor(r) {
+  return [
+    ...(r && r.__read ? [{ type: 'html', html: readCard(r) }] : []),
+    { type: 'section', label: 'Application' },
+    { k: 'arn', label: 'ARN (application ref no)', upper: true },
+    { k: 'appDate', label: 'Date filed (dd/mm/yyyy)' },
+    { k: 'fromPeriod', label: 'From period' },
+    { k: 'toPeriod', label: 'To period' },
+    { k: 'reason', label: 'Reason', full: true },
+    { type: 'section', label: 'Amount claimed (₹)' },
+    { k: 'igst', label: 'IGST', type: 'number', quarter: true },
+    { k: 'cgst', label: 'CGST', type: 'number', quarter: true },
+    { k: 'sgst', label: 'SGST', type: 'number', quarter: true },
+    { k: 'cess', label: 'CESS', type: 'number', quarter: true },
+    { type: 'section', label: 'Status & CA commission' },
+    { k: 'status', label: 'Status', type: 'select', opts: [['filed', 'Filed (RFD-01)'], ['sanctioned', 'Sanctioned (RFD-06)'], ['received', 'Received in bank']] },
+    { k: 'caRate', label: 'CA commission %', type: 'number' },
+    { k: 'receivedAmount', label: 'Amount received (₹)', type: 'number' },
+    { k: 'receivedDate', label: 'Date received' },
+    { k: 'note', label: 'Note', full: true }
+  ];
+}
+const SPECS = specsFor(null);
+
 function openRefundForm(initial, idx) {
+  const init = Object.assign({ caRate: 5, status: 'filed' }, initial || {});
+  const specs = specsFor(initial);
   QLShell.openForm({
-    title: idx == null ? 'Add GST refund' : 'Edit refund', sub: 'Petcoke / inverted-duty refund',
-    specs: SPECS, saveLabel: idx == null ? 'Add refund' : 'Save', initial: Object.assign({ caRate: 5, status: 'filed' }, initial || {}),
+    title: idx == null ? 'Add GST refund' : 'Edit refund',
+    sub: initial && initial.__read ? 'Imported from the RFD-01 receipt — check and save' : 'Petcoke / inverted-duty refund',
+    wide: true, specs, saveLabel: idx == null ? 'Add refund' : 'Save', initial: init,
     onSave(v) { if (idx == null) QLD.addRefund(v); else QLD.updateRefund(idx, v); render(); }
   });
 }
@@ -103,8 +145,11 @@ $('#rfFile').onchange = async e => {
     const t = await pdfText(f);
     const r = window.QLRefundOCR.parseRFD(t);
     if (!r.total && !r.arn) { QLShell.toast('Could not read this as an RFD receipt — add it manually'); return; }
+    r.__read = true;
     openRefundForm(r);
-    if (r.review && r.review.length) QLShell.toast('Review the highlighted amounts before saving');
+    QLShell.toast(r.balanced && !r.review.length
+      ? 'Read ' + (r.kind || 'RFD-01') + ' · ' + fC(r.total) + ' claimed'
+      : 'Read with gaps — check the highlighted values');
   } catch (err) { QLShell.toast('Could not read the PDF — add it manually'); }
 };
 

@@ -432,6 +432,7 @@ table.sr tbody tr:hover td { background: var(--ql-surface-2, #f8fafc); }
   padding: 7vh var(--ql-space-4) var(--ql-space-6); overflow-y: auto;
 }
 .ql-modal-backdrop.open { display: flex; }
+.ql-modal.wide { max-width: 720px; }
 .ql-modal {
   width: 100%; max-width: 560px; background: var(--ql-card);
   border: 1px solid var(--ql-border); border-radius: var(--ql-radius-2xl);
@@ -447,9 +448,39 @@ table.sr tbody tr:hover td { background: var(--ql-surface-2, #f8fafc); }
 .ql-modal-x:hover { background: var(--ql-neutral-100); color: var(--ql-text); }
 .ql-modal-note { font-size: var(--ql-text-sm); color: var(--ql-text-secondary); background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); padding: var(--ql-space-3); }
 .ql-modal-foot { display: flex; justify-content: flex-end; gap: var(--ql-space-2); }
-.qlf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ql-space-4); }
-.qlf-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* 4-col track so forms can pack tight rows (e.g. IGST/CGST/SGST/CESS across one
+   line). Existing forms are unchanged: a plain field spans 2 (= the old half),
+   .qlf-full spans the row. .qlf-quarter opts into the 4-across layout. */
+.qlf-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--ql-space-4); }
+.qlf-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; grid-column: span 2; }
 .qlf-full { grid-column: 1 / -1; }
+.qlf-quarter { grid-column: span 1; }
+/* Section divider inside a form */
+.qlf-section { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--ql-space-3); margin-top: 2px; }
+.qlf-section > span { font-size: var(--ql-text-xs); font-weight: var(--ql-weight-bold); letter-spacing: .07em;
+  text-transform: uppercase; color: var(--ql-text-secondary); white-space: nowrap; }
+.qlf-section::after { content: ""; flex: 1; height: 1px; background: var(--ql-border); }
+.qlf-html { grid-column: 1 / -1; min-width: 0; }
+
+/* Read-only "what we read off the document" card (RFD-01 / bill import review) */
+.qlf-read { border: 1px solid var(--ql-brand-200, #c7d7fe); background: var(--ql-brand-50, #eff4ff);
+  border-radius: var(--ql-radius-lg); padding: var(--ql-space-4); display: flex; flex-direction: column; gap: var(--ql-space-3); }
+.qlf-read-top { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.qlf-read-badge { display: inline-flex; align-items: center; gap: 5px; font-size: var(--ql-text-xs); font-weight: var(--ql-weight-bold);
+  padding: 3px 9px; border-radius: 999px; background: var(--ql-success-50, #ecfdf5); color: var(--ql-success-700, #047857); }
+.qlf-read-badge.warn { background: var(--ql-warning-50, #fffbeb); color: var(--ql-warning-700, #b45309); }
+.qlf-read-title { font-size: var(--ql-text-sm); font-weight: var(--ql-weight-bold); color: var(--ql-text); }
+.qlf-read-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--ql-space-2) var(--ql-space-4); }
+.qlf-read-facts .f .k { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--ql-text-muted, #94a3b8); font-weight: var(--ql-weight-semibold); }
+.qlf-read-facts .f .v { font-size: var(--ql-text-sm); color: var(--ql-text); font-weight: var(--ql-weight-semibold); font-variant-numeric: tabular-nums; word-break: break-word; }
+.qlf-read-heads { display: flex; gap: var(--ql-space-2); flex-wrap: wrap; }
+.qlf-read-heads .h { flex: 1 1 78px; background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); padding: 7px 9px; }
+.qlf-read-heads .h .k { font-size: 10px; letter-spacing: .05em; color: var(--ql-text-muted, #94a3b8); font-weight: var(--ql-weight-semibold); }
+.qlf-read-heads .h .v { font-size: var(--ql-text-sm); font-weight: var(--ql-weight-bold); color: var(--ql-text); font-variant-numeric: tabular-nums; }
+.qlf-read-heads .h.total { background: var(--ql-brand-600, #2563eb); border-color: var(--ql-brand-600, #2563eb); }
+.qlf-read-heads .h.total .k { color: #bfd3ff; }
+.qlf-read-heads .h.total .v { color: #fff; }
+.qlf-read-note { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); }
 .qlf-label { font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold); color: var(--ql-text-secondary); }
 .qlf-req { color: var(--ql-danger-600); }
 .qlf-input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: var(--ql-text-sm); color: var(--ql-text);
@@ -468,7 +499,7 @@ textarea.qlf-input { resize: vertical; min-height: 40px; }
 .qlf-combo-opt:hover, .qlf-combo-opt.active { background: var(--ql-neutral-100); }
 .qlf-combo-opt.sel { background: var(--ql-brand-50); color: var(--ql-brand-700); font-weight: var(--ql-weight-semibold); }
 .qlf-combo-empty { padding: 10px 11px; font-size: var(--ql-text-sm); color: var(--ql-text-secondary); }
-@media (max-width: 560px) { .qlf-grid { grid-template-columns: 1fr; } .ql-modal-backdrop { padding-top: 3vh; } }
+@media (max-width: 560px) { .qlf-grid { grid-template-columns: repeat(2, 1fr); } .ql-modal-backdrop { padding-top: 3vh; } }
 
 /* Row action menu (table kebabs) */
 .ql-rowmenu { position: fixed; z-index: 1100; min-width: 172px; background: var(--ql-card);
