@@ -126,6 +126,19 @@
 .rc-upmsg { margin-top: 12px; }
 .rc-loading { font-size: 13px; color: var(--ql-text-secondary); padding: 10px 0; }
 .rc-err { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; font-size: 12.5px; padding: 11px 13px; border-radius: 10px; font-weight: 600; }
+
+/* Password-protected statement prompt */
+.rc-pw { background: var(--ql-brand-50, #eff4ff); border: 1px solid var(--ql-brand-200, #c7d7fe); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 11px; }
+.rc-pw-head { display: flex; align-items: flex-start; gap: 11px; }
+.rc-pw-head svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--ql-brand-600, #2563eb); margin-top: 1px; }
+.rc-pw-t { font-size: 13.5px; font-weight: 700; color: var(--ql-text, #0f172a); }
+.rc-pw-s { font-size: 12.5px; color: var(--ql-text-secondary, #64748b); margin-top: 2px; line-height: 1.45; }
+.rc-pw-row { display: flex; gap: 8px; }
+.rc-pw-in { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 9px 11px; border-radius: 9px;
+  border: 1px solid var(--ql-border, #e2e8f0); background: #fff; color: var(--ql-text, #0f172a); }
+.rc-pw-in:focus { outline: none; border-color: var(--ql-brand-400, #60a5fa); box-shadow: 0 0 0 3px var(--ql-brand-50, #eff4ff); }
+.rc-pw-n { font-size: 11.5px; color: var(--ql-text-secondary, #64748b); line-height: 1.45; }
+@media (max-width: 480px) { .rc-pw-row { flex-direction: column; } }
 .rc-note { font-size: 11.5px; color: var(--ql-text-muted); margin-top: 14px; line-height: 1.5; }
 .rc-picklist { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; }
 .rc-onacct { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--ql-border); }

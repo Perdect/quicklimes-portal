@@ -119,11 +119,30 @@
   function readAsText(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsText(file); }); }
   function readAsBuffer(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsArrayBuffer(file); }); }
 
-  async function fileToRows(file) {
+  /* Banks mail statements as password-protected PDFs. pdf.js rejects those with a
+     PasswordException (code 1 = none given, 2 = wrong one). Every PDF reader below
+     goes through openPdf so a caller can retry with the user's password; the
+     password is only ever passed to pdf.js in this tab and is never stored or sent. */
+  async function openPdf(file, password) {
+    const pdfjs = await loadPDF();
+    const opts = { data: await readAsBuffer(file) };
+    if (password) opts.password = password;
+    return pdfjs.getDocument(opts).promise;
+  }
+  const PW_NEEDED = 1, PW_WRONG = 2;
+  function pwError(e) {
+    if (!e) return 0;
+    if (e.name === 'PasswordException') return e.code === PW_WRONG ? PW_WRONG : PW_NEEDED;
+    if (/incorrect password/i.test(e.message || '')) return PW_WRONG;
+    if (/no password given|password/i.test(e.message || '')) return PW_NEEDED;
+    return 0;
+  }
+
+  async function fileToRows(file, password) {
     const name = (file.name || '').toLowerCase(), type = file.type || '';
     // Photos / scans can't be read as a table.
     if (/^image\//.test(type) || /\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/.test(name)) return { rows: [], kind: 'image' };
-    if (name.endsWith('.pdf') || type === 'application/pdf') return { rows: await pdfToRows(file), kind: 'pdf' };
+    if (name.endsWith('.pdf') || type === 'application/pdf') return { rows: await pdfToRows(file, password), kind: 'pdf' };
     if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.xlsm') || /sheet|excel|ms-excel/.test(type)) {
       await loadXLSX();
       const wb = window.XLSX.read(await readAsBuffer(file), { type: 'array', cellDates: false, raw: false });
@@ -139,9 +158,8 @@
 
   // Best-effort PDF row extraction: pull text lines, keep those that start with
   // a date and contain amounts. Bank PDFs vary wildly — flagged "review" in UI.
-  async function pdfToRows(file) {
-    const pdfjs = await loadPDF();
-    const doc = await pdfjs.getDocument({ data: await readAsBuffer(file) }).promise;
+  async function pdfToRows(file, password) {
+    const doc = await openPdf(file, password);
     const lines = [];
     for (let p = 1; p <= doc.numPages; p++) {
       const page = await doc.getPage(p);
@@ -181,9 +199,8 @@
      every numeric token to its nearest column, so Dr/Cr survive. Wrapped
      narration lines (no date, no amount-column tokens) are appended to the
      previous transaction. Balance keeps its Cr/Dr suffix for sign checks. */
-  async function pdfBankTable(file) {
-    const pdfjs = await loadPDF();
-    const doc = await pdfjs.getDocument({ data: await readAsBuffer(file) }).promise;
+  async function pdfBankTable(file, password) {
+    const doc = await openPdf(file, password);
     const out = [['Date', 'Narration', 'Cheque', 'Debit', 'Credit', 'Balance']];
     let cols = null;                        // header anchors: [{key, x}] using label right edges
     let pending = null;                     // dated line still waiting for its amounts
@@ -280,9 +297,8 @@
   const loadTesseract = () => loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js', 'tesseract').then(() => window.Tesseract);
   // Pull embedded text from a digital PDF (no OCR) — one entry per page, with
   // visual lines reconstructed by y-position so labels line up with their values.
-  async function pdfPages(file) {
-    const pdfjs = await loadPDF();
-    const doc = await pdfjs.getDocument({ data: await readAsBuffer(file) }).promise;
+  async function pdfPages(file, password) {
+    const doc = await openPdf(file, password);
     const pages = [];
     for (let p = 1; p <= Math.min(doc.numPages, 200); p++) {
       const page = await doc.getPage(p);
@@ -315,11 +331,10 @@
     }
     return out;
   }
-  async function pdfText(file) { return (await pdfPages(file)).join('\n'); }
+  async function pdfText(file, password) { return (await pdfPages(file, password)).join("\n"); }
   // Render each PDF page to a PNG data URL (Tesseract reads images, not PDFs).
-  async function pdfToImages(file, scale) {
-    const pdfjs = await loadPDF();
-    const doc = await pdfjs.getDocument({ data: await readAsBuffer(file) }).promise;
+  async function pdfToImages(file, scale, password) {
+    const doc = await openPdf(file, password);
     const imgs = [];
     for (let p = 1; p <= Math.min(doc.numPages, 10); p++) {
       const page = await doc.getPage(p);
@@ -1111,7 +1126,7 @@
   window.QLFin = {
     CATS, CREDIT_CATS, DEBIT_CATS, STATUSES, CHECKLIST, DOC_KINDS,
     fileToRows, extract, parseDate, parseNum, findHeaderRow, colOf, importSheet, ocrScan, parseInvoiceText, learnBillAlias,
-    pdfPages, splitPdfPages, ownInfo, pdfBankTable, pdfToImages,
+    pdfPages, splitPdfPages, ownInfo, pdfBankTable, pdfToImages, pwError, openPdf,
     importTxns, reclassifyAll, setTxn, deleteTxn, findDuplicates,
     summary, byCategory, customerOutstanding, supplierOutstanding, accBalance, accLabel,
     gstMonths, setGst,
@@ -1119,3 +1134,5 @@
     insights, report, thisMonth
   };
 })();
+
+/* build ocr19: openPdf(file,password) — password-protected PDFs */

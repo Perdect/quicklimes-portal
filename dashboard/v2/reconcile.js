@@ -12,6 +12,7 @@ const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&':
 const svg = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const IC = {
   up: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
   refresh: '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
   dl: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
@@ -151,15 +152,21 @@ function bankHeaderRow(rows) {
   }
   return 0;
 }
-async function parseBankFile(file) {
+async function parseBankFile(file, password) {
   // PDFs go through the x-aware bank-table extractor (keeps the Withdrawal vs
   // Deposit columns apart); CSV/Excel through the generic reader as before.
   const isPdf = /\.pdf$/i.test(file.name || '') || file.type === 'application/pdf';
   let parsed = null;
   if (isPdf && QLFin.pdfBankTable) {
-    try { const tbl = await QLFin.pdfBankTable(file); if (tbl && tbl.length > 1) parsed = { rows: tbl, kind: 'pdf' }; } catch (_) {}
+    // A password error must NOT be swallowed here, or the caller can never ask
+    // for the password — banks routinely mail statements locked with a PAN/DOB.
+    try { const tbl = await QLFin.pdfBankTable(file, password); if (tbl && tbl.length > 1) parsed = { rows: tbl, kind: 'pdf' }; }
+    catch (e) { if (QLFin.pwError && QLFin.pwError(e)) { const err = new Error('locked'); err.pw = QLFin.pwError(e); throw err; } }
   }
-  if (!parsed) parsed = await QLFin.fileToRows(file);
+  if (!parsed) {
+    try { parsed = await QLFin.fileToRows(file, password); }
+    catch (e) { if (QLFin.pwError && QLFin.pwError(e)) { const err = new Error('locked'); err.pw = QLFin.pwError(e); throw err; } throw e; }
+  }
   const rows = parsed.rows || [];
   if (rows.length < 2) throw new Error('No rows found — export the statement as CSV/Excel and retry.');
   const hi = bankHeaderRow(rows), header = rows[hi] || [], col = (...k) => QLFin.colOf(header, ...k);
@@ -637,10 +644,35 @@ function openUpload() {
     });
   };
   const drop = document.getElementById('rcDrop'), file = document.getElementById('rcFile'), msg = document.getElementById('rcUpMsg');
-  const go = async f => {
+  // Banks mail statements locked with a PAN/DOB-style password. Ask for it in
+  // place and retry — the password stays in this tab (handed to pdf.js only)
+  // and is never stored or uploaded.
+  const askPassword = (f, wrong) => {
+    msg.innerHTML = `<div class="rc-pw">
+      <div class="rc-pw-head">${svg(IC.lock || '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>')}
+        <div><div class="rc-pw-t">This statement is password-protected</div>
+        <div class="rc-pw-s">${wrong ? 'That password didn\'t work — check and try again.' : 'Enter the password your bank uses to open <b>' + esc(f.name) + '</b>.'}</div></div></div>
+      <div class="rc-pw-row">
+        <input class="rc-pw-in" id="rcPw" type="password" autocomplete="off" placeholder="Statement password" aria-label="Statement password">
+        <button class="rc-btn rc-btn-primary" id="rcPwGo">Unlock</button>
+      </div>
+      <div class="rc-pw-n">Often your PAN, date of birth (DDMMYYYY), or customer ID — check the email the bank sent it in. It's used only on this device to open the file.</div>
+    </div>`;
+    const inp = document.getElementById('rcPw'), btn = document.getElementById('rcPwGo');
+    inp.focus();
+    const submit = () => { const pw = inp.value; if (!pw) { inp.focus(); return; } go(f, pw); };
+    btn.onclick = submit;
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } };
+  };
+  const go = async (f, password) => {
     if (!f) return;
-    msg.innerHTML = `<div class="rc-loading">Reading <b>${esc(f.name)}</b>…</div>`;
-    let parsed; try { parsed = await parseBankFile(f); } catch (e) { msg.innerHTML = `<div class="rc-err">${esc(e.message || 'Could not read this file. Export it as CSV or Excel and try again.')}</div>`; return; }
+    msg.innerHTML = `<div class="rc-loading">${password ? 'Unlocking' : 'Reading'} <b>${esc(f.name)}</b>…</div>`;
+    let parsed;
+    try { parsed = await parseBankFile(f, password); }
+    catch (e) {
+      if (e && e.pw) { askPassword(f, e.pw === 2 || !!password); return; }
+      msg.innerHTML = `<div class="rc-err">${esc(e.message || 'Could not read this file. Export it as CSV or Excel and try again.')}</div>`; return;
+    }
     if (!parsed.length) { msg.innerHTML = `<div class="rc-err">No transactions found. Make sure the file has Date and Debit/Credit columns (or export as CSV).</div>`; return; }
     Q.recon.txns.push(...parsed); runMatchAll();
     const matched = parsed.filter(t => isLinked(t)).length;
@@ -956,3 +988,5 @@ if (QLShell.registerAssistIntent) QLShell.registerAssistIntent((q, t, H) => {
 window.__qlRefresh = render;
 window.__qlOnSwitchCompany = id => { ST.monthInit = false; Q.switchCompany(id, render); };
 if (Q.init) Q.init(render); else render();
+
+/* build rd7: ask for the password on a locked bank statement instead of showing pdf.js raw error */
