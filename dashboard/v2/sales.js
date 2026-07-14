@@ -179,7 +179,10 @@ function salesInsightsPanel(rows) {
     // Sales total + invoice count already sit in the top KPI cards — drop them on
     // mobile so the insight strip doesn't just repeat the stat cards above.
     ...(isM ? [] : [
-      { ic: '₹', tint: 'green', n: fC(sales), label: 'Sales', sub: 'billed' + inMon },
+      // Emoji like its three siblings — the bare '₹' text glyph rendered in a
+      // different visual style from the emoji tiles (and the amount itself
+      // already carries the ₹, so the icon needn't repeat the currency).
+      { ic: '📈', tint: 'green', n: fC(sales), label: 'Sales', sub: 'billed' + inMon },
       { ic: '🧾', tint: 'blue', n: String(rows.length), label: 'Invoices', sub: 'raised' + inMon }
     ])
   ];
