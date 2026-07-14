@@ -129,6 +129,11 @@ function runMatchAll(force) {
       });
     } catch (_) {}
   }
+  // Tag every self-transfer leg (paired A→B moves AND single EBANK:SELF legs)
+  // as an internal transfer — the marker downstream code and the mirror use to
+  // keep own-account moves out of income, expense and P&L.
+  arr.forEach(t => { if (t.m && (t.m.catKey === 'self' || /self\s*transfer/i.test(t.m.cat || ''))) t.m.tag = 'internal_transfer'; });
+
   // duplicate detection — UTR first, else amount + clean-name + date.
   // ACCOUNT-SCOPED: the same line in two DIFFERENT own accounts is two real
   // transactions. But legacy rows (imported before multi-bank, no accountId)
@@ -636,6 +641,24 @@ function openKebab(tid, anchor) {
   m.appendChild(item('Change party / identify', () => openLink(tid)));
   m.appendChild(item('Split across bills', () => openSplit(tid)));
   if (!isLinked(t) && rcTxnParty(t) >= 0) m.appendChild(item('Mark as advance (on-account)', () => { const pidx = rcTxnParty(t); if (postOnAccount(t, pidx, (t.credit ? 'Advance received' : 'Advance paid'))) { runMatchAll(); render(); } }));
+  // A loan/EMI debit can be recorded against a loan on the Loans page: marks
+  // the next instalment paid + posts to the Payments ledger (with the bank
+  // account this debit left from).
+  if ((t.debit || 0) > 0 && !t.m?.loanApplied && /loan|emi/i.test(t.m?.cat || '') && (Q.loanRows ? Q.loanRows() : []).length) {
+    m.appendChild(item('Record as loan EMI…', () => {
+      const loans = Q.loanRows();
+      QLShell.openForm({
+        title: 'Record loan EMI', sub: fC(t.debit) + ' debit on ' + fDS(t.date),
+        specs: [{ k: 'loan', label: 'Against loan', type: 'select', full: true, opts: loans.map(l => [String(l.idx), l.name + (l.outstanding ? ' · ' + fC(l.outstanding) + ' left' : '')]) }],
+        saveLabel: 'Record EMI', initial: { loan: String(loans[0].idx) },
+        onSave(v) {
+          Q.payLoanEmi(+v.loan, { amount: t.debit, method: 'Bank', date: t.date, ref: t.utr || t.ref || '', accountId: t.accountId || '' });
+          t.m = Object.assign({}, t.m, { loanApplied: true, manual: true, status: 'other', kind: 'other', reasons: ['EMI recorded against ' + (loans.find(l => String(l.idx) === v.loan) || {}).name] });
+          Q.saveRecon(); render(); toast('EMI recorded — loan updated', 'ok');
+        }
+      });
+    }));
+  }
   m.appendChild(item('Categorize', () => openMark(tid, anchor)));
   const isDup = t.m && t.m.status === 'duplicate';
   m.appendChild(item(isDup ? 'Unmark duplicate' : 'Mark duplicate', () => { markDuplicate(t, !isDup); render(); }));
@@ -821,9 +844,12 @@ function reverseLedgerSafe(pidx, lid) {
 /* Post a bank transaction on-account to a party's running balance (advance /
    partial / lump-sum). One shared path for the link modal AND the drawer. */
 function postOnAccount(t, pidx, label) {
+  // An internal transfer is money moving BETWEEN own accounts — posting it to a
+  // party would fabricate income/expense, so it is excluded from every ledger.
+  if (RC.isSelfLeg && RC.isSelfLeg(t)) { toast('This is a transfer between your own accounts — it never counts as income or expense', 'warn'); return false; }
   const isCr = (t.credit || 0) > 0, amt = isCr ? t.credit : t.debit;
   const p = Q.partyRows().find(x => x.idx === pidx); if (!p) return false;
-  const entry = { date: t.date, ref: t.utr || t.ref || '', mode: 'Bank', desc: (label || ('Bank ' + (isCr ? 'receipt' : 'payment'))) + (t.desc ? ' · ' + String(t.desc).slice(0, 36) : '') };
+  const entry = { date: t.date, ref: t.utr || t.ref || '', mode: 'Bank', accountId: t.accountId || '', desc: (label || ('Bank ' + (isCr ? 'receipt' : 'payment'))) + (t.desc ? ' · ' + String(t.desc).slice(0, 36) : '') };
   if (isCr) entry.cr = amt; else entry.dr = amt;
   const lid = Q.recordLedgerEntry(pidx, entry);
   if (t.clean) learnAlias(t.clean, p.name);
@@ -1134,3 +1160,5 @@ if (Q.init) Q.init(() => { runBackfill(); render(); if (_autoUpload) { _autoUplo
 /* build rd12: ?upload=1 deep-link; clear-all note removed (dedupe handles re-imports) */
 
 /* build rd13: ?acc= deep-link from Banks cards */
+
+/* build rd14: internal_transfer tag + self-leg posting guard + record-as-EMI */

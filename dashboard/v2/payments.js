@@ -24,7 +24,18 @@ const PTYPE = {
 };
 const ACC = { cash: ['Cash', '#0d9488'], bank: ['Bank', '#2563eb'], upi: ['UPI', '#7c3aed'] };
 function ptypePill(r) { const c = PTYPE[r.ptype] || PTYPE.Other; return `<span class="qx-pill" style="background:${c[0]};color:${c[1]}">${c[2]} ${esc(r.ptype)}</span>`; }
-function methodTag(r) { const a = ACC[r.mode] || ACC.bank; return `<span class="qx-tag" style="color:${a[1]}">${esc(r.method)}</span>`; }
+function methodTag(r) {
+  const a = ACC[r.mode] || ACC.bank;
+  // Multi-bank: show WHICH own account the money hit / left when known.
+  const acc = r.account ? `<div class="qx-mut" style="font-size:10.5px;margin-top:1px">🏦 ${esc(r.account)}</div>` : '';
+  return `<span class="qx-tag" style="color:${a[1]}">${esc(r.method)}</span>${acc}`;
+}
+/* Optional "Bank account" field for payment modals — only when the firm has
+   accounts, and only meaningful for non-cash methods. */
+function accSpec() {
+  const accounts = Q.bankAccounts ? Q.bankAccounts() : [];
+  return accounts.length ? [{ k: 'accountId', label: 'Bank account', type: 'select', opts: [['', '—']].concat(accounts.map(a => [a.id, a.label])) }] : [];
+}
 function accLabel(mode) { return (ACC[mode] || ACC.bank)[0]; }
 function partyCell(r) { return `<span class="qx-party-n" style="font-weight:600">${esc(r.party)}</span>`; }
 
@@ -38,6 +49,7 @@ function receivePaymentModal() {
       { k: 'inv', label: 'Invoice', type: 'searchselect', req: true, full: true, ph: 'Search invoice no. or customer…', opts: unpaid.map(r => [String(r.idx), `${r.inv || '—'} · ${r.party} · ${fC(r.outstanding)} due`]) },
       { k: 'amount', label: 'Amount received (₹)', type: 'number', req: true, reqNonZero: true },
       { k: 'method', label: 'Payment method', type: 'select', opts: Q.paymentMethods.map(m => [m, m]) },
+      ...accSpec(),
       { k: 'ref', label: 'Reference no.', ph: 'UTR / cheque / txn id' },
       { k: 'date', label: 'Date', type: 'date', req: true },
       { k: 'notes', label: 'Notes', type: 'textarea', full: true }
@@ -45,7 +57,7 @@ function receivePaymentModal() {
     initial: { inv: String(unpaid[0].idx), amount: Math.round(unpaid[0].outstanding), method: 'Bank', date: todayISO },
     onRender: () => { const s = document.getElementById('qf_inv'), a = document.getElementById('qf_amount'); if (s && a) s.onchange = () => { const r = unpaid.find(x => String(x.idx) === s.value); if (r) a.value = Math.round(r.outstanding); }; },
     saveLabel: 'Receive payment',
-    onSave: v => { Q.receiveSalesPayment(+v.inv, { amount: +v.amount, method: v.method, ref: v.ref, date: v.date, notes: v.notes }); QLX.toast('Payment received — invoice updated', 'ok'); QLX.refresh(); }
+    onSave: v => { Q.receiveSalesPayment(+v.inv, { amount: +v.amount, method: v.method, ref: v.ref, date: v.date, notes: v.notes, accountId: v.accountId || '' }); QLX.toast('Payment received — invoice updated', 'ok'); QLX.refresh(); }
   });
 }
 function payBillModal() {
@@ -57,6 +69,7 @@ function payBillModal() {
       { k: 'bill', label: 'Purchase bill', type: 'searchselect', req: true, full: true, ph: 'Search bill no. or supplier…', opts: unpaid.map(r => [String(r.idx), `${r.bill || '—'} · ${r.sup} · ${fC(r.outstanding)} due`]) },
       { k: 'amount', label: 'Amount paid (₹)', type: 'number', req: true, reqNonZero: true },
       { k: 'method', label: 'Payment method', type: 'select', opts: Q.paymentMethods.map(m => [m, m]) },
+      ...accSpec(),
       { k: 'ref', label: 'Reference no.' },
       { k: 'date', label: 'Date', type: 'date', req: true },
       { k: 'notes', label: 'Notes', type: 'textarea', full: true }
@@ -64,7 +77,7 @@ function payBillModal() {
     initial: { bill: String(unpaid[0].idx), amount: Math.round(unpaid[0].outstanding), method: 'Bank', date: todayISO },
     onRender: () => { const s = document.getElementById('qf_bill'), a = document.getElementById('qf_amount'); if (s && a) s.onchange = () => { const r = unpaid.find(x => String(x.idx) === s.value); if (r) a.value = Math.round(r.outstanding); }; },
     saveLabel: 'Pay bill',
-    onSave: v => { Q.payPurchaseBill(+v.bill, { amount: +v.amount, method: v.method, ref: v.ref, date: v.date, notes: v.notes }); QLX.toast('Payment made — bill updated', 'ok'); QLX.refresh(); }
+    onSave: v => { Q.payPurchaseBill(+v.bill, { amount: +v.amount, method: v.method, ref: v.ref, date: v.date, notes: v.notes, accountId: v.accountId || '' }); QLX.toast('Payment made — bill updated', 'ok'); QLX.refresh(); }
   });
 }
 function transferModal() {
@@ -98,6 +111,7 @@ function recordModal() {
       { k: 'loan', label: 'Loan (only for EMI)', type: 'select', opts: [['', '—']].concat(loans.map((l, i) => [String(i), `${l.name} · EMI ${fC(l.emi)}`])) },
       { k: 'amount', label: 'Amount (₹)', type: 'number', req: true, reqNonZero: true },
       { k: 'method', label: 'Payment method', type: 'select', opts: Q.paymentMethods.map(m => [m, m]) },
+      ...accSpec(),
       { k: 'ref', label: 'Reference' },
       { k: 'date', label: 'Date', type: 'date', req: true },
       { k: 'notes', label: 'Notes', type: 'textarea', full: true }
@@ -105,8 +119,8 @@ function recordModal() {
     initial: { ptype: 'Expense', method: 'Cash', date: todayISO },
     saveLabel: 'Record',
     onSave: v => {
-      if (v.ptype === 'Loan EMI') Q.payLoanEmi(v.loan !== '' ? +v.loan : 0, { amount: +v.amount, method: v.method, ref: v.ref, date: v.date, notes: v.notes });
-      else Q.addLedgerPayment({ ptype: v.ptype, dir: v.ptype === 'Partner Investment' ? 'in' : 'out', party: v.party || v.ptype, amount: +v.amount, method: v.method, ref: v.ref, date: v.date, notes: v.notes });
+      if (v.ptype === 'Loan EMI') Q.payLoanEmi(v.loan !== '' ? +v.loan : 0, { amount: +v.amount, method: v.method, ref: v.ref, date: v.date, notes: v.notes, accountId: v.accountId || '' });
+      else Q.addLedgerPayment({ ptype: v.ptype, dir: v.ptype === 'Partner Investment' ? 'in' : 'out', party: v.party || v.ptype, amount: +v.amount, method: v.method, ref: v.ref, date: v.date, notes: v.notes, accountId: v.accountId || '' });
       QLX.toast(v.ptype + ' recorded', 'ok'); QLX.refresh();
     }
   });
@@ -210,3 +224,5 @@ function exportPayments() {
   QLShell.exportCSV('payments_' + (Q.co.short || 'ledger').replace(/\s+/g, '_'), ['Date', 'Party', 'Type', 'Reference', 'Method', 'Account', 'Debit', 'Credit', 'Balance', 'Status', 'Notes'], r.map(x => [x.date, x.party, x.ptype, x.ref, x.method, accLabel(x.mode), x.debit || '', x.credit || '', x.balance, x.status, x.notes]));
   QLX.toast('Exported ' + r.length + ' transactions');
 }
+
+/* build: bank-account field in payment modals + account line in ledger */

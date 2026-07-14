@@ -86,7 +86,33 @@ ok('mirrorAccount called on create/update', mirrored.length >= 4);
 ok('mirror payload has id+bank', !!mirrored[0].acc.id && mirrored[0].acc.bank === 'Bank of Baroda');
 ok('mirror scoped to active company', mirrored[0].co === 'co1');
 
-console.log('\n════ multi-bank accounts (Phase 1) ════\n  Passed: ' + pass + '   Failed: ' + fail);
+/* ── Phase 5: payments carry the bank account they hit / left ── */
+const hdfc = Q.addBankAccount({ bank: 'HDFC Bank', label: 'HDFC Current' });
+Q.addSale({ inv: 'S-9', date: '2026-01-05', party: 'VEGA', qty: 10, rate: 100, gstR: 5 });
+const sIdx = Q.state.SALES.findIndex(s => s.inv === 'S-9');
+Q.receiveSalesPayment(sIdx, { amount: 500, method: 'Bank', ref: 'UTR1', date: '2026-01-06', accountId: hdfc.id });
+const cbIn = Q.paymentsLedger().find(e => e.ref === 'UTR1');
+ok('receipt row carries accountId', cbIn && cbIn.accountId === hdfc.id);
+ok('receipt row resolves account label', cbIn && cbIn.account === 'HDFC Current');
+ok('sale payment history carries accountId', (Q.state.SALES[sIdx].payments || []).some(p => p.accountId === hdfc.id));
+
+Q.addPurchase({ bill: 'P-9', date: '2026-01-07', sup: 'RAMKARAN', taxable: 1000, grate: 5 });
+const pIdx = Q.state.PURCHASES.findIndex(p => p.bill === 'P-9');
+Q.payPurchaseBill(pIdx, { amount: 300, method: 'Bank', ref: 'UTR2', date: '2026-01-08', accountId: hdfc.id });
+const cbOut = Q.paymentsLedger().find(e => e.ref === 'UTR2');
+ok('supplier payment carries accountId', cbOut && cbOut.accountId === hdfc.id);
+ok('bill payment history carries accountId', (Q.state.PURCHASES[pIdx].payments || []).some(p => p.accountId === hdfc.id));
+
+const lid = Q.recordLedgerEntry(0, { date: '2026-01-09', cr: 200, mode: 'Bank', ref: 'UTR3', accountId: hdfc.id }) || null;
+const cbLg = Q.paymentsLedger().find(e => e.ref === 'UTR3');
+ok('on-account ledger entry carries accountId', !lid || (cbLg && cbLg.accountId === hdfc.id));
+ok('payment without account stays blank (no fabrication)', (() => {
+  Q.receiveSalesPayment(sIdx, { amount: 100, method: 'Cash', ref: 'UTR4', date: '2026-01-10' });
+  const e = Q.paymentsLedger().find(x => x.ref === 'UTR4');
+  return e && e.accountId === '' && e.account === '';
+})());
+
+console.log('\n════ multi-bank accounts (Phases 1+5) ════\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' BANK TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');
 process.exit(fail === 0 ? 0 : 1);

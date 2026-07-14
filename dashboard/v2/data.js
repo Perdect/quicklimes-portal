@@ -750,10 +750,11 @@
     const prev = +p.paid || (p.status === 'paid' ? c.tot : 0);
     const paid = Math.min(c.tot, prev + amount);
     p.paid = paid;
-    p.payments = (p.payments || []).concat([{ date: date || fmtISO(new Date()), amount, mode: mode || 'bank' }]);
-    p.status = paid >= c.tot - 0.5 ? 'paid' : (paid > 0 ? 'partial' : 'pending');
     extra = extra || {};
-    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: date || fmtISO(new Date()), type: 'debit', mode: methodToMode(mode), method: extra.method || modeToMethod(methodToMode(mode)), ptype: 'Purchase Payment', party: p.sup || '—', ref: extra.ref || p.bill || '', amount, notes: extra.notes || '', link: { kind: 'purchase', idx: i } });
+    // accountId (multi-bank): WHICH own bank account the supplier was paid from.
+    p.payments = (p.payments || []).concat([{ date: date || fmtISO(new Date()), amount, mode: mode || 'bank', accountId: extra.accountId || '' }]);
+    p.status = paid >= c.tot - 0.5 ? 'paid' : (paid > 0 ? 'partial' : 'pending');
+    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: date || fmtISO(new Date()), type: 'debit', mode: methodToMode(mode), method: extra.method || modeToMethod(methodToMode(mode)), ptype: 'Purchase Payment', party: p.sup || '—', ref: extra.ref || p.bill || '', amount, notes: extra.notes || '', accountId: extra.accountId || '', link: { kind: 'purchase', idx: i } });
     commit();
   }
   // Per-bill AI insights.
@@ -910,9 +911,9 @@
     const p = S.PARTIES[idx]; if (!p) return null;
     const date = e.date || fmtISO(new Date()), cr = +e.cr || 0, dr = +e.dr || 0, lid = 'lg' + idStamp();
     p.ledger = p.ledger || [];
-    p.ledger.push({ id: lid, date, desc: e.desc || (cr ? 'On-account receipt' : 'Adjustment'), dr, cr, ref: e.ref || '', mode: e.mode || '', kind: e.kind || 'manual' });
-    if (cr > 0) S.CASHBOOK.push({ id: 'cb' + idStamp(), date, type: 'credit', mode: methodToMode(e.mode || 'bank'), method: e.mode || 'Bank', ptype: 'Sales Payment', party: p.name, ref: e.ref || '', amount: cr, notes: e.desc || 'On-account receipt', link: { kind: 'party', idx, ledgerId: lid } });
-    else if (dr > 0) S.CASHBOOK.push({ id: 'cb' + idStamp(), date, type: 'debit', mode: methodToMode(e.mode || 'bank'), method: e.mode || 'Bank', ptype: 'Purchase Payment', party: p.name, ref: e.ref || '', amount: dr, notes: e.desc || 'On-account payment', link: { kind: 'party', idx, ledgerId: lid } });
+    p.ledger.push({ id: lid, date, desc: e.desc || (cr ? 'On-account receipt' : 'Adjustment'), dr, cr, ref: e.ref || '', mode: e.mode || '', kind: e.kind || 'manual', accountId: e.accountId || '' });
+    if (cr > 0) S.CASHBOOK.push({ id: 'cb' + idStamp(), date, type: 'credit', mode: methodToMode(e.mode || 'bank'), method: e.mode || 'Bank', ptype: 'Sales Payment', party: p.name, ref: e.ref || '', amount: cr, notes: e.desc || 'On-account receipt', accountId: e.accountId || '', link: { kind: 'party', idx, ledgerId: lid } });
+    else if (dr > 0) S.CASHBOOK.push({ id: 'cb' + idStamp(), date, type: 'debit', mode: methodToMode(e.mode || 'bank'), method: e.mode || 'Bank', ptype: 'Purchase Payment', party: p.name, ref: e.ref || '', amount: dr, notes: e.desc || 'On-account payment', accountId: e.accountId || '', link: { kind: 'party', idx, ledgerId: lid } });
     commit();
     return lid;
   }
@@ -1251,7 +1252,8 @@
       ref: e.ref || '', method: e.method || modeToMethod(e.mode), mode: methodToMode(e.method || e.mode),
       dir: e.type === 'credit' ? 'in' : 'out',
       credit: e.type === 'credit' ? (+e.amount || 0) : 0, debit: e.type === 'debit' ? (+e.amount || 0) : 0,
-      amount: +e.amount || 0, status: e.status || 'Completed', notes: e.notes || '', link: e.link || null, category: e.category || ''
+      amount: +e.amount || 0, status: e.status || 'Completed', notes: e.notes || '', link: e.link || null, category: e.category || '',
+      accountId: e.accountId || '', account: e.accountId ? bankAccountLabel(e.accountId) : ''
     })).sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.idx - b.idx));
     let run = 0; asc.forEach(e => { run += e.credit - e.debit; e.balance = run; });
     return asc.reverse();   // latest first for the table
@@ -1272,14 +1274,15 @@
     const paid = Math.min(c.tot, prev + amount);
     s.paid = paid; s.status = paid >= c.tot - 0.5 ? 'paid' : (paid > 0 ? 'partial' : 'pending');
     s.paidDate = o.date || fmtISO(new Date()); s.paidMode = o.method || 'Bank';
-    s.payments = (s.payments || []).concat([{ date: s.paidDate, amount, method: o.method || 'Bank' }]);
-    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: s.paidDate, type: 'credit', mode: methodToMode(o.method), method: o.method || 'Bank', ptype: 'Sales Payment', party: s.party || '—', ref: o.ref || s.inv || '', amount, notes: o.notes || '', link: { kind: 'sale', idx: i } });
+    // accountId (multi-bank): WHICH own bank account the customer paid into.
+    s.payments = (s.payments || []).concat([{ date: s.paidDate, amount, method: o.method || 'Bank', accountId: o.accountId || '' }]);
+    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: s.paidDate, type: 'credit', mode: methodToMode(o.method), method: o.method || 'Bank', ptype: 'Sales Payment', party: s.party || '—', ref: o.ref || s.inv || '', amount, notes: o.notes || '', accountId: o.accountId || '', link: { kind: 'sale', idx: i } });
     commit();
   }
-  function payPurchaseBill(i, o) { o = o || {}; recordPurchasePayment(i, o.amount, methodToMode(o.method), o.date, { method: o.method, ref: o.ref, notes: o.notes }); }
+  function payPurchaseBill(i, o) { o = o || {}; recordPurchasePayment(i, o.amount, methodToMode(o.method), o.date, { method: o.method, ref: o.ref, notes: o.notes, accountId: o.accountId || '' }); }
   function addLedgerPayment(o) {
     o = o || {};
-    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: o.date || fmtISO(new Date()), type: o.dir === 'in' ? 'credit' : 'debit', mode: methodToMode(o.method), method: o.method || 'Cash', ptype: o.ptype || 'Other', party: o.party || '—', ref: o.ref || '', amount: +o.amount || 0, notes: o.notes || '', category: o.category || '', link: o.link || null });
+    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: o.date || fmtISO(new Date()), type: o.dir === 'in' ? 'credit' : 'debit', mode: methodToMode(o.method), method: o.method || 'Cash', ptype: o.ptype || 'Other', party: o.party || '—', ref: o.ref || '', amount: +o.amount || 0, notes: o.notes || '', category: o.category || '', accountId: o.accountId || '', link: o.link || null });
     commit();
   }
   function addTransfer(o) {
@@ -1295,7 +1298,7 @@
     const insts = l.installments || [], nx = insts.find(x => !x.paid);
     if (nx) { nx.paid = true; nx.paidDate = o.date || fmtISO(new Date()); }
     const amt = +o.amount || (nx ? nx.amount : l.emi) || 0;
-    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: o.date || fmtISO(new Date()), type: 'debit', mode: methodToMode(o.method), method: o.method || 'Bank', ptype: 'Loan EMI', party: l.name || l.bank || 'Loan', ref: o.ref || '', amount: amt, notes: o.notes || '', link: { kind: 'loan', idx: i } });
+    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: o.date || fmtISO(new Date()), type: 'debit', mode: methodToMode(o.method), method: o.method || 'Bank', ptype: 'Loan EMI', party: l.name || l.bank || 'Loan', ref: o.ref || '', amount: amt, notes: o.notes || '', accountId: o.accountId || '', link: { kind: 'loan', idx: i } });
     saveLoans(); commit();
   }
   function deleteLedgerEntry(i, reason) { return softDelete('payment', i, reason); }
@@ -1700,3 +1703,5 @@
 /* build m16: toISODate normalises bill dates at every entry point (fixes Dec purchases stored as "10-Dec-25" → never grouped into a month) */
 
 /* build m17: BANK_ACCOUNTS store (multi-bank Phase 1) */
+
+/* build m19: payments carry accountId (multi-bank Phase 5) */
