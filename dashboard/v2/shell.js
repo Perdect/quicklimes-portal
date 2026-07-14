@@ -135,6 +135,7 @@
     { type: 'group', label: 'Sales', feat: 'sales', items: [
       { id: 'invoice',     label: 'GST Invoice',     href: 'invoice.html', icon: I.invoice },
       { id: 'sales',       label: 'Sales Register',  href: 'sales.html', icon: I.sales },
+      { id: 'customers',   label: 'Customers',       href: 'parties.html#customer', icon: I.users },
       { id: 'collections', label: 'Collections',     href: 'collections.html', icon: I.coll, badgeKey: 'collections' },
       { id: 'monthreg',    label: 'Monthly Register', href: 'monthreg.html', icon: I.cal, feat: 'monthreg' }
     ]},
@@ -1596,3 +1597,5 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
 /* build: refunds 1783950533 */
 
 /* build m25: openForm section/html/quarter specs + wide modal */
+
+/* build m26: Customers (Customer Intelligence) in the Sales sidebar group */
