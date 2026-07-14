@@ -54,6 +54,7 @@
         return {
           id: t.id, date: t.date, raw: t.raw || t.desc || '', clean: t.clean || '',
           utr: t.utr || '', cheque: t.cheque || '', mode: t.mode || '', bank: t.bank || '',
+          account_id: t.accountId || null,
           debit: t.debit || 0, credit: t.credit || 0, balance: t.balance != null ? t.balance : null,
           dedupe_key: t.dedupe_key || '', m: t.m || null
         };
@@ -62,6 +63,16 @@
       var aliases = job.recon.aliases || {};
       Object.keys(aliases).forEach(function (k) { post(job.companyId, { action: 'learn_alias', alias_key: k, party: aliases[k] }); });
     }, 1500);
+  }
+
+  // Fire-and-forget upsert of ONE bank account (recon.php add_account). The
+  // table mirrors id/bank/acct_no/ifsc/label; type/openingBalance/archived
+  // live only in the authoritative blob.
+  function mirrorAccount(companyId, acc) {
+    if (!ready() || !companyId || !acc || !acc.id) return;
+    post(companyId, { action: 'add_account', account: {
+      id: acc.id, bank: acc.bank || '', acct_no: acc.acctNo || '', ifsc: acc.ifsc || '', label: acc.label || ''
+    } });
   }
 
   // Read the relational store. Returns { txns, aliases, accounts, total } or null.
@@ -82,5 +93,7 @@
     } catch (_) { return null; }
   }
 
-  window.QLReconAPI = { mirror: mirror, pull: pull, ready: ready };
+  window.QLReconAPI = { mirror: mirror, mirrorAccount: mirrorAccount, pull: pull, ready: ready };
 })();
+
+/* build a2: mirrorAccount + account_id on txns */

@@ -81,7 +81,8 @@
     SALES: [], PURCHASES: [], WORKERS: [], WORK_LOG: [], ATT: {},
     TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: [], PROD: [], AUDIT: [], REFUNDS: [],
     FINANCE: null,
-    RECON: { txns: [] }   // bank-statement reconciliation (per company)
+    RECON: { txns: [] },      // bank-statement reconciliation (per company)
+    BANK_ACCOUNTS: []         // first-class bank accounts within THIS firm (multi-bank)
   };
   // Finance + GST Portal state (bank txns, GST tracking, CA docs metadata).
   // Lives inside the per-company blob so it persists locally and syncs to
@@ -152,6 +153,7 @@
     Object.keys(S.ATT).forEach(k => delete S.ATT[k]);
     S.FINANCE = defaultFinance();
     S.RECON = { txns: [] };
+    S.BANK_ACCOUNTS.length = 0;
   }
   function hydrate(d) {
     if (!d) return;
@@ -171,6 +173,7 @@
     if (d.refunds)   S.REFUNDS.push(...d.refunds);
     if (d.finance)   S.FINANCE = normalizeFinance(d.finance);
     if (d.reconcile && Array.isArray(d.reconcile.txns)) S.RECON = d.reconcile;
+    if (Array.isArray(d.bankAccounts)) S.BANK_ACCOUNTS.push(...d.bankAccounts);
   }
   function loadLocal() {
     clearState();
@@ -250,7 +253,8 @@
       sales: S.SALES, purchases: S.PURCHASES, workers: S.WORKERS, workLog: S.WORK_LOG,
       att: S.ATT, tds: S.TDS, challans: S.CHALLANS, parties: S.PARTIES,
       cashbook: S.CASHBOOK, chunna: S.CHUNNA, prod: S.PROD, audit: S.AUDIT, refunds: S.REFUNDS, finance: S.FINANCE || defaultFinance(),
-      reconcile: S.RECON || { txns: [] }
+      reconcile: S.RECON || { txns: [] },
+      bankAccounts: S.BANK_ACCOUNTS
     };
     if (includePic) b.profile_pic = localStorage.getItem('dm_profile_pic') || null;
     return b;
@@ -1141,6 +1145,64 @@
     return j;
   }
 
+  /* ── Bank accounts (multi-bank, per firm) ─────────────────────────
+     First-class records inside the per-company blob (key `bankAccounts`).
+     Blob stays authoritative; each write also fire-and-forget mirrors the
+     account to the relational store (recon.php add_account) so bank_txns
+     rows can reference account_id. Legacy S.FINANCE.accounts (A1/A2
+     placeholders) is untouched — this store supersedes it going forward. */
+  const BANK_TYPES = { current: 'Current', cc_od: 'CC / OD', savings: 'Savings' };
+  function bankAccounts(includeArchived) {
+    return S.BANK_ACCOUNTS.filter(a => includeArchived || !a.archived);
+  }
+  function bankAccountById(id) { return S.BANK_ACCOUNTS.find(a => a.id === id) || null; }
+  function bankAccountLabel(id) {
+    const a = bankAccountById(id);
+    if (!a) return '';
+    return a.label || [a.bank, a.acctNo ? '··' + String(a.acctNo).slice(-4) : ''].filter(Boolean).join(' ');
+  }
+  function _mirrorBankAccount(a) {
+    try {
+      if (window.QLReconAPI && QLReconAPI.mirrorAccount) QLReconAPI.mirrorAccount(ACTIVE_CO, a);
+    } catch (_) { /* mirror is best-effort; blob is authoritative */ }
+  }
+  function _cleanBankAccount(a, prev) {
+    const p = prev || {};
+    const bank = (a.bank != null ? a.bank : p.bank || '').toString().trim();
+    const acctNo = (a.acctNo != null ? a.acctNo : p.acctNo || '').toString().replace(/\s+/g, '');
+    return {
+      bank,
+      acctNo,
+      ifsc: (a.ifsc != null ? a.ifsc : p.ifsc || '').toString().trim().toUpperCase(),
+      type: BANK_TYPES[a.type] ? a.type : (BANK_TYPES[p.type] ? p.type : 'current'),
+      label: (a.label != null ? a.label : p.label || '').toString().trim()
+        || [bank, acctNo ? '··' + acctNo.slice(-4) : ''].filter(Boolean).join(' ') || 'Bank account',
+      openingBalance: a.openingBalance != null ? (+a.openingBalance || 0) : (+p.openingBalance || 0),
+      openingDate: (a.openingDate != null ? a.openingDate : p.openingDate || '').toString().trim()
+    };
+  }
+  function addBankAccount(a) {
+    const acc = Object.assign({ id: 'BA' + idStamp(), archived: false, createdAt: nowISO() }, _cleanBankAccount(a || {}));
+    S.BANK_ACCOUNTS.push(acc);
+    logAudit('create', 'bank_account', acc, { ref: acc.label });
+    commit(); _mirrorBankAccount(acc);
+    return acc;
+  }
+  function updateBankAccount(id, patch) {
+    const acc = bankAccountById(id); if (!acc) return null;
+    Object.assign(acc, _cleanBankAccount(patch || {}, acc));
+    logAudit('edit', 'bank_account', acc, { ref: acc.label });
+    commit(); _mirrorBankAccount(acc);
+    return acc;
+  }
+  function setBankAccountArchived(id, archived) {
+    const acc = bankAccountById(id); if (!acc) return null;
+    acc.archived = !!archived;
+    logAudit(archived ? 'archive' : 'restore', 'bank_account', acc, { ref: acc.label });
+    commit();
+    return acc;
+  }
+
   /* ── Loans helpers ───────────────────────────────────────────── */
   function loanRows() {
     return ALL_LOANS.filter(l => l.company === ACTIVE_CO).map((l, i) => {
@@ -1583,6 +1645,10 @@
     get recon() { return (S.RECON || (S.RECON = { txns: [] })); },
     saveRecon() { commit(); try { if (window.QLReconAPI) window.QLReconAPI.mirror(ACTIVE_CO, S.RECON); } catch (_) {} },
 
+    // ── Bank accounts (multi-bank) ──
+    BANK_TYPES, bankAccounts, bankAccountById, bankAccountLabel,
+    addBankAccount, updateBankAccount, setBankAccountArchived,
+
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal, wipeData,
     upsertParty, deleteParty,
@@ -1632,3 +1698,5 @@
 /* build: refunds 1783950533 */
 
 /* build m16: toISODate normalises bill dates at every entry point (fixes Dec purchases stored as "10-Dec-25" → never grouped into a month) */
+
+/* build m17: BANK_ACCOUNTS store (multi-bank Phase 1) */

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r2"><link rel="stylesheet" href="./pages.css?v=m2">
 <script src="ql-api.js"></script>
-<script src="./data.js?v=m16"></script>
+<script src="./data.js?v=m17"></script>
 <link rel="stylesheet" href="./mobile.css?v=m4">
 </head>
 <body class="ql-v2">
@@ -57,6 +57,18 @@
         <button class="ql-btn ql-btn-secondary" id="teamAdd" style="flex:none">+ Add employee</button>
       </div>
       <div id="teamList" style="margin-top:var(--ql-space-4)"></div>
+    </div>
+
+    <!-- BANK ACCOUNTS (multi-bank, per firm) -->
+    <div class="card" id="bankCard" style="margin-top:var(--ql-space-5)">
+      <div class="ft-head">
+        <div>
+          <h3 class="ft-title">Bank accounts</h3>
+          <div class="ft-note">The accounts <b><span id="bankCo">this firm</span></b> banks with. Statements import into an account, so each bank keeps its own balance — and transfers between your own accounts never count as income or expense.</div>
+        </div>
+        <button class="ql-btn ql-btn-secondary" id="bankAdd" style="flex:none">+ Add account</button>
+      </div>
+      <div id="bankList" style="margin-top:var(--ql-space-4)"></div>
     </div>
 
     <!-- DATA MANAGEMENT: Trash + Audit + Backup -->
@@ -310,9 +322,62 @@ $('#teamAdd').addEventListener('click', () => {
     } });
 });
 
-window.__qlOnSwitchCompany = () => { render(); renderDM(); };
-window.__qlRefresh = () => { render(); renderDM(); };
-QLD.init(() => { render(); renderDM(); });
+/* ── Bank accounts (multi-bank) ─────────────────────────────────── */
+const BANK_SPECS = () => [
+  { k: 'bank', label: 'Bank name', req: true, ph: 'e.g. Bank of Baroda' },
+  { k: 'label', label: 'Nickname (shown in the app)', ph: 'e.g. BOB Current — Gotan' },
+  { k: 'acctNo', label: 'Account number', ph: '335805…' },
+  { k: 'ifsc', label: 'IFSC', upper: true, ph: 'BARB0MERTAC' },
+  { k: 'type', label: 'Account type', type: 'select', opts: Object.entries(QLD.BANK_TYPES) },
+  { k: 'openingBalance', label: 'Opening balance (₹)', type: 'number', ph: '0' },
+  { k: 'openingDate', label: 'Opening balance as on', type: 'date' }
+];
+let bankShowArch = false;
+function renderBanks() {
+  $('#bankCo').textContent = QLD.co ? QLD.co.short : 'this firm';
+  const live = QLD.bankAccounts(), arch = QLD.bankAccounts(true).filter(a => a.archived);
+  const rowB = (a, isArch) => `<div class="ft-row" style="${isArch ? 'opacity:.55' : ''}">
+    <div class="ft-info">
+      <div class="ft-label">${esc(a.label)} <span class="ft-lock">${esc(QLD.BANK_TYPES[a.type] || 'Current')}</span>${isArch ? '<span class="ft-lock" style="background:#fef3c7;color:#92400e">Archived</span>' : ''}</div>
+      <div class="ft-desc">${esc(a.bank)}${a.acctNo ? ' · A/C ' + esc(a.acctNo) : ''}${a.ifsc ? ' · ' + esc(a.ifsc) : ''}${a.openingBalance ? ' · opening ' + fCn(a.openingBalance) + (a.openingDate ? ' as on ' + esc(a.openingDate) : '') : ''}</div>
+    </div>
+    <div style="display:flex;gap:6px;flex:none">
+      ${isArch
+        ? `<button class="ql-btn ql-btn-secondary" data-bank-unarch="${esc(a.id)}">Restore</button>`
+        : `<button class="ql-btn ql-btn-secondary" data-bank-edit="${esc(a.id)}">Edit</button>
+           <button class="ql-btn ql-btn-secondary" data-bank-arch="${esc(a.id)}">Archive</button>`}
+    </div>
+  </div>`;
+  $('#bankList').innerHTML = (live.length
+    ? live.map(a => rowB(a, false)).join('')
+    : `<div class="ft-desc" style="padding:10px 2px">No bank accounts yet. Add the accounts this firm banks with — statement imports will then land in the right account.</div>`)
+    + (arch.length ? `<a href="#" id="bankArchToggle" class="ft-desc" style="display:inline-block;margin-top:8px">${bankShowArch ? 'Hide' : 'Show'} ${arch.length} archived</a>` : '')
+    + (bankShowArch ? arch.map(a => rowB(a, true)).join('') : '');
+  const at = $('#bankArchToggle'); if (at) at.onclick = e => { e.preventDefault(); bankShowArch = !bankShowArch; renderBanks(); };
+  document.querySelectorAll('[data-bank-edit]').forEach(b => b.onclick = () => {
+    const a = QLD.bankAccountById(b.dataset.bankEdit); if (!a) return;
+    QLShell.openForm({ title: 'Edit bank account', sub: a.label, specs: BANK_SPECS(), saveLabel: 'Save', initial: a,
+      onSave(v) { if (!v.bank) { toast('Bank name is required'); return false; } QLD.updateBankAccount(a.id, v); toast('Account updated'); renderBanks(); } });
+  });
+  document.querySelectorAll('[data-bank-arch]').forEach(b => b.onclick = () => {
+    const a = QLD.bankAccountById(b.dataset.bankArch); if (!a) return;
+    QLShell.confirmDelete({ title: 'Archive ' + a.label + '?', reason: false,
+      desc: 'The account is hidden from pickers and new imports. Nothing is deleted — transactions already imported keep pointing at it, and you can restore it here anytime.',
+      confirmLabel: 'Archive account',
+      onConfirm() { QLD.setBankAccountArchived(a.id, true); toast('Account archived'); renderBanks(); } });
+  });
+  document.querySelectorAll('[data-bank-unarch]').forEach(b => b.onclick = () => {
+    QLD.setBankAccountArchived(b.dataset.bankUnarch, false); toast('Account restored'); renderBanks();
+  });
+}
+$('#bankAdd').addEventListener('click', () => {
+  QLShell.openForm({ title: 'Add bank account', sub: (QLD.co ? QLD.co.short : '') + ' · multi-bank', specs: BANK_SPECS(), saveLabel: 'Add account', initial: { type: 'current' },
+    onSave(v) { if (!v.bank) { toast('Bank name is required'); return false; } QLD.addBankAccount(v); toast('Bank account added'); renderBanks(); } });
+});
+
+window.__qlOnSwitchCompany = () => { render(); renderDM(); renderBanks(); };
+window.__qlRefresh = () => { render(); renderDM(); renderBanks(); };
+QLD.init(() => { render(); renderDM(); renderBanks(); });
 renderTeam();
 </script>
 </body>
