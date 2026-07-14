@@ -13,6 +13,8 @@ const svg = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const IC = {
   up: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
   lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
   cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
   refresh: '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
   dl: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
@@ -653,13 +655,28 @@ function openUpload() {
         <div><div class="rc-pw-t">This statement is password-protected</div>
         <div class="rc-pw-s">${wrong ? 'That password didn\'t work — check and try again.' : 'Enter the password your bank uses to open <b>' + esc(f.name) + '</b>.'}</div></div></div>
       <div class="rc-pw-row">
-        <input class="rc-pw-in" id="rcPw" type="password" autocomplete="off" placeholder="Statement password" aria-label="Statement password">
+        <div class="rc-pw-wrap">
+          <input class="rc-pw-in" id="rcPw" type="password" autocomplete="off" placeholder="Statement password" aria-label="Statement password">
+          <button type="button" class="rc-pw-eye" id="rcPwEye" aria-label="Show password" aria-pressed="false" title="Show password">${svg(IC.eye)}</button>
+        </div>
         <button class="rc-btn rc-btn-primary" id="rcPwGo">Unlock</button>
       </div>
       <div class="rc-pw-n">Often your PAN, date of birth (DDMMYYYY), or customer ID — check the email the bank sent it in. It's used only on this device to open the file.</div>
     </div>`;
-    const inp = document.getElementById('rcPw'), btn = document.getElementById('rcPwGo');
+    const inp = document.getElementById('rcPw'), btn = document.getElementById('rcPwGo'), eye = document.getElementById('rcPwEye');
     inp.focus();
+    // Reveal toggle — bank passwords are long (PAN+DOB), so let the user check it.
+    // Restore focus + caret afterwards, otherwise switching type drops the cursor.
+    eye.onclick = () => {
+      const show = inp.type === 'password';
+      const at = inp.selectionStart;
+      inp.type = show ? 'text' : 'password';
+      eye.innerHTML = svg(show ? IC.eyeOff : IC.eye);
+      eye.setAttribute('aria-pressed', show ? 'true' : 'false');
+      const lbl = show ? 'Hide password' : 'Show password';
+      eye.setAttribute('aria-label', lbl); eye.setAttribute('title', lbl);
+      inp.focus(); try { inp.setSelectionRange(at, at); } catch (_) {}
+    };
     const submit = () => { const pw = inp.value; if (!pw) { inp.focus(); return; } go(f, pw); };
     btn.onclick = submit;
     inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } };
@@ -990,3 +1007,5 @@ window.__qlOnSwitchCompany = id => { ST.monthInit = false; Q.switchCompany(id, r
 if (Q.init) Q.init(render); else render();
 
 /* build rd7: ask for the password on a locked bank statement instead of showing pdf.js raw error */
+
+/* build rd8: eye toggle on the statement password field */
