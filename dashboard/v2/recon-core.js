@@ -323,6 +323,15 @@
      second was flagged Duplicate. Full-raw + direction + amount + date keeps
      genuinely different lines apart while still catching real duplicates. */
   function dedupeKey(np, txn) {
+    // ACCOUNT-SCOPED (multi-bank): the same UTR landing in TWO DIFFERENT own
+    // accounts is two real transactions (e.g. a customer paying BOB once and
+    // HDFC once with the bank reusing a ref), never a duplicate — so the key
+    // carries the account. Legacy txns without accountId keep the exact old
+    // key; the caller handles legacy-vs-scoped compatibility (see reconcile.js).
+    var scope = txn.accountId ? 'A' + txn.accountId + '|' : '';
+    return scope + dedupeKeyBase(np, txn);
+  }
+  function dedupeKeyBase(np, txn) {
     var dir = (txn.credit || 0) > 0 ? 'C' : 'D', amt = Math.round((txn.credit || 0) + (txn.debit || 0));
     var sig = normName(np.raw || np.clean || '');
     if (np.utr) return dir + '|UTR|' + np.utr + '|' + amt + '|' + sig;
@@ -356,9 +365,11 @@
   return {
     normName: normName, tokens: tokens, distinctive: distinctive, daysBetween: daysBetween,
     parseNarration: parseNarration, nameMatch: nameMatch, classifyDebit: classifyDebit,
-    scoreMatch: scoreMatch, bestMatch: bestMatch, dedupeKey: dedupeKey, detectBank: detectBank,
+    scoreMatch: scoreMatch, bestMatch: bestMatch, dedupeKey: dedupeKey, dedupeKeyBase: dedupeKeyBase, detectBank: detectBank,
     splitStatus: splitStatus, suggestAlloc: suggestAlloc, STOP: STOP,
     signedBalance: signedBalance, inferDirections: inferDirections,
     classifyTxn: classifyTxn, classifyResidual: classifyResidual, directionCat: directionCat, selfPairs: selfPairs
   };
 });
+
+/* build: account-scoped dedupeKey + dedupeKeyBase */

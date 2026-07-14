@@ -217,5 +217,22 @@ ok('different SELF ids never pair by amount alone', RC.selfPairs(legs2).length =
   ok('no party token → null (stays Unknown, never fabricated)', none === null, none);
 })();
 
+// ── account-scoped dedupe (multi-bank Phase 2) ─────────────────────────────
+// The SAME bank line (same UTR/amount/date) hitting two DIFFERENT own accounts
+// is two real transactions, not a duplicate. Within one account it still dedupes,
+// and legacy txns without accountId keep the exact pre-multi-bank key.
+(function () {
+  var np = RC.parseNarration('RTGS-UTIBR52026063000811223-VEGA MINERAL INDUSTRIES');
+  var line = { credit: 100000, debit: 0, date: '2026-12-31' };
+  var inBOB = Object.assign({ accountId: 'BA1' }, line);
+  var inHDFC = Object.assign({ accountId: 'BA2' }, line);
+  ok('same line, two accounts → DIFFERENT keys', RC.dedupeKey(np, inBOB) !== RC.dedupeKey(np, inHDFC));
+  ok('same line, same account → same key', RC.dedupeKey(np, inBOB) === RC.dedupeKey(np, Object.assign({ accountId: 'BA1' }, line)));
+  ok('scoped key carries the account', RC.dedupeKey(np, inBOB).indexOf('ABA1|') === 0);
+  ok('legacy txn (no accountId) → key unchanged (= base)', RC.dedupeKey(np, line) === RC.dedupeKeyBase(np, line));
+  ok('base key is account-blind', RC.dedupeKeyBase(np, inBOB) === RC.dedupeKeyBase(np, inHDFC));
+  ok('base key preserves UTR form', RC.dedupeKeyBase(np, line).indexOf('|UTR|') > 0);
+})();
+
 console.log('\n' + (fail === 0 ? '✅ ALL ' + pass + ' TESTS PASSED' : '❌ ' + fail + ' FAILED, ' + pass + ' passed'));
 process.exit(fail ? 1 : 0);

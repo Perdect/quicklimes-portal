@@ -129,14 +129,23 @@ function runMatchAll(force) {
       });
     } catch (_) {}
   }
-  // duplicate detection — UTR first, else amount + clean-name + date
-  const seenKey = {}, seenBill = {};
+  // duplicate detection — UTR first, else amount + clean-name + date.
+  // ACCOUNT-SCOPED: the same line in two DIFFERENT own accounts is two real
+  // transactions. But legacy rows (imported before multi-bank, no accountId)
+  // must stay conservative: they match ANY account until Phase-6 backfill
+  // assigns them one — otherwise a re-import into a named account would slip
+  // past the old account-less copy and double-count.
+  const seenKey = {}, seenLegacyBase = {}, seenAnyBase = {}, seenBill = {};
   arr.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach(t => {
     // manual rows keep their status but still REGISTER their key, so a
     // re-imported copy of a manually-confirmed line is caught as a duplicate
-    const key = RC.dedupeKey(npOf(t), t);
-    if (seenKey[key]) { if (!(t.m && t.m.manual)) { t.m.status = 'duplicate'; t.m.reasons = ['Duplicate of an earlier transaction']; } }
-    else seenKey[key] = 1;
+    const key = RC.dedupeKey(npOf(t), t);                 // scoped when t.accountId is set
+    const base = RC.dedupeKeyBase(npOf(t), t);            // account-blind signature
+    const isDup = seenKey[key]                            // same account (or both legacy)
+      || (t.accountId ? seenLegacyBase[base]              // scoped row vs a legacy copy
+                      : seenAnyBase[base]);               // legacy row vs anything
+    if (isDup) { if (!(t.m && t.m.manual)) { t.m.status = 'duplicate'; t.m.reasons = ['Duplicate of an earlier transaction']; } }
+    seenKey[key] = 1; seenAnyBase[base] = 1; if (!t.accountId) seenLegacyBase[base] = 1;
     if (t.m && t.m.manual) return;
     // Two txns claiming the same bill is only a duplicate when BOTH claim it
     // in full ('matched') — several partial/over payments against one running
@@ -691,9 +700,56 @@ function openUpload() {
       msg.innerHTML = `<div class="rc-err">${esc(e.message || 'Could not read this file. Export it as CSV or Excel and try again.')}</div>`; return;
     }
     if (!parsed.length) { msg.innerHTML = `<div class="rc-err">No transactions found. Make sure the file has Date and Debit/Credit columns (or export as CSV).</div>`; return; }
+    askAccount(f, parsed);
+  };
+  const finishImport = parsed => {
     Q.recon.txns.push(...parsed); runMatchAll();
     const matched = parsed.filter(t => isLinked(t)).length;
     close(); render(); toast('Imported ' + parsed.length + ' transactions · ' + matched + ' auto-matched', 'ok');
+  };
+  // Phase 2 (multi-bank): every statement imports INTO an account. detectBank
+  // pre-selects the matching one; the user can pick another or create one
+  // inline. "Continue without account" preserves the single-bank behaviour.
+  const askAccount = (f, parsed) => {
+    const accounts = (Q.bankAccounts ? Q.bankAccounts() : []);
+    const detected = parsed[0].bank || '';
+    if (!accounts.length && !detected) { finishImport(parsed); return; }   // nothing to choose from — behave like today
+    const dl = detected.toLowerCase();
+    const hit = accounts.find(a => { const ab = (a.bank || '').toLowerCase(); return dl && ab && (ab.includes(dl) || dl.includes(ab)); })
+      || accounts.find(a => dl && (a.label || '').toLowerCase().includes(dl));
+    const pre = hit ? hit.id : (accounts.length === 1 ? accounts[0].id : '__new');
+    msg.innerHTML = `<div class="rc-pw">
+      <div class="rc-pw-head">${svg('<line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/>')}
+        <div><div class="rc-pw-t">Which account is this statement from?</div>
+        <div class="rc-pw-s">${parsed.length} transactions read from <b>${esc(f.name)}</b>${detected ? ' · looks like a <b>' + esc(detected) + '</b> statement' : ''}. Each account keeps its own balance.</div></div></div>
+      <div class="rc-pw-row">
+        <select class="rc-pw-in" id="rcAccSel" aria-label="Bank account">
+          ${accounts.map(a => `<option value="${esc(a.id)}" ${a.id === pre ? 'selected' : ''}>${esc(a.label)}${a.acctNo ? ' · ··' + esc(String(a.acctNo).slice(-4)) : ''}</option>`).join('')}
+          <option value="__new" ${pre === '__new' ? 'selected' : ''}>➕ Create new account…</option>
+        </select>
+        <button class="rc-btn rc-btn-primary" id="rcAccGo">Import</button>
+      </div>
+      <div class="rc-pw-row" id="rcAccNew" style="display:${pre === '__new' ? 'flex' : 'none'};gap:8px;flex-wrap:wrap">
+        <input class="rc-pw-in" id="rcAccBank" placeholder="Bank name" value="${esc(detected)}" style="flex:2;min-width:120px">
+        <input class="rc-pw-in" id="rcAccLabel" placeholder="Nickname (optional)" style="flex:2;min-width:120px">
+        <select class="rc-pw-in" id="rcAccType" style="flex:1;min-width:90px">${Object.entries(Q.BANK_TYPES || { current: 'Current' }).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select>
+      </div>
+      <div class="rc-pw-n">Manage accounts in Settings → Bank accounts. <a href="#" id="rcAccSkip">Continue without assigning an account</a></div>
+    </div>`;
+    const sel = document.getElementById('rcAccSel');
+    sel.onchange = () => { document.getElementById('rcAccNew').style.display = sel.value === '__new' ? 'flex' : 'none'; };
+    document.getElementById('rcAccSkip').onclick = e => { e.preventDefault(); finishImport(parsed); };
+    document.getElementById('rcAccGo').onclick = () => {
+      let accId = sel.value;
+      if (accId === '__new') {
+        const bank = document.getElementById('rcAccBank').value.trim();
+        if (!bank) { document.getElementById('rcAccBank').focus(); return; }
+        const acc = Q.addBankAccount({ bank, label: document.getElementById('rcAccLabel').value.trim(), type: document.getElementById('rcAccType').value });
+        accId = acc.id;
+      }
+      parsed.forEach(t => { t.accountId = accId; });
+      finishImport(parsed);
+    };
   };
   file.onchange = () => go(file.files[0]);
   ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
@@ -1009,3 +1065,5 @@ if (Q.init) Q.init(render); else render();
 /* build rd7: ask for the password on a locked bank statement instead of showing pdf.js raw error */
 
 /* build rd8: eye toggle on the statement password field */
+
+/* build rd9: statement imports into a chosen bank account (multi-bank Phase 2) */
