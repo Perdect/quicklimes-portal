@@ -702,24 +702,10 @@ function openUpload() {
       <label class="rc-drop" id="rcDrop"><input type="file" id="rcFile" accept=".csv,.xlsx,.xls,.pdf" hidden>
         <span class="rc-drop-ic">${svg(IC.up)}</span><b>Choose a file or drop it here</b><span class="rc-drop-s">PDF · Excel (.xlsx/.xls) · CSV — one row per transaction with Date, Debit/Credit &amp; Balance</span></label>
       <div id="rcUpMsg" class="rc-upmsg"></div>
-      <div class="rc-note">Statement is read on your device. Credits match sales invoices, debits match purchase bills — for <b>${esc(Q.co.short || 'this firm')}</b>.</div>
-      ${txns().length ? `<div class="rc-note" style="margin-top:8px">Re-importing a statement you fixed? <a href="#" id="rcClearAll" style="color:var(--ql-danger-600);font-weight:600">Clear the ${txns().length} imported transaction${txns().length === 1 ? '' : 's'}</a> first so the fresh rows don't read as duplicates. Manual links posted to party ledgers are reversed too.</div>` : ''}
+      <div class="rc-note">Statement is read on your device. Credits match sales invoices, debits match purchase bills — for <b>${esc(Q.co.short || 'this firm')}</b>. Re-imports are detected as duplicates automatically.</div>
     </div></div>`;
   const close = () => b.remove();
   document.getElementById('rcUX').onclick = close;
-  const clearBtn = document.getElementById('rcClearAll');
-  if (clearBtn) clearBtn.onclick = e => {
-    e.preventDefault();
-    QLShell.confirmDelete({
-      title: 'Remove all ' + txns().length + ' bank transactions?',
-      desc: 'On-account ledger postings made from them will be reversed. Your invoices, bills and payments are untouched. This clears the imported statement so you can re-upload.',
-      needType: 'CLEAR', confirmLabel: 'Remove all',
-      onConfirm() {
-        txns().forEach(t => { const m = t.m || {}; if (m.kind === 'ledger' && m.ledgerEntryId && Q.reverseLedgerEntry) { try { Q.reverseLedgerEntry(m.partyIdx, m.ledgerEntryId); } catch (_) {} } });
-        Q.recon.txns = []; Q.saveRecon(); close(); render(); toast('Imported transactions cleared — upload the statement again', 'ok');
-      }
-    });
-  };
   const drop = document.getElementById('rcDrop'), file = document.getElementById('rcFile'), msg = document.getElementById('rcUpMsg');
   // Banks mail statements locked with a PAN/DOB-style password. Ask for it in
   // place and retry — the password stays in this tab (handed to pdf.js only)
@@ -1127,7 +1113,10 @@ if (QLShell.registerAssistIntent) QLShell.registerAssistIntent((q, t, H) => {
 
 window.__qlRefresh = render;
 window.__qlOnSwitchCompany = id => { ST.monthInit = false; ST.acc = ''; Q.switchCompany(id, () => { runBackfill(); render(); }); };
-if (Q.init) Q.init(() => { runBackfill(); render(); }); else render();
+// ?upload=1 deep-link (e.g. "Upload statement" on the Loans page) opens the
+// upload modal straight away, once, after the first paint.
+let _autoUpload = /[?&]upload=/.test(location.search);
+if (Q.init) Q.init(() => { runBackfill(); render(); if (_autoUpload) { _autoUpload = false; try { openUpload(); } catch (_) {} } }); else render();
 
 /* build rd7: ask for the password on a locked bank statement instead of showing pdf.js raw error */
 
@@ -1138,3 +1127,5 @@ if (Q.init) Q.init(() => { runBackfill(); render(); }); else render();
 /* build rd10: account chips scope the whole Reconcile screen (multi-bank Phase 3) */
 
 /* build rd11: one-time account backfill + bulk Assign account (multi-bank Phase 6) */
+
+/* build rd12: ?upload=1 deep-link; clear-all note removed (dedupe handles re-imports) */

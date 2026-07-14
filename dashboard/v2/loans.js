@@ -23,7 +23,13 @@ QLX.mount({
   icon: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M9 9h6M9 13h4"/>',
   data: () => Q.loanRows(), rowId: r => r.idx,
   subtitle: () => { const s = Q.loanSummary(); return `<b>${esc(Q.co.short)}</b> · ${s.count} loans · Outstanding <b>${fC(s.outstanding)}</b>`; },
-  tools: [{ label: 'Export', icon: IC.dl, onClick: () => exportLoans() }],
+  tools: [
+    // Loan-account statements go through the same Bank Reconciliation pipeline:
+    // this deep-links to reconcile with the upload modal open, where the user
+    // picks (or creates) a "Loan account" so EMIs land under it.
+    { label: 'Upload statement', icon: IC.up || '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => { location.href = 'reconcile.html?upload=1'; } },
+    { label: 'Export', icon: IC.dl, onClick: () => exportLoans() }
+  ],
   stats: () => {
     const s = Q.loanSummary();
     return [

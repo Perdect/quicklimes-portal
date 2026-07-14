@@ -1151,7 +1151,7 @@
      account to the relational store (recon.php add_account) so bank_txns
      rows can reference account_id. Legacy S.FINANCE.accounts (A1/A2
      placeholders) is untouched — this store supersedes it going forward. */
-  const BANK_TYPES = { current: 'Current', cc_od: 'CC / OD', savings: 'Savings' };
+  const BANK_TYPES = { current: 'Current', cc_od: 'CC / OD', savings: 'Savings', loan: 'Loan account' };
   function bankAccounts(includeArchived) {
     return S.BANK_ACCOUNTS.filter(a => includeArchived || !a.archived);
   }
