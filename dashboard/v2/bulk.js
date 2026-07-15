@@ -219,7 +219,7 @@
       vals[f.key] = (k && g[k] != null) ? String(g[k]) : '';
     });
     var bill = { id: 'b' + (SEQ++), kind: 'ocr', g: g, file: file, source: source, vals: vals };
-    var det = detectType(g, cfg); bill.type = det.type;
+    var det = detectType(g, cfg); bill.type = det.type; bill.typeWhy = det.why || '';
     // A confidently-detected opposite register is AUTO-ROUTED on import (not a
     // blocker): a purchase uploaded on Sales still lands in Purchase.
     if ((det.type === 'purchase' || det.type === 'sales') && cfg.kind && det.type !== cfg.kind) { bill.crossKind = det.type; bill.flag = ''; }
@@ -288,8 +288,17 @@
     // → SALE (we're the seller); else PURCHASE. Falls back to the buyer-GSTIN
     // heuristic, then the register we're on.
     var type = cfg.kind || 'purchase';
-    if (g.dir === 'sales' || g.dir === 'purchase') type = g.dir;
-    else if (g.buyergstin) type = 'purchase';
+    var why = 'No signal — filed on the ' + (cfg.kind === 'sales' ? 'Sales' : 'Purchase') + ' register you uploaded from';
+    if (g.dir === 'sales' || g.dir === 'purchase') {
+      type = g.dir;
+      // The AI path carries its own reason (extract-schema classify); the
+      // offline parser decides from the GSTINs. Say which, in the user's words —
+      // a register decision that cannot be questioned is one that cannot be
+      // debugged, and this exact decision silently moved a real purchase into
+      // the sales register.
+      why = (g._cls && g._cls.why) ? ('AI: ' + g._cls.why)
+          : (type === 'sales' ? 'Your GSTIN issued this bill' : 'Your GSTIN is the buyer on this bill');
+    } else if (g.buyergstin) { type = 'purchase'; why = 'Your GSTIN appears as the buyer'; }
     var flag = '';
     if ((type === 'purchase' || type === 'sales') && cfg.kind && type !== cfg.kind) {
       flag = 'Looks like a ' + (type === 'sales' ? 'Sales invoice' : 'Purchase bill') + ' — you\'re on the ' + (cfg.kind === 'sales' ? 'Sales' : 'Purchase') + ' register';
@@ -308,7 +317,7 @@
       flag = 'Your firm’s GSTIN is not set, so Sales and Purchase can’t be told apart — filed as ' +
              (type === 'sales' ? 'Sales' : 'Purchase') + ' for now. Add your GSTIN in Settings → Company profile, then check this.';
     }
-    return { type: type, flag: flag };
+    return { type: type, flag: flag, why: why };
   }
 
   /* rebuild the domain row from current vals; set validity status (NOT dupes) */
@@ -461,6 +470,10 @@
       '<div class="qlb-dh">' +
         '<div class="qlb-dh-l">' + (opts.back ? '<button class="qlb-back" id="qlbBack">‹ Back</button>' : '') +
           '<div><div class="qlb-dh-t">Review ' + esc(noun) + ' ' + typeBadge(bill) + ' ' + statBadge(bill) + '</div>' +
+          // WHY this register, in plain words. A "Sales" badge on a purchase bill
+          // with no explanation is exactly how a real customer purchase was
+          // quietly filed as their sale and nobody could see why.
+          (bill.typeWhy ? '<div class="qlb-dh-w">' + esc(bill.typeWhy) + '</div>' : '') +
           '<div class="qlb-dh-s">' + esc(bill.source || '') + '</div></div></div>' +
         '<button class="qlb-x" id="qlbDX">&times;</button>' +
       '</div>' +
@@ -663,6 +676,7 @@
       '.qlb-x{background:none;border:none;font-size:24px;line-height:1;color:var(--ql-text-muted,#94a3b8);cursor:pointer;padding:0 2px}',
       '.qlb-back{background:var(--ql-bg-subtle,#f1f5f9);border:none;border-radius:8px;padding:5px 9px;font-size:12.5px;font-weight:600;color:var(--ql-text-secondary,#475569);cursor:pointer}',
       /* warnings */
+      '.qlb-dh-w{font-size:11.5px;color:#64748b;margin-top:3px;line-height:1.4}',
       '.qlb-warn{margin:10px 18px 0;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:12.5px;border-radius:9px;padding:8px 11px}',
       '.qlb-warn-r{background:#fef2f2;border-color:#fecaca;color:#b91c1c}',
       /* drawer body */

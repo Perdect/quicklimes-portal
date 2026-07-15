@@ -97,8 +97,16 @@
     var ownIsSeller = sup && own.indexOf(sup) >= 0;
     if (ownIsBuyer && !ownIsSeller) return { kind: 'purchase', conf: 'high', why: 'Your GSTIN is the buyer' };
     if (ownIsSeller && !ownIsBuyer) return { kind: 'sales', conf: 'high', why: 'Your GSTIN issued it' };
-    if (!own.length) return { kind: hint || 'purchase', conf: 'low', why: 'Your firm’s GSTIN is not set — add it in Settings → Company profile' };
-    return { kind: hint || 'purchase', conf: 'low', why: 'Neither GSTIN on the bill is yours — filed where you uploaded it' };
+    // Be precise about WHY we could not tell — a vague or wrong reason is worse
+    // than none. "Neither GSTIN is yours" would be a LIE on a bill that plainly
+    // carries our GSTIN as the buyer; the truth is the model did not return it
+    // (buyerGstin is not a required field).
+    var where = ' — filed on the ' + (hint === 'sales' ? 'Sales' : 'Purchase') + ' register you uploaded from';
+    if (!own.length) return { kind: hint || 'purchase', conf: 'low', why: 'Your firm’s GSTIN is not set — add it in Settings → Company profile' + where };
+    if (!buy && !sup) return { kind: hint || 'purchase', conf: 'low', why: 'No GSTIN could be read from this bill' + where };
+    if (!buy) return { kind: hint || 'purchase', conf: 'low', why: 'The buyer’s GSTIN could not be read, so we can’t tell whose side we are on' + where };
+    if (!sup) return { kind: hint || 'purchase', conf: 'low', why: 'The supplier’s GSTIN could not be read' + where };
+    return { kind: hint || 'purchase', conf: 'low', why: 'Neither GSTIN on this bill is yours' + where };
   }
 
   /* ── duplicate keys ── */

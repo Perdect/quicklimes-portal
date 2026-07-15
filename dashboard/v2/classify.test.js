@@ -41,6 +41,16 @@ const bug = C(IOC, '', 'sales', OWN, 'purchase');
 eq('IOC petcoke, AI says documentType=sales, uploaded on Purchase -> stays PURCHASE', bug.kind, 'purchase');
 ok('...and explains itself', typeof bug.why === 'string' && bug.why.length > 10);
 ok('...at low confidence, so the UI can ask', bug.conf === 'low');
+// The reason must be TRUE. Our GSTIN IS on that bill (as buyer) — the model just
+// didn't return it. Saying "neither GSTIN is yours" would be a lie the user can
+// see through, and a system that explains itself wrongly is worse than silent.
+ok('...and the reason is accurate: the BUYER gstin was not read, not "neither is yours"',
+  /buyer.*GSTIN could not be read/i.test(bug.why) && !/Neither GSTIN/i.test(bug.why));
+ok('...and says where it filed it', /Purchase register/i.test(bug.why));
+const neither = C('99AAAAA1111A1Z9', '27BBBBB2222B1Z8', 'sales', OWN, 'purchase');
+ok('a bill where genuinely neither side is ours says exactly that', /Neither GSTIN on this bill is yours/i.test(neither.why));
+const noGst = C('', '', 'sales', OWN, 'purchase');
+ok('a bill with no readable GSTIN at all says that', /No GSTIN could be read/i.test(noGst.why));
 
 /* ── 2. documentType must NEVER decide the register ── */
 eq('documentType=sales cannot move a purchase-register upload', C(IOC, '', 'sales', OWN, 'purchase').kind, 'purchase');
