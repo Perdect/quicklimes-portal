@@ -601,6 +601,10 @@
     if (f.type === 'html') return `<div class="qlf-html">${f.html || ''}</div>`;
     const id = 'qf_' + f.k;
     const val = v == null ? '' : v;
+    // opts may be a FUNCTION so a field can build its list at open time from a
+    // live source (e.g. the industry list owned by ICPCore). f.opts.map would
+    // throw on a function, so resolve it once, here, for every field type.
+    if (typeof f.opts === 'function') f = Object.assign({}, f, { opts: f.opts() || [] });
     const lbl = `<label class="qlf-label" for="${id}">${f.label}${f.req ? ' <span class="qlf-req">*</span>' : ''}</label>`;
     let ctrl;
     if (f.type === 'select') {
@@ -769,6 +773,13 @@
     { k: 'name', label: 'Name', req: true, ph: 'Party name', full: true },
     { k: 'type', label: 'Type', type: 'select', opts: [['customer', 'Customer'], ['supplier', 'Supplier'], ['both', 'Both']] },
     { k: 'gstin', label: 'GSTIN', upper: true },
+    // Industry drives the ICP model: which markets actually earn you money, and
+    // what a good new lead looks like. Options come from ICPCore so this list
+    // can never drift from what the scorer understands.
+    { k: 'industry', label: 'Industry', type: 'select',
+      opts: () => [['', 'Not set — we\'ll guess from the name']].concat(
+        (window.ICPCore ? ICPCore.INDUSTRIES : []).map(i => [i.key, i.label])),
+      hint: 'What they use lime for. Confirming this turns a guess into a fact and sharpens every sales insight.' },
     { k: 'phone', label: 'Phone' },
     { k: 'state', label: 'State' },
     { k: 'opening', label: 'Opening balance (₹)', type: 'number', ph: '+ they owe you · − you owe them' },
@@ -806,7 +817,7 @@
           if (p) {
             p.opening = +v.opening || 0; p.creditLimit = +v.creditLimit || 0; p.creditDays = +v.creditDays || 0;
             if (v.notes) p.notes = v.notes;
-            ['wa', 'waAlt', 'lang', 'autoRemind', 'autoInvoice', 'autoStatement'].forEach(k => { if (v[k] !== undefined && v[k] !== '') p[k] = v[k]; });
+            ['industry', 'wa', 'waAlt', 'lang', 'autoRemind', 'autoInvoice', 'autoStatement'].forEach(k => { if (v[k] !== undefined && v[k] !== '') p[k] = v[k]; });
             window.QLD.commit();
           }
         }

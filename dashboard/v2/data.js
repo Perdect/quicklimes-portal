@@ -925,6 +925,7 @@
       // wa-core tests `=== false`, so translate here rather than teaching the
       // engine about this UI's encoding. Default is opt-IN (undefined -> true):
       // an existing party with no preference set still gets their invoice.
+      industry: p.industry || '',          // '' ⇒ ICPCore guesses from the name, and says it guessed
       wa: p.wa || '', waAlt: p.waAlt || '', lang: p.lang || 'en',
       autoRemind: p.autoRemind !== 'no', autoInvoice: p.autoInvoice !== 'no', autoStatement: p.autoStatement !== 'no'
     }));

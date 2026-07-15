@@ -344,7 +344,12 @@ QLX.mount({
   subtitle: () => { const rows = enriched(), cust = rows.filter(r => r.salesN > 0), active = cust.filter(r => r.salesRec <= 45).length; return `<b>${esc(Q.co.short)}</b> · ${cust.length} customers · ${active} active · AI health scoring live`; },
   primary: { label: 'Add Party', icon: IC.plus, onClick: () => QLShell.openPartyForm() },
   emptySub: 'Add a customer or supplier to start tracking invoices, payments and ledgers.',
-  tools: [{ label: 'Export', icon: IC.dl, onClick: () => exportParties() }],
+  tools: [
+    // Count = customers past their OWN reorder rhythm. "Sales Intelligence" is a
+    // menu item; "Sales Intelligence (4)" is a reason to open it.
+    { label: () => { try { const n = QLICP.board().filter(r => r.status === 'overdue' || r.status === 'due').length; return 'Sales Intelligence' + (n ? ' (' + n + ')' : ''); } catch (_) { return 'Sales Intelligence'; } },
+      icon: IC.spark || IC.eye, onClick: () => window.QLICP && QLICP.open() },
+{ label: 'Export', icon: IC.dl, onClick: () => exportParties() }],
   views: ['table', 'cards', 'analytics'],
   banner: rows => bannerHTML(rows),
   stats: () => {
