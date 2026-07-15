@@ -1,7 +1,7 @@
 /* QuickLimes v2 — service worker (installable PWA + offline shell).
    Local-first app: data lives in localStorage, so once the CSS/JS shell is cached
    the app opens offline. Never caches the /api backend or cross-origin requests. */
-const CACHE = 'ql-v2-cache-85';   // bumped: landed cost + bank-line entry matching + the glass Purchase Bill drawer
+const CACHE = 'ql-v2-cache-86';   // bumped: supplier + bill-no read off a pdf.js column-fused header
 
 self.addEventListener('install', () => self.skipWaiting());
 

@@ -373,6 +373,21 @@
             if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(tk)) continue;                 // date
             if (/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/i.test(tk)) continue;              // GSTIN
             if (/^(?:invoice|no|dated|date|number)$/i.test(tk)) continue;
+            /* This picker scores candidates by how near their COLUMN is to the
+               label's — which assumes column-aligned text. pdf.js does not give
+               that: it reads across the page and fuses the columns, so "nearest
+               column" becomes noise that lands on whatever happens to sit at the
+               same offset. On the 29-May bags bill it chose 342006 — Jodhpur's
+               PIN code, two lines below — over the real invoice number 165, and
+               presented it at 75% confidence.
+
+               So the obvious non-numbers are excluded explicitly rather than
+               trusted to lose on distance. The address fragments the original
+               comment already warned about ("Plot No 87") were never actually
+               skipped — only out-scored, which is not the same thing. */
+            var before = ln.slice(0, tm2.index);
+            if (/(?:plot|pin\s*code|pincode|phone|\bph\b|mob(?:ile)?|\btel\b|fax|room|flat|shop|floor|block|khasra|survey|\bward\b|batch|\bhsn\b|\bsac\b|\bpan\b|\btan\b)\s*(?:no\.?)?\s*[:.\-]?\s*$/i.test(before)) continue;
+            if (/^\d{6}$/.test(tk) && ADDR_CTX.test(ln)) continue;   // a PIN on an address line is never the bill number
             var dist = Math.abs(tm2.index - labelCol);
             if (dist < bestDist) { bestDist = dist; best = tk; }
           }
@@ -577,7 +592,32 @@
   /* ── supplier picker ─────────────────────────────────────────────────── */
   var CO_SUFFIX = /\b(ltd|limited|pvt|private|llp|traders?|trading|mines?|minerals?|industries|enterprises?|cement|company|corporation|corp|sons|agencies|associates|udyog|stores?|suppliers?|transport|roadlines|petro|petroleum|\boil\b|chemicals?|distributors?|marketing|steel|works)\b/i;
   var ADDR_RE = /\broad\b|street|\bnagar\b|\bdist\b|district|\bpin\b|tehsil|\bward\b|khasra|khasara|colony|\bmarg\b|\bsector\b|village|\bgidc\b|industrial|\barea\b|\bplot\b|\bnear\b|\bopp\b|behind|\bstate\b|rajasthan|gujarat|maharashtra|\bindia\b|\d{6}/i;
+  /* Address context WITHOUT the \d{6} alternative. ADDR_RE treats any line
+     carrying a 6-digit number as address-ish, which is fine for rejecting a name
+     but circular for judging a NUMBER: used there it would say "this 6-digit
+     token sits on an address line" of every 6-digit token, and throw away every
+     legitimate 6-digit invoice number. This asks the real question — does the
+     line read like an address? */
+  var ADDR_CTX = /\broad\b|street|\bnagar\b|\bdist\b|district|\bpin\b|tehsil|colony|\bmarg\b|\bsector\b|village|\bgidc\b|\bplot\b|\bnear\b|\bopp\b|behind|\bstate\b|rajasthan|gujarat|maharashtra|jodhpur|jaipur|nagaur|\bindia\b/i;
   function isCompanyish(s) { return CO_SUFFIX.test(s) || (/^[A-Z0-9 &.'()\-]{4,}$/.test(clean(s)) && clean(s).split(' ').length >= 2); }
+
+  /* ── the column-grid fuse ────────────────────────────────────────────────
+     A Tally / e-invoice header is two columns printed side by side: the seller's
+     letterhead on the left, the "Invoice No. | Dated" grid on the right. pdf.js
+     reads ACROSS them, so the app receives ONE line:
+
+         "Pooja Enterprises Invoice No. Dated"
+
+     goodName() then throws the whole line away for containing a label, and the
+     supplier comes out BLANK even though its name is the first two words — the
+     exact bug in the 29-May bags bill (GSTIN read at 97%, supplier empty).
+
+     Cutting at the label boundary recovers the name. Only KNOWN grid labels are
+     cut, and only the text BEFORE the first one is kept, so this can never
+     invent a name — if there is no label to cut at, it returns '' and the
+     caller falls through exactly as before. */
+  var GRID_LBL = /\s+(?:invoice\s*no\b|inv\s*no\b|bill\s*no\b|dated\b|delivery\s*note\b|mode\s*\/?\s*terms\b|terms\s*of\b|reference\s*no\b|other\s*reference|buyer'?’?s?\s*order\b|dispatch(?:ed)?\s*(?:doc|through)|destination\b|bill\s*of\s*lading|lr-?rr\s*no\b|motor\s*vehicle\b|e-?way\s*bill\b|ack\s*(?:no|date)\b|\birn\b|place\s*of\s*supply|state\s*name\b|gstin\s*\/?\s*uin\b|pin\s*code\b|phone\s*no\b|consignee\b|challan\s*no\b|vch\s*no\b|voucher\s*no\b)/i;
+  function cutGridLabel(s) { var c = clean(s); var m = GRID_LBL.exec(c); return m ? c.slice(0, m.index).trim() : ''; }
   // Collapse a phrase repeated twice — side-by-side "Bill To | Ship To" columns
   // merge on one visual line as "ARIF CHEMICAL LIME ARIF CHEMICAL LIME".
   function dedupePhrase(s) {
@@ -627,11 +667,27 @@
     }
     // 2) "M/s NAME" anywhere (strong seller signal on Indian bills)
     for (var j = 0; j < lines.length; j++) { var ms = lines[j].match(/\bm\/?s\.?\s+(.+)$/i); if (ms) { var v2 = goodName(ms[1], ownNames); if (v2) return { name: v2, conf: 0.88 }; } }
-    // 3) header company name — first company-like line at the top, before "Invoice".
-    for (var h = 0; h < Math.min(lines.length, 6); h++) {
-      if (/tax\s*invoice|bill\s*of\s*supply|estimate|quotation|proforma/i.test(lines[h])) break;
-      var v3 = goodName(lines[h], ownNames);
-      if (v3 && isCompanyish(lines[h])) return { name: v3, conf: CO_SUFFIX.test(lines[h]) ? 0.75 : 0.55 };
+    // 3) header company name — first company-like line at the top of the page.
+    //    The window is 8 lines, not 6: an e-invoice spends its first lines on
+    //    TAX INVOICE / IRN / Ack No. before the letterhead ever appears.
+    for (var h = 0; h < Math.min(lines.length, 8); h++) {
+      /* THERE IS NO `break` HERE, AND THAT IS THE FIX.
+         This loop used to stop at the first line matching /tax invoice/ — on the
+         theory that the seller's letterhead is always above the invoice title.
+         pdf.js prints "TAX INVOICE" as LINE 0 of nearly every e-invoice, so the
+         scan stopped before it started and the supplier came back blank while
+         its GSTIN read at 97%. goodName() already rejects a title line (and a
+         "Bill To:" line) on its own, so simply letting the loop run is enough —
+         no skip rule and no stop rule. Both of the guards I first wrote here
+         turned out to be redundant or actively harmful: stopping at the buyer
+         block handed the job to a looser later step that returned the BUYER. */
+      // The CUT is tried first, not as a fallback: goodName() happily accepts the
+      // fused line whole, so trying it first yields the supplier's name with
+      // "Invoice No. Dated" welded to the end of it. Only when there is no grid
+      // label to cut at (cut === '') does the raw line stand.
+      var cut3 = cutGridLabel(lines[h]);
+      var v3 = (cut3 && goodName(cut3, ownNames)) || goodName(lines[h], ownNames);
+      if (v3 && isCompanyish(v3)) return { name: v3, conf: CO_SUFFIX.test(v3) ? 0.75 : 0.55 };
     }
     // 4) near the seller GSTIN — name sits in the seller block; prefer a company-
     //    suffix line, skip labels ("GST Registration No") and addresses.
