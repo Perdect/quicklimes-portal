@@ -292,6 +292,24 @@
     var built = null; try { built = cfg.buildRow(function (k) { return bill.vals[k] != null ? bill.vals[k] : ''; }); } catch (_) {}
     bill.built = built;
     var missing = (cfg.fields || []).filter(function (f) { return f.required && !String(bill.vals[f.key] || '').trim(); });
+
+    // A REQUIRED DATE MUST PARSE, NOT MERELY EXIST.
+    // The reported bug: OCR reads the label instead of the value ("Dated :"),
+    // which is not empty, so the required check passes. buildRow then runs it
+    // through parseDate, gets '', and the bill saves with NO DATE — belonging to
+    // no month, invisible in every one, while the app cheerfully says "Saved".
+    // Uploaded, stored, and gone. Treat an unparseable date as missing so the
+    // user is asked for it instead of losing the bill.
+    (cfg.fields || []).forEach(function (f) {
+      if (!(f.type === 'date' || f.key === 'date')) return;
+      var raw = String(bill.vals[f.key] || '').trim();
+      if (!raw) return;                                    // already counted as missing above
+      var iso = (window.QLFin && QLFin.parseDate) ? QLFin.parseDate(raw) : raw;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ''))) {
+        bill.badDate = raw;
+        if (missing.indexOf(f) < 0) missing.push(f);
+      } else { bill.badDate = null; }
+    });
     var oneOfFail = (cfg.requireOneOf || []).some(function (grp) { return !grp.some(function (k) { return String(bill.vals[k] || '').trim(); }); });
     bill.missing = missing.map(function (f) { return f.label; });
     // live review-field recompute (a field the user filled is no longer "review")
@@ -306,12 +324,18 @@
     var hasName = nk && String(bill.vals[nk] || '').trim();
     var gv = gk ? String(bill.vals[gk] || '').toUpperCase().replace(/\s/g, '') : '';
     var hasGstin = gv && window.QLExtract && QLExtract.validGstin(gv);
-    var onlyPartyMissing = missing.length === 1 && nk && missing[0] && cfg.fields.filter(function (f) { return f.required && !String(bill.vals[f.key] || '').trim(); }).every(function (f) { return f.key === nk; });
+    // "only the party name is missing" must mean exactly that: missing === [name].
+    // This used to re-filter for EMPTY required fields and call .every() on the
+    // result — and [].every() is vacuously TRUE, so ANY single missing field
+    // that wasn't empty (e.g. a date that is present but unreadable) was
+    // misreported as "Customer name unread". Compare the field directly.
+    var onlyPartyMissing = missing.length === 1 && nk && missing[0] && missing[0].key === nk;
 
     bill.reason = '';
     if (!built) bill.reason = 'Could not build the row (check amounts).';
     else if (missing.length) {
       if (onlyPartyMissing && hasGstin) { bill.reason = 'Customer name unread — recognised by GSTIN ' + gv + '. Confirm the party.'; }
+      else if (bill.badDate) bill.reason = 'Couldn’t read the bill date (“' + bill.badDate + '”) — type it in, or the bill saves with no date and shows in no month.';
       else bill.reason = 'Missing: ' + bill.missing.join(', ') + (hasGstin ? '' : (nk && !hasName ? ' · no GSTIN detected either' : ''));
     } else if (bill.crossKind) bill.reason = '→ imports to ' + (bill.crossKind === 'purchase' ? 'Purchase' : 'Sales') + ' register';
     else if (bill.flag) bill.reason = bill.flag;
