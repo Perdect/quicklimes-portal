@@ -119,19 +119,20 @@ function insights(L) {
   return out.slice(0, 4);
 }
 
+/* Every cell goes through QLShell.csvRow — the ONE place floats are rounded to
+   paise and text is preserved verbatim. Never hand-roll a CSV writer here: the
+   raw floats this ledger computes (18.15 × 12385 = 224787.74999999997) would
+   otherwise land in the file exactly as the UI never shows them. */
 function exportLedger(L) {
-  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const out = [[L.party.name, L.party.gstin || ''].map(q).join(',')];
-  out.push(['Opening', Math.round(L.openingForRange)].map(q).join(','));
-  out.push(['Date', 'Particulars', 'Ref', 'Debit', 'Credit', 'Balance'].map(q).join(','));
-  L.rows.forEach(e => out.push([e.date, e.desc, e.ref || '', e.dr || '', e.cr || '', Math.round(e.bal)].map(q).join(',')));
-  out.push(['Total', '', '', Math.round(L.totalDr), Math.round(L.totalCr), Math.round(L.closing)].map(q).join(','));
-  const blob = new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'Ledger_' + (L.party.name || 'party').replace(/[^\w]+/g, '_') + '.csv';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  const row = QLShell.csvRow;
+  const out = [
+    row([L.party.name, L.party.gstin || '']),
+    row(['Opening balance', L.openingForRange]),
+    row(['Date', 'Particulars', 'Ref', 'Debit', 'Credit', 'Balance']),
+    ...L.rows.map(e => row([e.date, e.desc, e.ref || '', e.dr || '', e.cr || '', e.bal])),
+    row(['Total', '', '', L.totalDr, L.totalCr, L.closing])
+  ];
+  QLShell.downloadCSV('Ledger_' + (L.party.name || 'party').replace(/[^\w]+/g, '_'), out.join('\r\n'));
   QLShell.toast('Statement exported — ' + L.rows.length + ' entries', 'ok');
 }
 

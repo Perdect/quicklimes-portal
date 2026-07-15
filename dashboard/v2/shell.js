@@ -1430,18 +1430,36 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     if (m) return parseFloat(m[1].replace(/,/g, ''));
     return null;
   }
+  /* ══════════ CSV export — ONE rule for every download ══════════
+     Money in this app is computed (qty × rate, ± GST), so raw JS floats carry
+     binary noise: 18.15 * 12385 === 224787.74999999997, not 224787.75. Writing
+     String(value) into a file leaks that noise, and a spreadsheet then renders
+     every digit ("244282.500000000000"). The UI never shows it because every
+     screen formats through fC(). So exports must format too — csvCell is that
+     single choke point, and every exporter MUST go through it.
+
+     Numbers → rounded to 2 dp (paise) and emitted UNQUOTED so spreadsheets
+     treat them as numbers, not text. Everything else (invoice/bill numbers,
+     GSTIN, refs) is quoted and preserved byte-for-byte — never coerced. */
+  function csvCell(c) {
+    if (c == null) return '""';
+    if (typeof c === 'number') {
+      if (!isFinite(c)) return '""';                       // NaN/Infinity → blank, never "NaN"
+      return String(Math.round(c * 100) / 100);            // unquoted → a real number in Excel
+    }
+    // A numeric STRING stays text (leading zeros / long IDs like a UTR survive).
+    return '"' + String(c).replace(/"/g, '""') + '"';
+  }
+  const csvRow = cells => cells.map(csvCell).join(',');
+  function downloadCSV(name, text) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' }));
+    a.download = /\.csv$/i.test(name) ? name : name + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
   function exportCSV(name, headers, rows) {
-    // Round numeric cells (and numeric strings) to 2 dp so floating-point noise
-    // like 1765.1500000000001 / 35303.00000000000 exports as 1765.15 / 35303.
-    const num = c => {
-      if (typeof c === 'number' && isFinite(c)) return Math.round(c * 100) / 100;
-      if (typeof c === 'string' && /^-?\d+(\.\d+)?$/.test(c.trim())) { const n = parseFloat(c); if (isFinite(n)) return Math.round(n * 100) / 100; }
-      return c;
-    };
-    const esc2 = c => { c = num(c); return `"${String(c == null ? '' : c).replace(/"/g, '""')}"`; };
-    const csv = [headers.join(','), ...rows.map(r => r.map(esc2).join(','))].join('\n');
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
-    a.download = name + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    downloadCSV(name, [csvRow(headers), ...rows.map(csvRow)].join('\r\n'));
   }
   // Pages can register their own copilot intents (first match wins) — e.g.
   // reconcile.html answers "which payments are duplicates" from live recon state.
@@ -1745,7 +1763,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
     // form modals + row action menus
     closeModal, openForm, confirmDelete, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
-    rowMenu, printInvoice, exportCSV,
+    rowMenu, printInvoice, exportCSV, csvCell, csvRow, downloadCSV,
     _comboFilter, _comboFocus, _comboBlur, _comboPick, _comboKey,
     formPrompt(title, specs, onSave, sub) { openForm({ title, sub, specs, saveLabel: 'Save', initial: {}, onSave(v) { onSave(v); } }); },
     getInvoiceHTML(idx) { const d = window.QLD.invoiceData(idx); return d ? invoiceHTML(d) : ''; },

@@ -89,10 +89,8 @@ function exportMonthReport() {
   const P = Q.purchaseRows().filter(r => inM(r.date) && r.status !== 'cancelled');
   const L = (Q.paymentsLedger ? Q.paymentsLedger() : []).filter(e => inM(e.date));
   const M = monthMetrics();
-  // Money values come from float math — round to paise so the CSV never shows
-  // artifacts like 3170529.6000000006.
-  const q = v => { if (typeof v === 'number' && isFinite(v)) v = Math.round(v * 100) / 100; return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
-  const row = a => a.map(q).join(',');
+  // One shared rule for every export (rounds floats to paise, preserves text).
+  const row = a => QLShell.csvRow(a);
   const out = [];
   out.push(row(['QuickLimes month report', Q.co.short || '', lbl]));
   out.push(row(['Generated', new Date().toLocaleString('en-IN')]));
