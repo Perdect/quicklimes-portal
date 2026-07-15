@@ -93,30 +93,35 @@
        <div class="qlm-h-actions">
          <button class="qlm-h-btn" id="qlmSearch" aria-label="Search">${IC.search}</button>
          <button class="qlm-h-btn" id="qlmBell" aria-label="Notifications">${IC.bell}<span class="qlm-h-badge" id="qlmBellBadge" hidden>0</span></button>
-         <button class="qlm-h-avatar" id="qlmAvatar" data-avatar data-profile-trigger>D</button>
+         <button class="qlm-h-avatar" id="qlmAvatar" data-avatar>D</button>
        </div>`;
+    /* NOTE: no data-profile-trigger on the mobile avatar. The shell binds that
+       attribute to openProfileMenu(), which positions a DESKTOP dropdown with
+       `top = trigger.top - 8 - menuHeight` — against a header at y≈10 that is a
+       negative top, so the menu hung off the top of the screen, clipped, floating
+       over the title. Mobile opens a native sheet instead (openProfileSheet). */
     // pull-to-refresh indicator
     const ptr = el('div', 'qlm-ptr', IC.refresh);
     ptr.id = 'qlmPtr';
     // bottom nav
     const nav = el('nav', 'qlm-bottomnav');
     nav.innerHTML = TABS.map(t => `<button class="qlm-tab" data-tab="${t.key}">${t.icon}<span>${t.label}</span></button>`).join('');
-    // fab
-    const fab = el('button', 'qlm-fab', IC.plus);
-    fab.id = 'qlmFab'; fab.setAttribute('aria-label', 'New');
+    /* No FAB. Removed by request, and it had not earned its place: it floated over
+       the content on every screen, covered the last table row, and every page it
+       appeared on already has its own add/upload button. A permanent button that
+       guesses what you meant to create is worse than the specific one already on
+       the page. fabAction() is gone with it rather than left dangling. */
 
     document.body.appendChild(h);
     document.body.appendChild(ptr);
     document.body.appendChild(nav);
-    document.body.appendChild(fab);
 
     // wire
     $('qlmSearch').onclick = () => window.QLShell && QLShell.openPalette();
     $('qlmBell').onclick = () => window.QLShell && QLShell.openNotifications();
-    $('qlmAvatar').onclick = () => { const pm = $('profileMenu'); if (pm) pm.classList.toggle('open'); };
+    $('qlmAvatar').onclick = openProfileSheet;
     $('qlmCo').onclick = openCoSwitch;
     $('qlmBack').onclick = () => history.length > 1 ? history.back() : (location.href = 'dashboard.html');
-    fab.onclick = fabAction;
     nav.querySelectorAll('.qlm-tab').forEach(b => b.onclick = () => onTab(b.dataset.tab));
     wirePullToRefresh();
     _built = true;
@@ -165,6 +170,43 @@
     })));
   }
 
+  /* ═══════════════ PROFILE — a native sheet, not a stray dropdown ═══════════════
+     The shell's #profileMenu is a desktop dropdown. On a phone it opened clipped
+     against the top of the screen, floating over the title, with no company
+     switcher in it — the thing that looked "broken".
+
+     This MIRRORS that menu rather than re-listing it: every real item is read off
+     #profileMenu and each sheet row clicks the underlying button, so the shell
+     keeps its handlers, nothing is duplicated, and an item added to the desktop
+     menu later shows up here on its own instead of quietly going missing. */
+  function profileItems() {
+    return [...document.querySelectorAll('#profileMenu .profile-menu-item')]
+      .filter(b => b.offsetParent !== null || !b.hasAttribute('hidden'))
+      .map(b => ({
+        label: (b.textContent || '').replace(/\s+/g, ' ').trim(),
+        danger: b.classList.contains('profile-menu-item-danger'),
+        onClick: () => b.click()          // reuse the shell's own handler
+      }))
+      .filter(it => it.label);
+  }
+  function openProfileSheet() {
+    const Q = window.QLD, list = coList();
+    const nm = (document.getElementById('pmName') || {}).textContent || 'Account';
+    const items = [];
+    /* Company switching lives here TOO, not only on the header chip. The chip is
+       easy to miss, and "how can I select my second company" is the question that
+       proves it: the answer must be somewhere people already look. */
+    if (Q && list.length > 1) {
+      items.push({
+        label: 'Switch company · ' + (Q.co.short || Q.co.name),
+        onClick: () => setTimeout(openCoSwitch, 60)
+      });
+    }
+    items.push(...profileItems());
+    if (!items.length) return;
+    actionSheet(nm, items);
+  }
+
   function onTab(key) {
     if (key === 'more') return openMore();
     const t = TABS.find(x => x.key === key);
@@ -187,22 +229,10 @@
     const av = $('qlmAvatar'); const src = document.querySelector('.tb-avatar');
     if (av && src) { av.textContent = src.textContent; if (src.style.backgroundImage) { av.style.backgroundImage = src.style.backgroundImage; av.textContent = ''; } }
     // FAB visibility (hide where there's no obvious create action)
-    const noFab = ['reports', 'reconcile', 'gst', 'tds', 'pl', 'settings', 'command'];
-    $('qlmFab').classList.toggle('hide', noFab.includes(_active));
+
   }
 
-  function fabAction() {
-    const s = window.QLShell; if (!s) return;
-    // prefer the page's own primary button (QLX) — hidden on mobile but still the right action
-    const primary = document.getElementById('qxPrimary');
-    if (primary) { primary.click(); return; }
-    switch (tabForActive(_active)) {
-      case 'sales': location.href = 'invoice.html'; break;
-      case 'purchase': s.openPurchaseForm ? s.openPurchaseForm() : (location.href = 'purchase.html'); break;
-      case 'finance': s.openPaymentForm ? s.openPaymentForm() : (location.href = 'payments.html'); break;
-      default: location.href = 'invoice.html';
-    }
-  }
+
   const isVisible = e => !!(e && (e.offsetWidth || e.offsetHeight || e.getClientRects().length));
 
   /* ═══════════════ MORE (app library sheet) ═══════════════ */

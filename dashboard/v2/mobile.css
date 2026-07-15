@@ -536,3 +536,30 @@ body.ql-v2 .dx-fab, body.ql-v2 .qx-fab-desktop { display: none !important; }
 .qlm-h-co svg { width: 12px; height: 12px; flex: none; opacity: .8; }
 .qlm-h-co:active { opacity: .55; }
 .qlm-as-item.active { font-weight: 700; color: var(--ql-brand-600); }
+
+/* ═══════════════ NATIVE APP FEEL (phones only, ≤768px) ═══════════════ */
+@media (max-width: 768px) {
+  /* iOS Safari ZOOMS the whole page whenever you focus an input whose font-size
+     is under 16px — and every control here was 13–15px. That is the "I have to
+     zoom" feeling: tap a field, the page lurches in, and you pinch back out. 16px
+     is the exact threshold; this is not a style choice, it is the fix. Applied to
+     real controls only, so it cannot leak into the invoice preview iframe. */
+  input, select, textarea,
+  .qlf-input, .if-f input, .if-f select, .qx-f input, .qx-f select {
+    font-size: 16px !important;
+  }
+  /* Never inflate text on rotate (iOS decides it knows better; it does not). */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  /* Momentum scrolling + no rubber-band on the body: the two things that most
+     make a web page feel like a web page rather than an app. */
+  body { overscroll-behavior-y: none; }
+  /* Kill the grey tap flash and the long-press callout — no native app has them. */
+  * { -webkit-tap-highlight-color: transparent; }
+  button, a, .qlm-tab, .qlm-as-item { -webkit-touch-callout: none; }
+  /* Every tap target at least 44px, per Apple's HIG. */
+  .qlm-h-btn, .qlm-h-avatar, .qlm-tab { min-width: 44px; min-height: 44px; }
+  /* The desktop profile dropdown must never appear on a phone — mobile opens a
+     native sheet instead. Without this it can still be toggled open by shell code
+     and lands clipped against the top of the screen, floating over the title. */
+  .profile-menu { display: none !important; }
+}
