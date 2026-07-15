@@ -229,6 +229,10 @@
     Object.keys(S.ATT).forEach(k => delete S.ATT[k]);
     S.FINANCE = defaultFinance();
     S.RECON = { txns: [] };
+    // Reset the WhatsApp store too. It is per-company: leaving one firm's send
+    // log in place while switching to another leaks their customer contact
+    // history across companies — the same isolation failure as ql_data_*.
+    S.WA = { cfg: {}, log: [] };
     S.BANK_ACCOUNTS.length = 0;
   }
   function hydrate(d) {
@@ -250,6 +254,9 @@
     if (d.finance)   S.FINANCE = normalizeFinance(d.finance);
     if (d.reconcile && Array.isArray(d.reconcile.txns)) S.RECON = d.reconcile;
     if (Array.isArray(d.bankAccounts)) S.BANK_ACCOUNTS.push(...d.bankAccounts);
+    // The WhatsApp send log IS the dedupe memory — without restoring it, every
+    // reload forgets what was already sent and a customer gets chased twice.
+    if (d.wa && typeof d.wa === 'object') S.WA = { cfg: d.wa.cfg || {}, log: Array.isArray(d.wa.log) ? d.wa.log : [] };
   }
   function loadLocal() {
     clearState();
@@ -330,7 +337,12 @@
       att: S.ATT, tds: S.TDS, challans: S.CHALLANS, parties: S.PARTIES,
       cashbook: S.CASHBOOK, chunna: S.CHUNNA, prod: S.PROD, audit: S.AUDIT, refunds: S.REFUNDS, finance: S.FINANCE || defaultFinance(),
       reconcile: S.RECON || { txns: [] },
-      bankAccounts: S.BANK_ACCOUNTS
+      bankAccounts: S.BANK_ACCOUNTS,
+      // blob() is an explicit WHITELIST: a store missing from this list is
+      // never saved and silently dies on reload. The WhatsApp send log is the
+      // DEDUPE MEMORY — lose it and a customer gets chased twice for the same
+      // invoice, which is the one thing the reminder engine exists to prevent.
+      wa: S.WA || { cfg: {}, log: [] }
     };
     if (includePic) b.profile_pic = localStorage.getItem('dm_profile_pic') || null;
     return b;
