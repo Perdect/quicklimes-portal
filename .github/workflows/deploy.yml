@@ -80,38 +80,30 @@ jobs:
           echo "── deploy tree ──"
           find deploy -maxdepth 3 -type f | sort
 
+
+      # ── SPLIT: assets first, HTML last ─────────────────────────────────
       # Hostinger intermittently times out the FTPS control socket for
-      # GitHub-runner IPs (seen 2026-05-09, 06-12, 06-13/14). The host stays
-      # reachable, so a retry after a cool-down almost always lands — but a
-      # bad window can swallow two attempts in a row, so we try up to FOUR
-      # times before failing. Attempts 1-3 are allowed to fail; each later
-      # attempt runs only if every prior one failed; attempt 4 is the gate.
-      - name: 🚀 Sync to Hostinger via FTPS (attempt 1)
-        id: ftp1
-        continue-on-error: true
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          # Prefer a hostname secret (FTP_HOST) so we survive IP changes;
-          # fall back to the known Hostinger IP if the secret isn't set yet.
-          server: ${{ secrets.FTP_HOST != '' && secrets.FTP_HOST || '62.72.28.240' }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
-          timeout: 120000
-          local-dir: ./deploy/
-          server-dir: /
-          state-name: .ftp-deploy-sync-state.json
-          log-level: minimal
-          # Don't delete other files on the server (keeps anything outside deploy/)
-          dangerous-clean-slate: false
+      # GitHub-runner IPs. A retry lands (every failure this far has been
+      # transient), but a sync that dies PART-WAY is the real hazard: on
+      # 2026-07-15 new HTML referencing qlx.css?v=m6 went up while the CSS
+      # itself did not, so browsers cached that URL with the OLD file body and
+      # kept the stale asset even after the rerun fixed the server.
+      #
+      # Uploading assets BEFORE HTML removes that window entirely: if a sync
+      # dies, the live (old) HTML still points at assets that exist, and new
+      # assets sit unreferenced and harmless. HTML — the only thing that
+      # switches users onto the new versions — goes last.
+      - name: ✂️ Split tree (assets vs html)
+        run: |
+          set -e
+          mkdir -p deploy_html
+          (cd deploy && find . -name '*.html' -print0 | rsync -a --files-from=- --from0 ./ ../deploy_html/)
+          find deploy -name '*.html' -delete
+          echo "assets: $(find deploy -type f | wc -l) files · html: $(find deploy_html -type f | wc -l) files"
 
-      - name: ⏲️ Cool down (1)
-        if: steps.ftp1.outcome == 'failure'
-        run: sleep 45
-      - name: 🚀 Sync to Hostinger via FTPS (attempt 2)
-        id: ftp2
-        if: steps.ftp1.outcome == 'failure'
+      # ── PHASE 1: assets (js / css / php / images) ──
+      - name: 📦 Assets → Hostinger (attempt 1)
+        id: a1
         continue-on-error: true
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -123,16 +115,15 @@ jobs:
           timeout: 120000
           local-dir: ./deploy/
           server-dir: /
-          state-name: .ftp-deploy-sync-state.json
+          state-name: .ftp-deploy-assets.json
           log-level: minimal
           dangerous-clean-slate: false
-
-      - name: ⏲️ Cool down (2)
-        if: steps.ftp1.outcome == 'failure' && steps.ftp2.outcome == 'failure'
-        run: sleep 45
-      - name: 🚀 Sync to Hostinger via FTPS (attempt 3)
-        id: ftp3
-        if: steps.ftp1.outcome == 'failure' && steps.ftp2.outcome == 'failure'
+      - name: ⏲️ Cool down
+        if: steps.a1.outcome == 'failure'
+        run: sleep 90
+      - name: 📦 Assets → Hostinger (attempt 2)
+        id: a2
+        if: steps.a1.outcome == 'failure'
         continue-on-error: true
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -144,15 +135,14 @@ jobs:
           timeout: 120000
           local-dir: ./deploy/
           server-dir: /
-          state-name: .ftp-deploy-sync-state.json
+          state-name: .ftp-deploy-assets.json
           log-level: minimal
           dangerous-clean-slate: false
-
-      - name: ⏲️ Cool down (3)
-        if: steps.ftp1.outcome == 'failure' && steps.ftp2.outcome == 'failure' && steps.ftp3.outcome == 'failure'
-        run: sleep 45
-      - name: 🚀 Sync to Hostinger via FTPS (attempt 4 — final)
-        if: steps.ftp1.outcome == 'failure' && steps.ftp2.outcome == 'failure' && steps.ftp3.outcome == 'failure'
+      - name: ⏲️ Cool down
+        if: steps.a1.outcome == 'failure' && steps.a2.outcome == 'failure'
+        run: sleep 120
+      - name: 📦 Assets → Hostinger (attempt 3 — final)
+        if: steps.a1.outcome == 'failure' && steps.a2.outcome == 'failure'
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_HOST != '' && secrets.FTP_HOST || '62.72.28.240' }}
@@ -163,6 +153,68 @@ jobs:
           timeout: 120000
           local-dir: ./deploy/
           server-dir: /
-          state-name: .ftp-deploy-sync-state.json
+          state-name: .ftp-deploy-assets.json
           log-level: minimal
           dangerous-clean-slate: false
+
+      # ── PHASE 2: HTML (flips users onto the new asset versions) ──
+      - name: 📄 HTML → Hostinger (attempt 1)
+        id: h1
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST != '' && secrets.FTP_HOST || '62.72.28.240' }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          timeout: 120000
+          local-dir: ./deploy_html/
+          server-dir: /
+          state-name: .ftp-deploy-html.json
+          log-level: minimal
+          dangerous-clean-slate: false
+      - name: ⏲️ Cool down
+        if: steps.h1.outcome == 'failure'
+        run: sleep 90
+      - name: 📄 HTML → Hostinger (attempt 2)
+        id: h2
+        if: steps.h1.outcome == 'failure'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST != '' && secrets.FTP_HOST || '62.72.28.240' }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          timeout: 120000
+          local-dir: ./deploy_html/
+          server-dir: /
+          state-name: .ftp-deploy-html.json
+          log-level: minimal
+          dangerous-clean-slate: false
+      - name: ⏲️ Cool down
+        if: steps.h1.outcome == 'failure' && steps.h2.outcome == 'failure'
+        run: sleep 120
+      - name: 📄 HTML → Hostinger (attempt 3 — final)
+        if: steps.h1.outcome == 'failure' && steps.h2.outcome == 'failure'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST != '' && secrets.FTP_HOST || '62.72.28.240' }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          timeout: 120000
+          local-dir: ./deploy_html/
+          server-dir: /
+          state-name: .ftp-deploy-html.json
+          log-level: minimal
+          dangerous-clean-slate: false
+
+      # ── VERIFY: the live site must be self-consistent ──────────────────
+      # Reads the LIVE html and checks that every versioned asset it asks for
+      # actually resolves. Turns a silent half-deploy into a red build.
+      - name: ✅ Verify the live site
+        run: bash scripts/verify-deploy.sh
