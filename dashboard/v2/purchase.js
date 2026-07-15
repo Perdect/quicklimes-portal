@@ -182,26 +182,59 @@ function pbAside(r) {
   const st = pbStatus(r), landed = r.landed != null ? r.landed : r.total + (r.freightAddon || 0);
   const row = (l, v, ic) => `<div class="pb-row"><span>${ic ? psvg(ic) : ''}${l}</span><b>${v}</b></div>`;
   const due = r.dueDate ? fDS(r.dueDate) : null;
+  /* EVERY ROW HERE MUST EARN ITS PLACE.
+     The first version printed ₹8,89,529 FOUR times — Net payable, Bill amount,
+     Landed cost and Outstanding are the same figure on a bill with no freight
+     and no payments — and ₹42,359 twice, because a fully-claimable ITC equals
+     the GST. Nine rows, three facts. Repetition doesn't read as thorough, it
+     reads as noise, and it buries the two numbers that matter.
+
+     So a row appears only when it says something the rail hasn't already said:
+       - Outstanding is GONE: the hero IS the outstanding figure.
+       - Freight and Landed cost appear only when there IS freight; without it
+         landed cost is just the bill amount under a longer name.
+       - "Paid so far" appears only once something has been paid.
+       - ITC folds into the GST line when the two are equal (the usual case) —
+         "GST @ 5% · claimable" says both facts with one number.
+     And the card is now a real BREAKDOWN: taxable + GST = bill, + freight =
+     landed. Arithmetic the reader can follow, rather than a list of figures
+     that happen to sit together. */
+  const hasFreight = r.freightAddon > 0;
+  const itcSame = r.itc > 0 && Math.abs(r.itc - r.gst) < 1;
   return `<div class="pb-sum">
       <div class="pb-sum-l">Net payable</div>
       <div class="pb-sum-v">${fC(r.outstanding)}</div>
       <div class="pb-sum-s">${r.outstanding > 0 ? 'owed to ' + esc(r.sup) : 'settled in full'}${r.paid > 0 && r.outstanding > 0 ? ' · ' + fC(r.paid) + ' paid' : ''}</div>
     </div>
     <div class="pb-card">
-      <div class="pb-card-h">${psvg(PB.receipt)}Summary</div>
-      ${row('Bill amount', fC(r.total), PB.wallet)}
-      ${row('GST @ ' + r.grate + '%', fC(r.gst), null)}
-      ${row('ITC available', r.itc ? fC(r.itc) : '—', PB.shield)}
-      ${row('Freight', r.freightAddon > 0 ? fC(r.freightAddon) : '—', IC.truck)}
-      <div class="pb-row pb-row-tot"><span>Landed cost</span><b>${fC(landed)}</b></div>
+      <div class="pb-card-h">${psvg(PB.receipt)}Breakdown</div>
+      ${row('Taxable', fC(r.taxable), PB.wallet)}
+      ${row('GST @ ' + r.grate + '%' + (itcSame ? ' · claimable' : ''), fC(r.gst), itcSame ? PB.shield : null)}
+      ${!itcSame && r.itc > 0 ? row('of which ITC', fC(r.itc), PB.shield) : ''}
+      ${!itcSame && !r.itc && r.gst > 0 ? row('ITC', 'not claimed', PB.shield) : ''}
+      ${hasFreight ? `<div class="pb-row pb-row-sub"><span>Bill amount</span><b>${fC(r.total)}</b></div>` : ''}
+      ${hasFreight ? row('Freight', fC(r.freightAddon), IC.truck) : ''}
+      <div class="pb-row pb-row-tot"><span>${hasFreight ? 'Landed cost' : 'Bill amount'}</span><b>${fC(hasFreight ? landed : r.total)}</b></div>
     </div>
-    <div class="pb-card">
-      <div class="pb-card-h">${psvg(IC.clock)}Payment</div>
-      <div class="pb-row"><span>Status</span><b><span class="pb-st ${st.cls}">${st.label}</span></b></div>
-      ${row('Due date', due || 'Not set')}
-      ${r.isOverdue ? row('Overdue by', Math.max(1, Q.daysAgo(r.dueDate)) + ' days') : ''}
-      ${row('Paid', fC(r.paid))}
-      ${row('Outstanding', fC(r.outstanding))}
+    ${payCard(r, st, due, row)}`;
+}
+/* ONE FACT LIVES HERE, AND ONLY WHEN IT IS TRUE: how far overdue the bill is.
+   Everything else a payment card wants to say is already on the screen —
+     "Status: Pending"  -> the badge in the header
+     "Due date"         -> the Invoice Details row, three inches to the left
+     "Paid so far"      -> the hero's own sub-line ("... · ₹3,00,000 paid")
+     "Outstanding"      -> the hero IS the outstanding figure
+   My first attempt at trimming this card still printed ₹3,00,000 twice and the
+   bill amount twice, which is the same mistake in a smaller box. A card whose
+   rows are all printed elsewhere is furniture; delete it.
+   "Overdue by 12 days" is the one thing nothing else says — the badge conveys
+   urgency but never how much. */
+function payCard(r, st, due, row) {
+  if (!r.isOverdue) return '';
+  return `<div class="pb-card" style="border-color:var(--ql-danger-500)">
+      <div class="pb-card-h">${psvg(IC.clock)}Overdue</div>
+      ${row('Late by', Math.max(1, Q.daysAgo(r.dueDate)) + ' days')}
+      ${due ? row('Was due', due) : ''}
     </div>`;
 }
 

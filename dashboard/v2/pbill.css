@@ -192,6 +192,11 @@
 .pb-row > b { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pb-row-tot { border-top: 2px solid var(--ql-text); border-bottom: none; margin-top: 4px; padding-top: 10px; }
 .pb-row-tot > b { font-size: 16px; }
+/* a SUBTOTAL inside a breakdown — the bill before freight is added. Ruled above
+   like a total, but lighter, so the eye reads taxable+GST=bill, +freight=landed
+   as two steps rather than one flat list. */
+.pb-row-sub { border-top: 1px solid var(--ql-border-strong); margin-top: 3px; padding-top: 8px; }
+.pb-row-sub > b { font-weight: 700; }
 
 /* ── KPI grid ── */
 .pb-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 10px; }
