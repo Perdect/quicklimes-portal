@@ -21,6 +21,11 @@ const ok = (c, m) => { if (c) { pass++; } else { fail++; console.log('  ❌ ' + 
 const SALE = {
   seller: {
     name: 'GOTAN LIME INDUSTRIES', short: 'Gotan',
+    // Straight from COMPANIES[] in data.js — the branding assertions below are
+    // only meaningful if the fixture carries what the real profile carries.
+    logo: '/v2/gotan-logo.png',
+    product: 'MANUFACTURES OF QUICK LIME AND HYDRATED LIME',
+    msme: 'UDYAM-RJ -25-0061325', jurisdiction: 'MERTA CITY',
     address: 'TALANPUR ROAD, SH 86B, CHANDRA TYRE RETREADING GOTAN, DISTRICT-NAGAUR',
     gstin: '08BNAPM0488E1Z3', email: 'gotanlime@gmail.com', phone: '9829069545',
     bank: 'BANK OF BARODA MERTA CITY', ifsc: 'BARB0MERTAC', accNo: '33580500001254',
@@ -89,25 +94,56 @@ for (const t of T.TEMPLATES) {
       ok(!HEAD('CGST').test(html) && !HEAD('SGST').test(html), label + ' — CGST/SGST charged on an INTER-state invoice (wrong tax head)');
     }
 
-    /* The quantity TOTAL, which must live in the grand-total line.
-       A bare /10,000 Tonne/ passes even with the total deleted, because the line
-       ITEM cell already reads "10,000 Tonne" — the assertion matched the row it
-       was supposed to be distinguished from, and a mutation that removed the
-       total entirely survived. Anchor to the totals line specifically. */
-    ok(/(Grand Total|Grand total|Total)[^<]*·?\s*(&nbsp;)*\s*10,000 Tonne/.test(html),
-      label + ' — quantity total "10,000 Tonne" is not in the grand-total line');
+    /* The quantity TOTAL.
+       Anchored to the element that NAMES itself the quantity total, not to a
+       string. A bare /10,000 Tonne/ passes even with the total deleted, because
+       the line ITEM cell prints the same text — that hole let a mutation removing
+       the total survive. Matching prose like "Total ... 10,000 Tonne" fixed that
+       but then broke the moment a design moved the figure out of the total's own
+       line, which is a layout choice the law has no opinion about. The marked
+       element survives both. */
+    ok(/class="qtytot[^"]*">10,000 Tonne</.test(html),
+      label + ' — the quantity total is missing from the totals block');
+    ok(!/class="qtytot/.test(html.split('<tbody>')[1] ? html.split('<tbody>')[1].split('</tbody>')[0] : ''),
+      label + ' — the quantity total is marked on the LINE ITEM, not the totals block');
     ok(!/Transport|Station|GR\/RR/.test(html), label + ' — transport/station/GR-RR still printing (asked to be removed)');
 
     // Kept on purpose when transport went.
     ok(html.includes('RJ21GA1234'), label + ' — Vehicle No. lost (it was meant to stay)');
     ok(html.includes('881234567890'), label + ' — E-Way Bill lost (it was meant to stay)');
 
+    /* BRANDING — the firm's own logo and text must appear on every design.
+       These render from the COMPANY PROFILE (seller.logo / seller.product), not
+       from cfg. The templates originally read only cfg.logo, which nobody sets,
+       so Gotan's logo silently never drew and every design came out anonymous.
+       Nothing in the layout tells you that is happening — only this does. */
+    ok(html.includes('/v2/gotan-logo.png'), label + ' — the COMPANY LOGO is not rendered (seller.logo ignored?)');
+    ok(html.includes('MANUFACTURES OF QUICK LIME AND HYDRATED LIME'), label + ' — the company tagline (seller.product) is missing');
+    ok(html.includes('UDYAM-RJ -25-0061325'), label + ' — the MSME number is missing');
+    ok(/<img[^>]+alt="[^"]+"/.test(html), label + ' — logo <img> has no alt text');
+
     // Never print a column the data cannot fill.
     ok(!/Disc\.|Discount/.test(html), label + ' — a Discount column is printing but no sale record has a discount');
 
-    // Structure.
+    /* Structure. */
     ok(/^<!DOCTYPE html>/.test(html), label + ' — not a standalone document');
     ok(/@page\{size:A4/.test(html), label + ' — no A4 print rule');
+
+    /* No NaN/undefined anywhere in the output.
+       These templates are built by concatenating dozens of strings, and a stray
+       `+` before a comment silently turned one CSS rule into unary-plus-on-a-
+       string: the stylesheet shipped the literal text "NaN" where the grid rule
+       belonged, the layout collapsed, the file still PARSED, and all 252 checks
+       above still passed. Only looking at the render caught it. Cheap guard for
+       an entire class of concat bug — and it covers the data path too, where an
+       "undefined" landing on a customer's invoice is worse than ugly. */
+    ok(!/\bNaN\b/.test(html), label + ' — output contains NaN (a broken string concatenation)');
+    ok(!/\bundefined\b/.test(html), label + ' — output contains "undefined" (a missing field leaked into the page)');
+    /* Every CSS rule the body references must actually exist in the stylesheet —
+       the NaN bug ate a whole rule while leaving its class in the markup. */
+    const cssBlock = (html.match(/<style>([\s\S]*?)<\/style>/) || [, ''])[1];
+    for (const cls of ['qtytot']) ok(html.includes('class="' + cls), label + ' — .' + cls + ' missing from markup');
+    ok(cssBlock.length > 400, label + ' — stylesheet suspiciously small; a rule may have been eaten');
   }
 }
 

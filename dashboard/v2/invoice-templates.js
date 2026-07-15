@@ -82,6 +82,16 @@
     var halfR = (+d.gstR || 0) / 2;
     return {
       s: s, b: b, cfg: cfg,
+      /* The firm's own identity, straight off the company profile. The templates
+         used to read only cfg.logo — which nobody sets — so Gotan's actual logo
+         (COMPANIES[].logo → seller.logo) never rendered and every design came out
+         anonymous. cfg.logo now only OVERRIDES; the company's own is the default.
+         Same for the tagline and MSME number: they are already on the profile and
+         already on the paper invoice, so a design that omits them is a downgrade. */
+      logo: cfg.showLogo === false ? '' : (cfg.logo || s.logo || ''),
+      tagline: s.product || '',
+      msme: s.msme || '',
+      jurisdiction: s.jurisdiction || '',
       inv: d.inv || '', date: fdate(d.date),
       hsn: d.hsn || '', product: d.product || '', unit: d.unit || '',
       qty: qfmt(d.qty), rate: fmt(d.rate), taxable: fmt(d.taxable),
@@ -101,11 +111,19 @@
          PRINT, not from the data, so nothing is lost and this is reversible. */
       veh: d.veh || '', eway: d.eway || '',
       signatory: cfg.signatory || s.name || '',
-      terms: (cfg.terms && cfg.terms.length) ? cfg.terms : [
-        'Supply of goods under RULE 46 OF CGST RULE 2017.',
-        'No complaint will be entertained after 10 Days from the Date.',
-        'Interest at 18% per annum will be charged for amount not paid in time'
-      ]
+      /* The default declaration is what Gotan's paper invoice actually prints —
+         MSME registration FIRST, then the three standard clauses. I had shipped
+         only the three and silently dropped the MSME line; the compliance test
+         caught it. An MSME registration on the invoice is not decoration: it is
+         what puts a buyer on the clock under the MSMED Act's 45-day payment rule.
+         Templates number the list themselves, so dropping the line when a firm has
+         no MSME number renumbers cleanly — same as the original renderer did. */
+      terms: (cfg.terms && cfg.terms.length) ? cfg.terms
+        : (s.msme ? ['REGISTERED IN MSME NO. ' + s.msme] : []).concat([
+          'Supply of goods under RULE 46 OF CGST RULE 2017.',
+          'No complaint will be entertained after 10 Days from the Date.',
+          'Interest at 18% per annum will be charged for amount not paid in time'
+        ])
     };
   }
 
@@ -128,6 +146,15 @@
      that reason; it is not being fussy, it is refusing to invent a unit. */
   function qtyTotal(f) { return f.qty + (f.unit ? ' ' + f.unit : ''); }
 
+  /* The quantity total carries a class naming what it IS, not how it looks.
+     Without it the compliance check had to pattern-match "Total ... 10,000 Tonne"
+     against raw HTML, which (a) broke the moment a design moved the figure out of
+     the total's own line and (b) could be satisfied by the LINE ITEM cell, which
+     prints the same string — a mutation deleting the total once passed because of
+     exactly that. Marking the element lets the test ask the real question:
+     "is the quantity total present in the totals block?" */
+  function qtyTotalEl(f, cls) { return '<span class="qtytot' + (cls ? ' ' + cls : '') + '">' + esc(qtyTotal(f)) + '</span>'; }
+
   /* Where the quantity total goes: INSIDE the grand-total line, never on a row of
      its own. A sale record holds one line item, so a separate "Total quantity:
      10,000 Tonne" row would print the exact number already sitting in the line
@@ -146,9 +173,9 @@
     var two = s.bank2 ? '<br>' + esc(s.bank2) + (s.bankBranch2 ? ' ' + esc(s.bankBranch2) : '') + ', IFSC CODE-' + esc(s.ifsc2 || '') + ', AC NO-' + esc(s.accNo2 || '') : '';
     return '<b>Bank Details :</b> ' + esc(s.bank) + (s.bankBranch ? ' ' + esc(s.bankBranch) : '') + ', IFSC CODE-' + esc(s.ifsc || '') + ', AC NO-' + esc(s.accNo || '') + two;
   }
-  function logoImg(f, h) {
-    if (!f.cfg.showLogo || !f.cfg.logo) return '';
-    return '<img src="' + esc(f.cfg.logo) + '" alt="" style="height:' + (h || 44) + 'px;width:auto;object-fit:contain">';
+  function logoImg(f, h, extra) {
+    if (!f.logo) return '';
+    return '<img src="' + esc(f.logo) + '" alt="' + esc(f.s.short || f.s.name) + '" style="height:' + (h || 44) + 'px;width:auto;max-width:190px;object-fit:contain;' + (extra || '') + '">';
   }
   /* A QR is only drawn when there is something real to encode. An ornamental
      square that scans to nothing is worse than no QR. */
@@ -184,7 +211,7 @@
       + ".bank{padding:6px 10px;font-size:10.5px}.sign{text-align:right;padding:18px 10px 6px;font-size:11px}.qr{text-align:center}.qrc{font-size:9px}";
     var body = '<div class="inv">'
       + '<div class="ihd b-b"><div class="orig">Original Copy</div><div class="gi">GST INVOICE</div>'
-      + (f.cfg.showLogo && f.cfg.logo ? '<div style="position:absolute;top:8px;left:10px">' + logoImg(f, 40) + '</div>' : '')
+      + (f.logo ? '<div style="position:absolute;top:8px;left:12px">' + logoImg(f, 62) + '</div>' : '')
       + '<div class="cn">' + esc(s.name) + '</div><div class="ca">' + esc(s.address || '') + '</div>'
       + '<div class="cg">GSTIN : ' + esc(s.gstin || '') + '</div>'
       + (s.email ? '<div style="font-size:10.5px">email : ' + esc(s.email) + '</div>' : '')
@@ -203,7 +230,7 @@
       + '<tr><td class="c">1</td><td>' + esc(f.product) + '</td><td class="c">' + esc(f.hsn) + '</td><td class="r">' + f.qty + '</td><td class="c">' + esc(f.unit) + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr>'
       + '<tr class="spacer"><td class="b-r"></td><td></td><td></td><td></td><td></td><td></td><td class="r" style="vertical-align:bottom">' + f.taxable + '</td></tr></table>'
       + '<div class="b-b">' + taxRows(f, 'tl') + '</div>'
-      + '<div class="gt b-b"><span>Grand Total&nbsp;&nbsp;' + f.qty + ' ' + esc(f.unit) + '</span><span>₹ ' + f.grand + '</span></div>'
+      + '<div class="gt b-b"><span>Grand Total&nbsp;&nbsp;' + qtyTotalEl(f) + '</span><span>₹ ' + f.grand + '</span></div>'
       + '<table><tr><th>HSN/SAC</th><th>Tax Rate</th><th>Taxable Amt.</th>' + taxSumHead(f) + '<th>Total Tax</th></tr>'
       + '<tr><td class="c">' + esc(f.hsn) + '</td><td class="c">' + f.gstR + '%</td><td class="c">' + f.taxable + '</td>' + taxSumCells(f) + '<td class="c">' + f.totalTax + '</td></tr></table>'
       + '<div class="pad b-b"><b>' + esc(f.words) + '</b></div>'
@@ -216,135 +243,248 @@
     return doc(f, 'classic', css, body);
   }
 
+  /* ── shared design furniture ──
+     The rate-band summary (HSN · rate · taxable · tax) is the GST equivalent of
+     the TAUX/BASE/MONTANT block on the reference invoices, and it is also the
+     Rule 46 HSN summary — one element serving the design AND the law. */
+  function bandTable(f, cls) {
+    return '<table class="' + cls + '"><thead><tr><th>HSN/SAC</th><th>Rate</th><th>Taxable</th>' + taxSumHead(f) + '<th>Total tax</th></tr></thead>'
+      + '<tbody><tr><td>' + esc(f.hsn) + '</td><td>' + f.gstR + '%</td><td>' + f.taxable + '</td>' + taxSumCells(f) + '<td>' + f.totalTax + '</td></tr></tbody></table>';
+  }
+  /* A signature block with an actual RULE to sign above — the reference invoices
+     all have one; an "Authorised Signatory" caption floating in space does not
+     read as a place to sign. */
+  function signBlock(f, cls) {
+    if (!f.cfg.showSignature) return '';
+    return '<div class="' + cls + '"><div class="sfor">for <b>' + esc(f.signatory) + '</b></div><div class="sline"></div><div class="scap">Authorised Signatory</div></div>';
+  }
+
   /* ══════════════ V1 · glass — premium SaaS ══════════════ */
   function glass(d, cfg) {
     var f = facts(d, cfg), s = f.s, b = f.b, a = f.cfg.accent;
-    var css = "body{font-family:" + f.cfg.font + ";color:#0F172A;font-size:11.5px;line-height:1.5;padding:18px;background:linear-gradient(135deg,#EEF2FF 0%,#F8FAFC 40%,#F0F9FF 100%)}"
-      + ".inv{max-width:820px;margin:0 auto;border-radius:22px;overflow:hidden;background:rgba(255,255,255,.82);backdrop-filter:blur(18px);box-shadow:0 24px 60px -20px rgba(15,23,42,.28),0 0 0 1px rgba(255,255,255,.6) inset}"
-      + ".hd{padding:22px 26px;color:#fff;background:linear-gradient(135deg," + a + " 0%,#1E293B 140%);position:relative;overflow:hidden}"
-      + ".hd::after{content:'';position:absolute;top:-70px;right:-40px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.22),transparent 70%)}"
-      + ".hd h1{font-size:24px;letter-spacing:-.5px;font-weight:800}.hd .sub{opacity:.9;font-size:11px;margin-top:3px}.hd .g{font-weight:700;margin-top:6px;font-size:11.5px}"
-      + ".tag{position:absolute;top:22px;right:26px;background:rgba(255,255,255,.2);padding:5px 12px;border-radius:99px;font-size:10.5px;font-weight:700;letter-spacing:.08em;z-index:1}"
-      + ".grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:18px 26px}"
-      + ".card{background:rgba(255,255,255,.7);border:1px solid #E2E8F0;border-radius:14px;padding:12px 14px}"
-      + ".card h4{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:#64748B;margin-bottom:6px}"
-      + ".kv{display:flex;justify-content:space-between;gap:10px;padding:2px 0;font-size:11px}.kv span{color:#64748B}.kv b{font-weight:650}"
-      + "table{width:100%;border-collapse:collapse;margin:4px 0}thead th{background:" + a + "12;color:" + a + ";font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;padding:9px 10px;text-align:left;border-bottom:2px solid " + a + "}"
-      + "tbody td{padding:11px 10px;border-bottom:1px solid #E2E8F0;font-size:11.5px}.r{text-align:right}.c{text-align:center}"
-      + ".tot{margin:0 26px 6px;background:rgba(255,255,255,.7);border:1px solid #E2E8F0;border-radius:14px;padding:12px 14px}"
+    var css = "body{font-family:" + f.cfg.font + ";color:#0F172A;font-size:11.5px;line-height:1.5;padding:16px;background:linear-gradient(140deg,#EEF2FF 0%,#F8FAFC 45%,#ECFEFF 100%)}"
+      + ".inv{max-width:820px;margin:0 auto;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 24px 60px -22px rgba(15,23,42,.3)}"
+      /* Header: a real graphic device — deep gradient, a light sweep, and the logo
+         on its own white tile so a dark logo never disappears into a dark header. */
+      + ".hd{padding:24px 28px 22px;color:#fff;background:linear-gradient(125deg," + a + " 0%,#111C3A 130%);position:relative;overflow:hidden}"
+      + ".hd::after{content:'';position:absolute;top:-90px;right:-60px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.20),transparent 68%)}"
+      + ".hd::before{content:'';position:absolute;left:-40px;bottom:-120px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.09),transparent 70%)}"
+      /* The header is a flex ROW, not a block with an absolutely-positioned stamp.
+         Absolute took the stamp out of flow, so the moment the address wrapped to
+         a second line the two collided — and Gotan's address is long enough that
+         it always would. min-width:0 lets the middle column actually shrink. */
+      + ".hrow{display:flex;gap:16px;align-items:flex-start;position:relative;z-index:1}"
+      + ".ltile{background:#fff;border-radius:12px;padding:8px 10px;flex:none;box-shadow:0 6px 18px -6px rgba(0,0,0,.4)}"
+      + ".cinfo{flex:1;min-width:0}"
+      + ".hd h1{font-size:22px;letter-spacing:-.4px;font-weight:800;line-height:1.15}"
+      + ".hd .tl2{font-size:9px;letter-spacing:.12em;text-transform:uppercase;opacity:.82;margin-top:4px;font-weight:600}"
+      + ".hd .sub{opacity:.86;font-size:10.5px;margin-top:6px;line-height:1.45}"
+      + ".hd .g{font-weight:700;margin-top:5px;font-size:10.5px;word-break:break-word}"
+      + ".stamp{text-align:right;flex:none;max-width:170px}"
+      + ".stamp .p{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);padding:5px 13px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.1em;white-space:nowrap}"
+      + ".stamp .no{font-size:16px;font-weight:800;margin-top:8px;letter-spacing:-.3px}.stamp .dt{font-size:10.5px;opacity:.85}"
+      + ".grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:20px 28px 14px}"
+      + ".card{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:13px 15px}"
+      + ".card h4{font-size:9px;text-transform:uppercase;letter-spacing:.11em;color:" + a + ";margin-bottom:7px;font-weight:800}"
+      + ".kv{display:flex;justify-content:space-between;gap:10px;padding:2.5px 0;font-size:11px}.kv span{color:#64748B}.kv b{font-weight:650}"
+      + ".itm{width:100%;border-collapse:collapse}"
+      + ".itm thead th{background:" + a + ";color:#fff;font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;padding:10px;text-align:left}"
+      + ".itm thead th:first-child{border-radius:9px 0 0 9px}.itm thead th:last-child{border-radius:0 9px 9px 0}"
+      + ".itm tbody td{padding:13px 10px;border-bottom:1px solid #EEF2F7;font-size:11.5px}"
+      + ".r{text-align:right}.c{text-align:center}"
+      /* Money zone: breakdown left, the ONE number that matters in a filled block
+         on the right — the "NET À PAYER" idea from the reference.
+         minmax(0,1fr), not 1fr: a grid track defaults to min-width:auto, so the
+         wide rate-band table refused to shrink and shoved the totals column clean
+         off the page — the figures were CUT OFF at the card edge. */
+      + ".money{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:16px;padding:14px 28px 4px;align-items:start}"
+      + ".band{width:100%;border-collapse:collapse;font-size:10px}"
+      + ".band thead th{background:#F1F5F9;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;text-align:left;border:1px solid #E2E8F0}"
+      + ".band tbody td{padding:6px 8px;border:1px solid #E2E8F0;color:#334155}"
+      + ".tot{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:12px 14px}"
       + ".tl{display:flex;justify-content:space-between;padding:3px 0;font-size:11.5px}.tl span{color:#64748B}"
-      + ".gt{display:flex;justify-content:space-between;margin-top:8px;padding-top:9px;border-top:2px solid #0F172A;font-weight:800;font-size:15px}"
-      + ".words{padding:0 26px 10px;font-size:11px;color:#475569;font-style:italic}"
-      + ".ft{padding:14px 26px 20px;border-top:1px solid #E2E8F0;display:flex;gap:16px;align-items:flex-start}"
-      + ".ft .t{flex:1;font-size:10px;color:#64748B;line-height:1.6}.sign{text-align:right;font-size:11px;min-width:150px}.qr{text-align:center}.qrc{font-size:9px;color:#64748B}";
-    var body = '<div class="inv"><div class="hd"><div class="tag">TAX INVOICE</div>'
-      + (f.cfg.showLogo && f.cfg.logo ? '<div style="margin-bottom:8px">' + logoImg(f, 38) + '</div>' : '')
-      + '<h1>' + esc(s.name) + '</h1><div class="sub">' + esc(s.address || '') + '</div>'
-      + '<div class="g">GSTIN ' + esc(s.gstin || '') + (s.email ? ' · ' + esc(s.email) : '') + '</div></div>'
-      + '<div class="grid"><div class="card"><h4>Billed to</h4><div style="font-weight:700;font-size:13px">' + esc(b.name) + '</div>'
-      + (b.address ? '<div style="color:#64748B;font-size:10.5px;margin-top:2px">' + esc(b.address) + '</div>' : '')
-      + '<div class="kv" style="margin-top:6px"><span>GSTIN / UIN</span><b>' + esc(b.gstin || '—') + '</b></div>'
+      + ".due{margin-top:10px;border-radius:12px;padding:12px 14px;color:#fff;background:linear-gradient(125deg," + a + ",#111C3A 150%)}"
+      + ".due .l{font-size:9px;letter-spacing:.12em;text-transform:uppercase;opacity:.85;font-weight:700}"
+      + ".due .v{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-top:2px}.due .q{font-size:10px;opacity:.85;margin-top:2px}"
+      + ".words{margin:12px 28px 0;padding:9px 13px;background:#F8FAFC;border-left:3px solid " + a + ";border-radius:0 8px 8px 0;font-size:10.5px;color:#475569}"
+      + ".ft{margin-top:14px;padding:15px 28px 20px;background:#F8FAFC;border-top:1px solid #E2E8F0;display:flex;gap:18px;align-items:flex-start}"
+      + ".ft .t{flex:1;font-size:9.5px;color:#64748B;line-height:1.7}"
+      + ".sg{text-align:center;min-width:165px;flex:none}.sg .sfor{font-size:10.5px;color:#334155}"
+      + ".sg .sline{border-bottom:1px solid #94A3B8;margin:34px 0 5px}.sg .scap{font-size:9.5px;color:#64748B}"
+      + ".qr{text-align:center;flex:none}.qrc{font-size:9px;color:#64748B;margin-top:2px}";
+    var body = '<div class="inv"><div class="hd">'
+      + '<div class="hrow">' + (f.logo ? '<div class="ltile">' + logoImg(f, 46) + '</div>' : '')
+      + '<div class="cinfo"><h1>' + esc(s.name) + '</h1>'
+      + (f.tagline ? '<div class="tl2">' + esc(f.tagline) + '</div>' : '')
+      + '<div class="sub">' + esc(s.address || '') + '</div>'
+      + '<div class="g">GSTIN ' + esc(s.gstin || '') + (s.phone ? ' · ' + esc(s.phone) : '') + (s.email ? ' · ' + esc(s.email) : '') + '</div></div>'
+      + '<div class="stamp"><span class="p">TAX INVOICE</span><div class="no">' + esc(f.inv) + '</div><div class="dt">' + esc(f.date) + '</div></div>'
+      + '</div></div>'
+      + '<div class="grid"><div class="card"><h4>Billed to</h4><div style="font-weight:700;font-size:13.5px">' + esc(b.name) + '</div>'
+      + (b.address ? '<div style="color:#64748B;font-size:10.5px;margin:2px 0 6px">' + esc(b.address) + '</div>' : '<div style="height:6px"></div>')
+      + '<div class="kv"><span>GSTIN / UIN</span><b>' + esc(b.gstin || '—') + '</b></div>'
       + '<div class="kv"><span>Place of supply</span><b>' + esc(f.pos) + '</b></div></div>'
-      + '<div class="card"><h4>Invoice</h4>'
-      + '<div class="kv"><span>Number</span><b>' + esc(f.inv) + '</b></div>'
-      + '<div class="kv"><span>Date</span><b>' + esc(f.date) + '</b></div>'
+      + '<div class="card"><h4>Invoice details</h4>'
       + '<div class="kv"><span>Reverse charge</span><b>' + esc(f.rcm) + '</b></div>'
       + (f.veh ? '<div class="kv"><span>Vehicle</span><b>' + esc(f.veh) + '</b></div>' : '')
-      + (f.eway ? '<div class="kv"><span>E-Way Bill</span><b>' + esc(f.eway) + '</b></div>' : '') + '</div></div>'
-      + '<div style="padding:0 26px"><table><thead><tr><th>Description</th><th>HSN/SAC</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>'
+      + (f.eway ? '<div class="kv"><span>E-Way Bill</span><b>' + esc(f.eway) + '</b></div>' : '')
+      + (f.msme ? '<div class="kv"><span>MSME</span><b>' + esc(f.msme) + '</b></div>' : '') + '</div></div>'
+      + '<div style="padding:0 28px"><table class="itm"><thead><tr><th>Description of goods</th><th>HSN/SAC</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount (₹)</th></tr></thead>'
       + '<tbody><tr><td style="font-weight:600">' + esc(f.product) + '</td><td class="c">' + esc(f.hsn) + '</td><td class="r">' + f.qty + ' ' + esc(f.unit) + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr></tbody></table></div>'
-      + '<div class="tot"><div class="tl"><span>Taxable value</span><b>' + f.taxable + '</b></div>' + taxRows(f, 'tl')
-      + '<div class="gt"><span>' + grandLabel(f, 'Grand total') + '</span><span>₹ ' + f.grand + '</span></div></div>'
+      + '<div class="money"><div>' + bandTable(f, 'band') + '</div>'
+      + '<div><div class="tot"><div class="tl"><span>Taxable value</span><b>' + f.taxable + '</b></div>' + taxRows(f, 'tl') + '</div>'
+      + '<div class="due"><div class="l">Amount payable</div><div class="v">₹ ' + f.grand + '</div><div class="q">' + qtyTotalEl(f) + '</div></div></div></div>'
       + '<div class="words">' + esc(f.words) + '</div>'
       + '<div class="ft">' + qrBlock(f) + '<div class="t">' + (bankBlock(f) ? bankBlock(f) + '<br><br>' : '')
       + (f.cfg.showDeclaration ? f.terms.map(function (t, i) { return (i + 1) + '. ' + esc(t); }).join('<br>') : '')
       + (f.cfg.footerNote ? '<br><br>' + esc(f.cfg.footerNote) : '') + '</div>'
-      + (f.cfg.showSignature ? '<div class="sign">for <b>' + esc(f.signatory) + '</b><div style="margin-top:34px;color:#64748B">Authorised Signatory</div></div>' : '') + '</div></div>';
+      + signBlock(f, 'sg') + '</div></div>';
     return doc(f, 'glass', css, body);
   }
 
   /* ══════════════ V2 · mono — minimal black & white luxury ══════════════ */
   function mono(d, cfg) {
     var f = facts(d, cfg), s = f.s, b = f.b;
-    var css = "body{font-family:" + f.cfg.font + ";color:#111;font-size:11px;line-height:1.6;padding:26px;background:#fff}"
-      + ".inv{max-width:780px;margin:0 auto}"
-      + ".hd{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:2px solid #111}"
-      + ".hd h1{font-size:19px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase}"
-      + ".hd .a{font-size:10px;color:#555;margin-top:5px;max-width:330px;line-height:1.5}"
-      + ".ti{text-align:right}.ti .t{font-size:9.5px;letter-spacing:.28em;text-transform:uppercase;color:#666}.ti .n{font-size:17px;font-weight:600;margin-top:3px}"
-      + ".meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:22px;padding:18px 0;border-bottom:1px solid #DDD}"
-      + ".meta h4{font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:#999;margin-bottom:5px}"
-      + ".meta .v{font-size:11px}.meta .v b{font-weight:600}"
-      + "table{width:100%;border-collapse:collapse;margin:16px 0}thead th{font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;color:#999;padding:8px 0;text-align:left;border-bottom:1px solid #111;font-weight:400}"
-      + "tbody td{padding:14px 0;border-bottom:1px solid #EEE;font-size:11.5px}.r{text-align:right}.c{text-align:center}"
-      + ".tot{margin-left:auto;width:290px;padding-top:6px}.tl{display:flex;justify-content:space-between;padding:4px 0;font-size:11px;color:#555}"
-      + ".gt{display:flex;justify-content:space-between;margin-top:8px;padding-top:10px;border-top:2px solid #111;font-size:15px;font-weight:600}"
-      + ".words{padding:14px 0;font-size:10px;color:#666;letter-spacing:.03em;border-bottom:1px solid #DDD}"
-      + ".ft{display:flex;gap:24px;padding-top:18px;font-size:9.5px;color:#666;line-height:1.7}.ft .t{flex:1}"
-      + ".sign{text-align:right;min-width:160px;font-size:10.5px;color:#111}.qr{text-align:center}.qrc{font-size:8.5px;color:#999}";
-    var body = '<div class="inv"><div class="hd"><div>'
-      + (f.cfg.showLogo && f.cfg.logo ? '<div style="margin-bottom:10px">' + logoImg(f, 34) + '</div>' : '')
-      + '<h1>' + esc(s.name) + '</h1><div class="a">' + esc(s.address || '') + '</div>'
-      + '<div class="a" style="margin-top:4px">GSTIN ' + esc(s.gstin || '') + '</div></div>'
-      + '<div class="ti"><div class="t">Tax Invoice</div><div class="n">' + esc(f.inv) + '</div><div class="a" style="margin-top:4px">' + esc(f.date) + '</div></div></div>'
-      + '<div class="meta"><div><h4>Billed to</h4><div class="v"><b>' + esc(b.name) + '</b>' + (b.address ? '<br>' + esc(b.address) : '') + '<br>GSTIN ' + esc(b.gstin || '—') + '</div></div>'
-      + '<div><h4>Place of supply</h4><div class="v">' + esc(f.pos) + '</div><h4 style="margin-top:10px">Reverse charge</h4><div class="v">' + esc(f.rcm) + '</div></div>'
-      + '<div><h4>Despatch</h4><div class="v">' + (f.veh ? esc(f.veh) : '—') + (f.eway ? '<br>E-Way ' + esc(f.eway) : '') + '</div></div></div>'
-      + '<table><thead><tr><th>Description</th><th>HSN/SAC</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>'
-      + '<tbody><tr><td>' + esc(f.product) + '</td><td class="c">' + esc(f.hsn) + '</td><td class="r">' + f.qty + ' ' + esc(f.unit) + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr></tbody></table>'
+    /* The nameplate runs vertically up the left edge (the Adam Kozel device) and
+       the figures are monospaced so columns align on the digit. Both are strong
+       moves that spend no colour — which is the whole point of this template:
+       it must look deliberate on the cheapest office laser printer. */
+    var css = "body{font-family:" + f.cfg.font + ";color:#111;font-size:11px;line-height:1.6;padding:0;background:#fff}"
+      + ".sheet{max-width:840px;margin:0 auto;display:flex;min-height:1040px}"
+      + ".rail{width:62px;flex:none;border-right:1px solid #111;padding:26px 0 26px;display:flex;flex-direction:column;align-items:center;justify-content:space-between}"
+      + ".plate{writing-mode:vertical-rl;transform:rotate(180deg);font-size:19px;font-weight:700;letter-spacing:5px;text-transform:uppercase;white-space:nowrap}"
+      + ".railg{writing-mode:vertical-rl;transform:rotate(180deg);font-family:'Courier New',monospace;font-size:8.5px;letter-spacing:2px;color:#999}"
+      + ".main{flex:1;padding:26px 30px}"
+      + ".hd{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}"
+      + ".hd .a{font-size:10px;color:#555;margin-top:6px;max-width:340px;line-height:1.5}"
+      + ".hd .tag{font-size:8.5px;letter-spacing:.24em;text-transform:uppercase;color:#111;margin-top:8px;font-weight:700}"
+      + ".ti{text-align:right;flex:none}.ti .t{font-size:26px;font-weight:700;letter-spacing:-.5px}"
+      + ".ti .n{font-family:'Courier New',monospace;font-size:14px;margin-top:2px}.ti .d{font-size:10px;color:#666;margin-top:2px}"
+      + ".band0{background:#F4F4F5;margin:22px -30px 0;padding:18px 30px;display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:22px}"
+      + "h4{font-size:8px;letter-spacing:.22em;text-transform:uppercase;color:#999;margin-bottom:6px;font-weight:400}"
+      + ".v{font-size:11px}.v b{font-weight:700;font-size:13px}.mono{font-family:'Courier New',monospace}"
+      + "table.itm{width:100%;border-collapse:collapse;margin:24px 0 0}"
+      + ".itm thead th{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#999;padding:9px 0;text-align:left;border-bottom:1px solid #111;font-weight:400}"
+      + ".itm tbody td{padding:15px 0;border-bottom:1px solid #EEE;font-size:11.5px}"
+      + ".r{text-align:right}.c{text-align:center}"
+      + ".money{display:flex;justify-content:space-between;gap:30px;margin-top:20px;align-items:flex-start}.money>div:first-child{min-width:0;overflow:hidden}"
+      + ".band{border-collapse:collapse;font-size:9px;font-family:'Courier New',monospace}"
+      + ".band th{text-align:left;color:#999;font-weight:400;padding:5px 10px 5px 0;border-bottom:1px solid #DDD;letter-spacing:.1em;text-transform:uppercase}"
+      + ".band td{padding:5px 10px 5px 0;border-bottom:1px solid #F0F0F0}"
+      + ".tot{width:280px;flex:none}"
+      + ".tl{display:flex;justify-content:space-between;padding:4px 0;font-size:11px;color:#555}.tl b,.tl span:last-child{font-family:'Courier New',monospace;color:#111}"
+      + ".gt{margin-top:10px;padding:12px 14px;background:#111;color:#fff;display:flex;justify-content:space-between;align-items:baseline}"
+      + ".gt .l{font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;opacity:.75}"
+      + ".gt .v2{font-size:18px;font-weight:700;font-family:'Courier New',monospace}"
+      + ".gtq{text-align:right;font-size:9px;color:#666;margin-top:5px;letter-spacing:.05em}"
+      + ".words{margin-top:20px;padding:12px 0;border-top:1px solid #DDD;border-bottom:1px solid #DDD;font-size:10px;color:#666;letter-spacing:.04em}"
+      + ".ft{display:flex;gap:26px;padding-top:20px;font-size:9.5px;color:#666;line-height:1.7;align-items:flex-start}.ft .t{flex:1}"
+      + ".sg{text-align:center;min-width:170px;flex:none;color:#111}.sg .sfor{font-size:10.5px}"
+      + ".sg .sline{border-bottom:1px solid #111;margin:38px 0 5px}.sg .scap{font-size:9px;color:#999;letter-spacing:.1em;text-transform:uppercase}"
+      + ".qr{text-align:center;flex:none}.qrc{font-size:8.5px;color:#999}";
+    var body = '<div class="sheet"><div class="rail">'
+      + '<div class="plate">' + esc(s.short || s.name) + '</div>'
+      + (s.gstin ? '<div class="railg">GSTIN ' + esc(s.gstin) + '</div>' : '<div></div>') + '</div>'
+      + '<div class="main"><div class="hd"><div>'
+      + (f.logo ? '<div style="margin-bottom:12px">' + logoImg(f, 40) + '</div>' : '')
+      + '<div style="font-size:15px;font-weight:700;letter-spacing:1px">' + esc(s.name) + '</div>'
+      + '<div class="a">' + esc(s.address || '') + '</div>'
+      + '<div class="a mono">GSTIN ' + esc(s.gstin || '') + (s.email ? '<br>' + esc(s.email) : '') + '</div>'
+      + (f.tagline ? '<div class="tag">' + esc(f.tagline) + '</div>' : '') + '</div>'
+      + '<div class="ti"><div class="t">Invoice</div><div class="n">' + esc(f.inv) + '</div><div class="d">' + esc(f.date) + '</div></div></div>'
+      + '<div class="band0"><div><h4>Billed to</h4><div class="v"><b>' + esc(b.name) + '</b>'
+      + (b.address ? '<br>' + esc(b.address) : '') + '<br><span class="mono">GSTIN ' + esc(b.gstin || '—') + '</span></div></div>'
+      + '<div><h4>Place of supply</h4><div class="v">' + esc(f.pos) + '</div>'
+      + '<h4 style="margin-top:12px">Reverse charge</h4><div class="v">' + esc(f.rcm) + '</div></div>'
+      + '<div><h4>Despatch</h4><div class="v mono">' + (f.veh ? esc(f.veh) : '—') + (f.eway ? '<br>E-Way ' + esc(f.eway) : '') + '</div>'
+      + (f.msme ? '<h4 style="margin-top:12px">MSME</h4><div class="v mono">' + esc(f.msme) + '</div>' : '') + '</div></div>'
+      + '<table class="itm"><thead><tr><th>Description</th><th>HSN/SAC</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>'
+      + '<tbody><tr><td style="font-weight:600">' + esc(f.product) + '</td><td class="c mono">' + esc(f.hsn) + '</td><td class="r mono">' + f.qty + ' ' + esc(f.unit) + '</td><td class="r mono">' + f.rate + '</td><td class="r mono">' + f.taxable + '</td></tr></tbody></table>'
+      + '<div class="money"><div>' + bandTable(f, 'band') + '</div>'
       + '<div class="tot"><div class="tl"><span>Taxable value</span><span>' + f.taxable + '</span></div>' + taxRows(f, 'tl')
-      + '<div class="gt"><span>' + grandLabel(f, 'Total') + '</span><span>₹ ' + f.grand + '</span></div></div>'
+      + '<div class="gt"><span class="l">Amount payable</span><span class="v2">₹ ' + f.grand + '</span></div>'
+      + '<div class="gtq">' + qtyTotalEl(f) + '</div></div></div>'
       + '<div class="words">' + esc(f.words) + '</div>'
       + '<div class="ft">' + qrBlock(f) + '<div class="t">' + (bankBlock(f) ? bankBlock(f) + '<br><br>' : '')
       + (f.cfg.showDeclaration ? f.terms.map(function (t, i) { return (i + 1) + '. ' + esc(t); }).join('<br>') : '')
       + (f.cfg.footerNote ? '<br><br>' + esc(f.cfg.footerNote) : '') + '</div>'
-      + (f.cfg.showSignature ? '<div class="sign">for <b>' + esc(f.signatory) + '</b><div style="margin-top:40px;color:#999">Authorised Signatory</div></div>' : '') + '</div></div>';
+      + signBlock(f, 'sg') + '</div></div></div>';
     return doc(f, 'mono', css, body);
   }
 
   /* ══════════════ V3 · vivid — colourful, brand-forward ══════════════ */
   function vivid(d, cfg) {
     var f = facts(d, cfg), s = f.s, b = f.b, a = f.cfg.accent;
-    var css = "body{font-family:" + f.cfg.font + ";color:#1F2937;font-size:11.5px;line-height:1.5;padding:18px;background:#F9FAFB}"
-      + ".inv{max-width:820px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px -8px rgba(0,0,0,.12)}"
-      + ".band{height:8px;background:linear-gradient(90deg," + a + ",#F59E0B 55%,#10B981)}"
-      + ".hd{display:flex;justify-content:space-between;align-items:flex-start;padding:20px 24px;gap:16px}"
-      + ".hd h1{font-size:21px;font-weight:800;color:" + a + ";letter-spacing:-.3px}.hd .a{font-size:10.5px;color:#6B7280;margin-top:3px;max-width:340px}"
-      + ".chip{display:inline-block;background:" + a + ";color:#fff;padding:6px 14px;border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.06em}"
-      + ".ib{text-align:right}.ib .n{font-size:15px;font-weight:800;margin-top:6px}.ib .d{font-size:10.5px;color:#6B7280}"
-      + ".pp{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 24px 16px}"
-      + ".pc{border-radius:12px;padding:12px 14px;background:" + a + "0D;border-left:4px solid " + a + "}"
+    /* The angled banner + oversized INVOICE wordmark is the Johan Samit device;
+       the tri-colour foot is from the purple reference. Both are drawn with plain
+       CSS shapes rather than images, so they survive a PDF export. */
+    var css = "body{font-family:" + f.cfg.font + ";color:#1F2937;font-size:11.5px;line-height:1.5;padding:16px;background:#F3F4F6}"
+      + ".inv{max-width:820px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 10px 34px -10px rgba(0,0,0,.16)}"
+      /* Angled banner: a skewed accent slab behind the company block. */
+      + ".hd{position:relative;padding:24px 26px 20px;overflow:hidden;background:#fff}"
+      + ".slab{position:absolute;top:0;left:0;width:62%;height:100%;background:linear-gradient(100deg," + a + " 0%," + a + "D9 100%);transform:skewX(-11deg);transform-origin:top left;margin-left:-40px}"
+      + ".slab2{position:absolute;top:0;left:58%;width:10px;height:100%;background:" + a + "33;transform:skewX(-11deg)}"
+      + ".hrow{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:18px}"
+      + ".cob{color:#fff;max-width:60%}"
+      + ".ltile{background:#fff;border-radius:9px;padding:6px 9px;display:inline-block;margin-bottom:9px}"
+      + ".cob h1{font-size:19px;font-weight:800;letter-spacing:-.2px;line-height:1.2}"
+      + ".cob .tl2{font-size:8.5px;letter-spacing:.13em;text-transform:uppercase;opacity:.9;margin-top:4px;font-weight:700}"
+      + ".cob .a{font-size:10px;opacity:.92;margin-top:6px;line-height:1.45}"
+      + ".cob .g{font-size:10.5px;font-weight:700;margin-top:4px}"
+      + ".wm{text-align:right;flex:none;padding-top:4px}"
+      + ".wm .big{font-size:34px;font-weight:800;letter-spacing:-1px;color:#111827;line-height:1}"
+      + ".wm .n{font-size:12.5px;font-weight:700;margin-top:6px;color:#111827}.wm .d{font-size:10.5px;color:#6B7280}"
+      + ".pp{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:18px 26px 14px}"
+      + ".pc{border-radius:11px;padding:12px 14px;background:" + a + "0F;border-left:4px solid " + a + "}"
       + ".pc.alt{background:#F3F4F6;border-left-color:#9CA3AF}"
-      + ".pc h4{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#6B7280;margin-bottom:5px}"
-      + ".pc .n2{font-weight:700;font-size:12.5px}.pc .l{font-size:10.5px;color:#4B5563;margin-top:2px}"
-      + "table{width:100%;border-collapse:collapse}thead th{background:" + a + ";color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:10px;text-align:left}"
-      + "tbody td{padding:12px 10px;border-bottom:1px solid #F3F4F6;font-size:11.5px}tbody tr:nth-child(even){background:#FAFAFA}.r{text-align:right}.c{text-align:center}"
-      + ".tw{display:flex;justify-content:flex-end;padding:12px 24px}.tot{width:300px}"
+      + ".pc h4{font-size:8.5px;text-transform:uppercase;letter-spacing:.11em;color:#6B7280;margin-bottom:5px;font-weight:800}"
+      + ".pc .n2{font-weight:700;font-size:13px}.pc .l{font-size:10.5px;color:#4B5563;margin-top:2px}"
+      + ".itm{width:100%;border-collapse:collapse}"
+      + ".itm thead th{background:" + a + ";color:#fff;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;padding:11px 10px;text-align:left}"
+      + ".itm tbody td{padding:13px 10px;border-bottom:1px solid #F3F4F6;font-size:11.5px}"
+      + ".itm tbody tr:nth-child(even){background:" + a + "08}"
+      + ".r{text-align:right}.c{text-align:center}"
+      + ".money{display:grid;grid-template-columns:minmax(0,1fr) 285px;gap:16px;padding:16px 26px 6px;align-items:start}"
+      + ".band{width:100%;border-collapse:collapse;font-size:9.5px}"
+      + ".band thead th{background:#F3F4F6;color:#6B7280;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;text-align:left;border:1px solid #E5E7EB}"
+      + ".band tbody td{padding:6px 8px;border:1px solid #E5E7EB;color:#374151}"
       + ".tl{display:flex;justify-content:space-between;padding:4px 0;font-size:11.5px;color:#4B5563}"
-      + ".gt{display:flex;justify-content:space-between;margin-top:8px;padding:10px 14px;border-radius:10px;background:" + a + ";color:#fff;font-weight:800;font-size:14px}"
-      + ".words{margin:0 24px 12px;padding:9px 12px;background:#FFFBEB;border-radius:8px;font-size:10.5px;color:#92400E}"
-      + ".ft{padding:14px 24px 20px;background:#F9FAFB;border-top:1px solid #F3F4F6;display:flex;gap:16px}"
-      + ".ft .t{flex:1;font-size:9.5px;color:#6B7280;line-height:1.7}.sign{text-align:right;min-width:150px;font-size:11px}.qr{text-align:center}.qrc{font-size:9px;color:#6B7280}";
-    var body = '<div class="inv"><div class="band"></div><div class="hd"><div>'
-      + (f.cfg.showLogo && f.cfg.logo ? '<div style="margin-bottom:8px">' + logoImg(f, 40) + '</div>' : '')
-      + '<h1>' + esc(s.name) + '</h1><div class="a">' + esc(s.address || '') + '</div>'
-      + '<div class="a"><b>GSTIN ' + esc(s.gstin || '') + '</b>' + (s.phone ? ' · ' + esc(s.phone) : '') + '</div></div>'
-      + '<div class="ib"><span class="chip">TAX INVOICE</span><div class="n">' + esc(f.inv) + '</div><div class="d">' + esc(f.date) + '</div>'
-      + '<div class="d">Reverse charge: ' + esc(f.rcm) + '</div></div></div>'
+      + ".gt{margin-top:9px;padding:12px 15px;border-radius:11px;background:" + a + ";color:#fff}"
+      + ".gt .l{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.9;font-weight:800}"
+      + ".gt .v{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-top:1px}.gt .q{font-size:10px;opacity:.9}"
+      + ".words{margin:12px 26px 0;padding:9px 13px;background:#FFFBEB;border-left:3px solid #F59E0B;border-radius:0 8px 8px 0;font-size:10.5px;color:#92400E}"
+      + ".ft{margin-top:14px;padding:15px 26px 18px;background:#FAFAFA;border-top:1px solid #F3F4F6;display:flex;gap:18px;align-items:flex-start}"
+      + ".ft .t{flex:1;font-size:9.5px;color:#6B7280;line-height:1.7}"
+      + ".sg{text-align:center;min-width:165px;flex:none}.sg .sfor{font-size:10.5px;color:#374151}"
+      + ".sg .sline{border-bottom:1px solid #9CA3AF;margin:34px 0 5px}.sg .scap{font-size:9.5px;color:#6B7280}"
+      + ".qr{text-align:center;flex:none}.qrc{font-size:9px;color:#6B7280}"
+      + ".foot3{display:flex;height:9px}.foot3 i{flex:1}.foot3 i:nth-child(1){background:" + a + "}.foot3 i:nth-child(2){background:#EC4899}.foot3 i:nth-child(3){background:#F59E0B}";
+    var body = '<div class="inv"><div class="hd"><div class="slab"></div><div class="slab2"></div>'
+      + '<div class="hrow"><div class="cob">'
+      + (f.logo ? '<div class="ltile">' + logoImg(f, 38) + '</div>' : '')
+      + '<h1>' + esc(s.name) + '</h1>'
+      + (f.tagline ? '<div class="tl2">' + esc(f.tagline) + '</div>' : '')
+      + '<div class="a">' + esc(s.address || '') + '</div>'
+      + '<div class="g">GSTIN ' + esc(s.gstin || '') + (s.phone ? ' · ' + esc(s.phone) : '') + '</div></div>'
+      + '<div class="wm"><div class="big">INVOICE</div><div class="n">' + esc(f.inv) + '</div><div class="d">' + esc(f.date) + '</div>'
+      + '<div class="d">Reverse charge: ' + esc(f.rcm) + '</div></div></div></div>'
       + '<div class="pp"><div class="pc"><h4>Billed to</h4><div class="n2">' + esc(b.name) + '</div>'
       + (b.address ? '<div class="l">' + esc(b.address) + '</div>' : '')
       + '<div class="l"><b>GSTIN ' + esc(b.gstin || '—') + '</b></div><div class="l">Place of supply: ' + esc(f.pos) + '</div></div>'
       + '<div class="pc alt"><h4>Despatch</h4><div class="n2">' + (f.veh ? esc(f.veh) : '—') + '</div>'
-      + (f.eway ? '<div class="l">E-Way Bill: ' + esc(f.eway) + '</div>' : '') + '</div></div>'
-      + '<table><thead><tr><th>Description of goods</th><th>HSN/SAC</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount (₹)</th></tr></thead>'
+      + (f.eway ? '<div class="l">E-Way Bill: ' + esc(f.eway) + '</div>' : '')
+      + (f.msme ? '<div class="l">MSME: ' + esc(f.msme) + '</div>' : '') + '</div></div>'
+      + '<table class="itm"><thead><tr><th>Description of goods</th><th>HSN/SAC</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount (₹)</th></tr></thead>'
       + '<tbody><tr><td style="font-weight:600">' + esc(f.product) + '</td><td class="c">' + esc(f.hsn) + '</td><td class="r">' + f.qty + ' ' + esc(f.unit) + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr></tbody></table>'
-      + '<div class="tw"><div class="tot"><div class="tl"><span>Taxable value</span><b>' + f.taxable + '</b></div>' + taxRows(f, 'tl')
-      + '<div class="gt"><span>' + grandLabel(f, 'Grand total') + '</span><span>₹ ' + f.grand + '</span></div></div></div>'
+      + '<div class="money"><div>' + bandTable(f, 'band') + '</div>'
+      + '<div><div class="tl"><span>Taxable value</span><b>' + f.taxable + '</b></div>' + taxRows(f, 'tl')
+      + '<div class="gt"><div class="l">Total amount</div><div class="v">₹ ' + f.grand + '</div><div class="q">' + qtyTotalEl(f) + '</div></div></div></div>'
       + '<div class="words"><b>' + esc(f.words) + '</b></div>'
       + '<div class="ft">' + qrBlock(f) + '<div class="t">' + (bankBlock(f) ? bankBlock(f) + '<br><br>' : '')
       + (f.cfg.showDeclaration ? f.terms.map(function (t, i) { return (i + 1) + '. ' + esc(t); }).join('<br>') : '')
       + (f.cfg.footerNote ? '<br><br>' + esc(f.cfg.footerNote) : '') + '</div>'
-      + (f.cfg.showSignature ? '<div class="sign">for <b>' + esc(f.signatory) + '</b><div style="margin-top:34px;color:#9CA3AF">Authorised Signatory</div></div>' : '') + '</div></div>';
+      + signBlock(f, 'sg') + '</div>'
+      + '<div class="foot3"><i></i><i></i><i></i></div></div>';
     return doc(f, 'vivid', css, body);
   }
 
