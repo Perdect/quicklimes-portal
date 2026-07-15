@@ -485,6 +485,8 @@ table.sr tbody tr:hover td { background: var(--ql-surface-2, #f8fafc); }
 .qlf-read-heads .h.total .v { color: #fff; }
 .qlf-read-note { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); }
 .qlf-label { font-size: var(--ql-text-xs); font-weight: var(--ql-weight-semibold); color: var(--ql-text-secondary); }
+/* Optional line under a control: why the field matters (spec.hint). */
+.qlf-hint { font-size: var(--ql-text-xs); color: var(--ql-text-tertiary, var(--ql-text-secondary)); margin-top: 4px; line-height: 1.45; }
 .qlf-req { color: var(--ql-danger-600); }
 .qlf-input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: var(--ql-text-sm); color: var(--ql-text);
   background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); padding: 9px 11px; }

@@ -16,9 +16,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r2"><link rel="stylesheet" href="./pages.css?v=m6">
-<script src="ql-api.js"></script>
-<script src="./data.js?v=m21"></script>
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r2"><link rel="stylesheet" href="./pages.css?v=m7">
+<script src="ql-api.js?v=a2"></script>
+<script src="./data.js?v=m22"></script>
 <link rel="stylesheet" href="./mobile.css?v=m4">
 </head>
 <body class="ql-v2">
@@ -29,6 +29,18 @@
         <h1 class="page-title">Settings</h1>
         <div class="page-sub" id="setSub">Manage which modules appear across the app</div>
       </div>
+    </div>
+
+    <!-- COMPANY PROFILE — the firm's identity. Must come first: the GSTIN here
+         is what lets the app tell YOUR bills from your suppliers'. -->
+    <div class="card" id="coCard" style="margin-bottom:var(--ql-space-5)">
+      <div class="ft-head">
+        <div>
+          <h3 class="ft-title">Company profile</h3>
+          <div class="ft-note">Your firm's legal name and <b>GSTIN</b>. The GSTIN is how the app knows which bills are <b>yours</b> — it's what separates a Sale from a Purchase when you upload a bill, and it prints on your GST invoices.</div>
+        </div>
+      </div>
+      <div id="coList" style="margin-top:var(--ql-space-4)"></div>
     </div>
 
     <div class="card">
@@ -103,7 +115,7 @@
 
 <div id="setToast" class="fin-toast" hidden></div>
 
-<script src="./shell.js?v=m30"></script>
+<script src="./shell.js?v=m31"></script>
 <script src="./mobile.js?v=m4"></script>
 <script>
 QLShell.mount({ active: 'settings', title: 'Settings' });
@@ -375,9 +387,56 @@ $('#bankAdd').addEventListener('click', () => {
     onSave(v) { if (!v.bank) { toast('Bank name is required'); return false; } QLD.addBankAccount(v); toast('Bank account added'); renderBanks(); } });
 });
 
-window.__qlOnSwitchCompany = () => { render(); renderDM(); renderBanks(); };
-window.__qlRefresh = () => { render(); renderDM(); renderBanks(); };
-QLD.init(() => { render(); renderDM(); renderBanks(); });
+/* ── COMPANY PROFILE ──────────────────────────────────────────────────────
+   Why this card exists: a new company had NO way to set its GSTIN (signup
+   never asks; only Gotan/Deshwali are seeded in code). Without it the bill
+   parser can't tell our GSTIN from theirs, so every uploaded bill came out as
+   a Purchase from the bill's own issuer — "new company profile sales or
+   purchase not working". v1 had this screen; v2 dropped it. */
+const CO_SPECS = () => [
+  { k: 'name', label: 'Company name (as registered)', req: true, full: true },
+  { k: 'gstin', label: 'GSTIN', hint: '15 characters, e.g. 08BNAPM0488E1Z3. This is how the app knows a bill is yours.', full: true },
+  { k: 'city', label: 'City' },
+  { k: 'address', label: 'Address', full: true }
+];
+function editCo(c) {
+  QLShell.openForm({
+    title: 'Company profile', sub: c.short || c.name, saveLabel: 'Save profile',
+    specs: CO_SPECS(), initial: { name: c.short || c.name, gstin: c.gstin || '', city: c.city || '', address: c.address || '' },
+    async onSave(v) {
+      const res = await QLD.updateCompany(c.key, v);
+      // Never say "Saved" on a failed write — the whole point of this card is
+      // that the identity is actually stored.
+      if (!res.ok) { toast(res.err || 'Could not save'); return false; }
+      toast('Company profile saved');
+      renderCo(); render();
+      if (window.QLShell && QLShell.paintWorkspace) QLShell.paintWorkspace();
+    }
+  });
+}
+function renderCo() {
+  if (!_isOwner()) { $('#coCard').style.display = 'none'; return; }   // owner-level, same as the server
+  const cos = Object.values(QLD.COMPANIES || {});
+  $('#coList').innerHTML = cos.map(c => {
+    const missing = !c.gstin;
+    return `<div class="ft-row" style="align-items:center">
+      <div class="ft-info">
+        <div class="ft-label">${esc(c.short || c.name)}${c.isPrimary ? ' <span class="ft-lock">Primary</span>' : ''}</div>
+        <div class="ft-desc">${missing
+          ? '<b style="color:var(--ql-danger-600,#dc2626)">No GSTIN set — uploaded bills can’t be sorted into Sales vs Purchase until you add it.</b>'
+          : 'GSTIN ' + esc(c.gstin) + (c.city ? ' · ' + esc(c.city) : '')}</div>
+      </div>
+      <button class="ql-btn ${missing ? 'ql-btn-primary' : 'ql-btn-secondary'}" data-co-edit="${esc(c.key)}" style="flex:none">${missing ? 'Add GSTIN' : 'Edit'}</button>
+    </div>`;
+  }).join('');
+  $('#coList').querySelectorAll('[data-co-edit]').forEach(b => b.onclick = () => {
+    const c = QLD.COMPANIES[b.dataset.coEdit]; if (c) editCo(c);
+  });
+}
+
+window.__qlOnSwitchCompany = () => { render(); renderDM(); renderBanks(); renderCo(); };
+window.__qlRefresh = () => { render(); renderDM(); renderBanks(); renderCo(); };
+QLD.init(() => { render(); renderDM(); renderBanks(); renderCo(); });
 renderTeam();
 </script>
 </body>

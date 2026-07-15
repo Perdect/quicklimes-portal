@@ -58,7 +58,10 @@
         method: 'POST', headers: JSON_HDR,
         body: JSON.stringify({
           p_plant_name: params.p_plant_name, p_plant_type: params.p_plant_type,
-          p_owner_phone: params.p_owner_phone, p_password: params.p_password
+          p_owner_phone: params.p_owner_phone, p_password: params.p_password,
+          // The firm's own GSTIN — what tells OUR bills from a supplier's.
+          // This list is a whitelist, so a field missing here is dropped silently.
+          p_gst_number: params.p_gst_number || null
         })
       });
     }

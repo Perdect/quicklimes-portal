@@ -106,6 +106,52 @@
   }
   localStorage.setItem('dm_active_co', ACTIVE_CO);
 
+  /* ── Company identity (name / GSTIN / city / address) ──────────────────
+     The firm's OWN GSTIN is what lets the bill parser tell our GSTIN from
+     theirs — i.e. a Sale from a Purchase. Only GOTAN / DESHWALI are seeded
+     above, and signup never asked for one, so a new company had NO identity
+     and no way to set one: v1 had an "Edit profile" screen, v2 dropped it.
+     Every uploaded bill then came out as a Purchase from the bill's own
+     issuer. This writes through to plants.gst_number and refreshes the
+     cached identity, so the fix applies without a re-login. */
+  const validGstinFmt = g => /^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/.test(g) && +g.slice(0, 2) >= 1 && +g.slice(0, 2) <= 38;
+  async function updateCompany(id, o) {
+    o = o || {};
+    const name = String(o.name || '').trim();
+    const gstin = String(o.gstin || '').trim().toUpperCase().replace(/\s/g, '');
+    const city = String(o.city || '').trim(), address = String(o.address || '').trim();
+    if (!COMPANIES[id]) return { ok: false, err: 'Unknown company' };
+    if (name.length < 2) return { ok: false, err: 'Company name is required' };
+    // A wrong GSTIN is worse than none: it would make us mis-identify OUR OWN
+    // bills. Reject anything that is not a real GSTIN rather than store it.
+    if (gstin && !validGstinFmt(gstin)) return { ok: false, err: 'That GSTIN doesn’t look right — it should be 15 characters, like 08BNAPM0488E1Z3' };
+    // Two of the user's own firms sharing a GSTIN would make inter-firm bills
+    // unresolvable (the parser could not tell which firm is which).
+    const clash = Object.values(COMPANIES).find(c => c.key !== id && gstin && (c.gstin || '').toUpperCase() === gstin);
+    if (clash) return { ok: false, err: gstin + ' is already used by ' + (clash.short || clash.name) };
+    if (!DB) return { ok: false, err: 'Not connected — check your internet and try again' };
+
+    let res;
+    try {
+      res = await DB.rpc('update_my_plant', {
+        p_plant_id: id, p_plant_name: name, p_city: city || null,
+        p_gst_number: gstin || null, p_address: address || null,
+        p_owner_phone: QL_PLANT.owner_phone || null
+      });
+    } catch (e) { return { ok: false, err: 'Could not save (' + (e && e.message ? e.message : 'network') + ')' }; }
+    const err = (res && res.error && res.error.message) || (res && res.data && res.data.error);
+    if (err) return { ok: false, err: err };            // NEVER report success on a failed write
+
+    // Write through to the cached identity so ownGstins is right immediately.
+    const apply = p => { if (!p || p.id !== id) return; p.plant_name = name; p.city = city; p.gst_number = gstin; p.address = address; };
+    (QL_PLANT.plants || []).forEach(apply); apply(QL_PLANT);
+    try { localStorage.setItem('ql_plant', JSON.stringify(QL_PLANT)); } catch (_) {}
+    const c = COMPANIES[id];
+    c.name = name.toUpperCase(); c.short = name; c.city = city; c.gstin = gstin;
+    if (address) c.address = address;
+    return { ok: true };
+  }
+
   /* ── State ───────────────────────────────────────────────────── */
   const S = {
     SALES: [], PURCHASES: [], WORKERS: [], WORK_LOG: [], ATT: {},
@@ -1688,6 +1734,7 @@
     uiMonth() { try { return sessionStorage.getItem('ql_uimonth_' + ACTIVE_CO) || null; } catch (_) { return null; } },
     setUiMonth(ym) { try { if (ym) sessionStorage.setItem('ql_uimonth_' + ACTIVE_CO, ym); } catch (_) {} },
     get co() { return COMPANIES[ACTIVE_CO]; },
+    updateCompany, validGstinFmt,
     state: S,
     fmt, fC, fL, fDS, daysAgo, cS,
     kpis, monthSeries, collections, insights, production, topProducts, activity,

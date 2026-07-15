@@ -620,7 +620,10 @@
     } else {
       ctrl = `<input class="qlf-input" id="${id}" type="${f.type || 'text'}" value="${esc(val)}" placeholder="${esc(f.ph || '')}" ${f.type === 'number' ? 'inputmode="decimal" step="any"' : ''}>`;
     }
-    return `<div class="qlf-field ${f.full ? 'qlf-full' : ''}${f.quarter ? ' qlf-quarter' : ''}">${lbl}${ctrl}</div>`;
+    // hint: a short line under the control explaining WHY a field matters
+    // (e.g. what the GSTIN is actually used for). Optional — omit and nothing renders.
+    const hint = f.hint ? `<div class="qlf-hint">${esc(f.hint)}</div>` : '';
+    return `<div class="qlf-field ${f.full ? 'qlf-full' : ''}${f.quarter ? ' qlf-quarter' : ''}">${lbl}${ctrl}${hint}</div>`;
   }
   function readForm(specs) {
     const out = {};
@@ -651,11 +654,22 @@
         <button class="ql-btn ql-btn-primary" id="qlModalSave">${esc(cfg.saveLabel || 'Save')}</button>
       </div>`;
     const save = $('qlModalSave');
-    save.onclick = () => {
+    save.onclick = async () => {
       const v = readForm(specs);
       const miss = specs.find(f => f.req && (v[f.k] === '' || v[f.k] === 0 && f.reqNonZero));
       if (miss) { toast(miss.label + ' is required'); $('qf_' + miss.k).focus(); return; }
-      const ok = cfg.onSave(v);
+      // An onSave that saves over the network returns a PROMISE. A promise is
+      // never === false, so the old code closed the modal the instant it was
+      // called — reporting success before the write had even happened, and
+      // throwing away a `return false` meant to keep the form open on failure.
+      // Await a thenable; synchronous callers behave exactly as before.
+      let ok = cfg.onSave(v);
+      if (ok && typeof ok.then === 'function') {
+        const label = save.textContent;
+        save.disabled = true; save.textContent = 'Saving…';       // and no double-submit in flight
+        try { ok = await ok; }
+        finally { save.disabled = false; save.textContent = label; }
+      }
       if (ok !== false) closeModal();
     };
     if (cfg.onRender) cfg.onRender();

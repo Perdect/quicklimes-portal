@@ -115,6 +115,12 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:var(--ink);background
         </select>
       </div>
       <div class="ls-fld">
+        <label>GSTIN <span style="font-weight:400;opacity:.6">(optional — you can add it later)</span></label>
+        <input class="ls-input" id="su-gst" type="text" maxlength="15" autocapitalize="characters" spellcheck="false"
+               placeholder="08BNAPM0488E1Z3" oninput="this.value=this.value.toUpperCase().replace(/[^0-9A-Z]/g,'')">
+        <div style="font-size:12px;opacity:.65;margin-top:5px">Your firm's GST number. It's how we know a bill is <b>yours</b> — it sorts uploaded bills into Sales vs Purchase, and prints on your GST invoices.</div>
+      </div>
+      <div class="ls-fld">
         <label>Password</label>
         <div class="ls-pw">
           <input class="ls-input" id="su-pass" type="password" placeholder="Create a strong password" autocomplete="new-password">
@@ -174,7 +180,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;color:var(--ink);background
   </div>
 </div>
 
-<script src="ql-api.js"></script>
+<script src="ql-api.js?v=a2"></script>
 <script>
 // ── Supabase config (publishable anon key — safe for browser) ──
 const SUPA_URL = 'https://iteaawedfmaujujyrqdu.supabase.co';
@@ -186,6 +192,7 @@ async function doSignup(){
     company: document.getElementById('su-company').value.trim(),
     phone:   document.getElementById('su-phone').value.trim(),
     plant:   document.getElementById('su-plant').value,
+    gst:     document.getElementById('su-gst').value.trim().toUpperCase(),
     pass:    document.getElementById('su-pass').value,
     terms:   document.getElementById('su-terms').checked,
   };
@@ -204,6 +211,10 @@ async function doSignup(){
     errMsg.textContent = 'Password must be at least 8 characters.';
     err.classList.add('show'); return;
   }
+  if(f.gst && !/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/.test(f.gst)){
+    errMsg.textContent = 'That GSTIN doesn\u2019t look right \u2014 it should be 15 characters, like 08BNAPM0488E1Z3. Leave it blank to add it later.';
+    err.classList.add('show'); return;
+  }
   if(!f.terms){
     errMsg.textContent = 'Please accept the Terms and Privacy Policy.';
     err.classList.add('show'); return;
@@ -219,6 +230,7 @@ async function doSignup(){
       p_plant_type:  f.plant,
       p_owner_phone: f.phone,
       p_password:    f.pass,
+      p_gst_number:  f.gst || null,
     });
 
     if (error) throw error;

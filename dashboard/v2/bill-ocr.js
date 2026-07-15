@@ -268,7 +268,16 @@
       var otherOwn = gstins.filter(function (g) { return ownG.indexOf(g) >= 0 && g !== selfG && validGstin(g); });
       if (otherOwn.length) { sellerG = otherOwn[0]; buyerG = selfG; }
     }
-    if (sellerG) { set('supplierGstin', sellerG, validGstin(sellerG) ? 0.97 : 0.5); if (!validGstin(sellerG)) warn.push('Supplier GSTIN format looks off'); }
+    // NO IDENTITY: the firm has no GSTIN on file (a fresh signup — signup never
+    // asked, and only Gotan/Deshwali are seeded). Without it we cannot tell OUR
+    // GSTIN from THEIRS, so "seller = first valid GSTIN" is a coin flip: on our
+    // OWN sales bill it picks US as the party. Guess quietly and every bill lands
+    // in the wrong register with the wrong party. Say so instead.
+    var noIdentity = ownG.length === 0;
+    if (noIdentity) warn.push('Your firm\'s GSTIN is not set, so Sales and Purchase cannot be told apart — add it in Settings → Company profile.');
+
+    if (sellerG) { set('supplierGstin', sellerG, noIdentity ? 0.5 : (validGstin(sellerG) ? 0.97 : 0.5)); if (!validGstin(sellerG)) warn.push('Supplier GSTIN format looks off'); }
+    if (noIdentity && sellerG) review.push('supplierGstin');
     if (buyerG) set('buyerGstin', buyerG, 0.9);
     // DIRECTION — is OUR firm the RECIPIENT (buyer) or the ISSUER (seller)?
     // Primary signal: if our own GSTIN is printed in a buyer / bill-to / consignee
@@ -284,7 +293,11 @@
       var ctx = bi >= 0 ? nT.slice(Math.max(0, bi - 90), bi) : '';
       if (/BILL\s*TO|BILLED\s*TO|BUYER|CONSIGNEE|SHIP\s*TO|RECIPIENT|RECEIVER|DETAILS\s*OF\s*RECEIVER/.test(ctx)) dir = 'purchase';
     }
-    if (!dir) {
+    // The issuer decides — but ONLY if we know which GSTIN is ours. With ownG
+    // empty this test is `[].indexOf(x) >= 0`, always false, so EVERY bill came
+    // out "purchase" (the reported bug). Unknown must stay unknown: the review
+    // modal then asks, instead of silently misfiling money and GST.
+    if (!dir && !noIdentity) {
       var issuerG = gstins.filter(function (g) { return validGstin(g); })[0] || gstins[0] || '';
       if (issuerG) dir = ownG.indexOf(issuerG) >= 0 ? 'sales' : 'purchase';
     }
