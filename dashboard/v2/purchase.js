@@ -160,9 +160,41 @@ function tabOverview(r) {
 }
 function pdfByIdx(idx) { openBillPdf(Q.purchaseRows()[idx]); }
 function shareByIdx(idx) { shareBill(Q.purchaseRows()[idx]); }
+/* Invoice tab — show THE SUPPLIER'S ACTUAL UPLOADED BILL when we have one.
+   We never issued this document (IOC did), so rendering our own letterhead
+   version of it is confusing and misrepresents the source. The generated
+   summary is only a fallback for bills with no upload, and is labelled as
+   a summary rather than dressed up as the bill. */
 function tabInvoice(r) {
-  return `<div class="qx-inv-bar"><button class="qx-btn qx-btn-sm" onclick="pdfByIdx(${r.idx})">${svg(IC.dl)} Download</button><button class="qx-btn qx-btn-sm" onclick="pdfByIdx(${r.idx})">${svg(IC.print)} Print</button><button class="qx-btn qx-btn-sm" onclick="shareByIdx(${r.idx})">${svg(IC.share)} Share</button></div>
-    <iframe class="qx-inv-frame" srcdoc="${esc(billHTML(r))}" title="bill preview"></iframe>`;
+  const doc = (r.attach || []).find(a => /invoice|bill|scan/i.test((a.kind || '') + ' ' + (a.name || ''))) || (r.attach || [])[0];
+  if (doc) {
+    return `<div class="qx-inv-bar">
+        <button class="qx-btn qx-btn-sm" onclick="openAttach(${r.idx},'${doc.id}',1)">${svg(IC.dl)} Download</button>
+        <button class="qx-btn qx-btn-sm" onclick="openAttach(${r.idx},'${doc.id}',0)">${svg(IC.eye)} Open</button>
+        <button class="qx-btn qx-btn-sm" onclick="shareByIdx(${r.idx})">${svg(IC.share)} Share</button>
+        <span class="qx-mut" style="margin-left:auto;font-size:11.5px">📎 ${esc(doc.name)}</span>
+      </div>
+      <div class="qx-inv-frame" id="pxDocFrame" data-doc="${doc.id}" style="display:grid;place-items:center;color:var(--ql-text-secondary);font-size:12.5px">Loading the uploaded bill…</div>`;
+  }
+  return `<div class="qx-inv-bar"><button class="qx-btn qx-btn-sm" onclick="pdfByIdx(${r.idx})">${svg(IC.dl)} Download</button><button class="qx-btn qx-btn-sm" onclick="pdfByIdx(${r.idx})">${svg(IC.print)} Print</button><button class="qx-btn qx-btn-sm" onclick="shareByIdx(${r.idx})">${svg(IC.share)} Share</button>
+      <span class="qx-mut" style="margin-left:auto;font-size:11.5px">No bill uploaded — summary from the entered data</span></div>
+    <iframe class="qx-inv-frame" srcdoc="${esc(billHTML(r))}" title="bill summary"></iframe>`;
+}
+/* Render the uploaded PDF/image inline (blob from IndexedDB). */
+async function wireInvoice(body, r) {
+  const host = (body || document).querySelector('#pxDocFrame'); if (!host) return;
+  const a = (r.attach || []).find(x => x.id === host.dataset.doc); if (!a) return;
+  try {
+    const blob = await aOp('readonly', st => st.get(a.id));
+    if (!blob) { host.textContent = 'This file was uploaded on another device — re-upload it here to preview.'; return; }
+    const url = URL.createObjectURL(blob);
+    const isImg = /^image\//.test(blob.type || '') || /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(a.name || '');
+    host.innerHTML = isImg
+      ? `<img src="${url}" alt="${esc(a.name)}" style="max-width:100%;max-height:100%;object-fit:contain">`
+      : `<iframe src="${url}#toolbar=1" title="${esc(a.name)}" style="width:100%;height:100%;border:0;border-radius:13px"></iframe>`;
+    host.style.display = 'block';
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+  } catch (_) { host.textContent = 'Could not open the uploaded bill.'; }
 }
 /* ── Freight tab: every truck's freight payment (cash / UPI / bank), living on
    the bill so landed cost = material + freight. Posts to the Payments ledger. */
@@ -396,7 +428,7 @@ QLX.mount({
     ],
     tabs: [
       { label: 'Overview', icon: IC.file, render: tabOverview },
-      { label: 'Invoice', icon: IC.doc2, render: tabInvoice },
+      { label: 'Invoice', icon: IC.doc2, render: tabInvoice, onMount: wireInvoice },
       { label: 'Payments', icon: IC.clock, render: tabPayments, onMount: wirePayments },
       { label: 'Freight', icon: IC.truck || IC.box, count: (r.freightPays || []).length || null, render: tabFreight, onMount: wireFreight },
       { label: 'Documents', icon: IC.dl, count: (r.attach || []).length || null, render: tabDocs, onMount: wireDocs },

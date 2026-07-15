@@ -426,7 +426,10 @@ table.sr tbody tr:hover td { background: var(--ql-surface-2, #f8fafc); }
 
 /* ═══ FORM MODAL (new sale / purchase / party / worker / cashbook / payment) ═══ */
 .ql-modal-backdrop {
-  position: fixed; inset: 0; z-index: var(--ql-z-modal, 1000);
+  /* ABOVE the QLX detail drawer (.qx-dp sits at --ql-z-modal + 1). A modal
+     opened FROM the drawer (e.g. Add freight payment) must cover it, not
+     render behind it. Still below toasts (--ql-z-toast). */
+  position: fixed; inset: 0; z-index: calc(var(--ql-z-modal, 1000) + 10);
   background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(2px);
   display: none; align-items: flex-start; justify-content: center;
   padding: 7vh var(--ql-space-4) var(--ql-space-6); overflow-y: auto;
