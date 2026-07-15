@@ -1,0 +1,44 @@
+name: ♻️ Deploy auto-retry
+
+# Hostinger's FTPS refuses SOME GitHub runner IPs outright: every attempt dies
+# with "Timeout (control socket)" at the full timeout, having never connected.
+#
+# Measured across 12 runs on 2026-07-15: an in-job retry has NEVER rescued a
+# run. A connect either works on the first attempt or every attempt in that job
+# times out — because they all share one runner IP. What ALWAYS works is a
+# rerun, which lands on a new runner with a new IP. That was being done by hand
+# (four times in one day). This does it automatically.
+#
+# So: retry the JOB, not the step.
+
+on:
+  workflow_run:
+    workflows: ["🚀 Deploy QuickLimes to Hostinger"]
+    types: [completed]
+
+permissions:
+  actions: write
+
+jobs:
+  rerun:
+    # Only a failure, and only up to 4 tries total — if a fresh IP fails four
+    # times it is NOT the IP, and a human should look instead of the loop
+    # grinding on. workflow_run fires again after each rerun, so this is the
+    # loop guard, not decoration.
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.run_attempt < 4
+    runs-on: ubuntu-latest
+    steps:
+      - name: ♻️ Rerun the failed deploy on a fresh runner
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: |
+          set -e
+          echo "Deploy run $RUN_ID failed (attempt $ATTEMPT). Rerunning failed jobs."
+          sleep 60                      # let any rate-limit window lapse
+          gh run rerun "$RUN_ID" --failed
+          echo "Rerun requested — a new runner (new IP) will retry the upload."

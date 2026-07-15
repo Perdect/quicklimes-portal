@@ -112,7 +112,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           port: 21
-          timeout: 120000
+          timeout: 60000
           local-dir: ./deploy/
           server-dir: /
           state-name: .ftp-deploy-assets.json
@@ -120,11 +120,10 @@ jobs:
           dangerous-clean-slate: false
       - name: ⏲️ Cool down
         if: steps.a1.outcome == 'failure'
-        run: sleep 90
-      - name: 📦 Assets → Hostinger (attempt 2)
+        run: sleep 45
+      - name: 📦 Assets → Hostinger (attempt 2 — final)
         id: a2
         if: steps.a1.outcome == 'failure'
-        continue-on-error: true
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_HOST != '' && secrets.FTP_HOST || '62.72.28.240' }}
@@ -132,25 +131,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           port: 21
-          timeout: 120000
-          local-dir: ./deploy/
-          server-dir: /
-          state-name: .ftp-deploy-assets.json
-          log-level: minimal
-          dangerous-clean-slate: false
-      - name: ⏲️ Cool down
-        if: steps.a1.outcome == 'failure' && steps.a2.outcome == 'failure'
-        run: sleep 120
-      - name: 📦 Assets → Hostinger (attempt 3 — final)
-        if: steps.a1.outcome == 'failure' && steps.a2.outcome == 'failure'
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_HOST != '' && secrets.FTP_HOST || '62.72.28.240' }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
-          timeout: 120000
+          timeout: 60000
           local-dir: ./deploy/
           server-dir: /
           state-name: .ftp-deploy-assets.json
@@ -168,7 +149,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           port: 21
-          timeout: 120000
+          timeout: 60000
           local-dir: ./deploy_html/
           server-dir: /
           state-name: .ftp-deploy-html.json
@@ -176,11 +157,10 @@ jobs:
           dangerous-clean-slate: false
       - name: ⏲️ Cool down
         if: steps.h1.outcome == 'failure'
-        run: sleep 90
-      - name: 📄 HTML → Hostinger (attempt 2)
+        run: sleep 45
+      - name: 📄 HTML → Hostinger (attempt 2 — final)
         id: h2
         if: steps.h1.outcome == 'failure'
-        continue-on-error: true
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_HOST != '' && secrets.FTP_HOST || '62.72.28.240' }}
@@ -188,25 +168,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           port: 21
-          timeout: 120000
-          local-dir: ./deploy_html/
-          server-dir: /
-          state-name: .ftp-deploy-html.json
-          log-level: minimal
-          dangerous-clean-slate: false
-      - name: ⏲️ Cool down
-        if: steps.h1.outcome == 'failure' && steps.h2.outcome == 'failure'
-        run: sleep 120
-      - name: 📄 HTML → Hostinger (attempt 3 — final)
-        if: steps.h1.outcome == 'failure' && steps.h2.outcome == 'failure'
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_HOST != '' && secrets.FTP_HOST || '62.72.28.240' }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
-          timeout: 120000
+          timeout: 60000
           local-dir: ./deploy_html/
           server-dir: /
           state-name: .ftp-deploy-html.json
