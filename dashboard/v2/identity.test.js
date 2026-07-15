@@ -140,6 +140,9 @@ const bulkCtx = { window: { QLExtract: { validGstin: OCR.validGstin } }, SEQ: 1,
 vm.createContext(bulkCtx);
 vm.runInContext([cut('function detectType', '\n  }'), cut('function makeBill', '\n  }'),
   cut('function recompute', '\n  }'), cut('function nameKey', '\n  }'), cut('function invKey', '\n  }'),
+  // isoDate: the date gate recompute() depends on. It must be loaded here too,
+  // or the harness fails in a way that says nothing about the real code.
+  cut('function isoDate', '\n  }'),
   'this.makeBill = makeBill;'].join('\n'), bulkCtx);
 
 const CFG = kind => ({

@@ -26,6 +26,31 @@
   function fC(n) { try { return window.QLD && QLD.fC ? QLD.fC(n) : '₹' + Math.round(+n || 0).toLocaleString('en-IN'); } catch (_) { return '₹' + Math.round(+n || 0); } }
   function num(v) { try { return F().parseNum(v) || 0; } catch (_) { return +String(v || '').replace(/[^0-9.\-]/g, '') || 0; } }
 
+  /* Read a date the way the app does, WITHOUT depending on QLFin being loaded.
+     The first version of the date gate called QLFin.parseDate and fell back to
+     the RAW string when it was absent — which then failed the ISO check, so
+     every bill came out invalid. A validator that blocks everything when a
+     neighbour is missing is worse than no validator. Returns '' if genuinely
+     unreadable; only then is the bill held. */
+  function isoDate(raw) {
+    var s = String(raw == null ? '' : raw).trim();
+    if (!s) return '';
+    try { if (window.QLFin && QLFin.parseDate) { var v = QLFin.parseDate(s); if (/^\d{4}-\d{2}-\d{2}$/.test(v || '')) return v; } } catch (_) {}
+    var m;
+    if ((m = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/)))                       // 2026-01-15
+      return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+    if ((m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/))) {              // 15/01/2026 · 15-01-2026
+      var y = m[3].length === 2 ? '20' + m[3] : m[3];
+      return y + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+    }
+    var MON = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+    if ((m = s.match(/^(\d{1,2})[-\/ .]([A-Za-z]{3,})[-\/ .](\d{2,4})$/))) {           // 15-Jan-2026
+      var mm = MON[m[2].slice(0, 3).toLowerCase()];
+      if (mm) { var yy = m[3].length === 2 ? '20' + m[3] : m[3]; return yy + '-' + mm + '-' + m[1].padStart(2, '0'); }
+    }
+    return '';
+  }
+
   /* which field key carries the doc-no / party name (reverse of ocrMap) */
   function invKey(cfg) { var m = cfg.ocrMap || {}; return Object.keys(m).filter(function (k) { return m[k] === 'docno'; })[0]; }
   function nameKey(cfg) { var m = cfg.ocrMap || {}; return Object.keys(m).filter(function (k) { return m[k] === 'name'; })[0]; }
@@ -304,8 +329,7 @@
       if (!(f.type === 'date' || f.key === 'date')) return;
       var raw = String(bill.vals[f.key] || '').trim();
       if (!raw) return;                                    // already counted as missing above
-      var iso = (window.QLFin && QLFin.parseDate) ? QLFin.parseDate(raw) : raw;
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ''))) {
+      if (!isoDate(raw)) {
         bill.badDate = raw;
         if (missing.indexOf(f) < 0) missing.push(f);
       } else { bill.badDate = null; }

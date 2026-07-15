@@ -30,7 +30,8 @@ const ctx={ window:{ QLExtract:{validGstin:()=>true},
 ctx.QLFin = ctx.window.QLFin; ctx.QLExtract = ctx.window.QLExtract;
 vm.createContext(ctx);
 vm.runInContext([cut('function recompute(bill, cfg)','\n  }'), cut('function nameKey(cfg)','\n  }'),
-  'this.recompute=recompute;'].join('\n'), ctx);
+  cut('function isoDate(raw)','\n  }'),
+  'this.recompute=recompute; this.isoDate=isoDate;'].join('\n'), ctx);
 
 const CFG={ kind:'purchase',
   fields:[{key:'bill',label:'Bill No.'},{key:'date',label:'Date',required:true},{key:'sup',label:'Supplier',required:true},
