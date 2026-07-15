@@ -79,6 +79,52 @@ function monthMetrics() {
     profit: salesTax - purchTax
   };
 }
+/* ── Month report download — everything the dashboard shows for the selected
+   month (or all months) as ONE CSV: summary, sales, purchases, payments.
+   Cancelled records are excluded, same as every on-screen number. ── */
+function exportMonthReport() {
+  const m = monthSel(), lbl = dashMonthLabel();
+  const inM = d => !m || (d || '').slice(0, 7) === m;
+  const S = Q.salesRows().filter(r => inM(r.date) && r.status !== 'cancelled');
+  const P = Q.purchaseRows().filter(r => inM(r.date) && r.status !== 'cancelled');
+  const L = (Q.paymentsLedger ? Q.paymentsLedger() : []).filter(e => inM(e.date));
+  const M = monthMetrics();
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const row = a => a.map(q).join(',');
+  const out = [];
+  out.push(row(['QuickLimes month report', Q.co.short || '', lbl]));
+  out.push(row(['Generated', new Date().toLocaleString('en-IN')]));
+  out.push('');
+  out.push(row(['SUMMARY']));
+  out.push(row(['Sales (taxable)', M.salesTax]));
+  out.push(row(['Invoices', M.invoices]));
+  out.push(row(['Collected', M.collected]));
+  out.push(row(['Pending', M.pending]));
+  out.push(row(['GST collected', M.gst]));
+  out.push(row(['Purchases (taxable)', M.purchTax]));
+  out.push(row(['Purchase bills', M.bills]));
+  out.push(row(['Gross margin (sales − purchases)', M.profit]));
+  out.push('');
+  out.push(row(['SALES (' + S.length + ')']));
+  out.push(row(['Invoice', 'Date', 'Party', 'GSTIN', 'Vehicle', 'Qty (T)', 'Taxable', 'GST', 'Total', 'Paid', 'Outstanding', 'Status']));
+  S.forEach(r => out.push(row([r.inv, r.date, r.party, r.gstin, r.veh, r.qty, r.taxable, r.gst, r.total, r.paid, r.outstanding, r.status])));
+  out.push('');
+  out.push(row(['PURCHASES (' + P.length + ')']));
+  out.push(row(['Bill', 'Date', 'Supplier', 'GSTIN', 'Group', 'Item', 'Taxable', 'GST', 'ITC', 'Freight', 'Landed cost', 'Total', 'Paid', 'Status']));
+  P.forEach(r => out.push(row([r.bill, r.date, r.sup, r.gstin, r.groupLabel, r.item, r.taxable, r.gst, r.itc, r.freightAmt || 0, r.total + (r.freightAddon || 0), r.total, r.paid, r.status])));
+  out.push('');
+  out.push(row(['PAYMENTS (' + L.length + ')']));
+  out.push(row(['Date', 'Party', 'Type', 'Method', 'Bank account', 'Reference', 'In', 'Out']));
+  L.forEach(e => out.push(row([e.date, e.party, e.ptype, e.method, e.account || '', e.ref, e.credit || '', e.debit || ''])));
+  const name = 'QuickLimes_' + (Q.co.short || 'report').replace(/\s+/g, '') + '_' + (m || 'AllMonths') + '.csv';
+  const blob = new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  if (QLShell.toast) QLShell.toast('Report downloaded — ' + lbl + ' (' + S.length + ' sales · ' + P.length + ' purchases · ' + L.length + ' payments)', 'ok');
+}
+
 function openDashMonthMenu(anchor) {
   document.querySelectorAll('.dx-month-menu').forEach(x => x.remove());
   const have = new Set(availMonths()), cur = monthSel();
@@ -135,6 +181,7 @@ function filterBar(co) {
     <div class="dx-fbar-l"><h1 class="dx-h1">Dashboard</h1><span class="dx-fbar-co">${esc(co.short || co.name || '')}</span></div>
     <div class="dx-fbar-r">
       <button class="dx-fchip dx-month-btn" id="dxMonth">${svg(I.cal)}<b>${esc(dashMonthLabel())}</b>${svg(I.chevD)}</button>
+      <button class="dx-fchip" id="dxExport" title="Download a report of the selected month">${svg(I.dl)}<b>Report</b></button>
     </div></div>`;
 }
 
@@ -315,6 +362,7 @@ function go(p) { if (p) location.href = p.includes('.html') ? p : p + '.html'; }
 function wire() {
   const root = document.getElementById('dxRoot'); if (!root) return;
   const mo = document.getElementById('dxMonth'); if (mo) mo.onclick = e => { e.stopPropagation(); openDashMonthMenu(mo); };
+  const ex = document.getElementById('dxExport'); if (ex) ex.onclick = () => exportMonthReport();
   root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
   root.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', e => { if (e.target.closest('.dx-fab-i') || b.classList.contains('dx-fab-i') || !b.closest('.dx-fab')) go(b.dataset.go); }));
   const cmp = document.getElementById('dxCompare'); if (cmp) cmp.onclick = () => { compare = !compare; render(); };
@@ -334,3 +382,5 @@ window.__qlOnSwitchCompany = id => Q.switchCompany(id, () => { dashMonth = null;
 if (Q.init) Q.init(render); else render();
 
 /* build m16: dashboard month-picker year-nav stopPropagation (can now reach 2025) */
+
+/* build m17: month Report download on the dashboard */

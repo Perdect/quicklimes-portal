@@ -1328,10 +1328,10 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       }
       if (/ledger|statement|account|history|all (bill|invoice)|all sales/.test(t)) {
         const billed = all.reduce((a, r) => a + r.total, 0), pendT = pend.reduce((a, r) => a + r.total, 0);
-        return `<p><b>${esc(nm)}</b> ledger — ${all.length} invoices, ${fc(billed)} billed, <b>${fc(pendT)} outstanding</b>.</p>` + list(all.slice(0, 10), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => Q.fDS(r.date) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => '<span class="ql-ai-pill ' + r.status + '">' + r.status + '</span>' }]);
+        return `<p><b>${esc(nm)}</b> ledger — ${all.length} invoices, ${fc(billed)} billed, <b>${fc(pendT)} outstanding</b>.</p>` + list(all.slice(0, 10), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => Q.fDS(r.date) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => '<span class="ql-ai-pill ' + r.status + '">' + r.status + '</span>' }, { r: 1, v: r => '<button class="ql-ai-dl" onclick="QLShell.printInvoice(' + r.idx + ')" title="Download invoice ' + esc(r.inv) + '" aria-label="Download invoice">⬇</button>' }]);
       }
       // default party summary
-      return `<p><b>${esc(nm)}</b> — ${all.length} invoice${all.length !== 1 ? 's' : ''}, ${fc(all.reduce((a, r) => a + r.total, 0))} billed, <b>${pend.length} pending</b> (${fc(pend.reduce((a, r) => a + r.total, 0))}).</p>` + (pend.length ? list(pend.slice(0, 6), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => Q.fDS(r.date) }, { r: 1, v: r => fc(r.total) }]) : '') + acts(waBtn(nm, pend.reduce((a, r) => a + r.total, 0), pend.length));
+      return `<p><b>${esc(nm)}</b> — ${all.length} invoice${all.length !== 1 ? 's' : ''}, ${fc(all.reduce((a, r) => a + r.total, 0))} billed, <b>${pend.length} pending</b> (${fc(pend.reduce((a, r) => a + r.total, 0))}).</p>` + (pend.length ? list(pend.slice(0, 6), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => Q.fDS(r.date) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => '<button class="ql-ai-dl" onclick="QLShell.printInvoice(' + r.idx + ')" title="Download invoice ' + esc(r.inv) + '" aria-label="Download invoice">⬇</button>' }]) : '') + acts(waBtn(nm, pend.reduce((a, r) => a + r.total, 0), pend.length));
     }
 
     /* ───── TOP CUSTOMERS / SUPPLIERS ───── */
@@ -1580,6 +1580,19 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       try { if (window.QLMobile) QLMobile.init({ active: _active, title: opts.title }); } catch (_) {}
       // installable PWA (service worker + install prompt)
       try { initPWA(); } catch (_) {}
+      // Floating AI button — the Business Assistant is one tap away on EVERY
+      // page (not just the dashboard). Hidden on the full AI page itself and
+      // when the AI feature is switched off.
+      try {
+        if (_active !== 'ai' && featOn('ai') && !$('qlAiFab')) {
+          const fab = document.createElement('button');
+          fab.id = 'qlAiFab'; fab.className = 'ql-ai-fab'; fab.title = 'Ask AI about your business';
+          fab.setAttribute('aria-label', 'Open the AI Business Assistant');
+          fab.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/><circle cx="18" cy="18" r="1.4"/><circle cx="5" cy="17" r="1"/></svg><span>AI</span>';
+          fab.onclick = () => openAssistant();
+          document.body.appendChild(fab);
+        }
+      } catch (_) {}
       // fade out the launch splash now the app is on screen
       try { hideSplash(); } catch (_) {}
     },
@@ -1602,3 +1615,5 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
 /* build m26: Customers (Customer Intelligence) in the Sales sidebar group */
 
 /* build m27: Banks nav item (multi-bank Phase 4) */
+
+/* build m28: floating AI button on every page + invoice download in assistant answers */

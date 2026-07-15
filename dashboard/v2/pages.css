@@ -592,6 +592,20 @@ table.att th, table.att td { border-bottom: 1px solid var(--ql-divider); }
 .ql-ai-tbl td.r { text-align: right; font-variant-numeric: tabular-nums; font-weight: var(--ql-weight-semibold); white-space: nowrap; }
 .ql-ai-pill { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: var(--ql-radius-pill); }
 .ql-ai-pill.paid { background: var(--ql-success-50); color: var(--ql-success-700); } .ql-ai-pill.pending { background: var(--ql-warning-50); color: var(--ql-warning-700); } .ql-ai-pill.cash { background: var(--ql-brand-50); color: var(--ql-brand-700); }
+/* per-invoice download button inside assistant answers */
+.ql-ai-dl { width: 24px; height: 24px; border: 1px solid var(--ql-border); border-radius: 7px; background: var(--ql-card);
+  color: var(--ql-brand-600); font-size: 12px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.ql-ai-dl:hover { background: var(--ql-brand-50); border-color: var(--ql-brand-300, #93b6f8); }
+/* Floating AI button — every page, above the mobile bottom nav */
+.ql-ai-fab { position: fixed; right: 18px; bottom: 18px; z-index: 900; display: inline-flex; align-items: center; gap: 7px;
+  height: 46px; padding: 0 16px; border: none; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(135deg, var(--ql-brand-600, #2563eb), #6d28d9); color: #fff;
+  font: inherit; font-size: 13px; font-weight: 700; letter-spacing: .02em;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, .35); transition: transform .14s, box-shadow .14s; }
+.ql-ai-fab svg { width: 18px; height: 18px; }
+.ql-ai-fab:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(37, 99, 235, .45); }
+.ql-ai-fab:focus-visible { outline: 3px solid var(--ql-brand-200, #c7d7fe); outline-offset: 2px; }
+@media (max-width: 768px) { .ql-ai-fab { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); right: 14px; height: 42px; padding: 0 14px; } }
 .ql-ai-quote { background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); padding: 10px; font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin: 6px 0; white-space: pre-wrap; }
 .ql-ai-tip { font-size: var(--ql-text-xs); color: var(--ql-text-muted); }
 .ql-ai-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
