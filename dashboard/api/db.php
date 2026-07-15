@@ -191,8 +191,22 @@ function ql_blob_caps() {
     'prod' => 'production',
     'refunds' => 'finance',
     'audit' => 'reports',
+    // Bank account numbers + IFSC. Money detail — finance only. Was missing, so
+    // every role (production, dispatch) could read the firm's bank details.
+    'bankAccounts' => 'finance',
+    // The WhatsApp store: customers' phone numbers AND the content of what was
+    // said to them. Sales-only. Was missing, so any logged-in employee could
+    // read the whole customer conversation log.
+    'wa' => 'sales',
   ];
 }
+
+/* Every module key blob() writes MUST appear in ql_blob_caps(), or it is
+   readable by every role — a whitelist you must remember to extend fails
+   OPEN here, which is the worst direction for it to fail. Two keys had already
+   slipped through (bankAccounts, wa). blob-caps.test.php compares this map
+   against data.js's blob() and fails when a new store is added without a
+   capability, so nobody has to remember. */
 /* Read filter: drop module keys the role may not see (full-access → untouched). */
 function ql_filter_blob_for_role($data, $role) {
   if (!is_array($data) || ql_role_can($role, '*')) return $data;
