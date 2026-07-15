@@ -45,4 +45,13 @@ return [
   //    Then in hPanel -> Advanced -> Cron Jobs, hourly:
   //      curl -s "https://app.quicklimes.com/api/cron.php?key=THE-SAME-SECRET"
   'CRON_SECRET' => '',
+
+  // ── Internal WhatsApp chat (optional) — the webhook secret.
+  //    /api/wa-hook.php is a PUBLIC url (Whapi posts to it), so it is useless
+  //    without this and refuses everything when blank. Generate:
+  //      openssl rand -hex 24
+  //    Then in your Whapi channel settings, set the webhook to:
+  //      https://app.quicklimes.com/api/wa-hook.php?key=THE-SECRET&p=<plant_id>&c=<company_id>
+  //    Subscribe to the "messages" and "statuses" events, mode = body.
+  'WA_HOOK_SECRET' => '',
 ];

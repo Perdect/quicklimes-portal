@@ -245,6 +245,56 @@ function ql_ensure_tables() {
         per-company JSON blob into their own indexed tables, scoped by
         (plant_id, company_id), so month/status/type filtering and paging
         happen in SQL and the store can hold millions of rows. ─────────── */
+  /* ══ WhatsApp inbox ═════════════════════════════════════════════════
+     Real conversations, stored so the chat lives INSIDE the ERP.
+
+     PRIVACY: this stores customers' message content, which is a bigger DPDP
+     question than a phone number. It is per-firm scoped, never cross-company,
+     and media is stored BY REFERENCE (Whapi's media id + a small preview),
+     not by copying files onto this host.
+
+     chat_id is WhatsApp's own: "<number>@s.whatsapp.net" for a person,
+     "<id>@g.us" for a group. Both are real and both arrive. */
+  $db->exec("CREATE TABLE IF NOT EXISTS wa_chats (
+    id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    plant_id    VARCHAR(64)  NOT NULL,
+    company_id  VARCHAR(96)  NOT NULL DEFAULT '',
+    chat_id     VARCHAR(128) NOT NULL,
+    is_group    TINYINT(1)   NOT NULL DEFAULT 0,
+    phone       VARCHAR(24)  DEFAULT NULL,
+    name        VARCHAR(190) DEFAULT NULL,
+    party       VARCHAR(190) DEFAULT NULL,
+    last_at     DATETIME     DEFAULT NULL,
+    last_body   VARCHAR(255) DEFAULT NULL,
+    last_from_me TINYINT(1)  NOT NULL DEFAULT 0,
+    unread      INT          NOT NULL DEFAULT 0,
+    KEY idx_recent (plant_id, company_id, last_at),
+    UNIQUE KEY uq_chat (plant_id, company_id, chat_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  $db->exec("CREATE TABLE IF NOT EXISTS wa_messages (
+    id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    plant_id    VARCHAR(64)  NOT NULL,
+    company_id  VARCHAR(96)  NOT NULL DEFAULT '',
+    chat_id     VARCHAR(128) NOT NULL,
+    wa_id       VARCHAR(128) NOT NULL,
+    from_me     TINYINT(1)   NOT NULL DEFAULT 0,
+    from_phone  VARCHAR(24)  DEFAULT NULL,
+    from_name   VARCHAR(190) DEFAULT NULL,
+    type        VARCHAR(16)  NOT NULL DEFAULT 'text',
+    body        TEXT,
+    media_id    VARCHAR(190) DEFAULT NULL,
+    media_mime  VARCHAR(80)  DEFAULT NULL,
+    media_name  VARCHAR(190) DEFAULT NULL,
+    media_size  BIGINT       DEFAULT NULL,
+    preview     MEDIUMTEXT   DEFAULT NULL,
+    status      VARCHAR(16)  NOT NULL DEFAULT 'received',
+    at          DATETIME     NOT NULL,
+    KEY idx_thread (plant_id, company_id, chat_id, at),
+    KEY idx_poll (plant_id, company_id, id),
+    UNIQUE KEY uq_wa (plant_id, wa_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
   /* ══ CRM spine ══════════════════════════════════════════════════════
      Relational, NOT in the per-company JSON blob: leads and activities are
      high-volume and queryable, and the blob is loaded whole into a phone.
@@ -480,6 +530,72 @@ function ql_sale_outstanding($s) {
   $total   = isset($s['total']) ? (float)$s['total'] : $taxable * (1 + $gst / 100);
   $paid    = ($status === 'paid' || $status === 'cash') ? $total : (float)($s['paid'] ?? 0);
   return max(0.0, $total - $paid);
+}
+
+/* ── Webhook secret. /api/wa-hook.php is an UNAUTHENTICATED public URL (Whapi
+   calls it), so this is the only thing standing between a stranger and your
+   customers' chat threads. Blank ⇒ the endpoint refuses everything. */
+function ql_wa_hook_secret() { $c = ql_config(); return (string)($c['WA_HOOK_SECRET'] ?? ''); }
+
+/* ── Whapi webhook parsing. PURE (no DB, no network) so it is tested against
+   the REAL payload shape captured from a live channel, not from the docs —
+   which do not publish the message schema at all.
+
+   Observed envelope:  { channel_id, event:{type,event}, messages:[ … ] }
+   Observed message:   { id, from_me, type, chat_id, timestamp, from,
+                         from_name, text:{body} | image:{…} | document:{…} }
+   Note `from` is a BARE number ("971543307707"), NOT a JID — the docs and even
+   an older proxy of ours claimed otherwise. Real data wins. */
+function ql_wa_parse_message($m) {
+  if (!is_array($m) || empty($m['id'])) return null;
+  $type = (string)($m['type'] ?? 'unknown');
+  $chat = (string)($m['chat_id'] ?? '');
+  $out = [
+    'wa_id'      => (string)$m['id'],
+    'chat_id'    => $chat,
+    'is_group'   => (strpos($chat, '@g.us') !== false) ? 1 : 0,
+    'from_me'    => !empty($m['from_me']) ? 1 : 0,
+    'from_phone' => preg_replace('/\D/', '', (string)($m['from'] ?? '')),
+    'from_name'  => (string)($m['from_name'] ?? ($m['chat_name'] ?? '')),
+    'type'       => $type,
+    'body'       => '',
+    'media_id'   => null, 'media_mime' => null, 'media_name' => null,
+    'media_size' => null, 'preview' => null,
+    // timestamp is UNIX SECONDS. Treating it as ms puts every message in 1970.
+    'at'         => gmdate('Y-m-d H:i:s', (int)($m['timestamp'] ?? time())),
+  ];
+  $media = null;
+  if ($type === 'text') {
+    $out['body'] = (string)($m['text']['body'] ?? '');
+  } elseif (isset($m[$type]) && is_array($m[$type])) {
+    $media = $m[$type];
+    // A caption IS the message text for media; dropping it loses what was said.
+    $out['body'] = (string)($media['caption'] ?? '');
+  }
+  if ($media) {
+    $out['media_id']   = isset($media['id']) ? (string)$media['id'] : null;
+    $out['media_mime'] = isset($media['mime_type']) ? (string)$media['mime_type'] : null;
+    $out['media_name'] = isset($media['file_name']) ? (string)$media['file_name'] : null;
+    $out['media_size'] = isset($media['file_size']) ? (int)$media['file_size'] : null;
+    // The inline preview is a base64 thumbnail. Cap it: a huge one bloats every
+    // row and the poll response that carries it.
+    $pv = (string)($media['preview'] ?? '');
+    $out['preview'] = ($pv !== '' && strlen($pv) < 40000) ? $pv : null;
+  }
+  return $out;
+}
+
+/* One-line summary for the chat list. */
+function ql_wa_preview_text($m) {
+  $t = $m['type'];
+  if ($t === 'text') return mb_substr((string)$m['body'], 0, 200);
+  $icon = ['image' => '📷 Photo', 'document' => '📄 Document', 'voice' => '🎤 Voice note',
+           'audio' => '🎵 Audio', 'video' => '🎬 Video', 'sticker' => 'Sticker',
+           'poll' => '📊 Poll', 'action' => 'Action', 'location' => '📍 Location'];
+  $base = $icon[$t] ?? ucfirst($t);
+  $cap = trim((string)$m['body']);
+  if ($m['media_name']) $base .= ' · ' . $m['media_name'];
+  return mb_substr($cap !== '' ? ($base . ' — ' . $cap) : $base, 0, 200);
 }
 
 /* ── Cron secret. The cron endpoint is reachable from the internet, so it is
