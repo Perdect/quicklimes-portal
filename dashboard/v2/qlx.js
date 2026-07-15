@@ -93,7 +93,7 @@
     if (Q && Q.init) {
       Q.init(() => refresh());
       window.__qlRefresh = () => refresh();
-      window.__qlOnSwitchCompany = id => Q.switchCompany(id, () => { S.monthInit = false; S._saved = false; S.month = null; refresh(); });   // re-read the new company's saved month
+      window.__qlOnSwitchCompany = () => { S.monthInit = false; S._saved = false; S.month = null; refresh(); };   // shell already switched; re-read the new company's saved month
     } else { render(); }
     QLShell.paintWorkspace && QLShell.paintWorkspace();
   }

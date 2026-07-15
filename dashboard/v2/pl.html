@@ -20,7 +20,7 @@
 <script src="ql-api.js?v=a2"></script>
 <script src="./party-identity.js?v=m27"></script>
 <script src="./data.js?v=m27"></script>
-<link rel="stylesheet" href="./mobile.css?v=m4">
+<link rel="stylesheet" href="./mobile.css?v=m5">
 </head>
 <body class="ql-v2">
 <div id="ql-page">
@@ -45,7 +45,7 @@
   </div>
 </div>
 <script src="./shell.js?v=m37"></script>
-<script src="./mobile.js?v=m4"></script>
+<script src="./mobile.js?v=m5"></script>
 <script>
 QLShell.mount({ active: 'pl', title: 'Profit & Loss' });
 function render() {
@@ -78,7 +78,7 @@ function render() {
   document.getElementById('plMargins').innerHTML = margins.map(r => `<div class="gst-row ${r.total ? 'gst-row-total' : ''}"><span class="gst-row-l">${r.l}</span><span class="gst-row-v">${r.v}</span></div>`).join('');
   QLShell.paintWorkspace();
 }
-window.__qlOnSwitchCompany = id => QLD.switchCompany(id, render);
+window.__qlOnSwitchCompany = () => render();   // shell owns the switch
 window.__qlRefresh = render;
 QLD.init(render);
 </script>

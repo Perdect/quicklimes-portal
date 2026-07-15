@@ -168,5 +168,5 @@ function onInput(e) {
 }
 
 window.__qlRefresh = render;
-window.__qlOnSwitchCompany = id => Q.switchCompany(id, render);
+window.__qlOnSwitchCompany = () => render();   // shell owns the switch
 if (Q.init) Q.init(render); else render();

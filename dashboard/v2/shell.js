@@ -388,9 +388,30 @@
       </button>`).join('') +
       `<div style="height:1px;background:var(--ql-border);margin:var(--ql-space-1) var(--ql-space-2)"></div>
        <button class="ws-row ws-add"><span class="ws-row-av"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span><span>Add company</span></button>`;
+    /* ── Switching company: the SHELL does it, not the page ──
+       This used to hand the chosen id to window.__qlOnSwitchCompany(id) and trust
+       every page to call QLD.switchCompany itself. Eight of twenty ignored the id
+       and just re-rendered — `window.__qlOnSwitchCompany = () => render()` — so on
+       CRM, Ledger, Inventory, AI, Refunds, Settings, Purchase Dashboard and
+       Invoice Designs, picking a company silently did nothing: the menu closed,
+       the page redrew, and the PREVIOUS company's money stayed on screen. That is
+       the worst failure this app can have, and it was invisible because the page
+       looked like it had responded.
+
+       A critical state change cannot be a convention that each page re-implements
+       — twenty implementations are twenty chances to be wrong. The shell owns the
+       switch now; the page hook is only "you have been switched, redraw yourself"
+       and can no longer forget the important half. Pages that still call
+       switchCompany themselves are harmless: it early-returns on the same id. */
     menu.querySelectorAll('.ws-row[data-co]').forEach(row => row.addEventListener('click', () => {
       menu.classList.remove('open');
-      if (typeof window.__qlOnSwitchCompany === 'function') window.__qlOnSwitchCompany(row.dataset.co);
+      const id = row.dataset.co;
+      if (!id || id === Q.activeCo) return;
+      Q.switchCompany(id, () => {
+        if (typeof window.__qlOnSwitchCompany === 'function') window.__qlOnSwitchCompany(id);
+        else location.reload();          // a page with no hook still must not show the wrong firm
+        paintWorkspace();                // refresh the switcher's own name/tick
+      });
     }));
     const addBtn = menu.querySelector('.ws-add');
     if (addBtn) addBtn.addEventListener('click', () => { menu.classList.remove('open'); toast('Add company — contact support to link a plant'); });

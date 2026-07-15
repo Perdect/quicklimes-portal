@@ -378,7 +378,7 @@ function wire() {
 }
 
 window.__qlRefresh = render;
-window.__qlOnSwitchCompany = id => Q.switchCompany(id, () => { dashMonth = null; render(); });   // re-read the new company's saved month
+window.__qlOnSwitchCompany = () => { dashMonth = null; render(); };   // shell already switched; re-read the new company's saved month
 if (Q.init) Q.init(render); else render();
 
 /* build m16: dashboard month-picker year-nav stopPropagation (can now reach 2025) */

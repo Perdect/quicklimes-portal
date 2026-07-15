@@ -1242,7 +1242,7 @@ if (QLShell.registerAssistIntent) QLShell.registerAssistIntent((q, t, H) => {
 });
 
 window.__qlRefresh = render;
-window.__qlOnSwitchCompany = id => { ST.monthInit = false; ST.acc = ''; Q.switchCompany(id, () => { runBackfill(); render(); }); };
+window.__qlOnSwitchCompany = () => { ST.monthInit = false; ST.acc = ''; runBackfill(); render(); };   // shell owns the switch
 // Deep-links: ?upload=1 (e.g. "Upload statement" on the Loans page) opens the
 // upload modal after the first paint; ?acc=<id> (a Banks-overview card) lands
 // with that account's chip pre-selected. Both fire once.

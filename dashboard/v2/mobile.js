@@ -86,7 +86,10 @@
     const h = el('header', 'qlm-header');
     h.innerHTML =
       `<button class="qlm-h-back" id="qlmBack" aria-label="Back">${IC.back}</button>
-       <div class="qlm-h-title" id="qlmTitle">QuickLimes</div>
+       <div class="qlm-h-titles">
+         <div class="qlm-h-title" id="qlmTitle">QuickLimes</div>
+         <button class="qlm-h-co" id="qlmCo" hidden></button>
+       </div>
        <div class="qlm-h-actions">
          <button class="qlm-h-btn" id="qlmSearch" aria-label="Search">${IC.search}</button>
          <button class="qlm-h-btn" id="qlmBell" aria-label="Notifications">${IC.bell}<span class="qlm-h-badge" id="qlmBellBadge" hidden>0</span></button>
@@ -111,11 +114,55 @@
     $('qlmSearch').onclick = () => window.QLShell && QLShell.openPalette();
     $('qlmBell').onclick = () => window.QLShell && QLShell.openNotifications();
     $('qlmAvatar').onclick = () => { const pm = $('profileMenu'); if (pm) pm.classList.toggle('open'); };
+    $('qlmCo').onclick = openCoSwitch;
     $('qlmBack').onclick = () => history.length > 1 ? history.back() : (location.href = 'dashboard.html');
     fab.onclick = fabAction;
     nav.querySelectorAll('.qlm-tab').forEach(b => b.onclick = () => onTab(b.dataset.tab));
     wirePullToRefresh();
     _built = true;
+  }
+
+  /* ═══════════════ COMPANY SWITCHER ═══════════════
+     The desktop switcher lives in the sidebar, and mobile hides the sidebar — so
+     on a phone there was NO company control at all. Not "broken": absent. This
+     file did not mention companies once. Whichever firm happened to be active was
+     the one you were stuck with, and every figure on screen belonged to it, which
+     is how you end up reading Deshwali's money while believing it is Gotan's.
+
+     Shown only when there is a real choice: with one company a chip that opens a
+     one-item menu is noise. The switch itself goes through QLD.switchCompany —
+     the same path the desktop uses — so the two can never drift. */
+  function coList() {
+    const Q = window.QLD;
+    return (Q && Q.COMPANIES) ? Object.values(Q.COMPANIES) : [];
+  }
+  function paintCo() {
+    const btn = $('qlmCo'); if (!btn) return;
+    const Q = window.QLD, list = coList();
+    if (!Q || !Q.co || list.length < 2) { btn.hidden = true; return; }
+    btn.hidden = false;
+    btn.innerHTML = esc(Q.co.short || Q.co.name || '') + IC.chev;
+  }
+  function openCoSwitch() {
+    const Q = window.QLD, list = coList();
+    if (!Q || list.length < 2) return;
+    actionSheet('Switch company', list.map(c => ({
+      label: c.short || c.name,
+      active: c.key === Q.activeCo,
+      onClick: () => {
+        if (c.key === Q.activeCo) return;
+        Q.switchCompany(c.key, () => {
+          paintCo();
+          /* Re-render whatever this page draws. Every page defines this hook and
+             the shell calls it after a desktop switch; mobile must not invent a
+             second, divergent refresh path. Reload only if a page has no hook —
+             a stale screen showing another firm's money is not an option. */
+          if (typeof window.__qlOnSwitchCompany === 'function') window.__qlOnSwitchCompany(c.key);
+          else location.reload();
+          if (window.QLShell && QLShell.toast) QLShell.toast('Switched to ' + (c.short || c.name), 'ok');
+        });
+      }
+    })));
   }
 
   function onTab(key) {
@@ -128,6 +175,7 @@
   function paintChrome() {
     if (!_built) return;
     $('qlmTitle').textContent = _title || (window.QLShell && document.querySelector('.tb-crumb-active')?.textContent) || 'QuickLimes';
+    paintCo();                       // company chip: appears only when there is a real choice
     const cur = tabForActive(_active);
     document.querySelectorAll('.qlm-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === cur));
     // notif badge mirror
