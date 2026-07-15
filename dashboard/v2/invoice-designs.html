@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Invoice Designs — QuickLimes</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="manifest" href="/v2/app.webmanifest">
+<link rel="apple-touch-icon" href="/v2/pwa-apple.png?v=g1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r3"><link rel="stylesheet" href="./pages.css?v=m8">
+<script src="ql-api.js?v=a2"></script>
+<script src="./party-identity.js?v=m27"></script>
+<script src="./data.js?v=m27"></script>
+<script src="./invoice-templates.js?v=t1"></script>
+<link rel="stylesheet" href="./mobile.css?v=m4">
+<style>
+  .id-note { display:flex; gap:10px; align-items:flex-start; padding:11px 14px; border-radius:11px; font-size:13px; margin-bottom:14px;
+             background: color-mix(in srgb, var(--ql-brand-600) 7%, var(--ql-card)); border:1px solid color-mix(in srgb, var(--ql-brand-600) 22%, var(--ql-border)); }
+  .id-tabs { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:14px; }
+  .id-tab { text-align:left; padding:11px 14px; border-radius:12px; border:1px solid var(--ql-border); background:var(--ql-card);
+            cursor:pointer; font-family:inherit; transition:.14s; }
+  .id-tab:hover { border-color: color-mix(in srgb, var(--ql-brand-600) 45%, var(--ql-border)); }
+  .id-tab.on { background:var(--ql-brand-600); border-color:var(--ql-brand-600); color:#fff; }
+  .id-tab b { display:block; font-size:13.5px; font-weight:700; }
+  .id-tab span { font-size:11px; opacity:.72; }
+  .id-tab .badge { display:inline-block; margin-top:4px; font-size:9.5px; font-weight:700; letter-spacing:.06em;
+                   text-transform:uppercase; padding:2px 7px; border-radius:99px; background:#dcfce7; color:#15803d; }
+  .id-tab.on .badge { background:rgba(255,255,255,.25); color:#fff; }
+  .id-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; font-size:13px; color:var(--ql-text-secondary); }
+  .id-bar select, .id-bar input[type=color] { font-family:inherit; font-size:13px; padding:6px 8px; border-radius:8px;
+            border:1px solid var(--ql-border); background:var(--ql-card); color:var(--ql-text); }
+  .id-bar input[type=color] { padding:2px; width:38px; height:32px; cursor:pointer; }
+  .id-stage { background:#fff; border:1px solid var(--ql-border); border-radius:14px; overflow:hidden;
+              box-shadow:var(--ql-shadow-sm); height:78vh; min-height:520px; }
+  .id-stage iframe { width:100%; height:100%; border:0; display:block; background:#fff; }
+  .id-empty { color:var(--ql-text-secondary); font-size:14px; padding:var(--ql-space-5); text-align:center; }
+  @media (max-width:768px){ .id-stage{ height:70vh; } }
+</style>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Invoice Designs</h1>
+        <div class="page-sub" id="idSub">Preview each design with your own invoice data</div>
+      </div>
+    </div>
+    <div id="idBody"></div>
+  </div>
+</div>
+
+<script src="./shell.js?v=m37"></script>
+<script src="./mobile.js?v=m4"></script>
+<script>
+QLShell.mount({ active: 'invoice-designs', title: 'Invoice Designs' });
+const $ = s => document.querySelector(s);
+const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+let CUR = 'classic', ACCENT = '#2563EB', SALE_IDX = -1;   // -1 = the sample; set to a real invoice on first render
+
+/* Preview against a REAL invoice wherever possible. A design review done on
+   invented data tells you the design is pretty, not that it fits YOUR invoice —
+   Gotan's address wraps, its buyer names are long, its quantities are 5 digits.
+   Only when there are no sales at all do we fall back to a sample, and we say so. */
+function sampleData() {
+  const s = QLD.co || {};
+  return {
+    seller: s,
+    hsn: s.hsn || '25221000',
+    buyer: { name: 'Shree Cement Ltd', gstin: '08AABCS1429B1ZW', address: 'Bangur Nagar, Beawar, Rajasthan 305901', state: 'Rajasthan (08)' },
+    inv: 'SAMPLE/2025-26', date: new Date().toISOString().slice(0, 10),
+    product: 'Quick Lime', qty: 10000, rate: 9.7, unit: 'Tonne',
+    veh: 'RJ21GA1234', eway: '881234567890', gstR: 5,
+    taxable: 97000, cgst: 2425, sgst: 2425, igst: 0, interState: false,
+    total: 101850, roundOff: 0, grand: 101850,
+    words: QLD.amountInWords ? QLD.amountInWords(101850) : 'Rupees One Lakh One Thousand Eight Hundred Fifty Only'
+  };
+}
+
+/* Default to an invoice that has actual VALUE on it. A design preview rendered on
+   a ₹0.00 draft shows "0.00 / 0.00 / Rupees Zero Only" and tells you nothing about
+   how the design handles a real five-digit quantity or a long buyer name — which
+   is the only reason to look at it. Gotan's one sale right now is a zero-value
+   draft, so without this the page would open on a blank-looking invoice. */
+function firstRealSale() {
+  const sales = (QLD.state && QLD.state.SALES) || [];
+  for (let i = 0; i < sales.length; i++) {
+    const d = QLD.invoiceData(i);
+    if (d && (+d.grand || 0) > 0) return i;
+  }
+  return -1;
+}
+
+function currentData() {
+  const sales = (QLD.state && QLD.state.SALES) || [];
+  if (!sales.length || SALE_IDX < 0) return { d: sampleData(), real: false };
+  const d = QLD.invoiceData(SALE_IDX);
+  if (!d) return { d: sampleData(), real: false };
+  // A zero-value invoice renders but shows nothing worth judging — say so plainly.
+  return { d, real: true, empty: (+d.grand || 0) === 0 };
+}
+
+function paint() {
+  const { d, real, empty } = currentData();
+  const fr = $('#idFrame');
+  if (fr) fr.srcdoc = InvoiceTemplates.render(d, { template: CUR, accent: ACCENT });
+  document.querySelectorAll('.id-tab').forEach(b => b.classList.toggle('on', b.dataset.id === CUR));
+  $('#idSub').textContent = !real
+    ? 'Sample invoice — with your real company details, logo and bank accounts'
+    : empty
+      ? 'Previewing ' + (d.inv || '') + ' — this invoice has no quantity or rate, so it prints as zero'
+      : 'Previewing your invoice ' + (d.inv || '') + ' — ' + (d.buyer.name || '');
+}
+
+function render() {
+  const T = InvoiceTemplates.TEMPLATES;
+  const sales = (QLD.state && QLD.state.SALES) || [];
+  if (SALE_IDX === -1) { const r = firstRealSale(); if (r >= 0) SALE_IDX = r; }   // open on something worth looking at
+
+  const tabs = T.map(t => `<button class="id-tab${t.id === CUR ? ' on' : ''}" data-id="${t.id}" onclick="pick('${t.id}')">
+      <b>${esc(t.name)}</b><span>${esc(t.desc)}</span>
+      ${t.id === 'classic' ? '<span class="badge">In use now</span>' : ''}</button>`).join('');
+
+  const invOpts = '<option value="-1"' + (SALE_IDX === -1 ? ' selected' : '') + '>Sample invoice (10,000 Tonne)</option>'
+    + sales.slice(0, 40).map((s, i) =>
+    `<option value="${i}"${i === SALE_IDX ? ' selected' : ''}>${esc(s.inv || '(no number)')} — ${esc(s.party || '')}</option>`).join('');
+
+  $('#idBody').innerHTML = `
+    <div class="id-note"><span>👀</span><div>
+      <b>Preview only.</b> Your invoices still print in the <b>Classic</b> format — nothing your customers receive has changed.
+      Choosing a default, customising colours and saving your own designs come next.
+    </div></div>
+    <div class="id-tabs">${tabs}</div>
+    <div class="id-bar">
+      ${true ? `<label>Invoice <select id="idSale" onchange="pickSale(this.value)">${invOpts}</select></label>` : ''}
+      <label>Accent <input type="color" id="idAccent" value="${ACCENT}" oninput="pickAccent(this.value)"></label>
+      <span style="opacity:.7">— accent applies to Premium Glass and Vivid Business</span>
+      <button class="ql-btn" style="margin-left:auto" onclick="printIt()">Print / PDF</button>
+    </div>
+    <div class="id-stage"><iframe id="idFrame" title="Invoice preview"></iframe></div>`;
+  paint();
+}
+
+function pick(id) { CUR = id; paint(); }
+function pickSale(i) { SALE_IDX = +i; paint(); }
+function pickAccent(v) { ACCENT = v; paint(); }
+function printIt() {
+  const fr = document.getElementById('idFrame');
+  if (fr && fr.contentWindow) { fr.contentWindow.focus(); fr.contentWindow.print(); }
+}
+
+window.__qlOnSwitchCompany = () => render();
+window.__qlRefresh = render;
+QLD.init(render);
+</script>
+</body>
+</html>
