@@ -532,7 +532,10 @@
     /* validation */
     if (f.supplierGstin && !validGstin(f.supplierGstin) && warn.indexOf('Supplier GSTIN format looks off') < 0) warn.push('Supplier GSTIN invalid');
 
-    return { fields: f, confidence: conf, review: review, warnings: warn, verify: ver, raw: T };
+    // noIdentity travels OUT as a first-class flag, not just prose in warnings[].
+    // The importer has to be able to BRANCH on it: a warning string it never
+    // renders (openTable shows only bill.reason) is not a safeguard.
+    return { fields: f, confidence: conf, review: review, warnings: warn, verify: ver, raw: T, noIdentity: noIdentity };
   }
 
   /* ── supplier picker ─────────────────────────────────────────────────── */
@@ -742,6 +745,7 @@
       _text: res.raw, _conf: gconf, _review: grev, _verify: gver, _warn: res.warnings, _fields: f,
       docno: ok('billNo', f.billNo), date: ok('date', f.date),
       name: ok('supplier', f.supplier), gstin: ok('supplierGstin', f.supplierGstin), buyergstin: f.buyerGstin || '', dir: f.direction || '',
+      noid: !!res.noIdentity,          // "we have no GSTIN, so dir is unknowable" — NOT "dir was merely unreadable"
       taxable: ok('taxable', f.taxable), total: ok('total', f.total), rate: ok('gstRate', f.gstRate),
       cgst: f.cgst, sgst: f.sgst, igst: f.igst, totalgst: f.totalGst, roundoff: f.roundOff,
       group: ok('group', f.group), item: ok('item', f.item), hsn: f.hsn, qty: f.qty, veh: f.vehicle, itc: f.itc

@@ -123,6 +123,60 @@ CASES.forEach(([g, want, why]) => {
   if (g) eq('parser agrees: ' + why, !!OCR.validGstin(g), want);
 });
 
+/* ── 7. THE IMPORTER MUST HONOUR "no identity" ─────────────────────────
+   Found by an adversarial audit AFTER the first fix shipped: making the PARSER
+   refuse to guess was not enough. bulk.js detectType did
+     var type = cfg.kind || 'purchase'
+   so an unknown direction silently became "whatever register you're standing
+   on". Worse, recompute() keeps review-flags only for EMPTY fields, so the
+   parser's flagged (but non-empty) GSTIN guess was stripped and the bill went
+   status 'ready' — and the batch table (2+ bills) renders only bill.reason,
+   never the parser's _warn. Net: a no-identity batch posted SILENTLY.
+   The fix must hold at the IMPORTER, not just the parser. */
+const vm = require('vm');
+const bulkSrc = fs.readFileSync(__dirname + '/bulk.js', 'utf8');
+const cut = (a, b) => { const i = bulkSrc.indexOf(a); return bulkSrc.slice(i, bulkSrc.indexOf(b, i) + b.length); };
+const bulkCtx = { window: { QLExtract: { validGstin: OCR.validGstin } }, SEQ: 1, console };
+vm.createContext(bulkCtx);
+vm.runInContext([cut('function detectType', '\n  }'), cut('function makeBill', '\n  }'),
+  cut('function recompute', '\n  }'), cut('function nameKey', '\n  }'), cut('function invKey', '\n  }'),
+  'this.makeBill = makeBill;'].join('\n'), bulkCtx);
+
+const CFG = kind => ({
+  kind, noun: 'bill',
+  fields: [{ key: 'date', required: true }, { key: 'party', required: true }, { key: 'billno' }, { key: 'amount', required: true }],
+  ocrMap: { date: 'date', party: 'name', billno: 'docno', amount: 'total', gstin: 'gstin' },
+  buildRow: get => ({ date: get('date'), party: get('party'), amount: +get('amount') || 0 }),
+});
+const mkBill = (opts, kind) => bulkCtx.makeBill(OCR.legacy(OCR.parse(GOTAN_SALES_BILL, opts)), { name: 'Sales Bill.pdf' }, 'ocr', CFG(kind));
+
+const noId = mkBill({ ownGstins: [] }, 'purchase');
+ok('no identity: the importer must NOT mark the bill ready to post',
+  noId.status !== 'ready');
+eq('no identity: bill is held for review', noId.status, 'review');
+ok('no identity: the user is TOLD why (bill.reason is what the batch table renders)',
+  /GSTIN is not set/i.test(noId.reason || ''));
+ok('no identity: the reason names where to fix it',
+  /Settings/i.test(noId.reason || '') && /Company profile/i.test(noId.reason || ''));
+
+// The parser's own flag must survive to the importer — a warning string alone
+// was not enough, because openTable never renders _warn.
+ok('legacy() exposes noid so the importer can BRANCH, not just print prose',
+  OCR.legacy(OCR.parse(GOTAN_SALES_BILL, { ownGstins: [] })).noid === true);
+ok('noid is false once the firm has an identity',
+  OCR.legacy(OCR.parse(GOTAN_SALES_BILL, { ownGstins: ['08BNAPM0488E1Z3'], selfGstin: '08BNAPM0488E1Z3' })).noid === false);
+
+// A company WITH an identity must be completely unaffected by all of the above.
+const gotanBill = mkBill({ ownGstins: ['08BNAPM0488E1Z3'], selfGstin: '08BNAPM0488E1Z3' }, 'purchase');
+eq('identity set: normal bill still imports cleanly', gotanBill.status, 'ready');
+ok('identity set: no GSTIN nag on a bill we CAN classify',
+  !/GSTIN is not set/i.test(gotanBill.reason || ''));
+eq('identity set: our own sales bill auto-routes to the Sales register', gotanBill.crossKind, 'sales');
+
+// Same, on the Sales register — the register must not silently win either way.
+const noIdOnSales = mkBill({ ownGstins: [] }, 'sales');
+ok('no identity on the Sales register is held for review too', noIdOnSales.status === 'review');
+
 console.log('\n════ company identity / bill direction ════\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' IDENTITY TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');

@@ -269,6 +269,20 @@
     if ((type === 'purchase' || type === 'sales') && cfg.kind && type !== cfg.kind) {
       flag = 'Looks like a ' + (type === 'sales' ? 'Sales invoice' : 'Purchase bill') + ' — you\'re on the ' + (cfg.kind === 'sales' ? 'Sales' : 'Purchase') + ' register';
     }
+    // NO IDENTITY: the parser did not "fail to read" the direction — it REFUSED to
+    // guess, because with no GSTIN on file our own bill and a supplier's are
+    // indistinguishable. Falling through to `cfg.kind` above silently files by
+    // whichever page the upload started from, which is exactly the reported bug
+    // (a sales invoice booked as a Purchase, ITC claimed, party = our own firm).
+    // A flag is what the rest of the pipeline already understands: recompute()
+    // turns it into bill.reason (rendered by the batch table) AND status
+    // 'review', and importReady() posts only 'ready' — so these can never be
+    // blind-imported. Left last: this outranks the cross-register hint, since
+    // without an identity that hint is not knowable either.
+    if (g.noid) {
+      flag = 'Your firm’s GSTIN is not set, so Sales and Purchase can’t be told apart — filed as ' +
+             (type === 'sales' ? 'Sales' : 'Purchase') + ' for now. Add your GSTIN in Settings → Company profile, then check this.';
+    }
     return { type: type, flag: flag };
   }
 
