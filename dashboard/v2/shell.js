@@ -137,6 +137,7 @@
       { id: 'sales',       label: 'Sales Register',  href: 'sales.html', icon: I.sales },
       { id: 'customers',   label: 'Customers',       href: 'parties.html#customer', icon: I.users },
       { id: 'collections', label: 'Collections',     href: 'collections.html', icon: I.coll, badgeKey: 'collections' },
+      { id: 'crm',         label: 'Sales Pipeline',  href: 'crm.html', icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
       { id: 'monthreg',    label: 'Monthly Register', href: 'monthreg.html', icon: I.cal, feat: 'monthreg' }
     ]},
     { type: 'group', label: 'Purchase', feat: 'purchase', items: [

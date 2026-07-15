@@ -245,6 +245,108 @@ function ql_ensure_tables() {
         per-company JSON blob into their own indexed tables, scoped by
         (plant_id, company_id), so month/status/type filtering and paging
         happen in SQL and the store can hold millions of rows. ─────────── */
+  /* ══ CRM spine ══════════════════════════════════════════════════════
+     Relational, NOT in the per-company JSON blob: leads and activities are
+     high-volume and queryable, and the blob is loaded whole into a phone.
+
+     NOTE ON `deals`: the architecture called for a separate deals table. It is
+     deliberately NOT here yet. For a single-product plant a lead IS the deal —
+     tonnes, price and stage on the lead say everything a deal row would, and a
+     second table would add a step that carries no information. A deals table
+     earns its place when one company runs several concurrent negotiations;
+     until then it would be ceremony. crm_leads.company_id makes that a later
+     migration, not a rewrite.
+
+     NOTE ON `crm_companies.party_id`: a converted lead POINTS AT the ERP party
+     rather than copying it. A CRM that duplicates the customer list is how
+     sales and accounts start disagreeing about who owes what. */
+  $db->exec("CREATE TABLE IF NOT EXISTS crm_companies (
+    id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    plant_id    VARCHAR(64)  NOT NULL,
+    company_id  VARCHAR(96)  NOT NULL DEFAULT '',
+    name        VARCHAR(190) NOT NULL,
+    industry    VARCHAR(32)  NOT NULL DEFAULT '',
+    gstin       VARCHAR(20)  DEFAULT NULL,
+    website     VARCHAR(190) DEFAULT NULL,
+    state       VARCHAR(80)  DEFAULT NULL,
+    city        VARCHAR(80)  DEFAULT NULL,
+    distance_km INT          DEFAULT NULL,
+    est_tpm     DECIMAL(10,2) DEFAULT NULL,
+    current_supplier VARCHAR(190) DEFAULT NULL,
+    source      VARCHAR(24)  NOT NULL DEFAULT 'manual',
+    party_id    VARCHAR(96)  DEFAULT NULL,
+    notes       TEXT,
+    created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_co (plant_id, company_id),
+    KEY idx_party (party_id),
+    UNIQUE KEY uq_gstin (plant_id, company_id, gstin)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  /* Consent is a COLUMN, not an afterthought. India's DPDP Act 2023 treats a
+     purchase manager's mobile as personal data even in B2B, and buying a list
+     does not create a lawful basis to message them. Retrofitting this after
+     10,000 contacts is painful; the penalties are not small. */
+  $db->exec("CREATE TABLE IF NOT EXISTS crm_contacts (
+    id            BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    plant_id      VARCHAR(64)  NOT NULL,
+    company_id    VARCHAR(96)  NOT NULL DEFAULT '',
+    crm_company   BIGINT       NOT NULL,
+    name          VARCHAR(190) NOT NULL DEFAULT '',
+    role          VARCHAR(120) DEFAULT NULL,
+    email         VARCHAR(190) DEFAULT NULL,
+    phone         VARCHAR(24)  DEFAULT NULL,
+    whatsapp      VARCHAR(24)  DEFAULT NULL,
+    linkedin      VARCHAR(190) DEFAULT NULL,
+    consent_basis VARCHAR(24)  NOT NULL DEFAULT 'none',
+    consent_at    DATETIME     DEFAULT NULL,
+    consent_note  VARCHAR(255) DEFAULT NULL,
+    opted_out_at  DATETIME     DEFAULT NULL,
+    created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_cc (plant_id, company_id, crm_company)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  $db->exec("CREATE TABLE IF NOT EXISTS crm_leads (
+    id            BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    plant_id      VARCHAR(64)  NOT NULL,
+    company_id    VARCHAR(96)  NOT NULL DEFAULT '',
+    crm_company   BIGINT       NOT NULL,
+    crm_contact   BIGINT       DEFAULT NULL,
+    stage         VARCHAR(24)  NOT NULL DEFAULT 'new',
+    tonnes        DECIMAL(10,2) DEFAULT NULL,
+    price_per_tonne DECIMAL(12,2) DEFAULT NULL,
+    score         INT          DEFAULT NULL,
+    score_why     TEXT,
+    owner         VARCHAR(120) DEFAULT NULL,
+    next_action   VARCHAR(255) DEFAULT NULL,
+    next_action_at DATE        DEFAULT NULL,
+    expected_close DATE        DEFAULT NULL,
+    lost_reason   VARCHAR(255) DEFAULT NULL,
+    won_at        DATETIME     DEFAULT NULL,
+    lost_at       DATETIME     DEFAULT NULL,
+    created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_stage (plant_id, company_id, stage),
+    KEY idx_next (plant_id, company_id, next_action_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  /* One timeline per company. The WhatsApp log writes here too, so "what have
+     we ever said to this customer" has a single answer. */
+  $db->exec("CREATE TABLE IF NOT EXISTS crm_activities (
+    id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    plant_id    VARCHAR(64)  NOT NULL,
+    company_id  VARCHAR(96)  NOT NULL DEFAULT '',
+    crm_company BIGINT       DEFAULT NULL,
+    crm_lead    BIGINT       DEFAULT NULL,
+    kind        VARCHAR(16)  NOT NULL,
+    direction   VARCHAR(8)   NOT NULL DEFAULT 'out',
+    body        TEXT,
+    status      VARCHAR(16)  DEFAULT NULL,
+    provider_id VARCHAR(128) DEFAULT NULL,
+    user        VARCHAR(120) DEFAULT NULL,
+    at          DATETIME     NOT NULL,
+    KEY idx_tl (plant_id, company_id, crm_company, at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
   // The work queue. A job is an INTENT ("remind ARIF about 147/2025-26 at
   // step 7"), never a promise: cron re-checks the invoice before sending, so a
   // bill paid after queueing is never chased. send_at is UTC.
