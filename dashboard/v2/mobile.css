@@ -284,7 +284,11 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qx-tb { flex-wrap: wrap; gap: 8px !important; padding: 0 0 10px !important; border: 0 !important; }
 .qx-tb-sp { display: none !important; }
 .qx-search { flex: 1 1 100%; order: -1; height: 44px !important; border-radius: 12px !important; font-size: 15px !important; }
-.qx-search input { font-size: 15px !important; }
+/* 16px, not 15px: below 16 iOS zooms the page on focus. This rule is more
+   specific (0,1,1) than the blanket `input {16px !important}` further down, so it
+   won — the search box was the one field that still lurched the page in. One
+   pixel; the whole difference between an app and a web page. */
+.qx-search input { font-size: 16px !important; }
 /* views switcher hidden — mobile is card-first */
 .qx-views { display: none !important; }
 .qx-tool { height: 40px !important; padding: 0 14px !important; border-radius: 11px !important; font-size: 13px !important; }
