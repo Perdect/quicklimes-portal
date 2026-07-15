@@ -316,6 +316,7 @@ function tabLedger(r) {
   const balCol = bal > 0.5 ? 'var(--ql-danger-600)' : bal < -0.5 ? '#16a34a' : 'var(--ql-text)';
   const head = `<div class="crm-ledger-act">
       <button class="ql-btn ql-btn-primary" onclick="PartiesLedger.receipt(${r.idx})">${svg(IC.plus)} ${r.type === 'supplier' ? 'Record payment' : 'Record receipt'}</button>
+      <button class="ql-btn ql-btn-secondary" onclick="LedgerImport.open(${r.idx})">${svg(IC.dl)} Import ledger from Tally</button>
       <button class="ql-btn ql-btn-secondary" onclick="location.href='ledger.html?party=${r.idx}'">Full statement →</button>
     </div>
     <div class="crm-paygrid">

@@ -682,6 +682,36 @@
     const first = $('qlModal').querySelector('.qlf-input'); if (first) setTimeout(() => first.focus(), 30);
   }
   function closeModal() { $('qlModalBack').classList.remove('open'); }
+  /* ── Generic HTML panel ──
+     openForm() builds a modal out of FIELD SPECS, which is right for data entry
+     and useless for anything that has to SHOW something — a comparison, a
+     preview, a decision. Rather than have each page hand-roll its own overlay
+     (and drift from the shell's look, focus handling and close behaviour), this
+     renders arbitrary HTML into the same modal chrome.
+       cfg: { title, sub, wide, body(html), actions:[{label, primary, onClick}],
+              onMount(bodyEl) }
+     Actions are plain buttons: a panel decides nothing on its own, so there is
+     no implicit save and no implicit close. */
+  function panel(cfg) {
+    cfg = cfg || {};
+    $('qlModal').classList.toggle('wide', !!cfg.wide);
+    const acts = (cfg.actions || []).map((a, i) => `<button class="ql-btn ${a.primary ? 'ql-btn-primary' : 'ql-btn-secondary'}" data-pact="${i}">${esc(a.label)}</button>`).join('');
+    $('qlModal').innerHTML = `
+      <div class="ql-modal-head">
+        <div><h3 class="ql-modal-title">${esc(cfg.title || '')}</h3>${cfg.sub ? `<div class="ql-modal-sub">${esc(cfg.sub)}</div>` : ''}</div>
+        <button class="ql-modal-x" onclick="QLShell.closeModal()" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div class="ql-panel-body" id="qlPanelBody">${cfg.body || ''}</div>
+      ${acts ? `<div class="ql-modal-foot">${acts}</div>` : ''}`;
+    const bodyEl = $('qlPanelBody');
+    $('qlModal').querySelectorAll('[data-pact]').forEach(b => b.onclick = () => {
+      const a = cfg.actions[+b.dataset.pact];
+      if (a && a.onClick) a.onClick(bodyEl);
+    });
+    if (cfg.onMount) cfg.onMount(bodyEl);
+    $('qlModalBack').classList.add('open');
+    return bodyEl;
+  }
   /* ── Recoverable-deletion modal (replaces browser confirm/prompt) ──
      o: { title, desc, confirmLabel, reason (default true), needType, onConfirm(reason) }.
      Reuses the form modal: an optional reason field, plus a typed-confirmation
@@ -1807,7 +1837,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     setBreadcrumb(label) { const c = document.querySelector('.tb-crumb-active'); if (c) c.textContent = label; },
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
     // form modals + row action menus
-    closeModal, openForm, confirmDelete, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
+    closeModal, openForm, panel, confirmDelete, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
     rowMenu, printInvoice, exportCSV, csvCell, csvRow, downloadCSV,
     _comboFilter, _comboFocus, _comboBlur, _comboPick, _comboKey,
     formPrompt(title, specs, onSave, sub) { openForm({ title, sub, specs, saveLabel: 'Save', initial: {}, onSave(v) { onSave(v); } }); },

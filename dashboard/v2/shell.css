@@ -473,3 +473,16 @@ button { font-family: inherit; cursor: pointer; }
                   color: var(--ql-text); margin: 0; letter-spacing: var(--ql-tracking-tight); }
 .placeholder p { margin: 0; max-width: 460px; line-height: var(--ql-leading-snug); }
 .placeholder .ql-btn-primary { margin-top: var(--ql-space-2); }
+
+/* Generic panel body (QLShell.panel) — arbitrary HTML in the modal chrome, for
+   the screens that must SHOW something rather than collect fields. */
+.ql-panel-body { padding: 4px 0 2px; max-height: 62vh; overflow-y: auto; }
+.ql-panel-body .pb-card:last-child { margin-bottom: 0; }
+/* one row of a ledger comparison: [tick] date · what it is · amount */
+.lgi-row { display: grid; grid-template-columns: auto 74px 1fr auto; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--ql-divider); font-size: 12.5px; cursor: pointer; }
+.lgi-row:last-child { border-bottom: none; }
+.lgi-d { color: var(--ql-text-muted); white-space: nowrap; }
+.lgi-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lgi-a { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 650; }
+.lgi-cr { color: var(--ql-danger-600); }   /* he billed us — we owe more */
+.lgi-dr { color: var(--ql-success-600); }  /* we paid him */
