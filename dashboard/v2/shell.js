@@ -420,6 +420,7 @@
     if (sbName) sbName.textContent = co.short;
     const pmName = $('pmName'); if (pmName) pmName.textContent = Q.plant.owner_name || co.short;
     const pmEmail = $('pmEmail'); if (pmEmail) pmEmail.textContent = Q.plant.owner_phone ? ('+91 ' + Q.plant.owner_phone) : '—';
+    paintAvatarLetter(co);
     // collections badge
     try {
       const c = Q.collections('overdue');
@@ -513,6 +514,28 @@
 
   /* ── Profile menu + photo (ported) ───────────────────────────── */
   const PHOTO_KEY = 'ql_v2_profile_photo';
+
+  /* The avatar's LETTER. Every [data-avatar] shipped with a hardcoded "D" in its
+     markup and nothing ever replaced it — applyAvatarPhoto() only ever set a
+     background photo. So the top-bar avatar, the profile-menu avatar and the
+     mobile header avatar have shown "D" to every user of this app, in every
+     company, since they were written. On an account whose other plant is called
+     Deshwali Minerals that D reads as the WRONG COMPANY still being active —
+     which is exactly how it was reported, right after a switch that had in fact
+     worked everywhere else on the screen.
+
+     Same source as the name directly above it, so the two can never disagree:
+     the person, then the firm, then a neutral dot — never an invented letter. */
+  function paintAvatarLetter(co) {
+    const name = (Q.plant && Q.plant.owner_name) || (co && (co.short || co.name)) || '';
+    const ch = (String(name).trim()[0] || '·').toUpperCase();
+    document.querySelectorAll('[data-avatar]').forEach(el => {
+      // Don't stomp a real photo's element text — the letter sits under it and
+      // shows through only when there is no photo.
+      if (el.textContent.trim() !== ch) el.textContent = ch;
+    });
+  }
+
   function applyAvatarPhoto(url) {
     document.querySelectorAll('[data-avatar]').forEach(el => {
       if (url) { el.style.setProperty('--ql-photo', `url('${url}')`); el.classList.add('has-photo'); }

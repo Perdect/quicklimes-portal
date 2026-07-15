@@ -158,6 +158,18 @@
         if (c.key === Q.activeCo) return;
         Q.switchCompany(c.key, () => {
           paintCo();
+          /* Repaint the SHELL's own chrome too — its name, avatar letter and
+             profile menu. The desktop switcher calls this; mobile did not, so
+             after a phone switch the profile sheet could still show the previous
+             firm's name and initial while the page underneath was correct. */
+          if (window.QLShell && QLShell.paintWorkspace) QLShell.paintWorkspace();
+          paintChrome();
+          /* And the MOBILE dashboard, which this file renders itself. The page's
+             own __qlOnSwitchCompany redraws the DESKTOP dashboard (dashboard.js);
+             nothing redrew this one, so "Welcome back — Deshwali Minerals" stayed
+             on screen after switching to Gotan, under a header that correctly said
+             Gotan. Two dashboards, one hook, and only one of them was listening. */
+          buildDashboard();
           /* Re-render whatever this page draws. Every page defines this hook and
              the shell calls it after a desktop switch; mobile must not invent a
              second, divergent refresh path. Reload only if a page has no hook —
