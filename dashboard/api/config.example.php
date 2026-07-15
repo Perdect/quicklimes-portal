@@ -38,4 +38,11 @@ return [
   //    you cannot afford to lose.
   'WHAPI_TOKEN'  => '',                          // from your Whapi channel page
   'WHAPI_SENDER' => '',                          // the sending number, e.g. 919460034743 (display only)
+
+  // ── Unattended reminders (optional) — the cron secret.
+  //    /api/cron.php is reachable from the internet, so it is USELESS without
+  //    this and refuses to run when blank. Generate one:  openssl rand -hex 24
+  //    Then in hPanel -> Advanced -> Cron Jobs, hourly:
+  //      curl -s "https://app.quicklimes.com/api/cron.php?key=THE-SAME-SECRET"
+  'CRON_SECRET' => '',
 ];

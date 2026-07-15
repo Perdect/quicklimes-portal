@@ -172,6 +172,7 @@
           '<label class="wa-f">Outstanding above ₹<input id="waMin" class="wa-min" type="number" value="' + (S.min || '') + '" placeholder="0"></label>' +
           '<span class="wa-grow"></span>' +
           '<span class="wa-mut" id="waQn"></span>' +
+          '<button class="ql-btn ql-btn-secondary" id="waSched">Schedule next 14 days</button>' +
           '<button class="ql-btn ql-btn-primary" id="waAll"' + (sendable.length ? '' : ' disabled') + '>Send ' + sendable.length + ' one by one</button>' +
         '</div>' +
         (tasks.length
@@ -199,6 +200,19 @@
       b.onclick = function () { location.href = 'parties.html'; };
     });
     var all = el.querySelector('#waAll'); if (all) all.onclick = function () { sendQueue(tasks); };
+    var sc = el.querySelector('#waSched');
+    if (sc) sc.onclick = function () {
+      sc.disabled = true; sc.textContent = 'Scheduling…';
+      scheduleAhead(14).then(function (r) {
+        sc.disabled = false; sc.textContent = 'Schedule next 14 days';
+        if (!r.ok) { toast(r.error || 'Could not schedule', 'err'); return; }
+        if (r.none) { toast('Nothing to schedule in the next 14 days'); return; }
+        // Say exactly what happened. "skipped" is not a failure — it means
+        // already queued, which is the dedupe doing its job.
+        toast('Queued ' + r.queued + (r.skipped ? ' · ' + r.skipped + ' already scheduled' : '') +
+              (CH.live ? '' : ' — they will only SEND once a channel is connected'), r.queued ? 'ok' : 'err');
+      });
+    };
     el.querySelectorAll('[data-resend]').forEach(function (b) {
       b.onclick = function () {
         var r = Q.waLogRows().find(function (x) { return x.id === b.dataset.resend; });
@@ -286,5 +300,45 @@
     if (b) b.classList.remove('open'); if (p) p.style.display = 'none';
   }
 
-  window.QLWA = { open: open, close: close, plan: plan, statements: statements, sendOne: sendOne, checkChannel: checkChannel, mode: mode };
+  /* ── SCHEDULE AHEAD ────────────────────────────────────────────────────
+     The browser owns the RULES; the server is a pipe. So we compute the plan
+     for the next N days HERE (wa-core, unit-tested) and enqueue concrete jobs.
+     No rule is duplicated in PHP — the split that would drift.
+
+     A queued job is an intent, not a promise: /api/cron re-checks the invoice
+     is still unpaid AND that the amount still matches before it sends. Pay a
+     bill tomorrow and the queued reminder is dropped, not delivered.
+
+     Idempotent: the dedupe key is wa-core's own sendKey (party|invoice|step),
+     unique in the DB, so opening the app five times queues one reminder. */
+  function scheduleAhead(days) {
+    days = days || 14;
+    var p = JSON.parse(localStorage.getItem('ql_plant') || '{}');
+    var cfg = Q.waCfg(), sent = Q.waSentKeys(), jobs = [];
+    var base = new Date();
+    for (var d = 0; d < days; d++) {
+      var day = new Date(base); day.setDate(day.getDate() + d);
+      var iso = day.getFullYear() + '-' + String(day.getMonth() + 1).padStart(2, '0') + '-' + String(day.getDate()).padStart(2, '0');
+      W.planReminders({
+        sales: Q.salesRows(), parties: Q.partyRows(), today: iso,
+        schedule: cfg.schedule, sentKeys: sent, templates: cfg.templates
+      }).forEach(function (t) {
+        if (!t.sendable) return;                       // no number / broken message ⇒ never queue it
+        jobs.push({
+          kind: 'wa_reminder', dedupe_key: t.key,
+          // 10:00 local — a reminder at 3am reads as a robot and gets ignored.
+          send_at: iso + ' 10:00:00',
+          payload: { to: t.phone, body: t.text, inv: t.inv, party: t.party, step: t.step, amount: Math.round(t.balance * 100) / 100 }
+        });
+      });
+    }
+    if (!jobs.length) return Promise.resolve({ ok: true, queued: 0, skipped: 0, none: true });
+    return fetch('/api/jobs', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plant_id: p.id, company_id: Q.activeCo, token: p.token, action: 'enqueue', jobs: jobs })
+    }).then(function (r) { return r.json(); }).catch(function () { return { ok: false, error: 'Network error' }; });
+  }
+
+  window.QLWA = { open: open, close: close, plan: plan, statements: statements, sendOne: sendOne,
+    checkChannel: checkChannel, mode: mode, scheduleAhead: scheduleAhead };
 })();

@@ -245,6 +245,27 @@ function ql_ensure_tables() {
         per-company JSON blob into their own indexed tables, scoped by
         (plant_id, company_id), so month/status/type filtering and paging
         happen in SQL and the store can hold millions of rows. ─────────── */
+  // The work queue. A job is an INTENT ("remind ARIF about 147/2025-26 at
+  // step 7"), never a promise: cron re-checks the invoice before sending, so a
+  // bill paid after queueing is never chased. send_at is UTC.
+  $db->exec("CREATE TABLE IF NOT EXISTS jobs (
+    id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    plant_id    VARCHAR(64)  NOT NULL,
+    company_id  VARCHAR(96)  NOT NULL DEFAULT '',
+    kind        VARCHAR(32)  NOT NULL,
+    dedupe_key  VARCHAR(190) NOT NULL DEFAULT '',
+    send_at     DATETIME     NOT NULL,
+    payload     TEXT         NOT NULL,
+    status      VARCHAR(16)  NOT NULL DEFAULT 'queued',
+    attempts    INT          NOT NULL DEFAULT 0,
+    last_error  VARCHAR(255) DEFAULT NULL,
+    provider_id VARCHAR(128) DEFAULT NULL,
+    created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    done_at     DATETIME     DEFAULT NULL,
+    KEY idx_due (status, send_at),
+    KEY idx_plant (plant_id, company_id),
+    UNIQUE KEY uq_dedupe (plant_id, company_id, dedupe_key)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
   $db->exec("CREATE TABLE IF NOT EXISTS bank_accounts (
     id          VARCHAR(64)  NOT NULL PRIMARY KEY,
     plant_id    VARCHAR(64)  NOT NULL,
@@ -341,6 +362,56 @@ function ql_ensure_tables() {
     UNIQUE KEY uq_file (plant_id, company_id, file_hash),
     KEY k_inv (plant_id, company_id, inv_key)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/* ── What one sale row still owes. PURE (no DB), so it can be tested, and
+   shared by the cron's freshness check. Mirrors QLD's cS(): a cancelled bill
+   owes nothing, 'paid'/'cash' are settled in full, otherwise total − paid. */
+function ql_sale_outstanding($s) {
+  if (!is_array($s)) return 0.0;
+  $status = strtolower((string)($s['status'] ?? 'pending'));
+  if ($status === 'cancelled') return 0.0;
+  $qty     = (float)($s['qty'] ?? 0);
+  $rate    = (float)($s['rate'] ?? 0);
+  $taxable = isset($s['taxable']) ? (float)$s['taxable'] : $qty * $rate;
+  $gst     = (float)($s['gst'] ?? 0);
+  $total   = isset($s['total']) ? (float)$s['total'] : $taxable * (1 + $gst / 100);
+  $paid    = ($status === 'paid' || $status === 'cash') ? $total : (float)($s['paid'] ?? 0);
+  return max(0.0, $total - $paid);
+}
+
+/* ── Cron secret. The cron endpoint is reachable from the internet, so it is
+   useless without this. Blank ⇒ the endpoint refuses to run at all rather
+   than defaulting to open. */
+function ql_cron_secret() { $c = ql_config(); return (string)($c['CRON_SECRET'] ?? ''); }
+
+/* ── Whapi send — ONE implementation, used by both /api/wa (manual) and
+   /api/cron (unattended). Two copies of a send path is how one of them
+   quietly stops matching the other. Returns [ok, id|error]. */
+function ql_wa_send($token, $to, $body) {
+  $to = preg_replace('/\D/', '', (string)$to);
+  if (strlen($to) < 10 || strlen($to) > 15) return ['ok' => false, 'error' => 'Bad recipient number'];
+  if (trim((string)$body) === '')          return ['ok' => false, 'error' => 'Empty message'];
+  if (strpos($body, '{{') !== false)       return ['ok' => false, 'error' => 'Unfilled placeholder — refusing to send'];
+  $ch = curl_init('https://gate.whapi.cloud/messages/text');
+  curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 25,
+    CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $token, 'Content-Type: application/json', 'Accept: application/json'],
+    CURLOPT_POSTFIELDS => json_encode(['to' => $to, 'body' => $body]),
+  ]);
+  $raw = curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch);
+  curl_close($ch);
+  if ($code === 0)  return ['ok' => false, 'retry' => true, 'error' => 'Provider unreachable' . ($err ? ": $err" : '')];
+  if ($code === 429) return ['ok' => false, 'retry' => true, 'error' => 'Provider rate limit'];
+  $j = json_decode((string)$raw, true); $j = is_array($j) ? $j : [];
+  $id = $j['message']['id'] ?? ($j['id'] ?? null);
+  if ($code < 200 || $code >= 300 || !$id) {
+    $why = $j['error']['message'] ?? ($j['message'] ?? ('HTTP ' . $code));
+    if (is_array($why)) $why = json_encode($why);
+    // 4xx (other than 429) is our fault and will fail again — do not retry.
+    return ['ok' => false, 'retry' => ($code >= 500), 'error' => (string)$why];
+  }
+  return ['ok' => true, 'id' => (string)$id];
 }
 
 /* ── WhatsApp channel (Whapi) from config (server-side only; '' when unset) ──

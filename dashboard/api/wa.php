@@ -39,27 +39,13 @@ if ($wa['token'] === '') {
   ql_out(['ok' => false, 'not_configured' => true, 'error' => 'whatsapp_not_configured']);
 }
 
-/* ── shared HTTP ── */
-function ql_wa_http($method, $url, $token, $payload = null) {
-  $ch = curl_init($url);
-  $h  = ['Authorization: Bearer ' . $token, 'Accept: application/json'];
-  if ($payload !== null) $h[] = 'Content-Type: application/json';
-  curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_CUSTOMREQUEST  => $method,
-    CURLOPT_HTTPHEADER     => $h,
-    CURLOPT_TIMEOUT        => 25,
-  ]);
-  if ($payload !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-  $raw  = curl_exec($ch);
-  $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-  $err  = curl_error($ch);
-  curl_close($ch);
-  return ['code' => $code, 'raw' => $raw, 'err' => $err, 'json' => json_decode((string)$raw, true)];
-}
 
 if ($action === 'status') {
-  $r = ql_wa_http('GET', 'https://gate.whapi.cloud/health', $wa['token']);
+  $ch = curl_init('https://gate.whapi.cloud/health');
+  curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20,
+    CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $wa['token'], 'Accept: application/json']]);
+  $raw = curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+  $r = ['code' => $code, 'json' => json_decode((string)$raw, true)];
   if ($r['code'] === 0) ql_out(['ok' => false, 'configured' => true, 'error' => 'Could not reach WhatsApp provider']);
   if ($r['code'] === 401 || $r['code'] === 403) ql_out(['ok' => false, 'configured' => true, 'error' => 'The channel token was rejected — check WHAPI_TOKEN in config.php']);
   // Whapi does not document the health response shape, so do not invent one:
@@ -77,28 +63,13 @@ if ($action === 'status') {
 }
 
 if ($action === 'send') {
-  $to   = preg_replace('/\D/', '', (string)($b['to'] ?? ''));
-  $body = (string)($b['body'] ?? '');
-  // Refuse to send junk in the firm's name. A malformed number can reach a
-  // stranger; an empty body is a message no customer should receive.
-  if (strlen($to) < 10 || strlen($to) > 15) ql_out(['ok' => false, 'error' => 'Bad recipient number']);
-  if (trim($body) === '')                   ql_out(['ok' => false, 'error' => 'Empty message']);
-  if (strpos($body, '{{') !== false)        ql_out(['ok' => false, 'error' => 'Message still has an unfilled placeholder — refusing to send']);
-  if (mb_strlen($body) > 4000)              ql_out(['ok' => false, 'error' => 'Message too long']);
-
-  $r = ql_wa_http('POST', 'https://gate.whapi.cloud/messages/text', $wa['token'], ['to' => $to, 'body' => $body]);
-  if ($r['code'] === 0) ql_out(['ok' => false, 'error' => 'Could not reach WhatsApp provider' . ($r['err'] ? ' (' . $r['err'] . ')' : '')]);
-  if ($r['code'] === 401 || $r['code'] === 403) ql_out(['ok' => false, 'error' => 'The channel token was rejected']);
-  if ($r['code'] === 429) ql_out(['ok' => false, 'retry' => true, 'error' => 'Provider rate limit — slow down']);
-  $j  = is_array($r['json']) ? $r['json'] : [];
-  $id = $j['message']['id'] ?? ($j['id'] ?? null);
-  if ($r['code'] < 200 || $r['code'] >= 300 || !$id) {
-    // NEVER report a send we cannot prove. Surface the provider's own words.
-    $why = $j['error']['message'] ?? ($j['message'] ?? ('HTTP ' . $r['code']));
-    if (is_array($why)) $why = json_encode($why);
-    ql_out(['ok' => false, 'error' => (string)$why]);
-  }
-  ql_out(['ok' => true, 'id' => (string)$id, 'status' => (string)($j['message']['status'] ?? 'pending')]);
+  // One send path, shared with the cron (ql_wa_send in db.php): it validates
+  // the number, refuses an empty body or an unfilled {{placeholder}}, and
+  // reports ok ONLY with a real provider message id. Two copies of this would
+  // drift, and the manual and unattended paths must behave identically.
+  $r = ql_wa_send($wa['token'], (string)($b['to'] ?? ''), (string)($b['body'] ?? ''));
+  if (!$r['ok']) ql_out(['ok' => false, 'retry' => !empty($r['retry']), 'error' => $r['error']]);
+  ql_out(['ok' => true, 'id' => $r['id'], 'status' => 'pending']);
 }
 
 ql_out(['ok' => false, 'error' => 'Unknown action']);
