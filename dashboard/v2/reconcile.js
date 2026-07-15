@@ -73,6 +73,41 @@ function ownNames() {
   try { if (Q.co) { if (Q.co.name) n.push(Q.co.name); if (Q.co.short) n.push(Q.co.short); } Object.values(Q.COMPANIES || {}).forEach(c => { if (c.name) n.push(c.name); if (c.short) n.push(c.short); }); } catch (_) {}
   return [...new Set(n)];
 }
+/* Money the firm has ALREADY recorded, shaped for the matcher.
+
+   The cashbook is the single ledger every payment posts to — a freight payment,
+   a labour payout, a royalty, an EMI. None of them are supplier bills, which is
+   why a bank debit could never match them before. `dir` translates the
+   cashbook's credit/debit into the matcher's in/out, and `linked` marks entries
+   already tied to another statement line so one payment cannot reconcile twice.
+
+   Entries CREATED BY reconciliation itself are excluded: posting a payment from
+   a bank line writes a cashbook row, and offering that row back as a candidate
+   for the same line would let a re-run "discover" the record it just made. */
+function entriesFor(t) {
+  const linkedIds = new Set();
+  txns().forEach(x => { if (x.id !== t.id && x.m && x.m.entryId) linkedIds.add(x.m.entryId); });
+  let rows = [];
+  try { rows = Q.cashbookRows() || []; } catch (_) { return []; }
+  return rows.filter(r => r.id && !(r.reconTxnId && r.reconTxnId === t.id)).map(r => ({
+    id: r.id, date: r.date, amount: +r.amount || 0, party: r.party || '',
+    method: r.method || '', mode: r.mode || '', ref: r.ref || '',
+    kind: r.ptype || r.category || 'payment', accountId: r.accountId || '',
+    dir: r.type === 'credit' ? 'in' : 'out',
+    linked: linkedIds.has(r.id)
+  }));
+}
+/* The parties the firm pays every month, learned from its OWN cashbook.
+   Cached: autoMatch runs per transaction and a statement is hundreds of lines,
+   so recomputing this for each one would walk the whole cashbook every time.
+   Invalidated by runMatchAll, which is the only thing that re-matches in bulk. */
+let RECUR = null;
+function recurring() {
+  if (RECUR) return RECUR;
+  try { RECUR = RC.recurringPayees ? RC.recurringPayees(entriesFor({ id: '' })) : []; }
+  catch (_) { RECUR = []; }
+  return RECUR;
+}
 function autoMatch(t) {
   const np = npOf(t);
   // 1) hard rules first: charges, interest, GST, cash, self — these narrations
@@ -85,12 +120,34 @@ function autoMatch(t) {
   const hardM = hard ? { kind: 'other', idx: null, status: 'other', cat: hard.cat, catKey: hard.key, auto: true, confidence: hard.confidence, tier: 'green', matchedBy: 'rule', reasons: hard.reasons, at: new Date().toISOString() } : null;
   // 2) invoice matching (sister firms pay real invoices — matching wins).
   const bills = (t.credit || 0) > 0 ? Q.salesRows() : Q.purchaseRows();
-  const res = RC.bestMatch(np, t, bills, { aliasParty: aliasOf(np.clean) });
+  const opts = { aliasParty: aliasOf(np.clean), accountId: t.accountId || '' };
+  /* A bank line is one of two things, and confusing them costs real money:
+       it PAYS a bill      -> the money is not recorded yet; matching POSTS it
+       it IS an entry      -> already in the cashbook; matching may only LINK
+     Only bills used to be offered here, so a debit could only ever match a
+     PURCHASE BILL. Freight, labour, royalty and EMI payments — recorded in the
+     cashbook, never on a supplier bill — could not match anything: ₹55,233 to
+     "Nagour Golden Transport" had no candidate to match against, while the name
+     sat right there on the cashbook entry. resolve() considers both and returns
+     the action, so an existing record is linked, never paid a second time. */
+  const res = RC.resolve
+    ? RC.resolve(np, t, { bills: bills, entries: entriesFor(t), opts: opts })
+    : RC.bestMatch(np, t, bills, opts);
+  // An already-recorded payment is the most reliable read there is — the money
+  // is in the books with a name on it. It outranks the narration rules, which
+  // only guess from bank text.
+  if (res && res.kind === 'entry' && res.confidence >= 80) return Object.assign(res, { at: new Date().toISOString(), matchedBy: res.matchedBy || 'entry' });
   // A CONFIDENT invoice match (real party + amount) overrides ANY hard rule —
   // so "EMI Transport" (customer) / "Shriram Transport" (freight supplier) book
   // to their bill, never swallowed as a loan/fee. Otherwise the hard rule wins.
-  const strongMatch = res && res.idx != null && res.confidence >= 80;
+  // action 'ask' is EXCLUDED: it carries a bill idx and a high bill confidence,
+  // but it exists precisely because an existing record might be this money —
+  // auto-matching it here would post the payment the ask is meant to prevent.
+  const strongMatch = res && res.idx != null && res.confidence >= 80 && res.action !== 'ask';
   if (strongMatch) return Object.assign(res, { at: new Date().toISOString(), matchedBy: res.matchedBy || 'ai' });
+  // A less-certain entry match still beats a narration guess, and must not be
+  // swallowed by a hard rule on its way out — it is a real record with a name.
+  if (res && (res.kind === 'entry' || res.action === 'ask')) return Object.assign(res, { at: new Date().toISOString(), matchedBy: res.matchedBy || 'entry' });
   if (hardM) return hardM;
   // 3) residual: an UNMATCHED transfer whose narration IS one of our own firms
   //    is a likely inter-firm transfer — surfaced for REVIEW (never auto-hidden)
@@ -98,6 +155,26 @@ function autoMatch(t) {
   if ((res.status === 'unknown' || res.status === 'unmatched') && res.idx == null && RC.classifyResidual) {
     const resid = RC.classifyResidual(np, t, { ownNames: ownNames() });
     if (resid) return { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'review', cat: resid.cat, catKey: resid.key, suggestInterfirm: true, confidence: resid.confidence, tier: 'yellow', matchedBy: 'ai', reasons: resid.reasons, at: new Date().toISOString() };
+  }
+  /* 3b) THE PARTY WE PAY EVERY MONTH.
+     Nothing was recorded and no bill matches — but the firm has paid this name
+     in each of the last several months. That history is evidence: the line is a
+     known standing payment, not an unknown blob. It is only ever a REVIEW
+     suggestion — a habit is a reason to recognize the name, never a reason to
+     post money on its own. */
+  // Debits only: the history is of money we PAY OUT, so it can say "we pay this
+  // name every month". It says nothing about a receipt, and a credit from a name
+  // we routinely pay is unusual enough that guessing at it would be worse than
+  // leaving it for the user.
+  if ((t.debit || 0) > 0 && (res.status === 'unknown' || res.status === 'unmatched') && res.idx == null && RC.knownPayee) {
+    const kp = RC.knownPayee(np, t, recurring());
+    if (kp) return { kind: 'purchase', idx: null, status: 'review',
+      cat: 'Recurring payment', catKey: 'recurring',
+      party: kp.party, recurring: true, amountUsual: kp.amountUsual,
+      // A familiar payee at the usual amount is a decent guess; an unfamiliar
+      // amount is exactly the case a human should look at, so it scores lower.
+      confidence: kp.amountUsual ? 60 : 40, tier: 'yellow', matchedBy: 'history',
+      needsLink: true, reasons: [kp.why], at: new Date().toISOString() };
   }
   // 4) direction fallback: an unmatched line that still names a party is a
   //    customer receipt (credit) or supplier payment (debit) awaiting a link —
@@ -111,6 +188,7 @@ function autoMatch(t) {
   return res;
 }
 function runMatchAll(force) {
+  RECUR = null;                       // the cashbook may have changed since last run
   const arr = txns();
   arr.forEach(t => { if (!t.m || !t.m.manual || force) t.m = autoMatch(t); });
   // pair the two legs of self transfers (cross-account: Dr in one a/c, Cr in
@@ -274,7 +352,11 @@ function billOf(a) { const arr = a.kind === 'sale' ? Q.salesRows() : Q.purchaseR
 function billsFor(t) { return allocsOf(t).map(a => { const b = billOf(a); return b ? { kind: a.kind, idx: a.idx, amount: a.amount, bill: b } : null; }).filter(Boolean); }
 function billFor(t) { const a = allocsOf(t)[0]; return a ? billOf(a) : null; }
 function isSplit(t) { return t.m && Array.isArray(t.m.allocs) && t.m.allocs.length > 1; }
-function isLinked(t) { return t.m && (t.m.idx != null || (Array.isArray(t.m.allocs) && t.m.allocs.length) || t.m.status === 'other' || t.m.manual); }
+/* A line is "linked" once it points at something real. An entry match has no
+   bill idx — it points at a cashbook id — so it must be named here explicitly,
+   or a matched line would still nag the user to "Identify" a party it has
+   already recognized. */
+function isLinked(t) { return t.m && (t.m.idx != null || t.m.entryId || (Array.isArray(t.m.allocs) && t.m.allocs.length) || t.m.status === 'other' || t.m.manual); }
 function cards() {
   const tt = monthTxns();
   const credits = tt.reduce((a, t) => a + (t.credit || 0), 0);
@@ -311,6 +393,13 @@ function categoryDigest() {
       return;
     }
     if (isLinked(t)) { d.understood++; if (t.credit) d.receipts++; else d.payments++; return; }
+    /* Recognized but not linked: the app knows WHO this is (from the firm's own
+       payment history, or the narration) and says so on the row — it just needs
+       a human to say what it settles. Counting it as understood-nothing made the
+       page contradict itself: "Recognized as Nagaur Golden Transport Company"
+       sitting under "AI understood 0 of 1 · nothing categorized yet". It is
+       still an exception — understood and needs-you are different questions. */
+    if (m.party) { d.understood++; if (t.credit) d.receipts++; else d.payments++; }
     d.exceptions++;
   });
   d.total = tt.length;
@@ -486,6 +575,9 @@ function badge(t) {
 function matchCell(t) {
   if (isSplit(t)) { const bl = billsFor(t); const names = bl.map(x => x.kind === 'sale' ? x.bill.party : x.bill.sup).filter(Boolean); const uniq = [...new Set(names)]; return `<div class="rc-match"><b>${bl.length} bills · ${fC(bl.reduce((a, x) => a + x.amount, 0))}</b><span>${esc(uniq.slice(0, 2).join(', '))}${uniq.length > 2 ? ' +' + (uniq.length - 2) : ''}</span></div>`; }
   if (t.m && t.m.kind === 'ledger') return `<div class="rc-match"><b>Running a/c</b><span>${esc(t.m.party || '')}</span></div>`;
+  // An entry match points at money already in the cashbook — show the payment it
+  // is, not a bill it would pay.
+  if (t.m && t.m.kind === 'entry') return `<div class="rc-match"><b>${esc(t.m.cat || 'Recorded payment')}</b><span>${esc(t.m.party || '')} · already in cashbook</span></div>`;
   const b = billFor(t);
   if (b) { const ref = t.m.kind === 'sale' ? b.inv : b.bill; const nm = t.m.kind === 'sale' ? b.party : b.sup; return `<div class="rc-match"><b>${esc(ref || '—')}</b><span>${esc(nm || '')}${t.m.kind === 'purchase' && b.emoji ? ' · ' + b.emoji : ''}</span></div>`; }
   if (t.m && t.m.status === 'other') return `<div class="rc-match"><b>${esc(t.m.cat || 'Categorized')}</b><span>non-bill entry</span></div>`;
@@ -538,6 +630,11 @@ function typeCell(t) {
     return chip(m.cat || 'Categorized', cls);
   }
   if (m.kind === 'ledger') return chip(t.credit ? 'On-account receipt' : 'On-account payment', t.credit ? 'rc-tp-c' : 'rc-tp-d');
+  if (m.kind === 'entry') return chip(m.cat || 'Recorded payment', 'rc-tp-e');
+  // A line recognized from the firm's own payment history. It has no bill and no
+  // cashbook row yet, so without this it renders as a bare "Debit" and the whole
+  // point — that we know who this is — never reaches the screen.
+  if (m.catKey === 'recurring') return chip(m.cat || 'Recurring payment', 'rc-tp-r');
   if (m.idx != null || isSplit(t)) return t.credit ? chip('Customer payment', 'rc-tp-c') : chip('Supplier payment', 'rc-tp-d');
   return t.credit ? chip('Credit', 'rc-tp-c') : chip('Debit', 'rc-tp-d');
 }
@@ -545,6 +642,10 @@ function amountCell(t) { return t.credit ? `<span class="rc-amt rc-cr">+ ${fC(t.
 function suggestCell(t) {
   if (isSplit(t)) { const bl = billsFor(t); return `<div class="rc-sg"><b>${bl.length} bills · ${fC(bl.reduce((a, x) => a + x.amount, 0))}</b><span class="rc-sg-p">split allocation</span></div>`; }
   if (t.m && t.m.kind === 'ledger') return `<div class="rc-sg"><b>Running account</b><span class="rc-sg-p">${esc(t.m.party || '')}</span></div>`;
+  if (t.m && t.m.kind === 'entry') return `<div class="rc-sg"><b>${fC(t.m.entryAmount || t.debit || t.credit || 0)} · already recorded</b><span class="rc-sg-p">${esc(t.m.party || '')}${t.m.entryDate ? ' · ' + fDS(t.m.entryDate) : ''}</span></div>`;
+  // The history match: say WHY in the user's own terms ("you pay them about every
+  // month"), or the suggestion column is blank on the very rows it explains.
+  if (t.m && t.m.catKey === 'recurring') return `<div class="rc-sg"><b>${esc(t.m.party || '')}</b><span class="rc-sg-p">${esc((t.m.reasons || [])[0] || 'Paid about every month')}</span></div>`;
   const b = billFor(t);
   if (b) {
     const ref = t.m.kind === 'sale' ? b.inv : b.bill, nm = t.m.kind === 'sale' ? b.party : b.sup;
@@ -560,7 +661,10 @@ function suggestCell(t) {
   return '<span class="rc-mut">— no match —</span>';
 }
 function confCell(t) {
-  const m = t.m || {}; if (m.confidence == null || !isLinked(t)) return '<span class="rc-mut">—</span>';
+  // A recognized-but-unlinked row has a real confidence and its status badge
+  // already shows it — printing "—" here while the badge says 60% is the page
+  // disagreeing with itself.
+  const m = t.m || {}; if (m.confidence == null || !(isLinked(t) || m.party)) return '<span class="rc-mut">—</span>';
   const c = m.confidence, col = c >= 90 ? '#16a34a' : c >= 70 ? '#f59e0b' : '#dc2626';
   return `<span class="rc-conf-dot" style="--cc:${col}"><i></i>${c}%</span>`;
 }

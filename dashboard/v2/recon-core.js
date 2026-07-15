@@ -314,6 +314,192 @@
     return { idx: linkIdx, kind: isCr ? 'sale' : 'purchase', status: status, confidence: conf, tier: tier, matchedBy: 'ai', reasons: r.reasons, cat: isCr ? undefined : best.bill.group };
   }
 
+  /* ══ ALREADY-RECORDED PAYMENTS ═══════════════════════════════════════════
+     THE DISTINCTION THAT MATTERS, AND THE ONE THAT LOSES MONEY IF CONFUSED:
+
+       a bank line PAYS a bill      -> the money has not been recorded yet.
+                                       Matching it POSTS a payment.
+       a bank line IS an entry      -> the money is ALREADY in the cashbook
+                                       (a freight payment, labour, royalty, an
+                                       EMI). Matching it may only LINK. Posting
+                                       again pays the party twice in the books,
+                                       and it is wrong in the direction that
+                                       HIDES money — the cashbook looks fuller
+                                       than the bank.
+
+     Why this exists: reconcile.js only ever offered PURCHASE BILLS as
+     candidates for a debit —
+         const bills = (t.credit||0) > 0 ? Q.salesRows() : Q.purchaseRows();
+     — so ₹55,233 paid to "Nagour Golden Transport" (a freight payment on an IOC
+     petcoke bill) could never match anything: the transporter's name was never
+     in the candidate list. Every freight, labour, royalty and loan debit sat
+     unmatched forever. The name was there all along on the cashbook entry.
+
+     RULE: an ENTRY match always beats a BILL match. If the money is already
+     recorded, the bank line is that record — never a fresh payment. */
+
+  /* scoreEntry(np, txn, entry, opts) -> { confidence, reasons, nm }
+     `entry` is a cashbook row: { id, date, amount, party, method, ref, kind } */
+  function scoreEntry(np, txn, entry, opts) {
+    opts = opts || {};
+    var isCr = (txn.credit || 0) > 0, amt = isCr ? txn.credit : txn.debit;
+    var reasons = [], score = 0;
+    var nm = nameMatch(np.clean, entry.party).s;
+    if (opts.aliasParty && normName(opts.aliasParty) === normName(entry.party)) { nm = Math.max(nm, 1); reasons.push('Learned alias → ' + entry.party); }
+    if (nm >= 0.99) { score += 50; reasons.push('Paid-to name matched'); }
+    else if (nm >= 0.6) { score += Math.round(42 * nm); reasons.push('Paid-to name likely (' + Math.round(nm * 100) + '%)'); }
+    else if (nm > 0) score += Math.round(18 * nm);
+
+    /* An already-recorded payment has ONE true amount — there is no "partial".
+       Either this bank line is that payment or it is not. Anything less than an
+       exact amount is not this entry. */
+    var d = Math.abs(amt - (+entry.amount || 0));
+    var exact = d < 1 || d < amt * 0.005;
+    if (exact) { score += 38; reasons.push('Amount matches the recorded payment exactly'); }
+    else return { confidence: 0, nm: nm, exact: false, reasons: ['Amount differs from the recorded payment'] };
+
+    if (np.utr && entry.ref && normName(entry.ref).indexOf(normName(np.utr)) >= 0) { score += 25; reasons.push('UTR matches the recorded reference'); }
+    /* THE DATE IS THE ONLY THING THAT SEPARATES ONE MONTH'S PAYMENT FROM THE NEXT.
+       For a bill, name+amount nearly identify the match. For an already-recorded
+       payment to a MONTHLY payee they identify nothing: the same party and the
+       same ~amount recur by design. January's ₹1,00,000 to Mateshwari and
+       February's are indistinguishable except by date — so a wide gap must pull
+       the score below the auto-link line and let a human look, instead of
+       silently reconciling this month's bank line against last month's entry. */
+    var dd = Math.abs(daysBetween(txn.date, entry.date || txn.date));
+    if (dd <= 2) { score += 12; reasons.push('Same day (±' + dd + 'd)'); }
+    else if (dd <= 7) { score += 6; }
+    else if (dd <= 14) { /* plausible lag between paying and recording */ }
+    else if (dd <= 45) { score -= 20; reasons.push('Recorded ' + dd + ' days away — could be a different month\'s payment'); }
+    else { score -= 35; reasons.push('Recorded ' + dd + ' days away — probably a different payment'); }
+
+    /* A cash payment never appears on a bank statement. If the entry says Cash,
+       this bank line is NOT it — matching them would reconcile money that never
+       moved through this account. Both `method` ('Cash') and `mode` ('cash') are
+       checked: method is free-text and is sometimes blank, and a guard that
+       silently stops firing when a field is empty is not a guard. */
+    if (/^cash$/i.test(entry.method || '') || /^cash$/i.test(entry.mode || '')) { score -= 40; reasons.push('Recorded as CASH — a bank line cannot be a cash payment'); }
+
+    /* Money in one bank account is not money in another. When the statement line
+       and the recorded payment both name an account and they differ, this is a
+       different payment — regardless of how well the name and amount agree.
+       Only applied when BOTH are known: rows imported before multi-bank have no
+       accountId, and absence must not be read as disagreement. */
+    if (opts.accountId && entry.accountId && opts.accountId !== entry.accountId) {
+      score -= 45; reasons.push('Recorded against a different bank account');
+    }
+    return { confidence: Math.max(0, Math.min(100, Math.round(score))), nm: nm, exact: exact, reasons: reasons };
+  }
+
+  /* bestEntry(np, txn, entries, opts) -> { entry, r } | null */
+  function bestEntry(np, txn, entries, opts) {
+    var best = null;
+    for (var i = 0; i < (entries || []).length; i++) {
+      var e = entries[i];
+      if (!e || !(+e.amount > 0)) continue;
+      // direction must agree: a debit can only be money we PAID out.
+      var isCr = (txn.credit || 0) > 0;
+      if (isCr && e.dir === 'out') continue;
+      if (!isCr && e.dir === 'in') continue;
+      if (e.linked) continue;                     // already reconciled to another line
+      var r = scoreEntry(np, txn, e, opts);
+      if (r.confidence > 0 && (!best || r.confidence > best.r.confidence)) best = { entry: e, r: r };
+    }
+    return best;
+  }
+
+  /* ── the one decision point ──────────────────────────────────────────────
+     resolve(np, txn, { bills, entries, opts }) -> a bill match, an entry LINK,
+     or nothing. An entry ALWAYS wins a tie and beats a weaker bill match,
+     because posting over an existing record double-counts real money. */
+  function resolve(np, txn, ctx) {
+    ctx = ctx || {};
+    var opts = ctx.opts || {};
+    var e = bestEntry(np, txn, ctx.entries || [], opts);
+    if (e && e.r.confidence >= 70) {
+      var tier = e.r.confidence >= 90 ? 'green' : 'yellow';
+      return {
+        action: 'link',                    // NEVER 'post' — the money is already recorded
+        kind: 'entry', entryId: e.entry.id, idx: null,
+        party: e.entry.party || '', entryDate: e.entry.date || '', entryAmount: +e.entry.amount || 0,
+        status: tier === 'green' ? 'matched' : 'review',
+        confidence: e.r.confidence, tier: tier, matchedBy: 'entry',
+        cat: e.entry.kind || 'payment',
+        reasons: ['Already recorded: ' + (e.entry.kind || 'payment') + ' to ' + (e.entry.party || '—')].concat(e.r.reasons)
+      };
+    }
+    var b = bestMatch(np, txn, ctx.bills || [], opts);
+    // A bill match POSTS money, so it must never fire when a plausible existing
+    // record is sitting right there — ask instead.
+    if (e && e.r.confidence >= 40 && b && b.idx != null) {
+      return Object.assign({}, b, {
+        action: 'ask', status: 'review', tier: 'yellow',
+        reasons: ['Could be an already-recorded payment to ' + (e.entry.party || '—') + ' — confirm before posting'].concat(b.reasons || [])
+      });
+    }
+    return Object.assign({ action: b && b.idx != null ? 'post' : 'none' }, b);
+  }
+
+  /* ── recurring payees ────────────────────────────────────────────────────
+     "the party we pay every month". Learned from the firm's OWN cashbook, not a
+     rule: same payee, a repeatable amount, a repeatable day. Used to raise
+     confidence on a familiar debit and to spot a missed month.
+
+     MIN_RUNS: below 3 payments there is no rhythm — the same rule the reorder
+     engine uses. Two payments to a transporter is not "every month". */
+  var MIN_RUNS = 3;
+  function recurringPayees(entries, opts) {
+    opts = opts || {};
+    var by = {};
+    (entries || []).forEach(function (e) {
+      if (!e || !e.party || !(+e.amount > 0) || e.dir === 'in') return;
+      var k = normName(e.party); if (!k) return;
+      (by[k] = by[k] || { party: e.party, runs: [] }).runs.push(e);
+    });
+    return Object.keys(by).map(function (k) {
+      var g = by[k];
+      var rows = g.runs.slice().sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+      if (rows.length < MIN_RUNS) {
+        return { party: g.party, count: rows.length, confident: false,
+                 why: rows.length + ' payment(s) — need ' + MIN_RUNS + ' before calling it monthly' };
+      }
+      var months = {};
+      rows.forEach(function (r) { months[(r.date || '').slice(0, 7)] = 1; });
+      var amts = rows.map(function (r) { return +r.amount || 0; }).sort(function (a, b) { return a - b; });
+      var days = rows.map(function (r) { return +(r.date || '').slice(8, 10) || 0; }).filter(Boolean).sort(function (a, b) { return a - b; });
+      var med = function (a) { var m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2); };
+      var distinctMonths = Object.keys(months).length;
+      return {
+        party: g.party, count: rows.length, months: distinctMonths,
+        medianAmount: med(amts), medianDay: med(days),
+        lastDate: rows[rows.length - 1].date,
+        // Monthly means one payment in each of several DIFFERENT months — three
+        // payments in one week is a busy week, not a standing arrangement.
+        monthly: distinctMonths >= MIN_RUNS,
+        confident: distinctMonths >= MIN_RUNS,
+        why: distinctMonths >= MIN_RUNS
+          ? 'Paid in ' + distinctMonths + ' different months, usually around day ' + med(days)
+          : rows.length + ' payments but only ' + distinctMonths + ' month(s) — not a monthly pattern'
+      };
+    }).filter(Boolean).sort(function (a, b) { return (b.count || 0) - (a.count || 0); });
+  }
+
+  /* Is this debit a familiar monthly payee? Used only to RAISE confidence and
+     to explain — never to invent a match on its own. */
+  function knownPayee(np, txn, recurring) {
+    var amt = (txn.debit || 0);
+    for (var i = 0; i < (recurring || []).length; i++) {
+      var r = recurring[i];
+      if (!r.confident) continue;
+      if (nameMatch(np.clean, r.party).s < 0.6) continue;
+      var near = r.medianAmount > 0 && Math.abs(amt - r.medianAmount) <= r.medianAmount * 0.25;
+      return { party: r.party, monthly: true, amountUsual: !!near,
+               why: near ? 'You pay ' + r.party + ' about every month (~₹' + Math.round(r.medianAmount).toLocaleString('en-IN') + ')'
+                         : 'You pay ' + r.party + ' about every month, but this amount is unusual' };
+    }
+    return null;
+  }
+
   /* ── duplicate key ──────────────────────────────────────────────────────
      A duplicate is the SAME bank line appearing twice (re-import, double
      post) — so the key must use the FULL raw narration, not the lossy clean
@@ -464,6 +650,9 @@
     normName: normName, tokens: tokens, distinctive: distinctive, daysBetween: daysBetween,
     parseNarration: parseNarration, nameMatch: nameMatch, classifyDebit: classifyDebit,
     scoreMatch: scoreMatch, bestMatch: bestMatch, dedupeKey: dedupeKey, dedupeKeyBase: dedupeKeyBase, detectBank: detectBank,
+    // already-recorded payments (freight/labour/royalty/EMI) + "who we pay every month"
+    scoreEntry: scoreEntry, bestEntry: bestEntry, resolve: resolve,
+    recurringPayees: recurringPayees, knownPayee: knownPayee, MIN_RUNS: MIN_RUNS,
     bankAccountMatch: bankAccountMatch, backfillPlan: backfillPlan,
     accountOverview: accountOverview, isSelfLeg: isSelfLeg,
     splitStatus: splitStatus, suggestAlloc: suggestAlloc, STOP: STOP,

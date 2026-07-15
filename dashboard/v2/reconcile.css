@@ -327,6 +327,10 @@
 .rc-tp-i { background: #eef2ff; color: #4338ca; } .rc-tp-l { background: #f5f3ff; color: #7c3aed; }
 .rc-tp-g { background: #ccfbf1; color: #0f766e; } .rc-tp-a { background: #fef3c7; color: #b45309; }
 .rc-tp-x { background: #f1f5f9; color: #64748b; }
+/* already recorded in the cashbook — this line is that payment, not a new one */
+.rc-tp-e { background: #e0f2fe; color: #0369a1; }
+/* recognized from the firm's own history — the party it pays every month */
+.rc-tp-r { background: #f0f9ff; color: #0c4a6e; }
 .rc-amt { font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rc-amt.rc-cr { color: #16a34a; } .rc-amt.rc-dr { color: #dc2626; }
 /* suggested match */

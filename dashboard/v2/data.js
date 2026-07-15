@@ -1076,8 +1076,12 @@
   }
 
   /* ── Cashbook helpers ────────────────────────────────────────── */
+  /* id/method/accountId/link are carried because bank reconciliation matches a
+     statement line against money ALREADY recorded here: it needs the id to link
+     to, the method to reject cash (a cash payment can never be a bank line),
+     and the accountId to keep one bank's money out of another's. */
   function cashbookRows() {
-    return withIdx(S.CASHBOOK).map(([e, i]) => ({ idx: i, date: e.date, type: e.type, mode: e.mode, category: e.category || '', party: e.party || '', amount: e.amount || 0, ref: e.ref || '', notes: e.notes || '' }))
+    return withIdx(S.CASHBOOK).map(([e, i]) => ({ idx: i, id: e.id || '', date: e.date, type: e.type, mode: e.mode, method: e.method || '', ptype: e.ptype || '', category: e.category || '', party: e.party || '', amount: e.amount || 0, ref: e.ref || '', notes: e.notes || '', accountId: e.accountId || '', link: e.link || null, reconTxnId: e.reconTxnId || '' }))
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   }
   function cashbookBalances() {
