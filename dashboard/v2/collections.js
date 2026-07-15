@@ -100,7 +100,12 @@ QLX.mount({
   icon: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>',
   data: collectRows, rowId: r => r.idx,
   subtitle: () => { const c = collectRows(), tot = c.reduce((a, r) => a + r.out, 0), od = c.filter(r => r.days > 30).length; return `<b>${esc(Q.co.short)}</b> · ${fC(tot)} to collect from ${c.length} customer${c.length === 1 ? '' : 's'} · ${od} overdue`; },
-  tools: [{ label: 'Export', icon: IC.dl, onClick: () => exportColl() }],
+  // The count is the point: "Reminders" is a chore, "Reminders (7)" is a to-do.
+  // Computed from the real plan, so it can never promise work that isn't there.
+  tools: [
+    { label: () => { const n = (window.QLWA ? QLWA.plan().length : 0); return 'Reminders' + (n ? ' (' + n + ')' : ''); }, icon: IC.wa, onClick: () => openReminders() },
+    { label: 'Export', icon: IC.dl, onClick: () => exportColl() }
+  ],
   stats: () => {
     const c = collectRows();
     const tot = c.reduce((a, r) => a + r.out, 0);
@@ -156,5 +161,10 @@ QLX.mount({
 /* deep-link: #overdue / #critical pre-filter (from dashboard / badge). */
 (function () { const h = (location.hash || '').slice(1); if (['overdue', 'critical', 'recent'].includes(h)) { const S = QLX.state(); S.quick = h; QLX.refresh(); } })();
 window.addEventListener('hashchange', () => { const h = (location.hash || '').slice(1); const S = QLX.state(); S.quick = ['overdue', 'critical', 'recent'].includes(h) ? h : 'all'; QLX.refresh(); });
+
+/* Reminder Center — the scheduled, deduped, logged view of who to chase today.
+   The table below stays party-level ("who owes what"); this is day-level
+   ("who is due a nudge today"), driven by wa-core.js. */
+function openReminders() { if (window.QLWA) QLWA.open(); else toast('Reminder engine not loaded', 'err'); }
 
 function exportColl() { const r = collectRows(); QLShell.exportCSV('collections_' + (Q.co.short || 'list').replace(/\s+/g, '_'), ['Customer', 'Pending Bills', 'Oldest (days)', 'Last Sale', 'Outstanding'], r.map(x => [x.party, x.bills, x.days, x.last, x.out])); toast('Exported ' + r.length + ' customers'); }

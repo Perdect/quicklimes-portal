@@ -189,7 +189,10 @@
   function refresh() { render(); if (S.openId != null && rowById(S.openId)) renderDetailBody(); else if (S.openId != null) closeDetail(); }
 
   function heroHTML() {
-    const tools = (CFG.tools || []).map((t, i) => `<button class="qx-btn" data-tool="${i}">${t.icon ? svg(t.icon) : ''}<span>${esc(t.label)}</span></button>`).join('');
+    // label may be a function so a tool can show a live count ("Reminders (7)").
+    // esc() would otherwise stringify the function body into the button.
+    const tlabel = t => esc(typeof t.label === 'function' ? t.label() : t.label);
+    const tools = (CFG.tools || []).map((t, i) => `<button class="qx-btn" data-tool="${i}">${t.icon ? svg(t.icon) : ''}<span>${tlabel(t)}</span></button>`).join('');
     const prim = CFG.primary ? `<button class="qx-btn qx-btn-primary" id="qxPrimary">${svg(CFG.primary.icon || IC.plus)}<span>${esc(CFG.primary.label)}</span></button>` : '';
     const month = CFG.monthFilter ? `<button class="qx-month" id="qxMonthBtn" title="Filter by month">${svg('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>')}<span>${esc(monthLabel())}</span>${svg('<polyline points="6 9 12 15 18 9"/>')}</button>` : '';
     return `<div class="qx-hero">

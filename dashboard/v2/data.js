@@ -920,7 +920,13 @@
       address: p.address || '', state: p.state || '', type: p.type || 'customer', notes: p.notes || '',
       // Running-account fields (bank-ledger model): opening balance (+ = they owe us),
       // credit limit & credit days for terms/overdue tracking.
-      opening: +p.opening || 0, creditLimit: +p.creditLimit || 0, creditDays: +p.creditDays || 0
+      opening: +p.opening || 0, creditLimit: +p.creditLimit || 0, creditDays: +p.creditDays || 0,
+      // WhatsApp reachability + consent. The form stores 'yes'/'no' strings;
+      // wa-core tests `=== false`, so translate here rather than teaching the
+      // engine about this UI's encoding. Default is opt-IN (undefined -> true):
+      // an existing party with no preference set still gets their invoice.
+      wa: p.wa || '', waAlt: p.waAlt || '', lang: p.lang || 'en',
+      autoRemind: p.autoRemind !== 'no', autoInvoice: p.autoInvoice !== 'no', autoStatement: p.autoStatement !== 'no'
     }));
   }
   function partySummary() {
@@ -1721,8 +1727,71 @@
   function saveSchedules(s) { localStorage.setItem(SCHED_KEY(), JSON.stringify(s)); }
 
   /* ── Public API ──────────────────────────────────────────────── */
+  /* ══ WhatsApp reminders — settings + the send log ═══════════════════════
+     The RULES (who to chase, when, what to say) live in wa-core.js: pure and
+     unit-tested. This is only storage, so the two can't drift.
+
+     The log is the dedupe memory: wa-core refuses to re-send a key that is
+     already in here, so a customer is never dunned twice for the same invoice
+     at the same step. That makes it a RECORD, not a cache — it rides inside
+     the per-company blob and syncs like everything else.
+
+     NOTE ON SECRETS: no API token is ever stored here. This blob lives in the
+     browser AND in the database, which is exactly where a provider credential
+     must never be. When a provider is connected, its token goes in the
+     server-side config only. */
+  function waCfg() {
+    S.WA = S.WA || {};
+    S.WA.cfg = S.WA.cfg || {};
+    const c = S.WA.cfg;
+    if (!c.provider) c.provider = '';            // '' = not connected -> one-tap sending only
+    if (!c.schedule) c.schedule = null;          // null = wa-core's default (-3,-1,0,3,7,15,30)
+    if (!c.templates) c.templates = {};          // per-company overrides of the default wording
+    return c;
+  }
+  function saveWaCfg(o) { Object.assign(waCfg(), o || {}); commit(); return waCfg(); }
+  function waLogRows() { S.WA = S.WA || {}; return S.WA.log || (S.WA.log = []); }
+
+  /* Record one send. `via` is how it physically left: 'tap' (the human pressed
+     send in WhatsApp) or a provider id later. status starts 'sent'; a provider
+     can later move it to delivered/read/failed via its webhook. With one-tap we
+     genuinely CANNOT know if it was delivered — so we say 'sent', not 'delivered'. */
+  function waRecord(t, via) {
+    const rows = waLogRows();
+    rows.push({
+      id: 'wa' + idStamp(), ts: Date.now(), date: fmtISO(new Date()),
+      key: t.key || '', party: t.party || '', phone: t.phone || '',
+      kind: t.kind || 'reminder', step: t.step != null ? t.step : '', inv: t.inv || '',
+      amount: +t.balance || +t.outstanding || 0, text: t.text || '',
+      template: t.kind || '', attachments: t.attachments || [],
+      status: 'sent', via: via || 'tap',
+      user: (QL_PLANT && (QL_PLANT.user_name || QL_PLANT.owner_phone)) || ''
+    });
+    commit();
+    return rows[rows.length - 1];
+  }
+  function waSetStatus(id, status) {
+    const r = waLogRows().find(x => x.id === id);
+    if (r) { r.status = status; commit(); }
+    return r;
+  }
+  /* Keys already sent — a failed send is NOT a send, so it may be retried. */
+  function waSentKeys() {
+    return waLogRows().filter(r => r.status !== 'failed').map(r => r.key).filter(Boolean);
+  }
+  function waStats(day) {
+    const d = day || fmtISO(new Date());
+    const today = waLogRows().filter(r => r.date === d);
+    const n = s => today.filter(r => r.status === s).length;
+    return {
+      sent: today.length, delivered: n('delivered'), read: n('read'),
+      failed: n('failed'), pending: n('sent'), day: d
+    };
+  }
+
   window.QLD = {
     plant: QL_PLANT, COMPANIES,
+    waCfg, saveWaCfg, waLogRows, waRecord, waSetStatus, waSentKeys, waStats,
     // All of the user's own firm names (sister companies) — recon uses these
     // to tell an inter-firm transfer from an unknown party.
     ownFirmNames: Object.keys(SELLER_DEFAULTS),

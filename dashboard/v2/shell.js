@@ -773,9 +773,19 @@
     { k: 'state', label: 'State' },
     { k: 'opening', label: 'Opening balance (₹)', type: 'number', ph: '+ they owe you · − you owe them' },
     { k: 'creditLimit', label: 'Credit limit (₹)', type: 'number', ph: '0 = none' },
-    { k: 'creditDays', label: 'Credit days', type: 'number', ph: 'e.g. 30' },
+    { k: 'creditDays', label: 'Credit days', type: 'number', ph: 'e.g. 30', hint: 'Invoice date + credit days = the due date every reminder is scheduled from.' },
     { k: 'address', label: 'Address', type: 'textarea', full: true },
-    { k: 'notes', label: 'Notes', type: 'textarea', full: true }
+    { k: 'notes', label: 'Notes', type: 'textarea', full: true },
+    // ── WhatsApp: reachability + consent. Reminders are opt-OUT (most parties
+    // want the invoice), but "Auto reminders = No" is absolute — wa-core drops
+    // that party from the plan entirely.
+    { k: 'wa', label: 'WhatsApp number', ph: 'Leave blank to use the phone above', full: true,
+      hint: 'Only used if it differs from Phone. Indian mobiles only — a landline can’t receive WhatsApp.' },
+    { k: 'waAlt', label: 'Alternate WhatsApp number', ph: 'Optional' },
+    { k: 'lang', label: 'Preferred language', type: 'select', opts: [['en', 'English'], ['hi', 'हिन्दी Hindi']] },
+    { k: 'autoRemind', label: 'Auto payment reminders', type: 'select', opts: [['yes', 'Yes'], ['no', 'No — never message this party']] },
+    { k: 'autoInvoice', label: 'Send invoice automatically', type: 'select', opts: [['yes', 'Yes'], ['no', 'No']] },
+    { k: 'autoStatement', label: 'Send statement automatically', type: 'select', opts: [['yes', 'Yes'], ['no', 'No']] }
   ];
   function openPartyForm(idx) {
     const editing = idx != null && idx >= 0;
@@ -789,7 +799,16 @@
         else {
           window.QLD.upsertParty(v.name, v.gstin, v.phone, v.address, v.state, v.type);
           const p = window.QLD.state.PARTIES.find(x => (x.name || '').toUpperCase() === (v.name || '').toUpperCase());
-          if (p) { p.opening = +v.opening || 0; p.creditLimit = +v.creditLimit || 0; p.creditDays = +v.creditDays || 0; if (v.notes) p.notes = v.notes; window.QLD.commit(); }
+          // upsertParty only takes the core identity fields, so everything the
+          // form collects beyond them has to be copied on explicitly — a field
+          // added to PARTY_SPECS but not listed here is silently dropped on a
+          // NEW party (it would still save on an edit, which hides the bug).
+          if (p) {
+            p.opening = +v.opening || 0; p.creditLimit = +v.creditLimit || 0; p.creditDays = +v.creditDays || 0;
+            if (v.notes) p.notes = v.notes;
+            ['wa', 'waAlt', 'lang', 'autoRemind', 'autoInvoice', 'autoStatement'].forEach(k => { if (v[k] !== undefined && v[k] !== '') p[k] = v[k]; });
+            window.QLD.commit();
+          }
         }
         refresh(editing ? 'Party updated' : 'Party added');
       }
