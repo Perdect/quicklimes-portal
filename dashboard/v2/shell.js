@@ -476,7 +476,16 @@
     });
     document.addEventListener('keydown', e => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); }
-      if (e.key === 'Escape') { closePalette(); }
+      // ⌘/Ctrl+J toggles the assistant (⌘K is the command palette)
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        const open = $('qlDrawerBack').classList.contains('open') && $('qlDrawer').dataset.mode === 'ai';
+        open ? closeDrawer() : openAssistant();
+      }
+      if (e.key === 'Escape') {
+        closePalette();
+        if ($('qlDrawerBack') && $('qlDrawerBack').classList.contains('open')) closeDrawer();
+      }
     });
   }
 
@@ -1073,12 +1082,45 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
   /* ════════════════════ RIGHT-SIDE DRAWER ═══════════════════════
      Shared slide-in panel hosting Notifications and the AI assistant. */
   function openDrawer(mode) {
-    $('qlDrawer').dataset.mode = mode;
+    const dr = $('qlDrawer');
+    dr.dataset.mode = mode;
+    dr.classList.toggle('ai', mode === 'ai');
     $('qlDrawerBack').classList.add('open');
-    if (mode === 'notif') { $('qlDrawerTitle').textContent = 'Notifications'; renderNotifications(); }
-    else { $('qlDrawerTitle').innerHTML = '<span class="ql-ai-dot"></span>Business Assistant'; renderAssistant(); }
+    // The floating AI button would sit on top of the assistant's own input bar.
+    document.body.classList.toggle('ql-ai-open', mode === 'ai');
+    const head = dr.querySelector('.ql-drawer-head');
+    let tools = document.getElementById('qlAiTools');
+    if (mode === 'notif') {
+      $('qlDrawerTitle').textContent = 'Notifications';
+      if (tools) tools.remove();
+      renderNotifications();
+    } else {
+      $('qlDrawerTitle').innerHTML = `<span class="ql-ai-hicon">${AI_MARK}</span>Business Assistant`;
+      if (!tools) {
+        tools = document.createElement('div');
+        tools.id = 'qlAiTools'; tools.className = 'ql-ai-tools';
+        tools.innerHTML = `<button class="ql-ai-ib" id="qlAiNew" title="New chat">${ICO.plus}</button>
+          <button class="ql-ai-ib" id="qlAiHist" title="Conversation history">${ICO.hist}</button>
+          <button class="ql-ai-ib" id="qlAiTheme" title="Light / dark">${ICO.theme}</button>`;
+        head.insertBefore(tools, head.querySelector('.ql-drawer-x'));
+      }
+      renderAssistant();
+      $('qlAiNew').onclick = () => convNew();
+      $('qlAiHist').onclick = () => { if (!_histOpen) convTouch(); _histOpen = !_histOpen; _histQ = ''; renderAssistant(); };
+      $('qlAiTheme').onclick = () => {
+        const root = document.documentElement;
+        const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        root.setAttribute('data-theme', next);
+        try { localStorage.setItem('ql_theme', next); } catch (_) {}
+        toast(next === 'dark' ? 'Dark mode on' : 'Light mode on');
+      };
+    }
   }
-  function closeDrawer() { $('qlDrawerBack').classList.remove('open'); }
+  function closeDrawer() {
+    convTouch();                                   // never lose the open thread
+    $('qlDrawerBack').classList.remove('open');
+    document.body.classList.remove('ql-ai-open');
+  }
   function openNotifications() { openDrawer('notif'); }
   function openAssistant() { openDrawer('ai'); }
 
@@ -1165,25 +1207,174 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     out.push("Today's sales", 'Top customers this month', 'Overdue above 90 days', 'Pending supplier payments', 'Predict next month', 'Compare monthly sales', 'Net profit & margin');
     return out.slice(0, 8);
   }
-  function renderAssistant() {
-    const recent = aiRecent();
-    const chips = smartChips().map(c => `<button class="ql-ai-chip" onclick="QLShell.assistAsk(this.textContent)">${esc(c)}</button>`).join('');
-    const recentHtml = recent.length ? `<div class="ql-ai-recent"><span class="ql-ai-recent-h">Recent</span>${recent.slice(0, 5).map(c => `<button class="ql-ai-chip recent" onclick="QLShell.assistAsk(this.dataset.q)" data-q="${esc(c)}">${esc(c.length > 26 ? c.slice(0, 24) + '…' : c)}</button>`).join('')}</div>` : '';
-    $('qlDrawerBody').innerHTML = `
-      <div class="ql-ai-log" id="qlAiLog"></div>
-      ${recentHtml}
-      <div class="ql-ai-chips" id="qlAiChips">${chips}</div>
-      <div class="ql-ai-input">
-        <button class="ql-ai-mic" id="qlAiMic" title="Speak" aria-label="Voice input"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
-        <input id="qlAiInput" placeholder="Ask anything about your business…" autocomplete="off"
-          onkeydown="if(event.key==='Enter'){QLShell.assistAsk(this.value);this.value=''}">
-        <button class="ql-ai-send" onclick="var i=document.getElementById('qlAiInput');QLShell.assistAsk(i.value);i.value=''" aria-label="Send"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
-      </div>`;
-    const log = $('qlAiLog');
-    if (!_assistLog.length) _assistLog.push({ who: 'ai', html: `<p>Hi 👋 I'm your business copilot for <b>${esc(window.QLD.co.short)}</b>. Ask me anything — invoices, a party's bills, overdue, top customers, supplier rates, profit, production, "predict next month" — or say <b>"create invoice"</b>, <b>"download invoice 142"</b>, <b>"export sales"</b>. Tap 🎤 to speak.</p>` });
-    log.innerHTML = _assistLog.map(m => `<div class="ql-ai-msg ${m.who}">${m.html}</div>`).join('');
+
+  /* ══════════ AI ASSISTANT — conversation store (localStorage) ══════════
+     Conversations are per-company so switching firms never mixes threads. */
+  const CONV_KEY = () => 'ql_ai_convs_' + ((window.QLD && QLD.activeCo) || 'x');
+  let _convId = null, _histOpen = false, _histQ = '';
+  function convAll() { try { return JSON.parse(localStorage.getItem(CONV_KEY()) || '[]'); } catch (_) { return []; } }
+  function convSave(list) { try { localStorage.setItem(CONV_KEY(), JSON.stringify(list.slice(0, 60))); } catch (_) {} }
+  function convTouch() {
+    if (!_assistLog.filter(m => m.who === 'me').length) return;           // never save an empty thread
+    const list = convAll(), first = _assistLog.find(m => m.who === 'me');
+    const title = (first ? first.text || first.html : 'Conversation').replace(/<[^>]+>/g, '').slice(0, 48);
+    let c = list.find(x => x.id === _convId);
+    if (!c) { c = { id: _convId = 'c' + Date.now().toString(36), title, pinned: false, at: Date.now(), log: [] }; list.unshift(c); }
+    c.log = _assistLog; c.at = Date.now(); if (!c.renamed) c.title = title;
+    convSave(list.sort((a, b) => (b.pinned - a.pinned) || (b.at - a.at)));
+  }
+  function convOpen(id) { const c = convAll().find(x => x.id === id); if (!c) return; _convId = id; _assistLog = c.log || []; _histOpen = false; renderAssistant(); }
+  function convNew() { convTouch(); _convId = null; _assistLog = []; _histOpen = false; renderAssistant(); const i = $('qlAiInput'); if (i) i.focus(); }
+  function convDel(id) {
+    const c = convAll().find(x => x.id === id);
+    confirmDelete({
+      title: 'Delete this conversation?', reason: false,
+      desc: '“' + esc((c && c.title) || '') + '” will be removed from this device. Your business records are untouched.',
+      confirmLabel: 'Delete',
+      onConfirm() { convSave(convAll().filter(x => x.id !== id)); if (_convId === id) { _convId = null; _assistLog = []; } renderAssistant(); }
+    });
+  }
+  function convPin(id) { const l = convAll(); const c = l.find(x => x.id === id); if (c) { c.pinned = !c.pinned; convSave(l.sort((a, b) => (b.pinned - a.pinned) || (b.at - a.at))); renderAssistant(); } }
+  function convRename(id) {
+    const l = convAll(), c = l.find(x => x.id === id); if (!c) return;
+    openForm({
+      title: 'Rename conversation', specs: [{ k: 'title', label: 'Name', req: true, full: true }], initial: { title: c.title }, saveLabel: 'Save',
+      onSave(v) { c.title = (v.title || '').slice(0, 60); c.renamed = true; convSave(l); renderAssistant(); }
+    });
+  }
+
+  /* Suggested prompts, grouped the way the business thinks about them. */
+  const PROMPT_CATS = [
+    ['📊', 'Sales', ["Today's sales", 'Compare monthly sales', 'Top customers this month']],
+    ['💰', 'Finance', ['Net profit & margin', 'Pending supplier payments', 'Overdue above 90 days']],
+    ['📦', 'Inventory', ['Stock summary', 'Low stock', 'Production report']],
+    ['👥', 'CRM', ['Customer ledger', 'Supplier ledger', 'Predict next month']]
+  ];
+  function welcomeHTML() {
+    const co = (window.QLD && QLD.co && QLD.co.short) || 'your business';
+    const can = ['Sales reports', 'Profit analysis', 'Invoice lookup', 'Customer ledger', 'Supplier payments', 'Production reports', 'Inventory', 'Business forecasting'];
+    const recent = aiRecent().slice(0, 3);
+    return `<div class="ql-ai-welcome">
+      <div class="ql-ai-wc">
+        <div class="ql-ai-wc-ic">${AI_MARK}</div>
+        <h3>Hello 👋</h3>
+        <p>I'm your Business AI Copilot for <b>${esc(co)}</b>. I can help with:</p>
+        <div class="ql-ai-wc-grid">${can.map(c => `<span>${esc(c)}</span>`).join('')}</div>
+        <em>Ask me anything — every answer comes from your own live data.</em>
+      </div>
+      ${recent.length ? `<div class="ql-ai-cat"><div class="ql-ai-cat-h">🕘 Recent</div><div class="ql-ai-cat-b">${recent.map(c => `<button class="ql-ai-chip" data-ask="${esc(c)}">${esc(c.length > 30 ? c.slice(0, 28) + '…' : c)}</button>`).join('')}</div></div>` : ''}
+      ${PROMPT_CATS.map(([em, name, items]) => `<div class="ql-ai-cat">
+        <div class="ql-ai-cat-h">${em} ${name}</div>
+        <div class="ql-ai-cat-b">${items.map(i => `<button class="ql-ai-chip" data-ask="${esc(i)}">${esc(i)}</button>`).join('')}</div>
+      </div>`).join('')}
+    </div>`;
+  }
+  const AI_MARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/><circle cx="18" cy="18" r="1.4"/><circle cx="5" cy="17" r="1"/></svg>';
+  const ICO = {
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+    hist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>',
+    theme: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
+    copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    redo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>',
+    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>',
+    down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>',
+    pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-1.5-3V8a5.5 5.5 0 0 0-11 0v6z"/></svg>',
+    pen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+    dn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>'
+  };
+  function histHTML() {
+    const q = _histQ.toLowerCase();
+    const list = convAll().filter(c => !q || (c.title || '').toLowerCase().includes(q));
+    return `<div class="ql-ai-hist">
+      <input class="ql-ai-hsearch" id="qlAiHSearch" placeholder="Search conversations…" value="${esc(_histQ)}" autocomplete="off">
+      ${list.length ? list.map(c => `<div class="ql-ai-hrow${c.id === _convId ? ' on' : ''}">
+        <button class="ql-ai-hopen" data-open="${c.id}">
+          <span class="ql-ai-ht">${c.pinned ? '📌 ' : ''}${esc(c.title || 'Conversation')}</span>
+          <span class="ql-ai-hd">${new Date(c.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} · ${(c.log || []).filter(m => m.who === 'me').length} question${(c.log || []).filter(m => m.who === 'me').length === 1 ? '' : 's'}</span>
+        </button>
+        <span class="ql-ai-hacts">
+          <button class="ql-ai-ib" data-pin="${c.id}" title="${c.pinned ? 'Unpin' : 'Pin'}">${ICO.pin}</button>
+          <button class="ql-ai-ib" data-ren="${c.id}" title="Rename">${ICO.pen}</button>
+          <button class="ql-ai-ib danger" data-del="${c.id}" title="Delete">${ICO.trash}</button>
+        </span>
+      </div>`).join('') : `<div class="ql-ai-hempty">${_histQ ? 'No conversations match “' + esc(_histQ) + '”.' : 'No saved conversations yet. Ask something and it will appear here.'}</div>`}
+    </div>`;
+  }
+  function msgHTML(m, i) {
+    if (m.who === 'me') return `<div class="ql-ai-row me"><div class="ql-ai-msg me">${m.html}</div></div>`;
+    return `<div class="ql-ai-row ai">
+      <span class="ql-ai-av">${AI_MARK}</span>
+      <div style="min-width:0;flex:1">
+        <div class="ql-ai-msg ai">${m.html}</div>
+        <div class="ql-ai-macts">
+          <button class="ql-ai-ib" data-copy="${i}" title="Copy">${ICO.copy}</button>
+          ${m.q ? `<button class="ql-ai-ib" data-regen="${esc(m.q)}" title="Regenerate">${ICO.redo}</button>` : ''}
+          <button class="ql-ai-ib${m.vote === 1 ? ' on' : ''}" data-vote="${i}:1" title="Good answer">${ICO.up}</button>
+          <button class="ql-ai-ib${m.vote === -1 ? ' on' : ''}" data-vote="${i}:-1" title="Not helpful">${ICO.down}</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  function paintLog() {
+    const log = $('qlAiLog'); if (!log) return;
+    log.innerHTML = _assistLog.length
+      ? _assistLog.map((m, i) => msgHTML(m, i)).join('')
+      : welcomeHTML();
     log.scrollTop = log.scrollHeight;
+  }
+  function renderAssistant() {
+    const co = (window.QLD && QLD.co && QLD.co.short) || '';
+    $('qlDrawerBody').innerHTML = `
+      <div class="ql-ai-sub">Your AI Copilot for <b>${esc(co)}</b></div>
+      ${_histOpen ? histHTML() : `<div class="ql-ai-log" id="qlAiLog"></div>
+      <button class="ql-ai-tobottom" id="qlAiDown" title="Jump to latest" hidden>${ICO.dn}</button>`}
+      <div class="ql-ai-input">
+        <button class="ql-ai-mic" id="qlAiMic" title="Speak" aria-label="Voice input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+        <textarea id="qlAiInput" rows="1" placeholder="Ask anything about your business…" autocomplete="off" aria-label="Ask the assistant"></textarea>
+        <button class="ql-ai-send" id="qlAiSend" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+      </div>`;
+    if (!_histOpen) paintLog();
+    wireAssistant();
     wireVoice();
+  }
+  function wireAssistant() {
+    const body = $('qlDrawerBody'); if (!body) return;
+    const inp = $('qlAiInput'), send = $('qlAiSend'), log = $('qlAiLog'), down = $('qlAiDown');
+    const fire = () => { const v = (inp.value || '').trim(); if (!v) return; inp.value = ''; inp.style.height = 'auto'; assistAsk(v); };
+    if (send) send.onclick = fire;
+    if (inp) {
+      inp.oninput = () => { inp.style.height = 'auto'; inp.style.height = Math.min(inp.scrollHeight, 120) + 'px'; };
+      // Enter sends · Shift+Enter makes a new line (ChatGPT behaviour)
+      inp.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); fire(); } };
+      setTimeout(() => inp.focus(), 60);
+    }
+    // scroll-to-bottom button appears only when scrolled away from the latest
+    if (log && down) {
+      const upd = () => { down.hidden = log.scrollHeight - log.scrollTop - log.clientHeight < 60; };
+      log.onscroll = upd; upd();
+      down.onclick = () => log.scrollTo({ top: log.scrollHeight, behavior: 'smooth' });
+    }
+    body.querySelectorAll('[data-ask]').forEach(b => b.onclick = () => assistAsk(b.dataset.ask));
+    body.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => {
+      const m = _assistLog[+b.dataset.copy]; if (!m) return;
+      const tmp = document.createElement('div'); tmp.innerHTML = m.html;
+      const txt = (tmp.textContent || '').trim();
+      (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast('Answer copied'), () => toast('Copy not available', 'err'));
+    });
+    body.querySelectorAll('[data-regen]').forEach(b => b.onclick = () => assistAsk(b.dataset.regen, true));
+    body.querySelectorAll('[data-vote]').forEach(b => b.onclick = () => {
+      const [i, v] = b.dataset.vote.split(':'); const m = _assistLog[+i]; if (!m) return;
+      m.vote = m.vote === +v ? 0 : +v; convTouch(); paintLog(); wireAssistant();
+      if (m.vote === -1) toast('Thanks — flagged as not helpful');
+    });
+    // history list
+    const hs = $('qlAiHSearch');
+    if (hs) hs.oninput = () => { _histQ = hs.value; const s = hs.selectionStart; renderAssistant(); const n = $('qlAiHSearch'); if (n) { n.focus(); try { n.setSelectionRange(s, s); } catch (_) {} } };
+    body.querySelectorAll('[data-open]').forEach(b => b.onclick = () => convOpen(b.dataset.open));
+    body.querySelectorAll('[data-pin]').forEach(b => b.onclick = () => convPin(b.dataset.pin));
+    body.querySelectorAll('[data-ren]').forEach(b => b.onclick = () => convRename(b.dataset.ren));
+    body.querySelectorAll('[data-del]').forEach(b => b.onclick = () => convDel(b.dataset.del));
   }
   function wireVoice() {
     const mic = $('qlAiMic'); if (!mic) return;
@@ -1200,16 +1391,32 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       rec.start();
     };
   }
-  function assistAsk(q) {
+  function assistAsk(q, regen) {
     q = (q || '').trim(); if (!q) return;
+    if (_histOpen) { _histOpen = false; renderAssistant(); }
     aiPushRecent(q);
-    _assistLog.push({ who: 'me', html: esc(q) });
-    let ans; try { ans = assistAnswer(q); } catch (e) { ans = `<p>Sorry, I hit a snag answering that. Try rephrasing?</p>`; }
-    _assistLog.push({ who: 'ai', html: ans });
-    if (_assistLog.length > 40) _assistLog = _assistLog.slice(-40);
+    // Regenerate replaces the previous answer instead of stacking a duplicate.
+    if (regen && _assistLog.length && _assistLog[_assistLog.length - 1].who === 'ai') _assistLog.pop();
+    else _assistLog.push({ who: 'me', html: esc(q), text: q });
+    if (_assistLog.length > 60) _assistLog = _assistLog.slice(-60);
+    paintLog(); wireAssistant();
+
+    // Typing indicator, then reveal — answers are computed locally and return
+    // instantly, so the short beat is what makes it read as a reply rather
+    // than a flicker. It is NOT faked latency for its own sake.
     const log = $('qlAiLog');
-    if (log) { log.innerHTML = _assistLog.map(m => `<div class="ql-ai-msg ${m.who}">${m.html}</div>`).join(''); log.scrollTop = log.scrollHeight; }
-    else renderAssistant();
+    if (log) {
+      const t = document.createElement('div');
+      t.className = 'ql-ai-row ai'; t.id = 'qlAiTyping';
+      t.innerHTML = `<span class="ql-ai-av">${AI_MARK}</span><div class="ql-ai-msg ai ql-ai-typing"><i></i><i></i><i></i></div>`;
+      log.appendChild(t); log.scrollTop = log.scrollHeight;
+    }
+    setTimeout(() => {
+      let ans; try { ans = assistAnswer(q); } catch (e) { ans = `<p>Sorry, I hit a snag answering that. Try rephrasing?</p>`; }
+      _assistLog.push({ who: 'ai', html: ans, q });
+      convTouch();
+      paintLog(); wireAssistant();
+    }, 260);
   }
   function findPartyInQuery(t) {
     const ps = window.QLD.partyRows(); let best = null;
@@ -1578,6 +1785,8 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       this.applyFeatureVisibility();
       // mobile app layer (no-op on desktop)
       try { if (window.QLMobile) QLMobile.init({ active: _active, title: opts.title }); } catch (_) {}
+      // restore the chosen theme (assistant header toggles it)
+      try { const t = localStorage.getItem('ql_theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (_) {}
       // installable PWA (service worker + install prompt)
       try { initPWA(); } catch (_) {}
       // Floating AI button — the Business Assistant is one tap away on EVERY
@@ -1617,3 +1826,5 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
 /* build m27: Banks nav item (multi-bank Phase 4) */
 
 /* build m28: floating AI button on every page + invoice download in assistant answers */
+
+/* build m29: Business Assistant — full AI workspace (history, welcome, categories, actions) */

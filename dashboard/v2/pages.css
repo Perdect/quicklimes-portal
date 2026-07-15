@@ -547,14 +547,14 @@ table.att th, table.att td { border-bottom: 1px solid var(--ql-divider); }
 /* ═══ RIGHT-SIDE DRAWER (notifications + AI assistant) ═══ */
 .ql-drawer-backdrop { position: fixed; inset: 0; z-index: var(--ql-z-modal, 1000); background: rgba(15,23,42,.45); backdrop-filter: blur(2px); opacity: 0; pointer-events: none; transition: opacity .18s ease; }
 .ql-drawer-backdrop.open { opacity: 1; pointer-events: auto; }
-.ql-drawer { position: absolute; top: 0; right: 0; height: 100%; width: 420px; max-width: 92vw; background: var(--ql-bg); border-left: 1px solid var(--ql-border); box-shadow: var(--ql-shadow-xl); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .22s var(--ql-ease-out); }
+.ql-drawer { position: absolute; /* anchor for .ql-ai-tobottom */ top: 0; right: 0; height: 100%; width: 420px; max-width: 92vw; background: var(--ql-bg); border-left: 1px solid var(--ql-border); box-shadow: var(--ql-shadow-xl); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .22s var(--ql-ease-out); }
 .ql-drawer-backdrop.open .ql-drawer { transform: none; }
 .ql-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: var(--ql-space-4) var(--ql-space-5); border-bottom: 1px solid var(--ql-border); background: var(--ql-card); }
 .ql-drawer-title { font-size: var(--ql-text-lg); font-weight: var(--ql-weight-bold); color: var(--ql-text); display: flex; align-items: center; gap: 8px; }
 .ql-ai-dot { width: 9px; height: 9px; border-radius: 50%; background: linear-gradient(135deg, var(--ql-brand-500), #7C3AED); box-shadow: 0 0 0 3px var(--ql-brand-50); }
 .ql-drawer-x { width: 32px; height: 32px; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); background: transparent; color: var(--ql-text-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .ql-drawer-x:hover { background: var(--ql-neutral-100); color: var(--ql-text); }
-.ql-drawer-body { flex: 1; overflow-y: auto; padding: var(--ql-space-4); display: flex; flex-direction: column; gap: var(--ql-space-3); }
+.ql-drawer-body { position: relative; flex: 1; overflow-y: auto; padding: var(--ql-space-4); display: flex; flex-direction: column; gap: var(--ql-space-3); }
 .ql-drawer-empty { text-align: center; color: var(--ql-text-secondary); padding: var(--ql-space-12) var(--ql-space-4); display: flex; flex-direction: column; gap: 4px; }
 
 /* notifications */
@@ -583,11 +583,83 @@ table.att th, table.att td { border-bottom: 1px solid var(--ql-divider); }
 .ql-nc-acts button.done:hover { border-color: var(--ql-success-100); background: var(--ql-success-50); color: var(--ql-success-700); }
 
 /* AI assistant */
-.ql-drawer[data-mode="ai"] .ql-drawer-body { padding: 0; gap: 0; }
-.ql-ai-log { flex: 1; overflow-y: auto; padding: var(--ql-space-4); display: flex; flex-direction: column; gap: var(--ql-space-3); }
-.ql-ai-msg { max-width: 88%; font-size: var(--ql-text-sm); line-height: 1.5; border-radius: var(--ql-radius-lg); padding: 10px 13px; }
-.ql-ai-msg.me { align-self: flex-end; background: var(--ql-brand-600); color: #fff; border-bottom-right-radius: 4px; }
-.ql-ai-msg.ai { align-self: flex-start; background: var(--ql-card); border: 1px solid var(--ql-border); color: var(--ql-text); border-bottom-left-radius: 4px; }
+/* AI mode owns its own scrolling (.ql-ai-log) — the body must NOT scroll too,
+   or the input bar drifts off-screen instead of staying pinned. */
+.ql-drawer[data-mode="ai"] .ql-drawer-body { padding: 0; gap: 0; overflow: hidden; }
+/* ══════════ BUSINESS ASSISTANT — full-height AI workspace ══════════ */
+.ql-drawer.ai { width: 440px; }
+@media (min-width: 1600px) { .ql-drawer.ai { width: 480px; } }
+@media (max-width: 1024px) { .ql-drawer.ai { width: 60vw; } }
+@media (max-width: 768px)  { .ql-drawer.ai { width: 100vw; max-width: 100vw; border-left: 0; } }
+body.ql-ai-open .ql-ai-fab { display: none; }          /* never cover the input bar */
+.ql-ai-hicon { width: 17px; height: 17px; color: var(--ql-brand-600); display: inline-flex; }
+.ql-ai-hicon svg { width: 100%; height: 100%; }
+.ql-drawer-title { display: flex; align-items: center; gap: 8px; }
+.ql-ai-tools { display: flex; align-items: center; gap: 4px; margin-left: auto; margin-right: 4px; }
+.ql-ai-ib { width: 30px; height: 30px; padding: 0; border: 1px solid transparent; border-radius: 9px; background: transparent;
+  color: var(--ql-text-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all .12s; }
+.ql-ai-ib svg { width: 15px; height: 15px; }
+.ql-ai-ib:hover { background: var(--ql-neutral-100); color: var(--ql-text); border-color: var(--ql-border); }
+.ql-ai-ib.on { color: var(--ql-brand-600); background: var(--ql-brand-50); }
+.ql-ai-ib.danger:hover { background: var(--ql-danger-50, #fef2f2); color: var(--ql-danger-600, #dc2626); }
+.ql-ai-sub { padding: 0 var(--ql-space-4) 10px; font-size: 12px; color: var(--ql-text-secondary); border-bottom: 1px solid var(--ql-border); }
+
+/* welcome */
+.ql-ai-welcome { display: flex; flex-direction: column; gap: 12px; }
+.ql-ai-wc { background: linear-gradient(135deg, rgba(124,58,237,.06), rgba(37,99,235,.06));
+  border: 1px solid rgba(124,58,237,.14); border-radius: 16px; padding: 18px; }
+.ql-ai-wc-ic { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; color: #fff;
+  background: linear-gradient(135deg, var(--ql-brand-600), #7c3aed); box-shadow: 0 6px 16px rgba(109,40,217,.3); }
+.ql-ai-wc-ic svg { width: 18px; height: 18px; }
+.ql-ai-wc h3 { margin: 12px 0 4px; font-size: 18px; font-weight: 800; color: var(--ql-text); letter-spacing: -.01em; }
+.ql-ai-wc p { margin: 0 0 10px; font-size: 13px; color: var(--ql-text-secondary); line-height: 1.5; }
+.ql-ai-wc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; margin-bottom: 10px; }
+.ql-ai-wc-grid span { font-size: 12px; color: var(--ql-text); display: flex; align-items: center; gap: 6px; }
+.ql-ai-wc-grid span::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--ql-brand-500); flex: none; }
+.ql-ai-wc em { font-style: normal; font-size: 11.5px; color: var(--ql-text-muted, #94a3b8); }
+.ql-ai-cat-h { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ql-text-secondary); margin-bottom: 7px; }
+.ql-ai-cat-b { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* log + bubbles */
+.ql-ai-log { flex: 1; overflow-y: auto; padding: var(--ql-space-4); display: flex; flex-direction: column; gap: 14px; scroll-behavior: smooth; }
+.ql-ai-row { display: flex; gap: 9px; align-items: flex-start; animation: qlAiIn .22s var(--ql-ease-out); }
+.ql-ai-row.me { justify-content: flex-end; }
+@keyframes qlAiIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.ql-ai-av { width: 26px; height: 26px; flex: none; border-radius: 8px; display: grid; place-items: center; color: #fff;
+  background: linear-gradient(135deg, var(--ql-brand-600), #7c3aed); }
+.ql-ai-av svg { width: 14px; height: 14px; }
+.ql-ai-msg { font-size: var(--ql-text-sm); line-height: 1.55; border-radius: 14px; padding: 10px 13px; }
+.ql-ai-msg.me { max-width: 86%; background: linear-gradient(135deg, var(--ql-brand-600), #4f46e5); color: #fff; border-bottom-right-radius: 5px; box-shadow: 0 3px 10px rgba(37,99,235,.22); }
+.ql-ai-msg.ai { background: var(--ql-card); border: 1px solid var(--ql-border); color: var(--ql-text); border-bottom-left-radius: 5px; box-shadow: var(--ql-shadow-sm); }
+.ql-ai-macts { display: flex; gap: 2px; margin-top: 3px; opacity: 0; transition: opacity .15s; }
+.ql-ai-row.ai:hover .ql-ai-macts, .ql-ai-row.ai:focus-within .ql-ai-macts { opacity: 1; }
+@media (hover: none) { .ql-ai-macts { opacity: 1; } }
+.ql-ai-macts .ql-ai-ib { width: 26px; height: 26px; }
+.ql-ai-macts .ql-ai-ib svg { width: 13px; height: 13px; }
+.ql-ai-typing { display: inline-flex; gap: 4px; align-items: center; padding: 13px; }
+.ql-ai-typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--ql-text-muted, #94a3b8); animation: qlAiBlink 1.2s infinite; }
+.ql-ai-typing i:nth-child(2) { animation-delay: .18s; } .ql-ai-typing i:nth-child(3) { animation-delay: .36s; }
+@keyframes qlAiBlink { 0%, 60%, 100% { opacity: .25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+.ql-ai-tobottom { position: absolute; right: 16px; bottom: 84px; width: 32px; height: 32px; border-radius: 50%; z-index: 2;
+  border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-text); cursor: pointer;
+  box-shadow: var(--ql-shadow-md, 0 6px 18px rgba(15,23,42,.12)); display: grid; place-items: center; }
+.ql-ai-tobottom svg { width: 15px; height: 15px; }
+
+/* history */
+.ql-ai-hist { flex: 1; overflow-y: auto; padding: var(--ql-space-4); display: flex; flex-direction: column; gap: 4px; }
+.ql-ai-hsearch { width: 100%; font: inherit; font-size: 13px; padding: 9px 12px; margin-bottom: 6px; border-radius: 10px;
+  border: 1px solid var(--ql-border); background: var(--ql-bg); color: var(--ql-text); }
+.ql-ai-hsearch:focus { outline: none; border-color: var(--ql-brand-400); box-shadow: 0 0 0 3px var(--ql-brand-50); }
+.ql-ai-hrow { display: flex; align-items: center; gap: 2px; border-radius: 10px; padding: 2px; }
+.ql-ai-hrow:hover { background: var(--ql-neutral-100); }
+.ql-ai-hrow.on { background: var(--ql-brand-50); }
+.ql-ai-hopen { flex: 1; min-width: 0; text-align: left; background: none; border: 0; cursor: pointer; padding: 7px 8px; font: inherit; }
+.ql-ai-ht { display: block; font-size: 13px; font-weight: 600; color: var(--ql-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ql-ai-hd { display: block; font-size: 11px; color: var(--ql-text-secondary); margin-top: 1px; }
+.ql-ai-hacts { display: flex; gap: 1px; opacity: 0; transition: opacity .12s; }
+.ql-ai-hrow:hover .ql-ai-hacts { opacity: 1; }
+@media (hover: none) { .ql-ai-hacts { opacity: 1; } }
+.ql-ai-hempty { padding: 32px 12px; text-align: center; font-size: 12.5px; color: var(--ql-text-secondary); }
 .ql-ai-msg p { margin: 0 0 6px; } .ql-ai-msg p:last-child { margin-bottom: 0; }
 .ql-ai-tbl { width: 100%; border-collapse: collapse; margin: 6px 0; }
 .ql-ai-tbl td { padding: 5px 8px; border-bottom: 1px solid var(--ql-divider); font-size: var(--ql-text-xs); }
@@ -629,9 +701,11 @@ body:has(.qx-fab-desktop) .ql-ai-fab { right: 94px; bottom: 31px; }
 .ql-ai-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: var(--ql-space-3) var(--ql-space-4); border-top: 1px solid var(--ql-border); }
 .ql-ai-chip { font-family: inherit; font-size: var(--ql-text-xs); font-weight: var(--ql-weight-medium); padding: 6px 11px; border-radius: var(--ql-radius-pill); border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-text-secondary); cursor: pointer; }
 .ql-ai-chip:hover { border-color: var(--ql-brand-300); background: var(--ql-brand-50); color: var(--ql-brand-700); }
-.ql-ai-input { display: flex; gap: 8px; padding: var(--ql-space-3) var(--ql-space-4) var(--ql-space-4); border-top: 1px solid var(--ql-border); background: var(--ql-card); }
-.ql-ai-input input { flex: 1; min-width: 0; font-family: inherit; font-size: var(--ql-text-sm); padding: 10px 13px; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-pill); background: var(--ql-bg); color: var(--ql-text); }
-.ql-ai-input input:focus { outline: none; border-color: var(--ql-brand-400); box-shadow: 0 0 0 3px var(--ql-brand-50); }
+/* input bar — always visible, never covered */
+.ql-ai-input { display: flex; gap: 8px; align-items: flex-end; padding: var(--ql-space-3) var(--ql-space-4) calc(var(--ql-space-4) + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--ql-border); background: var(--ql-card); flex: none; }
+.ql-ai-input input, .ql-ai-input textarea { flex: 1; min-width: 0; font-family: inherit; font-size: var(--ql-text-sm); padding: 10px 13px; border: 1px solid var(--ql-border); border-radius: 18px; background: var(--ql-bg); color: var(--ql-text); }
+.ql-ai-input textarea { resize: none; line-height: 1.5; max-height: 120px; overflow-y: auto; }
+.ql-ai-input input:focus, .ql-ai-input textarea:focus { outline: none; border-color: var(--ql-brand-400); box-shadow: 0 0 0 3px var(--ql-brand-50); background: var(--ql-card); }
 .ql-ai-input button { width: 40px; flex-shrink: 0; border: none; border-radius: 50%; background: var(--ql-brand-600); color: #fff; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .ql-ai-input .ql-ai-send:hover { background: var(--ql-brand-700); }
 .ql-ai-mic { width: 40px; flex-shrink: 0; border: 1px solid var(--ql-border) !important; border-radius: 50%; background: var(--ql-bg) !important; color: var(--ql-text-secondary) !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
