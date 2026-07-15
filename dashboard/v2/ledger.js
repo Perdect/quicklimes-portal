@@ -66,7 +66,74 @@ function printStatement(L) {
   else QLShell.toast('Allow pop-ups to print the statement');
 }
 
-function card(label, val, col) { return `<div class="lgp-card"><span>${esc(label)}</span><b${col ? ` style="color:${col}"` : ''}>${val}</b></div>`; }
+function card(label, val, col, sub) { return `<div class="lgp-card"><span>${esc(label)}</span><b${col ? ` style="color:${col}"` : ''}>${val}</b>${sub ? `<i style="display:block;font-size:11px;color:var(--ql-text-secondary);font-style:normal;margin-top:3px">${esc(sub)}</i>` : ''}</div>`; }
+
+/* ── Quick ranges — the dates people actually ask for, one tap each ── */
+const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+function fyStart(d) { const y = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; return y + '-04-01'; }
+function RANGES() {
+  const now = new Date(), m0 = new Date(now.getFullYear(), now.getMonth(), 1);
+  const pm = new Date(now.getFullYear(), now.getMonth() - 1, 1), pmEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+  return [
+    ['All time', '', ''],
+    ['This month', ymd(m0), ymd(now)],
+    ['Last month', ymd(pm), ymd(pmEnd)],
+    ['This FY', fyStart(now), ymd(now)]
+  ];
+}
+
+/* ── Insights from data the ledger ALREADY has (credit terms, ageing, advance,
+   payment behaviour) — nothing invented, every line traceable to a row. ── */
+function insights(L) {
+  const out = [], p = L.party, bal = L.closing;
+  const rows = L.rows || [];
+  const unpaidDr = rows.filter(e => e.dr > 0);
+  const lastCr = [...rows].reverse().find(e => e.cr > 0);
+  const daysBetween = (a, b) => Math.round((new Date(b + 'T00:00') - new Date(a + 'T00:00')) / 864e5);
+  const today = ymd(new Date());
+
+  if (bal > 0.5) {
+    const oldest = unpaidDr[0];
+    if (oldest) {
+      const age = daysBetween(oldest.date, today);
+      const terms = +p.creditDays || 0;
+      if (terms && age > terms) out.push({ t: 'bad', h: `Overdue by ${age - terms} days`, s: `Oldest open entry ${Q.fDS(oldest.date)} · ${terms}-day terms.` });
+      else if (age > 60) out.push({ t: 'bad', h: `Oldest balance is ${age} days old`, s: 'No credit terms set for this party.' });
+      else out.push({ t: 'warn', h: `${drcr(bal)} outstanding`, s: `Oldest open entry ${Q.fDS(oldest.date)}${terms ? ` · ${terms}-day terms` : ''}.` });
+    }
+    const lim = +p.creditLimit || 0;
+    if (lim && bal > lim) out.push({ t: 'bad', h: `Over the credit limit by ${fC(Math.round(bal - lim))}`, s: `Limit ${fC(lim)}.` });
+  } else if (bal < -0.5) {
+    out.push({ t: 'good', h: `${fC(Math.round(-bal))} advance held`, s: 'Adjust against the next invoice.' });
+  } else if (rows.length) {
+    out.push({ t: 'good', h: 'Fully settled', s: 'No outstanding balance for this period.' });
+  }
+
+  if (lastCr) out.push({ t: '', h: `Last payment ${fC(Math.round(lastCr.cr))}`, s: `${Q.fDS(lastCr.date)} · ${daysBetween(lastCr.date, today)} days ago.` });
+  else if (rows.length) out.push({ t: 'warn', h: 'No payment received yet', s: 'Nothing has been credited in this period.' });
+
+  if (L.totalDr > 0) {
+    const pct = Math.round((L.totalCr / L.totalDr) * 100);
+    out.push({ t: '', h: `${pct}% of billing collected`, s: `${fC(Math.round(L.totalCr))} received against ${fC(Math.round(L.totalDr))} billed.` });
+  }
+  return out.slice(0, 4);
+}
+
+function exportLedger(L) {
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const out = [[L.party.name, L.party.gstin || ''].map(q).join(',')];
+  out.push(['Opening', Math.round(L.openingForRange)].map(q).join(','));
+  out.push(['Date', 'Particulars', 'Ref', 'Debit', 'Credit', 'Balance'].map(q).join(','));
+  L.rows.forEach(e => out.push([e.date, e.desc, e.ref || '', e.dr || '', e.cr || '', Math.round(e.bal)].map(q).join(',')));
+  out.push(['Total', '', '', Math.round(L.totalDr), Math.round(L.totalCr), Math.round(L.closing)].map(q).join(','));
+  const blob = new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Ledger_' + (L.party.name || 'party').replace(/[^\w]+/g, '_') + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  QLShell.toast('Statement exported — ' + L.rows.length + ' entries', 'ok');
+}
 
 function render() {
   const main = document.getElementById('ql-main'); if (!main) return;
@@ -74,6 +141,7 @@ function render() {
   if (!L) { main.innerHTML = `<div class="dash"><div class="page-head"><h1 class="page-title">Statement</h1></div><div class="card" style="padding:28px">Party not found. <a href="parties.html">← Back to customers</a></div></div>`; return; }
   const p = L.party, bal = L.closing;
   const balCol = bal > 0.5 ? 'var(--ql-danger-600)' : bal < -0.5 ? '#16a34a' : 'var(--ql-text)';
+  const ins = insights(L);
   const rows = L.rows.map(e => `<tr>
       <td>${Q.fDS(e.date)}</td>
       <td><b>${esc(e.desc)}</b></td>
@@ -96,16 +164,20 @@ function render() {
       </div>
     </div>
     <div class="lgp-cards">
-      ${card('Opening balance', drcr(L.openingForRange))}
-      ${card('Total debit', fC(Math.round(L.totalDr)))}
-      ${card('Total credit', fC(Math.round(L.totalCr)), '#16a34a')}
-      ${card('Closing balance', drcr(bal), balCol)}
+      ${card('Opening balance', drcr(L.openingForRange), '', FROM ? 'as on ' + Q.fDS(FROM) : 'start of ledger')}
+      ${card('Billed (debit)', fC(Math.round(L.totalDr)), '', L.rows.filter(e => e.dr > 0).length + ' entries')}
+      ${card('Received (credit)', fC(Math.round(L.totalCr)), '#16a34a', L.rows.filter(e => e.cr > 0).length + ' payments')}
+      ${card('Closing balance', drcr(bal), balCol, bal > 0.5 ? 'they owe you' : bal < -0.5 ? 'advance held' : 'settled')}
     </div>
+    ${ins.length ? `<div class="lgp-ai">
+      <svg class="lgp-ai-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/><circle cx="18" cy="18" r="1.4"/><circle cx="5" cy="17" r="1"/></svg>
+      <div class="lgp-ai-list">${ins.map(i => `<div class="lgp-ai-i ${i.t}"><b>${esc(i.h)}</b> — ${esc(i.s)}</div>`).join('')}</div>
+    </div>` : ''}
     <div class="card lgp-filter">
-      <span>Period</span>
-      <input type="date" id="lgFrom" value="${FROM}"><span>→</span><input type="date" id="lgTo" value="${TO}">
-      <button class="ql-btn ql-btn-secondary" id="lgClear">All time</button>
-      <span class="lgp-count">${L.rows.length} entr${L.rows.length === 1 ? 'y' : 'ies'}</span>
+      ${RANGES().map(r => `<button class="lgp-chip ${FROM === r[1] && TO === r[2] ? 'on' : ''}" data-r="${esc(r[1])}|${esc(r[2])}">${esc(r[0])}</button>`).join('')}
+      <span class="lgp-sep"></span>
+      <input type="date" id="lgFrom" value="${FROM}" aria-label="From date"><span>→</span><input type="date" id="lgTo" value="${TO}" aria-label="To date">
+      <span class="lgp-count">${L.rows.length} entr${L.rows.length === 1 ? 'y' : 'ies'} · <button class="lgp-chip" id="lgExp" style="margin-left:6px">⬇ Export</button></span>
     </div>
     <div class="card lgp-tablewrap">
       <table class="lgp-table">
@@ -118,7 +190,8 @@ function render() {
   const $ = id => document.getElementById(id);
   if ($('lgFrom')) $('lgFrom').onchange = e => { FROM = e.target.value; render(); };
   if ($('lgTo')) $('lgTo').onchange = e => { TO = e.target.value; render(); };
-  if ($('lgClear')) $('lgClear').onclick = () => { FROM = ''; TO = ''; render(); };
+  document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { const [f, t] = b.dataset.r.split('|'); FROM = f; TO = t; render(); });
+  if ($('lgExp')) $('lgExp').onclick = () => exportLedger(L);
   if ($('lgPrint')) $('lgPrint').onclick = () => printStatement(L);
   if ($('lgRec')) $('lgRec').onclick = () => recordReceipt(p);
   if ($('lgWa')) $('lgWa').onclick = () => {
