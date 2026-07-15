@@ -259,244 +259,176 @@
     return '<div class="' + cls + '"><div class="sfor">for <b>' + esc(f.signatory) + '</b></div><div class="sline"></div><div class="scap">Authorised Signatory</div></div>';
   }
 
-  /* ══════════════ V1 · glass — premium SaaS ══════════════ */
-  function glass(d, cfg) {
-    var f = facts(d, cfg), s = f.s, b = f.b, a = f.cfg.accent;
-    var css = "body{font-family:" + f.cfg.font + ";color:#0F172A;font-size:11.5px;line-height:1.5;padding:16px;background:linear-gradient(140deg,#EEF2FF 0%,#F8FAFC 45%,#ECFEFF 100%)}"
-      + ".inv{max-width:820px;margin:0 auto;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 24px 60px -22px rgba(15,23,42,.3)}"
-      /* Header: a real graphic device — deep gradient, a light sweep, and the logo
-         on its own white tile so a dark logo never disappears into a dark header. */
-      + ".hd{padding:24px 28px 22px;color:#fff;background:linear-gradient(125deg," + a + " 0%,#111C3A 130%);position:relative;overflow:hidden}"
-      + ".hd::after{content:'';position:absolute;top:-90px;right:-60px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.20),transparent 68%)}"
-      + ".hd::before{content:'';position:absolute;left:-40px;bottom:-120px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.09),transparent 70%)}"
-      /* The header is a flex ROW, not a block with an absolutely-positioned stamp.
-         Absolute took the stamp out of flow, so the moment the address wrapped to
-         a second line the two collided — and Gotan's address is long enough that
-         it always would. min-width:0 lets the middle column actually shrink. */
-      + ".hrow{display:flex;gap:16px;align-items:flex-start;position:relative;z-index:1}"
-      + ".ltile{background:#fff;border-radius:12px;padding:8px 10px;flex:none;box-shadow:0 6px 18px -6px rgba(0,0,0,.4)}"
-      + ".cinfo{flex:1;min-width:0}"
-      + ".hd h1{font-size:22px;letter-spacing:-.4px;font-weight:800;line-height:1.15}"
-      + ".hd .tl2{font-size:9px;letter-spacing:.12em;text-transform:uppercase;opacity:.82;margin-top:4px;font-weight:600}"
-      + ".hd .sub{opacity:.86;font-size:10.5px;margin-top:6px;line-height:1.45}"
-      + ".hd .g{font-weight:700;margin-top:5px;font-size:10.5px;word-break:break-word}"
-      + ".stamp{text-align:right;flex:none;max-width:170px}"
-      + ".stamp .p{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);padding:5px 13px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.1em;white-space:nowrap}"
-      + ".stamp .no{font-size:16px;font-weight:800;margin-top:8px;letter-spacing:-.3px}.stamp .dt{font-size:10.5px;opacity:.85}"
-      + ".grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:20px 28px 14px}"
-      + ".card{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:13px 15px}"
-      + ".card h4{font-size:9px;text-transform:uppercase;letter-spacing:.11em;color:" + a + ";margin-bottom:7px;font-weight:800}"
-      + ".kv{display:flex;justify-content:space-between;gap:10px;padding:2.5px 0;font-size:11px}.kv span{color:#64748B}.kv b{font-weight:650}"
-      + ".itm{width:100%;border-collapse:collapse}"
-      + ".itm thead th{background:" + a + ";color:#fff;font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;padding:10px;text-align:left}"
-      + ".itm thead th:first-child{border-radius:9px 0 0 9px}.itm thead th:last-child{border-radius:0 9px 9px 0}"
-      + ".itm tbody td{padding:13px 10px;border-bottom:1px solid #EEF2F7;font-size:11.5px}"
-      + ".r{text-align:right}.c{text-align:center}"
-      /* Money zone: breakdown left, the ONE number that matters in a filled block
-         on the right — the "NET À PAYER" idea from the reference.
-         minmax(0,1fr), not 1fr: a grid track defaults to min-width:auto, so the
-         wide rate-band table refused to shrink and shoved the totals column clean
-         off the page — the figures were CUT OFF at the card edge. */
-      + ".money{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:16px;padding:14px 28px 4px;align-items:start}"
-      + ".band{width:100%;border-collapse:collapse;font-size:10px}"
-      + ".band thead th{background:#F1F5F9;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;text-align:left;border:1px solid #E2E8F0}"
-      + ".band tbody td{padding:6px 8px;border:1px solid #E2E8F0;color:#334155}"
-      + ".tot{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:12px 14px}"
-      + ".tl{display:flex;justify-content:space-between;padding:3px 0;font-size:11.5px}.tl span{color:#64748B}"
-      + ".due{margin-top:10px;border-radius:12px;padding:12px 14px;color:#fff;background:linear-gradient(125deg," + a + ",#111C3A 150%)}"
-      + ".due .l{font-size:9px;letter-spacing:.12em;text-transform:uppercase;opacity:.85;font-weight:700}"
-      + ".due .v{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-top:2px}.due .q{font-size:10px;opacity:.85;margin-top:2px}"
-      + ".words{margin:12px 28px 0;padding:9px 13px;background:#F8FAFC;border-left:3px solid " + a + ";border-radius:0 8px 8px 0;font-size:10.5px;color:#475569}"
-      + ".ft{margin-top:14px;padding:15px 28px 20px;background:#F8FAFC;border-top:1px solid #E2E8F0;display:flex;gap:18px;align-items:flex-start}"
-      + ".ft .t{flex:1;font-size:9.5px;color:#64748B;line-height:1.7}"
-      + ".sg{text-align:center;min-width:165px;flex:none}.sg .sfor{font-size:10.5px;color:#334155}"
-      + ".sg .sline{border-bottom:1px solid #94A3B8;margin:34px 0 5px}.sg .scap{font-size:9.5px;color:#64748B}"
-      + ".qr{text-align:center;flex:none}.qrc{font-size:9px;color:#64748B;margin-top:2px}";
-    var body = '<div class="inv"><div class="hd">'
-      + '<div class="hrow">' + (f.logo ? '<div class="ltile">' + logoImg(f, 46) + '</div>' : '')
-      + '<div class="cinfo"><h1>' + esc(s.name) + '</h1>'
-      + (f.tagline ? '<div class="tl2">' + esc(f.tagline) + '</div>' : '')
-      + '<div class="sub">' + esc(s.address || '') + '</div>'
-      + '<div class="g">GSTIN ' + esc(s.gstin || '') + (s.phone ? ' · ' + esc(s.phone) : '') + (s.email ? ' · ' + esc(s.email) : '') + '</div></div>'
-      + '<div class="stamp"><span class="p">TAX INVOICE</span><div class="no">' + esc(f.inv) + '</div><div class="dt">' + esc(f.date) + '</div></div>'
-      + '</div></div>'
-      + '<div class="grid"><div class="card"><h4>Billed to</h4><div style="font-weight:700;font-size:13.5px">' + esc(b.name) + '</div>'
-      + (b.address ? '<div style="color:#64748B;font-size:10.5px;margin:2px 0 6px">' + esc(b.address) + '</div>' : '<div style="height:6px"></div>')
-      + '<div class="kv"><span>GSTIN / UIN</span><b>' + esc(b.gstin || '—') + '</b></div>'
-      + '<div class="kv"><span>Place of supply</span><b>' + esc(f.pos) + '</b></div></div>'
-      + '<div class="card"><h4>Invoice details</h4>'
-      + '<div class="kv"><span>Reverse charge</span><b>' + esc(f.rcm) + '</b></div>'
-      + (f.veh ? '<div class="kv"><span>Vehicle</span><b>' + esc(f.veh) + '</b></div>' : '')
-      + (f.eway ? '<div class="kv"><span>E-Way Bill</span><b>' + esc(f.eway) + '</b></div>' : '')
-      + (f.msme ? '<div class="kv"><span>MSME</span><b>' + esc(f.msme) + '</b></div>' : '') + '</div></div>'
-      + '<div style="padding:0 28px"><table class="itm"><thead><tr><th>Description of goods</th><th>HSN/SAC</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount (₹)</th></tr></thead>'
-      + '<tbody><tr><td style="font-weight:600">' + esc(f.product) + '</td><td class="c">' + esc(f.hsn) + '</td><td class="r">' + f.qty + ' ' + esc(f.unit) + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr></tbody></table></div>'
-      + '<div class="money"><div>' + bandTable(f, 'band') + '</div>'
-      + '<div><div class="tot"><div class="tl"><span>Taxable value</span><b>' + f.taxable + '</b></div>' + taxRows(f, 'tl') + '</div>'
-      + '<div class="due"><div class="l">Amount payable</div><div class="v">₹ ' + f.grand + '</div><div class="q">' + qtyTotalEl(f) + '</div></div></div></div>'
-      + '<div class="words">' + esc(f.words) + '</div>'
-      + '<div class="ft">' + qrBlock(f) + '<div class="t">' + (bankBlock(f) ? bankBlock(f) + '<br><br>' : '')
-      + (f.cfg.showDeclaration ? f.terms.map(function (t, i) { return (i + 1) + '. ' + esc(t); }).join('<br>') : '')
-      + (f.cfg.footerNote ? '<br><br>' + esc(f.cfg.footerNote) : '') + '</div>'
-      + signBlock(f, 'sg') + '</div></div>';
-    return doc(f, 'glass', css, body);
-  }
+  /* ══════════════════════════════════════════════════════════════════════
+     THE THREE NON-CLASSIC DESIGNS — professional, not decorative.
 
-  /* ══════════════ V2 · mono — minimal black & white luxury ══════════════ */
-  function mono(d, cfg) {
+     Brief, in the user's words: "professional, not fancy", built to what Zoho
+     Books and Tally Prime actually print. What that ruled OUT, and why:
+
+       gradients, glass panels, skewed colour slabs, a company name rotated 90°
+       up the page edge, tri-colour footer bars
+
+     Those were graphic-design moves on a document that is, in the end, a legal
+     demand for money. Decoration on an invoice does not read as premium — it
+     reads as less trustworthy, and no CA or cement buyer wants a nameplate
+     printed sideways. The craft has to show up as STRUCTURE instead:
+
+       - one restrained accent, used only on the table header and the total
+       - real typographic hierarchy (size and weight, not colour and shapes)
+       - generous, consistent spacing; everything on a shared grid
+       - hairline rules, never heavy boxes-within-boxes
+       - the total is the loudest thing on the page, because it is the point
+
+     The three differ in DENSITY and INK, not in ornament — a real choice for a
+     real reason, rather than three costumes:
+       modern  — the default recommendation; accent header, roomy, screen + PDF
+       mono    — identical structure, zero colour; safe on any office laser
+       compact — Tally-grade density; fits long invoices on one page
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* Shared skeleton. All three professional templates are the same DOCUMENT with
+     different density/ink, so they share one builder — three near-copies would be
+     three chances to drift apart, and the compliance test would only tell us
+     after the fact. `k` carries the knobs each variant actually differs on. */
+  function proDoc(d, cfg, k) {
     var f = facts(d, cfg), s = f.s, b = f.b;
-    /* The nameplate runs vertically up the left edge (the Adam Kozel device) and
-       the figures are monospaced so columns align on the digit. Both are strong
-       moves that spend no colour — which is the whole point of this template:
-       it must look deliberate on the cheapest office laser printer. */
-    var css = "body{font-family:" + f.cfg.font + ";color:#111;font-size:11px;line-height:1.6;padding:0;background:#fff}"
-      + ".sheet{max-width:840px;margin:0 auto;display:flex;min-height:1040px}"
-      + ".rail{width:62px;flex:none;border-right:1px solid #111;padding:26px 0 26px;display:flex;flex-direction:column;align-items:center;justify-content:space-between}"
-      + ".plate{writing-mode:vertical-rl;transform:rotate(180deg);font-size:19px;font-weight:700;letter-spacing:5px;text-transform:uppercase;white-space:nowrap}"
-      + ".railg{writing-mode:vertical-rl;transform:rotate(180deg);font-family:'Courier New',monospace;font-size:8.5px;letter-spacing:2px;color:#999}"
-      + ".main{flex:1;padding:26px 30px}"
-      + ".hd{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}"
-      + ".hd .a{font-size:10px;color:#555;margin-top:6px;max-width:340px;line-height:1.5}"
-      + ".hd .tag{font-size:8.5px;letter-spacing:.24em;text-transform:uppercase;color:#111;margin-top:8px;font-weight:700}"
-      + ".ti{text-align:right;flex:none}.ti .t{font-size:26px;font-weight:700;letter-spacing:-.5px}"
-      + ".ti .n{font-family:'Courier New',monospace;font-size:14px;margin-top:2px}.ti .d{font-size:10px;color:#666;margin-top:2px}"
-      + ".band0{background:#F4F4F5;margin:22px -30px 0;padding:18px 30px;display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:22px}"
-      + "h4{font-size:8px;letter-spacing:.22em;text-transform:uppercase;color:#999;margin-bottom:6px;font-weight:400}"
-      + ".v{font-size:11px}.v b{font-weight:700;font-size:13px}.mono{font-family:'Courier New',monospace}"
-      + "table.itm{width:100%;border-collapse:collapse;margin:24px 0 0}"
-      + ".itm thead th{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#999;padding:9px 0;text-align:left;border-bottom:1px solid #111;font-weight:400}"
-      + ".itm tbody td{padding:15px 0;border-bottom:1px solid #EEE;font-size:11.5px}"
-      + ".r{text-align:right}.c{text-align:center}"
-      + ".money{display:flex;justify-content:space-between;gap:30px;margin-top:20px;align-items:flex-start}.money>div:first-child{min-width:0;overflow:hidden}"
-      + ".band{border-collapse:collapse;font-size:9px;font-family:'Courier New',monospace}"
-      + ".band th{text-align:left;color:#999;font-weight:400;padding:5px 10px 5px 0;border-bottom:1px solid #DDD;letter-spacing:.1em;text-transform:uppercase}"
-      + ".band td{padding:5px 10px 5px 0;border-bottom:1px solid #F0F0F0}"
-      + ".tot{width:280px;flex:none}"
-      + ".tl{display:flex;justify-content:space-between;padding:4px 0;font-size:11px;color:#555}.tl b,.tl span:last-child{font-family:'Courier New',monospace;color:#111}"
-      + ".gt{margin-top:10px;padding:12px 14px;background:#111;color:#fff;display:flex;justify-content:space-between;align-items:baseline}"
-      + ".gt .l{font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;opacity:.75}"
-      + ".gt .v2{font-size:18px;font-weight:700;font-family:'Courier New',monospace}"
-      + ".gtq{text-align:right;font-size:9px;color:#666;margin-top:5px;letter-spacing:.05em}"
-      + ".words{margin-top:20px;padding:12px 0;border-top:1px solid #DDD;border-bottom:1px solid #DDD;font-size:10px;color:#666;letter-spacing:.04em}"
-      + ".ft{display:flex;gap:26px;padding-top:20px;font-size:9.5px;color:#666;line-height:1.7;align-items:flex-start}.ft .t{flex:1}"
-      + ".sg{text-align:center;min-width:170px;flex:none;color:#111}.sg .sfor{font-size:10.5px}"
-      + ".sg .sline{border-bottom:1px solid #111;margin:38px 0 5px}.sg .scap{font-size:9px;color:#999;letter-spacing:.1em;text-transform:uppercase}"
-      + ".qr{text-align:center;flex:none}.qrc{font-size:8.5px;color:#999}";
-    var body = '<div class="sheet"><div class="rail">'
-      + '<div class="plate">' + esc(s.short || s.name) + '</div>'
-      + (s.gstin ? '<div class="railg">GSTIN ' + esc(s.gstin) + '</div>' : '<div></div>') + '</div>'
-      + '<div class="main"><div class="hd"><div>'
-      + (f.logo ? '<div style="margin-bottom:12px">' + logoImg(f, 40) + '</div>' : '')
-      + '<div style="font-size:15px;font-weight:700;letter-spacing:1px">' + esc(s.name) + '</div>'
-      + '<div class="a">' + esc(s.address || '') + '</div>'
-      + '<div class="a mono">GSTIN ' + esc(s.gstin || '') + (s.email ? '<br>' + esc(s.email) : '') + '</div>'
-      + (f.tagline ? '<div class="tag">' + esc(f.tagline) + '</div>' : '') + '</div>'
-      + '<div class="ti"><div class="t">Invoice</div><div class="n">' + esc(f.inv) + '</div><div class="d">' + esc(f.date) + '</div></div></div>'
-      + '<div class="band0"><div><h4>Billed to</h4><div class="v"><b>' + esc(b.name) + '</b>'
-      + (b.address ? '<br>' + esc(b.address) : '') + '<br><span class="mono">GSTIN ' + esc(b.gstin || '—') + '</span></div></div>'
-      + '<div><h4>Place of supply</h4><div class="v">' + esc(f.pos) + '</div>'
-      + '<h4 style="margin-top:12px">Reverse charge</h4><div class="v">' + esc(f.rcm) + '</div></div>'
-      + '<div><h4>Despatch</h4><div class="v mono">' + (f.veh ? esc(f.veh) : '—') + (f.eway ? '<br>E-Way ' + esc(f.eway) : '') + '</div>'
-      + (f.msme ? '<h4 style="margin-top:12px">MSME</h4><div class="v mono">' + esc(f.msme) + '</div>' : '') + '</div></div>'
-      + '<table class="itm"><thead><tr><th>Description</th><th>HSN/SAC</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>'
-      + '<tbody><tr><td style="font-weight:600">' + esc(f.product) + '</td><td class="c mono">' + esc(f.hsn) + '</td><td class="r mono">' + f.qty + ' ' + esc(f.unit) + '</td><td class="r mono">' + f.rate + '</td><td class="r mono">' + f.taxable + '</td></tr></tbody></table>'
-      + '<div class="money"><div>' + bandTable(f, 'band') + '</div>'
-      + '<div class="tot"><div class="tl"><span>Taxable value</span><span>' + f.taxable + '</span></div>' + taxRows(f, 'tl')
-      + '<div class="gt"><span class="l">Amount payable</span><span class="v2">₹ ' + f.grand + '</span></div>'
-      + '<div class="gtq">' + qtyTotalEl(f) + '</div></div></div>'
-      + '<div class="words">' + esc(f.words) + '</div>'
-      + '<div class="ft">' + qrBlock(f) + '<div class="t">' + (bankBlock(f) ? bankBlock(f) + '<br><br>' : '')
-      + (f.cfg.showDeclaration ? f.terms.map(function (t, i) { return (i + 1) + '. ' + esc(t); }).join('<br>') : '')
-      + (f.cfg.footerNote ? '<br><br>' + esc(f.cfg.footerNote) : '') + '</div>'
-      + signBlock(f, 'sg') + '</div></div></div>';
-    return doc(f, 'mono', css, body);
-  }
+    var a = k.ink === 'none' ? '#111827' : f.cfg.accent;
+    var P = k.pad, FS = k.fs;
 
-  /* ══════════════ V3 · vivid — colourful, brand-forward ══════════════ */
-  function vivid(d, cfg) {
-    var f = facts(d, cfg), s = f.s, b = f.b, a = f.cfg.accent;
-    /* The angled banner + oversized INVOICE wordmark is the Johan Samit device;
-       the tri-colour foot is from the purple reference. Both are drawn with plain
-       CSS shapes rather than images, so they survive a PDF export. */
-    var css = "body{font-family:" + f.cfg.font + ";color:#1F2937;font-size:11.5px;line-height:1.5;padding:16px;background:#F3F4F6}"
-      + ".inv{max-width:820px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 10px 34px -10px rgba(0,0,0,.16)}"
-      /* Angled banner: a skewed accent slab behind the company block. */
-      + ".hd{position:relative;padding:24px 26px 20px;overflow:hidden;background:#fff}"
-      + ".slab{position:absolute;top:0;left:0;width:62%;height:100%;background:linear-gradient(100deg," + a + " 0%," + a + "D9 100%);transform:skewX(-11deg);transform-origin:top left;margin-left:-40px}"
-      + ".slab2{position:absolute;top:0;left:58%;width:10px;height:100%;background:" + a + "33;transform:skewX(-11deg)}"
-      + ".hrow{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:18px}"
-      + ".cob{color:#fff;max-width:60%}"
-      + ".ltile{background:#fff;border-radius:9px;padding:6px 9px;display:inline-block;margin-bottom:9px}"
-      + ".cob h1{font-size:19px;font-weight:800;letter-spacing:-.2px;line-height:1.2}"
-      + ".cob .tl2{font-size:8.5px;letter-spacing:.13em;text-transform:uppercase;opacity:.9;margin-top:4px;font-weight:700}"
-      + ".cob .a{font-size:10px;opacity:.92;margin-top:6px;line-height:1.45}"
-      + ".cob .g{font-size:10.5px;font-weight:700;margin-top:4px}"
-      + ".wm{text-align:right;flex:none;padding-top:4px}"
-      + ".wm .big{font-size:34px;font-weight:800;letter-spacing:-1px;color:#111827;line-height:1}"
-      + ".wm .n{font-size:12.5px;font-weight:700;margin-top:6px;color:#111827}.wm .d{font-size:10.5px;color:#6B7280}"
-      + ".pp{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:18px 26px 14px}"
-      + ".pc{border-radius:11px;padding:12px 14px;background:" + a + "0F;border-left:4px solid " + a + "}"
-      + ".pc.alt{background:#F3F4F6;border-left-color:#9CA3AF}"
-      + ".pc h4{font-size:8.5px;text-transform:uppercase;letter-spacing:.11em;color:#6B7280;margin-bottom:5px;font-weight:800}"
-      + ".pc .n2{font-weight:700;font-size:13px}.pc .l{font-size:10.5px;color:#4B5563;margin-top:2px}"
-      + ".itm{width:100%;border-collapse:collapse}"
-      + ".itm thead th{background:" + a + ";color:#fff;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;padding:11px 10px;text-align:left}"
-      + ".itm tbody td{padding:13px 10px;border-bottom:1px solid #F3F4F6;font-size:11.5px}"
-      + ".itm tbody tr:nth-child(even){background:" + a + "08}"
+    var css = "body{font-family:" + f.cfg.font + ";color:#111827;font-size:" + FS + "px;line-height:1.45;padding:0;background:#fff}"
+      + ".sheet{max-width:820px;margin:0 auto;padding:" + P + "px}"
+      /* Header: logo, company, then the invoice's own identity as a small titled
+         block on the right — the shape every accounting package prints. */
+      + ".hd{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:" + (P * .55) + "px;border-bottom:2px solid " + a + "}"
+      + ".co{display:flex;gap:13px;align-items:flex-start;min-width:0}"
+      + ".co h1{font-size:" + (FS + 6.5) + "px;font-weight:700;letter-spacing:-.2px;line-height:1.2;color:#111827}"
+      + ".co .tag{font-size:" + (FS - 2.5) + "px;color:#6B7280;margin-top:2px;font-weight:600;letter-spacing:.02em}"
+      + ".co .ad{font-size:" + (FS - 1.5) + "px;color:#4B5563;margin-top:5px;line-height:1.45;max-width:330px}"
+      + ".co .gs{font-size:" + (FS - 1) + "px;color:#111827;margin-top:4px;font-weight:600}"
+      + ".ttl{text-align:right;flex:none}"
+      + ".ttl .w{font-size:" + (FS + 4) + "px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:" + a + "}"
+      + ".ttl table{border-collapse:collapse;margin-top:7px;margin-left:auto}"
+      + ".ttl td{font-size:" + (FS - 1) + "px;padding:2px 0 2px 14px;text-align:right;white-space:nowrap}"
+      + ".ttl td:first-child{color:#6B7280;padding-left:0;text-align:left}"
+      + ".ttl td b{font-weight:700}"
+      /* Parties: two columns separated by whitespace and a hairline, not by boxes. */
+      + ".pp{display:grid;grid-template-columns:1fr 1fr;gap:" + (P * .8) + "px;padding:" + (P * .55) + "px 0;border-bottom:1px solid #E5E7EB}"
+      + ".pp h4{font-size:" + (FS - 3) + "px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:#9CA3AF;margin-bottom:6px}"
+      + ".pp .nm{font-size:" + (FS + 1.5) + "px;font-weight:700;color:#111827}"
+      + ".pp .ln{font-size:" + (FS - 1) + "px;color:#4B5563;margin-top:2px;line-height:1.45}"
+      + ".kv{display:flex;justify-content:space-between;gap:12px;font-size:" + (FS - 1) + "px;padding:1.5px 0}"
+      + ".kv span{color:#6B7280}.kv b{font-weight:600;color:#111827;text-align:right}"
+      /* Items: the accent earns its keep once, here. */
+      + ".itm{width:100%;border-collapse:collapse;margin-top:" + (P * .55) + "px}"
+      + ".itm thead th{background:" + a + ";color:#fff;font-size:" + (FS - 2.5) + "px;font-weight:700;letter-spacing:.06em;"
+      +   "text-transform:uppercase;padding:" + k.cell + "px 9px;text-align:left}"
+      + ".itm tbody td{padding:" + (k.cell + 3) + "px 9px;border-bottom:1px solid #E5E7EB;font-size:" + FS + "px;vertical-align:top}"
+      + ".itm tbody td.d{font-weight:600}"
       + ".r{text-align:right}.c{text-align:center}"
-      + ".money{display:grid;grid-template-columns:minmax(0,1fr) 285px;gap:16px;padding:16px 26px 6px;align-items:start}"
-      + ".band{width:100%;border-collapse:collapse;font-size:9.5px}"
-      + ".band thead th{background:#F3F4F6;color:#6B7280;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;text-align:left;border:1px solid #E5E7EB}"
-      + ".band tbody td{padding:6px 8px;border:1px solid #E5E7EB;color:#374151}"
-      + ".tl{display:flex;justify-content:space-between;padding:4px 0;font-size:11.5px;color:#4B5563}"
-      + ".gt{margin-top:9px;padding:12px 15px;border-radius:11px;background:" + a + ";color:#fff}"
-      + ".gt .l{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.9;font-weight:800}"
-      + ".gt .v{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-top:1px}.gt .q{font-size:10px;opacity:.9}"
-      + ".words{margin:12px 26px 0;padding:9px 13px;background:#FFFBEB;border-left:3px solid #F59E0B;border-radius:0 8px 8px 0;font-size:10.5px;color:#92400E}"
-      + ".ft{margin-top:14px;padding:15px 26px 18px;background:#FAFAFA;border-top:1px solid #F3F4F6;display:flex;gap:18px;align-items:flex-start}"
-      + ".ft .t{flex:1;font-size:9.5px;color:#6B7280;line-height:1.7}"
-      + ".sg{text-align:center;min-width:165px;flex:none}.sg .sfor{font-size:10.5px;color:#374151}"
-      + ".sg .sline{border-bottom:1px solid #9CA3AF;margin:34px 0 5px}.sg .scap{font-size:9.5px;color:#6B7280}"
-      + ".qr{text-align:center;flex:none}.qrc{font-size:9px;color:#6B7280}"
-      + ".foot3{display:flex;height:9px}.foot3 i{flex:1}.foot3 i:nth-child(1){background:" + a + "}.foot3 i:nth-child(2){background:#EC4899}.foot3 i:nth-child(3){background:#F59E0B}";
-    var body = '<div class="inv"><div class="hd"><div class="slab"></div><div class="slab2"></div>'
-      + '<div class="hrow"><div class="cob">'
-      + (f.logo ? '<div class="ltile">' + logoImg(f, 38) + '</div>' : '')
-      + '<h1>' + esc(s.name) + '</h1>'
-      + (f.tagline ? '<div class="tl2">' + esc(f.tagline) + '</div>' : '')
-      + '<div class="a">' + esc(s.address || '') + '</div>'
-      + '<div class="g">GSTIN ' + esc(s.gstin || '') + (s.phone ? ' · ' + esc(s.phone) : '') + '</div></div>'
-      + '<div class="wm"><div class="big">INVOICE</div><div class="n">' + esc(f.inv) + '</div><div class="d">' + esc(f.date) + '</div>'
-      + '<div class="d">Reverse charge: ' + esc(f.rcm) + '</div></div></div></div>'
-      + '<div class="pp"><div class="pc"><h4>Billed to</h4><div class="n2">' + esc(b.name) + '</div>'
-      + (b.address ? '<div class="l">' + esc(b.address) + '</div>' : '')
-      + '<div class="l"><b>GSTIN ' + esc(b.gstin || '—') + '</b></div><div class="l">Place of supply: ' + esc(f.pos) + '</div></div>'
-      + '<div class="pc alt"><h4>Despatch</h4><div class="n2">' + (f.veh ? esc(f.veh) : '—') + '</div>'
-      + (f.eway ? '<div class="l">E-Way Bill: ' + esc(f.eway) + '</div>' : '')
-      + (f.msme ? '<div class="l">MSME: ' + esc(f.msme) + '</div>' : '') + '</div></div>'
-      + '<table class="itm"><thead><tr><th>Description of goods</th><th>HSN/SAC</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount (₹)</th></tr></thead>'
-      + '<tbody><tr><td style="font-weight:600">' + esc(f.product) + '</td><td class="c">' + esc(f.hsn) + '</td><td class="r">' + f.qty + ' ' + esc(f.unit) + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr></tbody></table>'
+      /* Money: HSN summary left (Rule 46), totals right. The total is the loudest
+         thing on the sheet — everything else is quieter than it on purpose. */
+      + ".money{display:grid;grid-template-columns:minmax(0,1fr) 268px;gap:" + (P * .8) + "px;padding-top:" + (P * .55) + "px;align-items:start}"
+      + ".band{width:100%;border-collapse:collapse;font-size:" + (FS - 2.5) + "px}"
+      + ".band th{background:#F9FAFB;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:.05em;"
+      +   "padding:5px 7px;text-align:left;border:1px solid #E5E7EB;white-space:nowrap}"
+      + ".band td{padding:5px 7px;border:1px solid #E5E7EB;color:#374151}"
+      + ".tl{display:flex;justify-content:space-between;padding:4px 0;font-size:" + FS + "px}"
+      + ".tl span{color:#6B7280}.tl b{font-weight:600}"
+      + ".gt{display:flex;justify-content:space-between;align-items:baseline;margin-top:7px;padding:9px 12px;"
+      +   "background:" + (k.ink === 'none' ? '#111827' : a) + ";color:#fff;border-radius:" + k.rad + "px}"
+      + ".gt .l{font-size:" + (FS - 2.5) + "px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.92}"
+      + ".gt .v{font-size:" + (FS + 6) + "px;font-weight:700;letter-spacing:-.3px}"
+      + ".gtq{text-align:right;font-size:" + (FS - 2) + "px;color:#6B7280;margin-top:4px}"
+      + ".words{margin-top:" + (P * .5) + "px;padding-top:" + (P * .4) + "px;border-top:1px solid #E5E7EB;font-size:" + (FS - 1) + "px;color:#374151}"
+      + ".words b{font-weight:600}"
+      + ".ft{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:" + (P * .8) + "px;margin-top:" + (P * .5) + "px;"
+      +   "padding-top:" + (P * .5) + "px;border-top:1px solid #E5E7EB;align-items:start}"
+      + ".ft .t{font-size:" + (FS - 2.5) + "px;color:#6B7280;line-height:1.65}"
+      + ".ft .t b{color:#374151}"
+      + ".sg{text-align:center}.sg .sfor{font-size:" + (FS - 1) + "px;color:#374151}"
+      + ".sg .sline{border-bottom:1px solid #9CA3AF;margin:38px 0 5px}"
+      + ".sg .scap{font-size:" + (FS - 2.5) + "px;color:#6B7280}"
+      + ".qr{text-align:center;margin-bottom:8px}.qrc{font-size:" + (FS - 3) + "px;color:#6B7280}"
+      /* The sheet is designed for 820px of A4. It is also shown in the GST Invoice
+         page's preview pane, which is roughly half that, and on phones. There,
+         minmax(0,1fr) does its job too well: the left track shrinks BELOW the
+         rate-band table's own width and the table spills across the totals column
+         — the two overlapped and became unreadable. Below the width where the
+         two-column money zone stops fitting, stack instead. Print is unaffected:
+         @page is A4, always wider than this breakpoint. */
+      + "@media screen and (max-width:700px){"
+      +   ".money{grid-template-columns:1fr;gap:14px}"
+      +   ".ft{grid-template-columns:1fr;gap:14px}"
+      +   ".pp{grid-template-columns:1fr;gap:14px}"
+      +   ".hd{flex-direction:column;gap:14px}.ttl{text-align:left}.ttl table{margin-left:0}"
+      +   ".ttl td{padding-left:0;padding-right:14px;text-align:left}"
+      +   ".band{display:block;overflow-x:auto;white-space:nowrap}"
+      + "}";
+
+    var body = '<div class="sheet"><div class="hd">'
+      + '<div class="co">' + (f.logo ? logoImg(f, k.logo) : '')
+      + '<div><h1>' + esc(s.name) + '</h1>'
+      + (f.tagline ? '<div class="tag">' + esc(f.tagline) + '</div>' : '')
+      + '<div class="ad">' + esc(s.address || '') + '</div>'
+      + '<div class="gs">GSTIN ' + esc(s.gstin || '') + '</div>'
+      + ((s.phone || s.email) ? '<div class="ad" style="margin-top:2px">' + esc([s.phone, s.email].filter(Boolean).join('  ·  ')) + '</div>' : '')
+      + '</div></div>'
+      + '<div class="ttl"><div class="w">Tax Invoice</div><table>'
+      + '<tr><td>Invoice no.</td><td><b>' + esc(f.inv) + '</b></td></tr>'
+      + '<tr><td>Date</td><td><b>' + esc(f.date) + '</b></td></tr>'
+      + '<tr><td>Place of supply</td><td><b>' + esc(f.pos) + '</b></td></tr>'
+      + '<tr><td>Reverse charge</td><td><b>' + esc(f.rcm) + '</b></td></tr>'
+      + '</table></div></div>'
+      + '<div class="pp"><div><h4>Bill to</h4><div class="nm">' + esc(b.name) + '</div>'
+      + (b.address ? '<div class="ln">' + esc(b.address) + '</div>' : '')
+      + '<div class="ln"><b>GSTIN ' + esc(b.gstin || '—') + '</b></div></div>'
+      + '<div><h4>Details</h4>'
+      + (f.veh ? '<div class="kv"><span>Vehicle no.</span><b>' + esc(f.veh) + '</b></div>' : '')
+      + (f.eway ? '<div class="kv"><span>E-Way Bill no.</span><b>' + esc(f.eway) + '</b></div>' : '')
+      /* No HSN row here: the code already prints in the line item AND in the
+         rate-band summary below. Three copies of one number is the duplication we
+         deleted from the summary rail — a "details" block should hold what is not
+         already on the page, not repeat what is. */
+      + (f.msme ? '<div class="kv"><span>MSME</span><b>' + esc(f.msme) + '</b></div>' : '')
+      + '</div></div>'
+      + '<table class="itm"><thead><tr><th style="width:30px">#</th><th>Description of goods</th><th style="width:82px">HSN/SAC</th>'
+      + '<th class="r" style="width:96px">Qty</th><th class="r" style="width:74px">Rate</th><th class="r" style="width:104px">Amount (₹)</th></tr></thead>'
+      + '<tbody><tr><td>1</td><td class="d">' + esc(f.product) + '</td><td>' + esc(f.hsn) + '</td>'
+      + '<td class="r">' + f.qty + ' ' + esc(f.unit) + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr></tbody></table>'
       + '<div class="money"><div>' + bandTable(f, 'band') + '</div>'
       + '<div><div class="tl"><span>Taxable value</span><b>' + f.taxable + '</b></div>' + taxRows(f, 'tl')
-      + '<div class="gt"><div class="l">Total amount</div><div class="v">₹ ' + f.grand + '</div><div class="q">' + qtyTotalEl(f) + '</div></div></div></div>'
-      + '<div class="words"><b>' + esc(f.words) + '</b></div>'
-      + '<div class="ft">' + qrBlock(f) + '<div class="t">' + (bankBlock(f) ? bankBlock(f) + '<br><br>' : '')
-      + (f.cfg.showDeclaration ? f.terms.map(function (t, i) { return (i + 1) + '. ' + esc(t); }).join('<br>') : '')
+      + '<div class="gt"><span class="l">Total</span><span class="v">₹ ' + f.grand + '</span></div>'
+      + '<div class="gtq">' + qtyTotalEl(f) + '</div></div></div>'
+      + '<div class="words">Amount in words: <b>' + esc(f.words) + '</b></div>'
+      + '<div class="ft"><div class="t">' + (bankBlock(f) ? bankBlock(f) + '<br><br>' : '')
+      + (f.cfg.showDeclaration ? '<b>Declaration</b><br>' + f.terms.map(function (t, i) { return (i + 1) + '. ' + esc(t); }).join('<br>') : '')
       + (f.cfg.footerNote ? '<br><br>' + esc(f.cfg.footerNote) : '') + '</div>'
-      + signBlock(f, 'sg') + '</div>'
-      + '<div class="foot3"><i></i><i></i><i></i></div></div>';
-    return doc(f, 'vivid', css, body);
+      + '<div>' + qrBlock(f) + signBlock(f, 'sg') + '</div></div></div>';
+
+    return doc(f, k.id, css, body);
   }
 
+  /* modern — the recommendation. Roomy, one accent, reads well on screen and PDF. */
+  function modern(d, cfg) { return proDoc(d, cfg, { id: 'modern', pad: 34, fs: 11.5, cell: 9, rad: 8, logo: 46, ink: 'accent' }); }
+
+  /* mono — same document, no colour at all. A cheap office laser renders a mid
+     blue as muddy grey; this one is designed for that printer instead of fighting
+     it, so it looks intentional in black and white rather than drained. */
+  function mono(d, cfg) { return proDoc(d, cfg, { id: 'mono', pad: 34, fs: 11.5, cell: 9, rad: 0, logo: 44, ink: 'none' }); }
+
+  /* compact — Tally-grade density. Same structure, tighter everything, for firms
+     that want the whole invoice on one page without a second sheet. */
+  function compact(d, cfg) { return proDoc(d, cfg, { id: 'compact', pad: 24, fs: 10.5, cell: 6, rad: 4, logo: 38, ink: 'accent' }); }
+
   var TEMPLATES = [
-    { id: 'classic',    name: 'Classic (current)', category: 'Compliance', accentable: false,
+    { id: 'classic', name: 'Classic (current)', category: 'In use now', accentable: false,
       desc: 'The bordered format you issue today. Your customers and your CA already recognise it.', render: classic },
-    { id: 'glass',      name: 'Premium Glass',     category: 'Corporate', accentable: true,
-      desc: 'Soft gradients and glass cards. For corporate buyers who read invoices on a screen.', render: glass },
-    { id: 'mono',       name: 'Minimal Mono',      category: 'Luxury', accentable: false,
-      desc: 'Typography only, no colour. Prints beautifully on any printer.', render: mono },
-    { id: 'vivid',      name: 'Vivid Business',    category: 'Retail', accentable: true,
-      desc: 'Your logo and accent colour up front. Friendly for retail and trade counters.', render: vivid }
+    { id: 'modern',  name: 'Modern',           category: 'Recommended', accentable: true,
+      desc: 'What Zoho Books and Tally Prime print. Clean structure, one accent colour, no decoration.', render: modern },
+    { id: 'mono',    name: 'Monochrome',       category: 'Any printer', accentable: false,
+      desc: 'The same document with no colour at all. Designed for a plain office laser.', render: mono },
+    { id: 'compact', name: 'Compact',          category: 'Dense', accentable: true,
+      desc: 'Tally-grade density. Same structure, tighter — keeps long invoices on one page.', render: compact }
   ];
 
   function get(id) { for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].id === id) return TEMPLATES[i]; return TEMPLATES[0]; }

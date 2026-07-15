@@ -160,9 +160,9 @@ ok(T.DEFAULT_CFG.template === 'classic', 'default template is no longer "classic
 ok(T.TEMPLATES[0].id === 'classic', 'classic is no longer first in the gallery');
 
 /* A QR that scans to nothing is worse than no QR. */
-const noQr = T.render(SALE, { template: 'glass', showQR: true, qrData: '' });
+const noQr = T.render(SALE, { template: 'modern', showQR: true, qrData: '' });
 ok(!/qrserver|Scan to pay/.test(noQr), 'a QR box renders with no data to encode — it would scan to nothing');
-const yesQr = T.render(SALE, { template: 'glass', showQR: true, qrData: 'upi://pay?pa=gotan@sbi' });
+const yesQr = T.render(SALE, { template: 'modern', showQR: true, qrData: 'upi://pay?pa=gotan@sbi' });
 ok(/Scan to pay/.test(yesQr), 'QR does not render when real UPI data IS supplied');
 
 console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');

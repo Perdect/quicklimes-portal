@@ -863,3 +863,9 @@ body:has(.qx-fab-desktop) .ql-ai-fab { right: 94px; bottom: 31px; }
 .crm-consent.no { color: var(--ql-danger-600, #b91c1c); }
 .crm-why { font-size: 11.5px; color: var(--ql-text-secondary); background: var(--ql-bg-subtle, #f8fafc);
   border-radius: 8px; padding: 7px 9px; margin: 5px 0 2px; line-height: 1.5; }
+
+/* GST Invoice — design picker, sits beside the live preview it controls. */
+.if-tpl { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ql-text-secondary); font-weight: 600; }
+.if-tpl select { font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 9px; border-radius: 8px;
+                 border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-text); cursor: pointer; }
+.if-tpl select:hover { border-color: var(--ql-brand-600); }

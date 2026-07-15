@@ -960,6 +960,27 @@
   }
 
   /* ── GST tax invoice (print / save as PDF) ───────────────────── */
+  /* Which invoice design this firm uses.
+     Per COMPANY, not per browser: a group with two plants may want different
+     letterheads, and one shared setting would silently restyle the other plant's
+     invoices. localStorage for now — this belongs in the company blob so it
+     follows the user to another device, but that needs a key added to blob()/
+     hydrate()/clearState() AND to ql_blob_caps() (the whitelist that fails OPEN),
+     so it is a deliberate next step rather than a smuggled one.
+     Defaults to 'classic' — the format Gotan already issues. Nothing restyles
+     until someone picks. */
+  function invoiceTemplateKey() {
+    const co = (window.QLD && window.QLD.co && window.QLD.co.key) || 'default';
+    return 'ql_inv_tpl_' + co;
+  }
+  function invoiceTemplateId() {
+    const T = window.InvoiceTemplates;
+    let id = '';
+    try { id = localStorage.getItem(invoiceTemplateKey()) || ''; } catch (_) {}
+    // An unknown id (renamed/removed template) must fall back, never render blank.
+    return (T && T.TEMPLATES.some(t => t.id === id)) ? id : 'classic';
+  }
+
   function invoiceHTML(d) {
     const Q = window.QLD, amt = n => Q.fmt(n, 2), s = d.seller, b = d.buyer;
     const fdate = iso => { if (!iso) return ''; const p = iso.split('-'); return p.length === 3 ? p[2] + '-' + p[1] + '-' + p[0] : iso; };
@@ -1851,8 +1872,25 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     rowMenu, printInvoice, exportCSV, csvCell, csvRow, downloadCSV,
     _comboFilter, _comboFocus, _comboBlur, _comboPick, _comboKey,
     formPrompt(title, specs, onSave, sub) { openForm({ title, sub, specs, saveLabel: 'Save', initial: {}, onSave(v) { onSave(v); } }); },
-    getInvoiceHTML(idx) { const d = window.QLD.invoiceData(idx); return d ? invoiceHTML(d) : ''; },
-    renderInvoice(d) { return invoiceHTML(d); },
+    /* ── Invoice rendering — the ONE door every invoice goes through ──
+       The GST Invoice page's live preview, its Print, and the row-level "print
+       invoice" all land here, so wiring the template engine in at this single
+       point wires the whole app. invoiceHTML() below stays as the fallback for
+       any page that has not loaded invoice-templates.js — it must never become a
+       page that renders a DIFFERENT-looking invoice than the one previewed. */
+    getInvoiceHTML(idx) { const d = window.QLD.invoiceData(idx); return d ? this.renderInvoice(d) : ''; },
+    renderInvoice(d, cfg) {
+      const T = window.InvoiceTemplates;
+      if (!T) return invoiceHTML(d);                       // engine not loaded on this page
+      return T.render(d, Object.assign({ template: invoiceTemplateId() }, cfg || {}));
+    },
+    invoiceTemplate: invoiceTemplateId,
+    setInvoiceTemplate(id) {
+      const T = window.InvoiceTemplates;
+      if (!T || !T.TEMPLATES.some(t => t.id === id)) return false;
+      try { localStorage.setItem(invoiceTemplateKey(), id); } catch (_) {}
+      return true;
+    },
 
     // ── Feature Management (Settings) ──
     feat: featOn,

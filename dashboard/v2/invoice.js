@@ -69,13 +69,13 @@ function formHTML() {
       ${field('i_pos', 'Place of Supply', { val: co.state || '' })}
       ${field('i_rc', 'Reverse Charge', { opts: [['N', 'N'], ['Y', 'Y']], val: 'N' })}
     </div>
-    <div class="if-sec">Transport</div>
+    <!-- Despatch. Transport / Station / GR-RR were dropped from the printed
+         invoice, so asking for them here would be a form collecting data nobody
+         will ever see. Vehicle No. and E-Way Bill still print, so they stay. -->
+    <div class="if-sec">Despatch</div>
     <div class="if-grid">
-      ${field('i_trans', 'Transport', { val: 'By Road' })}
       ${field('i_veh', 'Vehicle No.', { up: 1, ph: 'RJ19 GG 5115' })}
-      ${field('i_stn', 'Station', { val: co.station || co.city || '' })}
       ${field('i_eway', 'E-Way Bill No.', {})}
-      ${field('i_grrr', 'GR / RR No.', { full: true })}
     </div>
     <div class="if-sec">Billed to / Shipped to</div>
     <div class="if-grid">
@@ -105,6 +105,33 @@ function save(andPrint) {
   setTimeout(() => location.href = 'sales.html', andPrint ? 400 : 700);
 }
 
+/* Design picker, right next to the preview it controls.
+   Switching it changes what the preview shows AND what Save & Print produces —
+   they go through the same QLShell.renderInvoice, so the two can never disagree.
+   The choice sticks per company (see shell.js invoiceTemplateKey). Renders
+   nothing at all if invoice-templates.js is not loaded, rather than a dead
+   control that silently does nothing. */
+function designPicker() {
+  const T = window.InvoiceTemplates;
+  if (!T || !QLShell.invoiceTemplate) return '';
+  const cur = QLShell.invoiceTemplate();
+  return `<label class="if-tpl">Design
+    <select id="invTpl" title="Changes the preview and the printed invoice">
+      ${T.TEMPLATES.map(t => `<option value="${t.id}"${t.id === cur ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}
+    </select></label>`;
+}
+
+function onPickDesign(e) {
+  if (!QLShell.setInvoiceTemplate(e.target.value)) { toast('Unknown design', 'err'); return; }
+  /* srcdoc, not the in-place innerHTML patch used for typing: a different
+     template brings a whole new stylesheet, and patching innerHTML leaves the OLD
+     <style> in the document — the new markup would render against the old CSS. */
+  const f = document.getElementById('invFrame');
+  if (f) f.srcdoc = QLShell.renderInvoice(buildData());
+  const t = (window.InvoiceTemplates.get(e.target.value) || {}).name || '';
+  toast(t + ' — this design is now used for your invoices', 'ok');
+}
+
 function render() {
   const main = document.getElementById('ql-main'); if (!main) return;
   const co = Q.co || {};
@@ -112,6 +139,7 @@ function render() {
     <div class="inv-hero">
       <div><h1>GST Invoice</h1><div class="sub">Create a tax invoice for <b>${esc(co.short || co.name || '')}</b> — details on the left, live preview on the right.</div></div>
       <div class="inv-hero-r">
+        ${designPicker()}
         <span class="if-live">Live preview</span>
         <button class="ql-btn ql-btn-secondary" id="invPrint">Save &amp; Print</button>
         <button class="ql-btn ql-btn-primary" id="invSave">Save invoice</button>
@@ -124,6 +152,7 @@ function render() {
   </div>`;
   // live update on any input
   main.querySelectorAll('.inv-form input, .inv-form select').forEach(el => { el.addEventListener('input', onInput); el.addEventListener('change', onInput); });
+  const tpl = document.getElementById('invTpl'); if (tpl) tpl.addEventListener('change', onPickDesign);
   document.getElementById('invSave').onclick = () => save(false);
   document.getElementById('invPrint').onclick = () => save(true);
   updatePreview();
