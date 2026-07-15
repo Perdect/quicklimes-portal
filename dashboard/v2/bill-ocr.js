@@ -293,10 +293,46 @@
       var ctx = bi >= 0 ? nT.slice(Math.max(0, bi - 90), bi) : '';
       if (/BILL\s*TO|BILLED\s*TO|BUYER|CONSIGNEE|SHIP\s*TO|RECIPIENT|RECEIVER|DETAILS\s*OF\s*RECEIVER/.test(ctx)) dir = 'purchase';
     }
+    /* LETTERHEAD — how a human tells whose bill it is, and the ONLY signal that
+       survives a two-column layout.
+
+       REAL BUG (2026-07-15, IOC petcoke bill 7002052400.pdf): the bill prints
+       seller and buyer side by side, and pdf.js reads ACROSS the columns, so the
+       extracted text interleaves them:
+           "...BARODA JODHPUR 342604 391320 RAJASTHAN(08) GUJARAT(24) ...
+            GSTIN 08BNAPM0488E1Z3 GST REGISTRATION NO. GSTIN 24AAACI1681G1ZV"
+       OUR GSTIN comes out first. The "first GSTIN = the issuer" test below then
+       concluded WE issued an Indian Oil invoice, and filed a real purchase as a
+       sale. Line 2 of that PDF says "Indian Oil Corporation Limited" — the
+       letterhead was right there the whole time.
+
+       So: read the top of the document first. If the letterhead is OUR firm, we
+       issued it (sale). If it is somebody else and our GSTIN is on the bill, we
+       are the buyer (purchase). GSTIN ORDER IS NOT EVIDENCE — a layout decides
+       it, not the parties. */
+    if (!dir && !noIdentity) {
+      // NEEDS ownNames: without our own firm names we cannot recognise our own
+      // letterhead, and then "our GSTIN is on the bill" would read as PURCHASE —
+      // but on our OWN sales invoice our GSTIN is the SELLER. buyerG only means
+      // "our GSTIN appears somewhere", never "we are the buyer". Getting this
+      // wrong would flip every one of our own sales bills into a purchase.
+      // (identity.test.js caught exactly that.)
+      if ((ownNames || []).length) {
+        var head = '';
+        for (var hi = 0; hi < Math.min(lines.length, 8) && !head; hi++) head = goodName(lines[hi], []);
+        if (head) {
+          if (isOwnName(head, ownNames)) dir = 'sales';        // our letterhead ⇒ we issued it
+          else if (buyerG) dir = 'purchase';                   // someone else's letterhead + our GSTIN on it ⇒ we bought
+        }
+      }
+    }
+
     // The issuer decides — but ONLY if we know which GSTIN is ours. With ownG
     // empty this test is `[].indexOf(x) >= 0`, always false, so EVERY bill came
     // out "purchase" (the reported bug). Unknown must stay unknown: the review
     // modal then asks, instead of silently misfiling money and GST.
+    // LAST RESORT ONLY: reached when the letterhead is unreadable. It is a
+    // position heuristic and position is not evidence — see above.
     if (!dir && !noIdentity) {
       var issuerG = gstins.filter(function (g) { return validGstin(g); })[0] || gstins[0] || '';
       if (issuerG) dir = ownG.indexOf(issuerG) >= 0 ? 'sales' : 'purchase';
