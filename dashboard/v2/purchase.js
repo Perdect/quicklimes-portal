@@ -16,7 +16,15 @@ const toast = (m, t) => QLX.toast(m, t);
 
 /* ── contacts ── */
 function supContact(name) { return Q.partyRows().find(x => (x.name || '').toUpperCase() === (name || '').toUpperCase()) || {}; }
-function waLink(phone, text) { const d = (phone || '').replace(/\D/g, ''); const n = d.length === 10 ? '91' + d : d; return 'https://wa.me/' + n + '?text=' + encodeURIComponent(text); }
+/* Delegates to wa-core's normalizePhone — the tested engine — never a local copy.
+   The copy that was here dropped the country code on any number stored with the
+   STD trunk 0 (09829069545 is ELEVEN digits, so the ===10 rule never fired) and
+   handed wa.me a number that is not the supplier's. wa-core handles the trunk 0,
+   the 0091 prefix and the 6-9 mobile check, and returns '' rather than guess. */
+function waLink(phone, text) {
+  if (window.WACore) return WACore.waLink(phone, text);
+  return 'https://wa.me/?text=' + encodeURIComponent(text || '');
+}
 
 /* ── Attachments (IndexedDB, per browser) ── */
 const ADB = 'ql_pur_docs'; let _adb = null;

@@ -6,7 +6,21 @@
 const Q = window.QLD, fC = Q.fC;
 const esc = QLX.esc, svg = QLX.svg, IC = QLX.icons;
 const toast = (m, t) => QLX.toast(m, t);
-function waLink(phone, text) { const d = (phone || '').replace(/\D/g, ''); const n = d.length === 10 ? '91' + d : d; return 'https://wa.me/' + n + '?text=' + encodeURIComponent(text || ''); }
+/* Who we message is decided by wa-core's normalizePhone — the tested engine —
+   never by a local copy. The copy that used to live here read:
+     const n = d.length === 10 ? '91' + d : d;
+   A number stored with the STD trunk 0 (09829069545) is ELEVEN digits, so the
+   ===10 rule never fired, no country code was added, and wa.me was handed a
+   number that is not the customer's. Best case it fails; worst case a stranger
+   gets a demand for ₹1,30,000 in Gotan's name.
+   wa-core already handled the trunk 0, the 0091 prefix, and the 6-9 mobile
+   check, and it returns '' rather than GUESS — which degrades to WhatsApp's own
+   contact picker instead of a wrong recipient. The same broken copy still exists
+   in ledger/purchase/parties/payables; they are being moved onto this too. */
+function waLink(phone, text) {
+  if (window.WACore) return WACore.waLink(phone, text);
+  return 'https://wa.me/?text=' + encodeURIComponent(text || '');   // engine absent: let the user pick, never guess a number
+}
 function fmtPlain(n) { return Math.round(n || 0).toLocaleString('en-IN'); }
 
 function ageOf(dateStr) { const d = new Date((dateStr || '') + 'T00:00:00'); const n = Math.floor((new Date() - d) / 86400000); return isFinite(n) && n >= 0 ? n : 0; }

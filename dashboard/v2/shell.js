@@ -1260,10 +1260,16 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       return true;
     });
   }
+  /* Delegates to wa-core's normalizePhone — the tested engine (94 checks) —
+     rather than repeating the rule. This copy said `length === 10 ? '91'+p : p`,
+     so a number stored with the STD trunk 0 (09829069545, ELEVEN digits) got no
+     country code and wa.me was handed a number that is not the customer's.
+     wa-core handles the trunk 0, the 0091 prefix and the 6-9 mobile check, and
+     returns '' rather than guess — no recipient beats the WRONG recipient,
+     because a wrong one leaks this customer's balance to a stranger. */
   function waLink(phone, msg) {
-    let p = (phone || '').replace(/\D/g, '');
-    if (p.length === 10) p = '91' + p;
-    return 'https://wa.me/' + p + '?text=' + encodeURIComponent(msg || '');
+    if (window.WACore) return window.WACore.waLink(phone, msg);
+    return 'https://wa.me/?text=' + encodeURIComponent(msg || '');
   }
   function notifCard(n) {
     const m = NOTIF_META[n.type] || { ic: '🔔', label: n.type, cls: 'c-grey' };

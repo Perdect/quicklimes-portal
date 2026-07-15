@@ -62,6 +62,10 @@ function load(state) {
 
   const ctx = {
     QLD, QLX, QLParty: require('./party-identity.js'),
+    /* The REAL wa-core, not a stub. waLink() delegates to it, so stubbing it
+       would test the stub. This is the integration that matters: the page must
+       actually reach the tested engine. */
+    WACore: require('./wa-core.js'),
     QLShell: { exportCSV: (...a) => { ctx.__csv = a; } },
     console,
     location: { hash: '', href: '' },
@@ -165,16 +169,23 @@ console.log('\n═══ collections.js · the money paths ═══\n');
   eq('an already-prefixed +91 number is not double-prefixed', num(ctx.waLink('+91 98290 69545', 'x')), '919829069545');
   ok('the message text is URL-encoded into the link', ctx.waLink('9829069545', 'a b&c').includes('a%20b%26c'));
 
-  /* THE DANGEROUS CASE. Indian numbers are often stored with the STD trunk '0'
-     (0982…). That is 11 digits, so the `length === 10` rule does not fire, no 91
-     is added, and wa.me is handed "09829069545" — not this customer's number.
-     Best case WhatsApp rejects it; worst case it resolves to a DIFFERENT PERSON
-     and a stranger receives a demand for ₹1,30,000 in the firm's name.
-     This test documents today's real behaviour and fails the day it is fixed —
-     which is the point: it is a known, unfixed hazard, not a passing feature. */
-  const trunk = num(ctx.waLink('09829069545', 'x'));
-  ok('KNOWN HAZARD (documented, not fixed): a leading-0 number is NOT normalised — got ' + trunk
-     + '. Change this test when waLink learns to strip the trunk 0.', trunk === '09829069545');
+  /* THE CASE THAT COULD MESSAGE A STRANGER — now fixed by delegating to
+     wa-core's normalizePhone instead of the page's own copy. Indian numbers are
+     routinely stored with the STD trunk '0' (0982…), which is 11 digits, so the
+     old `length === 10` rule never fired and wa.me got a number that was not the
+     customer's. */
+  eq('a leading-0 (STD trunk) number is normalised, not sent to a stranger',
+    num(ctx.waLink('09829069545', 'x')), '919829069545');
+  eq('a 0091-prefixed number is normalised', num(ctx.waLink('009198290 69545', 'x')), '919829069545');
+
+  /* And the rule that makes the fix safe: when the number cannot be trusted,
+     wa-core returns '' rather than guessing. wa.me with no recipient opens
+     WhatsApp's own contact picker — the human chooses. A wrong recipient is
+     worse than no recipient, because it leaks one customer's balance to another. */
+  eq('junk never becomes a recipient — WhatsApp asks instead', num(ctx.waLink('12345', 'x')), undefined);
+  eq('a landline is not messaged as a mobile', num(ctx.waLink('0294 2345678', 'x')), undefined);
+  ok('  and the message text survives so the user can still send it by hand',
+    ctx.waLink('12345', 'hello there').includes('hello%20there'));
 }
 
 /* ══════════ 4. APPLYING A RECEIPT — this writes to the ledger ══════════ */

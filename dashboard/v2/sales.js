@@ -114,7 +114,18 @@ function voidInv(r) {
   });
 }
 function dupInv(r) { const s = Q.state.SALES[r.idx]; Q.addSale(Object.assign({}, s, { inv: (s.inv || '') + '-COPY', status: 'pending', paid: 0, payments: [] })); toast('Invoice duplicated'); QLX.refresh(); }
-function shareInv(r) { const co = (Q.partyRows().find(x => (x.name || '').toUpperCase() === (r.party || '').toUpperCase()) || {}); const d = (co.phone || '').replace(/\D/g, ''); const n = d.length === 10 ? '91' + d : d; window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(`Invoice ${r.inv || ''} — ${fC(r.total)} · ${r.status}`), '_blank'); }
+/* Delegates to wa-core's normalizePhone — the tested engine. The two inline
+   copies that used to live here (shareInv + the detail tab) each rebuilt the
+   `length===10 ? '91'+d : d` rule, which silently dropped the country code on any
+   number stored with the STD trunk 0 and messaged a number that is not the
+   customer's. wa-core returns '' rather than guess, which opens WhatsApp's own
+   contact picker instead of a stranger's chat. */
+function waLink(phone, text) {
+  if (window.WACore) return WACore.waLink(phone, text);
+  return 'https://wa.me/?text=' + encodeURIComponent(text || '');
+}
+
+function shareInv(r) { const co = (Q.partyRows().find(x => (x.name || '').toUpperCase() === (r.party || '').toUpperCase()) || {}); window.open(waLink(co.phone, `Invoice ${r.inv || ''} — ${fC(r.total)} · ${r.status}`), '_blank'); }
 
 /* ── detail tabs ── */
 function tabOverview(r) {
@@ -122,7 +133,7 @@ function tabOverview(r) {
   const co = Q.partyRows().find(x => (x.name || '').toUpperCase() === (r.party || '').toUpperCase()) || {};
   const phone = co.phone || '';
   const comm = `<div class="qx-comm">
-    ${phone ? `<a class="wa" href="https://wa.me/${(phone.replace(/\D/g,'').length===10?'91':'')+phone.replace(/\D/g,'')}?text=${encodeURIComponent('Invoice '+(r.inv||''))}" target="_blank">${svg(IC.wa)} WhatsApp</a>` : ''}
+    ${phone ? `<a class="wa" href="${waLink(phone, 'Invoice ' + (r.inv || ''))}" target="_blank">${svg(IC.wa)} WhatsApp</a>` : ''}
     ${phone ? `<a class="call" href="tel:${esc(phone)}">${svg(IC.call)} Call</a>` : ''}
     ${co.email ? `<a class="mail" href="mailto:${esc(co.email)}">${svg(IC.mail)} Email</a>` : ''}
     ${!phone && !co.email ? '<span class="qx-mut" style="font-size:12px">No saved contact — add it in All Parties.</span>' : ''}</div>`;

@@ -71,8 +71,12 @@
     var msg = 'Dear ' + r.party + ',\nHope you are well. You usually take about ' +
       (r.medianTonnes ? (Math.round(r.medianTonnes * 10) / 10) + ' T' : 'a load') +
       ' around this time. Shall we plan your next dispatch?\nThank you.';
+    /* The fallback used to paste the raw digits straight into wa.me with NO
+       country code at all — the worst of the copies. If wa-core is missing we
+       open WhatsApp with no recipient and let the human choose, rather than
+       dial a number we have not normalised. */
     return window.WACore ? WACore.waLink(r.phone, msg)
-      : 'https://wa.me/' + String(r.phone).replace(/\D/g, '') + '?text=' + encodeURIComponent(msg);
+      : 'https://wa.me/?text=' + encodeURIComponent(msg);
   }
 
   function marketHTML() {

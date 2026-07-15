@@ -9,7 +9,16 @@ const Q = window.QLD, fC = Q.fC;
 const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const drcr = v => { const a = Math.round(Math.abs(v)); return a < 1 ? '₹0' : fC(a) + ' ' + (v >= 0 ? 'Dr' : 'Cr'); };
 function qp(k) { return new URLSearchParams(location.search).get(k); }
-function waLink(phone, text) { const d = (phone || '').replace(/\D/g, ''); const n = d.length === 10 ? '91' + d : d; return 'https://wa.me/' + n + '?text=' + encodeURIComponent(text || ''); }
+/* Delegates to wa-core's normalizePhone — the tested engine — never a local copy.
+   The copy that was here read `d.length === 10 ? '91' + d : d`, so a number stored
+   with the STD trunk 0 (09829069545, ELEVEN digits) got no country code and wa.me
+   was handed a number that is not the customer's. wa-core handles the trunk 0, the
+   0091 prefix and the 6-9 mobile check, and returns '' rather than guess — which
+   opens WhatsApp's contact picker instead of messaging a stranger. */
+function waLink(phone, text) {
+  if (window.WACore) return WACore.waLink(phone, text);
+  return 'https://wa.me/?text=' + encodeURIComponent(text || '');
+}
 function isMobile() { return window.matchMedia && window.matchMedia('(max-width:768px)').matches; }
 
 let IDX = parseInt(qp('party'), 10); if (isNaN(IDX)) IDX = 0;
