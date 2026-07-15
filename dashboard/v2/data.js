@@ -1405,7 +1405,13 @@
     const fr = {
       id: 'fr' + idStamp(), date: toISODate(f.date) || fmtISO(new Date()), amount: +f.amount || 0,
       method: f.method || 'Cash', accountId: f.accountId || '', paidTo: (f.paidTo || '').toString().trim(),
-      veh: (f.veh || '').toString().trim().toUpperCase(), ref: f.ref || '', notes: f.notes || ''
+      veh: (f.veh || '').toString().trim().toUpperCase(), ref: f.ref || '', notes: f.notes || '',
+      /* The consignment note (LR/GR) and the driver. This object is a WHITELIST —
+         anything not named here is dropped on save, silently — so a field is only
+         real once it is written down in both places. Both are optional: a freight
+         payment made before the LR arrives is still a payment. */
+      lr: (f.lr || '').toString().trim(), driver: (f.driver || '').toString().trim(),
+      driverPhone: (f.driverPhone || '').toString().trim()
     };
     if (!(fr.amount > 0)) return null;
     p.freightPays = (p.freightPays || []).concat([fr]);
@@ -1426,6 +1432,28 @@
     const ci = S.CASHBOOK.findIndex(e => e && e.link && e.link.freightId === fid && !e._del);
     if (ci >= 0) softDelete('payment', ci, reason || 'freight removed from bill');   // ledger row → Trash
     logAudit('delete', 'freight', fr, { ref: p.bill || '', amount: fr.amount, reason: reason || '' });
+    commit();
+    return true;
+  }
+  /* Amend the paperwork on a freight payment — the LR/consignment note and the
+     driver usually arrive AFTER the money is sent, so they have to be addable
+     later or they never get recorded at all.
+
+     Deliberately narrow: the MONEY (amount, method, account, date) is not
+     editable here. Those posted a cashbook row when the payment was made, and
+     silently rewriting an amount would put the ledger and the bill out of step
+     with no trace. Correcting money means deleting the payment (which trashes
+     its ledger row, recoverably) and re-adding it. */
+  function updateFreightNote(i, fid, f) {
+    const p = S.PURCHASES[i]; if (!p || !fid) return false;
+    const fr = (p.freightPays || []).find(x => x.id === fid); if (!fr) return false;
+    f = f || {};
+    if (f.lr != null) fr.lr = String(f.lr).trim();
+    if (f.driver != null) fr.driver = String(f.driver).trim();
+    if (f.driverPhone != null) fr.driverPhone = String(f.driverPhone).trim();
+    if (f.veh != null) fr.veh = String(f.veh).trim().toUpperCase();
+    if (f.paidTo != null) fr.paidTo = String(f.paidTo).trim();
+    logAudit('update', 'freight', fr, { ref: p.bill || '', party: fr.paidTo, amount: fr.amount });
     commit();
     return true;
   }
@@ -1870,7 +1898,7 @@
     upsertParty, deleteParty,
     addSale, updateSale, deleteSale, setSaleStatus,
     addPurchase, updatePurchase, deletePurchase, setPurchaseStatus, importGenericBill,
-    addFreightPayment, deleteFreightPayment,
+    addFreightPayment, deleteFreightPayment, updateFreightNote,
     addWorker, updateWorker, deleteWorker,
     addCashEntry, deleteCashEntry,
     addChunna, deleteChunna,

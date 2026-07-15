@@ -575,15 +575,40 @@
     if (S.dpTab >= tabs.length) S.dpTab = 0;
     const dp = document.getElementById('qxDp');
     const actions = (d.actions || []).map((a, i) => `<button class="qx-btn ${a.primary ? 'qx-btn-primary' : ''} qx-btn-sm" data-dpa="${i}">${a.icon ? svg(a.icon) : ''}${esc(a.label)}</button>`).join('');
-    dp.innerHTML = `<div class="qx-dp-head">
+    /* OPT-IN GLASS VARIANT.
+       This drawer is shared by every module mounted on QLX, so restyling it
+       outright would silently redesign Sales, Parties and Reconciliation too —
+       modules whose content assumes the current surface. A module asks for the
+       new treatment by returning `variant: 'glass'` from detail(), and rolls
+       over when its content has been checked against it. Everything below is
+       additive: with no variant the markup is byte-for-byte what it always was.
+
+       The extras (avatar, badge, amount, aside) are opt-in for the same reason —
+       a module that returns none of them renders exactly as before. */
+    const glass = d.variant === 'glass';
+    DP.className = 'qx-dp-back qx-a-blue' + (glass ? ' qx-glass' : '') + (DP.classList.contains('open') ? ' open' : '');
+    const head = glass ? `<div class="qx-dp-head">
+        <div class="qx-dp-top">
+          ${d.avatar ? `<div class="qx-dp-av">${d.avatar}</div>` : ''}
+          <div class="qx-dp-idt">
+            <div class="qx-dp-eyebrow"><span class="qx-badge">${svg(CFG.icon || IC.file)}</span>${esc(d.eyebrow || CFG.title)}</div>
+            <div class="qx-dp-t">${d.title || ''}</div><div class="qx-dp-s">${d.sub || ''}</div>
+          </div>
+          <div class="qx-dp-hr">${d.badge || ''}${d.amount ? `<div class="qx-dp-amt">${d.amount}</div>` : ''}</div>
+          <button class="qx-dp-x" id="qxDpX">${svg(IC.x)}</button>
+        </div>
+        <div class="qx-dp-actions">${actions}</div>
+      </div>` : `<div class="qx-dp-head">
         <div class="qx-dp-top"><div>
           <div class="qx-dp-eyebrow"><span class="qx-badge">${svg(CFG.icon || IC.file)}</span>${esc(d.eyebrow || CFG.title)}</div>
           <div class="qx-dp-t">${d.title || ''}</div><div class="qx-dp-s">${d.sub || ''}</div>
         </div><button class="qx-dp-x" id="qxDpX">${svg(IC.x)}</button></div>
         <div class="qx-dp-actions">${actions}</div>
-      </div>
-      <div class="qx-dp-tabs">${tabs.map((t, i) => `<button class="qx-dp-tab ${i === S.dpTab ? 'active' : ''}" data-dpt="${i}">${t.icon ? svg(t.icon) : ''}${esc(t.label)}${t.count != null ? `<span class="qx-dp-tab-ct">${t.count}</span>` : ''}</button>`).join('')}</div>
-      <div class="qx-dp-body" id="qxDpBody"></div>`;
+      </div>`;
+    const tabbar = `<div class="qx-dp-tabs">${tabs.map((t, i) => `<button class="qx-dp-tab ${i === S.dpTab ? 'active' : ''}" data-dpt="${i}">${t.icon ? svg(t.icon) : ''}${esc(t.label)}${t.count != null ? `<span class="qx-dp-tab-ct">${t.count}</span>` : ''}</button>`).join('')}</div>`;
+    dp.innerHTML = head + tabbar + (glass && d.aside
+      ? `<div class="qx-dp-split"><div class="qx-dp-body" id="qxDpBody"></div><aside class="qx-dp-aside">${d.aside}</aside></div>`
+      : `<div class="qx-dp-body" id="qxDpBody"></div>`);
     document.getElementById('qxDpX').onclick = closeDetail;
     dp.querySelectorAll('[data-dpa]').forEach(b => b.onclick = () => (d.actions[+b.dataset.dpa].onClick(r)));
     dp.querySelectorAll('[data-dpt]').forEach(b => b.onclick = () => { S.dpTab = +b.dataset.dpt; renderDetailBody(); });

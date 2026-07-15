@@ -147,25 +147,176 @@ async function viewBill(r) {
 }
 
 /* ══════════════════ DETAIL PANEL TABS ══════════════════ */
+/* ══════════════════ Purchase Bill drawer (glass) ══════════════════
+   Lucide paths, inlined. The spec asked for Lucide-the-React-package; this app
+   has no build step, so the icons arrive the only way they can — as their path
+   data. Same glyphs, no bundler. */
+const PB = {
+  sparkle: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/>',
+  receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1V2l-2 1-2-1-2 1-2-1-2 1-2-1z"/><path d="M8 7h8M8 11h8M8 15h5"/>',
+  trend: '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
+  pin: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+  wallet: '<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/><path d="M17 12h.01"/>',
+  pie: '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
+  user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  route: '<circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19h6a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6"/>'
+};
+const psvg = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+
+/* Status is one of four states, and "overdue" is not a stored status — it is a
+   pending bill whose due date has passed. purchaseRows computes isOverdue. */
+function pbStatus(r) {
+  if (r.status === 'cancelled') return { cls: 'pb-st-void', label: 'Cancelled' };
+  if (r.status === 'paid') return { cls: 'pb-st-paid', label: 'Paid' };
+  if (r.isOverdue) return { cls: 'pb-st-over', label: 'Overdue' };
+  if (r.status === 'partial') return { cls: 'pb-st-pend', label: 'Part paid' };
+  return { cls: 'pb-st-pend', label: 'Pending' };
+}
+/* No logo service is called and none is invented: a fabricated logo would be a
+   claim about a real company. The initial on a brand gradient is honest. */
+function pbAvatar(r) { return `<div class="qx-dp-av">${esc(((r.sup || '?').trim()[0] || '?').toUpperCase())}</div>`; }
+
+/* ── the summary rail ── */
+function pbAside(r) {
+  const st = pbStatus(r), landed = r.landed != null ? r.landed : r.total + (r.freightAddon || 0);
+  const row = (l, v, ic) => `<div class="pb-row"><span>${ic ? psvg(ic) : ''}${l}</span><b>${v}</b></div>`;
+  const due = r.dueDate ? fDS(r.dueDate) : null;
+  return `<div class="pb-sum">
+      <div class="pb-sum-l">Net payable</div>
+      <div class="pb-sum-v">${fC(r.outstanding)}</div>
+      <div class="pb-sum-s">${r.outstanding > 0 ? 'owed to ' + esc(r.sup) : 'settled in full'}${r.paid > 0 && r.outstanding > 0 ? ' · ' + fC(r.paid) + ' paid' : ''}</div>
+    </div>
+    <div class="pb-card">
+      <div class="pb-card-h">${psvg(PB.receipt)}Summary</div>
+      ${row('Bill amount', fC(r.total), PB.wallet)}
+      ${row('GST @ ' + r.grate + '%', fC(r.gst), null)}
+      ${row('ITC available', r.itc ? fC(r.itc) : '—', PB.shield)}
+      ${row('Freight', r.freightAddon > 0 ? fC(r.freightAddon) : '—', IC.truck)}
+      <div class="pb-row pb-row-tot"><span>Landed cost</span><b>${fC(landed)}</b></div>
+    </div>
+    <div class="pb-card">
+      <div class="pb-card-h">${psvg(IC.clock)}Payment</div>
+      <div class="pb-row"><span>Status</span><b><span class="pb-st ${st.cls}">${st.label}</span></b></div>
+      ${row('Due date', due || 'Not set')}
+      ${r.isOverdue ? row('Overdue by', Math.max(1, Q.daysAgo(r.dueDate)) + ' days') : ''}
+      ${row('Paid', fC(r.paid))}
+      ${row('Outstanding', fC(r.outstanding))}
+    </div>`;
+}
+
+/* ── Overview ── */
 function tabOverview(r) {
   const co = supContact(r.sup), phone = co.phone || '';
-  const kv = (l, v) => `<div class="qx-kv"><span>${l}</span><b>${v}</b></div>`;
-  const comm = `<div class="qx-comm">
+  const rows = Q.purchaseRows();
+  const landed = r.landed != null ? r.landed : r.total + (r.freightAddon || 0);
+  const pct = n => landed > 0 ? (n / landed * 100) : 0;
+
+  /* Supplier history — real rows, not a rating out of five. There is no supplier
+     rating in this system, and inventing one would put a number the app cannot
+     defend next to a real company's name. What it CAN say is what actually
+     happened: how many bills, how much, and when the last one was. */
+  const hist = rows.filter(x => x.sup === r.sup && x.status !== 'cancelled');
+  const prev = hist.filter(x => x.date < r.date).sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+  const spend = hist.reduce((a, x) => a + x.total, 0);
+
+  const comm = `<div class="qx-comm" style="margin-top:10px">
     ${phone ? `<a class="wa" href="${waLink(phone, 'Regarding bill ' + (r.bill || '') + ' — ' + r.item)}" target="_blank">${svg(IC.wa)} WhatsApp</a>` : ''}
     ${phone ? `<a class="call" href="tel:${esc(phone)}">${svg(IC.call)} Call</a>` : ''}
     ${co.email ? `<a class="mail" href="mailto:${esc(co.email)}">${svg(IC.mail)} Email</a>` : ''}
-    ${!phone && !co.email ? '<span class="qx-mut" style="font-size:12px">No saved supplier contact — add it in All Parties.</span>' : ''}
+    ${!phone && !co.email ? `<button class="pb-ask" id="pbAddContact">+ Add supplier contact</button>` : ''}
   </div>`;
-  return `<div class="qx-sec-h">Supplier</div>
-    <div style="font-weight:700;font-size:15px">${esc(r.sup)}</div>
-    <div class="qx-mut" style="font-size:12.5px;margin-top:2px">${r.gstin ? 'GSTIN ' + esc(r.gstin) : 'No GSTIN on file'}${phone ? ' · ' + esc(phone) : ''}</div>
-    ${comm}
-    <div class="qx-sec-h">Bill details</div>
-    ${kv('Invoice / Bill No', esc(r.bill || '—'))}${kv('Bill date', fDS(r.date))}${kv('Due date', r.dueDate ? fDS(r.dueDate) : '—')}
-    ${kv('Group · Item', r.emoji + ' ' + esc(r.groupLabel) + ' → ' + esc(r.item))}${kv('Created by', esc(r.createdBy))}
-    <div class="qx-sec-h">Amount</div>
-    ${kv('Taxable value', fC(r.taxable))}${kv('GST @ ' + r.grate + '%', fC(r.gst))}${kv('ITC', r.itc ? fC(r.itc) : '—')}
-    <div class="qx-kv qx-kv-tot"><span>Grand total</span><b>${fC(r.total)}</b></div>${r.freightAddon ? kv('Freight / transport', '🚚 ' + fC(r.freightAddon)) + `<div class="qx-kv qx-kv-tot"><span>Landed cost</span><b>${fC(r.total + r.freightAddon)}</b></div>` : ''}`;
+
+  const kpi = (ic, cls, label, val, delta, dcls) => `<div class="pb-kpi">
+    <div class="pb-kpi-i ${cls}">${psvg(ic)}</div>
+    <div class="pb-kpi-l">${label}</div><div class="pb-kpi-v">${val}</div>
+    ${delta ? `<div class="pb-kpi-d ${dcls || 'pb-flat'}">${delta}</div>` : ''}</div>`;
+
+  /* rate vs the last purchase of the same item from the same supplier — the
+     "price comparison" the spec asks for, computed from the firm's own bills */
+  const prevSame = rows.filter(x => x.sup === r.sup && x.item === r.item && x.date < r.date && x.rate > 0)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+  const rateD = prevSame && r.rate > 0 ? (r.rate - prevSame.rate) / prevSame.rate * 100 : null;
+
+  /* monthly spend for this group — last 6 months that exist in the data */
+  const byMonth = {};
+  rows.filter(x => x.group === r.group && x.status !== 'cancelled').forEach(x => {
+    const m = (x.date || '').slice(0, 7); if (m) byMonth[m] = (byMonth[m] || 0) + x.total + (x.freightAddon || 0);
+  });
+  const months = Object.keys(byMonth).sort().slice(-6);
+  const peak = Math.max(...months.map(m => byMonth[m]), 1);
+  const thisM = (r.date || '').slice(0, 7);
+  const trend = months.length > 1 ? `<div class="pb-card">
+      <div class="pb-card-h">${psvg(PB.trend)}${esc(r.groupLabel)} spend · last ${months.length} months</div>
+      <div class="pb-tr">${months.map(m => `<div class="pb-tr-c">
+        <div class="pb-tr-b ${m === thisM ? 'now' : ''}" style="height:${Math.max(3, byMonth[m] / peak * 74)}px" title="${esc(m)} · ${fC(byMonth[m])}"></div>
+        <div class="pb-tr-x">${esc(m.slice(5) + '/' + m.slice(2, 4))}</div></div>`).join('')}</div>
+      <div class="qx-mut" style="font-size:11.5px;margin-top:8px">Landed spend per month · this bill's month highlighted.</div>
+    </div>` : '';
+
+  const ins = Q.billInsights(r.idx) || [];
+  const tone = { danger: ['pb-i-r', IC.ban], warn: ['pb-i-a', IC.clock], ok: ['pb-i-g', IC.check], info: ['pb-i-b', PB.shield] };
+
+  return `<div class="pb-card">
+      <div class="pb-card-h">${psvg(PB.user)}Supplier</div>
+      <div style="font-weight:700;font-size:15.5px;letter-spacing:-.01em">${esc(r.sup)}</div>
+      <div class="qx-mut" style="font-size:12.5px;margin-top:3px">${r.gstin ? 'GSTIN ' + esc(r.gstin) : 'No GSTIN on file'}${co.name && co.contact ? ' · ' + esc(co.contact) : ''}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px">
+        <div><div class="pb-kpi-l">Bills</div><div style="font-weight:700">${hist.length}</div></div>
+        <div><div class="pb-kpi-l">Total spend</div><div style="font-weight:700">${fC(spend)}</div></div>
+        <div><div class="pb-kpi-l">Last purchase</div><div style="font-weight:700">${prev ? fDS(prev.date) : '—'}</div></div>
+      </div>
+      ${comm}
+    </div>
+
+    <div class="pb-card">
+      <div class="pb-card-h">${psvg(PB.receipt)}Invoice details</div>
+      <div class="pb-row"><span>Invoice / Bill No</span><b>${esc(r.bill || '—')}</b></div>
+      <div class="pb-row"><span>Invoice date</span><b>${fDS(r.date)}</b></div>
+      <div class="pb-row"><span>Due date</span><b>${r.dueDate ? fDS(r.dueDate) : '—'}</b></div>
+      <div class="pb-row"><span>Category</span><b>${r.emoji} ${esc(r.groupLabel)} → ${esc(r.item)}</b></div>
+      ${r.veh ? `<div class="pb-row"><span>Vehicle</span><b>🚚 ${esc(r.veh)}</b></div>` : ''}
+      <div class="pb-row"><span>Created by</span><b>${esc(r.createdBy)}</b></div>
+      <div class="pb-row"><span>${psvg(PB.pin)}Plant</span><b>${esc(Q.co.short || Q.co.name || '—')}</b></div>
+    </div>
+
+    <div class="pb-card">
+      <div class="pb-card-h">${psvg(PB.wallet)}Financial summary</div>
+      <div class="pb-kpis">
+        ${kpi(PB.receipt, 'pb-i-b', 'Taxable', fC(r.taxable), pct(r.taxable).toFixed(0) + '% of landed', 'pb-flat')}
+        ${kpi(PB.pie, 'pb-i-n', 'GST @ ' + r.grate + '%', fC(r.gst), pct(r.gst).toFixed(0) + '% of landed', 'pb-flat')}
+        ${kpi(PB.shield, 'pb-i-g', 'ITC', r.itc ? fC(r.itc) : '—', r.itc ? 'recoverable' : 'not claimed', r.itc ? 'pb-dn' : 'pb-flat')}
+        ${kpi(IC.truck, 'pb-i-a', 'Freight', r.freightAddon > 0 ? fC(r.freightAddon) : '—', r.freightAddon > 0 ? pct(r.freightAddon).toFixed(1) + '% of landed' : 'none recorded', 'pb-flat')}
+        ${kpi(PB.wallet, 'pb-i-b', 'Grand total', fC(r.total), 'bill value', 'pb-flat')}
+        ${kpi(PB.trend, 'pb-i-b', 'Landed cost', fC(landed), rateD != null ? (rateD > 0 ? '▲ ' : '▼ ') + Math.abs(rateD).toFixed(1) + '% rate vs last' : 'first purchase', rateD == null ? 'pb-flat' : rateD > 0 ? 'pb-up' : 'pb-dn')}
+      </div>
+      ${r.qty ? `<div class="pb-row" style="margin-top:10px"><span>Effective landed rate</span><b>${fC(landed / r.qty)} / ${esc(r.unit || 'MT')}${prevSame ? ' · was ' + fC(prevSame.rate) : ''}</b></div>` : ''}
+    </div>
+
+    <div class="pb-card">
+      <div class="pb-card-h">${psvg(PB.pie)}Cost breakdown</div>
+      <div class="pb-bar">
+        <i style="width:${pct(r.taxable)}%;background:var(--ql-brand-500)"></i>
+        <i style="width:${pct(r.gst)}%;background:var(--ql-neutral-400)"></i>
+        <i style="width:${pct(r.freightAddon || 0)}%;background:var(--ql-warning-500)"></i>
+      </div>
+      <div class="pb-leg">
+        <span><i style="background:var(--ql-brand-500)"></i>Material ${fC(r.taxable)} · ${pct(r.taxable).toFixed(0)}%</span>
+        <span><i style="background:var(--ql-neutral-400)"></i>GST ${fC(r.gst)} · ${pct(r.gst).toFixed(0)}%</span>
+        ${r.freightAddon > 0 ? `<span><i style="background:var(--ql-warning-500)"></i>Freight ${fC(r.freightAddon)} · ${pct(r.freightAddon).toFixed(1)}%</span>` : ''}
+      </div>
+    </div>
+
+    ${trend}
+
+    <div class="pb-ai">
+      <div class="pb-card-h" style="margin-bottom:8px">${psvg(PB.sparkle)}AI insights</div>
+      ${ins.map(i => { const t = tone[i.tone] || tone.info; return `<div class="pb-ins"><span class="pb-ins-i ${t[0]}">${svg(t[1])}</span><span>${esc(i.text)}</span></div>`; }).join('')}
+    </div>`;
+}
+function wireOverview(body, r) {
+  const b = document.getElementById('pbAddContact');
+  if (b) b.onclick = () => { location.href = 'parties.html?add=' + encodeURIComponent(r.sup); };
 }
 function pdfByIdx(idx) { openBillPdf(Q.purchaseRows()[idx]); }
 function shareByIdx(idx) { shareBill(Q.purchaseRows()[idx]); }
@@ -209,44 +360,114 @@ async function wireInvoice(body, r) {
    the bill so landed cost = material + freight. Posts to the Payments ledger. */
 function tabFreight(r) {
   const rows = r.freightPays || [];
-  const hist = rows.length
-    ? rows.map(f => `<div class="qx-kv"><span>${fDS(f.date)} · ${esc(f.method)}${f.accountId && Q.bankAccountLabel(f.accountId) ? ' · ' + esc(Q.bankAccountLabel(f.accountId)) : ''}${f.paidTo ? ' · ' + esc(f.paidTo) : ''}${f.veh ? ' · 🚚 ' + esc(f.veh) : ''}</span><b>${fC(f.amount)} <button class="qx-ib" data-fr-del="${esc(f.id)}" title="Remove freight payment" style="margin-left:6px">✕</button></b></div>`).join('')
-    : (r.freightAmt ? `<div class="qx-kv"><span>Freight (entered on the bill, no payment detail)</span><b>${fC(r.freightAmt)}</b></div>` : '<div class="qx-empty">No freight recorded for this bill yet.</div>');
   const ft = rows.length ? rows.reduce((s, f) => s + (+f.amount || 0), 0) : (r.freightAmt || 0);
-  const landed = r.total + (r.freightAddon || 0);
+  const landed = r.landed != null ? r.landed : r.total + (r.freightAddon || 0);
   const perMT = r.qty ? landed / r.qty : 0;
-  return `<div class="qx-sec-h">Freight payments</div>${hist}
-    <button class="qx-btn qx-btn-primary" id="pxFrAdd" style="margin-top:10px">+ Add freight payment</button>
-    <div class="qx-sec-h" style="margin-top:14px">Landed cost</div>
-    <div class="qx-kv"><span>Material (bill total)</span><b>${fC(r.total)}</b></div>
-    <div class="qx-kv"><span>Freight</span><b>${fC(ft)}</b></div>
-    <div class="qx-kv qx-kv-tot"><span>Landed cost</span><b>${fC(landed)}</b></div>
-    ${r.qty ? `<div class="qx-kv"><span>Effective rate</span><b>${fC(perMT)} / ${esc(r.unit || 'MT')}</b></div>` : ''}
-    <div class="qx-mut" style="font-size:11.5px;margin-top:8px">Freight is recorded as an expense (no ITC) — the bill's own GST is untouched. Each payment also appears in the Payments ledger${rows.some(f => f.accountId) ? ' with its bank account' : ''}.</div>`;
+
+  /* One card per consignment. The spec wanted a tracking status; there is no
+     GPS feed and no carrier API behind this app, so inventing "In transit" would
+     be a moving graphic that knows nothing. What the firm actually knows is
+     whether the transporter has been PAID — that is the state shown, and it is
+     true. Driver/LR render only when recorded; blank rows are not printed. */
+  const card = f => {
+    const bank = f.accountId && Q.bankAccountLabel ? Q.bankAccountLabel(f.accountId) : '';
+    const bits = [
+      f.veh ? ['Vehicle', '🚚 ' + esc(f.veh)] : null,
+      f.lr ? ['LR / consignment no', esc(f.lr)] : null,
+      f.driver ? ['Driver', esc(f.driver) + (f.driverPhone ? ` · <a href="tel:${esc(f.driverPhone)}">${esc(f.driverPhone)}</a>` : '')] : null,
+      f.paidTo ? ['Transporter', esc(f.paidTo)] : null,
+      ['Paid via', esc(f.method) + (bank ? ' · ' + esc(bank) : '')],
+      f.ref ? ['Reference', esc(f.ref)] : null
+    ].filter(Boolean);
+    return `<div class="pb-card">
+      <div class="pb-card-h">${svg(IC.truck)}${fDS(f.date)}
+        <span class="pb-h-act"><span class="pb-st pb-st-paid">Paid</span></span>
+      </div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:8px">
+        <div style="font-size:20px;font-weight:700;letter-spacing:-.02em">${fC(f.amount)}</div>
+        <button class="qx-ib" data-fr-del="${esc(f.id)}" title="Remove freight payment">✕</button>
+      </div>
+      ${bits.map(b => `<div class="pb-row"><span>${b[0]}</span><b>${b[1]}</b></div>`).join('')}
+      ${!f.lr || !f.driver ? `<button class="pb-ask" data-fr-edit="${esc(f.id)}" style="margin-top:10px">+ Add ${[!f.lr ? 'LR no' : '', !f.driver ? 'driver' : ''].filter(Boolean).join(' / ')}</button>` : ''}
+    </div>`;
+  };
+
+  const list = rows.length ? rows.map(card).join('')
+    : (r.freightAmt ? `<div class="pb-card"><div class="pb-card-h">${svg(IC.truck)}Freight on the bill</div>
+        <div class="pb-row"><span>Entered on the bill · no payment detail recorded</span><b>${fC(r.freightAmt)}</b></div></div>`
+      : `<div class="pb-empty">
+          <div class="pb-empty-i">${svg(IC.truck)}</div>
+          <div class="pb-empty-t">No freight on this bill yet</div>
+          <div class="pb-empty-s">Record what the transporter was paid and it rolls into landed cost, posts to the Payments ledger, and becomes matchable against your bank statement.</div>
+          <button class="qx-btn qx-btn-primary qx-btn-sm" id="pxFrAdd2" style="margin-top:12px">+ Add freight payment</button>
+        </div>`);
+
+  return `<div class="pb-card">
+      <div class="pb-card-h">${psvg(PB.route)}Landed cost</div>
+      <div class="pb-row"><span>Material (bill total)</span><b>${fC(r.total)}</b></div>
+      <div class="pb-row"><span>Freight${rows.length > 1 ? ' · ' + rows.length + ' payments' : ''}</span><b>${fC(ft)}</b></div>
+      <div class="pb-row pb-row-tot"><span>Landed cost</span><b>${fC(landed)}</b></div>
+      ${r.qty ? `<div class="pb-row"><span>Effective rate</span><b>${fC(perMT)} / ${esc(r.unit || 'MT')}</b></div>` : ''}
+      <div class="qx-mut" style="font-size:11.5px;margin-top:8px">Freight is an expense (no ITC) — the bill's own GST is untouched. Each payment also appears in the Payments ledger${rows.some(f => f.accountId) ? ' with its bank account' : ''}.</div>
+    </div>
+    ${rows.length ? `<button class="qx-btn qx-btn-primary qx-btn-sm" id="pxFrAdd" style="margin-bottom:14px">+ Add freight payment</button>` : ''}
+    ${list}`;
+}
+
+/* ── Audit trail: who touched this bill, from the real audit log ── */
+function tabAudit(r) {
+  /* Audit rows are FLAT — ts/action/module/recId/ref/party/amount/by — not
+     nested under `meta`, and the stamp is `ts`. A bill is identified by its
+     number: logAudit records it as `ref` for payments/freight and as `recId`
+     for the bill row itself. */
+  const all = (Q.auditRows ? Q.auditRows() : []) || [];
+  const ref = (r.bill || '').toUpperCase();
+  const mine = !ref ? [] : all.filter(a =>
+    String(a.ref || '').toUpperCase() === ref || String(a.recId || '').toUpperCase() === ref
+  ).slice(0, 40);
+  if (!mine.length) return `<div class="pb-empty">
+      <div class="pb-empty-i">${svg(IC.activity)}</div>
+      <div class="pb-empty-t">No recorded activity for this bill</div>
+      <div class="pb-empty-s">Edits, payments and freight entries are logged here as they happen. Bills imported before the audit log started have no history to show — nothing is hidden.</div>
+    </div>`;
+  const verb = { create: 'created', update: 'edited', delete: 'deleted', void: 'voided', restore: 'restored' };
+  return `<div class="pb-card"><div class="pb-card-h">${svg(IC.activity)}Audit trail · ${mine.length} event${mine.length === 1 ? '' : 's'}</div>
+    <div class="pb-tl">${mine.map((a, i) => `<div class="pb-tl-i ${i === 0 ? 'now' : 'done'}">
+      <div class="pb-tl-t">${esc(verb[a.action] || a.action || 'changed')} · ${esc(a.module || '')}${a.amount ? ' · ' + fC(a.amount) : ''}</div>
+      <div class="pb-tl-s">${esc(a.ts ? fDS(String(a.ts).slice(0, 10)) : '')}${a.by ? ' · ' + esc(a.by) : ''}${a.role ? ' (' + esc(a.role) + ')' : ''}${a.party ? ' · ' + esc(a.party) : ''}</div>
+    </div>`).join('')}</div></div>`;
+}
+function freightForm(r) {
+  const accounts = Q.bankAccounts ? Q.bankAccounts() : [];
+  QLShell.openForm({
+    title: 'Add freight payment', sub: (r.bill || '—') + ' · ' + r.sup + (r.qty ? ' · ' + r.qty + ' ' + (r.unit || 'MT') : ''),
+    specs: [
+      { k: 'amount', label: 'Amount (₹)', type: 'number', req: true, reqNonZero: true },
+      { k: 'method', label: 'Paid via', type: 'select', opts: Q.paymentMethods.map(m => [m, m]) },
+      ...(accounts.length ? [{ k: 'accountId', label: 'Bank account (if online)', type: 'select', opts: [['', '—']].concat(accounts.map(a => [a.id, a.label])) }] : []),
+      { k: 'paidTo', label: 'Transporter / paid to', ph: 'e.g. Ramesh Transport' },
+      { k: 'veh', label: 'Vehicle no.', upper: true },
+      // The consignment note and the driver: real documents on a real truck, and
+      // the only way the Freight tab can show logistics rather than decoration.
+      { k: 'lr', label: 'LR / consignment no.', ph: 'from the transporter\'s note' },
+      { k: 'driver', label: 'Driver name', ph: 'optional' },
+      { k: 'driverPhone', label: 'Driver phone', ph: 'optional' },
+      { k: 'date', label: 'Date', type: 'date', req: true },
+      { k: 'ref', label: 'Reference', ph: 'UTR / note' }
+    ],
+    initial: { method: 'Cash', date: r.date || '', veh: r.veh || '' },
+    saveLabel: 'Add freight',
+    onSave(v) {
+      Q.addFreightPayment(r.idx, v);
+      toast('Freight recorded — landed cost updated');
+      QLX.refresh(); QLX.open(r.idx);
+    }
+  });
 }
 function wireFreight(body, r) {
-  const add = document.getElementById('pxFrAdd');
+  const add = document.getElementById('pxFrAdd') || document.getElementById('pxFrAdd2');
   if (add) add.onclick = () => {
-    const accounts = Q.bankAccounts ? Q.bankAccounts() : [];
-    QLShell.openForm({
-      title: 'Add freight payment', sub: (r.bill || '—') + ' · ' + r.sup + (r.qty ? ' · ' + r.qty + ' ' + (r.unit || 'MT') : ''),
-      specs: [
-        { k: 'amount', label: 'Amount (₹)', type: 'number', req: true, reqNonZero: true },
-        { k: 'method', label: 'Paid via', type: 'select', opts: Q.paymentMethods.map(m => [m, m]) },
-        ...(accounts.length ? [{ k: 'accountId', label: 'Bank account (if online)', type: 'select', opts: [['', '—']].concat(accounts.map(a => [a.id, a.label])) }] : []),
-        { k: 'paidTo', label: 'Transporter / paid to', ph: 'e.g. Ramesh Transport' },
-        { k: 'veh', label: 'Vehicle no.', upper: true },
-        { k: 'date', label: 'Date', type: 'date', req: true },
-        { k: 'ref', label: 'Reference', ph: 'UTR / note' }
-      ],
-      initial: { method: 'Cash', date: r.date || '', veh: r.veh || '' },
-      saveLabel: 'Add freight',
-      onSave(v) {
-        Q.addFreightPayment(r.idx, v);
-        toast('Freight recorded — landed cost updated');
-        QLX.refresh(); QLX.open(r.idx);
-      }
-    });
+    freightForm(r);
   };
   document.querySelectorAll('[data-fr-del]').forEach(b => b.onclick = () => {
     QLShell.confirmDelete({
@@ -254,6 +475,24 @@ function wireFreight(body, r) {
       desc: 'The linked entry in the Payments ledger moves to Trash (restorable for 90 days). The bill itself is untouched.',
       confirmLabel: 'Remove freight',
       onConfirm() { Q.deleteFreightPayment(r.idx, b.dataset.frDel); toast('Freight payment removed'); QLX.refresh(); QLX.open(r.idx); }
+    });
+  });
+  /* The LR note and the driver usually arrive after the money is sent, so they
+     can be filled in later. Money is not editable here — see updateFreightNote. */
+  document.querySelectorAll('[data-fr-edit]').forEach(b => b.onclick = () => {
+    const f = (r.freightPays || []).find(x => x.id === b.dataset.frEdit); if (!f) return;
+    QLShell.openForm({
+      title: 'Consignment details', sub: fC(f.amount) + ' · ' + (f.paidTo || 'transporter') + ' · ' + fDS(f.date),
+      specs: [
+        { k: 'lr', label: 'LR / consignment no.' },
+        { k: 'driver', label: 'Driver name' },
+        { k: 'driverPhone', label: 'Driver phone' },
+        { k: 'veh', label: 'Vehicle no.', upper: true },
+        { k: 'paidTo', label: 'Transporter' }
+      ],
+      initial: { lr: f.lr || '', driver: f.driver || '', driverPhone: f.driverPhone || '', veh: f.veh || '', paidTo: f.paidTo || '' },
+      saveLabel: 'Save details',
+      onSave(v) { Q.updateFreightNote(r.idx, f.id, v); toast('Consignment details saved'); QLX.refresh(); QLX.open(r.idx); }
     });
   });
 }
@@ -291,12 +530,44 @@ function wireDocs(body, r) {
   ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', e => { if (e.dataTransfer.files.length) handle([...e.dataTransfer.files]); });
 }
+/* The asks open the REAL Business Assistant with the question pre-filled. They
+   are not a second chat implementation, and they are not decoration: each one is
+   a question the assistant already answers. A chip that opened an empty box
+   would be a worse lie than no chip. */
+function pbAsks(r) {
+  return [
+    'Explain bill ' + (r.bill || '') + ' from ' + r.sup,
+    'Is the GST on ' + (r.bill || 'this bill') + ' eligible for ITC?',
+    'Compare ' + r.item + ' rates from ' + r.sup,
+    'What do I owe ' + r.sup + '?',
+    'Show freight spend this month'
+  ];
+}
 function tabAI(r) {
   const ins = Q.billInsights(r.idx), rel = Q.relatedBills(r.idx);
+  const tone = { danger: ['pb-i-r', IC.ban], warn: ['pb-i-a', IC.clock], ok: ['pb-i-g', IC.check], info: ['pb-i-b', PB.shield] };
   const relList = arr => arr.length ? arr.map(x => `<button class="qx-tag" style="cursor:pointer;margin:2px 4px 2px 0" onclick="QLX.open(${x.idx})">${x.itemIconEmoji} ${esc(x.item)} · ${fC(x.taxable)}</button>`).join('') : '<span class="qx-mut">None</span>';
   const related = rel.freight.concat(rel.royalty).length ? rel.freight.concat(rel.royalty) : rel.group.slice(0, 5);
-  return `<div class="qx-ai"><div class="qx-ai-h">${svg(IC.ai)} AI insights for this bill</div>${ins.map(x => `<div class="qx-ai-i t-${x.tone}"><span class="qx-ai-d"></span>${esc(x.text)}</div>`).join('')}</div>
-    <div class="qx-sec-h">Related in ${r.emoji} ${esc(r.groupLabel)}</div><div>${relList(related)}</div>`;
+  return `<div class="pb-ai">
+      <div class="pb-card-h" style="margin-bottom:8px">${psvg(PB.sparkle)}AI insights for this bill</div>
+      ${ins.map(i => { const t = tone[i.tone] || tone.info; return `<div class="pb-ins"><span class="pb-ins-i ${t[0]}">${svg(t[1])}</span><span>${esc(i.text)}</span></div>`; }).join('')}
+    </div>
+    <div class="pb-card">
+      <div class="pb-card-h">${svg(IC.ai)}Ask the assistant</div>
+      <div class="qx-mut" style="font-size:12.5px">Opens the Business Assistant with the question filled in — it answers from this company's real data.</div>
+      <div class="pb-asks">${pbAsks(r).map((q, i) => `<button class="pb-ask" data-ask="${i}">${esc(q)}</button>`).join('')}</div>
+    </div>
+    <div class="pb-card">
+      <div class="pb-card-h">${psvg(PB.route)}Related in ${r.emoji} ${esc(r.groupLabel)}</div>
+      <div>${relList(related)}</div>
+    </div>`;
+}
+function wireAI(body, r) {
+  const qs = pbAsks(r);
+  (body || document).querySelectorAll('[data-ask]').forEach(b => b.onclick = () => {
+    const q = qs[+b.dataset.ask]; if (!q) return;
+    QLShell.openAssistant(); setTimeout(() => QLShell.assistAsk(q), 60);
+  });
 }
 
 /* ══════════════════ AI Insights panel (monthly materials) ══════════════════ */
@@ -466,19 +737,33 @@ QLX.mount({
     return { barsTitle: 'Landed cost by purchase group', bars, donutTitle: 'Spend by payment status', donut, donutCenter: fC(Q.purchaseSummary().total) };
   },
   detail: r => ({
-    eyebrow: 'Purchase Bill', title: `${esc(r.bill || '—')} · ${esc(r.sup)}`, sub: `${r.emoji} ${esc(r.groupLabel)} → ${esc(r.item)} · ${fC(r.total)}`,
+    /* `variant: 'glass'` opts this drawer into pbill.css. Every other QLX module
+       renders exactly as before until it opts in too — the drawer markup is
+       shared, so this is the only way to redesign one module without silently
+       redesigning Sales, Parties and Reconciliation along with it. */
+    variant: 'glass',
+    eyebrow: 'Purchase Bill', title: `${esc(r.bill || '—')}`, sub: `${esc(r.sup)} · ${r.emoji} ${esc(r.groupLabel)} → ${esc(r.item)}`,
+    avatar: pbAvatar(r),
+    badge: `<span class="pb-st ${pbStatus(r).cls}">${pbStatus(r).label}</span>`,
+    // The header states LANDED cost — what the material actually cost — and says
+    // so. It is not the bill value and not what is owed; the rail spells both out.
+    amount: `${fC(r.landed != null ? r.landed : r.total + (r.freightAddon || 0))}<small>${r.freightAddon > 0 ? 'landed cost' : 'bill total'}</small>`,
+    aside: pbAside(r),
     actions: [
       { label: 'Edit', icon: IC.edit, onClick: r => QLShell.openPurchaseForm(r.idx) },
       { label: 'PDF', icon: IC.print, onClick: openBillPdf },
+      { label: 'Share', icon: IC.share, onClick: shareBill },
+      { label: 'Ask AI', icon: IC.ai, onClick: r => { QLShell.openAssistant(); setTimeout(() => QLShell.assistAsk(pbAsks(r)[0]), 60); } },
       ...(r.status !== 'paid' && r.status !== 'cancelled' ? [{ label: 'Mark paid', icon: IC.check, primary: true, onClick: markPaid }] : [])
     ],
     tabs: [
-      { label: 'Overview', icon: IC.file, render: tabOverview },
+      { label: 'Overview', icon: IC.file, render: tabOverview, onMount: wireOverview },
       { label: 'Invoice', icon: IC.doc2, render: tabInvoice, onMount: wireInvoice },
       { label: 'Payments', icon: IC.clock, render: tabPayments, onMount: wirePayments },
       { label: 'Freight', icon: IC.truck || IC.box, count: (r.freightPays || []).length || null, render: tabFreight, onMount: wireFreight },
       { label: 'Documents', icon: IC.dl, count: (r.attach || []).length || null, render: tabDocs, onMount: wireDocs },
-      { label: 'AI', icon: IC.ai, render: tabAI }
+      { label: 'AI', icon: IC.ai, render: tabAI, onMount: wireAI },
+      { label: 'Audit', icon: IC.activity, render: tabAudit }
     ]
   })
 });

@@ -1,0 +1,319 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   pbill.css — the premium glass treatment for the QLX detail drawer.
+
+   Scoped to `.qx-dp-back.qx-glass`, which a module opts into by returning
+   `variant: 'glass'` from detail(). The drawer markup is shared by every QLX
+   module, so an unscoped restyle would silently redesign Sales, Parties and
+   Reconciliation — modules whose content was built against the current surface.
+   Purchase is the flagship; the rest roll over once their content is checked.
+
+   No Tailwind, no Framer Motion, no React: this app is vanilla + tokens.css with
+   no build step. The motion is CSS keyframes and transitions, the icons are
+   Lucide paths inlined as SVG, and dark mode rides the existing [data-theme].
+
+   Colours come from tokens.css. The spec's palette is already the token palette:
+   #2563EB = --ql-brand-600, #10B981 ≈ --ql-success-500, #F59E0B = --ql-warning-500,
+   #EF4444 = --ql-danger-500. Hard-coding them would fork the design system.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── scrim: deep, blurred, so the drawer reads as glass over the app ── */
+.qx-dp-back.qx-glass {
+  background: radial-gradient(120% 120% at 80% 0%, rgba(37, 99, 235, .14) 0%, rgba(15, 23, 42, .44) 55%, rgba(2, 6, 23, .58) 100%);
+  backdrop-filter: blur(22px) saturate(120%);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+}
+[data-theme="dark"] .qx-dp-back.qx-glass {
+  background: radial-gradient(120% 120% at 80% 0%, rgba(37, 99, 235, .20) 0%, rgba(2, 6, 23, .66) 55%, rgba(0, 0, 0, .74) 100%);
+}
+
+/* ── the panel ──
+   A hairline gradient edge (border-image can't round, so it is painted as a
+   mask-composited pseudo-element) reads as "lit glass" rather than a grey rule. */
+/* NB: `position` is deliberately NOT set here. The base rule is
+   `position: fixed; top: 0; right: 0`, and that is what anchors the panel to the
+   right edge AND makes `transform: translateX(100%)` slide it in from off-screen.
+   Setting `position: relative` for the ::before mask dropped the drawer back into
+   normal flow at left: 0 and silently killed the slide-in. `fixed` is already a
+   containing block for the pseudo-element, so nothing was needed. */
+.qx-glass .qx-dp {
+  width: min(1080px, 96vw);
+  border-radius: 24px 0 0 24px;
+  border: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .94) 0%, rgba(248, 250, 252, .90) 100%);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  box-shadow: -32px 0 80px -24px rgba(15, 23, 42, .28), -1px 0 0 0 rgba(255, 255, 255, .55) inset;
+  overflow: hidden;
+}
+[data-theme="dark"] .qx-glass .qx-dp {
+  background: linear-gradient(180deg, rgba(15, 23, 42, .94) 0%, rgba(2, 6, 23, .92) 100%);
+  box-shadow: -32px 0 80px -24px rgba(0, 0, 0, .70), -1px 0 0 0 rgba(148, 163, 184, .12) inset;
+}
+.qx-glass .qx-dp::before {           /* gradient hairline on the rounded edge */
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
+  background: linear-gradient(180deg, rgba(37, 99, 235, .40), rgba(255, 255, 255, 0) 40%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  pointer-events: none; z-index: 2;
+}
+
+/* ── header ── */
+.qx-glass .qx-dp-head {
+  padding: 20px 24px 0;
+  background: linear-gradient(180deg, rgba(37, 99, 235, .06) 0%, rgba(37, 99, 235, 0) 100%);
+  border-bottom: 1px solid var(--ql-divider);
+  position: relative; z-index: 1;
+}
+.qx-glass .qx-dp-top { display: flex; align-items: flex-start; gap: 14px; }
+.qx-glass .qx-dp-idt { min-width: 0; flex: 1; }
+.qx-glass .qx-dp-t {
+  font-size: 20px; font-weight: 700; letter-spacing: -.02em; line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.qx-glass .qx-dp-s { font-size: 12.5px; color: var(--ql-text-secondary); margin-top: 3px; }
+
+/* supplier avatar: the initial on a brand gradient — no logo service to call,
+   and a fabricated logo would be a lie about a real company */
+.qx-dp-av {
+  width: 46px; height: 46px; flex: none; border-radius: 14px;
+  display: grid; place-items: center;
+  font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -.02em;
+  background: linear-gradient(135deg, var(--ql-brand-500) 0%, var(--ql-brand-700) 100%);
+  box-shadow: 0 6px 16px -6px rgba(37, 99, 235, .60), 0 0 0 1px rgba(255, 255, 255, .18) inset;
+}
+.qx-dp-hr { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
+.qx-dp-amt { font-size: 19px; font-weight: 700; letter-spacing: -.02em; white-space: nowrap; }
+.qx-dp-amt small { display: block; font-size: 10px; font-weight: 600; color: var(--ql-text-muted); text-align: right; letter-spacing: .04em; text-transform: uppercase; }
+
+/* status pill */
+.pb-st { font-size: 10.5px; font-weight: 700; padding: 4px 10px; border-radius: var(--ql-radius-pill); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.pb-st-paid { background: var(--ql-success-50); color: var(--ql-success-700); box-shadow: 0 0 0 1px var(--ql-success-100) inset; }
+.pb-st-pend { background: var(--ql-warning-50); color: var(--ql-warning-700); box-shadow: 0 0 0 1px var(--ql-warning-100) inset; }
+.pb-st-over { background: var(--ql-danger-50); color: var(--ql-danger-700); box-shadow: 0 0 0 1px var(--ql-danger-100) inset; }
+.pb-st-void { background: var(--ql-neutral-100); color: var(--ql-neutral-600); }
+[data-theme="dark"] .pb-st-paid { background: rgba(16, 185, 129, .14); color: #6EE7B7; box-shadow: none; }
+[data-theme="dark"] .pb-st-pend { background: rgba(245, 158, 11, .14); color: #FCD34D; box-shadow: none; }
+[data-theme="dark"] .pb-st-over { background: rgba(239, 68, 68, .14); color: #FCA5A5; box-shadow: none; }
+
+/* ── action bar: sticky, glass, never scrolls away ── */
+.qx-glass .qx-dp-actions {
+  display: flex; gap: 8px; padding: 14px 0 12px; flex-wrap: wrap;
+}
+.qx-glass .qx-dp-actions .qx-btn {
+  border-radius: var(--ql-radius-pill);
+  background: rgba(255, 255, 255, .72);
+  border: 1px solid var(--ql-border);
+  backdrop-filter: blur(8px);
+  transition: transform .16s var(--ql-ease-out), box-shadow .16s var(--ql-ease-out), background .16s;
+}
+/* :not(.qx-btn-primary) is load-bearing, not tidiness. This selector scores
+   (0,4,0) and the .qx-btn-primary rule below scores (0,3,0), so without the
+   exclusion the dark background wins and "Mark paid" silently loses its gradient
+   in dark mode — the one button that must look like the primary action. */
+[data-theme="dark"] .qx-glass .qx-dp-actions .qx-btn:not(.qx-btn-primary) { background: rgba(30, 41, 59, .60); }
+.qx-glass .qx-dp-actions .qx-btn:hover { transform: translateY(-1px); box-shadow: var(--ql-shadow-md); }
+.qx-glass .qx-dp-actions .qx-btn:active { transform: translateY(0) scale(.98); }
+.qx-glass .qx-dp-actions .qx-btn-primary {
+  background: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-700));
+  border-color: transparent; color: #fff;
+  box-shadow: 0 6px 16px -8px rgba(37, 99, 235, .8);
+}
+
+/* ── tabs as pills ── */
+.qx-glass .qx-dp-tabs {
+  gap: 6px; padding: 12px 24px; border-bottom: 1px solid var(--ql-divider);
+  scrollbar-width: none;
+}
+.qx-glass .qx-dp-tabs::-webkit-scrollbar { display: none; }
+.qx-glass .qx-dp-tab {
+  border-radius: var(--ql-radius-pill); padding: 7px 14px; border-bottom: none;
+  color: var(--ql-text-secondary);
+  transition: background .16s var(--ql-ease-out), color .16s, transform .16s var(--ql-ease-out);
+}
+.qx-glass .qx-dp-tab:hover { background: var(--ql-neutral-100); color: var(--ql-text); }
+[data-theme="dark"] .qx-glass .qx-dp-tab:hover { background: rgba(148, 163, 184, .12); }
+.qx-glass .qx-dp-tab.active {
+  background: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-700));
+  color: #fff; box-shadow: 0 4px 12px -6px rgba(37, 99, 235, .9);
+}
+.qx-glass .qx-dp-tab.active .qx-dp-tab-ct { background: rgba(255, 255, 255, .26); color: #fff; }
+
+/* ── split: scrolling content + summary rail ── */
+.qx-dp-split { display: flex; flex: 1; min-height: 0; }
+.qx-glass .qx-dp-body { flex: 1; min-width: 0; padding: 20px 24px 48px; }
+.qx-dp-aside {
+  width: 296px; flex: none; overflow-y: auto; padding: 20px 20px 48px;
+  border-left: 1px solid var(--ql-divider);
+  background: linear-gradient(180deg, rgba(37, 99, 235, .04), rgba(37, 99, 235, 0) 220px);
+}
+
+/* ── cards ── */
+.pb-card {
+  border-radius: 18px; padding: 16px;
+  background: rgba(255, 255, 255, .70);
+  border: 1px solid var(--ql-border);
+  box-shadow: var(--ql-shadow-xs);
+  backdrop-filter: blur(10px);
+  margin-bottom: 14px;
+}
+[data-theme="dark"] .pb-card { background: rgba(30, 41, 59, .44); }
+.pb-card-h {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ql-text-muted);
+}
+.pb-card-h svg { width: 13px; height: 13px; }
+.pb-card-h .pb-h-act { margin-left: auto; text-transform: none; letter-spacing: 0; }
+
+/* the summary rail's hero card — the one number the drawer exists to state */
+.pb-sum {
+  border-radius: 18px; padding: 16px; margin-bottom: 14px; color: #fff;
+  background: linear-gradient(140deg, var(--ql-brand-600) 0%, var(--ql-brand-800) 100%);
+  box-shadow: 0 16px 32px -18px rgba(37, 99, 235, .9);
+  position: relative; overflow: hidden;
+}
+.pb-sum::after {           /* soft light sweep, purely decorative */
+  content: ''; position: absolute; top: -60%; right: -30%; width: 180px; height: 180px;
+  background: radial-gradient(circle, rgba(255, 255, 255, .28), transparent 70%);
+  pointer-events: none;
+}
+.pb-sum-l { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .82; }
+.pb-sum-v { font-size: 27px; font-weight: 700; letter-spacing: -.03em; margin: 4px 0 2px; }
+.pb-sum-s { font-size: 11.5px; opacity: .86; }
+.pb-row { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--ql-divider); font-size: 13px; }
+.pb-row:last-child { border-bottom: none; }
+/* The rail is 296px. Left to wrap, "Bill amount" and "ITC available" break over
+   two lines against their figure and the card reads as a mess — so the label
+   holds one line and truncates if a longer one ever appears. */
+.pb-row > span { color: var(--ql-text-secondary); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* An inline <svg> with a viewBox but no width/height falls back to 300x150 and
+   eats the row — the label gets pushed out and vanishes. Every icon slot in this
+   file must state a size; none of them inherit one. */
+.pb-row > span svg { width: 14px; height: 14px; flex: none; }
+.pb-row > b { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pb-row-tot { border-top: 2px solid var(--ql-text); border-bottom: none; margin-top: 4px; padding-top: 10px; }
+.pb-row-tot > b { font-size: 16px; }
+
+/* ── KPI grid ── */
+.pb-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 10px; }
+.pb-kpi {
+  border-radius: 14px; padding: 12px;
+  background: rgba(255, 255, 255, .68);
+  border: 1px solid var(--ql-border);
+  transition: transform .18s var(--ql-ease-out), box-shadow .18s var(--ql-ease-out);
+}
+[data-theme="dark"] .pb-kpi { background: rgba(30, 41, 59, .44); }
+.pb-kpi:hover { transform: translateY(-2px); box-shadow: var(--ql-shadow-md); }
+.pb-kpi-i { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; margin-bottom: 8px; }
+.pb-kpi-i svg { width: 14px; height: 14px; }
+.pb-kpi-l { font-size: 10.5px; font-weight: 600; color: var(--ql-text-muted); letter-spacing: .03em; text-transform: uppercase; }
+.pb-kpi-v { font-size: 17px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.pb-kpi-d { font-size: 11px; font-weight: 600; margin-top: 3px; }
+.pb-i-b { background: var(--ql-brand-50); color: var(--ql-brand-600); }
+.pb-i-g { background: var(--ql-success-50); color: var(--ql-success-600); }
+.pb-i-a { background: var(--ql-warning-50); color: var(--ql-warning-600); }
+.pb-i-r { background: var(--ql-danger-50); color: var(--ql-danger-600); }
+.pb-i-n { background: var(--ql-neutral-100); color: var(--ql-neutral-600); }
+[data-theme="dark"] .pb-i-b { background: rgba(37, 99, 235, .18); color: #93C5FD; }
+[data-theme="dark"] .pb-i-g { background: rgba(16, 185, 129, .16); color: #6EE7B7; }
+[data-theme="dark"] .pb-i-a { background: rgba(245, 158, 11, .16); color: #FCD34D; }
+[data-theme="dark"] .pb-i-r { background: rgba(239, 68, 68, .16); color: #FCA5A5; }
+[data-theme="dark"] .pb-i-n { background: rgba(148, 163, 184, .14); color: #CBD5E1; }
+.pb-up { color: var(--ql-danger-600); } .pb-dn { color: var(--ql-success-600); } .pb-flat { color: var(--ql-text-muted); }
+
+/* ── cost breakdown bar ── */
+.pb-bar { display: flex; height: 10px; border-radius: var(--ql-radius-pill); overflow: hidden; background: var(--ql-neutral-100); margin: 4px 0 10px; }
+.pb-bar > i { display: block; height: 100%; transition: width .5s var(--ql-ease-out); }
+.pb-leg { display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 11.5px; color: var(--ql-text-secondary); }
+.pb-leg > span { display: inline-flex; align-items: center; gap: 6px; }
+.pb-leg i { width: 8px; height: 8px; border-radius: 3px; }
+
+/* ── trend (inline SVG, no chart library) ── */
+.pb-tr { display: flex; align-items: flex-end; gap: 6px; height: 92px; padding-top: 6px; }
+.pb-tr-c { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.pb-tr-b {
+  width: 100%; border-radius: 6px 6px 3px 3px; min-height: 3px;
+  background: linear-gradient(180deg, var(--ql-brand-400), var(--ql-brand-600));
+  transform-origin: bottom; animation: pbGrow .5s var(--ql-ease-out) both;
+}
+.pb-tr-b.now { background: linear-gradient(180deg, var(--ql-brand-600), var(--ql-brand-800)); box-shadow: 0 0 0 2px var(--ql-brand-100); }
+.pb-tr-x { font-size: 9.5px; color: var(--ql-text-muted); white-space: nowrap; }
+@keyframes pbGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+/* ── AI insights ── */
+.pb-ai {
+  border-radius: 18px; padding: 14px; margin-bottom: 14px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, .08), rgba(139, 92, 246, .08));
+  border: 1px solid rgba(37, 99, 235, .18);
+}
+.pb-ins { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--ql-divider); font-size: 12.5px; line-height: 1.5; }
+.pb-ins:last-child { border-bottom: none; }
+.pb-ins-i { width: 20px; height: 20px; border-radius: 6px; flex: none; display: grid; place-items: center; font-size: 11px; }
+.pb-ins-i svg { width: 12px; height: 12px; }
+
+/* ── timeline ── */
+.pb-tl { position: relative; padding-left: 26px; }
+.pb-tl::before { content: ''; position: absolute; left: 8px; top: 6px; bottom: 6px; width: 2px; background: linear-gradient(180deg, var(--ql-brand-400), var(--ql-border)); border-radius: 2px; }
+.pb-tl-i { position: relative; padding: 0 0 16px; }
+.pb-tl-i::before {
+  content: ''; position: absolute; left: -22px; top: 4px; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--ql-card); box-shadow: 0 0 0 2px var(--ql-border);
+}
+.pb-tl-i.done::before { background: var(--ql-success-500); box-shadow: 0 0 0 3px var(--ql-success-100); }
+.pb-tl-i.now::before { background: var(--ql-brand-600); box-shadow: 0 0 0 3px var(--ql-brand-100); animation: pbPulse 2s ease-out infinite; }
+@keyframes pbPulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, .5); } 70% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
+.pb-tl-t { font-size: 13px; font-weight: 650; }
+.pb-tl-s { font-size: 11.5px; color: var(--ql-text-muted); margin-top: 1px; }
+
+/* ── empty states ── */
+.pb-empty { text-align: center; padding: 34px 18px; border-radius: 18px; border: 1px dashed var(--ql-border-strong); background: var(--ql-neutral-50); }
+[data-theme="dark"] .pb-empty { background: rgba(148, 163, 184, .05); }
+.pb-empty-i { width: 42px; height: 42px; border-radius: 13px; margin: 0 auto 10px; display: grid; place-items: center; background: var(--ql-brand-50); color: var(--ql-brand-600); }
+[data-theme="dark"] .pb-empty-i { background: rgba(37, 99, 235, .16); color: #93C5FD; }
+.pb-empty-i svg { width: 20px; height: 20px; }
+.pb-empty-t { font-size: 13.5px; font-weight: 650; }
+.pb-empty-s { font-size: 12px; color: var(--ql-text-muted); margin-top: 3px; max-width: 320px; margin-inline: auto; line-height: 1.5; }
+
+/* ── AI ask chips ── */
+.pb-asks { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.pb-ask {
+  font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: var(--ql-radius-pill); cursor: pointer;
+  background: rgba(255, 255, 255, .8); border: 1px solid var(--ql-border); color: var(--ql-text);
+  transition: transform .14s var(--ql-ease-out), border-color .14s, box-shadow .14s;
+}
+[data-theme="dark"] .pb-ask { background: rgba(30, 41, 59, .6); }
+.pb-ask:hover { transform: translateY(-1px); border-color: var(--ql-brand-400); box-shadow: var(--ql-shadow-sm); }
+
+/* ── entrance: the body's cards settle in, staggered ── */
+.qx-glass .qx-dp-body > *, .qx-dp-aside > * { animation: pbIn .34s var(--ql-ease-out) both; }
+.qx-glass .qx-dp-body > *:nth-child(1) { animation-delay: .02s; }
+.qx-glass .qx-dp-body > *:nth-child(2) { animation-delay: .06s; }
+.qx-glass .qx-dp-body > *:nth-child(3) { animation-delay: .10s; }
+.qx-glass .qx-dp-body > *:nth-child(4) { animation-delay: .14s; }
+.qx-glass .qx-dp-body > *:nth-child(n+5) { animation-delay: .18s; }
+@keyframes pbIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Motion is decoration. Anyone who has asked the OS to stop it gets no
+   transforms and no pulsing dot — the drawer still works identically. */
+@media (prefers-reduced-motion: reduce) {
+  .qx-glass .qx-dp-body > *, .qx-dp-aside > *, .pb-tr-b { animation: none; }
+  .qx-glass .qx-dp-actions .qx-btn:hover, .pb-kpi:hover, .pb-ask:hover { transform: none; }
+  .pb-tl-i.now::before { animation: none; }
+}
+
+/* ── phone: the rail is the first thing you need, so it leads ── */
+@media (max-width: 900px) {
+  .qx-glass .qx-dp { width: 100%; border-radius: 20px 20px 0 0; }
+  /* `order: -1` and NOT `column-reverse`. Both put the rail on top, but a
+     reversed flex container's scroll origin is at its flex-start — visually the
+     BOTTOM — so the drawer opened half-way down the Overview instead of at the
+     summary. order keeps DOM order (and therefore scroll origin) intact. */
+  .qx-dp-split { flex-direction: column; overflow-y: auto; }
+  .qx-dp-aside { order: -1; width: auto; border-left: none; border-bottom: 1px solid var(--ql-divider); padding: 16px 16px 8px; overflow: visible; }
+  .qx-glass .qx-dp-body { overflow: visible; padding: 16px 16px 56px; }
+  .qx-glass .qx-dp-head { padding: 16px 16px 0; }
+  .qx-glass .qx-dp-tabs { padding: 10px 16px; }
+  .qx-glass .qx-dp-t { font-size: 17px; }
+  .qx-dp-av { width: 40px; height: 40px; border-radius: 12px; font-size: 16px; }
+  .qx-dp-amt { font-size: 16px; }
+  .pb-kpis { grid-template-columns: repeat(2, 1fr); }
+}
