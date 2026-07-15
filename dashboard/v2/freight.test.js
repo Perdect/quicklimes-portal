@@ -84,6 +84,58 @@ ok('bad index rejected', Q.addFreightPayment(999, { amount: 100 }) === null);
 /* ── audit trail ── */
 ok('freight ops audit-logged', Q.auditRows().filter(a => a.module === 'freight').length >= 3);
 
+/* ══ LANDED COST — what the material actually cost ══
+   Asked for on 2026-07-15: "add fright amount with total amount". The register's
+   headline column is now Landed cost, so this number is read by a human making
+   pricing decisions and must not be off by a rupee.
+
+   `landed` is DERIVED and never replaces `total`: `total` is the invoice value —
+   what is owed to THIS supplier — and payments, outstanding and bank matching all
+   key on it. The freight is owed to the transporter, a different party. */
+const L = () => Q.purchaseRows().find(r => r.bill === 'PK-1');
+const lr = L();
+ok('landed = bill total + the freight paid on it', Math.abs(lr.landed - (lr.total + lr.freightAddon)) < 0.01);
+ok('...and it is strictly more than the bill once freight is paid', lr.freightAddon > 0 && lr.landed > lr.total);
+ok('...the bill total itself is untouched — it is what the supplier is owed',
+  Math.abs(lr.total - (405568.8 + 405568.8 * 0.18)) < 1);
+ok('...landed is a real number, never NaN', typeof lr.landed === 'number' && !isNaN(lr.landed));
+
+/* A bill with NO freight: landed must equal the bill, not the bill plus nothing-shaped-like-undefined */
+Q.addPurchase({ bill: 'NF-1', date: '2025-12-11', sup: 'Some Vendor', taxable: 10000, grate: 18, itc: 'Eligible', cat: 'Other' });
+const nf = Q.purchaseRows().find(r => r.bill === 'NF-1');
+ok('a bill with no freight has landed === total', nf.landed === nf.total && nf.landed > 0);
+
+/* THE DOUBLE-COUNT TRAP: on a bill that IS a freight bill, the transport is the
+   purchase — the amount already sits inside `total`. Adding freightAmt again
+   would overstate what the firm spent, and it would do it silently. */
+Q.addPurchase({ bill: 'FR-1', date: '2025-12-12', sup: 'Nagour Golden Transport', taxable: 55233, grate: 5, itc: 'Eligible', cat: 'Freight', item: 'Freight' });
+const fr = Q.purchaseRows().find(r => r.bill === 'FR-1');
+if (fr.freight && fr.freightAddon === 0) {
+  ok('a freight BILL is not double-counted — landed === total', fr.landed === fr.total);
+  ok('...its whole value is freight', fr.freightAmt > 0);
+} else { ok('freight-item bill classified as a freight bill (freightAddon 0)', false); }
+
+/* The trap only springs when a freight bill ALSO carries a freight amount — a
+   transporter's own invoice with a freight figure entered on it. freightAmt is
+   then the bill's whole taxable, so adding it to the total would bill the firm
+   for the same transport twice. FR-1 above cannot catch this: with no freight
+   payments its addon is 0 either way, so the bug hides. */
+Q.addPurchase({ bill: 'FR-2', date: '2025-12-13', sup: 'Nagour Golden Transport', taxable: 55233, grate: 5, itc: 'Eligible', cat: 'Freight', item: 'Freight', freightAmt: 55233 });
+const fr2 = Q.purchaseRows().find(r => r.bill === 'FR-2');
+ok('a freight bill carrying a freight amount still has no add-on', fr2.freightAddon === 0);
+ok('...so its landed cost is the bill, not twice the transport', fr2.landed === fr2.total);
+ok('...and the transport is not counted twice', fr2.landed < fr2.total + fr2.freightAmt);
+
+/* Deleting the freight payments must walk landed back down — a stale landed cost
+   is worse than none, because it is believed. */
+const landedBefore = L().landed;
+(L().freightPays || []).slice().forEach(f => { if (Q.deleteFreightPayment) Q.deleteFreightPayment(pi, f.id); });
+const after = L();
+if (Q.deleteFreightPayment) {
+  ok('removing every freight payment returns landed to the bill total', after.landed === after.total);
+  ok('...and that is a real change from before', landedBefore > after.landed);
+}
+
 console.log('\n════ freight payments on purchase bills ════\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' FREIGHT TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');

@@ -815,6 +815,14 @@
         freight: isFreightItem(g.item) || fTotal > 0,
         freightAmt: isFreightItem(g.item) ? (p.taxable || 0) : fTotal,
         freightAddon: isFreightItem(g.item) ? 0 : fTotal,
+        // What this material ACTUALLY cost: the bill plus the freight paid to get
+        // it here. A derived field, never a replacement for `total` — `total` is
+        // the invoice value and stays the thing you owe THIS supplier, which is
+        // what payments, outstanding and bank matching all key on. The register's
+        // "Landed cost" column reads this, so it can be sorted on (qlx sorts by
+        // r[key], with no accessor — a column showing one number and sorting by
+        // another is a bug the eye catches only after it has misled someone).
+        landed: (c.tot || 0) + (isFreightItem(g.item) ? 0 : fTotal),
         freightPays: fPays
       };
     });

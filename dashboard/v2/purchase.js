@@ -53,15 +53,14 @@ function stCell(r) { const st = r.isOverdue ? 'overdue' : r.status; return `<sel
 function stPill(r) { const st = r.isOverdue ? 'overdue' : r.status; return `<span class="qx-pill s-${st}">${st[0].toUpperCase() + st.slice(1)}</span>`; }
 function groupChip(r) { const gc = GCOL[r.group] || GCOL.other; return `<span class="qx-pill" style="background:${gc[0]};color:${gc[1]}">${r.emoji} ${esc(r.groupLabel)}</span>`; }
 function supCell(r) { return `<span class="qx-party-n" style="font-weight:600">${esc(r.sup)}</span>`; }
-/* The freight badge carries the AMOUNT, not just the word. The Freight column
-   sits at the right of a register that is wider than a 1440px screen, so the
-   number would need a horizontal scroll to read — and the whole point is to see
-   what the load actually cost, next to the load. A badge saying "freight" told
-   the user nothing they didn't already know. */
+/* No freight badge here. It used to carry the amount because the Freight column
+   was off the right edge of a register wider than the screen — but the amount now
+   appears twice more on the same row (in Freight, and inside Landed cost), and a
+   number printed three times invites the reader to add two of them together.
+   A dedicated freight-item bill still says so: there the freight IS the purchase,
+   and no amount is repeated. */
 function itemCell(r) {
-  const frt = r.freightAmt > 0
-    ? ` <span class="qx-frt" title="${esc((r.freightPays || []).map(f => (f.paidTo || 'transporter') + ' · ' + fC(f.amount)).join(' · ') || 'freight')}">🚚 ${fC(r.freightAmt)}</span>`
-    : (r.freight ? ' <span class="qx-frt">freight</span>' : '');
+  const frt = (r.freight && !(r.freightAddon > 0)) ? ' <span class="qx-frt">freight</span>' : '';
   return `<span class="qx-party"><span class="qx-party-n">${esc(ITEM_SHORT[r.item] || r.item)}</span></span>${frt}`;
 }
 
@@ -386,7 +385,15 @@ QLX.mount({
     { key: 'veh', label: 'Vehicle No', sort: true, cell: r => r.veh ? `<span class="qx-mut">🚚 ${esc(r.veh)}</span>` : '<span class="qx-mut">—</span>' },
     { key: 'grate', label: 'GST', sort: true, num: true, cell: r => `<span class="qx-mut qx-num">${r.grate}%</span>` },
     { key: 'taxable', label: 'Taxable', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` },
-    { key: 'total', label: 'Total', sort: true, num: true, cell: r => `<span class="qx-num qx-strong">${fC(r.total)}</span>` },
+    // LANDED COST = the bill + the freight paid to get the material here. This is
+    // what the petcoke actually cost, and it is what the owner reads the register
+    // for. It is deliberately NOT labelled "Total": ₹5,29,860 is not the IOC bill
+    // (₹4,74,627) and is not what is owed to IOC — the freight is owed to the
+    // transporter. A column called "Total" showing neither would mislead the next
+    // person to read it. Taxable + Freight sit either side, so the split is right
+    // there on the row.
+    { key: 'landed', label: 'Landed cost', sort: true, num: true,
+      cell: r => `<span class="qx-num qx-strong" title="${r.freightAddon > 0 ? 'Bill ' + fC(r.total) + ' + freight ' + fC(r.freightAddon) : 'Bill total'}">${fC(r.landed)}</span>` },
     // Freight = what the TRANSPORTER was paid for this bill. Real money that
     // never appears in the bill's own total (transport is invoiced and taxed
     // separately), so landed cost was invisible in the table. freightAmt is
@@ -424,10 +431,20 @@ QLX.mount({
     { label: 'Delete', icon: IC.trash, cls: 'del', onClick: rows => { QLShell.confirmDelete({ title: 'Move ' + rows.length + ' bills to Trash?', desc: 'All ' + rows.length + ' selected bills move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { rows.map(r => r.idx).sort((a, b) => b - a).forEach(i => Q.deletePurchase(i, reason)); toast(rows.length + ' moved to Trash'); QLX.refresh(); } }); } }
   ],
   card: r => ({
-    id: r.bill || '—', title: `<span style="color:var(--qx)">${esc(r.bill || '—')}</span>`, amount: fC(r.total),
+    /* The phone leads with the same number as the register — landed cost — but
+       it MUST carry its label here. A card puts the amount right beside the
+       status pill, so an unlabelled "₹5,29,860 · Pending" reads as one sentence,
+       and that sentence is false: ₹4,74,627 is what is pending. The desktop
+       column header does this job; a card has no header. */
+    id: r.bill || '—', title: `<span style="color:var(--qx)">${esc(r.bill || '—')}</span>`,
+    amount: r.freightAddon > 0
+      ? `${fC(r.landed)} <span style="font-size:10px;font-weight:600;color:var(--mut,#64748b)">landed</span>`
+      : fC(r.total),
     party: r.sup, partySub: r.emoji + ' ' + r.groupLabel, sub: r.veh ? '🚚 ' + r.veh : 'Bill: ' + (r.bill || '—'), date: r.date, calLabel: r.sup, status: stPill(r),
-    chips: [groupChip(r), r.freight ? '<span class="qx-frt">freight</span>' : ''].filter(Boolean),
-    rows: [['Item', r.itemIconEmoji + ' ' + esc(r.item)], ['Taxable', fC(r.taxable)], ['GST', fC(r.gst)], ['Status', stPill(r)]]
+    chips: [groupChip(r), (r.freight && !(r.freightAddon > 0)) ? '<span class="qx-frt">freight</span>' : ''].filter(Boolean),
+    rows: [['Item', r.itemIconEmoji + ' ' + esc(r.item)], ['Taxable', fC(r.taxable)], ['GST', fC(r.gst)]]
+      .concat(r.freightAddon > 0 ? [['Bill total', fC(r.total)], ['Freight', fC(r.freightAddon)]] : [])
+      .concat([['Status', stPill(r)]])
   }),
   footer: rows => {
     const t = rows.reduce((a, r) => ({ tax: a.tax + r.taxable, gst: a.gst + r.gst, tot: a.tot + r.total,
@@ -470,7 +487,12 @@ QLX.mount({
 function exportRows(rows) {
   rows = rows || [];
   const mo = QLX.month() ? '_' + QLX.month() : '';
-  QLShell.exportCSV('purchases_' + (Q.co.short || 'register').replace(/\s+/g, '_') + mo, ['Bill', 'Date', 'Supplier', 'Group', 'Item', 'GSTIN', 'GST%', 'Taxable', 'Freight', 'GST', 'ITC', 'Total', 'Paid', 'Status', 'Due'], rows.map(x => [x.bill, x.date, x.sup, x.groupLabel, x.item, x.gstin, x.grate, x.taxable, x.freightAmt, x.gst, x.itc, x.total, x.paid, x.status, x.dueDate]));
+  /* Both numbers ship. "Landed cost" is what the register now shows, so the
+     export has to carry it or the file disagrees with the screen. "Total" stays
+     because it is the invoice value — the figure that ties to the supplier's
+     bill and to the ITC claimed on it. Dropping either one makes this file wrong
+     for somebody: the owner reading cost, or the CA reading tax. */
+  QLShell.exportCSV('purchases_' + (Q.co.short || 'register').replace(/\s+/g, '_') + mo, ['Bill', 'Date', 'Supplier', 'Group', 'Item', 'GSTIN', 'GST%', 'Taxable', 'Freight', 'GST', 'ITC', 'Total', 'Landed cost', 'Paid', 'Status', 'Due'], rows.map(x => [x.bill, x.date, x.sup, x.groupLabel, x.item, x.gstin, x.grate, x.taxable, x.freightAmt, x.gst, x.itc, x.total, x.landed, x.paid, x.status, x.dueDate]));
   toast('Exported ' + rows.length + ' bills' + (QLX.month() ? ' · ' + QLX.monthLabel() : ''));
 }
 function exportBills() { exportRows(QLX.rows()); }
