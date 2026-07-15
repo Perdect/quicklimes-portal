@@ -1638,24 +1638,34 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     if (/top.*(customer|client|buyer|party)|best.*(customer|buyer)|biggest customer/.test(t)) {
       let rows = Q.salesRows(); let scope = '';
       if (/month/.test(t)) { rows = rows.filter(r => (r.date || '').slice(0, 7) === ym); scope = ' this month'; }
-      const by = {}; rows.forEach(r => { const k = r.party || '—'; by[k] = (by[k] || 0) + r.total; });
-      const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      const pidx = QLParty.index(rows, r => r.party, r => r.gstin);   // by identity, not spelling
+      const by = {}; rows.forEach(r => { const k = pidx.keyOf(r.party, r.gstin); by[k] = (by[k] || 0) + r.total; });
+      const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, v]) => [pidx.labelOf(k), v]);
       if (!top.length) return `<p>No sales${scope} yet.</p>`;
       return `<p>Top customers${scope}:</p>` + list(top, [{ v: r => esc(r[0]) }, { r: 1, v: r => fc(r[1]) }]);
     }
     if (/compare.*(supplier|vendor|rate|price)|supplier.*(rate|price|compare)/.test(t)) {
-      const by = {}; Q.state.PURCHASES.forEach(p => { const k = p.sup || '—'; const rate = p.rate || (p.qty ? p.taxable / p.qty : 0); if (!rate) return; by[k] = by[k] || { sum: 0, n: 0, cat: p.cat }; by[k].sum += rate; by[k].n++; });
-      const rows = Object.entries(by).map(([s, v]) => [s, v.sum / v.n]).sort((a, b) => a[1] - b[1]);
+      /* Average rate per supplier IDENTITY. Split spellings gave one firm two
+         averages — and this answer ranks suppliers cheapest-first, so a split
+         could put the same vendor at both ends of the list. */
+      const ridx = QLParty.index(Q.state.PURCHASES, p => p.sup, p => p.gstin);
+      const by = {}; Q.state.PURCHASES.forEach(p => { const k = ridx.keyOf(p.sup, p.gstin); const rate = p.rate || (p.qty ? p.taxable / p.qty : 0); if (!rate) return; by[k] = by[k] || { sum: 0, n: 0, cat: p.cat, nm: ridx.labelOf(k) }; by[k].sum += rate; by[k].n++; });
+      const rows = Object.entries(by).map(([, v]) => [v.nm, v.sum / v.n]).sort((a, b) => a[1] - b[1]);
       if (!rows.length) return `<p>Not enough purchase rate data to compare.</p>`;
       return `<p>Average purchase rate by supplier (lowest first):</p>` + list(rows.slice(0, 10), [{ v: r => esc(r[0]) }, { r: 1, v: r => fc(Math.round(r[1])) + '/unit' }]);
     }
     if (/(supplier|vendor).*(payment|pending|due|pay|owe)|pending.*(supplier|payment)|pay.*supplier|accounts payable/.test(t)) {
-      const by = {}; Q.state.PURCHASES.filter(p => (p.status || 'pending') === 'pending').forEach(p => { const k = p.sup || '—'; by[k] = by[k] || { total: 0, bills: 0 }; by[k].total += Q.cS ? 0 : 0; });
-      const map = {}; Q.purchaseRows().filter(r => r.status === 'pending').forEach(r => { map[r.sup] = map[r.sup] || { total: 0, bills: 0 }; map[r.sup].total += r.total; map[r.sup].bills++; });
+      /* By supplier IDENTITY. Splitting a firm across spellings both understated
+         each row and inflated the "due to N suppliers" count. (The dead `by`
+         accumulator that used to sit here added `Q.cS ? 0 : 0` to a map nobody
+         read — removed rather than carried forward.) */
+      const prows = Q.purchaseRows().filter(r => r.status === 'pending');
+      const sidx = QLParty.index(prows, r => r.sup, r => r.gstin);
+      const map = {}; prows.forEach(r => { const k = sidx.keyOf(r.sup, r.gstin); map[k] = map[k] || { nm: sidx.labelOf(k), total: 0, bills: 0 }; map[k].total += r.total; map[k].bills++; });
       const rows = Object.entries(map).sort((a, b) => b[1].total - a[1].total);
       if (!rows.length) return `<p>No pending supplier payments 🎉</p>`;
       const tot = rows.reduce((a, r) => a + r[1].total, 0);
-      return `<p><b>${fc(tot)}</b> due to <b>${rows.length}</b> suppliers.</p>` + list(rows.slice(0, 8), [{ v: r => esc(r[0]) }, { r: 1, v: r => r[1].bills + ' bill' + (r[1].bills > 1 ? 's' : '') }, { r: 1, v: r => fc(r[1].total) }]) + acts(`<button onclick="location.href='purchase.html'">Open purchases</button>`);
+      return `<p><b>${fc(tot)}</b> due to <b>${rows.length}</b> suppliers.</p>` + list(rows.slice(0, 8), [{ v: r => esc(r[1].nm) }, { r: 1, v: r => r[1].bills + ' bill' + (r[1].bills > 1 ? 's' : '') }, { r: 1, v: r => fc(r[1].total) }]) + acts(`<button onclick="location.href='purchase.html'">Open purchases</button>`);
     }
 
     /* ───── COMPARE / REPORTS ───── */

@@ -277,8 +277,10 @@ QLX.mount({
   footer: rows => { const t = rows.reduce((a, r) => ({ qty: a.qty + r.qty, tax: a.tax + r.taxable, gst: a.gst + r.gst, tot: a.tot + r.total, paid: a.paid + r.paid, out: a.out + r.outstanding }), { qty: 0, tax: 0, gst: 0, tot: 0, paid: 0, out: 0 }); return [{ label: 'Qty', value: fmt(t.qty, 1) + ' T' }, { label: 'Taxable', value: fC(t.tax) }, { label: 'GST', value: fC(t.gst) }, { label: 'Grand Total', value: fC(t.tot), strong: true }, { label: 'Collected', value: fC(t.paid) }, { label: 'Pending', value: fC(t.out) }]; },
   analytics: () => {
     const rows = Q.salesRows();
-    const byParty = {}; rows.forEach(r => { byParty[r.party] = (byParty[r.party] || 0) + r.total; });
-    const bars = Object.entries(byParty).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([p, v]) => ({ label: p, value: v, display: fC(v) }));
+    /* By customer IDENTITY — two spellings of one firm were two bars, each short. */
+    const pidx = QLParty.index(rows, r => r.party, r => r.gstin);
+    const byParty = {}; rows.forEach(r => { const k = pidx.keyOf(r.party, r.gstin); byParty[k] = (byParty[k] || 0) + r.total; });
+    const bars = Object.entries(byParty).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => ({ label: pidx.labelOf(k), value: v, display: fC(v) }));
     const byStatus = {}; rows.forEach(r => { byStatus[r.status] = (byStatus[r.status] || 0) + r.total; });
     const donut = Object.keys(byStatus).map(k => ({ label: k[0].toUpperCase() + k.slice(1), value: byStatus[k], color: STDOT[k] || '#94a3b8' }));
     return { barsTitle: 'Top customers by sales', bars, donutTitle: 'Sales by status', donut, donutCenter: fC(Q.salesSummary().revenue) };

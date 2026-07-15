@@ -16,19 +16,34 @@ function agePill(r) { const b = BUCKET[r.bucket]; return `<span class="qx-pill" 
 
 /* Aggregate every unpaid sales invoice into one row per customer. */
 function collectRows() {
-  const byP = {}, phoneOf = {};
-  Q.partyRows().forEach(p => { phoneOf[(p.name || '').toUpperCase()] = p.phone || ''; });
-  Q.salesRows().forEach(s => {
-    if (s.status === 'cancelled' || (s.outstanding || 0) <= 0) return;
-    const k = s.party || '—';
-    (byP[k] = byP[k] || { party: k, out: 0, bills: 0, oldest: s.date, last: s.date, invs: [] });
+  /* One row per REAL customer, resolved by GSTIN — not per spelling.
+     This is the highest-stakes grouping in the app: reminderMsg() turns each row
+     into a WhatsApp message stating "₹X is pending against N invoices". Keying by
+     the raw name split one customer into two rows, so that message went out
+     quoting PART of what was owed — to a real person, over a real number.
+     The party index spans sales AND the party master together, so an invoice and
+     the contact record resolve to the same key and the phone is found even when
+     the two spell the name differently. */
+  const sales = Q.salesRows().filter(s => s.status !== 'cancelled' && (s.outstanding || 0) > 0);
+  const parties = Q.partyRows();
+  const idx = QLParty.index(
+    sales.map(s => ({ n: s.party, g: s.gstin })).concat(parties.map(p => ({ n: p.name, g: p.gstin }))),
+    r => r.n, r => r.g);
+
+  const phoneOf = {};
+  parties.forEach(p => { const k = idx.keyOf(p.name, p.gstin); if (p.phone && !phoneOf[k]) phoneOf[k] = p.phone; });
+
+  const byP = {};
+  sales.forEach(s => {
+    const k = idx.keyOf(s.party, s.gstin);
+    (byP[k] = byP[k] || { key: k, party: idx.labelOf(k), gstin: idx.gstinFor(k), out: 0, bills: 0, oldest: s.date, last: s.date, invs: [] });
     byP[k].out += s.outstanding; byP[k].bills++; byP[k].invs.push(s);
     if ((s.date || '') < byP[k].oldest) byP[k].oldest = s.date;
     if ((s.date || '') > byP[k].last) byP[k].last = s.date;
   });
   return Object.values(byP).map((r, i) => {
     const days = ageOf(r.oldest);
-    return Object.assign(r, { idx: i, days, bucket: bucketOf(days), phone: phoneOf[(r.party || '').toUpperCase()] || '' });
+    return Object.assign(r, { idx: i, days, bucket: bucketOf(days), phone: phoneOf[r.key] || '' });
   }).sort((a, b) => b.out - a.out);
 }
 

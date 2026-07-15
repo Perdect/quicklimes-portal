@@ -656,7 +656,10 @@ QLX.mount({
     const itc = nc.reduce((a, r) => a + (r.itc || 0), 0);
     const pending = nc.reduce((a, r) => a + (r.outstanding || 0), 0);
     const paid = nc.reduce((a, r) => a + (r.paid || 0), 0);
-    const sups = new Set(nc.filter(r => (r.outstanding || 0) > 0).map(r => r.sup)).size;
+    // Distinct suppliers by identity, not by spelling.
+    const _owed = nc.filter(r => (r.outstanding || 0) > 0);
+    const _sIdx = QLParty.index(_owed, r => r.sup, r => r.gstin);
+    const sups = new Set(_owed.map(r => _sIdx.keyOf(r.sup, r.gstin))).size;
     return [
       { label: 'Total Bills', value: rows.length, sub: nc.filter(r => r.isOverdue).length + ' overdue', tint: 'blue', icon: IC.file },
       { label: 'Total Purchases', value: fC(taxable), sub: 'excl. GST', tint: 'indigo', icon: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>' },

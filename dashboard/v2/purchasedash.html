@@ -14,7 +14,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r3"><link rel="stylesheet" href="./pages.css?v=m8">
 <script src="ql-api.js?v=a2"></script>
-<script src="./data.js?v=m26"></script>
+<script src="./party-identity.js?v=m27"></script>
+<script src="./data.js?v=m27"></script>
 <link rel="stylesheet" href="./mobile.css?v=m4">
 <style>
   .pd-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: var(--ql-space-5); }
@@ -56,7 +57,7 @@
   </div>
 </div>
 
-<script src="./shell.js?v=m36"></script>
+<script src="./shell.js?v=m37"></script>
 <script src="./mobile.js?v=m4"></script>
 <script>
 QLShell.mount({ active: 'purchasedash', title: 'Purchase Dashboard' });
@@ -105,7 +106,10 @@ function render() {
   const gstPaid = sum(rows, r => r.gst);
   const pend = rows.filter(r => r.outstanding > 0.5);
   const pendVal = sum(pend, r => r.outstanding);
-  const supDue = [...new Set(pend.map(r => r.sup))].length;
+  /* Count distinct SUPPLIERS, not distinct spellings — a firm billed under two
+     spellings counted twice here and overstated "Suppliers owed". */
+  const dueIdx = QLParty.index(pend, r => r.sup, r => r.gstin);
+  const supDue = [...new Set(pend.map(r => dueIdx.keyOf(r.sup, r.gstin)))].length;
 
   const kpis = [
     ['Purchases · ' + monLbl, fC(monVal), monRows.length + ' bills this month'],
@@ -126,15 +130,24 @@ function render() {
   }).join('');
 
   // Top suppliers by spend.
+  /* Group by IDENTITY, not by whatever the bill spelled. Keying on r.sup put one
+     firm (GSTIN 08AIUPB9022D1ZB) on two rows — "RAMKARAN AND SONS" and "Ramkaran
+     and Sons" — and split its outstanding across both, so this table understated
+     what was owed and mis-ranked who was owed it most. */
   const bySup = {};
-  rows.forEach(r => { const k = r.sup || '—'; (bySup[k] = bySup[k] || { spend: 0, due: 0, n: 0, last: '', gstin: r.gstin }).spend += r.total; bySup[k].due += r.outstanding; bySup[k].n++; if (r.date > bySup[k].last) bySup[k].last = r.date; });
+  const sidx = QLParty.index(rows, r => r.sup, r => r.gstin);
+  rows.forEach(r => {
+    const k = sidx.keyOf(r.sup, r.gstin);
+    (bySup[k] = bySup[k] || { spend: 0, due: 0, n: 0, last: '', gstin: sidx.gstinFor(k), nm: sidx.labelOf(k) }).spend += r.total;
+    bySup[k].due += r.outstanding; bySup[k].n++; if (r.date > bySup[k].last) bySup[k].last = r.date;
+  });
   const topSup = Object.entries(bySup).sort((a, b) => b[1].spend - a[1].spend).slice(0, 10);
-  const supRows = topSup.map(([nm, d]) => `<tr><td>${esc(nm)}${d.gstin ? `<div style="font-size:11px;color:var(--ql-text-soft)">${esc(d.gstin)}</div>` : ''}</td>
+  const supRows = topSup.map(([, d]) => `<tr><td>${esc(d.nm)}${d.gstin ? `<div style="font-size:11px;color:var(--ql-text-soft)">${esc(d.gstin)}</div>` : ''}</td>
     <td class="r">${d.n}</td><td class="r">${fC(d.spend)}</td><td class="r ${d.due > 0.5 ? 'pd-due' : ''}">${d.due > 0.5 ? fC(d.due) : '—'}</td><td class="r">${esc(d.last)}</td></tr>`).join('');
 
   // AI alerts (real, derived).
   const alerts = [];
-  const worstDue = topSup.map(([nm, d]) => ({ nm, due: d.due })).filter(x => x.due > 0.5).sort((a, b) => b.due - a.due)[0];
+  const worstDue = topSup.map(([, d]) => ({ nm: d.nm, due: d.due })).filter(x => x.due > 0.5).sort((a, b) => b.due - a.due)[0];
   if (worstDue) alerts.push(['warn', '💸', `<b>${esc(worstDue.nm)}</b> has the highest supplier due — <b>${fC(worstDue.due)}</b> pending. Prioritise this payment.`]);
   const topCat = Object.entries(byG).sort((a, b) => b[1].val - a[1].val)[0];
   if (topCat) alerts.push(['info', '📊', `<b>${esc(topCat[1].label)}</b> is your biggest spend at <b>${fC(topCat[1].val)}</b> (${Math.round(topCat[1].val / totVal * 100)}% of purchases).`]);

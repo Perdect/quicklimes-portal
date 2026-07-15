@@ -611,18 +611,23 @@
     return Object.values(m).filter(c => c.count).sort((a, b) => (b.credit + b.debit) - (a.credit + a.debit));
   }
   // Customer-wise / supplier-wise outstanding (from QLD sales/purchases)
+  /* Group by party IDENTITY (GSTIN first), never by the name string — one firm
+     spelled two ways used to appear as two debtors, each showing part of what
+     they actually owed. See party-identity.js. */
   function customerOutstanding() {
-    const by = {};
-    QLD.salesRows().filter(r => r.status === 'pending').forEach(r => {
-      const k = r.party || '—'; (by[k] = by[k] || { party: k, amount: 0, count: 0, oldest: 0 });
+    const by = {}, rows = QLD.salesRows().filter(r => r.status === 'pending');
+    const idx = QLParty.index(rows, r => r.party, r => r.gstin);
+    rows.forEach(r => {
+      const k = idx.keyOf(r.party, r.gstin); (by[k] = by[k] || { party: idx.labelOf(k), gstin: idx.gstinFor(k), amount: 0, count: 0, oldest: 0 });
       by[k].amount += r.total; by[k].count++; by[k].oldest = Math.max(by[k].oldest, r.days);
     });
     return Object.values(by).sort((a, b) => b.amount - a.amount);
   }
   function supplierOutstanding() {
-    const by = {};
-    QLD.purchaseRows().filter(r => r.status === 'pending').forEach(r => {
-      const k = r.sup || '—'; (by[k] = by[k] || { party: k, amount: 0, count: 0, oldest: 0 });
+    const by = {}, rows = QLD.purchaseRows().filter(r => r.status === 'pending');
+    const idx = QLParty.index(rows, r => r.sup, r => r.gstin);
+    rows.forEach(r => {
+      const k = idx.keyOf(r.sup, r.gstin); (by[k] = by[k] || { party: idx.labelOf(k), gstin: idx.gstinFor(k), amount: 0, count: 0, oldest: 0 });
       by[k].amount += r.total; by[k].count++; by[k].oldest = Math.max(by[k].oldest, r.days);
     });
     return Object.values(by).sort((a, b) => b.amount - a.amount);

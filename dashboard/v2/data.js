@@ -8,6 +8,37 @@
 (function () {
   'use strict';
 
+  /* ── Party identity ──────────────────────────────────────────
+     Every "group by supplier/customer" in this app must go through here. Keying
+     a party by the raw name string is what put "RAMKARAN AND SONS" and
+     "Ramkaran and Sons" (one firm, GSTIN 08AIUPB9022D1ZB) on two rows with their
+     outstanding split between them. See party-identity.js for the rules.
+
+     Resolved lazily so load order can't bite, and so the node tests that
+     require() data.js directly still work. The fallback normalises case rather
+     than throwing: a blank dashboard is worse than an imperfect one, and it can
+     only ever be BETTER than the raw-string keying it replaces — but it should
+     never fire, since party-identity.js is wired into all 30 pages. */
+  function QLP() {
+    if (typeof QLParty !== 'undefined' && QLParty) return QLParty;
+    if (typeof window !== 'undefined' && window.QLParty) return window.QLParty;
+    if (typeof require === 'function') { try { return require('./party-identity.js'); } catch (e) { /* browser */ } }
+    return null;
+  }
+  function partyIndex(rows, nameOf, gstinOf) {
+    const P = QLP();
+    if (P) return P.index(rows, nameOf, gstinOf);
+    const up = s => String(s == null ? '' : s).toUpperCase().replace(/\s+/g, ' ').trim();
+    return { keyOf: n => 'N:' + (up(n) || '—'), labelOf: k => k.slice(2), gstinFor: () => '' };
+  }
+  /* "How many suppliers do we owe?" — count distinct PARTIES, not distinct
+     spellings. [...new Set(rows.map(r => r.sup))] counted one firm twice and
+     overstated every such KPI on the dashboards. */
+  function countParties(rows, nameOf, gstinOf) {
+    const idx = partyIndex(rows, nameOf, gstinOf);
+    return new Set((rows || []).map(r => idx.keyOf(nameOf(r), gstinOf ? gstinOf(r) : r.gstin))).size;
+  }
+
   /* ── Supabase (same project + publishable key as v1) ────────── */
   const SUPA_URL = 'https://iteaawedfmaujujyrqdu.supabase.co';
   const SUPA_KEY = 'sb_publishable_9MNYdrZ_ddJKTLL97amK4w_85iF6vlU';
@@ -583,8 +614,10 @@
     const prev = ser[0] || { sales: 0, purchases: 0, profit: 0, qty: 0, invoices: 0 };
     const ts = totS(), pl = getPL();
     const outRows = salesRows().filter(r => r.outstanding > 0.5 && r.status !== 'cancelled');   // anything still owed (incl. partials)
-    const pendParties = [...new Set(outRows.map(r => r.party))];
-    const overdueParties = [...new Set(outRows.filter(r => r.days > 30).map(r => r.party))];
+    // Distinct CUSTOMERS, resolved by GSTIN — not distinct spellings.
+    const _pIdx = partyIndex(outRows, r => r.party, r => r.gstin);
+    const pendParties = [...new Set(outRows.map(r => _pIdx.keyOf(r.party, r.gstin)))];
+    const overdueParties = [...new Set(outRows.filter(r => r.days > 30).map(r => _pIdx.keyOf(r.party, r.gstin)))];
     const collAmt = outRows.reduce((a, r) => a + r.outstanding, 0);
     const payAmt = purchaseRows().filter(r => r.outstanding > 0.5 && r.status !== 'cancelled').reduce((a, r) => a + r.outstanding, 0);
     const totQty = S.SALES.reduce((a, s) => a + (s.qty || 0), 0);
@@ -594,7 +627,7 @@
       production:  { v: fmt(totQty, 1) + ' T', trend: mom(cur.qty, prev.qty), meta: 'Total lime dispatched' },
       dispatch:    { v: fmt(cur.qty, 1) + ' T', trend: mom(cur.qty, prev.qty), meta: cur.invoices + ' invoices this month' },
       collections: { v: fC(collAmt), trend: null, meta: pendParties.length + ' parties · ' + overdueParties.length + ' overdue' },
-      payments:    { v: fC(payAmt), trend: null, meta: [...new Set(purchaseRows().filter(r => r.outstanding > 0.5 && r.status !== 'cancelled').map(r => r.sup))].length + ' suppliers' }
+      payments:    { v: fC(payAmt), trend: null, meta: countParties(purchaseRows().filter(r => r.outstanding > 0.5 && r.status !== 'cancelled'), r => r.sup, r => r.gstin) + ' suppliers' }
     };
   }
 
@@ -602,9 +635,10 @@
     // everything still owed by customers = outstanding > 0 (includes partially-paid bills), matching the register
     const pend = salesRows().filter(r => r.outstanding > 0.5 && r.status !== 'cancelled');
     const byParty = {};
+    const pidx = partyIndex(pend, r => r.party, r => r.gstin);
     pend.forEach(r => {
-      const k = r.party || '—';
-      byParty[k] = byParty[k] || { party: k, bills: 0, total: 0, oldest: r.date };
+      const k = pidx.keyOf(r.party, r.gstin);
+      byParty[k] = byParty[k] || { party: pidx.labelOf(k), gstin: pidx.gstinFor(k), bills: 0, total: 0, oldest: r.date };
       byParty[k].bills++; byParty[k].total += r.outstanding;
       if (r.date < byParty[k].oldest) byParty[k].oldest = r.date;
     });
@@ -927,7 +961,7 @@
       petFreight: pet.freight, limeFreight: lime.freight,
       freight, material, freightPct: freight / matBase * 100,
       top: byG[0] || null,
-      pendAmt: pend.reduce((a, r) => a + r.total, 0), pendCount: [...new Set(pend.map(r => r.sup))].length,
+      pendAmt: pend.reduce((a, r) => a + r.total, 0), pendCount: countParties(pend, r => r.sup, r => r.gstin),
       itc: rows.reduce((a, r) => a + r.itc, 0),
       momCur: cur, momPrev: prev, momPct: prev > 0 ? (cur - prev) / prev * 100 : null
     };
@@ -1605,8 +1639,10 @@
     });
     // 2) Supplier payments due
     const bySup = {};
-    S.PURCHASES.filter(p => (p.status || 'pending') === 'pending').forEach(p => {
-      const k = p.sup || '—'; bySup[k] = bySup[k] || { sup: k, total: 0, bills: 0, oldest: p.date };
+    const _pend = S.PURCHASES.filter(p => (p.status || 'pending') === 'pending');
+    const _bIdx = partyIndex(_pend, p => p.sup, p => p.gstin);   // by identity, not spelling
+    _pend.forEach(p => {
+      const k = _bIdx.keyOf(p.sup, p.gstin); bySup[k] = bySup[k] || { sup: _bIdx.labelOf(k), gstin: _bIdx.gstinFor(k), total: 0, bills: 0, oldest: p.date };
       bySup[k].total += cP(p).tot; bySup[k].bills++; if ((p.date || '') < bySup[k].oldest) bySup[k].oldest = p.date;
     });
     Object.values(bySup).forEach(s2 => out.push({
@@ -1708,7 +1744,8 @@
       // Supplier payables — what WE owe (distinct from customer collections).
       const pend = purchaseRows().filter(r => r.outstanding > 0.5 && (r.status || 'pending') !== 'cancelled');
       const by = {};
-      pend.forEach(r => { const k = r.sup || '—'; (by[k] = by[k] || { sup: k, bills: 0, total: 0, oldest: r.date }); by[k].bills++; by[k].total += r.outstanding; if ((r.date || '') < by[k].oldest) by[k].oldest = r.date; });
+      const sidx = partyIndex(pend, r => r.sup, r => r.gstin);
+      pend.forEach(r => { const k = sidx.keyOf(r.sup, r.gstin); (by[k] = by[k] || { sup: sidx.labelOf(k), gstin: sidx.gstinFor(k), bills: 0, total: 0, oldest: r.date }); by[k].bills++; by[k].total += r.outstanding; if ((r.date || '') < by[k].oldest) by[k].oldest = r.date; });
       const list = Object.values(by).map(r => ({ ...r, days: daysAgo(r.oldest) })).sort((a, b) => b.total - a.total);
       const tot = list.reduce((a, x) => a + x.total, 0);
       headers = ['Supplier', 'Bills', 'Outstanding', 'Oldest', 'Days'];
