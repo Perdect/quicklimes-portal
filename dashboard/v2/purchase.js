@@ -53,7 +53,17 @@ function stCell(r) { const st = r.isOverdue ? 'overdue' : r.status; return `<sel
 function stPill(r) { const st = r.isOverdue ? 'overdue' : r.status; return `<span class="qx-pill s-${st}">${st[0].toUpperCase() + st.slice(1)}</span>`; }
 function groupChip(r) { const gc = GCOL[r.group] || GCOL.other; return `<span class="qx-pill" style="background:${gc[0]};color:${gc[1]}">${r.emoji} ${esc(r.groupLabel)}</span>`; }
 function supCell(r) { return `<span class="qx-party-n" style="font-weight:600">${esc(r.sup)}</span>`; }
-function itemCell(r) { return `<span class="qx-party"><span class="qx-party-n">${esc(ITEM_SHORT[r.item] || r.item)}</span></span>${r.freight ? ' <span class="qx-frt">freight</span>' : ''}`; }
+/* The freight badge carries the AMOUNT, not just the word. The Freight column
+   sits at the right of a register that is wider than a 1440px screen, so the
+   number would need a horizontal scroll to read — and the whole point is to see
+   what the load actually cost, next to the load. A badge saying "freight" told
+   the user nothing they didn't already know. */
+function itemCell(r) {
+  const frt = r.freightAmt > 0
+    ? ` <span class="qx-frt" title="${esc((r.freightPays || []).map(f => (f.paidTo || 'transporter') + ' · ' + fC(f.amount)).join(' · ') || 'freight')}">🚚 ${fC(r.freightAmt)}</span>`
+    : (r.freight ? ' <span class="qx-frt">freight</span>' : '');
+  return `<span class="qx-party"><span class="qx-party-n">${esc(ITEM_SHORT[r.item] || r.item)}</span></span>${frt}`;
+}
 
 /* ══════════════════ PDF (drawer/print) ══════════════════ */
 function billHTML(r) {
@@ -377,6 +387,15 @@ QLX.mount({
     { key: 'grate', label: 'GST', sort: true, num: true, cell: r => `<span class="qx-mut qx-num">${r.grate}%</span>` },
     { key: 'taxable', label: 'Taxable', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` },
     { key: 'total', label: 'Total', sort: true, num: true, cell: r => `<span class="qx-num qx-strong">${fC(r.total)}</span>` },
+    // Freight = what the TRANSPORTER was paid for this bill. Real money that
+    // never appears in the bill's own total (transport is invoiced and taxed
+    // separately), so landed cost was invisible in the table. freightAmt is
+    // computed by purchaseRows FROM the freight payments themselves, so this
+    // can never disagree with the drawer's Freight tab or the landed cost.
+    { key: 'freightAmt', label: 'Freight', sort: true, num: true,
+      cell: r => r.freightAmt > 0
+        ? `<span class="qx-num" title="${(r.freightPays || []).map(f => esc(f.paidTo || 'transporter')).join(', ')}">${fC(r.freightAmt)}</span>`
+        : '<span class="qx-mut">—</span>' },
     { key: 'status', label: 'Status', sort: true, cell: stCell },
     { key: 'dueDate', label: 'Due Date', hidden: true, cell: r => `<span class="qx-mut">${r.dueDate ? fDS(r.dueDate) : '—'}</span>` },
     { key: 'createdBy', label: 'Created By', hidden: true, cell: r => `<span class="qx-mut">${esc(r.createdBy)}</span>` },
@@ -410,7 +429,17 @@ QLX.mount({
     chips: [groupChip(r), r.freight ? '<span class="qx-frt">freight</span>' : ''].filter(Boolean),
     rows: [['Item', r.itemIconEmoji + ' ' + esc(r.item)], ['Taxable', fC(r.taxable)], ['GST', fC(r.gst)], ['Status', stPill(r)]]
   }),
-  footer: rows => { const t = rows.reduce((a, r) => ({ tax: a.tax + r.taxable, gst: a.gst + r.gst, tot: a.tot + r.total, paid: a.paid + r.paid, out: a.out + r.outstanding }), { tax: 0, gst: 0, tot: 0, paid: 0, out: 0 }); return [{ label: 'Taxable', value: fC(t.tax) }, { label: 'GST', value: fC(t.gst) }, { label: 'Grand Total', value: fC(t.tot), strong: true }, { label: 'Paid', value: fC(t.paid) }, { label: 'Pending', value: fC(t.out) }]; },
+  footer: rows => {
+    const t = rows.reduce((a, r) => ({ tax: a.tax + r.taxable, gst: a.gst + r.gst, tot: a.tot + r.total,
+      paid: a.paid + r.paid, out: a.out + r.outstanding, fr: a.fr + (+r.freightAddon || 0) }), { tax: 0, gst: 0, tot: 0, paid: 0, out: 0, fr: 0 });
+    // Landed = material + the freight actually paid on it. freightAddon (NOT
+    // freightAmt) is summed on purpose: on a bill that IS a freight bill the
+    // amount already sits inside `total`, and adding it again double-counts.
+    return [{ label: 'Taxable', value: fC(t.tax) }, { label: 'GST', value: fC(t.gst) },
+      { label: 'Grand Total', value: fC(t.tot), strong: true }]
+      .concat(t.fr > 0 ? [{ label: 'Freight', value: fC(t.fr) }, { label: 'Landed cost', value: fC(t.tot + t.fr), strong: true }] : [])
+      .concat([{ label: 'Paid', value: fC(t.paid) }, { label: 'Pending', value: fC(t.out) }]);
+  },
   analytics: () => {
     const g = Q.purchaseByGroup();
     const bars = g.map(x => ({ label: x.emoji + ' ' + x.label, value: x.total, display: fC(x.total), color: (GCOL[x.key] || GCOL.other)[1] }));
