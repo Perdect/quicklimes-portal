@@ -76,16 +76,29 @@
   }
 
   /* ── sales vs purchase from OWN GSTIN (recipient = purchase, seller = sales) ── */
+  /* Which register does this belong in — OURS is the question, not the paper's.
+     ONLY the GSTINs can answer it: whichever side is us decides.
+
+     documentType MUST NEVER DECIDE. It describes the DOCUMENT, not our
+     relationship to it: every tax invoice is a "sales" invoice to the firm that
+     issued it. A real IOC petcoke bill comes back documentType='sales' — true
+     for IOC, and it is OUR PURCHASE. Trusting it routed real purchases into the
+     sales register, which is exactly what the user reported ("Saved 1 bill →
+     moved to the sales register"). The model cannot know who we are; only our
+     own GSTIN does.
+
+     When the GSTINs can't answer (the AI didn't return buyerGstin — it is not a
+     required field — or we have no identity on file), the register the user
+     deliberately chose wins, flagged low so the UI asks. */
   function classify(doc, ownGstins, hint) {
     var own = (ownGstins || []).map(function (g) { return up(g).replace(/\s/g, ''); });
     var sup = up(doc.supplierGstin).replace(/\s/g, ''), buy = up(doc.buyerGstin).replace(/\s/g, '');
     var ownIsBuyer = buy && own.indexOf(buy) >= 0;
     var ownIsSeller = sup && own.indexOf(sup) >= 0;
-    if (ownIsBuyer && !ownIsSeller) return { kind: 'purchase', conf: 'high' };
-    if (ownIsSeller && !ownIsBuyer) return { kind: 'sales', conf: 'high' };
-    var dt = String(doc.documentType || '').toLowerCase();
-    if (dt === 'sales' || dt === 'purchase') return { kind: dt, conf: 'medium' };
-    return { kind: hint || 'purchase', conf: 'low' };   // page context, flagged for review
+    if (ownIsBuyer && !ownIsSeller) return { kind: 'purchase', conf: 'high', why: 'Your GSTIN is the buyer' };
+    if (ownIsSeller && !ownIsBuyer) return { kind: 'sales', conf: 'high', why: 'Your GSTIN issued it' };
+    if (!own.length) return { kind: hint || 'purchase', conf: 'low', why: 'Your firm’s GSTIN is not set — add it in Settings → Company profile' };
+    return { kind: hint || 'purchase', conf: 'low', why: 'Neither GSTIN on the bill is yours — filed where you uploaded it' };
   }
 
   /* ── duplicate keys ── */
