@@ -5,11 +5,14 @@
    composes the text (pure + unit-tested); QLD stores the log; this only
    renders and hands the message to a transport.
 
-   TRANSPORT, honestly: no WhatsApp provider is connected, so the only real
-   transport is one-tap — we open WhatsApp with the message ready and a human
-   presses send. That is why nothing here claims "delivered": with one-tap we
-   cannot know. We log 'sent' and say so. When a provider is connected, sendOne
-   is the single place that changes.
+   TRANSPORT: two modes, decided by the SERVER, never guessed here.
+     'tap'  (default) — no channel connected: open WhatsApp with the message
+            ready; a human presses send. We log 'sent', never 'delivered',
+            because with one-tap we genuinely cannot know it arrived.
+     'api'  — a Whapi channel is connected: /api/wa sends it and returns a
+            provider message id. Only then is a send something we can prove.
+   The channel token NEVER exists in this file, or any file the browser loads.
+   It lives in api/config.php on the server; the browser only asks /api/wa.
    ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -36,15 +39,54 @@
     return W.planStatements({ sales: Q.salesRows(), parties: Q.partyRows(), today: today(), templates: Q.waCfg().templates });
   }
 
-  /* ── the only transport there is today ──
-     Opens WhatsApp with the text prefilled; the human presses send. We log it
-     as 'sent' because that is all we can honestly claim. Returns false if the
-     task is not sendable — the caller must not pretend otherwise. */
+  /* ── transport ──────────────────────────────────────────────────────────
+     Two modes, and the UI never lies about which one is live:
+       'api' — a Whapi channel is connected: the server sends, we get a message
+               id back, and nothing needs a human.
+       'tap' — the default: open WhatsApp with the text ready; a human presses
+               send. We log 'sent' because that is all we can honestly claim.
+     The token is never here. The browser asks /api/wa to send. */
+  var CH = { checked: false, configured: false, status: '', sender: '' };
+
+  function api(payload) {
+    var p = JSON.parse(localStorage.getItem('ql_plant') || '{}');
+    return fetch('/api/wa', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ plant_id: p.id, token: p.token }, payload))
+    }).then(function (r) { return r.json(); }).catch(function () { return { ok: false, error: 'Network error' }; });
+  }
+  function checkChannel() {
+    return api({ action: 'status' }).then(function (r) {
+      CH.checked = true;
+      CH.configured = !!r.configured && !r.not_configured;
+      CH.status = r.status || (r.error || '');
+      CH.sender = r.sender || '';
+      CH.live = !!r.ok;
+      return CH;
+    });
+  }
+  function mode() { return CH.live ? 'api' : 'tap'; }
+
+  /* Send one. Returns a PROMISE of true/false — never a claim we cannot back.
+     A provider failure is surfaced and logged as failed, so wa-core will offer
+     the same reminder again rather than silently dropping a customer. */
   function sendOne(t) {
-    if (!t.sendable) { toast(t.reason || 'Not sendable', 'err'); return false; }
-    window.open(W.waLink(t.phone, t.text), '_blank');
-    Q.waRecord(t, 'tap');
-    return true;
+    if (!t.sendable) { toast(t.reason || 'Not sendable', 'err'); return Promise.resolve(false); }
+    if (!CH.live) {                                   // one-tap: the human sends
+      window.open(W.waLink(t.phone, t.text), '_blank');
+      Q.waRecord(t, 'tap');
+      return Promise.resolve(true);
+    }
+    return api({ action: 'send', to: t.phone, body: t.text }).then(function (r) {
+      if (!r.ok) {
+        var rec = Q.waRecord(t, 'whapi'); Q.waSetStatus(rec.id, 'failed');
+        toast(r.error || 'Send failed', 'err');
+        return false;                                  // failed ⇒ NOT deduped ⇒ retryable
+      }
+      var rec2 = Q.waRecord(t, 'whapi');
+      rec2.providerId = r.id; Q.commit();
+      return true;
+    });
   }
 
   /* Sending many: browsers block a burst of window.open, and firing 40 tabs at
@@ -53,14 +95,24 @@
   function sendQueue(list) {
     var q = list.filter(function (t) { return t.sendable; });
     if (!q.length) { toast('Nothing sendable — check the numbers on file', 'err'); return; }
-    var i = 0;
+    var i = 0, okN = 0, badN = 0;
+    // Deliberately serial with a gap. In api mode this IS the rate limit: a
+    // burst of dunning messages off one unofficial number is the fastest way to
+    // get it banned. In tap mode a burst of window.open is blocked anyway.
+    var gap = CH.live ? 2500 : 900;
     function step() {
-      if (i >= q.length) { toast('Done · ' + q.length + ' message' + (q.length > 1 ? 's' : '') + ' opened'); render(); return; }
+      if (i >= q.length) {
+        toast(CH.live ? ('Sent ' + okN + (badN ? ' · ' + badN + ' failed' : '')) : ('Opened ' + q.length + ' chats · press send in each'),
+              badN ? 'err' : 'ok');
+        render(); return;
+      }
       var t = q[i++];
-      sendOne(t);
-      body().querySelector('#waQn').textContent = i + ' of ' + q.length;
-      if (i < q.length) setTimeout(step, 900);      // let the tab settle; no burst
-      else { toast('Opened ' + q.length + ' chats · press send in each'); render(); }
+      var n = body() && body().querySelector('#waQn'); if (n) n.textContent = i + ' of ' + q.length;
+      // await the result — sendOne returns a PROMISE, and a promise is always
+      // truthy, so counting it without awaiting would report every send a success.
+      sendOne(t).then(function (ok) { ok ? okN++ : badN++; })
+                .catch(function () { badN++; })
+                .then(function () { setTimeout(step, gap); });
     }
     step();
   }
@@ -104,6 +156,11 @@
         stat('Sent today', st.sent, '#2563EB') +
         stat(S.tab === 'due' ? 'Being chased' : 'Outstanding', fC(due), '#dc2626') +
       '</div>' +
+      (CH.checked ? (CH.live
+        ? '<div class="wa-mode wa-mode-on">✓ Connected — messages send automatically from ' + esc(CH.sender || 'your channel') + '</div>'
+        : '<div class="wa-mode">One-tap mode — WhatsApp opens with the message ready and <b>you press send</b>. '
+          + (CH.configured ? 'Channel says: ' + esc(CH.status || 'not ready') + '.' : 'No WhatsApp channel connected yet.') + '</div>')
+        : '') +
       '<div class="wa-tabs">' +
         '<button class="wa-tab' + (S.tab === 'due' ? ' on' : '') + '" data-tab="due">Reminders due today</button>' +
         '<button class="wa-tab' + (S.tab === 'stmt' ? ' on' : '') + '" data-tab="stmt">Account statements</button>' +
@@ -128,7 +185,15 @@
     var od = el.querySelector('#waOd'); if (od) od.onchange = function () { S.onlyOverdue = od.checked; render(); };
     var mn = el.querySelector('#waMin'); if (mn) mn.onchange = function () { S.min = +mn.value || 0; render(); };
     el.querySelectorAll('[data-send]').forEach(function (b) {
-      b.onclick = function () { if (sendOne(tasks[+b.dataset.send])) { b.textContent = 'Sent ✓'; b.disabled = true; setTimeout(render, 600); } };
+      b.onclick = function () {
+        b.disabled = true; b.textContent = CH.live ? 'Sending…' : 'Opening…';
+        // sendOne is a promise: `if (sendOne(...))` would always be true and
+        // would claim success on a failed send. Await it.
+        sendOne(tasks[+b.dataset.send]).then(function (ok) {
+          if (ok) { b.textContent = CH.live ? 'Sent ✓' : 'Opened ✓'; setTimeout(render, 700); }
+          else { b.disabled = false; b.textContent = 'Send'; }
+        });
+      };
     });
     el.querySelectorAll('[data-fix]').forEach(function (b) {
       b.onclick = function () { location.href = 'parties.html'; };
@@ -190,6 +255,8 @@
     '.wa-msg{font-size:11.5px;color:var(--ql-text-secondary);background:var(--ql-bg-subtle,#f8fafc);border-radius:8px;padding:7px 9px;margin-top:6px;white-space:pre-wrap;max-height:74px;overflow:auto}',
     '.wa-why{font-size:12px;color:#b45309;margin-top:5px;font-weight:600}',
     '.wa-act{flex:none}',
+    '.wa-mode{font-size:12px;border:1px solid #fde68a;background:#fffbeb;color:#92400e;border-radius:9px;padding:7px 10px;margin-bottom:10px}',
+    '.wa-mode-on{border-color:#a7f3d0;background:#ecfdf5;color:#065f46}',
     '.wa-empty{text-align:center;color:var(--ql-text-secondary);font-size:13px;padding:34px 16px;line-height:1.6}',
     '@media(max-width:768px){.wa-stats{grid-template-columns:repeat(2,1fr)}.wa-panel{width:100vw}}'
   ].join('');
@@ -212,11 +279,12 @@
     document.getElementById('waBack').classList.add('open');
     document.getElementById('waPanel').style.display = 'flex';
     render();
+    checkChannel().then(render);        // repaint once we know the real transport
   }
   function close() {
     var b = document.getElementById('waBack'), p = document.getElementById('waPanel');
     if (b) b.classList.remove('open'); if (p) p.style.display = 'none';
   }
 
-  window.QLWA = { open: open, close: close, plan: plan, statements: statements, sendOne: sendOne };
+  window.QLWA = { open: open, close: close, plan: plan, statements: statements, sendOne: sendOne, checkChannel: checkChannel, mode: mode };
 })();

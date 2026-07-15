@@ -343,6 +343,17 @@ function ql_ensure_tables() {
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 
+/* ── WhatsApp channel (Whapi) from config (server-side only; '' when unset) ──
+   Same rule as the AI key: the token NEVER goes to the browser. The client
+   asks /api/wa to send; it never sees or holds this value. */
+function ql_whapi() {
+  $c = ql_config();
+  return [
+    'token'  => (string)($c['WHAPI_TOKEN'] ?? ''),
+    'sender' => (string)($c['WHAPI_SENDER'] ?? ''),
+  ];
+}
+
 /* ── AI key + model from config (server-side only; '' when unconfigured) ── */
 function ql_llm() {
   $c = ql_config();

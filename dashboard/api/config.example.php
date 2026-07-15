@@ -26,4 +26,16 @@ return [
   'LLM_API_KEY' => '',                          // sk-ant-...  (from console.anthropic.com)
   'LLM_MODEL'   => 'claude-sonnet-5',           // vision-capable model id
   'LLM_MAX_IMAGES' => 3,                         // page images per bill (cost cap)
+
+  // ── WhatsApp reminders (optional) — Whapi channel.
+  //    Setup:  whapi.cloud -> create a channel -> scan the QR with the phone
+  //    that will SEND (use a separate number, not your main business one) ->
+  //    copy the channel token here. Server-side only: never in the browser,
+  //    never committed, never pasted into a chat.
+  //    Leave blank and QuickLimes stays in one-tap mode (you press send).
+  //    ⚠ Whapi drives a real WhatsApp number unofficially. Meta can ban a
+  //    number for bulk unsolicited messages. Do not point this at the number
+  //    you cannot afford to lose.
+  'WHAPI_TOKEN'  => '',                          // from your Whapi channel page
+  'WHAPI_SENDER' => '',                          // the sending number, e.g. 919460034743 (display only)
 ];

@@ -71,6 +71,18 @@
       <div id="teamList" style="margin-top:var(--ql-space-4)"></div>
     </div>
 
+    <!-- WHATSAPP AUTOMATION -->
+    <div class="card" id="waCard" style="margin-top:var(--ql-space-5)">
+      <div class="ft-head">
+        <div>
+          <h3 class="ft-title">WhatsApp Automation</h3>
+          <div class="ft-note">Payment reminders, statements and dispatch notices. <b>Without a connected channel QuickLimes stays in one-tap mode</b> — it writes the message and opens WhatsApp, you press send. Connect a channel and it sends on its own.</div>
+        </div>
+        <button class="ql-btn ql-btn-secondary" id="waRecheck" style="flex:none">Re-check</button>
+      </div>
+      <div id="waStatus" style="margin-top:var(--ql-space-4)"></div>
+    </div>
+
     <!-- BANK ACCOUNTS (multi-bank, per firm) -->
     <div class="card" id="bankCard" style="margin-top:var(--ql-space-5)">
       <div class="ft-head">
@@ -115,7 +127,7 @@
 
 <div id="setToast" class="fin-toast" hidden></div>
 
-<script src="./shell.js?v=m32"></script>
+<script src="./shell.js?v=m33"></script>
 <script src="./mobile.js?v=m4"></script>
 <script>
 QLShell.mount({ active: 'settings', title: 'Settings' });
@@ -434,10 +446,52 @@ function renderCo() {
   });
 }
 
+/* ── WHATSAPP AUTOMATION ──────────────────────────────────────────────────
+   Deliberately NO token field. The channel token is a credential: it must
+   never sit in the browser, in localStorage, in the synced data blob or in a
+   screenshot. It goes in api/config.php on the server, exactly like the AI
+   key. This card only REPORTS what the server says — it can't set it. */
+async function waApi(body) {
+  const p = _plant();
+  try {
+    const r = await fetch('/api/wa', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ plant_id: p.id, token: p.token }, body)) });
+    return await r.json();
+  } catch (_) { return { ok: false, error: 'Network error' }; }
+}
+function waPill(txt, bg, fg) { return `<span class="ft-lock" style="background:${bg};color:${fg}">${esc(txt)}</span>`; }
+async function renderWa() {
+  const el = $('#waStatus'); if (!el) return;
+  el.innerHTML = '<div class="ft-note">Checking the channel…</div>';
+  const r = await waApi({ action: 'status' });
+  const live = !!r.ok, configured = !!r.configured && !r.not_configured;
+  el.innerHTML = `
+    <div class="ft-row" style="align-items:center">
+      <div class="ft-info">
+        <div class="ft-label">Channel ${live ? waPill('Connected', '#dcfce7', '#15803d') : configured ? waPill('Not ready', '#fef3c7', '#92400e') : waPill('One-tap mode', '#e0e7ff', '#3730a3')}</div>
+        <div class="ft-desc">${live
+          ? 'Reminders send automatically from <b>' + esc(r.sender || 'your channel') + '</b>. Provider status: ' + esc(r.status || 'ok') + '.'
+          : configured
+            ? 'A token is set but the channel is not ready — provider says: <b>' + esc(r.status || r.error || 'unknown') + '</b>. Scan the QR again on your Whapi channel page.'
+            : 'No channel connected. QuickLimes writes each message and opens WhatsApp — <b>you press send</b>. Nothing goes out on its own.'}</div>
+      </div>
+    </div>
+    ${live ? '' : `<div class="ft-note" style="margin-top:var(--ql-space-3);line-height:1.65">
+      <b>To send automatically:</b><br>
+      1. Create a channel at <b>whapi.cloud</b> and scan its QR with the phone that will send.
+         Use a <b>separate number</b> — Whapi drives WhatsApp unofficially and Meta bans numbers for bulk reminders. Don't risk your main one.<br>
+      2. Put the channel token in <b>api/config.php</b> on your server as <code>WHAPI_TOKEN</code> (and <code>WHAPI_SENDER</code>).
+         Server-side only — never paste it into this app, a chat, or a screenshot.<br>
+      3. Press <b>Re-check</b>.
+    </div>`}`;
+}
+$('#waRecheck').addEventListener('click', () => renderWa());
+
 window.__qlOnSwitchCompany = () => { render(); renderDM(); renderBanks(); renderCo(); };
 window.__qlRefresh = () => { render(); renderDM(); renderBanks(); renderCo(); };
 QLD.init(() => { render(); renderDM(); renderBanks(); renderCo(); });
 renderTeam();
+renderWa();
 </script>
 </body>
 </html>
