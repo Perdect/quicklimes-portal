@@ -210,7 +210,24 @@ function autoMatch(t) {
 function runMatchAll(force) {
   RECUR = null;                       // the cashbook may have changed since last run
   const arr = txns();
-  arr.forEach(t => { if (!t.m || !t.m.manual || force) t.m = autoMatch(t); });
+  /* THE STAMP SURVIVES RE-MATCHING.
+     m.posted records that this bank line has ALREADY had its payment written to
+     the books — it is a fact about money, not a matching opinion, and re-reading
+     the statement cannot make it untrue. `force` (the AI Reconcile button)
+     deliberately clobbers even manual work, so without carrying m.posted across
+     it a re-match would erase the stamp and "Update Payments" would happily pay
+     every one of those bills a second time.
+
+     There is a second reason this must be sticky, specific to this app: posting
+     CREATES a cashbook entry, so on the next run entriesFor() sees it and the
+     very line we posted now matches its own new entry as kind:'entry'. The
+     match object is legitimately rewritten — the stamp underneath it must not
+     be. */
+  arr.forEach(t => {
+    const posted = t.m && t.m.posted;
+    if (!t.m || !t.m.manual || force) t.m = autoMatch(t);
+    if (posted) { t.m.posted = posted; t.m.manual = true; }
+  });
   // pair the two legs of self transfers (cross-account: Dr in one a/c, Cr in
   // the other, same EBANK:SELF id) so both read as one internal movement
   if (RC.selfPairs) {
@@ -524,7 +541,7 @@ function heroHTML() {
     <div><div class="rc-h1">Bank Reconciliation</div><div class="rc-sub">${esc(monthLabel())} · <b>${esc(Q.co.short || 'Company')}</b> · ${monthTxns().length} transaction${monthTxns().length === 1 ? '' : 's'}</div></div>
     <div class="rc-hero-r">
       <button class="rc-btn" id="rcMonth">${svg(IC.cal)}<span>${esc(monthLabel())}</span>${svg('<polyline points="6 9 12 15 18 9"/>')}</button>
-      ${txns().length ? `<button class="rc-btn rc-btn-ai" id="rcMatch" title="Run the AI matching engine">${svg(IC.ai)}<span>AI Reconcile</span></button><button class="rc-btn" id="rcExport">${svg(IC.dl)}<span>Export</span></button>` : ''}
+      ${txns().length ? `<button class="rc-btn rc-btn-ai" id="rcMatch" title="Run the AI matching engine">${svg(IC.ai)}<span>AI Reconcile</span></button><button class="rc-btn" id="rcApply" title="Post payments for the matched bills so their status stops saying Pending">${svg(IC.ck)}<span>Update Payments</span></button><button class="rc-btn" id="rcExport">${svg(IC.dl)}<span>Export</span></button>` : ''}
       <button class="rc-btn rc-btn-primary" id="rcUpload">${svg(IC.up)}<span>Upload statement</span></button>
     </div></div>`;
 }
@@ -1050,6 +1067,80 @@ function runBackfill() {
 
 /* ══════════════════ MODALS ══════════════════ */
 function overlay() { let b = document.getElementById('rcBack'); if (!b) { b = document.createElement('div'); b.id = 'rcBack'; document.body.appendChild(b); } b.className = 'rc-back'; b.onclick = e => { if (e.target === b) b.remove(); }; return b; }
+/* ══════════════════ UPDATE PAYMENTS ══════════════════
+   Reconciling LINKS a bank line to a bill. Until now nothing POSTED, so a
+   matched invoice still read "Pending" and outstanding never moved. This is the
+   apply step.
+
+   Every decision lives in recon-apply.js (pure, Node-tested). This function
+   only: builds the plan, SHOWS it, and — if the user says yes — hands it to the
+   existing QLD mutations. The numbers in the dialog are read straight off
+   plan.totals, so the thing the user agrees to is the thing that gets written;
+   there is no second count anywhere that could disagree with it. */
+function buildApplyPlan() {
+  return RCApply.plan(monthTxns(), {
+    // the PAGE's allocsOf, so a split can never mean two things in two files
+    allocsOf: allocsOf,
+    billOf: (kind, idx) => {
+      const arr = kind === 'sale' ? Q.salesRows() : Q.purchaseRows();
+      return arr.find(r => r.idx === idx) || null;
+    }
+  });
+}
+function openApply() {
+  const pl = buildApplyPlan(), T = pl.totals;
+  const b = overlay();
+  const willPost = T.bills > 0;
+  /* Styled inline on the existing tokens rather than with new classes:
+     reconcile.css is shared, and a class that only this dialog uses would ship
+     as a rule nobody else can see is dead. */
+  const row = (n, label, col) => n ? `<div style="display:flex;align-items:baseline;gap:9px;padding:7px 0;border-bottom:1px solid var(--ql-border)">
+    <b style="font-size:15px;min-width:38px;color:${col}">${n}</b><span style="font-size:12.5px;color:var(--ql-text)">${esc(label)}</span></div>` : '';
+
+  b.innerHTML = `<div class="rc-modal"><div class="rc-modal-h"><div class="rc-modal-t">Update payments</div><button class="rc-modal-x" id="rcApX">&times;</button></div>
+    <div class="rc-modal-b">
+      <div style="font-size:12.5px;color:var(--ql-text);line-height:1.55;margin-bottom:12px">${willPost
+        ? `This posts <b>${fC(T.amount)}</b> across <b>${T.bills}</b> bill${T.bills === 1 ? '' : 's'} for <b>${esc(monthLabel())}</b>. Statuses, outstanding, the cash book and each party's ledger all update.`
+        : `Nothing to post for <b>${esc(monthLabel())}</b> — every line is already recorded, already posted, or still needs a human.`}</div>
+      <div>
+        ${row(T.paid, 'will be marked Paid', '#15803d')}
+        ${row(T.partial, 'will be marked Partial (part-payments)', '#a16207')}
+        ${row(T.skipEntry, 'already recorded in your cash book — skipped', '#0e7490')}
+        ${row(T.skipPosted, 'already posted by an earlier run — skipped', '#0e7490')}
+        ${row(T.skipLowConf, 'not confident enough — confirm them yourself first', '#a16207')}
+        ${row(T.skipDuplicate, 'flagged as duplicates — skipped', '#b91c1c')}
+        ${row(T.skipNoBill, 'unmatched — nothing to post', '#475569')}
+      </div>
+      ${T.skipEntry ? `<div class="rc-note">The ${T.skipEntry} already-recorded line${T.skipEntry === 1 ? '' : 's'} (freight, labour, EMI and the like) are payments you entered yourself. They are linked, never posted again — posting them would pay those parties twice in your books.</div>` : ''}
+      ${T.excess > 0 ? `<div style="margin-top:14px;padding:11px 12px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;font-size:12px;color:#7c2d12;line-height:1.55">
+        <b>${fC(T.excess)} cannot be posted anywhere.</b> ${T.overpay} bank line${T.overpay === 1 ? ' is' : 's are'} bigger than the bill${T.overpay === 1 ? '' : 's'} they pay. Only the billed amount is posted — the rest stays unapplied. Record it as an advance, or link another bill.
+        <ul style="margin:7px 0 0;padding-left:16px">${pl.overpay.slice(0, 6).map(o => `<li>${esc(fDS(o.date))} · ${esc(o.party || (o.desc || '').slice(0, 28))} — ${fC(o.bankAmount)} paid, ${fC(o.applied)} applied, <b>${fC(o.excess)} left over</b></li>`).join('')}${pl.overpay.length > 6 ? `<li>+${pl.overpay.length - 6} more</li>` : ''}</ul></div>` : ''}
+      ${willPost ? `<div class="rc-note">This cannot be undone from here — reversing it means opening each bill and deleting the payment. Check the numbers above before you post.</div>` : ''}
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;padding:13px 20px;border-top:1px solid var(--ql-border)">
+      <button class="rc-btn" id="rcApCancel">Cancel</button>
+      ${willPost ? `<button class="rc-btn rc-btn-primary" id="rcApGo">${svg(IC.ck)}<span>Post ${T.bills} payment${T.bills === 1 ? '' : 's'}</span></button>` : ''}
+    </div></div>`;
+
+  const close = () => b.remove();
+  document.getElementById('rcApX').onclick = close;
+  document.getElementById('rcApCancel').onclick = close;
+  const go = document.getElementById('rcApGo');
+  if (go) go.onclick = () => {
+    /* Disable FIRST, before any write. The whole hazard here is the second
+       click, and the stamp only protects the run after this one. */
+    go.disabled = true; go.innerHTML = '<span>Posting…</span>';
+    const res = RCApply.applyPlan(pl, {
+      Q: Q,
+      cashIds: () => { try { return (Q.cashbookRows() || []).map(r => r.id); } catch (_) { return []; } }
+    });
+    Q.saveRecon();
+    close(); render();
+    if (res.errors.length) toast(res.bills + ' payment' + (res.bills === 1 ? '' : 's') + ' posted · ' + res.errors.length + ' failed — re-check those bills', 'warn');
+    else toast('Posted ' + fC(res.amount) + ' · ' + res.paid + ' paid, ' + res.partial + ' partial', 'ok');
+  };
+}
+
 function openUpload() {
   const b = overlay();
   b.innerHTML = `<div class="rc-modal"><div class="rc-modal-h"><div class="rc-modal-t">Upload bank statement</div><button class="rc-modal-x" id="rcUX">&times;</button></div>
@@ -1442,6 +1533,7 @@ function wire() {
     const d = categoryDigest();
     toast('AI reconciled: ' + d.understood + ' of ' + d.total + ' understood · ' + (d.exceptions ? d.exceptions + ' exception' + (d.exceptions === 1 ? '' : 's') + ' need you' : 'nothing needs review ✓'), d.exceptions ? '' : 'ok');
   };
+  if ($('rcApply')) $('rcApply').onclick = openApply;
   if ($('rcExport')) $('rcExport').onclick = exportRecon;
   if ($('rcLedgerExp')) $('rcLedgerExp').onclick = exportLedger;
   root.querySelectorAll('[data-ledger]').forEach(row => row.onclick = () => {
