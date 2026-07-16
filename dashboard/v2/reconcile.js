@@ -880,7 +880,12 @@ function openMonthMenu(anchor) {
     m.innerHTML = `<div class="rc-mm-yr"><button data-yr="-1">${svg('<polyline points="15 18 9 12 15 6"/>')}</button><span>${year}</span><button data-yr="1">${svg('<polyline points="9 18 15 12 9 6"/>')}</button></div>
       <div class="rc-mm-grid">${MN.map((mn, i) => { const ym = year + '-' + String(i + 1).padStart(2, '0'); return `<button class="rc-mm-c${ST.month === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-ym="${ym}">${mn}</button>`; }).join('')}</div>
       <button class="rc-mm-all${(!ST.month || ST.month === 'all') ? ' on' : ''}" data-ym="all">All months</button>`;
-    m.querySelectorAll('[data-yr]').forEach(b => b.onclick = () => { year += +b.dataset.yr; paint(); });
+    /* stopPropagation: paint() re-renders the menu, detaching this button; without
+       it the click bubbles to the document close-handler, which sees a target no
+       longer inside .rc-menu and closes the picker — so the ‹ › year arrows did
+       nothing here while working on Sales/Purchase. qlx.js and dashboard.js each
+       carry this same fix with this same comment; this third copy never got it. */
+    m.querySelectorAll('[data-yr]').forEach(b => b.onclick = e => { e.stopPropagation(); year += +b.dataset.yr; paint(); });
     m.querySelectorAll('[data-ym]').forEach(b => b.onclick = () => { ST.month = b.dataset.ym; ST.monthInit = true; if (Q.setUiMonth) Q.setUiMonth(b.dataset.ym); closeRcMenu(); render(); });
   };
   paint(); placeRcMenu(m, anchor);
