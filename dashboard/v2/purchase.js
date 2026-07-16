@@ -33,6 +33,12 @@ function waLink(phone, text) {
 const ADB = 'ql_pur_docs'; let _adb = null;
 function adb() { if (_adb) return _adb; _adb = new Promise((res, rej) => { const r = indexedDB.open(ADB, 1); r.onupgradeneeded = e => { const d = e.target.result; if (!d.objectStoreNames.contains('f')) d.createObjectStore('f'); }; r.onsuccess = e => res(e.target.result); r.onerror = () => rej(r.error); }); return _adb; }
 function aOp(mode, fn) { return adb().then(d => new Promise((res, rej) => { const t = d.transaction('f', mode), o = fn(t.objectStore('f')); t.oncomplete = () => res(o && o.result !== undefined ? o.result : o); t.onerror = () => rej(t.error); })); }
+/* The attachment store, exposed. qty-backfill needs to re-read the ORIGINAL bill
+   PDFs, and the alternative was a second copy of this IndexedDB plumbing in another
+   file — the exact duplication that has caused every "one rule, two places" bug in
+   this codebase. One store, one accessor. Read-only from outside. */
+window.QLAttach = { get: id => aOp('readonly', st => st.get(id)), DB: ADB };
+
 async function addAttach(idx, file, kind) {
   const id = 'pa' + Date.now().toString(36) + Math.floor(Math.random() * 1e5).toString(36);
   await aOp('readwrite', st => st.put(file, id));
@@ -41,6 +47,41 @@ async function addAttach(idx, file, kind) {
 }
 async function openAttach(idx, id, dl) { const a = (Q.state.PURCHASES[idx].attach || []).find(x => x.id === id); if (!a) return; const b = await aOp('readonly', st => st.get(a.id)); if (!b) { toast('File not found in this browser', 'err'); return; } const url = URL.createObjectURL(b); if (dl) { const x = document.createElement('a'); x.href = url; x.download = a.name; x.click(); } else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 4000); }
 async function delAttach(idx, id) { const p = Q.state.PURCHASES[idx]; Q.updatePurchase(idx, { attach: (p.attach || []).filter(a => a.id !== id) }); try { await aOp('readwrite', st => st.delete(id)); } catch (_) {} QLX.refresh(); }
+
+/* ── read the tonnage back off the bills already uploaded ──────
+   The Qty column dashes on old bills because the importer dropped the number the
+   OCR had already read. The BILLS are still in IndexedDB, so it is recoverable —
+   this re-reads them. Shows first, writes only what he confirms, and only where the
+   bill's own arithmetic (qty × rate = the booked taxable) proves the read is right. */
+async function openQtyBackfill() {
+  const n = QLQtyBackfill.candidates(Q.purchaseRows()).length;
+  QLShell.panel({ title: 'Read quantities from your bills', wide: true,
+    sub: 'Reading ' + n + ' bill' + (n === 1 ? '' : 's') + '…',
+    body: '<div class="pb-empty"><div class="pb-empty-t">Opening each bill…</div><div class="pb-empty-s">Nothing is changed while this runs.</div></div>' });
+
+  const r = await QLQtyBackfill.scan((i, tot, bill) => {
+    const e = document.querySelector('.pb-empty-t');
+    if (e) e.textContent = 'Reading ' + i + ' of ' + tot + '  ·  ' + bill;
+  });
+  if (r.error) { QLShell.panel({ title: 'Read quantities', body: '<div class="pb-empty"><div class="pb-empty-t">' + esc(r.error) + '</div></div>', actions: [{ label: 'Close' }] }); return; }
+
+  const row = (x, good) => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--ql-border);font-size:13px">
+    <b style="color:${good ? '#15803d' : '#a16207'};flex:none;width:14px">${good ? '✓' : '—'}</b>
+    <div><div><b>${esc(x.bill || '(no number)')}</b> · ${esc(x.sup || '')}</div>
+    <div style="font-size:12px;color:var(--ql-text-muted);margin-top:2px">${good ? '<b>' + fmt(x.qty, 2) + ' ' + esc(x.unit || 'T') + '</b> at ₹' + fC(Math.round(x.rate)).replace('₹', '') + '/T — ' + esc(x.why) : esc(x.why)}</div></div></div>`;
+
+  const body = (r.found.length ? '<div style="font-weight:700;color:#15803d;margin-bottom:6px">' + r.found.length + ' bill' + (r.found.length === 1 ? '' : 's') + ' — quantity read and checked</div>' + r.found.map(x => row(x, true)).join('') : '')
+    + (r.missed.length ? '<div style="font-weight:700;color:#a16207;margin:14px 0 6px">' + r.missed.length + ' could not be read</div>' + r.missed.map(x => row(x, false)).join('') : '')
+    + (!r.found.length && !r.missed.length ? '<div class="pb-empty"><div class="pb-empty-t">Nothing to read</div><div class="pb-empty-s">Every bill with a file already has its quantity.</div></div>' : '')
+    /* Say what the check IS. "Trust me" is not a reason to let something write to his books. */
+    + '<div class="rc-note" style="margin-top:12px">A quantity is only applied when the bill\'s own arithmetic proves it: <b>quantity × rate must equal the amount already booked</b>. Anything that does not reconcile is left alone rather than guessed — a wrong tonnage is worse than none, because it silently changes your cost per tonne.</div>';
+
+  QLShell.panel({ title: 'Read quantities from your bills', wide: true,
+    sub: r.scanned + ' bill' + (r.scanned === 1 ? '' : 's') + ' read · nothing is saved until you choose',
+    body: body,
+    actions: r.found.length ? [{ label: 'Cancel' }, { label: 'Save ' + r.found.length + ' quantit' + (r.found.length === 1 ? 'y' : 'ies'), primary: true,
+      onClick: () => { const w = QLQtyBackfill.apply(r.found); toast('Saved ' + w + ' quantit' + (w === 1 ? 'y' : 'ies'), 'ok'); QLX.refresh(); } }] : [{ label: 'Close' }] });
+}
 
 /* ── row action helpers (mutations) ── */
 function setStatus(r, val) { const patch = { status: val }; if (val === 'paid') patch.paid = r.total; else if (val === 'pending') patch.paid = 0; Q.updatePurchase(r.idx, patch); }
@@ -661,6 +702,13 @@ QLX.mount({
     { label: 'Report', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>', onClick: () => openPurchaseReport(QLX.rows()) },
     // Covers bank rows, invoices AND bills in one pass — the duplicates the user
     // already has predate the import gate, which only stops NEW ones.
+    /* No `hidden:` — qlx.js renders every tool unconditionally (qlx.js:195), so a
+       hidden option would have been a phantom API that silently did nothing. Adding
+       one to the engine would touch every register for cosmetics. The panel handles
+       the empty case honestly instead: "every bill with a file already has its
+       quantity". */
+    { label: 'Read quantities', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/>',
+      onClick: () => openQtyBackfill() },
     { label: t('Find duplicates'), icon: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', onClick: () => QLDedupe.open() }
   ],
   // Month-scoped: `rows` is the selected month's bills (all statuses).

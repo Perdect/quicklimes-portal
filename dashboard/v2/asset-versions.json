@@ -151,6 +151,10 @@
     "v": "h2",
     "sha": "857c327d294f"
   },
+  "qty-backfill.js": {
+    "v": "q1",
+    "sha": "2f576572c2a6"
+  },
   "bill-ocr.js": {
     "v": "ocr28",
     "sha": "646c8500dbf6"
@@ -168,8 +172,8 @@
     "sha": "2116641d73a0"
   },
   "purchase.js": {
-    "v": "m31",
-    "sha": "66111e26db37"
+    "v": "m32",
+    "sha": "9e9730e7020f"
   },
   "reconcile.css": {
     "v": "f3",
