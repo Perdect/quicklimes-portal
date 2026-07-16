@@ -446,8 +446,13 @@
     // profile name
     const sbName = document.querySelector('.sb-profile-name');
     if (sbName) sbName.textContent = co.short;
-    const pmName = $('pmName'); if (pmName) pmName.textContent = Q.plant.owner_name || co.short;
-    const pmEmail = $('pmEmail'); if (pmEmail) pmEmail.textContent = Q.plant.owner_phone ? ('+91 ' + Q.plant.owner_phone) : '—';
+    /* Q.plant is null until login lands, and paintWorkspace runs during init — an
+       unguarded Q.plant.owner_name here is the same crash-the-whole-page bug the
+       avatar letter just had, two lines up. The guard is not defensive noise: this
+       function has sixteen callers and takes their tail down with it. */
+    const pl = Q.plant || {};
+    const pmName = $('pmName'); if (pmName) pmName.textContent = pl.owner_name || co.short;
+    const pmEmail = $('pmEmail'); if (pmEmail) pmEmail.textContent = pl.owner_phone ? ('+91 ' + pl.owner_phone) : '—';
     paintAvatarLetter(co);
     // collections badge
     try {
@@ -555,6 +560,15 @@
      Same source as the name directly above it, so the two can never disagree:
      the person, then the firm, then a neutral dot — never an invented letter. */
   function paintAvatarLetter(co) {
+    /* Q is a LOCAL of paintWorkspace, not a global — reading it here threw
+       "ReferenceError: Q is not defined" on every single call. paintWorkspace calls
+       this at its line 451, so the throw killed the rest of paintWorkspace (the
+       collections badge, refreshNotifDot) AND the rest of whatever called it. On
+       settings.html that is render(), whose LAST act is binding the Feature
+       Management toggles — so every switch rendered dead: it moved, and nothing
+       happened. Sixteen call sites across the app were losing their tail this way.
+       A cosmetic letter took out functional wiring on every page. */
+    const Q = window.QLD || {};
     const name = (Q.plant && Q.plant.owner_name) || (co && (co.short || co.name)) || '';
     const ch = (String(name).trim()[0] || '·').toUpperCase();
     document.querySelectorAll('[data-avatar]').forEach(el => {

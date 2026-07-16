@@ -169,7 +169,7 @@
 
 <script src="./wa-core.js?v=w2"></script>
 
-<script src="./shell.js?v=m41"></script>
+<script src="./shell.js?v=m42"></script>
 <script src="./mobile.js?v=m10"></script>
 <script>
 QLShell.mount({ active: 'settings', title: 'Settings' });
@@ -235,13 +235,20 @@ function render() {
   const total = feats.filter(f => f.active).length;
   $('#setSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + total + ' of ' + feats.length + ' modules active';
   const dz = $('#dzCo'); if (dz && QLD.co) dz.textContent = QLD.co.short || QLD.co.name || 'this company';
-  if (window.QLShell && QLShell.paintWorkspace) QLShell.paintWorkspace();
+  /* WIRE FIRST, DECORATE AFTER. These listeners used to be bound after the
+     paintWorkspace() call below, and paintWorkspace threw on every page for weeks
+     (shell.js paintAvatarLetter read an out-of-scope Q). So render() died right
+     here and every switch on this screen was dead: it moved, saved nothing, changed
+     nothing — reported twice as "toggle on off not working". The switches are the
+     point of this page; the avatar letter is decoration. Decoration must never be
+     upstream of the wiring. Pinned by shell-scope.test.js. */
   document.querySelectorAll('.ft-row input[type=checkbox]').forEach(inp => inp.addEventListener('change', () => {
     QLShell.setFeature(inp.dataset.key, inp.checked);
     const f = QLShell.features().find(x => x.key === inp.dataset.key);
     toast((f ? f.label : 'Module') + (inp.checked ? ' turned on' : ' hidden'));
     render();
   }));
+  if (window.QLShell && QLShell.paintWorkspace) QLShell.paintWorkspace();
 }
 $('#ftReset').addEventListener('click', () => {
   QLShell.confirmDelete({ title: 'Reset feature visibility?', desc: 'Restores the default sidebar (Dashboard, Sales, Purchase, Finance, Production, Inventory, Reports, AI, Settings). Your data is untouched.',
