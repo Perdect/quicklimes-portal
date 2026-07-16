@@ -77,7 +77,7 @@ let loaded = true, err = null;
 try {
   vm.runInContext(
     fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8') +
-    '\n;this.__advMatch = advMatch; this.__ST = ST; this.__advCount = advCount; this.__advReset = advReset; this.__txnAmt = txnAmt; this.__filteredTxns = filteredTxns;',
+    '\n;this.__advMatch = advMatch; this.__ST = ST; this.__advCount = advCount; this.__advReset = advReset; this.__txnAmt = txnAmt; this.__filteredTxns = filteredTxns; this.__groupByMonth = groupByMonth; this.__monthName = monthName;',
     ctx
   );
 } catch (e) { loaded = false; err = e; }
@@ -188,6 +188,45 @@ ok(apply().indexOf('T8') >= 0, 'a line with no category survives the default vie
   ST.adv.min = ''; ST.adv.conf = 'none';
   eq('  and the confidence filter', filteredTxns().map(t => t.id), ['T8']);
   advReset();
+}
+
+/* ── MONTH GROUPING — the Purchase Register's collapsible headers, per month ──
+   A grouper that drops rows is worse than no grouper: the line is on screen in
+   neither the group nor the flat list, and nothing says so. So the invariant is
+   arithmetic — every row lands in exactly one group, always. */
+{
+  const groupByMonth = ctx.__groupByMonth, monthName = ctx.__monthName;
+  advReset(); ST.month = 'all'; ST.fstatus = 'all'; ST.ftype = 'all'; ST.q = '';
+  const rows = ctx.__filteredTxns();
+  const gs = groupByMonth(rows);
+
+  eq('every line is January in this fixture, so there is ONE group', gs.length, 1);
+  eq('NO ROW IS LOST — the groups sum back to the list exactly',
+    gs.reduce((a, g) => a + g.rows.length, 0), rows.length);
+  eq('  and none is duplicated across groups',
+    new Set(gs.flatMap(g => g.rows.map(r => r.id))).size, rows.length);
+  eq('the group is labelled like a human says it', gs[0].label, 'January 2026');
+
+  /* Multi-month: the real "All months" case, and the reason this exists. */
+  const multi = [
+    { id: 'X1', date: '2026-06-30', debit: 100 },
+    { id: 'X2', date: '2026-06-01', credit: 200 },
+    { id: 'X3', date: '2026-05-15', debit: 300 },
+    { id: 'X4', date: '2026-04-02', credit: 400 }
+  ];
+  const mg = groupByMonth(multi);
+  eq('three months → three groups', mg.map(g => g.key), ['2026-06', '2026-05', '2026-04']);
+  eq('  newest month first, matching the row order', mg[0].label, 'June 2026');
+  eq('  and each holds only its own lines', mg.map(g => g.rows.length), [2, 1, 1]);
+  eq('  summing back to every row', mg.reduce((a, g) => a + g.rows.length, 0), 4);
+
+  /* A line with no date must still be reachable — it is exactly the line someone
+     needs to fix, and silently dropping it is the worst outcome. */
+  const withBlank = groupByMonth([{ id: 'B1', date: '', debit: 50 }, { id: 'B2', date: '2026-06-01', debit: 60 }]);
+  eq('a dateless line gets its own group, never vanishes', withBlank.reduce((a, g) => a + g.rows.length, 0), 2);
+  ok(withBlank.some(g => g.label === 'No date'), '  and is labelled honestly as "No date"');
+
+  eq('an empty list groups to nothing, not a crash', groupByMonth([]).length, 0);
 }
 
 console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');

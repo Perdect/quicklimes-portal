@@ -51,7 +51,10 @@ let ST = {
      'all' means the filter is off — never '' , so an empty <select> value can
      never be mistaken for "show nothing". */
   adv: { party: 'all', cat: 'all', conf: 'all', from: '', to: '', min: '', max: '' },
-  advOpen: false
+  advOpen: false,
+  /* Which month groups are folded shut. A Set of 'YYYY-MM', same as QLX's
+     S.collapsed — collapsing is a VIEW preference, never saved to the blob. */
+  collapsed: new Set()
 };
 /* How many filters are actually narrowing the list — drives the button's badge.
    Counted from the SAME object the predicate reads, so the badge can never claim
@@ -684,11 +687,57 @@ function matchCell(t) {
   if (t.m && t.m.status === 'other') return `<div class="rc-match"><b>${esc(t.m.cat || 'Categorized')}</b><span>non-bill entry</span></div>`;
   return `<span class="rc-mut">—</span>`;
 }
+/* ── Month grouping ───────────────────────────────────────────────
+   The Purchase Register groups its rows under collapsible headers ("Petcoke").
+   This list had none: on "All months" a year of statements arrives as one flat
+   run of 700 lines and you find June by scrolling until the dates change.
+
+   Each header carries that month's OWN money in / money out / still-to-review.
+   That is the actual ask — a per-month BREAKDOWN, not just a divider. The
+   summary cards at the top total the whole filtered set; these total one month,
+   from the same rows on screen, so the two can never disagree.
+
+   Only groups when it can help: with a single month selected there is exactly one
+   group, and a header saying "June — 74 of 74" is noise. */
+function ymOfDate(d) { return (d || '').slice(0, 7); }
+function monthName(ym) {
+  if (!ym) return 'No date';
+  try { return new Date(ym + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); }
+  catch (_) { return ym; }
+}
+function groupByMonth(rows) {
+  const out = [], seen = {};
+  rows.forEach(t => {                       // rows arrive newest-first; keep that order
+    const k = ymOfDate(t.date);
+    if (!seen[k]) { seen[k] = { key: k, label: monthName(k), rows: [] }; out.push(seen[k]); }
+    seen[k].rows.push(t);
+  });
+  return out;
+}
+function monthGroupBar(g, first) {
+  const cr = g.rows.reduce((a, t) => a + (t.credit || 0), 0);
+  const dr = g.rows.reduce((a, t) => a + (t.debit || 0), 0);
+  const todo = g.rows.filter(needsReview).length;
+  const collapsed = ST.collapsed.has(g.key);
+  return `<tr class="qx-grp ${collapsed ? 'collapsed' : ''}" data-grp="${esc(g.key)}"><td colspan="9">
+    <div class="qx-grp-bar ${first ? 'first' : ''}">
+      <svg class="qx-grp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      <b>${esc(g.label)}</b>
+      <span class="rc-grp-n">${g.rows.length} line${g.rows.length === 1 ? '' : 's'}</span>
+      <span class="rc-grp-sp"></span>
+      ${cr ? `<span class="rc-grp-in">+${fC(cr)}</span>` : ''}
+      ${dr ? `<span class="rc-grp-out">−${fC(dr)}</span>` : ''}
+      ${todo ? `<span class="rc-grp-todo">${todo} to review</span>` : `<span class="rc-grp-done">all done</span>`}
+    </div></td></tr>`;
+}
+
 function viewHTML() {
   if (ST.view === 'ledger') return ledgerHTML();
   const rows = filteredTxns();
   if (!rows.length) return `<div class="rc-none">${ST.month && ST.month !== 'all' ? 'No matching transactions for ' + esc(monthLabel()) : 'No transactions match these filters'}.</div>`;
-  const body = rows.map(t => {
+  /* ONE row template — the grouped and ungrouped paths must render the same row.
+     Two copies would drift the moment a column is added to only one of them. */
+  const rowHTML = t => {
     const sel = ST.sel && ST.sel.has(t.id);
     return `<tr data-open="${t.id}" class="rc-clk${sel ? ' rc-selrow' : ''}">
     <td class="rc-cbx"><button class="rc-cb${sel ? ' on' : ''}" data-sel="${t.id}" title="Select">${sel ? svg(IC.ck) : ''}</button></td>
@@ -700,7 +749,16 @@ function viewHTML() {
     <td class="rc-cf">${confCell(t)}</td>
     <td>${badge(t)}</td>
     <td class="rc-actcell">${actionCell(t)}</td>
-  </tr>`; }).join('');
+  </tr>`; };
+
+  /* Group only when there is more than one month to separate. */
+  const groups = groupByMonth(rows);
+  const body = groups.length < 2
+    ? rows.map(rowHTML).join('')
+    : groups.map((g, i) =>
+        monthGroupBar(g, i === 0) +
+        (ST.collapsed.has(g.key) ? '' : g.rows.map(rowHTML).join(''))
+      ).join('');
   return `<div class="rc-tablewrap"><table class="rc-table rc-table2">
     <thead><tr><th class="rc-cbx"></th><th>Date</th><th>Party / Description</th><th>Type</th><th class="r">Amount</th><th>Suggested match</th><th>Confidence</th><th>Status</th><th></th></tr></thead>
     <tbody>${body}</tbody></table></div>`;
@@ -1264,6 +1322,15 @@ function wire() {
   root.querySelectorAll('[data-ftype]').forEach(b => b.onclick = () => { ST.ftype = b.dataset.ftype; render(); });
   /* Filters. render() rebuilds the toolbar, so these rebind every paint — the
      same pattern the tab buttons above already use. */
+  /* Fold a month shut. Bound before the row-open handler and stopping
+     propagation, or clicking the header would also try to open a transaction
+     drawer for a row that does not exist. */
+  root.querySelectorAll('.qx-grp[data-grp]').forEach(g => g.onclick = e => {
+    e.stopPropagation();
+    const k = g.dataset.grp;
+    if (ST.collapsed.has(k)) ST.collapsed.delete(k); else ST.collapsed.add(k);
+    render();
+  });
   if ($('rcFilBtn')) $('rcFilBtn').onclick = () => { ST.advOpen = !ST.advOpen; render(); };
   if ($('rcFilClear')) $('rcFilClear').onclick = () => { advReset(); render(); };
   root.querySelectorAll('#rcAdv [data-fk]').forEach(el => el.onchange = () => { ST.adv[el.dataset.fk] = el.value; render(); });
