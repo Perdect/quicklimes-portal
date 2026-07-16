@@ -244,17 +244,30 @@
   };
   // inter-state = buyer GSTIN state code ≠ 08 (Rajasthan seller). Inter-state GST is IGST, not CGST/SGST.
   const saleInter = s => { const g = s.gstin || partyGstin(s.party); return !!(g && g.length >= 2 && g.slice(0, 2) !== '08'); };
-  const notCancelled = x => (x.status || 'pending') !== 'cancelled';   // cancelled bills never count toward sales/GST/ITC totals
+  /* Cancelled bills never count toward sales/GST/ITC totals — and neither do
+     TRASHED or ARCHIVED ones. Trash a ₹10L invoice and it left the Sales register
+     but kept adding ₹50,000 of output tax to your GST liability; a trashed purchase
+     kept inflating ITC. Void was handled, trash was not. Both stores must gain this
+     together: fixing only sales would drop the payable while leaving stale ITC. */
+  const notCancelled = x => (x.status || 'pending') !== 'cancelled' && !x._del && !x._arch;
   const totS = () => S.SALES.filter(notCancelled).reduce((a, x) => { const c = cS(x), inter = saleInter(x); return { tx: a.tx + c.tx, cgst: a.cgst + (inter ? 0 : c.cgst), sgst: a.sgst + (inter ? 0 : c.sgst), igst: a.igst + (inter ? c.cgst + c.sgst : 0), tot: a.tot + c.tot }; }, { tx: 0, cgst: 0, sgst: 0, igst: 0, tot: 0 });
   const totP = () => S.PURCHASES.filter(notCancelled).reduce((a, x) => { const c = cP(x); return { tx: a.tx + (+x.taxable || 0), g: a.g + c.g, tot: a.tot + c.tot, itc: a.itc + c.itc }; }, { tx: 0, g: 0, tot: 0, itc: 0 });
   const totL = () => S.WORKERS.reduce((a, w) => { const c = cW(w); return { gross: a.gross + c.gross, net: a.net + c.net, cost: a.cost + c.cost }; }, { gross: 0, net: 0, cost: 0 });
   function getPL() {
     const ts = totS(), tp = totP(), tl = totL();
     const rev = ts.tx;
-    const cogs = S.PURCHASES.reduce((s, p) => s + p.taxable, 0);
+    /* tp.tx, not a fresh sum of S.PURCHASES: that raw reduce counted CANCELLED and
+       trashed bills, and returned NaN if any row lacked `taxable` — poisoning Gross
+       Margin and Cost/Ton. tp is already filtered and NaN-safe, and the Reports P&L
+       already computes it this way, so the two screens disagreed on one number. */
+    const cogs = tp.tx;
     const gp = rev - cogs;
     const labour = tl.cost, ebitda = gp - labour;
-    const outGST = ts.cgst + ts.sgst, netGST = Math.max(0, outGST - tp.itc), np = ebitda - netGST;
+    /* IGST was missing. Every inter-state sale showed ZERO output GST here, so net
+       profit was overstated by the whole IGST amount — while the dashboard's card
+       (which uses gstSummary) reported it correctly on the same data. totS already
+       splits intra/inter; this just has to read the field. */
+    const outGST = ts.cgst + ts.sgst + (ts.igst || 0), netGST = Math.max(0, outGST - tp.itc), np = ebitda - netGST;
     return { rev, cogs, gp, labour, ebitda, netGST, np, outGST, itc: tp.itc, gpm: rev ? gp / rev * 100 : 0, npm: rev ? np / rev * 100 : 0 };
   }
 
