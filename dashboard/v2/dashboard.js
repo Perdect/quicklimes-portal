@@ -163,8 +163,7 @@ function render() {
       flowWidget(prod) +
       kpiRow2(pl, s) +
       midRow(gst, bal, pay) +
-      activityWidget() +
-      fab();
+      activityWidget();
     root.dataset.ready = '1';
     wire();
     requestAnimationFrame(() => root.querySelectorAll('.dx-countup').forEach(countUp));
@@ -338,12 +337,25 @@ function activityWidget() {
     <div class="dx-acts">${rows}</div></div>`;
 }
 
-/* ══════════ floating quick actions ══════════ */
-function fab() {
-  const acts = [['🧾', 'New Sale', 'invoice.html'], ['🛒', 'Purchase', 'purchase.html'], ['💰', 'Payment', 'payments.html'], ['🏭', 'Production', 'production.html'], ['🧮', 'Expense', 'cashbook.html'], ['🏦', 'Bank txn', 'reconcile.html']];
-  return `<div class="dx-fab" id="dxFab"><div class="dx-fab-menu" id="dxFabMenu">${acts.map(a => `<button class="dx-fab-i" data-go="${a[2]}"><span>${a[0]}</span>${a[1]}</button>`).join('')}</div>
-    <button class="dx-fab-btn" id="dxFabBtn">${svg(I.plus)}</button></div>`;
-}
+/* ══════════ floating quick actions — REMOVED ══════════
+   The "+" FAB is gone. He asked for it repeatedly ("I told you 100 times remove
+   this icon but still showing in some pages") and he was right every time: I only
+   ever removed ONE of the two. mobile.js dropped its .qlm-fab "by request" and this
+   one, on the dashboard, was left standing — same button, second implementation,
+   so the request only half-landed. That is this codebase's oldest failure mode.
+
+   It also stacked directly on top of the AI pill in the bottom-right corner: a "+"
+   circle over "Ask AI about your business", two floating buttons fighting for the
+   same 60 pixels. That is what his screenshot showed.
+
+   The reasoning mobile.js already recorded holds here too: every destination it
+   offered (New Sale, Purchase, Payment, Production, Expense, Bank txn) is one click
+   away in the sidebar and has its own specific add button on its own page. A
+   permanent button that guesses what you meant to create is worse than the exact
+   one already in front of you. Nothing is lost; a duplicate is.
+
+   fab() is deleted rather than left returning '' — a dead function is the thing
+   someone re-wires by accident later. The .dx-fab CSS goes with it. */
 
 function countUp(el) {
   const to = +el.dataset.to; if (!isFinite(to) || !to) return;
@@ -364,17 +376,15 @@ function wire() {
   const mo = document.getElementById('dxMonth'); if (mo) mo.onclick = e => { e.stopPropagation(); openDashMonthMenu(mo); };
   const ex = document.getElementById('dxExport'); if (ex) ex.onclick = () => exportMonthReport();
   root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
-  root.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', e => { if (e.target.closest('.dx-fab-i') || b.classList.contains('dx-fab-i') || !b.closest('.dx-fab')) go(b.dataset.go); }));
+  /* Was guarded against double-firing inside the FAB menu; with the FAB gone every
+     [data-go] is a plain navigation. */
+  root.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
   const cmp = document.getElementById('dxCompare'); if (cmp) cmp.onclick = () => { compare = !compare; render(); };
   const ask = document.getElementById('dxAskAi'); if (ask) ask.onclick = () => { if (QLShell.openAssistant) QLShell.openAssistant(); else if (QLShell.toast) QLShell.toast('AI assistant unavailable'); };
   const full = document.getElementById('dxFull'); if (full) full.onclick = () => { const c = document.querySelector('.dx-analytics'); if (c) c.classList.toggle('dx-fs'); };
   // party segmented
   root.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => { root.querySelectorAll('[data-pt]').forEach(x => x.classList.remove('on')); b.classList.add('on'); root.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== b.dataset.pt); });
-  // FAB
-  const fb = document.getElementById('dxFabBtn'); if (fb) fb.onclick = e => { e.stopPropagation(); document.getElementById('dxFab').classList.toggle('open'); };
-  document.addEventListener('click', () => { const f = document.getElementById('dxFab'); if (f) f.classList.remove('open'); }, { once: true });
-  root.querySelectorAll('.dx-fab-i').forEach(b => b.onclick = () => go(b.dataset.go));
-  // filter chips (visual dropdowns → toast for now)
+  // (the FAB and its wiring are gone — see the note above fab()'s old home)
 }
 
 window.__qlRefresh = render;

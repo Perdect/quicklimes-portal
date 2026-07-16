@@ -20,7 +20,7 @@
    .qlm-dash here (default display:none) means that even if the mobile dashboard
    got built during a transient narrow measurement, it can NEVER show on desktop
    — the media query below flips it back to flex only ≤768px. */
-.qlm-header, .qlm-bottomnav, .qlm-fab, .qlm-sheet-back, .qlm-as-back,
+.qlm-header, .qlm-bottomnav, .qlm-sheet-back, .qlm-as-back,
 .qlm-iv, .qlm-ptr, .qlm-dash { display: none; }
 
 @media (max-width: 768px) {
@@ -127,19 +127,8 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 }
 
 /* ═══════════════ 4 · FLOATING ACTION BUTTON ═══════════════ */
-.qlm-fab {
-  display: flex; align-items: center; justify-content: center;
-  position: fixed; right: 18px;
-  bottom: calc(var(--qlm-nav-h) + var(--qlm-safe-bottom) + 16px);
-  width: 56px; height: 56px; border-radius: 20px;
-  background: linear-gradient(140deg, var(--ql-brand-500), var(--ql-brand-700));
-  color: #fff; border: 0; box-shadow: 0 10px 24px -6px rgba(37,99,235,.55), 0 4px 8px -2px rgba(37,99,235,.35);
-  z-index: 240;
-  transition: transform var(--ql-duration-base) var(--ql-ease-out), opacity var(--ql-duration-base) var(--ql-ease-out);
-}
-.qlm-fab svg { width: 26px; height: 26px; stroke-width: 2.4; }
-.qlm-fab:active { transform: scale(0.9); }
-.qlm-fab.hide { transform: translateY(90px) scale(.6); opacity: 0; pointer-events: none; }
+/* The mobile "+" FAB was removed by request (see mobile.js). Its styles go with
+   it — dead CSS for a deleted control is how the control comes back. */
 
 /* ═══════════════ 5 · BOTTOM SHEET ═══════════════ */
 .qlm-sheet-back {
@@ -516,8 +505,9 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 /* ═══════════════ 14 · MISC ═══════════════ */
 /* keep the shared form modal usable but push it to a sheet feel */
 .ql-modal { max-height: 92vh; }
-/* hide desktop-only floating helpers that clutter mobile */
-body.ql-v2 .dx-fab, body.ql-v2 .qx-fab-desktop { display: none !important; }
+/* The "+" FABs this used to hide are gone entirely now. Worth remembering WHY this
+   rule existed: it hid the "+" on phones and left it on desktop, which is exactly
+   how "remove this icon" stayed half-done and he kept seeing it "in some pages". */
 
 /* smooth momentum + tap feedback everywhere */
 * { -webkit-tap-highlight-color: transparent; }

@@ -143,14 +143,12 @@
 .dx-act-x{flex:1;min-width:0}.dx-act-t{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dx-act-s{font-size:11.5px;color:var(--ql-text-muted)}.dx-act-w{font-size:11.5px;color:var(--ql-text-muted);font-weight:500;flex:none}
 
-/* ── FAB ── */
-.dx-fab{position:fixed;right:26px;bottom:26px;z-index:50;display:flex;flex-direction:column;align-items:flex-end;gap:12px}
-.dx-fab-btn{width:56px;height:56px;border-radius:50%;border:none;background:var(--ql-brand-600);color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 12px 30px -6px rgba(37,99,235,.5);transition:transform .2s}
-.dx-fab-btn svg{width:24px;height:24px;transition:transform .25s}.dx-fab.open .dx-fab-btn{transform:rotate(45deg)}.dx-fab-btn:hover{transform:scale(1.06)}.dx-fab.open .dx-fab-btn:hover{transform:rotate(45deg) scale(1.06)}
-.dx-fab-menu{display:flex;flex-direction:column;gap:8px;opacity:0;transform:translateY(12px) scale(.96);pointer-events:none;transition:all .22s cubic-bezier(.34,1.56,.64,1);transform-origin:bottom right}
-.dx-fab.open .dx-fab-menu{opacity:1;transform:none;pointer-events:auto}
-.dx-fab-i{display:inline-flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--b);border-radius:12px;padding:10px 15px 10px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;box-shadow:var(--sh-h);white-space:nowrap}
-.dx-fab-i span{font-size:16px}.dx-fab-i:hover{border-color:var(--ql-brand-300);color:var(--ql-brand-700)}
+/* ── FAB: REMOVED ──
+   The "+" floating button is gone from the dashboard (dashboard.js). Its CSS is
+   deleted too rather than left orphaned: dead styles are how a removed thing comes
+   back — someone re-adds the class, it looks styled, and it ships. mobile.js
+   removed its own .qlm-fab "by request" and this one survived because it was a
+   SECOND copy of the same idea. Pinned by no-fab.test.js. */
 
 /* skeleton */
 .dx-sk{background:linear-gradient(90deg,#f1f5f9 25%,#e9eef4 50%,#f1f5f9 75%);background-size:200% 100%;animation:dxsk 1.3s infinite;border-radius:8px}
@@ -159,7 +157,7 @@
 /* ── responsive ── */
 @media(max-width:1180px){.dx-kpis,.dx-mks{grid-template-columns:repeat(3,1fr)}.dx-hero{grid-template-columns:1fr}.dx-fin{grid-template-columns:1fr 1fr}}
 @media(max-width:820px){.dx-mid{grid-template-columns:1fr}}
-@media(max-width:640px){.dx-kpis,.dx-mks{grid-template-columns:1fr 1fr}.dx-fin{grid-template-columns:1fr 1fr}.dx-h1{font-size:21px}.dx-fbar{padding:12px 2px}.dx-fbar-r{width:100%}.dx-range{flex:1}.dx-range button{flex:1;padding:6px 4px}.dx-kpi-sp{display:none}.dx-fab{right:16px;bottom:16px}}
+@media(max-width:640px){.dx-kpis,.dx-mks{grid-template-columns:1fr 1fr}.dx-fin{grid-template-columns:1fr 1fr}.dx-h1{font-size:21px}.dx-fbar{padding:12px 2px}.dx-fbar-r{width:100%}.dx-range{flex:1}.dx-range button{flex:1;padding:6px 4px}.dx-kpi-sp{display:none}}
 
 /* Dashboard month picker — calendar grid (matches the QLX month picker) */
 .dx-month-menu { position: fixed; background: var(--ql-card, #fff); border: 1px solid var(--ql-border); border-radius: 14px; box-shadow: var(--ql-shadow-lg); padding: 12px; width: 264px; animation: dxMmIn .13s var(--ql-ease-out, ease-out); }

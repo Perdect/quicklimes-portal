@@ -1,7 +1,7 @@
 /* QuickLimes v2 — service worker (installable PWA + offline shell).
    Local-first app: data lives in localStorage, so once the CSS/JS shell is cached
    the app opens offline. Never caches the /api backend or cross-origin requests. */
-const CACHE = 'ql-v2-cache-120';   // bumped: AI assistant welcome redesigned (chat-first, 4 suggestions, animated)
+const CACHE = 'ql-v2-cache-121';   // bumped: the '+' FAB removed everywhere (was hidden on mobile, left on desktop)
 
 self.addEventListener('install', () => self.skipWaiting());
 

@@ -58,7 +58,7 @@ table.rp-table { width: 100%; border-collapse: separate; border-spacing: 0; font
 
 /* ── print: clean paper report ── */
 @media print {
-  .sidebar, .topbar, .qlm-header, .qlm-bottomnav, .qlm-fab, .rp-act { display: none !important; }
+  .sidebar, .topbar, .qlm-header, .qlm-bottomnav, .rp-act { display: none !important; }
   .rp-table-wrap { box-shadow: none; border-color: #000; max-height: none; }
   .rp-scroll { max-height: none; overflow: visible; }
   .rp-table thead th { background: #eee !important; -webkit-print-color-adjust: exact; }

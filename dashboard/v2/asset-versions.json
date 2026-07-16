@@ -4,8 +4,8 @@
     "sha": "eb41cc0fca33"
   },
   "pages.css": {
-    "v": "m10",
-    "sha": "4fe5c8c80ad1"
+    "v": "m11",
+    "sha": "abf4d47a10a3"
   },
   "party-identity.js": {
     "v": "m27",
@@ -28,8 +28,8 @@
     "sha": "a2a87b4cb0c2"
   },
   "mobile.css": {
-    "v": "m7",
-    "sha": "dfd816685b63"
+    "v": "m8",
+    "sha": "5de4ee8a767f"
   },
   "wa-core.js": {
     "v": "w2",
@@ -84,12 +84,12 @@
     "sha": "707a2d4aedb9"
   },
   "dash.css": {
-    "v": "d2",
-    "sha": "317871318eaf"
+    "v": "d3",
+    "sha": "477547fb119b"
   },
   "dashboard.js": {
-    "v": "m19",
-    "sha": "9f01f60dd8c6"
+    "v": "m20",
+    "sha": "67ac768f07e5"
   },
   "finance.js": {
     "v": "ocr21",
@@ -196,8 +196,8 @@
     "sha": "bb28f8930d28"
   },
   "report.css": {
-    "v": "r1",
-    "sha": "06184dd3b2d4"
+    "v": "r2",
+    "sha": "72e239a818db"
   },
   "reports.css": {
     "v": "r1",

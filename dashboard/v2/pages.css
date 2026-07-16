@@ -726,18 +726,17 @@ body.ql-ai-open .ql-ai-fab { display: none; }          /* never cover the input 
 .ql-ai-fab svg { width: 18px; height: 18px; }
 .ql-ai-fab:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(37, 99, 235, .45); }
 .ql-ai-fab:focus-visible { outline: 3px solid var(--ql-brand-200, #c7d7fe); outline-offset: 2px; }
-/* A page with its own round "+" FAB (dashboard .dx-fab / register .qx-fab-desktop)
-   would otherwise sit UNDER the AI pill in the same corner. Park the AI pill to the
-   LEFT of it — not above, because the + menu expands upward. Vertically centred
-   against the 56px round button (26 bottom + (56−46)/2 = 31). */
-body:has(.dx-fab) .ql-ai-fab,
-body:has(.qx-fab-desktop) .ql-ai-fab { right: 94px; bottom: 31px; }
+/* The AI pill used to be shoved 94px left to make room for a round "+" FAB sharing
+   this corner. Both "+" FABs are gone (dashboard .dx-fab, register .qx-fab-desktop
+   — neither is rendered by anything now), so the pill sits where it belongs. This
+   rule is deleted rather than left as a harmless no-op: a :has() selector naming a
+   class that no longer exists is a standing invitation to re-add the class. */
 @media (max-width: 768px) {
   .ql-ai-fab { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); right: 14px; height: 42px; padding: 0 14px; }
-  /* the + FAB is hidden on mobile (mobile.css), so the AI pill returns to the
-     corner — same specificity as the :has() rule above so it actually wins */
-  body:has(.dx-fab) .ql-ai-fab,
-  body:has(.qx-fab-desktop) .ql-ai-fab { right: 14px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  /* The override that undid the desktop "make room for the +" rule is gone with the
+     + itself. Read together, these two rules were the whole bug in miniature: the
+     app knew the "+" was hidden on mobile and present on desktop, and encoded that
+     asymmetry in CSS instead of just deleting the button he kept asking about. */
 }
 .ql-ai-quote { background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); padding: 10px; font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin: 6px 0; white-space: pre-wrap; }
 .ql-ai-tip { font-size: var(--ql-text-xs); color: var(--ql-text-muted); }
