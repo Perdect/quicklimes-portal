@@ -478,17 +478,26 @@
   function addSale(e) {
     const d = dupCheck(e, S.SALES); if (d) return d;
     S.SALES.push({ ...e, date: toISODate(e.date) || e.date, status: e.status || 'pending' });
-    if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); else commit();
+    /* commit UNCONDITIONALLY. The old `if (e.party) upsertParty(...); else commit()`
+       delegated the invoice's save to upsertParty — which returns early WITHOUT
+       committing on a name under 2 chars. So a 1-char customer name pushed the
+       invoice into memory, skipped the commit, and the toast said "Invoice created"
+       while a reload showed it gone. The invoice must persist regardless of whether
+       the party name was savable. (commit is debounced, so the extra call upsertParty
+       makes when the name IS valid coalesces to one cloud write.) */
+    if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer');
+    commit();
     return { ok: true };
   }
-  function updateSale(i, e) { if (S.SALES[i]) { S.SALES[i] = { ...S.SALES[i], ...e }; if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); else commit(); } }
+  function updateSale(i, e) { if (S.SALES[i]) { S.SALES[i] = { ...S.SALES[i], ...e }; if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); commit(); } }
   function deleteSale(i, reason) { return softDelete('sales', i, reason); }
   function setSaleStatus(i, st, pay) { if (S.SALES[i]) { Object.assign(S.SALES[i], { status: st }, pay || {}); commit(); } }
   // Purchases
   function addPurchase(e) {
     const d = dupCheck(e, S.PURCHASES); if (d) return d;
     S.PURCHASES.push({ ...e, date: toISODate(e.date) || e.date, status: e.status || 'pending' });
-    if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); else commit();
+    if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier');
+    commit();   // unconditional — a too-short supplier name must not drop the bill (see addSale)
     return { ok: true };
   }
   /* Import a bill from GENERIC OCR/AI fields into the CORRECT register based on
@@ -496,7 +505,12 @@
      still lands in the right place. Returns the new row's index. */
   function importGenericBill(kind, g) {
     const num = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : 0; };
-    let rate = num(g.rate); if (!rate) rate = 5; if (rate > 0 && rate < 1) rate *= 100;
+    /* Default to 5% only when NO rate was given — not when it was given AS zero. The
+       old `if (!rate) rate = 5` treated an explicit 0% (nil-rated goods) as "missing"
+       and stamped 5% on it, fabricating ITC that does not exist: a nil ₹1,00,000 bill
+       imported as ₹1,05,000 with ₹5,000 of invented input credit. */
+    const rateGiven = g.rate != null && String(g.rate).trim() !== '';
+    let rate = num(g.rate); if (!rateGiven) rate = 5; if (rate > 0 && rate < 1) rate *= 100;
     let taxable = num(g.taxable); const total = num(g.total);
     if (!taxable && total) taxable = Math.round(total / (1 + rate / 100) * 100) / 100;
     const veh = (g.veh || '').toString().trim().toUpperCase();
@@ -511,7 +525,7 @@
     addPurchase({ bill: (g.docno || '').toString().trim(), date, sup: (g.name || '').toString().trim(), gstin, taxable, grate: rate, itc: g.itc || 'Eligible', veh, cat: cat || undefined, status: 'pending' });
     return S.PURCHASES.length - 1;
   }
-  function updatePurchase(i, e) { if (S.PURCHASES[i]) { S.PURCHASES[i] = { ...S.PURCHASES[i], ...e }; if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); else commit(); } }
+  function updatePurchase(i, e) { if (S.PURCHASES[i]) { S.PURCHASES[i] = { ...S.PURCHASES[i], ...e }; if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); commit(); } }
   function deletePurchase(i, reason) { return softDelete('purchase', i, reason); }
   function setPurchaseStatus(i, st, pay) { if (S.PURCHASES[i]) { Object.assign(S.PURCHASES[i], { status: st }, pay || {}); commit(); } }
   // Workers
