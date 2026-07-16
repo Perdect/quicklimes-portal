@@ -45,5 +45,54 @@ for (const asset of Object.keys(seen).sort()) {
 }
 ok(checked > 10, 'found the versioned assets to check (got ' + checked + ')');
 
+/* ══════════ THE OTHER HALF: a file that CHANGED must get a NEW ?v= ══════════
+   Agreement across pages is not enough. Ten files were edited in one session and
+   only one got a bumped version — so every page kept asking for the OLD url, and a
+   browser holding that url in cache keeps the OLD file. The specific way that bites:
+   reconcile.js came to depend on Q.monthLabel in data.js. Fetch the new reconcile.js
+   against a cached data.js?v=m28 that predates monthLabel, and monthName throws —
+   the month groups on Bank Reconciliation render nothing at all.
+
+   So: a manifest of content hashes. If a file's bytes changed and its ?v= did not,
+   fail and say so. Regenerate after bumping with:
+       node version-sync.test.js --update
+*/
+const MANIFEST = path.join(__dirname, 'asset-versions.json');
+const crypto = require('crypto');
+const sha = f => crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname, f))).digest('hex').slice(0, 12);
+
+const current = {};
+for (const asset of Object.keys(seen)) {
+  if (!fs.existsSync(path.join(__dirname, asset))) continue;    // externally hosted
+  current[asset] = { v: Object.keys(seen[asset])[0], sha: sha(asset) };
+}
+
+if (process.argv.includes('--update')) {
+  fs.writeFileSync(MANIFEST, JSON.stringify(current, null, 2) + '\n');
+  console.log('  ✎ asset-versions.json updated — ' + Object.keys(current).length + ' assets\n');
+  process.exit(0);
+}
+
+if (!fs.existsSync(MANIFEST)) {
+  fail++; console.log('  ❌ asset-versions.json is missing — run: node version-sync.test.js --update');
+} else {
+  const prev = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+  for (const asset of Object.keys(current).sort()) {
+    const p0 = prev[asset];
+    if (!p0) continue;                                          // a new file — nothing to compare
+    const changed = p0.sha !== current[asset].sha;
+    const bumped = p0.v !== current[asset].v;
+    ok(!changed || bumped,
+      asset + ' CHANGED but still ships as ?v=' + current[asset].v + '. Every page will keep asking for that ' +
+      'url, so a cached browser keeps the OLD file — and if another module now depends on something new in ' +
+      'this one, that page breaks with no error. Bump the ?v= on every page, then: node version-sync.test.js --update');
+    /* Bumping a version without touching the file is also wrong: it busts every
+       user's cache for nothing and hides which change actually shipped. */
+    ok(!bumped || changed,
+      asset + ' had its ?v= bumped to ' + current[asset].v + ' but its contents are identical — that evicts every ' +
+      'user\'s cache for no reason. Revert the bump, or run --update if this is a legitimate re-issue.');
+  }
+}
+
 console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + ' · ' + checked + ' assets\n');
 process.exit(fail ? 1 : 0);
