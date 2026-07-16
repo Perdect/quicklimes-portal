@@ -390,7 +390,14 @@ function importInvoices() {
     existing: () => new Set(Q.state.SALES.map(s => (s.inv || '').toString().toUpperCase()).filter(Boolean)),
     keyOf: s => s.inv ? s.inv.toUpperCase() : '',
     preview: { headers: ['Invoice', 'Date', 'Party', 'Qty', 'Taxable', 'GST%'], right: [3, 4, 5], row: s => [s.inv || '—', s.date || '—', s.party || '—', s.qty || '', Q.fC(s.qty * s.rate), s.gstR + '%'] },
-    add: (s, file) => { Q.addSale(s); if (file) { try { addAttach(Q.state.SALES.length - 1, file, 'Invoice'); } catch (_) {} } },
+    // Throws on a duplicate ON PURPOSE: bulk.js postOne() catches, marks the bill
+    // failed and shows the reason in its Failed tab. That is the importer's error
+    // channel; the add form uses `return false` instead. Same gate, both surfaces.
+    add: (s, file) => {
+      const r = Q.addSale(s);
+      if (r && r.ok === false) throw new Error(r.reason);
+      if (file) { try { addAttach(Q.state.SALES.length - 1, file, 'Invoice'); } catch (_) {} }
+    },
     // Jump the month filter to the imported invoice's month so it is VISIBLE
     // immediately (same fix as the purchase register).
     done: (n, lastBill) => {

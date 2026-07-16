@@ -437,12 +437,38 @@
     commit();
   }
   // Sales
-  function addSale(e) { S.SALES.push({ ...e, date: toISODate(e.date) || e.date, status: e.status || 'pending' }); if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); else commit(); }
+  /* THE GATE for ledger documents. Here, not at the call sites, because there are
+     several ways in (the add form, the bulk importer, the cross-register router)
+     and a check copied into each would drift — that is the bug this codebase keeps
+     producing (one company switch in eight pages, one waLink in seven).
+
+     Returns { ok:false, reason } instead of throwing: shell.js calls onSave OUTSIDE
+     a try/catch, so a throw there would leave the modal open with no message — a
+     silent failure, which is the one outcome worse than the duplicate. Callers that
+     want an exception (the bulk importer, which has a Failed tab) raise it
+     themselves. hydrate() pushes straight to S.SALES and is deliberately NOT gated:
+     that is the server's own data coming back, not an import. */
+  function dupCheck(e, existing) {
+    if (!(typeof ImportGuard !== 'undefined' && ImportGuard.docVerdict)) return null;   // page did not load the guard — import-guard-loaded.test.js pins that it does
+    const v = ImportGuard.docVerdict(e, existing);
+    return v.dup ? { ok: false, dup: true, of: v.of, amountDiffers: !!v.amountDiffers, reason: v.reason } : null;
+  }
+  function addSale(e) {
+    const d = dupCheck(e, S.SALES); if (d) return d;
+    S.SALES.push({ ...e, date: toISODate(e.date) || e.date, status: e.status || 'pending' });
+    if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); else commit();
+    return { ok: true };
+  }
   function updateSale(i, e) { if (S.SALES[i]) { S.SALES[i] = { ...S.SALES[i], ...e }; if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); else commit(); } }
   function deleteSale(i, reason) { return softDelete('sales', i, reason); }
   function setSaleStatus(i, st, pay) { if (S.SALES[i]) { Object.assign(S.SALES[i], { status: st }, pay || {}); commit(); } }
   // Purchases
-  function addPurchase(e) { S.PURCHASES.push({ ...e, date: toISODate(e.date) || e.date, status: e.status || 'pending' }); if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); else commit(); }
+  function addPurchase(e) {
+    const d = dupCheck(e, S.PURCHASES); if (d) return d;
+    S.PURCHASES.push({ ...e, date: toISODate(e.date) || e.date, status: e.status || 'pending' });
+    if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); else commit();
+    return { ok: true };
+  }
   /* Import a bill from GENERIC OCR/AI fields into the CORRECT register based on
      its detected kind — so a purchase uploaded on the Sales page (or vice-versa)
      still lands in the right place. Returns the new row's index. */

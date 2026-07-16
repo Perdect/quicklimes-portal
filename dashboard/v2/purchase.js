@@ -895,7 +895,11 @@ function importBills() {
     existing: () => new Set(Q.state.PURCHASES.filter(p => p.bill).map(dupKeyP)),
     keyOf: dupKeyP,
     preview: { headers: ['Bill', 'Date', 'Supplier', 'Group', 'Taxable', 'GST%'], right: [4, 5], row: p => [p.bill || '—', p.date || '—', p.sup || '—', (Q.purchaseGroups.find(g => g.key === p.group) || { label: p.cat || '—' }).label, Q.fC(p.taxable), p.grate + '%'] },
-    add: (p, file) => { Q.addPurchase(p); if (file) { try { addAttach(Q.state.PURCHASES.length - 1, file, 'Invoice'); } catch (_) {} } },
+    add: (p, file) => {
+      const r = Q.addPurchase(p);
+      if (r && r.ok === false) throw new Error(r.reason);
+      if (file) { try { addAttach(Q.state.PURCHASES.length - 1, file, 'Invoice'); } catch (_) {} }
+    },
     // After an import, JUMP the month filter to the imported bill's month —
     // otherwise a bill from another month is saved but invisible behind the
     // current filter, which reads as "uploaded but not showing in the table".

@@ -799,7 +799,16 @@
       title: editing ? 'Edit invoice' : 'New GST invoice', sub: 'Sales register',
       specs: SALE_SPECS, saveLabel: editing ? 'Save changes' : 'Create invoice',
       initial: row || { date: today(), product: 'Quick Lime', gstR: 5 },
-      onSave(v) { v.product = v.product || 'Quick Lime'; if (editing) window.QLD.updateSale(idx, v); else window.QLD.addSale(v); refresh(editing ? 'Invoice updated' : 'Invoice created'); }
+      onSave(v) {
+        v.product = v.product || 'Quick Lime';
+        if (editing) { window.QLD.updateSale(idx, v); refresh('Invoice updated'); return; }
+        // `return false` keeps the modal open (see the save handler) so the number
+        // can be corrected in place — the alternative is closing on a save that
+        // never happened, which is how "Saved" appeared over an empty table before.
+        const r = window.QLD.addSale(v);
+        if (r && r.ok === false) { toast(r.reason, 'err'); return false; }
+        refresh('Invoice created');
+      }
     });
   }
 
@@ -839,7 +848,12 @@
           isel.innerHTML = g.items.map(it => `<option value="${esc(it)}">${esc(it)}</option>`).join('');
         };
       },
-      onSave(v) { if (editing) window.QLD.updatePurchase(idx, v); else window.QLD.addPurchase(v); refresh(editing ? 'Bill updated' : 'Bill added'); }
+      onSave(v) {
+        if (editing) { window.QLD.updatePurchase(idx, v); refresh('Bill updated'); return; }
+        const r = window.QLD.addPurchase(v);
+        if (r && r.ok === false) { toast(r.reason, 'err'); return false; }
+        refresh('Bill added');
+      }
     });
   }
 
