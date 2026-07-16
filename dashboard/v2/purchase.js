@@ -877,12 +877,19 @@ function importBills() {
     dropTitle: 'Choose a file', dropSub: '.csv / .xlsx list, or a photo / PDF of one bill',
     tip: 'A spreadsheet imports many bills; a photo/PDF is read with OCR. A "Purchase Group / Item" column is auto-detected.',
     noun: 'bill', addLabel: 'Add Bill', accept: '.csv,.xlsx,.xls,.pdf,image/*,.zip', ocr: true,
-    ocrMap: { bill: 'docno', date: 'date', sup: 'name', gstin: 'gstin', taxable: 'taxable', total: 'total', grate: 'rate', group: 'group', item: 'item', itc: 'itc', veh: 'veh' },
+    /* qty + unit were MISSING here while sales.js:381 has had `qty: 'qty'` all
+       along. bill-ocr DOES read the tonnage off the bill (f.qty) — this map just
+       never carried it across, so every OCR-imported purchase landed with no
+       quantity and Inventory showed "Limestone 0 T" on ₹44,71,494 of real bills.
+       The 97.7 T of petcoke that DID show up came from the handful typed in by
+       hand on the form, which has always had a Qty field. Sales was right; purchase
+       dropped it on the floor. */
+    ocrMap: { bill: 'docno', date: 'date', sup: 'name', gstin: 'gstin', qty: 'qty', unit: 'unit', taxable: 'taxable', total: 'total', grate: 'rate', group: 'group', item: 'item', itc: 'itc', veh: 'veh' },
     errText: 'No usable bills found. Ensure Date, Supplier and a taxable/total column are mapped.',
     headerGroups: [['date', 'bill', 'invoice', 'voucher'], ['supplier', 'vendor', 'party', 'seller', 'name', 'amount', 'taxable', 'total']],
-    fields: [{ key: 'bill', label: 'Bill No.' }, { key: 'date', label: 'Date', required: true }, { key: 'sup', label: 'Supplier', required: true }, { key: 'gstin', label: 'GSTIN' }, { key: 'group', label: 'Purchase Group' }, { key: 'item', label: 'Purchase Item' }, { key: 'taxable', label: 'Taxable amount' }, { key: 'total', label: 'Total amount' }, { key: 'grate', label: 'GST %' }, { key: 'itc', label: 'ITC' }, { key: 'veh', label: 'Vehicle No.' }],
+    fields: [{ key: 'bill', label: 'Bill No.' }, { key: 'date', label: 'Date', required: true }, { key: 'sup', label: 'Supplier', required: true }, { key: 'qty', label: 'Quantity' }, { key: 'unit', label: 'Unit' }, { key: 'gstin', label: 'GSTIN' }, { key: 'group', label: 'Purchase Group' }, { key: 'item', label: 'Purchase Item' }, { key: 'taxable', label: 'Taxable amount' }, { key: 'total', label: 'Total amount' }, { key: 'grate', label: 'GST %' }, { key: 'itc', label: 'ITC' }, { key: 'veh', label: 'Vehicle No.' }],
     requireOneOf: [['taxable', 'total']],
-    autoMap: h => ({ bill: QLFin.colOf(h, 'bill no', 'invoice no', 'bill', 'invoice', 'voucher'), date: QLFin.colOf(h, 'bill date', 'invoice date', 'date'), sup: QLFin.colOf(h, 'supplier', 'vendor', 'seller', 'party', 'name'), gstin: QLFin.colOf(h, 'gstin', 'gst no', 'gst number'), group: QLFin.colOf(h, 'purchase group', 'group', 'category', 'head'), item: QLFin.colOf(h, 'purchase item', 'item', 'particular', 'description'), taxable: QLFin.colOf(h, 'taxable', 'basic', 'amount', 'value'), total: QLFin.colOf(h, 'invoice value', 'grand total', 'net amount', 'total'), grate: QLFin.colOf(h, 'gst %', 'gst%', 'gst rate', 'tax %', 'tax%', 'rate of tax', 'tax rate'), itc: QLFin.colOf(h, 'itc'), veh: QLFin.colOf(h, 'vehicle', 'vehicle no', 'truck', 'lorry', 'tt no', 'tanker') }),
+    autoMap: h => ({ qty: QLFin.colOf(h, 'qty', 'quantity', 'weight', 'tonne', 'ton', 'mt'), unit: QLFin.colOf(h, 'unit', 'uom'), bill: QLFin.colOf(h, 'bill no', 'invoice no', 'bill', 'invoice', 'voucher'), date: QLFin.colOf(h, 'bill date', 'invoice date', 'date'), sup: QLFin.colOf(h, 'supplier', 'vendor', 'seller', 'party', 'name'), gstin: QLFin.colOf(h, 'gstin', 'gst no', 'gst number'), group: QLFin.colOf(h, 'purchase group', 'group', 'category', 'head'), item: QLFin.colOf(h, 'purchase item', 'item', 'particular', 'description'), taxable: QLFin.colOf(h, 'taxable', 'basic', 'amount', 'value'), total: QLFin.colOf(h, 'invoice value', 'grand total', 'net amount', 'total'), grate: QLFin.colOf(h, 'gst %', 'gst%', 'gst rate', 'tax %', 'tax%', 'rate of tax', 'tax rate'), itc: QLFin.colOf(h, 'itc'), veh: QLFin.colOf(h, 'vehicle', 'vehicle no', 'truck', 'lorry', 'tt no', 'tanker') }),
     buildRow: get => {
       const sup = (get('sup') || '').toString().trim(), date = QLFin.parseDate(get('date'));
       let taxable = QLFin.parseNum(get('taxable')), total = QLFin.parseNum(get('total'));
@@ -892,7 +899,14 @@ function importBills() {
       let itc = 'Eligible'; const iv = (get('itc') || '').toString().toLowerCase().trim();
       if (/rcm/.test(iv)) itc = 'RCM'; else if (/inelig/.test(iv) || iv === 'no' || iv === 'n') itc = 'Ineligible';
       const raw = ((get('group') || '') + ' ' + (get('item') || '')).toLowerCase().trim();
+      /* Store the tonnage. A missing qty stays UNSET, not 0 — data.js coerces with
+         `p.qty || 0` downstream, so 0 and "never recorded" are already hard to tell
+         apart; writing a literal 0 here would make an unread bill indistinguishable
+         from a genuinely zero one forever. */
+      const qty = QLFin.parseNum(get('qty'));
+      const unit = (get('unit') || '').toString().trim();
       const out = { bill: (get('bill') || '').toString().trim(), date: date || '', sup, gstin: (get('gstin') || '').toString().trim().toUpperCase(), taxable: +(taxable || 0), grate, itc, veh: (get('veh') || '').toString().trim().toUpperCase(), status: 'pending' };
+      if (qty > 0) { out.qty = qty; if (unit) out.unit = unit; if (taxable) out.rate = Math.round(taxable / qty * 100) / 100; }
       if (raw) { out.cat = raw; const gm = Q.purchaseGroups.find(g => raw.includes(g.label.toLowerCase()) || g.items.some(it => raw.includes(it.toLowerCase()))); if (gm) { out.group = gm.key; out.item = gm.items.find(it => raw.includes(it.toLowerCase())) || gm.items[0]; } }
       return out;
     },
