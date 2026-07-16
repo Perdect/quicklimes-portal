@@ -14,8 +14,20 @@
 .dx-t-amber{color:#d97706;background:#fff8ec}.dx-t-red{color:#dc2626;background:#fef2f2}
 
 /* ── sticky filter bar ── */
+/* SOLID, not frosted. This was rgba(249,250,251,.82) + backdrop-filter — a glass
+   bar. backdrop-filter silently does nothing in several real cases (a parent with
+   its own filter/transform/opacity creates a containing block and kills it), and
+   what is left is an 82%-transparent header with the page scrolling THROUGH it:
+   "Manufacturing performance" reading straight over "Dashboard". A header must
+   always occlude what passes under it, so it cannot depend on an effect that may
+   not apply. Two bugs in one line — the colour was also hardcoded LIGHT, so the bar
+   stayed pale in dark mode. --ql-bg follows the theme. */
 .dx-fbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;
-  padding:14px 2px;margin-bottom:6px;background:rgba(249,250,251,.82);backdrop-filter:saturate(1.4) blur(10px);flex-wrap:wrap}
+  padding:14px 2px;margin-bottom:6px;background:var(--ql-bg);flex-wrap:wrap}
+/* A hairline under it once the page has moved, so the bar reads as a layer rather
+   than as text floating over content. */
+.dx-fbar::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--ql-border);opacity:0;transition:opacity .15s}
+.dx-fbar.is-stuck::after{opacity:1}
 .dx-fbar-l{display:flex;align-items:baseline;gap:12px}
 .dx-h1{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:0}
 .dx-fbar-co{font-size:13px;color:var(--ql-text-muted);font-weight:500}

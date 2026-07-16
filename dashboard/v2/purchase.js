@@ -48,6 +48,46 @@ async function addAttach(idx, file, kind) {
 async function openAttach(idx, id, dl) { const a = (Q.state.PURCHASES[idx].attach || []).find(x => x.id === id); if (!a) return; const b = await aOp('readonly', st => st.get(a.id)); if (!b) { toast('File not found in this browser', 'err'); return; } const url = URL.createObjectURL(b); if (dl) { const x = document.createElement('a'); x.href = url; x.download = a.name; x.click(); } else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 4000); }
 async function delAttach(idx, id) { const p = Q.state.PURCHASES[idx]; Q.updatePurchase(idx, { attach: (p.attach || []).filter(a => a.id !== id) }); try { await aOp('readwrite', st => st.delete(id)); } catch (_) {} QLX.refresh(); }
 
+/* ── freight, edited in place ─────────────────────────────────
+   Deliberately a plain prompt rather than an inline <input>: the table re-renders
+   on every refresh, and an input living inside a cell that gets replaced loses what
+   you typed. That focus-loss bug has already been fixed once in the invoice builder;
+   there is no reason to rebuild it here for a single number. */
+/* Delegated from the document, NOT bound per cell. qlx re-renders the whole table
+   on every refresh, sort and filter, so anything bound to a cell is dead the moment
+   the user sorts. qlx has no hook for a page to wire its own cell controls (it wires
+   only its own data-st / data-act / data-more), and adding one would touch the
+   engine every register runs on. Delegation costs nothing and cannot go stale.
+   stopPropagation because qlx's row handlers sit above this. */
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-fr]');
+  if (!b) return;
+  e.stopPropagation(); e.preventDefault();
+  editFreight(+b.dataset.fr);
+});
+
+function editFreight(idx) {
+  const p = Q.state.PURCHASES[idx];
+  if (!p) return;
+  if ((p.freightPays || []).length) {
+    toast('This bill has freight payments recorded — open it and use the Freight tab', 'warn');
+    return;
+  }
+  const cur = +p.freightAmt || 0;
+  const v = prompt('Freight paid on bill ' + (p.bill || '') + ' (' + (p.sup || '') + ')\n\nEnter the amount in ₹. Leave blank to clear.', cur > 0 ? cur : '');
+  if (v === null) return;                       // cancelled — not the same as "clear"
+  const t = v.toString().trim();
+  if (t === '') { Q.updatePurchase(idx, { freightAmt: 0 }); toast('Freight cleared'); QLX.refresh(); return; }
+  const n = QLFin.parseNum(t);
+  /* Refuse junk rather than storing 0 — a silent 0 would read as "no freight",
+     which is a different fact from "I typed something wrong". */
+  if (!(n > 0)) { toast('“' + t + '” is not an amount — nothing saved', 'err'); return; }
+  Q.updatePurchase(idx, { freightAmt: n });
+  const row = Q.purchaseRows().find(r => r.idx === idx);
+  toast('Freight ' + fC(n) + ' · landed cost ' + fC(row ? row.landed : 0), 'ok');
+  QLX.refresh();
+}
+
 /* ── read the tonnage back off the bills already uploaded ──────
    The Qty column dashes on old bills because the importer dropped the number the
    OCR had already read. The BILLS are still in IndexedDB, so it is recoverable —
@@ -776,10 +816,22 @@ QLX.mount({
     // separately), so landed cost was invisible in the table. freightAmt is
     // computed by purchaseRows FROM the freight payments themselves, so this
     // can never disagree with the drawer's Freight tab or the landed cost.
+    /* EDITABLE IN PLACE. Freight was only reachable through the drawer's Freight
+       tab, so the column was a row of dashes you could look at and not fix. Click
+       it and type the amount.
+
+       BUT: a bill with freight PAYMENTS recorded is not editable here, and that is
+       deliberate, not a limitation. data.js:939 — payments supersede the manual
+       number ("payments are the truth"). Writing freightAmt on such a bill would be
+       silently ignored: the cell would show the old figure and the user would think
+       the app had lost their edit. It says so instead and sends them to the tab
+       that owns it. */
     { key: 'freightAmt', label: 'Freight', sort: true, num: true,
-      cell: r => r.freightAmt > 0
-        ? `<span class="qx-num" title="${(r.freightPays || []).map(f => esc(f.paidTo || 'transporter')).join(', ')}">${fC(r.freightAmt)}</span>`
-        : '<span class="qx-mut">—</span>' },
+      cell: r => {
+        const paid = (r.freightPays || []).length;
+        if (paid) return `<span class="qx-num" title="${paid} freight payment${paid > 1 ? 's' : ''} — edit in the bill's Freight tab">${fC(r.freightAmt)} <span class="qx-mut" style="font-size:10px">·${paid}</span></span>`;
+        return `<button class="pfr-edit" data-fr="${r.idx}" title="Click to set the freight paid on this bill">${r.freightAmt > 0 ? fC(r.freightAmt) : '<span class="qx-mut">— add</span>'}</button>`;
+      } },
     { key: 'status', label: 'Status', sort: true, cell: stCell },
     { key: 'dueDate', label: 'Due Date', hidden: true, cell: r => `<span class="qx-mut">${r.dueDate ? fDS(r.dueDate) : '—'}</span>` },
     { key: 'createdBy', label: 'Created By', hidden: true, cell: r => `<span class="qx-mut">${esc(r.createdBy)}</span>` },

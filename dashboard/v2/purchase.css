@@ -20,7 +20,7 @@
 @media (max-width: 640px) { .prc { grid-template-columns: repeat(2, 1fr); } .lcard-v { font-size: 21px; } }
 
 /* ── Filter bar (tab-style, sticky) ── */
-.prf { position: sticky; top: 8px; z-index: 20; background: rgba(255, 255, 255, .92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid #eef1f6; border-radius: 14px; padding: 8px 10px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
+.prf { position: sticky; top: 8px; z-index: 20; background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px; padding: 8px 10px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
 .prf-main { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .prf-tabs { display: flex; gap: 2px; flex-wrap: wrap; }
 .prf-tab { border: 0; background: transparent; padding: 8px 14px; border-radius: 9px; font: 600 13.5px Inter; color: #667085; cursor: pointer; transition: all .12s; }
@@ -170,3 +170,10 @@ table.prt td { padding: 15px 16px; border-bottom: 1px solid #f2f4f7; color: #101
 
 /* honor the hidden attribute over display rules */
 .prf-adv[hidden], .prf-btn[hidden], .prf-cols-menu[hidden], .pex-form[hidden] { display: none !important; }
+
+/* Freight cell: a real control. It must LOOK editable or nobody will click it —
+   the column was a row of dashes people looked at and never touched. */
+.pfr-edit { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ql-text);
+  background: transparent; border: 1px dashed var(--ql-border); border-radius: 7px;
+  padding: 2px 8px; cursor: pointer; transition: all .12s; font-variant-numeric: tabular-nums; }
+.pfr-edit:hover { border-color: var(--ql-brand-600); border-style: solid; color: var(--ql-brand-600); background: var(--ql-brand-50); }
