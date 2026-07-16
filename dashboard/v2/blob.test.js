@@ -57,6 +57,9 @@ const SAMPLE = {
   WORK_LOG: [{ d: 1 }], TDS: [{ t: 1 }], CHALLANS: [{ c: 1 }], PARTIES: [{ name: 'ARIF' }],
   CASHBOOK: [{ id: 'cb1' }], CHUNNA: [{ c: 1 }], PROD: [{ p: 1 }], AUDIT: [{ a: 1 }],
   REFUNDS: [{ r: 1 }], BANK_ACCOUNTS: [{ id: 'A1' }],
+  // Statement upload history — per bank account. Without it a bank card
+  // cannot say when it was last updated and a re-upload cannot be detected.
+  STATEMENTS: [{ id: 'ST1', accountId: 'A1', file: 'hdfc-jan.pdf', rows: 196, sha: 'abc' }],
 };
 function fill() {
   ctx.clearState();
@@ -78,6 +81,8 @@ eq('purchases survive', ctx.S.PURCHASES.length, 1);
 eq('parties survive', ctx.S.PARTIES.length, 1);
 eq('cashbook survives', ctx.S.CASHBOOK.length, 1);
 eq('bank accounts survive', ctx.S.BANK_ACCOUNTS.length, 1);
+eq('statement history survives — a bank card reads its "last upload" from this', ctx.S.STATEMENTS.length, 1);
+eq('...with the content hash intact (re-upload detection depends on it)', (ctx.S.STATEMENTS[0] || {}).sha, 'abc');
 eq('attendance survives', JSON.stringify(ctx.S.ATT['2026-01']), JSON.stringify({ w1: 'P' }));
 eq('finance survives', ctx.S.FINANCE.accounts.length, 1);
 eq('reconcile txns survive', ctx.S.RECON.txns.length, 1);

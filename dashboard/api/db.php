@@ -198,6 +198,10 @@ function ql_blob_caps() {
     // said to them. Sales-only. Was missing, so any logged-in employee could
     // read the whole customer conversation log.
     'wa' => 'sales',
+    // Statement upload history: which bank, which file, which period, who
+    // uploaded it. It names the firm's bank accounts and its statement periods,
+    // so it belongs with the money detail — same capability as bankAccounts.
+    'statements' => 'finance',
   ];
 }
 

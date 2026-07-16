@@ -113,6 +113,12 @@ $EXPECTED = [
   'prod'         => 'production',
   'audit'        => 'reports',
   'wa'           => 'sales',      // customers' numbers + what was said to them
+  // Statement upload history: which bank account, which file, which period, and
+  // who uploaded it. It names the firm's bank accounts and the periods its money
+  // moved in, so it is money detail — 'finance', the same as bankAccounts and
+  // never 'recon': a recon-only role may work the matching screen without being
+  // handed the list of the firm's accounts and their statement history.
+  'statements'   => 'finance',
 ];
 foreach ($EXPECTED as $key => $want) {
   ok("'$key' is gated on '$want' exactly" . ($want === 'labour' ? ' (wages — never sales/production)' : ''),

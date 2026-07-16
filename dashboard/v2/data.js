@@ -189,7 +189,13 @@
     TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: [], PROD: [], AUDIT: [], REFUNDS: [],
     FINANCE: null,
     RECON: { txns: [] },      // bank-statement reconciliation (per company)
-    BANK_ACCOUNTS: []         // first-class bank accounts within THIS firm (multi-bank)
+    BANK_ACCOUNTS: [],        // first-class bank accounts within THIS firm (multi-bank)
+    /* Statement uploads, one record per file, scoped to a bank account.
+       Nothing recorded this before: the recon page could show WHAT was imported
+       but never WHEN, BY WHOM, or FROM WHICH FILE. That is why a bank card cannot
+       say "last upload", why there is no history to re-import from, and why the
+       same statement can be uploaded twice with only per-row dedupe to catch it. */
+    STATEMENTS: []
   };
   // Finance + GST Portal state (bank txns, GST tracking, CA docs metadata).
   // Lives inside the per-company blob so it persists locally and syncs to
@@ -265,6 +271,7 @@
     // history across companies — the same isolation failure as ql_data_*.
     S.WA = { cfg: {}, log: [] };
     S.BANK_ACCOUNTS.length = 0;
+    S.STATEMENTS.length = 0;
   }
   function hydrate(d) {
     if (!d) return;
@@ -285,6 +292,7 @@
     if (d.finance)   S.FINANCE = normalizeFinance(d.finance);
     if (d.reconcile && Array.isArray(d.reconcile.txns)) S.RECON = d.reconcile;
     if (Array.isArray(d.bankAccounts)) S.BANK_ACCOUNTS.push(...d.bankAccounts);
+    if (Array.isArray(d.statements)) S.STATEMENTS.push(...d.statements);
     // The WhatsApp send log IS the dedupe memory — without restoring it, every
     // reload forgets what was already sent and a customer gets chased twice.
     if (d.wa && typeof d.wa === 'object') S.WA = { cfg: d.wa.cfg || {}, log: Array.isArray(d.wa.log) ? d.wa.log : [] };
@@ -369,6 +377,7 @@
       cashbook: S.CASHBOOK, chunna: S.CHUNNA, prod: S.PROD, audit: S.AUDIT, refunds: S.REFUNDS, finance: S.FINANCE || defaultFinance(),
       reconcile: S.RECON || { txns: [] },
       bankAccounts: S.BANK_ACCOUNTS,
+      statements: S.STATEMENTS,
       // blob() is an explicit WHITELIST: a store missing from this list is
       // never saved and silently dies on reload. The WhatsApp send log is the
       // DEDUPE MEMORY — lose it and a customer gets chased twice for the same
@@ -1328,6 +1337,68 @@
       openingDate: (a.openingDate != null ? a.openingDate : p.openingDate || '').toString().trim()
     };
   }
+  /* ── Statement uploads ──────────────────────────────────────────
+     One record per imported file, scoped to a bank account. Nothing recorded
+     this before, so a bank card could not say when it was last updated, there
+     was no history to re-import from, and the same PDF could be imported twice
+     with only per-row dedupe standing in the way.
+
+     This is a LOG of what was imported, not the transactions themselves — those
+     stay in S.RECON.txns keyed by accountId. Deleting a statement record must
+     therefore never be assumed to delete its rows; that is a separate decision
+     and deliberately not implemented here. */
+  function addStatement(s) {
+    s = s || {};
+    const rec = {
+      id: 'ST' + idStamp(),
+      accountId: (s.accountId || '').toString(),
+      file: (s.file || '').toString(),
+      rows: +s.rows || 0,
+      from: (s.from || '').toString(),        // ISO — earliest txn date in the file
+      to: (s.to || '').toString(),            // ISO — latest
+      uploadedAt: nowISO(),
+      uploadedBy: (QL_PLANT && (QL_PLANT.owner_name || QL_PLANT.user_name)) || '',
+      sha: (s.sha || '').toString()           // content hash, for exact re-upload detection
+    };
+    S.STATEMENTS.push(rec);
+    logAudit('create', 'statement', rec, { ref: rec.file });
+    commit();
+    return rec;
+  }
+  function statementRows(accountId) {
+    return S.STATEMENTS
+      .filter(s => !accountId || s.accountId === accountId)
+      .slice()
+      .sort((a, b) => (b.uploadedAt || '').localeCompare(a.uploadedAt || ''));
+  }
+  function lastStatement(accountId) { return statementRows(accountId)[0] || null; }
+  function removeStatement(id) {
+    const i = S.STATEMENTS.findIndex(s => s.id === id);
+    if (i < 0) return false;
+    /* The imported TRANSACTIONS are not touched. Removing the log entry while
+       silently deleting a month of reconciled bank lines would destroy work with
+       no warning — if the rows should go too, that must be asked, not assumed. */
+    logAudit('delete', 'statement', S.STATEMENTS[i], { ref: S.STATEMENTS[i].file });
+    S.STATEMENTS.splice(i, 1); commit();
+    return true;
+  }
+
+  /* Would this upload duplicate or overlap what is already in? Returns a verdict
+     for the UI to SHOW — it never blocks by itself. A firm re-importing a
+     corrected statement is doing something legitimate; the job here is to make
+     sure they know what they are about to do, not to decide for them. */
+  function statementConflict(accountId, o) {
+    o = o || {};
+    const mine = statementRows(accountId);
+    const exact = o.sha ? mine.find(s => s.sha && s.sha === o.sha) : null;
+    if (exact) return { kind: 'duplicate', of: exact, msg: 'This exact file was already imported on ' + fDS(exact.uploadedAt.slice(0, 10)) + ' (' + exact.rows + ' rows).' };
+    if (o.from && o.to) {
+      const hit = mine.find(s => s.from && s.to && !(o.to < s.from || o.from > s.to));
+      if (hit) return { kind: 'overlap', of: hit, msg: 'Dates overlap "' + hit.file + '" (' + fDS(hit.from) + ' – ' + fDS(hit.to) + '). Rows already imported are skipped automatically.' };
+    }
+    return { kind: 'none' };
+  }
+
   function addBankAccount(a) {
     const acc = Object.assign({ id: 'BA' + idStamp(), archived: false, createdAt: nowISO() }, _cleanBankAccount(a || {}));
     S.BANK_ACCOUNTS.push(acc);
@@ -1929,6 +2000,7 @@
     // ── Bank accounts (multi-bank) ──
     BANK_TYPES, bankAccounts, bankAccountById, bankAccountLabel,
     addBankAccount, updateBankAccount, setBankAccountArchived,
+    addStatement, statementRows, lastStatement, removeStatement, statementConflict,
 
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal, wipeData,
