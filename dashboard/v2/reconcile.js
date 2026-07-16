@@ -1036,6 +1036,19 @@ function openUpload() {
   const go = async (f, password) => {
     if (!f) return;
     msg.innerHTML = `<div class="rc-loading">${password ? 'Unlocking' : 'Reading'} <b>${esc(f.name)}</b>…</div>`;
+
+    /* Checked BEFORE parsing, so re-uploading a locked statement is refused
+       without asking for its password again. */
+    const sha = await sha256(f);
+    const fv = ImportGuard.fileVerdict(sha, Q.statementRows ? Q.statementRows() : []);
+    if (fv.dup) {
+      const on = fv.of.uploadedAt ? new Date(fv.of.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+      msg.innerHTML = `<div class="rc-err"><b>Upload failed — this file is already imported.</b><br>
+        The same file was uploaded as <b>${esc(fv.of.file || 'a statement')}</b>${on ? ' on ' + esc(on) : ''}${fv.of.rows ? ' (' + fv.of.rows + ' transactions)' : ''}.
+        Renaming a file does not make it a new statement.</div>`;
+      return;
+    }
+
     let parsed;
     try { parsed = await parseBankFile(f, password); }
     catch (e) {
@@ -1043,20 +1056,50 @@ function openUpload() {
       msg.innerHTML = `<div class="rc-err">${esc(e.message || 'Could not read this file. Export it as CSV or Excel and try again.')}</div>`; return;
     }
     if (!parsed.length) { msg.innerHTML = `<div class="rc-err">No transactions found. Make sure the file has Date and Debit/Credit columns (or export as CSV).</div>`; return; }
-    askAccount(f, parsed);
+    askAccount(f, parsed, sha);
   };
-  const finishImport = parsed => {
-    Q.recon.txns.push(...parsed); runMatchAll();
-    const matched = parsed.filter(t => isLinked(t)).length;
-    close(); render(); toast('Imported ' + parsed.length + ' transactions · ' + matched + ' auto-matched', 'ok');
+  /* SHA-256 of the file's BYTES. Renaming "statement.pdf" to "statement (1).pdf"
+     does not change it, which is the point — that rename is exactly how the same
+     statement gets imported twice. Needs a secure context (https/localhost); if
+     crypto.subtle is missing we return '' and ImportGuard treats "no hash" as
+     "cannot be certain" → the upload proceeds rather than being wrongly blocked. */
+  const sha256 = async f => {
+    try {
+      if (!(crypto && crypto.subtle && f.arrayBuffer)) return '';
+      const h = await crypto.subtle.digest('SHA-256', await f.arrayBuffer());
+      return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (_) { return ''; }
+  };
+
+  const finishImport = (parsed, f, sha) => {
+    /* THE GATE. Previously every parsed row was pushed and runMatchAll() then
+       BADGED the repeats "Duplicate" — which is why one PRINCE LIME payment sat
+       in the books three times. A badge is not a gate. Screen first, store after.
+       Only a repeated reference drops (see import-guard.js); anything less certain
+       is still imported and flagged, because a customer really can pay the same
+       amount twice in one day and deleting the second would lose real money. */
+    const scr = ImportGuard.screenTxns(parsed, Q.recon.txns);
+    if (!scr.keep.length) {
+      msg.innerHTML = `<div class="rc-err"><b>Nothing new to import.</b><br>All ${parsed.length} transaction${parsed.length === 1 ? '' : 's'} in this file ${parsed.length === 1 ? 'is' : 'are'} already in your books.</div>`;
+      return;
+    }
+    Q.recon.txns.push(...scr.keep); runMatchAll();
+    const matched = scr.keep.filter(t => isLinked(t)).length;
+    if (Q.addStatement && f) {
+      const ds = scr.keep.map(t => t.date).filter(Boolean).sort();
+      Q.addStatement({ accountId: scr.keep[0].accountId || '', file: f.name, rows: scr.keep.length, from: ds[0] || '', to: ds[ds.length - 1] || '', sha: sha || '' });
+    }
+    close(); render();
+    toast('Imported ' + scr.keep.length + ' transactions · ' + matched + ' auto-matched'
+      + (scr.dropped.length ? ' · ' + scr.dropped.length + ' already imported, skipped' : ''), 'ok');
   };
   // Phase 2 (multi-bank): every statement imports INTO an account. detectBank
   // pre-selects the matching one; the user can pick another or create one
   // inline. "Continue without account" preserves the single-bank behaviour.
-  const askAccount = (f, parsed) => {
+  const askAccount = (f, parsed, sha) => {
     const accounts = (Q.bankAccounts ? Q.bankAccounts() : []);
     const detected = parsed[0].bank || '';
-    if (!accounts.length && !detected) { finishImport(parsed); return; }   // nothing to choose from — behave like today
+    if (!accounts.length && !detected) { finishImport(parsed, f, sha); return; }   // nothing to choose from — behave like today
     const dl = detected.toLowerCase();
     const hit = accounts.find(a => { const ab = (a.bank || '').toLowerCase(); return dl && ab && (ab.includes(dl) || dl.includes(ab)); })
       || accounts.find(a => dl && (a.label || '').toLowerCase().includes(dl));
@@ -1081,7 +1124,7 @@ function openUpload() {
     </div>`;
     const sel = document.getElementById('rcAccSel');
     sel.onchange = () => { document.getElementById('rcAccNew').style.display = sel.value === '__new' ? 'flex' : 'none'; };
-    document.getElementById('rcAccSkip').onclick = e => { e.preventDefault(); finishImport(parsed); };
+    document.getElementById('rcAccSkip').onclick = e => { e.preventDefault(); finishImport(parsed, f, sha); };
     document.getElementById('rcAccGo').onclick = () => {
       let accId = sel.value;
       if (accId === '__new') {
@@ -1091,7 +1134,7 @@ function openUpload() {
         accId = acc.id;
       }
       parsed.forEach(t => { t.accountId = accId; });
-      finishImport(parsed);
+      finishImport(parsed, f, sha);
     };
   };
   file.onchange = () => go(file.files[0]);
