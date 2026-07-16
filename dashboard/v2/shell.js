@@ -1320,24 +1320,40 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       if (tools) tools.remove();
       renderNotifications();
     } else {
-      $('qlDrawerTitle').innerHTML = `<span class="ql-ai-hicon">${AI_MARK}</span>Business Assistant`;
+      /* "Business AI Assistant", with a live dot — it says the assistant is
+         connected to THIS company's books right now, the way a chat app tells you
+         someone is online. */
+      $('qlDrawerTitle').innerHTML = `<span class="ql-ai-hicon">${AI_MARK}</span>`
+        + `<span class="ql-ai-hname">Business AI Assistant<span class="ql-ai-live" title="Connected to your live books"></span></span>`;
       if (!tools) {
         tools = document.createElement('div');
         tools.id = 'qlAiTools'; tools.className = 'ql-ai-tools';
-        tools.innerHTML = `<button class="ql-ai-ib" id="qlAiNew" title="New chat">${ICO.plus}</button>
-          <button class="ql-ai-ib" id="qlAiHist" title="Conversation history">${ICO.hist}</button>
-          <button class="ql-ai-ib" id="qlAiTheme" title="Light / dark">${ICO.theme}</button>`;
+        /* Home comes FIRST and is the way back: once you ask something the
+           suggestions are gone and there was no route back to them — "how can I go
+           back or home of AI assistant". It is hidden on the welcome screen itself,
+           because a Home button on Home is furniture.
+
+           The theme toggle is REMOVED. It set the theme for the WHOLE app from
+           inside a side panel — a global switch hidden in a corner nobody would look
+           for, and the app has no dark-mode setting anywhere else to match it. If
+           dark mode ships as a real preference it belongs in Settings, once. */
+        tools.innerHTML = `<button class="ql-ai-ib" id="qlAiHome" title="Back to suggestions">${ICO.home}</button>
+          <button class="ql-ai-ib" id="qlAiNew" title="New chat">${ICO.plus}</button>
+          <button class="ql-ai-ib" id="qlAiHist" title="Conversation history">${ICO.hist}</button>`;
         head.insertBefore(tools, head.querySelector('.ql-drawer-x'));
       }
       renderAssistant();
       $('qlAiNew').onclick = () => convNew();
       $('qlAiHist').onclick = () => { if (!_histOpen) convTouch(); _histOpen = !_histOpen; _histQ = ''; renderAssistant(); };
-      $('qlAiTheme').onclick = () => {
-        const root = document.documentElement;
-        const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        root.setAttribute('data-theme', next);
-        try { localStorage.setItem('ql_theme', next); } catch (_) {}
-        toast(next === 'dark' ? 'Dark mode on' : 'Light mode on');
+      /* HOME — back to the suggestions, without discarding the conversation. It
+         closes history if that is what is open, otherwise it parks the current chat
+         (convNew keeps it in history) and returns to the welcome screen. Distinct
+         from "New chat" in intent even when the mechanics overlap: New says "start
+         again", Home says "show me the options". */
+      const hb = $('qlAiHome');
+      if (hb) hb.onclick = () => {
+        if (_histOpen) { _histOpen = false; renderAssistant(); return; }
+        convNew();
       };
     }
   }
@@ -1524,6 +1540,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
   const ICO = {
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
     hist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>',
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.8"/></svg>',
     theme: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
     copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
     redo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>',
@@ -1567,12 +1584,22 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       </div>
     </div>`;
   }
+  /* ONE place decides whether Home is offered, called from every path that can
+     change the answer. I first put this in the drawer-open path (runs once) and then
+     in renderAssistant (does not run when you merely ask) — so the button stayed
+     hidden at the exact moment it was needed, which is the whole feature. Asking goes
+     through paintLog; opening history goes through renderAssistant. Both call this. */
+  function syncHome() {
+    const hb = $('qlAiHome');
+    if (hb) hb.hidden = !(_assistLog.length || _histOpen);
+  }
   function paintLog() {
     const log = $('qlAiLog'); if (!log) return;
     log.innerHTML = _assistLog.length
       ? _assistLog.map((m, i) => msgHTML(m, i)).join('')
       : welcomeHTML();
     log.scrollTop = log.scrollHeight;
+    syncHome();
   }
   function renderAssistant() {
     const co = (window.QLD && QLD.co && QLD.co.short) || '';
@@ -1591,6 +1618,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
         <textarea id="qlAiInput" rows="1" placeholder="Ask anything about your business…" autocomplete="off" aria-label="Ask the assistant"></textarea>
         <button class="ql-ai-send" id="qlAiSend" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
       </div>`;
+    syncHome();
     if (!_histOpen) paintLog();
     wireAssistant();
     wireVoice();

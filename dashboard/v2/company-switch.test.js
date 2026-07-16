@@ -82,7 +82,14 @@ const stripComments = s => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])
 const mob = stripComments(read('mobile.js'));
 ok(/\.switchCompany\s*\(/.test(mob), 'mobile.js: no company switcher — a phone user cannot change company at all');
 ok(/\.COMPANIES\b/.test(mob), 'mobile.js: never reads the company list');
-ok(/['"]qlmCo['"]|id="qlmCo"/.test(mob), 'mobile.js: no company chip in the mobile header');
+/* The header CHIP is gone by request — it printed the company name directly above
+   the page's own welcome line, which says it again. What must survive is the
+   ABILITY, not the widget: the More sheet carries "Switch company · <name>". This
+   assertion used to name the chip, which made it a test of one design rather than of
+   the capability — it failed the moment the design changed, while the capability was
+   never at risk. Assert the thing that would actually hurt a phone user to lose. */
+ok(/Switch company/.test(mob), 'mobile.js: a phone user can still reach the company switcher (More sheet)');
+ok(/openCoSwitch/.test(mob), '  and the switcher itself is still wired');
 ok(/__qlOnSwitchCompany\s*\(/.test(mob),
   'mobile.js: switches without telling the page to redraw — the screen would keep the old company\'s figures');
 ok(/length\s*<\s*2/.test(mob) || /length\s*>\s*1/.test(mob),

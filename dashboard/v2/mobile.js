@@ -111,7 +111,6 @@
       `<button class="qlm-h-back" id="qlmBack" aria-label="Back">${IC.back}</button>
        <div class="qlm-h-titles">
          <div class="qlm-h-title" id="qlmTitle">QuickLimes</div>
-         <button class="qlm-h-co" id="qlmCo" hidden></button>
        </div>
        <div class="qlm-h-actions">
          <button class="qlm-h-btn" id="qlmSearch" aria-label="Search">${IC.search}</button>
@@ -144,7 +143,10 @@
     $('qlmSearch').onclick = () => window.QLShell && QLShell.openPalette();
     $('qlmBell').onclick = () => window.QLShell && QLShell.openNotifications();
     $('qlmAvatar').onclick = openProfileSheet;
-    $('qlmCo').onclick = openCoSwitch;
+    /* The #qlmCo chip is gone from the header (see paintCo). Binding a click to an
+       element that no longer exists throws on the very next line — which is exactly
+       how paintAvatarLetter took out sixteen callers today. openCoSwitch is still
+       reached from the More sheet's "Switch company". */
     $('qlmBack').onclick = () => history.length > 1 ? history.back() : (location.href = 'dashboard.html');
     bindTabs(nav);
     wirePullToRefresh();
@@ -165,13 +167,18 @@
     const Q = window.QLD;
     return (Q && Q.COMPANIES) ? Object.values(Q.COMPANIES) : [];
   }
-  function paintCo() {
-    const btn = $('qlmCo'); if (!btn) return;
-    const Q = window.QLD, list = coList();
-    if (!Q || !Q.co || list.length < 2) { btn.hidden = true; return; }
-    btn.hidden = false;
-    btn.innerHTML = esc(Q.co.short || Q.co.name || '') + IC.chev;
-  }
+  /* The company chip is GONE from the mobile header. It printed "Gotan Lime
+     Industries" directly under the page title, and the page's own welcome line says
+     it again two rows below — the same fact twice, in the smallest space the app
+     has. Switching companies is unaffected: the More sheet carries
+     "Switch company · <name>", which is a better home for a rare, deliberate action
+     than a permanent chip in the header.
+
+     Kept as a no-op rather than deleted because two callers invoke it on every
+     paint; an empty function is the honest seam while the header has nothing of its
+     own to paint. */
+  function paintCo() { }
+
   function openCoSwitch() {
     const Q = window.QLD, list = coList();
     if (!Q || list.length < 2) return;

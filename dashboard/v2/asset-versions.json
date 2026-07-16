@@ -4,8 +4,8 @@
     "sha": "eb41cc0fca33"
   },
   "pages.css": {
-    "v": "m11",
-    "sha": "abf4d47a10a3"
+    "v": "m12",
+    "sha": "1baa88302b25"
   },
   "party-identity.js": {
     "v": "m27",
@@ -36,12 +36,12 @@
     "sha": "953089d24f6b"
   },
   "shell.js": {
-    "v": "m44",
-    "sha": "b08f4e6a2b08"
+    "v": "m45",
+    "sha": "d25b029c2446"
   },
   "mobile.js": {
-    "v": "m10",
-    "sha": "47ac75341aba"
+    "v": "m11",
+    "sha": "68bae01c08a8"
   },
   "recon-core.js": {
     "v": "rc5",
