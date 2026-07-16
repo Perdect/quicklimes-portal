@@ -1965,7 +1965,13 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     applyRole(k) { setRole(k); this.refreshNav(); this.applyFeatureVisibility(); const el = $('pmRoleName'); if (el) el.textContent = roleDef().label; },
     setFeature(k, on) { setFeat(k, on); this.refreshNav(); this.applyFeatureVisibility(); },
     resetFeatures() { try { localStorage.removeItem(FEAT_KEY); } catch (_) {} FEAT = loadFeatures(); this.refreshNav(); this.applyFeatureVisibility(); },
-    refreshNav() { const nav = document.querySelector('.sb-nav'); if (nav) { nav.innerHTML = navHTML(_active); refreshNotifDot(); } },
+    /* Repaints the DESKTOP sidebar and the MOBILE bottom nav. Only the sidebar was
+       repainted before, so on a phone the toggle appeared to do nothing at all. */
+    refreshNav() {
+      const nav = document.querySelector('.sb-nav');
+      if (nav) { nav.innerHTML = navHTML(_active); refreshNotifDot(); }
+      if (window.QLMobile && QLMobile.paintTabs) { try { QLMobile.paintTabs(); } catch (_) {} }
+    },
     applyFeatureVisibility() { document.querySelectorAll('[data-feat]').forEach(el => { el.style.display = featOn(el.getAttribute('data-feat')) ? '' : 'none'; }); },
 
     mount(opts) {

@@ -36,12 +36,12 @@
     "sha": "953089d24f6b"
   },
   "shell.js": {
-    "v": "m39",
-    "sha": "0e7099bf2d27"
+    "v": "m40",
+    "sha": "fac69cf955ff"
   },
   "mobile.js": {
-    "v": "m9",
-    "sha": "3aee239c04f6"
+    "v": "m10",
+    "sha": "47ac75341aba"
   },
   "recon-core.js": {
     "v": "rc5",
@@ -94,6 +94,10 @@
   "finance.js": {
     "v": "ocr21",
     "sha": "6bd02010b845"
+  },
+  "inventory.css": {
+    "v": "i1",
+    "sha": "519bbad65819"
   },
   "invoice-templates.js": {
     "v": "t3",

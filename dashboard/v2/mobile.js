@@ -65,7 +65,30 @@
     { key: 'finance', label: 'Finance', icon: IC.finance, href: 'payments.html', match: ['finance', 'reconcile', 'cashbook', 'loans', 'gst', 'tds', 'pl'] },
     { key: 'more', label: 'More', icon: IC.more, href: '#more', match: [] }
   ];
-  const tabForActive = a => (TABS.find(t => t.match.includes(a)) || TABS[4]).key;
+  /* THE BOTTOM NAV MUST OBEY FEATURE MANAGEMENT.
+     It rendered all five hardcoded TABS and never asked, so a module switched off
+     in Settings vanished from the desktop sidebar, the ⌘K palette and the More
+     sheet — all three filter — and stayed put here. One rule, four surfaces, three
+     of them wired: the exact defect this codebase keeps re-growing (one company
+     switch in 8 of 20 pages, one waLink in 7, one month picker fixed in 2 of 3).
+     'more' is never filtered — it is the way to everything else, not a module. */
+  const tabsHTML = () => visibleTabs().map(t => `<button class="qlm-tab" data-tab="${t.key}">${t.icon}<span>${t.label}</span></button>`).join('');
+  /* Re-render after a toggle. Without this the nav is only correct on the NEXT page
+     load — the user flips a switch, watches nothing happen, and calls it broken. */
+  function bindTabs(nav) { nav.querySelectorAll('.qlm-tab').forEach(b => b.onclick = () => onTab(b.dataset.tab)); }
+  function paintTabs() {
+    const nav = document.getElementById('qlmNav');
+    if (!nav) return;
+    nav.innerHTML = tabsHTML();
+    bindTabs(nav);
+    paintChrome();
+  }
+  const featAllows = k => !k || !(window.QLShell && QLShell.feat) || QLShell.feat(k);
+  const visibleTabs = () => TABS.filter(t => t.key === 'more' || featAllows(t.key));
+  /* find('more'), NOT TABS[4]: the index was only ever correct while the list was
+     hardcoded at five. Filtering it would have made a stale index silently return
+     the wrong tab — the fix creating the next bug. */
+  const tabForActive = a => (TABS.find(t => t.match.includes(a)) || TABS.find(t => t.key === 'more')).key;
 
   /* “More” library — curated, respects Feature Management via QLShell.nav() */
   const MORE_ICON = {
@@ -105,7 +128,8 @@
     ptr.id = 'qlmPtr';
     // bottom nav
     const nav = el('nav', 'qlm-bottomnav');
-    nav.innerHTML = TABS.map(t => `<button class="qlm-tab" data-tab="${t.key}">${t.icon}<span>${t.label}</span></button>`).join('');
+    nav.id = 'qlmNav';
+    nav.innerHTML = tabsHTML();
     /* No FAB. Removed by request, and it had not earned its place: it floated over
        the content on every screen, covered the last table row, and every page it
        appeared on already has its own add/upload button. A permanent button that
@@ -122,7 +146,7 @@
     $('qlmAvatar').onclick = openProfileSheet;
     $('qlmCo').onclick = openCoSwitch;
     $('qlmBack').onclick = () => history.length > 1 ? history.back() : (location.href = 'dashboard.html');
-    nav.querySelectorAll('.qlm-tab').forEach(b => b.onclick = () => onTab(b.dataset.tab));
+    bindTabs(nav);
     wirePullToRefresh();
     _built = true;
   }
@@ -616,7 +640,7 @@
 
   window.QLMobile = {
     init, isMobile, sheet, actionSheet, wizard, invoiceViewer, showInvoice, listRow,
-    buildDashboard, skeleton, refresh: doRefresh, paintChrome,
+    buildDashboard, skeleton, refresh: doRefresh, paintChrome, paintTabs,
     openMore, filterSheet: sheet    // filterSheet is a themed bottom sheet
   };
 })();
