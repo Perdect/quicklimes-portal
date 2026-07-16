@@ -205,6 +205,13 @@
             if (it.soon) badge = `<span class="sb-link-badge" style="background:var(--ql-brand-100);color:var(--ql-brand-700)">Soon</span>`;
             else if (it.badge) badge = `<span class="sb-link-badge"${it.badge.tone === 'info' ? ' style="background:var(--ql-brand-100);color:var(--ql-brand-700)"' : it.badge.tone === 'success' ? ' style="background:var(--ql-success-100);color:var(--ql-success-700)"' : ''}>${it.badge.text}</span>`;
             else if (it.badgeKey) badge = `<span class="sb-link-badge" data-badge="${it.badgeKey}" hidden></span>`;
+            /* A "Soon" item is NOT a link. It used to render href="#soon" — a dead
+               anchor — so clicking it navigated nowhere, appended #soon to the URL
+               and made the page jump. It looked broken because it was: a control
+               that cannot do anything must not accept a click. The ⌘K palette and
+               the mobile More sheet already skip these; only the sidebar offered
+               them. Rendered as a span: same look, no href, no jump. */
+            if (it.soon) return `<span class="sb-link is-soon" aria-disabled="true" title="Not built yet">${it.icon}<span class="sb-link-text">${it.label}</span>${badge}</span>`;
             return `<a class="sb-link${it.id === active ? ' active' : ''}" href="${it.href}" data-page="${it.id}">${it.icon}<span class="sb-link-text">${it.label}</span>${badge}</a>`;
           }).join('') +
           `</div></div>`;
@@ -214,6 +221,27 @@
   }
 
   /* ── Full shell markup ───────────────────────────────────────── */
+  /* THE SIDEBAR REMEMBERS ITS SCROLL.
+     Every page here is a full HTML load, so the sidebar is rebuilt from scratch and
+     lands back at the top. Scroll down to Inventory, click a page, and you are at
+     the top again — scrolling back down every single time. sessionStorage, not
+     local: it is a per-tab position, not a preference, and a new session should
+     start clean. Restored before paint so there is no visible jump. */
+  const SB_SCROLL_KEY = 'ql_sb_scroll';
+  function wireNavScroll() {
+    const nav = document.querySelector('.sb-nav');
+    if (!nav) return;
+    try {
+      const y = +sessionStorage.getItem(SB_SCROLL_KEY) || 0;
+      if (y > 0) nav.scrollTop = y;
+    } catch (_) {}
+    let t = null;
+    nav.addEventListener('scroll', () => {
+      clearTimeout(t);
+      t = setTimeout(() => { try { sessionStorage.setItem(SB_SCROLL_KEY, String(nav.scrollTop)); } catch (_) {} }, 120);
+    }, { passive: true });
+  }
+
   function shellHTML(active, pageContent) {
     return `
 <div class="shell" data-collapsed="false" id="shell">
@@ -1986,7 +2014,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       while (wrap.firstChild) document.body.insertBefore(wrap.firstChild, document.body.firstChild);
       $('ql-main').innerHTML = content;
       // wire
-      wireNav(); wireWorkspace(); wirePalette(); wireProfile();
+      wireNav(); wireNavScroll(); wireWorkspace(); wirePalette(); wireProfile();
       // restore photo
       const photo = localStorage.getItem('dm_profile_pic') || localStorage.getItem(PHOTO_KEY);
       if (photo) applyAvatarPhoto(photo);

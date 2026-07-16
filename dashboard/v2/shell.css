@@ -143,6 +143,12 @@ button { font-family: inherit; cursor: pointer; }
               color var(--ql-duration-fast) var(--ql-ease-out);
   position: relative;
 }
+/* A "Soon" item is a span, not a link: it has nowhere to go, so it must not look
+   or behave clickable. It used to be <a href="#soon">, which navigated nowhere,
+   put #soon in the address bar and jumped the page. */
+.sb-link.is-soon { cursor: default; opacity: .58; }
+.sb-link.is-soon:hover { background: transparent; color: inherit; }
+
 .sb-link:hover { background: var(--ql-neutral-50); color: var(--ql-text); }
 .sb-link svg { width: 18px; height: 18px; flex-shrink: 0; }
 .sb-link-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
