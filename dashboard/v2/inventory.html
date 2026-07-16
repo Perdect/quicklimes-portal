@@ -12,7 +12,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r3"><link rel="stylesheet" href="./pages.css?v=m9">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r4"><link rel="stylesheet" href="./pages.css?v=m9">
+<link rel="stylesheet" href="./inventory.css?v=i1">
 <script src="ql-api.js?v=a2"></script>
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
@@ -20,23 +21,6 @@
 <script src="./dedupe-ui.js?v=m29"></script>
 <script src="./data.js?v=m32"></script>
 <link rel="stylesheet" href="./mobile.css?v=m7">
-<style>
-  .inv-note { display: flex; gap: 10px; align-items: flex-start; background: color-mix(in srgb, #f59e0b 8%, var(--ql-surface)); border: 1px solid color-mix(in srgb, #f59e0b 30%, var(--ql-border)); border-radius: 12px; padding: 12px 14px; margin-bottom: var(--ql-space-4); font-size: 13px; color: var(--ql-text-soft); }
-  .inv-note b { color: var(--ql-text); }
-  .inv-sec-h { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ql-text-soft); margin: var(--ql-space-5) 0 var(--ql-space-3); }
-  .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-  .inv-card { background: var(--ql-surface); border: 1px solid var(--ql-border); border-radius: 14px; padding: 16px; box-shadow: var(--ql-shadow-sm); }
-  .inv-card .top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-  .inv-card .ic { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 20px; flex: none; }
-  .inv-card .nm { font-weight: 700; font-size: 15px; }
-  .inv-card .sub { font-size: 12px; color: var(--ql-text-soft); }
-  .inv-card .qty { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
-  .inv-card .qty span { font-size: 14px; font-weight: 600; color: var(--ql-text-soft); }
-  .inv-kv { display: flex; justify-content: space-between; font-size: 12.5px; padding: 5px 0; border-top: 1px dashed var(--ql-border); }
-  .inv-kv:first-of-type { margin-top: 10px; }
-  .inv-kv span:last-child { font-weight: 600; color: var(--ql-text); }
-  .inv-empty { color: var(--ql-text-soft); font-size: 14px; padding: var(--ql-space-4); text-align: center; }
-</style>
 </head>
 <body class="ql-v2">
 <div id="ql-page">
@@ -44,118 +28,493 @@
     <div class="page-head">
       <div>
         <h1 class="page-title">Inventory</h1>
-        <div class="page-sub" id="invSub">Raw material inward & finished-goods dispatch</div>
+        <div class="page-sub" id="invSub">Raw material inward &amp; finished-goods dispatch</div>
       </div>
     </div>
+    <div id="invBar"></div>
     <div id="invBody"></div>
   </div>
 </div>
 
 <script src="./wa-core.js?v=w2"></script>
-
-<script src="./shell.js?v=m39"></script>
-<script src="./mobile.js?v=m9"></script>
+<script src="./shell.js?v=m41"></script>
+<script src="./mobile.js?v=m10"></script>
 <script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE INVENTORY CORE — pure, no DOM, no QLD. inventory.test.js extracts
+   everything between the INV-CORE markers below and runs it in a vm, so the
+   tests drive the SAME code the page renders (a copy in the test would prove
+   only the copy — see recon-wiring.test.js for why this project insists).
+
+   The markers sit OUTSIDE this comment on purpose: the test strips comments
+   before asserting that the old bug is absent, and this comment quotes the old
+   bug verbatim. Inside the markers, it would match its own explanation and pass
+   over a genuine regression — the exact false positive that already bit
+   waphone.test.js once.
+
+   THE RULE THIS FILE EXISTS TO ENFORCE
+   ────────────────────────────────────
+   The card that shipped did this:
+
+       const qty = rs.reduce((a, r) => a + (+r.qty || 0), 0);
+
+   and printed the result as a fact. `(+r.qty || 0)` turns a MISSING quantity
+   into a ZERO, so nine limestone bills worth ₹44,71,494 with no tonnage on any
+   of them rendered as "Limestone — 0 T". "You have no limestone" and "nobody
+   wrote down how much limestone" are different sentences and the user can act
+   on both. Only one of them was true.
+
+   Petcoke is the same bug wearing a disguise: 16 bills, ₹75,22,976, and 97.7 T
+   recorded across a handful of them → the card printed ₹77,001/T. Real petcoke
+   is ₹8,000–18,000/T. The money is right; the tonnage is mostly missing; the
+   division is nonsense. So the rate is the tell, and this core treats an
+   out-of-band rate as evidence of missing quantity rather than as a number.
+
+   A NOTE ON WHAT WE CAN AND CANNOT KNOW
+   ─────────────────────────────────────
+   data.js:945 already flattens the source: `qty: p.qty || 0`. By the time rows
+   reach this page a never-recorded quantity and a literal 0 are the same value
+   and cannot be told apart. That is fine, because a purchase bill for 0 tonnes
+   is not a thing that happens — so `qty > 0` is the only honest reading of
+   "recorded", and it is the one used throughout. Fixing it at source would mean
+   editing data.js, which is out of scope here.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* INV-CORE-START */
+
+/* Freight, transport, loading and cartage bills carry no tonnage BY NATURE —
+   they are landed-cost add-ons, not material. Counting them as "missing
+   quantity" would cry wolf on bills that are perfectly complete. data.js
+   already computes this per row (isFreightItem → r.freight); we honour its
+   answer rather than re-deriving one that could drift. */
+const INV_ADDON = r => !!r.freight;
+
+/* Plausible ₹/unit bands. These are NOT data — nothing here is ever displayed
+   as a figure. They are a smoke alarm: a rate outside the band means the
+   arithmetic behind it is broken, and since the money comes off real bills, the
+   quantity is what is broken. Bands are deliberately WIDER than the real market
+   (petcoke actually trades ~₹8–18k/T) so a true price spike does not cry wolf —
+   only an impossible one does. band:null = no honest band exists for the group. */
+const INV_MATERIALS = [
+  { key: 'limestone', nm: 'Limestone',   unit: 'T',    tint: 'stone', icon: 'stone', band: [200, 3000],   consume: 'limestone' },
+  { key: 'petcoke',   nm: 'Petcoke',     unit: 'T',    tint: 'fire',  icon: 'flame', band: [5000, 30000], consume: 'petcoke' },
+  { key: 'packaging', nm: 'Plastic Bags', unit: 'bags', tint: 'bag',  icon: 'box',   band: [3, 150],      consume: 'bags' },
+  /* Utilities is electricity (kWh) + diesel (L) + water — three units in one
+     group. Summing them would produce a number with no unit, so this card is
+     value-only and says so. The page it replaced listed a `fuel` group for
+     Diesel; there has never been a `fuel` key in PURCHASE_GROUPS (diesel is
+     utilities/Diesel), so that card could not match a row and never once
+     rendered. */
+  { key: 'utilities', nm: 'Utilities & Diesel', unit: '', tint: 'bolt', icon: 'bolt', band: null, mixed: true }
+];
+
+/* Quick lime leaves the plant on sales invoices, which are raised in-app with
+   qty × rate — so these quantities are real. The band still applies: it is the
+   same smoke alarm, and it must stay quiet on good data or it is worthless. */
+const INV_FG = { key: 'quicklime', nm: 'Quick Lime dispatched', unit: 'T', tint: 'lime', icon: 'plant', band: [1500, 20000], all: true, noun: 'invoice' };
+
+const invNum = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+/* The whole fix in one predicate. NOT `+r.qty || 0`. */
+const invHasQty = r => invNum(r.qty) > 0;
+/* data.js's own rule: cancelled, soft-deleted and archived records are not
+   business records. withIdx() already drops _del/_arch upstream; repeated here
+   because this core is fed fixtures in tests and must not depend on someone
+   else having filtered first. */
+const invLive = r => (r.status || 'pending') !== 'cancelled' && !r._del && !r._arch;
+const invVal = r => invNum(r.taxable) || invNum(r.total);
+
+/* ── period: 'all' | 'YYYY' | 'YYYY-MM' ── */
+function invPeriodEnd(p) {
+  if (!p || p === 'all') return null;
+  if (/^\d{4}$/.test(p)) return p + '-12-31';
+  if (/^\d{4}-\d{2}$/.test(p)) {
+    const y = +p.slice(0, 4), m = +p.slice(5, 7);
+    if (m < 1 || m > 12) return null;
+    return p + '-' + String(new Date(y, m, 0).getDate()).padStart(2, '0');   // day 0 of next month = last day of this one
+  }
+  return null;
+}
+function invInPeriod(date, p) {
+  if (!p || p === 'all') return true;
+  const d = (date || '').slice(0, 10);
+  if (!d) return false;                       // an undated bill cannot be placed in a month; excluding it is the only honest option
+  if (/^\d{4}$/.test(p)) return d.slice(0, 4) === p;
+  if (/^\d{4}-\d{2}$/.test(p)) return d.slice(0, 7) === p;
+  return true;
+}
+/* Closing stock is a BALANCE, not a flow: "as at" the end of the period, it is
+   everything inward up to that date minus everything consumed up to that date.
+   Scoping it to bills dated *within* March would answer a question nobody asks. */
+function invUpto(date, p) {
+  const end = invPeriodEnd(p);
+  if (!end) return true;
+  const d = (date || '').slice(0, 10);
+  if (!d) return false;
+  return d <= end;
+}
+
+/* Is this ₹/unit physically possible? Returns null when there is nothing to say.
+   `impliedLow/High` invert the band against the money — the money is trustworthy,
+   so ₹75,22,976 of petcoke at any sane price is 250–1,500 T, which is the single
+   most useful sentence this page can show a man who has 97.7 T on screen. */
+function invRateFlag(m, rate, value) {
+  if (!m.band || rate == null || !(value > 0)) return null;
+  const low = m.band[0], high = m.band[1];
+  if (rate >= low && rate <= high) return null;
+  return {
+    rate: rate, low: low, high: high, over: rate > high,
+    impliedLow: value / high, impliedHigh: value / low
+  };
+}
+
+/* rows → one card model. Returns null when there are NO bills: an absent card and
+   a card reading "not recorded" are different answers to different questions, and
+   collapsing them is how "0 T" happened in the first place. */
+function invCard(m, rows, period) {
+  const all = rows.filter(r => (m.all ? true : r.group === m.key) && invLive(r) && invInPeriod(r.date, period));
+  if (!all.length) return null;
+
+  const value = all.reduce((a, r) => a + invVal(r), 0);           // ₹ is REAL and COMPLETE — every bill has a value
+  const addons = all.filter(INV_ADDON);
+  const addonValue = addons.reduce((a, r) => a + invVal(r), 0);
+  const mat = all.filter(r => !INV_ADDON(r));                     // the bills that OUGHT to carry a quantity
+  const matValue = mat.reduce((a, r) => a + invVal(r), 0);
+  const withQty = mat.filter(invHasQty);
+  const qty = withQty.reduce((a, r) => a + invNum(r.qty), 0);
+
+  const state = m.mixed ? 'mixed'
+    : !mat.length ? 'addon'                                        // the group holds only freight/loading bills
+    : !withQty.length ? 'unknown'                                  // ← the limestone case. NEVER "0".
+    : withQty.length === mat.length ? 'complete'
+    : 'partial';                                                   // ← the petcoke case
+
+  /* One formula, two jobs. When every bill has a quantity this IS the average
+     rate and we print it. When only some do, it is total material money over
+     partial tonnage — the ₹77,001/T lie — so we do NOT print it, and instead
+     hand it to the flag as evidence. */
+  const impliedRate = qty > 0 ? matValue / qty : null;
+  const flag = invRateFlag(m, impliedRate, matValue);
+
+  return {
+    key: m.key, nm: m.nm, unit: m.unit, tint: m.tint, icon: m.icon,
+    /* A sales invoice is not a "bill", and plastic bags are not measured in
+       "tonnage" — the card must speak the user's language for the thing it is
+       actually describing, or it reads as though it is describing something
+       else. */
+    noun: m.noun || 'bill', measure: m.unit === 'T' ? 'tonnage' : 'quantity',
+    bills: all.length, matBills: mat.length, addonBills: addons.length,
+    withQty: withQty.length, missingQty: mat.length - withQty.length,
+    state: state,
+    qtyKnown: state === 'complete' || state === 'partial',
+    qty: (state === 'complete' || state === 'partial') ? qty : null,   // null, never 0, when nothing is recorded
+    value: value, matValue: matValue, addonValue: addonValue,
+    rate: state === 'complete' ? impliedRate : null,                   // suppressed unless every bill backs it
+    impliedRate: impliedRate,                                          // diagnostic only — never rendered as a fact
+    flag: flag,
+    last: all.map(r => r.date).filter(Boolean).sort().slice(-1)[0] || null
+  };
+}
+
+/* Closing stock = inward − consumed, as at the end of the period.
+   It is only a number when the inward tonnage is COMPLETE. With bills missing
+   quantities the subtraction is inward-that-we-know-about minus consumed-in-full,
+   which trends negative and looks like theft. Refusing to compute it is the
+   correct answer, so that is what this returns. */
+function invStock(m, purchases, prod, period) {
+  if (m.mixed) return null;
+  const mat = purchases.filter(r => r.group === m.key && invLive(r) && invUpto(r.date, period) && !INV_ADDON(r));
+  const runs = prod.filter(r => invLive(r) && invUpto(r.date, period));
+  const used = runs.reduce((a, r) => a + invNum(r[m.consume]), 0);
+  if (!mat.length && !used) return null;
+  const withQty = mat.filter(invHasQty);
+  const inward = withQty.reduce((a, r) => a + invNum(r.qty), 0);
+  const missing = mat.length - withQty.length;
+  return {
+    key: m.key, nm: m.nm, unit: m.unit, tint: m.tint, icon: m.icon,
+    inward: inward, used: used, missing: missing,
+    computable: missing === 0 && mat.length > 0,
+    closing: missing === 0 && mat.length > 0 ? inward - used : null
+  };
+}
+
+function invFgStock(sales, prod, period) {
+  const runs = prod.filter(r => invLive(r) && invUpto(r.date, period));
+  const made = runs.reduce((a, r) => a + invNum(r.quicklime) + invNum(r.hydrated), 0);
+  const disp = sales.filter(r => invLive(r) && invUpto(r.date, period));
+  const withQty = disp.filter(invHasQty);
+  const out = withQty.reduce((a, r) => a + invNum(r.qty), 0);
+  if (!made && !out) return null;
+  const missing = disp.length - withQty.length;
+  return {
+    key: 'quicklime', nm: 'Quick Lime', unit: 'T', tint: 'lime', icon: 'plant',
+    inward: made, used: out, missing: missing, fg: true,
+    computable: missing === 0,
+    closing: missing === 0 ? made - out : null
+  };
+}
+
+/* The page's whole state, in one object, from rows + a period. Everything the
+   page draws comes from here, so the filter cannot scope one card and miss its
+   neighbour — there is only one place for it to apply. */
+function invModel(purchases, sales, prod, period) {
+  period = period || 'all';
+  const raw = INV_MATERIALS.map(m => invCard(m, purchases, period)).filter(Boolean);
+  const fg = invCard(INV_FG, sales, period);
+  const anyProd = prod.filter(invLive).length > 0;
+  const stock = anyProd
+    ? INV_MATERIALS.map(m => invStock(m, purchases, prod, period)).filter(Boolean).concat(invFgStock(sales, prod, period) || [])
+    : [];
+  /* The banner counts bills, not cards: "17 bills have no quantity" is the
+     sentence the user needs, and it must agree with the cards above it. */
+  const gaps = raw.filter(c => c.state === 'unknown' || c.state === 'partial');
+  const missingBills = gaps.reduce((a, c) => a + c.missingQty, 0);
+  return {
+    period: period, raw: raw, fg: fg, stock: stock, hasProd: anyProd,
+    gaps: gaps, missingBills: missingBills,
+    flagged: raw.concat(fg || []).filter(c => c.flag)
+  };
+}
+
+/* Months that actually hold a bill — the picker dots them so the user is not
+   clicking through empty months hunting for his own data. */
+function invMonths(rowsets) {
+  const s = new Set();
+  rowsets.forEach(rows => rows.forEach(r => {
+    if (!invLive(r)) return;
+    const d = (r.date || '').slice(0, 7);
+    if (/^\d{4}-\d{2}$/.test(d)) s.add(d);
+  }));
+  return Array.from(s).sort();
+}
+/* INV-CORE-END */
+
 QLShell.mount({ active: 'inventory', title: 'Inventory' });
 const $ = s => document.querySelector(s);
 const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fC = v => (window.QLD && QLD.fC) ? QLD.fC(v) : ('₹' + Math.round(v || 0).toLocaleString('en-IN'));
-const nQ = (v, d) => (v || 0).toLocaleString('en-IN', { maximumFractionDigits: d == null ? 1 : d });
+const nQ = (v, d) => (+v || 0).toLocaleString('en-IN', { maximumFractionDigits: d == null ? 1 : d });
 
-// Raw materials that arrive as PURCHASES, with their unit + accent.
-const RAW = [
-  { key: 'limestone', nm: 'Limestone', ic: '🪨', tint: '#8a6d3b', bg: '#f6f0e4', unit: 'T' },
-  { key: 'petcoke',   nm: 'Petcoke',   ic: '🔥', tint: '#c0392b', bg: '#fdeceb', unit: 'T' },
-  { key: 'packaging', nm: 'Plastic Bags', ic: '📦', tint: '#2f5fd0', bg: '#eaf1ff', unit: 'bags' },
-  { key: 'fuel',      nm: 'Diesel',    ic: '⛽', tint: '#b7791f', bg: '#fff5e0', unit: 'L' }
-];
+/* Inline SVG, this app's convention (no icon package). */
+const SVG = {
+  stone: '<path d="M12 2 3 8l2 11h14l2-11z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/>',
+  flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  bolt: '<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>',
+  plant: '<path d="M2 22h20"/><path d="M4 22V8l8-6 8 6v14"/><path d="M9 22v-6h6v6"/><path d="M9 11h.01"/><path d="M15 11h.01"/>',
+  cal: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/>',
+  chev: '<path d="m6 9 6 6 6-6"/>',
+  left: '<polyline points="15 18 9 12 15 6"/>',
+  right: '<polyline points="9 18 15 12 9 6"/>',
+  warn: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  check: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'
+};
+const ic = (n, cls) => `<svg class="${cls || ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${SVG[n] || ''}</svg>`;
 
-function rawCard(m, rows) {
-  const rs = rows.filter(r => r.group === m.key && r.status !== 'cancelled');
-  if (!rs.length) return '';
-  const qty = rs.reduce((a, r) => a + (+r.qty || 0), 0);
-  const val = rs.reduce((a, r) => a + (+r.taxable || +r.total || 0), 0);
-  const last = rs.map(r => r.date).sort().slice(-1)[0] || '—';
-  const avg = qty ? val / qty : 0;
-  return `<div class="inv-card">
-    <div class="top"><div class="ic" style="background:${m.bg};color:${m.tint}">${m.ic}</div>
-      <div><div class="nm">${m.nm}</div><div class="sub">${rs.length} purchase bill${rs.length > 1 ? 's' : ''}</div></div></div>
-    <div class="qty">${nQ(qty)} <span>${m.unit}</span></div>
-    <div class="inv-kv"><span>Purchase value</span><span>${fC(val)}</span></div>
-    <div class="inv-kv"><span>Avg rate</span><span>${fC(avg)}/${m.unit}</span></div>
-    <div class="inv-kv"><span>Last inward</span><span>${esc(last)}</span></div>
-  </div>`;
+/* ── period state ───────────────────────────────────────────────────────────
+   Seeded from QLD.uiMonth() — the month the user last picked anywhere in the
+   app — so arriving here from Sales or Purchase keeps his place instead of
+   silently resetting to All time. */
+let PERIOD = 'all';
+(function seed() {
+  try { const m = QLD.uiMonth && QLD.uiMonth(); if (m && /^\d{4}-\d{2}$/.test(m)) PERIOD = m; } catch (_) {}
+})();
+
+/* QLD.monthLabel owns "March 2026" — five places once built that string by hand
+   and the screens disagreed with each other. A sixth copy here would be the
+   obvious move and the wrong one (monthlabel.test.js fails on it). */
+function periodLabel(p) {
+  if (!p || p === 'all') return 'All time';
+  if (/^\d{4}$/.test(p)) return 'Year ' + p;
+  return (QLD.monthLabel ? QLD.monthLabel(p) : p) || p;
 }
 
-function invEmpty(icon, title, sub, href, btn) {
-  return `<div class="inv-empty" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:44px 20px">
-    <div style="width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:var(--ql-surface);border:1px solid var(--ql-border);font-size:26px;margin-bottom:4px">${icon}</div>
-    <div style="font-weight:700;font-size:15px;color:var(--ql-text)">${esc(title)}</div>
-    <div style="max-width:340px">${esc(sub)}</div>
-    <a class="ql-btn ql-btn-primary" href="${href}" style="margin-top:10px;text-decoration:none">${esc(btn)}</a>
-  </div>`;
+let MENU = null, MENU_OFF = null;
+function closeMenu() {
+  if (MENU && MENU.parentNode) MENU.parentNode.removeChild(MENU);
+  MENU = null;
+  if (MENU_OFF) { document.removeEventListener('click', MENU_OFF); MENU_OFF = null; }
+  const b = $('#invPerBtn'); if (b) b.classList.remove('on');
 }
-function render() {
-  const P = QLD.purchaseRows(), S = QLD.salesRows();
-  $('#invSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + 'derived from real purchase & sales bills';
-
-  const rawCards = RAW.map(m => rawCard(m, P)).filter(Boolean).join('');
-  // Finished goods = what actually left the plant (sales dispatch) + chunna.
-  const sQty = S.filter(r => r.status !== 'cancelled').reduce((a, r) => a + (+r.qty || 0), 0);
-  const sVal = S.filter(r => r.status !== 'cancelled').reduce((a, r) => a + (+r.taxable || 0), 0);
-  const ch = (QLD.chunnaRows ? QLD.chunnaRows() : []);
-  const chQty = ch.reduce((a, r) => a + (parseFloat(r.qty) || 0), 0);
-  const chVal = ch.reduce((a, r) => a + (parseFloat(r.total) || 0), 0);
-
-  const fgCards = [];
-  if (sQty) fgCards.push(`<div class="inv-card">
-    <div class="top"><div class="ic" style="background:#e9f9ee;color:#1c7c3a">🏭</div>
-      <div><div class="nm">Quick Lime dispatched</div><div class="sub">${S.filter(r => r.status !== 'cancelled').length} sales invoices</div></div></div>
-    <div class="qty">${nQ(sQty)} <span>T</span></div>
-    <div class="inv-kv"><span>Sales value</span><span>${fC(sVal)}</span></div>
-    <div class="inv-kv"><span>Avg realisation</span><span>${fC(sQty ? sVal / sQty : 0)}/T</span></div>
-  </div>`);
-  if (chQty) fgCards.push(`<div class="inv-card">
-    <div class="top"><div class="ic" style="background:#eef2ff;color:#4f46e5">🧱</div>
-      <div><div class="nm">Chunna dispatched</div><div class="sub">${ch.length} entries</div></div></div>
-    <div class="qty">${nQ(chQty)} <span>T</span></div>
-    <div class="inv-kv"><span>Value</span><span>${fC(chVal)}</span></div>
-  </div>`);
-
-  // ── Closing stock = inward − consumed (raw) and produced − dispatched (finished).
-  //    Consumption comes from real Production runs; only shown once they exist.
-  const st = QLD.prodStats ? QLD.prodStats() : { runs: 0, consumed: {}, produced: {} };
-  const pQty = key => P.filter(r => r.group === key && r.status !== 'cancelled').reduce((a, r) => a + (+r.qty || 0), 0);
-  let closeCards = '';
-  if (st.runs) {
-    const stock = [
-      { nm: 'Limestone', ic: '🪨', bg: '#f6f0e4', tint: '#8a6d3b', unit: 'T', v: pQty('limestone') - (st.consumed.limestone || 0), inw: pQty('limestone'), used: st.consumed.limestone || 0 },
-      { nm: 'Petcoke', ic: '🔥', bg: '#fdeceb', tint: '#c0392b', unit: 'T', v: pQty('petcoke') - (st.consumed.petcoke || 0), inw: pQty('petcoke'), used: st.consumed.petcoke || 0 },
-      { nm: 'Plastic Bags', ic: '📦', bg: '#eaf1ff', tint: '#2f5fd0', unit: 'bags', v: pQty('packaging') - (st.consumed.bags || 0), inw: pQty('packaging'), used: st.consumed.bags || 0 },
-      { nm: 'Quick Lime', ic: '🏭', bg: '#e9f9ee', tint: '#1c7c3a', unit: 'T', v: (st.produced.quicklime || 0) - sQty, inw: st.produced.quicklime || 0, used: sQty, fg: 1 }
-    ].filter(s => s.inw || s.used);
-    closeCards = stock.map(s => `<div class="inv-card">
-      <div class="top"><div class="ic" style="background:${s.bg};color:${s.tint}">${s.ic}</div>
-        <div><div class="nm">${s.nm}</div><div class="sub">${s.fg ? 'produced − dispatched' : 'inward − consumed'}</div></div></div>
-      <div class="qty" style="${s.v < 0 ? 'color:#dc2626' : ''}">${nQ(s.v)} <span>${s.unit}</span></div>
-      <div class="inv-kv"><span>${s.fg ? 'Produced' : 'Inward'}</span><span>${nQ(s.inw)} ${s.unit}</span></div>
-      <div class="inv-kv"><span>${s.fg ? 'Dispatched' : 'Consumed'}</span><span>${nQ(s.used)} ${s.unit}</span></div>
-    </div>`).join('');
+function setPeriod(p) {
+  if (PERIOD === p) return;
+  PERIOD = p;
+  if (/^\d{4}-\d{2}$/.test(p) && QLD.setUiMonth) QLD.setUiMonth(p);   // persist a deliberate month pick, as qlx.js does
+  render();
+}
+function openMenu(anchor) {
+  closeMenu();
+  const have = new Set(invMonths([QLD.purchaseRows(), QLD.salesRows()]));
+  const now = new Date();
+  let year = +((/^\d{4}/.exec(PERIOD) || [])[0]) || now.getFullYear();
+  const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const m = document.createElement('div');
+  m.className = 'inv-menu';
+  function paint() {
+    m.innerHTML = `<div class="inv-mm-yr">
+        <button class="inv-mm-nav" data-yr="-1" aria-label="Previous year">${ic('left')}</button>
+        <span>${year}</span>
+        <button class="inv-mm-nav" data-yr="1" aria-label="Next year">${ic('right')}</button>
+      </div>
+      <div class="inv-mm-grid">${MN.map((mn, i) => {
+        const ym = year + '-' + String(i + 1).padStart(2, '0');
+        return `<button class="inv-mm-cell${PERIOD === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-ym="${ym}">${mn}</button>`;
+      }).join('')}</div>
+      <button class="inv-mm-wide${PERIOD === String(year) ? ' on' : ''}" data-ym="${year}">Whole year ${year}</button>
+      <button class="inv-mm-wide${(!PERIOD || PERIOD === 'all') ? ' on' : ''}" data-ym="all">All time</button>`;
+    /* stopPropagation: paint() re-renders the menu, which DETACHES the button
+       that was just clicked; without this the click bubbles to the document
+       close-handler, that handler sees a target no longer inside .inv-menu, and
+       it shuts the picker — so the year arrows appear to do nothing. This exact
+       bug has been found and fixed three times in this codebase (qlx.js,
+       dashboard.js, reconcile.js) and monthpicker.test.js pins it. The handler
+       must take `e` to be able to stop it — `() => {...}` cannot. */
+    m.querySelectorAll('[data-yr]').forEach(b => b.onclick = e => { e.stopPropagation(); year += +b.dataset.yr; paint(); });
+    /* Month cells are the opposite case and must NOT stop propagation: picking a
+       period is meant to close the menu. */
+    m.querySelectorAll('[data-ym]').forEach(b => b.onclick = () => { const v = b.dataset.ym; closeMenu(); setPeriod(v); });
   }
-  const banner = st.runs
-    ? `<div class="inv-note" style="background:color-mix(in srgb,#1c7c3a 8%,var(--ql-surface));border-color:color-mix(in srgb,#1c7c3a 28%,var(--ql-border))">✅ <div><b>Live closing stock is on.</b> Computed from real bills and ${st.runs} production run${st.runs > 1 ? 's' : ''}: raw = inward − consumed, finished = produced − dispatched. A red negative means more was consumed/dispatched than recorded inward/produced — check the entries.</div></div>`
-    : `<div class="inv-note">⚠️ <div><b>Live stock-on-hand needs production entries.</b> These figures are 100% real — <b>inward</b> from purchase bills and <b>dispatch</b> from sales invoices. Record daily production (limestone consumed → quick lime produced) in the <b>Production</b> module and closing stock computes automatically here.</div></div>`;
+  paint();
+  document.body.appendChild(m);
+  const r = anchor.getBoundingClientRect();
+  m.style.top = (r.bottom + window.scrollY + 6) + 'px';
+  m.style.left = Math.max(8, Math.min(r.left + window.scrollX, window.innerWidth - m.offsetWidth - 8)) + 'px';
+  MENU = m;
+  anchor.classList.add('on');
+  MENU_OFF = ev => { if (MENU && !MENU.contains(ev.target) && ev.target !== anchor && !anchor.contains(ev.target)) closeMenu(); };
+  setTimeout(() => document.addEventListener('click', MENU_OFF), 0);
+}
+
+/* ── render ─────────────────────────────────────────────────────────────── */
+const pl = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+function qtyBlock(c) {
+  if (c.state === 'mixed') return `<div class="unk">${ic('info')}<span>Value only</span></div>
+    <div class="qnote mute">Electricity, diesel and water are billed in different units — a single quantity here would mean nothing.</div>`;
+  if (c.state === 'addon') return `<div class="unk">${ic('info')}<span>Freight &amp; charges</span></div>
+    <div class="qnote mute">${pl(c.bills, c.noun)} · services, no ${c.measure} to record.</div>`;
+  if (c.state === 'unknown') return `<div class="unk">${ic('warn')}<span>Not recorded</span></div>
+    <div class="qnote">${pl(c.matBills, c.noun)} · no quantity on ${c.matBills > 1 ? 'any of them' : 'it'}. The money below is real — the ${c.measure} was never entered.</div>`;
+  if (c.state === 'partial') return `<div class="qty">${nQ(c.qty)}<u>${esc(c.unit)}</u></div>
+    <div class="qnote">from ${c.withQty} of ${pl(c.matBills, c.noun)} — ${c.missingQty} carr${c.missingQty > 1 ? 'y' : 'ies'} no quantity, so this is a floor, not a total.</div>`;
+  return `<div class="qty">${nQ(c.qty)}<u>${esc(c.unit)}</u></div>
+    <div class="qnote mute">across all ${pl(c.matBills, c.noun)}.</div>`;
+}
+function rateRow(c) {
+  if (c.state === 'complete' && c.rate != null) return `<div class="inv-kv"><span>Avg rate</span><b>${fC(c.rate)}/${esc(c.unit)}</b></div>`;
+  if (c.state === 'partial') return `<div class="inv-kv"><span>Avg rate</span><b class="off">Needs all quantities</b></div>`;
+  return '';
+}
+function flagBlock(c) {
+  if (!c.flag) return '';
+  const f = c.flag;
+  /* The strongest signal the user has. Say the impossible number out loud, say
+     why it is impossible, and say what the money implies instead. */
+  const gap = c.state === 'partial' || c.state === 'unknown';
+  return `<div class="inv-flag">${ic('warn')}<div>
+    <b>${fC(f.rate)}/${esc(c.unit)} is not a real price.</b>
+    ${esc(c.nm)} does not trade ${f.over ? 'above' : 'below'} about ${fC(f.over ? f.high : f.low)}/${esc(c.unit)}.
+    ${gap ? `The ${fC(c.matValue)} is off real bills, so the quantity is what is wrong — that money implies roughly <b>${nQ(f.impliedLow, 0)}–${nQ(f.impliedHigh, 0)} ${esc(c.unit)}</b>.`
+          : `Every bill has a quantity, so check the units on them — that money implies roughly <b>${nQ(f.impliedLow, 0)}–${nQ(f.impliedHigh, 0)} ${esc(c.unit)}</b>.`}
+  </div></div>`;
+}
+function cardHTML(c, href) {
+  return `<div class="inv-card${c.flag ? ' flag' : ''}">
+    <div class="top"><div class="ic t-${c.tint}">${ic(c.icon)}</div>
+      <div><div class="nm">${esc(c.nm)}</div>
+        <div class="sub">${pl(c.bills, c.noun)}${c.addonBills ? ` · ${c.addonBills} freight/loading` : ''}</div></div></div>
+    ${qtyBlock(c)}
+    <div class="inv-kv"><span>${c.key === 'quicklime' ? 'Sales value' : 'Purchase value'}</span><b>${fC(c.value)}</b></div>
+    ${c.addonValue ? `<div class="inv-kv"><span>of which freight/loading</span><b>${fC(c.addonValue)}</b></div>` : ''}
+    ${rateRow(c)}
+    <div class="inv-kv"><span>Last ${c.key === 'quicklime' ? 'dispatch' : 'inward'}</span><b>${c.last ? esc(QLD.fDS ? QLD.fDS(c.last) : c.last) : '—'}</b></div>
+    ${flagBlock(c)}
+    ${(c.state === 'unknown' || c.state === 'partial') ? `<a class="inv-fix" href="${href}">Record the quantities ${ic('arrow')}</a>` : ''}
+  </div>`;
+}
+function stockHTML(s) {
+  const body = s.computable
+    ? `<div class="qty${s.closing < 0 ? ' neg' : ''}">${nQ(s.closing)}<u>${esc(s.unit)}</u></div>
+       ${s.closing < 0 ? `<div class="qnote">Negative — more was ${s.fg ? 'dispatched than produced' : 'consumed than recorded inward'}. Check the entries.</div>` : ''}`
+    : `<div class="unk">${ic('warn')}<span>Not computable</span></div>
+       <div class="qnote">${s.missing} inward bill${s.missing > 1 ? 's have' : ' has'} no quantity, so inward − consumed would understate the stock. Recording them fixes this card.</div>`;
+  return `<div class="inv-card${s.computable ? '' : ' flag'}">
+    <div class="top"><div class="ic t-${s.tint}">${ic(s.icon)}</div>
+      <div><div class="nm">${esc(s.nm)}</div><div class="sub">${s.fg ? 'produced − dispatched' : 'inward − consumed'}</div></div></div>
+    ${body}
+    <div class="inv-kv"><span>${s.fg ? 'Produced' : 'Inward'}</span><b class="${s.computable ? '' : 'off'}">${s.computable ? nQ(s.inward) + ' ' + esc(s.unit) : 'incomplete'}</b></div>
+    <div class="inv-kv"><span>${s.fg ? 'Dispatched' : 'Consumed'}</span><b>${nQ(s.used)} ${esc(s.unit)}</b></div>
+  </div>`;
+}
+function emptyHTML(icon, title, sub, href, btn) {
+  return `<div class="inv-empty"><div class="eic">${ic(icon)}</div>
+    <div class="et">${esc(title)}</div><div class="es">${esc(sub)}</div>
+    <a class="ql-btn ql-btn-primary" href="${href}">${esc(btn)}</a></div>`;
+}
+function bannerHTML(M) {
+  const scope = PERIOD === 'all' ? '' : ` in ${esc(periodLabel(PERIOD))}`;
+  if (M.missingBills) {
+    return `<div class="inv-note warn">${ic('warn')}<div>
+      <b>${M.missingBills} purchase bill${M.missingBills > 1 ? 's carry' : ' carries'} no quantity${scope}.</b>
+      Their value is counted in full — the money on this page is right. The tonnage is not: a bill with no quantity
+      used to be summed as zero, which is why Limestone read "0 T". Cards below say what is actually known.
+      Quantities are entered on the bill itself (the Purchase form has a Qty field; bills brought in by upload or OCR
+      capture the amount but not the tonnage).
+      <a class="fix" href="purchase">Open the Purchase Register ${ic('arrow')}</a>
+    </div></div>`;
+  }
+  if (!M.hasProd) {
+    return `<div class="inv-note">${ic('info')}<div>
+      <b>Every quantity on this page is recorded.</b> Inward comes from purchase bills, dispatch from sales invoices${scope}.
+      Closing stock needs the other half — record daily production (limestone consumed → quick lime produced) in the
+      Production module and it computes here automatically.
+      <a class="fix" href="production">Open Production ${ic('arrow')}</a>
+    </div></div>`;
+  }
+  return `<div class="inv-note good">${ic('check')}<div>
+    <b>Live closing stock is on.</b> Computed from real bills and real production runs${scope}: raw = inward − consumed,
+    finished = produced − dispatched. Nothing here is estimated.
+  </div></div>`;
+}
+function barHTML() {
+  return `<div class="inv-bar">
+    <button class="inv-per" id="invPerBtn">${ic('cal')}<span>${esc(periodLabel(PERIOD))}</span>${ic('chev')}</button>
+    <span class="inv-scope" id="invScope"></span>
+    <span class="inv-bar-sp"></span>
+  </div>`;
+}
+
+function render() {
+  const P = QLD.purchaseRows(), S = QLD.salesRows(), R = QLD.productionRows ? QLD.productionRows() : [];
+  const M = invModel(P, S, R, PERIOD);
+
+  $('#invSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + 'derived from real purchase & sales bills';
+  $('#invBar').innerHTML = barHTML();
+  $('#invPerBtn').onclick = e => { e.stopPropagation(); if (MENU) closeMenu(); else openMenu($('#invPerBtn')); };
+
+  const nBills = M.raw.reduce((a, c) => a + c.bills, 0) + (M.fg ? M.fg.bills : 0);
+  $('#invScope').innerHTML = nBills
+    ? `<b>${nBills}</b> bill${nBills > 1 ? 's' : ''} in scope${M.missingBills ? ` · <b>${M.missingBills}</b> without a quantity` : ''}`
+    : 'no bills in this period';
 
   $('#invBody').innerHTML = `
-    ${banner}
-    ${closeCards ? `<div class="inv-sec-h">Closing stock (live)</div><div class="inv-grid">${closeCards}</div>` : ''}
-    <div class="inv-sec-h">Raw material inward (from purchase bills)</div>
-    ${rawCards ? `<div class="inv-grid">${rawCards}</div>` : invEmpty('🪨', 'No raw-material purchases yet', 'Add or upload limestone, petcoke and bag bills.', 'purchase', '+ Add / Upload Bills')}
-    <div class="inv-sec-h">Finished goods dispatched (from sales)</div>
-    ${fgCards.length ? `<div class="inv-grid">${fgCards.join('')}</div>` : invEmpty('🏭', 'No dispatches yet', 'Raise a sales invoice to track finished-goods movement.', 'invoice', '+ New invoice')}`;
+    ${bannerHTML(M)}
+    ${M.stock.length ? `<div class="inv-sec-h">Closing stock <span class="hint">as at ${esc(PERIOD === 'all' ? 'today' : periodLabel(PERIOD))}</span></div>
+      <div class="inv-grid">${M.stock.map(stockHTML).join('')}</div>` : ''}
+    <div class="inv-sec-h">Raw material inward <span class="hint">from purchase bills</span></div>
+    ${M.raw.length ? `<div class="inv-grid">${M.raw.map(c => cardHTML(c, 'purchase')).join('')}</div>`
+      : emptyHTML('inbox', PERIOD === 'all' ? 'No raw-material purchases yet' : 'No raw-material purchases in ' + periodLabel(PERIOD),
+          PERIOD === 'all' ? 'Add or upload limestone, petcoke and bag bills.' : 'Try a different period, or add the bills for this one.',
+          'purchase', '+ Add / Upload Bills')}
+    <div class="inv-sec-h">Finished goods dispatched <span class="hint">from sales invoices</span></div>
+    ${M.fg ? `<div class="inv-grid">${cardHTML(M.fg, 'sales')}</div>`
+      : emptyHTML('plant', PERIOD === 'all' ? 'No dispatches yet' : 'No dispatches in ' + periodLabel(PERIOD),
+          PERIOD === 'all' ? 'Raise a sales invoice to track finished-goods movement.' : 'Try a different period.',
+          'invoice', '+ New invoice')}`;
 }
 
-window.__qlOnSwitchCompany = () => render();
+window.__qlOnSwitchCompany = () => { closeMenu(); render(); };
 window.__qlRefresh = render;
 QLD.init(render);
 </script>

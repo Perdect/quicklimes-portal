@@ -46,6 +46,10 @@ const toast = (m, t) => (QLShell.toast ? QLShell.toast(m, t) : 0);
 
 let ST = {
   view: 'recon', month: 'all', monthInit: false, ftype: 'all', fstatus: 'all', q: '', sel: new Set(), foOpen: false, acc: '',
+  /* The party ledger's own view state. `lq` is separate from `q`: the recon search
+     matches narrations and refs, the ledger searches party names, and sharing one
+     box would carry a half-typed narration search into the ledger and show nothing. */
+  lq: '', lfilter: 'all', lsort: 'amount',
   /* Advanced filters, the same shape QLX uses for its Filters panel (S.adv) so
      the two behave identically even though this page is not a QLX mount.
      'all' means the filter is off — never '' , so an empty <select> value can
@@ -606,7 +610,25 @@ function toolbarHTML() {
   const tt = monthTxns();
   const cnt = k => k === 'all' ? tt.length : k === 'review' ? tt.filter(needsReview).length : tt.filter(t => statusKey(t) === k).length;
   const tab = (k, l) => `<button class="rc-ftab ${ST.fstatus === k ? 'on' : ''} k-${k}" data-fstatus="${k}">${l}<span class="rc-ftab-n">${cnt(k)}</span></button>`;
-  if (ST.view === 'ledger') return `<div class="rc-toolbar2"><div class="rc-ftabs"><button class="rc-ftab on" data-view="recon">${svg('<polyline points="15 18 9 12 15 6"/>')} Back to reconciliation</button></div><div class="rc-tb-r"><button class="rc-mini2" id="rcLedgerExp">${svg(IC.dl)} Export ledger</button></div></div>`;
+  if (ST.view === 'ledger') {
+    /* Counts come from the SAME rows the list renders (ledgerRows), so a chip can
+       never promise a number the list does not show. */
+    const all = ledgerRows({ ignoreFilter: true });
+    const n = { all: all.length, receive: all.filter(p => p.pending > 0).length, pay: all.filter(p => p.pending < 0).length, settled: all.filter(p => !p.pending).length };
+    const lt = (k, l) => `<button class="rc-ftab ${ST.lfilter === k ? 'on' : ''}" data-lfilter="${k}">${l}<span class="rc-ftab-n">${n[k]}</span></button>`;
+    return `<div class="rc-toolbar2">
+      <div class="rc-ftabs">
+        <button class="rc-ftab" data-view="recon">${svg('<polyline points="15 18 9 12 15 6"/>')} Back</button>
+        ${lt('all', 'All')}${lt('receive', 'To receive')}${lt('pay', 'To pay')}${lt('settled', 'Settled')}
+      </div>
+      <div class="rc-tb-r">
+        <div class="rc-searchw">${svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')}<input class="rc-search2" id="rcLgSearch" placeholder="Search party…" value="${esc(ST.lq)}"></div>
+        <select class="qx-sel rc-lg-sort" id="rcLgSort" aria-label="Sort parties">
+          ${[['amount', 'Biggest outstanding'], ['business', 'Most business'], ['name', 'Name (A–Z)']].map(o => `<option value="${o[0]}" ${ST.lsort === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}
+        </select>
+        <button class="rc-mini2" id="rcLedgerExp">${svg(IC.dl)} Export ledger</button>
+      </div></div>`;
+  }
   const typ = (k, l) => `<button class="rc-typ ${ST.ftype === k ? 'on' : ''}" data-ftype="${k}">${l}</button>`;
   return `<div class="rc-toolbar2">
     <div class="rc-ftabs">${tab('all', 'All')}${tab('review', 'Needs review')}${tab('matched', 'Matched')}${tab('partial', 'Partial')}${tab('unmatched', 'Unmatched')}${tab('duplicate', 'Duplicate')}</div>
@@ -911,8 +933,35 @@ function confCell(t) {
 function actionCell(t) {
   return `<button class="rc-review" data-open="${t.id}">Review</button><button class="rc-kebab" data-more="${t.id}" title="More">${svg(IC.dots || '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>')}</button>`;
 }
+/* ONE place decides which parties the ledger shows — the toolbar's counts, the
+   list, the header totals and the export all call this. Two implementations would
+   let the chip say "12 to receive" while the list showed 9. */
+function ledgerRows(opts) {
+  opts = opts || {};
+  let r = partyLedger().filter(p => p.party !== '—');
+  if (!opts.ignoreFilter) {
+    if (ST.lfilter === 'receive') r = r.filter(p => p.pending > 0);
+    else if (ST.lfilter === 'pay') r = r.filter(p => p.pending < 0);
+    else if (ST.lfilter === 'settled') r = r.filter(p => !p.pending);
+    const q = (ST.lq || '').trim().toLowerCase();
+    if (q) r = r.filter(p => (p.party || '').toLowerCase().includes(q));
+  }
+  /* Only sorts with real data behind them. partyLedger emits no date, so a "Most
+     recent" option would compare undefined to undefined — a control that looks like
+     it works and silently does nothing. `business` is a field it actually returns. */
+  if (ST.lsort === 'name') r = r.slice().sort((a, b) => (a.party || '').localeCompare(b.party || ''));
+  else if (ST.lsort === 'business') r = r.slice().sort((a, b) => (b.business || 0) - (a.business || 0));
+  else r = r.slice().sort((a, b) => Math.abs(b.pending || 0) - Math.abs(a.pending || 0));   // biggest money first
+  return r;
+}
+
 function ledgerHTML() {
-  const rows = partyLedger().filter(p => p.party !== '—');
+  const rows = ledgerRows();
+  if (!rows.length && (ST.lq || ST.lfilter !== 'all')) {
+    /* Say WHY it is empty and offer the way out — "No party data yet" would be a
+       lie when the data is there and a filter is hiding it. */
+    return `<div class="rc-none">No party matches ${ST.lq ? '“' + esc(ST.lq) + '”' : 'this filter'}.<br><button class="rc-linkbtn" id="rcLgClear">Clear search &amp; filters</button></div>`;
+  }
   if (!rows.length) return `<div class="rc-none">No party data yet.</div>`;
   const initial = n => ((n || '').trim()[0] || '?').toUpperCase();
   const hue = n => { let h = 0; for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) % 360; return h; };
@@ -1563,6 +1612,13 @@ function wire() {
   root.querySelectorAll('#rcAdv [data-dk]').forEach(el => el.onchange = () => { ST.adv[el.dataset.dk] = el.value; render(); });
   root.querySelectorAll('[data-fstatus]').forEach(b => b.onclick = () => { ST.fstatus = b.dataset.fstatus; render(); });
   root.querySelectorAll('[data-facc]').forEach(b => b.onclick = () => { ST.acc = b.dataset.facc; ST.sel.clear(); render(); });
+  /* Repaint the panel, keep the caret where the user left it — same shape as the
+     recon search below. */
+  const lgRepaint = () => { const p = document.querySelector('.rc-panel'); if (p) { p.innerHTML = viewHTML(); wire(); const i = $('rcLgSearch'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } } };
+  if ($('rcLgSearch')) { const i = $('rcLgSearch'); i.oninput = () => { ST.lq = i.value; lgRepaint(); }; }
+  if ($('rcLgSort')) { const sel = $('rcLgSort'); sel.onchange = () => { ST.lsort = sel.value; lgRepaint(); }; }
+  document.querySelectorAll('[data-lfilter]').forEach(b => { b.onclick = () => { ST.lfilter = b.dataset.lfilter; lgRepaint(); }; });
+  if ($('rcLgClear')) $('rcLgClear').onclick = () => { ST.lq = ''; ST.lfilter = 'all'; lgRepaint(); };
   if ($('rcSearch')) { const s = $('rcSearch'); s.oninput = () => { ST.q = s.value; const p = document.querySelector('.rc-panel'); if (p) { p.innerHTML = viewHTML(); wire(); s2focus(); } }; }
   root.querySelectorAll('[data-link]').forEach(b => b.onclick = () => openLink(b.dataset.link));
   root.querySelectorAll('[data-unlink]').forEach(b => b.onclick = () => { const t = txns().find(x => x.id === b.dataset.unlink); if (t) { t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched' }; Q.saveRecon(); render(); } });

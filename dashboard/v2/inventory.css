@@ -1,0 +1,215 @@
+/* inventory.css — Inventory page chrome.
+ *
+ * Every colour here is a REAL token out of tokens.css. The version of this page
+ * that shipped used var(--ql-surface) and var(--ql-text-soft), neither of which
+ * has ever existed — so the cards rendered with no background and inherited text.
+ * inventory.test.js now parses tokens.css and fails on any undefined --ql-*.
+ *
+ * Theme tints use color-mix(... , var(--ql-card)) rather than the fixed --ql-*-50
+ * ramps, because the 50-steps are NOT redefined under [data-theme="dark"] — a
+ * --ql-warning-50 panel stays paper-white in dark mode.
+ */
+
+/* ── period filter bar ─────────────────────────────────────────── */
+.inv-bar {
+  position: sticky; top: 0; z-index: var(--ql-z-sticky);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 0 12px; margin-bottom: var(--ql-space-2);
+  background: var(--ql-bg);
+}
+.inv-bar-sp { flex: 1 1 auto; }
+.inv-per {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 38px; padding: 0 12px;
+  border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg);
+  background: var(--ql-card); color: var(--ql-text);
+  font: inherit; font-size: 13.5px; font-weight: var(--ql-weight-semibold);
+  cursor: pointer; transition: background var(--ql-duration-fast) var(--ql-ease-out), border-color var(--ql-duration-fast) var(--ql-ease-out);
+}
+.inv-per:hover { background: var(--ql-neutral-50); border-color: var(--ql-border-strong); }
+.inv-per.on { border-color: var(--ql-brand-600); color: var(--ql-brand-700); background: color-mix(in srgb, var(--ql-brand-600) 8%, var(--ql-card)); }
+.inv-per svg { width: 15px; height: 15px; flex: none; color: var(--ql-text-secondary); }
+.inv-per.on svg { color: var(--ql-brand-600); }
+.inv-scope { font-size: 12.5px; color: var(--ql-text-muted); }
+.inv-scope b { color: var(--ql-text-secondary); font-weight: var(--ql-weight-semibold); }
+
+/* ── the month/year menu (mirrors qlx.js's picker) ─────────────── */
+.inv-menu {
+  position: absolute; z-index: var(--ql-z-dropdown);
+  width: 268px; padding: 12px;
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-xl); box-shadow: var(--ql-shadow-lg);
+}
+.inv-mm-yr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.inv-mm-yr span { font-size: 14px; font-weight: var(--ql-weight-bold); color: var(--ql-text); font-variant-numeric: tabular-nums; }
+.inv-mm-nav {
+  width: 30px; height: 30px; display: grid; place-items: center;
+  border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md);
+  background: var(--ql-card); color: var(--ql-text-secondary); cursor: pointer;
+  transition: background var(--ql-duration-fast) var(--ql-ease-out);
+}
+.inv-mm-nav:hover { background: var(--ql-neutral-50); border-color: var(--ql-border-strong); }
+.inv-mm-nav svg { width: 15px; height: 15px; }
+.inv-mm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.inv-mm-cell {
+  position: relative; height: 38px;
+  border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md);
+  background: var(--ql-card); color: var(--ql-text-secondary);
+  font: inherit; font-size: 12.5px; font-weight: var(--ql-weight-semibold);
+  cursor: pointer; transition: background var(--ql-duration-fast) var(--ql-ease-out);
+}
+.inv-mm-cell:hover { background: var(--ql-neutral-50); color: var(--ql-text); }
+/* a dot marks the months that actually HAVE bills — so the user is not hunting
+   through empty months for the data. */
+.inv-mm-cell.has::after {
+  content: ''; position: absolute; left: 50%; bottom: 5px; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: var(--ql-radius-pill); background: var(--ql-brand-600);
+}
+.inv-mm-cell.on { background: var(--ql-brand-600); border-color: var(--ql-brand-600); color: var(--ql-neutral-0); }
+.inv-mm-cell.on::after { background: var(--ql-neutral-0); }
+.inv-mm-wide {
+  width: 100%; margin-top: 8px; height: 34px;
+  border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md);
+  background: var(--ql-card); color: var(--ql-text-secondary);
+  font: inherit; font-size: 12.5px; font-weight: var(--ql-weight-semibold); cursor: pointer;
+}
+.inv-mm-wide:hover { background: var(--ql-neutral-50); color: var(--ql-text); }
+.inv-mm-wide.on { background: var(--ql-brand-600); border-color: var(--ql-brand-600); color: var(--ql-neutral-0); }
+
+/* ── section headings ──────────────────────────────────────────── */
+.inv-sec-h {
+  display: flex; align-items: baseline; gap: 8px;
+  font-size: var(--ql-text-xs); font-weight: var(--ql-weight-bold);
+  text-transform: uppercase; letter-spacing: var(--ql-tracking-wide);
+  color: var(--ql-text-muted); margin: var(--ql-space-6) 0 var(--ql-space-3);
+}
+.inv-sec-h .hint { text-transform: none; letter-spacing: var(--ql-tracking-base); font-weight: var(--ql-weight-regular); font-size: 12px; }
+
+/* ── notes / banners ───────────────────────────────────────────── */
+.inv-note {
+  display: flex; gap: 11px; align-items: flex-start;
+  border-radius: var(--ql-radius-xl); padding: 13px 15px;
+  margin-bottom: var(--ql-space-4);
+  font-size: 13px; line-height: var(--ql-leading-base); color: var(--ql-text-secondary);
+  background: color-mix(in srgb, var(--ql-brand-600) 6%, var(--ql-card));
+  border: 1px solid color-mix(in srgb, var(--ql-brand-600) 22%, var(--ql-border));
+}
+.inv-note b { color: var(--ql-text); font-weight: var(--ql-weight-semibold); }
+.inv-note svg { width: 17px; height: 17px; flex: none; margin-top: 1px; color: var(--ql-brand-600); }
+.inv-note.warn {
+  background: color-mix(in srgb, var(--ql-warning-600) 8%, var(--ql-card));
+  border-color: color-mix(in srgb, var(--ql-warning-600) 30%, var(--ql-border));
+}
+.inv-note.warn svg { color: var(--ql-warning-600); }
+.inv-note.good {
+  background: color-mix(in srgb, var(--ql-success-600) 7%, var(--ql-card));
+  border-color: color-mix(in srgb, var(--ql-success-600) 26%, var(--ql-border));
+}
+.inv-note.good svg { color: var(--ql-success-600); }
+.inv-note .fix {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 7px;
+  font-size: 12.5px; font-weight: var(--ql-weight-semibold);
+  color: var(--ql-link); text-decoration: none;
+}
+.inv-note .fix:hover { color: var(--ql-link-hover); text-decoration: underline; }
+.inv-note .fix svg { width: 13px; height: 13px; margin: 0; color: currentColor; }
+
+/* ── cards ─────────────────────────────────────────────────────── */
+.inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.inv-card {
+  display: flex; flex-direction: column;
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-xl); padding: 16px;
+  box-shadow: var(--ql-shadow-xs);
+  transition: box-shadow var(--ql-duration-base) var(--ql-ease-out), border-color var(--ql-duration-base) var(--ql-ease-out);
+}
+.inv-card:hover { box-shadow: var(--ql-shadow-md); border-color: var(--ql-border-strong); }
+.inv-card.flag { border-color: color-mix(in srgb, var(--ql-warning-600) 40%, var(--ql-border)); }
+.inv-card .top { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.inv-card .ic {
+  width: 38px; height: 38px; border-radius: var(--ql-radius-lg);
+  display: grid; place-items: center; flex: none;
+}
+.inv-card .ic svg { width: 19px; height: 19px; }
+.inv-card .nm { font-weight: var(--ql-weight-semibold); font-size: 14.5px; color: var(--ql-text); line-height: var(--ql-leading-snug); }
+.inv-card .sub { font-size: 12px; color: var(--ql-text-muted); margin-top: 1px; }
+
+/* the headline. `.qty` is a real measured number; `.unk` is the honest absence of
+   one — they must never look alike, because "0 T" and "not recorded" are
+   different statements and the user could act on either. */
+.inv-card .qty {
+  font-size: 27px; font-weight: var(--ql-weight-bold);
+  letter-spacing: var(--ql-tracking-tight); color: var(--ql-text);
+  font-variant-numeric: tabular-nums; line-height: 1.15;
+}
+.inv-card .qty u { font-size: 14px; font-weight: var(--ql-weight-medium); color: var(--ql-text-muted); text-decoration: none; margin-left: 3px; }
+.inv-card .qty.neg { color: var(--ql-danger-600); }
+.inv-card .unk {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 17px; font-weight: var(--ql-weight-semibold);
+  color: var(--ql-text-muted); line-height: 1.3;
+}
+.inv-card .unk svg { width: 15px; height: 15px; color: var(--ql-warning-600); }
+.inv-card .qnote { font-size: 12px; color: var(--ql-warning-700); margin-top: 5px; line-height: var(--ql-leading-snug); }
+.inv-card .qnote.mute { color: var(--ql-text-muted); }
+
+.inv-kv {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-size: 12.5px; color: var(--ql-text-secondary);
+  padding: 7px 0; border-top: 1px solid var(--ql-divider);
+}
+.inv-kv:first-of-type { margin-top: 12px; }
+.inv-kv b { font-weight: var(--ql-weight-semibold); color: var(--ql-text); font-variant-numeric: tabular-nums; }
+.inv-kv b.off { color: var(--ql-text-muted); font-weight: var(--ql-weight-regular); }
+
+.inv-flag {
+  display: flex; gap: 8px; align-items: flex-start; margin-top: 12px;
+  padding: 9px 10px; border-radius: var(--ql-radius-md);
+  font-size: 11.5px; line-height: var(--ql-leading-snug); color: var(--ql-warning-700);
+  background: color-mix(in srgb, var(--ql-warning-600) 9%, var(--ql-card));
+  border: 1px solid color-mix(in srgb, var(--ql-warning-600) 26%, var(--ql-border));
+}
+.inv-flag svg { width: 13px; height: 13px; flex: none; margin-top: 1px; }
+.inv-flag b { font-weight: var(--ql-weight-semibold); }
+.inv-fix {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: auto; padding-top: 12px;
+  font-size: 12.5px; font-weight: var(--ql-weight-semibold);
+  color: var(--ql-link); text-decoration: none;
+}
+.inv-fix:hover { color: var(--ql-link-hover); }
+.inv-fix svg { width: 13px; height: 13px; }
+
+/* ── empty states ──────────────────────────────────────────────── */
+.inv-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 44px 20px; text-align: center;
+  font-size: 13.5px; color: var(--ql-text-muted);
+  border: 1px dashed var(--ql-border); border-radius: var(--ql-radius-xl);
+  background: var(--ql-bg-elevated);
+}
+.inv-empty .eic {
+  width: 52px; height: 52px; border-radius: var(--ql-radius-lg);
+  display: grid; place-items: center; margin-bottom: 6px;
+  background: var(--ql-card); border: 1px solid var(--ql-border); color: var(--ql-text-muted);
+}
+.inv-empty .eic svg { width: 24px; height: 24px; }
+.inv-empty .et { font-weight: var(--ql-weight-semibold); font-size: 14.5px; color: var(--ql-text); }
+.inv-empty .es { max-width: 340px; line-height: var(--ql-leading-base); }
+.inv-empty .ql-btn { margin-top: 10px; text-decoration: none; }
+
+/* ── icon tints (fixed hues; they read on both themes at these mixes) ── */
+.t-stone { background: color-mix(in srgb, #8a6d3b 14%, var(--ql-card)); color: #8a6d3b; }
+.t-fire  { background: color-mix(in srgb, var(--ql-danger-600) 13%, var(--ql-card)); color: var(--ql-danger-600); }
+.t-bag   { background: color-mix(in srgb, var(--ql-brand-600) 13%, var(--ql-card)); color: var(--ql-brand-600); }
+.t-bolt  { background: color-mix(in srgb, var(--ql-warning-600) 15%, var(--ql-card)); color: var(--ql-warning-700); }
+.t-lime  { background: color-mix(in srgb, var(--ql-success-600) 13%, var(--ql-card)); color: var(--ql-success-700); }
+
+/* ── mobile (mobile.css owns ≤768px; this is the page's own share) ── */
+@media (max-width: 768px) {
+  .inv-bar { top: 0; padding: 8px 0 10px; }
+  .inv-grid { grid-template-columns: 1fr; gap: 12px; }
+  .inv-card { padding: 14px; }
+  .inv-card .qty { font-size: 24px; }
+  .inv-menu { width: calc(100vw - 32px); max-width: 300px; }
+  .inv-scope { width: 100%; }
+}

@@ -280,6 +280,14 @@
 
 .rc-ftab { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 11px; border: 1px solid transparent; border-radius: 9px; background: transparent; font: inherit; font-size: 13px; font-weight: 600; color: var(--ql-text-secondary); cursor: pointer; transition: all .13s; }
 .rc-ftab:hover { background: var(--ql-neutral-100); }
+/* svg() emits viewBox only — no width/height — so an unsized icon renders ~300px
+   wide and shoves the label out. Every other rc-* class already declares this; these
+   two were missed, which is why "Back to reconciliation" had a giant chevron and its
+   text wrapped inside a 32px-tall button. nowrap because this tab carries a real
+   sentence, not just "All". */
+.rc-ftab svg { width: 15px; height: 15px; flex: none; }
+.rc-ftab { white-space: nowrap; }
+.rc-accbar svg { width: 15px; height: 15px; flex: none; }
 .rc-ftab.on { background: var(--ql-card); border-color: var(--ql-border); color: var(--ql-text); box-shadow: var(--ql-shadow-sm); }
 .rc-ftab-n { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 99px; background: var(--ql-neutral-150, #eef1f6); color: var(--ql-text-secondary); }
 .rc-ftab.on.k-review .rc-ftab-n { background: #f5f3ff; color: #7c3aed; }
@@ -454,3 +462,6 @@
 .rc-grp-done { font-size: 11.5px; font-weight: 600; padding: 2px 9px; border-radius: 99px;
                background: var(--ql-success-50); color: var(--ql-success-700); white-space: nowrap; }
 @media (max-width: 768px) { .rc-grp-n { display: none; } }
+
+/* Ledger sort select — matches the filter chrome next to it. */
+.rc-lg-sort { height: 32px; font-size: 12.5px; border-radius: 9px; padding: 0 8px; border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-text); }
