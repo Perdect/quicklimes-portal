@@ -4,7 +4,9 @@
    server-side), validates the result with QLExtract, and returns it in the SAME
    generic shape the bulk review drawer already understands. Party master +
    corrections load from /api/parties. Any failure/no-key ⇒ returns null so the
-   caller uses the offline regex parser. Same auth as recon-api (ql_plant token).
+   caller uses the offline regex parser — but the REASON is recorded on status(),
+   because a silent fallback is how a valid key sat in config for weeks while every
+   upload quietly used the regex reader. Same auth as recon-api (ql_plant token).
    ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -49,6 +51,39 @@
     catch (_) { return ''; }
   }
 
+  /* ── WHY the AI didn't fire ─────────────────────────────────
+     Returning null is how this client says "use the regex parser", and that null
+     used to be the end of the story: no key configured, wrong endpoint, blocked
+     prompt and dead network all looked identical from the outside — a bill that
+     just quietly read a bit worse. The owner had a VALID Gemini key sitting in
+     config while every upload silently used the offline parser, and nothing in the
+     app could tell him. The fallback stays; the silence does not.
+
+     Last one wins: this is a status light, not a log. */
+  var _last = null;
+  function note(ok, reason, res) {
+    _last = { ok: !!ok, reason: reason || '', at: Date.now(),
+      provider: (res && res.provider) || '', model: (res && res.model) || '' };
+    return _last;
+  }
+  /* Human-readable, because the person reading it configured the key and is trying
+     to work out why nothing happened. */
+  var WHY = {
+    llm_not_configured: 'no AI key is configured on the server',
+    ai_unavailable: 'the AI service could not be reached',
+    ai_bad_response: 'the AI replied in a shape we could not read',
+    network: 'the request never reached the server'
+  };
+  function explain(r) {
+    if (!r) return 'the request never reached the server';
+    var e = String(r.error || '');
+    if (WHY[e]) return WHY[e];
+    if (e.indexOf('llm_unknown_provider:') === 0) return 'the server has an unknown AI provider configured (' + e.split(':')[1] + ')';
+    if (e.indexOf('ai_no_result:') === 0) return 'the AI returned no result (' + e.split(':')[1] + ')';
+    return e || 'the AI did not answer';
+  }
+  function status() { return _last; }
+
   /* ── extract ONE bill via AI; returns a legacy `g` (generic keys + _conf/
      _review/_warn) that bulk.js makeBill already consumes, or null to fall back. */
   async function extract(file, kind) {
@@ -71,7 +106,8 @@
     if (!text && !images.length) return null;
 
     var res = await post('extract', { kind: kind || '', fileName: file.name || '', text: text, images: images }, 95000);
-    if (!res || res.ok !== true || !res.data) return null;    // fallback signalled
+    if (!res || res.ok !== true || !res.data) { note(false, explain(res), res); return null; }  // fall back, but SAY SO
+    note(true, '', res);
 
     var mc = await loadMaster();
     var own = []; try { var oi = F().ownInfo(); own = oi.ownGstins || []; } catch (_) {}
@@ -116,5 +152,5 @@
     return g;
   }
 
-  window.QLExtractAPI = { extract: extract, ready: ready, loadMaster: loadMaster, saveParty: saveParty, correct: correct, dedup: dedup, mark: mark, fileHash: fileHash };
+  window.QLExtractAPI = { extract: extract, ready: ready, status: status, loadMaster: loadMaster, saveParty: saveParty, correct: correct, dedup: dedup, mark: mark, fileHash: fileHash };
 })();

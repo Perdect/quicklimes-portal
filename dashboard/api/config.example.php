@@ -21,9 +21,23 @@ return [
   'APP_SECRET' => 'change-me-to-a-long-random-string-of-at-least-32-characters',
 
   // ── AI invoice extraction (optional) — the vision model that reads any bill.
-  //    Paste your Anthropic key here (server-side only; never committed, never
-  //    sent to the browser). Leave blank to keep the offline regex parser.
-  'LLM_API_KEY' => '',                          // sk-ant-...  (from console.anthropic.com)
+  //    Server-side only: the key is never committed and never sent to the browser.
+  //    Leave LLM_API_KEY blank to keep the offline regex parser.
+  //
+  //    PROVIDER AND KEY MUST MATCH — a valid key sent to the wrong provider fails
+  //    exactly like an invalid one, which is a genuinely miserable hour to debug.
+  //    Set LLM_PROVIDER to whichever key you pasted:
+  //
+  //      'gemini'     — aistudio.google.com/apikey (has a free tier)
+  //                     model: gemini-2.5-flash
+  //                     Keys start with AQ. on new accounts, AIza on older ones.
+  //                     Both are valid — do not let the prefix worry you.
+  //      'anthropic'  — console.anthropic.com
+  //                     model: claude-sonnet-5
+  //
+  //    LLM_MODEL is optional: leave it out and each provider uses its default above.
+  'LLM_PROVIDER' => 'anthropic',                // 'anthropic' | 'gemini'
+  'LLM_API_KEY' => '',                          // the key for THAT provider
   'LLM_MODEL'   => 'claude-sonnet-5',           // vision-capable model id
   'LLM_MAX_IMAGES' => 3,                         // page images per bill (cost cap)
 

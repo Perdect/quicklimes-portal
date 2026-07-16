@@ -664,9 +664,19 @@ function ql_whapi() {
 /* ── AI key + model from config (server-side only; '' when unconfigured) ── */
 function ql_llm() {
   $c = ql_config();
+  /* Provider is EXPLICIT config — never sniffed from the key's prefix. Google moved
+     AI Studio keys from AIza to AQ. mid-life; any code that guessed the provider from
+     the shape of the key would have started rejecting valid keys that morning.
+     Unset means the historical default, Anthropic, so existing installs do not move. */
+  $provider = strtolower(trim((string)($c['LLM_PROVIDER'] ?? 'anthropic')));
+  /* The default model FOLLOWS the provider. A flat 'claude-sonnet-5' default would
+     mean setting LLM_PROVIDER=gemini without LLM_MODEL sends an Anthropic model name
+     to Google — a 404 that reads like a bad key and sends you hunting the wrong thing. */
+  $fallbackModel = ['anthropic' => 'claude-sonnet-5', 'gemini' => 'gemini-2.5-flash'];
   return [
+    'provider' => $provider,
     'key'   => (string)($c['LLM_API_KEY'] ?? ''),
-    'model' => (string)($c['LLM_MODEL'] ?? 'claude-sonnet-5'),
+    'model' => (string)($c['LLM_MODEL'] ?? ($fallbackModel[$provider] ?? '')),
     'maxImg'=> (int)($c['LLM_MAX_IMAGES'] ?? 3),
   ];
 }

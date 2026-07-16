@@ -96,7 +96,11 @@
     }
     if (!flat.length) { toast('No readable files found' + (dropped.length ? ' — ' + dropped.length + ' skipped' : ''), 'err'); return; }
 
-    BATCH = { cfg: cfg, bills: [], total: flat.length, done: 0, dropped: dropped };
+    /* t0 scopes the AI status check to THIS import. QLExtractAPI.status() is
+       last-one-wins and outlives a batch, so without a start time a spreadsheet-only
+       import (where the AI is never called) would inherit the previous import's
+       failure and report the AI as off when it was never asked. */
+    BATCH = { cfg: cfg, bills: [], total: flat.length, done: 0, dropped: dropped, t0: Date.now() };
     showProgress();
     // sequential (Tesseract is heavy) but fully async — the page stays live.
     for (var j = 0; j < flat.length; j++) {
@@ -394,8 +398,27 @@
     hideProgress();
     var n = BATCH.bills.length;
     if (BATCH.dropped && BATCH.dropped.length) toast(BATCH.dropped.length + ' file(s) skipped: ' + BATCH.dropped.slice(0, 3).join(', '), 'err');
+    aiNote();
     if (n === 1) openDrawer(BATCH.bills[0], { solo: true });
     else openTable();
+  }
+
+  /* Say ONCE per import whether the AI actually read the bills.
+     The fallback to the offline regex parser is deliberate and good — a bill still
+     gets read when the AI is down. What was not good is that it happened in total
+     silence: a valid Gemini key sat in the owner's config while every upload used
+     the regex reader, and no screen in the app could tell him. A quieter parse is
+     not a neutral event; it is the difference between a field read off the page and
+     a field guessed by a pattern.
+
+     Only speak when there is something to say — a working AI stays quiet rather
+     than congratulating itself on every import. */
+  function aiNote() {
+    if (!window.QLExtractAPI || !QLExtractAPI.status) return;
+    var s = QLExtractAPI.status();
+    if (!s || s.ok) return;                          // worked, or has never run at all
+    if (!BATCH || !(s.at >= BATCH.t0)) return;       // stale — this import never asked the AI
+    toast('AI reading is off — ' + s.reason + '. Bills were read by the offline reader; check the figures.', 'err');
   }
 
   /* ════════════════ FLOATING PROGRESS CHIP ════════════════ */
