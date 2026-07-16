@@ -779,7 +779,12 @@ function filteredTxns() {
 }
 function badge(t) {
   const m = t.m || {}, s = STAT[m.status] || STAT.unmatched;
-  const showConf = m.confidence != null && ['matched', 'partial', 'review', 'overpayment', 'amountdiff', 'datemismatch'].indexOf(m.status) >= 0;
+  /* 'other' joins the list because the CONFIDENCE COLUMN IS GONE and this badge is
+     now the only place the number is printed. It was always the better place: the
+     column showed "80%", this badge showed "Partial · 80%", and the suggestion cell
+     drew a progress bar of the same 80% — one fact, rendered three times, in three
+     columns, on every row. That is what "too much data" meant. */
+  const showConf = m.confidence != null && ['matched', 'partial', 'review', 'overpayment', 'amountdiff', 'datemismatch', 'other'].indexOf(m.status) >= 0;
   const dot = m.tier ? `<span class="rc-dot ${m.tier}"></span>` : '';
   return `<span class="rc-badge" style="background:${s[1]};color:${s[2]}">${dot}${s[0]}${m.manual ? ' ✓' : ''}${showConf ? ' · ' + m.confidence + '%' : ''}</span>`;
 }
@@ -822,7 +827,7 @@ function monthGroupBar(g, first) {
   const dr = g.rows.reduce((a, t) => a + (t.debit || 0), 0);
   const todo = g.rows.filter(needsReview).length;
   const collapsed = ST.collapsed.has(g.key);
-  return `<tr class="qx-grp ${collapsed ? 'collapsed' : ''}" data-grp="${esc(g.key)}"><td colspan="9">
+  return `<tr class="qx-grp ${collapsed ? 'collapsed' : ''}" data-grp="${esc(g.key)}"><td colspan="8">
     <div class="qx-grp-bar ${first ? 'first' : ''}">
       <svg class="qx-grp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       <b>${esc(g.label)}</b>
@@ -849,7 +854,6 @@ function viewHTML() {
     <td>${typeCell(t)}</td>
     <td class="r">${amountCell(t)}</td>
     <td>${suggestCell(t)}</td>
-    <td class="rc-cf">${confCell(t)}</td>
     <td>${badge(t)}</td>
     <td class="rc-actcell">${actionCell(t)}</td>
   </tr>`; };
@@ -863,7 +867,7 @@ function viewHTML() {
         (ST.collapsed.has(g.key) ? '' : g.rows.map(rowHTML).join(''))
       ).join('');
   return `<div class="rc-tablewrap"><table class="rc-table rc-table2">
-    <thead><tr><th class="rc-cbx"></th><th>Date</th><th>Party / Description</th><th>Type</th><th class="r">Amount</th><th>Suggested match</th><th>Confidence</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th class="rc-cbx"></th><th>Date</th><th>Party / Description</th><th>Type</th><th class="r">Amount</th><th>Suggested match</th><th>Status</th><th></th></tr></thead>
     <tbody>${body}</tbody></table></div>`;
 }
 /* ── table cells ── */
@@ -878,9 +882,20 @@ function partyCell(t) {
   const mode = t.mode || (t.cheque ? 'CHQ' : '');
   const shortRef = t.utr ? String(t.utr).slice(-10) : (t.cheque || '');
   const norm2 = [mode, shortRef].filter(Boolean).join(' · ') || (t.raw || t.desc || '').slice(0, 38);
-  const sub = known ? `<div class="rc-party-r">${svg('<path d="M20 6 9 17l-5-5"/>')}Recognized as <b>${esc(known)}</b></div>`
-    : (!isOther && ((m.status === 'unknown') || !isLinked(t)) ? `<div class="rc-party-u"><span class="rc-uk">Unknown party</span><button class="rc-idbtn" data-link="${t.id}">Identify</button></div>` : '');
-  return `<div class="rc-party-n">${esc(name)}</div><div class="rc-party-nar">${esc(norm2)}</div>${sub}`;
+  /* TWO LINES, ALWAYS. This cell used to grow a conditional THIRD line
+     ("✓ Recognized as X" / "Unknown party · Identify"), so rows that had one stood
+     taller than rows that did not — that is the ragged spacing he reported.
+
+     "Recognized as Indian Oil Corporation Limited" also sat directly beneath the
+     name Indian Oil Corporation Limited: `name` IS `known` whenever we know it. The
+     same fact twice, one line apart. It becomes a tick against the name — same
+     meaning, no extra line, no repetition. Unknown parties keep Identify (it is how
+     the matcher learns) but inline on the reference line, where it costs no height. */
+  const unknown = !isOther && ((m.status === 'unknown') || !isLinked(t));
+  const tick = known ? `<span class="rc-ok" title="Recognized as ${esc(known)}">${svg('<path d="M20 6 9 17l-5-5"/>')}</span>` : '';
+  const idLink = unknown ? `<button class="rc-idbtn" data-link="${t.id}">Identify</button>` : '';
+  return `<div class="rc-party-n">${tick}<span class="rc-party-nm">${esc(name)}</span></div>`
+    + `<div class="rc-party-nar"><span class="rc-nar-t">${esc(norm2)}</span>${idLink}</div>`;
 }
 /* Transaction column — WHAT this money movement is, not just Credit/Debit. */
 function typeCell(t) {
@@ -916,20 +931,23 @@ function suggestCell(t) {
     const pct = Math.min(100, Math.round(alloc / (tot || 1) * 100));
     const col = over ? '#dc2626' : pct >= 99 ? '#16a34a' : '#f59e0b';
     const line = over ? `${fC(alloc)} — exceeds bill by ${fC(alloc - tot)}` : `${fC(alloc)} of ${fC(tot)}`;
-    return `<div class="rc-sg"><b>${esc(ref || '—')}</b><span class="rc-sg-p">${esc(nm || '')}</span>
-      <div class="rc-sg-of"${over ? ' style="color:#dc2626;font-weight:600"' : ''}>${line}</div><div class="rc-sg-bar"><i style="width:${pct}%;background:${col}"></i></div></div>`;
+    /* TWO LINES like every other suggestion, not four. This was the tallest cell in
+       the table: ref, party, "₹1,20,000 of ₹6,27,013", and a progress bar — while
+       the Status badge two columns over already said "Partial · 80%". The amount
+       folds onto the party line (it is the useful half: which bill, how much of it),
+       and the bar becomes a hairline along the cell's bottom edge — it adds no
+       height, and an over-payment still shows red where it matters. */
+    return `<div class="rc-sg"><b>${esc(ref || '—')}</b>`
+      + `<span class="rc-sg-p">${esc(nm || '')}${nm ? ' · ' : ''}<span class="rc-sg-of"${over ? ' style="color:#dc2626;font-weight:600"' : ''}>${line}</span></span>`
+      + `<div class="rc-sg-bar"><i style="width:${pct}%;background:${col}"></i></div></div>`;
   }
   if (t.m && t.m.status === 'other') return `<div class="rc-sg"><b>${esc(t.m.cat || 'Categorized')}</b><span class="rc-sg-p">non-bill entry</span></div>`;
   return '<span class="rc-mut">— no match —</span>';
 }
-function confCell(t) {
-  // A recognized-but-unlinked row has a real confidence and its status badge
-  // already shows it — printing "—" here while the badge says 60% is the page
-  // disagreeing with itself.
-  const m = t.m || {}; if (m.confidence == null || !(isLinked(t) || m.party)) return '<span class="rc-mut">—</span>';
-  const c = m.confidence, col = c >= 90 ? '#16a34a' : c >= 70 ? '#f59e0b' : '#dc2626';
-  return `<span class="rc-conf-dot" style="--cc:${col}"><i></i>${c}%</span>`;
-}
+/* confCell is DELETED, not left orphaned. The Confidence COLUMN is gone: it printed
+   the same number the Status badge already carries ("Partial · 80%"), which this
+   function's own comment used to call "the page disagreeing with itself". One
+   fact, one place. A dead renderer is what someone re-wires by accident later. */
 function actionCell(t) {
   return `<button class="rc-review" data-open="${t.id}">Review</button><button class="rc-kebab" data-more="${t.id}" title="More">${svg(IC.dots || '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>')}</button>`;
 }
