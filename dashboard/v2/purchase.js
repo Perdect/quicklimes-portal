@@ -706,6 +706,13 @@ QLX.mount({
     { key: 'item', label: 'Purchase Item', sort: true, cell: itemCell },
     { key: 'veh', label: 'Vehicle No', sort: true, cell: r => r.veh ? `<span class="qx-mut">🚚 ${esc(r.veh)}</span>` : '<span class="qx-mut">—</span>' },
     { key: 'grate', label: 'GST', sort: true, num: true, cell: r => `<span class="qx-mut qx-num">${r.grate}%</span>` },
+    /* Qty + rate, exactly as the Sales register has always had them (sales.js:267).
+       Purchase never showed them — which is how the importer silently dropping the
+       tonnage went unnoticed for so long: there was no column for the missing number
+       to be missing FROM. An unrecorded qty shows '—', not 0: those are different
+       facts and the whole Inventory mess came from conflating them. */
+    { key: 'qty', label: t('Qty (T)'), sort: true, num: true, cell: r => (+r.qty > 0 ? `<span class="qx-num">${fmt(r.qty, 2)}</span>` : `<span class="qx-dash">—</span>`) },
+    { key: 'rate', label: t('Rate ₹/T'), sort: true, num: true, cell: r => (+r.qty > 0 && +r.taxable > 0 ? `<span class="qx-num">${fC(Math.round(r.taxable / r.qty))}</span>` : `<span class="qx-dash">—</span>`) },
     { key: 'taxable', label: 'Taxable', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` },
     // LANDED COST = the bill + the freight paid to get the material here. This is
     // what the petcoke actually cost, and it is what the owner reads the register
