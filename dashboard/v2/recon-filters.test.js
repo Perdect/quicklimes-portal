@@ -52,8 +52,12 @@ const QLD = {
   fmt: n => String(n), fDS: d => String(d || ''), fL: n => String(n), daysAgo: () => 0,
   co: { name: 'Gotan Lime Industries', short: 'GOTAN' }, COMPANIES: {}, ownFirmNames: ['Gotan Lime Industries'],
   activeCo: 'gotan',
-  salesRows: () => [], purchaseRows: () => [], partyRows: () => [], cashbookRows: () => [],
+  salesRows: () => [], purchaseRows: () => [], partyRows: () => QLD.partyRowsReal, cashbookRows: () => [],
   bankAccounts: () => [], bankAccountById: () => null, bankAccountLabel: () => '',
+  // A real party master, so exact-name resolution has something to resolve against.
+  // Deshwali Minerals is here on purpose: it shares a first token with the bank-charge
+  // narration "DESHWALI LIME CENTRAL BANK O", which is the mis-attribution trap.
+  partyRowsReal: [{ idx: 0, name: 'Aziz Chemicals' }, { idx: 1, name: 'Deshwali Minerals' }, { idx: 2, name: 'Shree Cement Ltd' }],
   recon: { txns: TXNS, aliases: {} }, saveRecon: noop, commit: noop, state: { RECON: { txns: TXNS } },
   uiMonth: () => null, setUiMonth: noop, partyLedger: () => [],
   statementRows: () => [], lastStatement: () => null,
@@ -72,12 +76,13 @@ const ctx = {
 ctx.window = ctx; ctx.globalThis = ctx; ctx.window.QLD = QLD;
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'recon-core.js'), 'utf8'), ctx);
+const RC = require('./recon-core.js');
 
 let loaded = true, err = null;
 try {
   vm.runInContext(
     fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8') +
-    '\n;this.__advMatch = advMatch; this.__ST = ST; this.__advCount = advCount; this.__advReset = advReset; this.__txnAmt = txnAmt; this.__filteredTxns = filteredTxns; this.__groupByMonth = groupByMonth; this.__monthName = monthName;',
+    '\n;this.__advMatch = advMatch; this.__ST = ST; this.__advCount = advCount; this.__advReset = advReset; this.__txnAmt = txnAmt; this.__filteredTxns = filteredTxns; this.__groupByMonth = groupByMonth; this.__monthName = monthName; this.__advOptions = advOptions; this.__txnPartyName = txnPartyName;',
     ctx
   );
 } catch (e) { loaded = false; err = e; }
@@ -227,6 +232,72 @@ ok(apply().indexOf('T8') >= 0, 'a line with no category survives the default vie
   ok(withBlank.some(g => g.label === 'No date'), '  and is labelled honestly as "No date"');
 
   eq('an empty list groups to nothing, not a crash', groupByMonth([]).length, 0);
+}
+
+/* ══════════ THE PARTY FILTER LISTS PARTIES, NOT NARRATIONS ══════════
+   Reported: the Parties dropdown was full of "ACHRE HRETC HARGE", "AQB SER CHGS INC
+   GST APR JUN2025 CDT2519", "COLL", "EBANK BOB BANK BOB BANK". Cause: txnParty()
+   fell back to t.clean — a de-noised narration with nothing verifying it — so every
+   row had a "party". The junk was never in the party master; the filter invented it. */
+{
+  const P = ctx.__txnPartyName, OPTS = ctx.__advOptions, M = ctx.__advMatch, ST = ctx.__ST;
+  const save = TXNS.slice();
+  const load = rows => { TXNS.length = 0; TXNS.push(...rows); };
+
+  const JUNK = [
+    { id: 'x1', date: '2026-01-05', clean: 'ACHRE HRETC HARGE',                     debit: 500,  m: { status: 'other', cat: 'Bank charges', confidence: 96 } },
+    { id: 'x2', date: '2026-01-06', clean: 'AQB SER CHGS INC GST APR JUN2025 CDT2519', debit: 118, m: { status: 'other', cat: 'Bank charges', confidence: 96 } },
+    { id: 'x3', date: '2026-01-07', clean: 'COLL',                                  debit: 20,   m: { status: 'other', cat: 'Bank charges', confidence: 96 } },
+    { id: 'x4', date: '2026-01-08', clean: 'EBANK BOB BANK BOB BANK',               debit: 30,   m: { status: 'unmatched', cat: '' } },
+    // The trap: shares a first token with the real party "Deshwali Minerals".
+    { id: 'x5', date: '2026-01-09', clean: 'DESHWALI LIME CENTRAL BANK O',          debit: 40,   m: { status: 'unmatched', cat: '' } },
+    // Real, identified two different legitimate ways.
+    { id: 'x6', date: '2026-01-10', clean: 'AZIZ CHEM LTD NEFT',  credit: 100000, m: { status: 'review', cat: 'Credit', party: 'Aziz Chemicals', confidence: 60 } },
+    { id: 'x7', date: '2026-01-11', clean: 'Shree Cement Ltd',    credit: 50000,  m: { status: 'unmatched', cat: 'Credit' } },
+    /* Identified ONLY by a learned alias: the narration is not a party name, does not
+       match one exactly, and carries no m.party. Without this row the alias branch was
+       never executed and deleting it survived mutation testing — the app would have
+       silently forgotten every narration the user had taught it. */
+    { id: 'x8', date: '2026-01-12', clean: 'ARIF CHEMICAL L LIMEICI9194', credit: 75000, m: { status: 'unmatched', cat: 'Credit' } }
+  ];
+  QLD.recon.aliases[RC.normName('ARIF CHEMICAL L LIMEICI9194')] = 'Arif Chemicals';
+  load(JUNK);
+  const opts = OPTS().party;
+
+  eq('a bank-charge narration is NOT a party', P(JUNK[0]), '');
+  eq('a fee narration is NOT a party', P(JUNK[1]), '');
+  eq('"COLL" is NOT a party', P(JUNK[2]), '');
+  ok(!opts.includes('ACHRE HRETC HARGE'), 'THE BUG: junk narration is gone from the Parties dropdown');
+  ok(!opts.includes('AQB SER CHGS INC GST APR JUN2025 CDT2519'), '  and so is the fee narration');
+  ok(!opts.includes('COLL'), '  and "COLL"');
+  ok(!opts.includes('EBANK BOB BANK BOB BANK'), '  and "EBANK BOB BANK BOB BANK"');
+
+  /* The mis-attribution trap. Guessing by first token would file this bank charge
+     under a REAL firm — inventing data, which is worse than the junk it replaces. */
+  eq('a narration sharing a FIRST TOKEN with a real party is NOT attributed to it', P(JUNK[4]), '');
+  ok(!opts.includes('Deshwali Minerals'), '  so "Deshwali Minerals" is not offered on the strength of a bank charge');
+
+  eq('an explicit match party IS a party', P(JUNK[5]), 'Aziz Chemicals');
+  ok(opts.includes('Aziz Chemicals'), '  and it IS offered in the dropdown');
+  eq('a narration EXACTLY equal to a real party name resolves', P(JUNK[6]), 'Shree Cement Ltd');
+  ok(opts.includes('Shree Cement Ltd'), '  and is offered');
+  eq('a narration the user TAUGHT us (learned alias) resolves to that party', P(JUNK[7]), 'Arif Chemicals');
+  ok(opts.includes('Arif Chemicals'), '  and the taught party is offered in the dropdown');
+
+  /* Filtering by a real party must return that party's rows and nothing else. */
+  ctx.__advReset(); ST.adv.party = 'Aziz Chemicals';
+  eq('filtering by a real party returns only its rows', JUNK.filter(M).map(t => t.id), ['x6']);
+
+  /* The question this screen exists to answer: what has NOT been attributed? */
+  ctx.__advReset(); ST.adv.party = '__none__';
+  eq('"Not identified" surfaces exactly the unattributed rows', JUNK.filter(M).map(t => t.id), ['x1', 'x2', 'x3', 'x4', 'x5']);
+  ok(!JUNK.filter(M).some(t => t.id === 'x8'), '  and an alias-identified row is NOT among them');
+  ok(OPTS().party.includes('__none__'), '  and the option is offered when such rows exist');
+
+  load(JUNK.filter(t => P(t)));      // every row identified
+  ok(!OPTS().party.includes('__none__'), '  but NOT offered when every row is identified');
+
+  ctx.__advReset(); load(save);
 }
 
 console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');

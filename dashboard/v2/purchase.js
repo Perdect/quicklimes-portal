@@ -9,7 +9,8 @@ const Q = window.QLD, fC = Q.fC, fmt = Q.fmt, fDS = d => Q.fDS(d);
 const esc = QLX.esc, svg = QLX.svg, IC = QLX.icons;
 const GCOL = { limestone: ['#f6f0e4', '#8a6d3b'], petcoke: ['#fdeceb', '#c0392b'], packaging: ['#eaf1ff', '#2f5fd0'], labour: ['#e9f9ee', '#1c7c3a'], maintenance: ['#f2eefb', '#6b3fa0'], utilities: ['#fff5e0', '#b7791f'], office: ['#eef2f7', '#475569'], other: ['#f1f5f9', '#64748b'] };
 // Short, friendly names for the Item filter (falls back to the full item name).
-const ITEM_SHORT = { 'Limestone Purchase': 'Limestone', 'Petcoke Purchase': 'Petcoke', 'Plastic Bags': 'Bags', 'Royalty': 'Royalty', 'Petcoke Transport Freight': 'Petcoke Freight', 'Limestone Freight': 'Limestone Freight', 'Loading Charges': 'Loading Charges', 'Bag Printing': 'Bag Printing', 'Other Packaging': 'Other Packaging' };
+// Item display names moved to data.js (Q.itemShort) so the register and the party
+// ledger cannot call the same bill two different things.
 const STATUSES = [['pending', 'Pending'], ['partial', 'Partial'], ['paid', 'Paid'], ['cancelled', 'Cancelled']];
 const STDOT = { pending: '#f59e0b', partial: '#2563eb', paid: '#16a34a', cancelled: '#ef4444', overdue: '#ef4444' };
 const toast = (m, t) => QLX.toast(m, t);
@@ -69,7 +70,7 @@ function supCell(r) { return `<span class="qx-party-n" style="font-weight:600">$
    and no amount is repeated. */
 function itemCell(r) {
   const frt = (r.freight && !(r.freightAddon > 0)) ? ' <span class="qx-frt">freight</span>' : '';
-  return `<span class="qx-party"><span class="qx-party-n">${esc(ITEM_SHORT[r.item] || r.item)}</span></span>${frt}`;
+  return `<span class="qx-party"><span class="qx-party-n">${esc(Q.itemShort(r.item))}</span></span>${frt}`;
 }
 
 /* ══════════════════ PDF (drawer/print) ══════════════════ */
@@ -680,12 +681,12 @@ QLX.mount({
   filters: [
     { key: 'status', label: 'Status', options: () => [['pending', 'Pending'], ['partial', 'Partial'], ['paid', 'Paid'], ['overdue', 'Overdue'], ['cancelled', 'Cancelled']], test: (r, v) => v === 'overdue' ? r.isOverdue : v === 'pending' ? (r.status === 'pending' && !r.isOverdue) : r.status === v },
     { key: 'group', label: 'Group', options: rows => Q.purchaseGroups.filter(g => rows.some(r => r.group === g.key)).map(g => [g.key, g.emoji + ' ' + g.label]), test: (r, v) => r.group === v },
-    { key: 'item', label: 'Item', allLabel: 'All items', options: rows => [...new Set(rows.map(r => r.item))].filter(Boolean).sort().map(it => [it, ITEM_SHORT[it] || it]), test: (r, v) => r.item === v },
+    { key: 'item', label: 'Item', allLabel: 'All items', options: rows => [...new Set(rows.map(r => r.item))].filter(Boolean).sort().map(it => [it, Q.itemShort(it)]), test: (r, v) => r.item === v },
     { key: 'sup', label: 'Supplier', options: rows => [...new Set(rows.map(r => r.sup))].filter(s => s && s !== '—').sort().map(s => [s, s]), test: (r, v) => r.sup === v }
   ],
   groupBy: [
     { key: 'group', label: 'Purchase Group', of: r => r.group, title: r => esc(r.groupLabel), dot: r => (GCOL[r.group] || GCOL.other)[1] },
-    { key: 'item', label: 'Purchase Item', of: r => r.item || '—', title: r => esc(ITEM_SHORT[r.item] || r.item || '—'), dot: r => (GCOL[r.group] || GCOL.other)[1] },
+    { key: 'item', label: 'Purchase Item', of: r => r.item || '—', title: r => esc(Q.itemShort(r.item) || '—'), dot: r => (GCOL[r.group] || GCOL.other)[1] },
     { key: 'status', label: 'Payment status', of: r => (r.isOverdue ? 'overdue' : r.status), title: r => (r.isOverdue ? 'Overdue' : r.status[0].toUpperCase() + r.status.slice(1)), dot: r => STDOT[r.isOverdue ? 'overdue' : r.status] },
     { key: 'sup', label: 'Supplier', of: r => r.sup, title: r => esc(r.sup), dot: () => 'var(--qx)' }
   ],

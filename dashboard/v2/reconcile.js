@@ -593,9 +593,11 @@ function filtersBtnHTML() {
 function filtersPanelHTML() {
   if (!ST.advOpen) return '';
   const o = advOptions();
+  // __none__ is a sentinel, not a party name — it must never be shown raw.
+  const optLabel = v => (v === '__none__' ? '— Not identified —' : v);
   const sel = (k, label, opts) => `<select class="qx-sel" data-fk="${k}" aria-label="${esc(label)}">
     <option value="all">${esc('All ' + label.toLowerCase())}</option>
-    ${opts.map(v => `<option value="${esc(v)}" ${ST.adv[k] === v ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select>`;
+    ${opts.map(v => `<option value="${esc(v)}" ${ST.adv[k] === v ? 'selected' : ''}>${esc(optLabel(v))}</option>`).join('')}</select>`;
   const conf = `<select class="qx-sel" data-fk="conf" aria-label="Confidence">
     ${[['all', 'Any confidence'], ['high', 'High · 95%+ (auto-matched)'], ['med', 'Medium · 75–94% (needs a look)'],
        ['low', 'Low · under 75%'], ['none', 'No suggestion at all']]
@@ -621,22 +623,52 @@ function filtersPanelHTML() {
    Every option list is derived from the ROWS ON SCREEN (monthTxns), not from a
    hardcoded enum. A filter that offers "Petcoke" when no line is petcoke is a
    dead end the user has to discover by trying it. */
-function txnParty(t) { return (t.m && t.m.party) || t.clean || ''; }
+/* The PARTY filter must list PARTIES. It used to fall back to `t.clean`, which is
+   a de-noised bank narration with no verification behind it — this file says so
+   itself ("Clean (matched on)"). That is why the dropdown filled with "ACHRE HRETC
+   HARGE", "AQB SER CHGS INC GST APR JUN2025 CDT2519" and "COLL": narrations that
+   parsed badly, sitting beside real firms as if they were the same kind of thing.
+
+   Only CERTAIN identities count, in descending order of certainty. Deliberately NO
+   first-token guess (rcTxnParty's last resort): "DESHWALI LIME CENTRAL BANK O"
+   shares a first token with the real party "Deshwali Minerals", so guessing would
+   file a bank charge under a real firm's name — inventing data in a filter, which
+   is worse than the junk it replaces. A row with no certain party returns '' and is
+   reachable via Category, search, or the Unidentified option. */
+function txnPartyName(t) {
+  if (t.m && t.m.party) return t.m.party;                       // entry/ledger match — explicit
+  const b = billFor(t);                                          // linked to an invoice/bill
+  if (b) return b.party || b.sup || '';
+  const al = aliasOf(t.clean || '');                             // the user taught us this narration
+  if (al) return al;
+  const norm = x => (x || '').toString().toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+  const target = norm(t.clean); if (!target) return '';
+  const hit = Q.partyRows().find(p => norm(p.name) === target);  // EXACT name only — never a prefix
+  return hit ? hit.name : '';
+}
+function txnParty(t) { return txnPartyName(t); }
 function txnCat(t) { return (t.m && t.m.cat) || ''; }
 function txnAmt(t) { return (t.credit || 0) || (t.debit || 0) || 0; }
 
 function advOptions() {
   const rows = monthTxns();
   const uniq = (fn) => [...new Set(rows.map(fn).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  /* __none__ is offered only when such rows exist: "which lines has the app failed
+     to attribute?" is the actual question this screen is for, and before this the
+     answer was unreachable — every row had a "party", because the narration was
+     being passed off as one. */
+  const parties = uniq(txnPartyName);
+  const anyNone = rows.some(t => !txnPartyName(t));
   return {
-    party: uniq(txnParty),
+    party: parties.concat(anyNone ? ['__none__'] : []),
     cat: uniq(txnCat)
   };
 }
 
 function advMatch(t) {
   const a = ST.adv;
-  if (a.party !== 'all' && txnParty(t) !== a.party) return false;
+  if (a.party === '__none__') { if (txnPartyName(t)) return false; }
+  else if (a.party !== 'all' && txnPartyName(t) !== a.party) return false;
   if (a.cat !== 'all' && txnCat(t) !== a.cat) return false;
   if (a.conf !== 'all') {
     /* Confidence bands mirror the ENGINE's own tiers (recon-core: >=95 green,

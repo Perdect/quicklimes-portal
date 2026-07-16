@@ -814,6 +814,18 @@
   const GROUP_DEPT = { limestone: 'Production', petcoke: 'Kiln', packaging: 'Packing', labour: 'Production', maintenance: 'Maintenance', utilities: 'Utilities', office: 'Office', other: 'General' };
   // Freight / transport / loading / royalty items — the "landed cost add-ons".
   const isFreightItem = it => /freight|transport|loading|cartage/i.test(it || '');
+  /* Display names for the taxonomy's full item labels. Lives HERE, not in
+     purchase.js, because the register and the party ledger must call one bill the
+     same thing — two maps drift, and this codebase's recurring bug is one rule
+     implemented twice. Keyed on the label because the whole taxonomy is (see
+     catToGroupItem / itemIcon / isFreightItem): renaming an item in
+     PURCHASE_GROUPS reclassifies history, which is a known debt, not a new one. */
+  const ITEM_SHORT = {
+    'Limestone Purchase': 'Limestone', 'Petcoke Purchase': 'Petcoke', 'Plastic Bags': 'Bags',
+    'Royalty': 'Royalty', 'Petcoke Transport Freight': 'Petcoke Freight', 'Limestone Freight': 'Limestone Freight',
+    'Loading Charges': 'Loading Charges', 'Bag Printing': 'Bag Printing', 'Other Packaging': 'Other Packaging'
+  };
+  function itemShort(it) { return ITEM_SHORT[it] || it || ''; }
   // Map a legacy free-text category onto a {group,item} so old bills fit the model.
   function catToGroupItem(p) {
     if (p.group) return { group: p.group, item: p.item || (PGROUP_MAP[p.group] || PGROUP_MAP.other).items[0], dept: p.dept || GROUP_DEPT[p.group] || 'General' };
@@ -1062,7 +1074,10 @@
     });
     purchaseRows().forEach(b => {
       if (resolve(b.sup, b.gstin) !== idx) return;
-      ev.push({ date: b.date, o: 1, ref: b.bill || '', desc: 'Purchase Bill', dr: 0, cr: b.total, kind: 'bill', link: { kind: 'purchase', idx: b.idx } });
+      /* "Purchase Bill" on every row told the user nothing — six identical lines,
+         and the item ("Limestone", "Petcoke", "Bags") was already sitting on `b`,
+         unused. Falls back to the generic label when an old bill has no item. */
+      ev.push({ date: b.date, o: 1, ref: b.bill || '', desc: itemShort(b.item) || 'Purchase Bill', dr: 0, cr: b.total, kind: 'bill', link: { kind: 'purchase', idx: b.idx } });
       const pays = (b.payments && b.payments.length) ? b.payments : (b.paid > 0.5 ? [{ date: b.date, amount: b.paid, mode: b.paidMode }] : []);
       pays.forEach(x => ev.push({ date: x.date || b.date, o: 2, ref: b.bill || '', desc: 'Payment made', dr: +x.amount || 0, cr: 0, kind: 'paymade' }));
     });
@@ -1997,7 +2012,7 @@
     salesRows, salesSummary,
     purchaseRows, purchaseSummary, partyRows, partySummary,
     partyLedger, recordLedgerEntry, reverseLedgerEntry, ledgerNet,
-    purchaseGroups: PURCHASE_GROUPS, departments: DEPARTMENTS, purchaseByGroup, purchaseInsights,
+    purchaseGroups: PURCHASE_GROUPS, departments: DEPARTMENTS, purchaseByGroup, purchaseInsights, itemShort,
     recordPurchasePayment, billInsights, relatedBills, itemIcon,
     // ── Payments Center (one unified money ledger) ──
     paymentsLedger, paymentsSummary, paymentsInsights, accountBalances,
