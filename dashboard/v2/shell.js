@@ -1474,30 +1474,50 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     });
   }
 
-  /* Suggested prompts, grouped the way the business thinks about them. */
-  const PROMPT_CATS = [
-    ['📊', 'Sales', ["Today's sales", 'Compare monthly sales', 'Top customers this month']],
-    ['💰', 'Finance', ['Net profit & margin', 'Pending supplier payments', 'Overdue above 90 days']],
-    ['📦', 'Inventory', ['Stock summary', 'Low stock', 'Production report']],
-    ['👥', 'CRM', ['Customer ledger', 'Supplier ledger', 'Predict next month']]
+  /* ── The opening screen ───────────────────────────────────────
+     It used to greet you with a card listing EIGHT things it can do, then 12 chips
+     in four labelled groups, then Recent — a menu, not a conversation. "there is
+     too much data remove / create like real AI chatbot".
+
+     A real chat opens with one line and a few ways in. So: four suggestions, one
+     line each, chosen to be the questions actually worth asking on a lime plant's
+     books. Nothing is lost — every one of the old prompts still works if typed, and
+     the ⌘K palette and the module pages remain the place to browse. A suggestion
+     list is a starting point, not an inventory of the API. */
+  const SUG_ICO = {
+    sales: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>',
+    money: '<circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 0 1 0 3.6h-3a1.8 1.8 0 0 0 0 3.6h4"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>',
+    box: '<path d="M21 8v8a2 2 0 0 1-1 1.7l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16V8a2 2 0 0 1 1-1.7l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8z"/><polyline points="3.3 7 12 12 20.7 7"/><line x1="12" y1="22" x2="12" y2="12"/>'
+  };
+  /* Four, deliberately. Each is one tap to a real number from his own books. */
+  const SUGGESTIONS = [
+    ['sales', "Today's sales", 'What went out today'],
+    ['money', 'Net profit & margin', 'This month, after GST'],
+    ['clock', 'Overdue above 90 days', 'Who owes you, longest first'],
+    ['box', 'Stock summary', 'Limestone, petcoke, bags']
   ];
   function welcomeHTML() {
     const co = (window.QLD && QLD.co && QLD.co.short) || 'your business';
-    const can = ['Sales reports', 'Profit analysis', 'Invoice lookup', 'Customer ledger', 'Supplier payments', 'Production reports', 'Inventory', 'Business forecasting'];
-    const recent = aiRecent().slice(0, 3);
+    const recent = aiRecent().slice(0, 2);
+    const svg = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
     return `<div class="ql-ai-welcome">
-      <div class="ql-ai-wc">
-        <div class="ql-ai-wc-ic">${AI_MARK}</div>
-        <h3>Hello 👋</h3>
-        <p>I'm your Business AI Copilot for <b>${esc(co)}</b>. I can help with:</p>
-        <div class="ql-ai-wc-grid">${can.map(c => `<span>${esc(c)}</span>`).join('')}</div>
-        <em>Ask me anything — every answer comes from your own live data.</em>
+      <div class="ql-ai-hero">
+        <div class="ql-ai-orb">${AI_MARK}</div>
+        <h3>Hi, how can I help?</h3>
+        <p>Ask anything about <b>${esc(co)}</b> — every answer is read from your live books.</p>
       </div>
-      ${recent.length ? `<div class="ql-ai-cat"><div class="ql-ai-cat-h">🕘 Recent</div><div class="ql-ai-cat-b">${recent.map(c => `<button class="ql-ai-chip" data-ask="${esc(c)}">${esc(c.length > 30 ? c.slice(0, 28) + '…' : c)}</button>`).join('')}</div></div>` : ''}
-      ${PROMPT_CATS.map(([em, name, items]) => `<div class="ql-ai-cat">
-        <div class="ql-ai-cat-h">${em} ${name}</div>
-        <div class="ql-ai-cat-b">${items.map(i => `<button class="ql-ai-chip" data-ask="${esc(i)}">${esc(i)}</button>`).join('')}</div>
-      </div>`).join('')}
+      <div class="ql-ai-sugs">
+        ${SUGGESTIONS.map(([ic, q, sub], i) => `<button class="ql-ai-sug" data-ask="${esc(q)}" style="--i:${i}">
+          <span class="ql-ai-sug-ic">${svg(SUG_ICO[ic])}</span>
+          <span class="ql-ai-sug-t"><b>${esc(q)}</b><em>${esc(sub)}</em></span>
+          <span class="ql-ai-sug-go">${svg('<polyline points="9 18 15 12 9 6"/>')}</span>
+        </button>`).join('')}
+      </div>
+      ${recent.length ? `<div class="ql-ai-recent">
+        <span class="ql-ai-recent-h">Recent</span>
+        ${recent.map((c, i) => `<button class="ql-ai-rchip" data-ask="${esc(c)}" style="--i:${i + 4}">${svg(SUG_ICO.clock)}${esc(c.length > 34 ? c.slice(0, 32) + '…' : c)}</button>`).join('')}
+      </div>` : ''}
     </div>`;
   }
   const AI_MARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/><circle cx="18" cy="18" r="1.4"/><circle cx="5" cy="17" r="1"/></svg>';
@@ -1556,8 +1576,14 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
   }
   function renderAssistant() {
     const co = (window.QLD && QLD.co && QLD.co.short) || '';
+    /* The company line only while CHATTING. On the welcome screen the hero already
+       says "Ask anything about Gotan Lime Industries" one line below — printing it
+       twice was pure noise. It stays during a conversation on purpose: two plants
+       share this login, and "which company am I asking about" is the one piece of
+       context an answer full of rupees must never leave ambiguous. */
+    const chatting = _assistLog.length > 0;
     $('qlDrawerBody').innerHTML = `
-      <div class="ql-ai-sub">Your AI Copilot for <b>${esc(co)}</b></div>
+      ${chatting ? `<div class="ql-ai-sub">Your AI Copilot for <b>${esc(co)}</b></div>` : ''}
       ${_histOpen ? histHTML() : `<div class="ql-ai-log" id="qlAiLog"></div>
       <button class="ql-ai-tobottom" id="qlAiDown" title="Jump to latest" hidden>${ICO.dn}</button>`}
       <div class="ql-ai-input">
