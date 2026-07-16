@@ -247,9 +247,11 @@ QLX.mount({
   groupBy: [
     { key: 'status', label: 'Status', of: r => r.status, title: r => r.status[0].toUpperCase() + r.status.slice(1), dot: r => STDOT[r.status] },
     { key: 'party', label: 'Customer', of: r => r.party, title: r => esc(r.party), dot: () => 'var(--qx)' },
-    { key: 'month', label: 'Month', of: r => (r.date || '').slice(0, 7), title: r => (r.date || '').slice(0, 7), dot: () => 'var(--qx)' }
+    { key: 'month', label: 'Month', of: r => (r.date || '').slice(0, 7), title: r => Q.monthLabel(r.date, { blank: 'No date' }), dot: () => 'var(--qx)' }
   ],
-  groupByDefault: 'none', groupSum: r => r.total,
+  // Grouped by month by default, like the Purchase Register — a flat list of every
+  // invoice ever is not readable, and the month totals are the thing being asked for.
+  groupByDefault: 'month', groupSum: r => r.total,
   sortDefault: { key: 'date', dir: 'desc' },
   columns: [
     { key: 'sr', label: '#', cell: (r, sr) => `<span class="qx-sr">${sr}</span>`, cls: 'qx-sr' },

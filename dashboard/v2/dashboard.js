@@ -65,7 +65,7 @@ function availMonths() {
 function monthSel() { return dashMonth && dashMonth !== 'all' ? dashMonth : null; }
 function dashMonthLabel() {
   if (!monthSel()) return 'All months';
-  try { return new Date(dashMonth + '-01T00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); } catch (_) { return dashMonth; }
+  return Q.monthLabel(dashMonth, { blank: dashMonth });
 }
 function monthMetrics() {
   const m = monthSel(), inM = r => !m || (r.date || '').slice(0, 7) === m;

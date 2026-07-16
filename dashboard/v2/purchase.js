@@ -691,7 +691,8 @@ QLX.mount({
     { key: 'group', label: 'Purchase Group', of: r => r.group, title: r => esc(r.groupLabel), dot: r => (GCOL[r.group] || GCOL.other)[1] },
     { key: 'item', label: 'Purchase Item', of: r => r.item || '—', title: r => esc(Q.itemShort(r.item) || '—'), dot: r => (GCOL[r.group] || GCOL.other)[1] },
     { key: 'status', label: 'Payment status', of: r => (r.isOverdue ? 'overdue' : r.status), title: r => (r.isOverdue ? 'Overdue' : r.status[0].toUpperCase() + r.status.slice(1)), dot: r => STDOT[r.isOverdue ? 'overdue' : r.status] },
-    { key: 'sup', label: 'Supplier', of: r => r.sup, title: r => esc(r.sup), dot: () => 'var(--qx)' }
+    { key: 'sup', label: 'Supplier', of: r => r.sup, title: r => esc(r.sup), dot: () => 'var(--qx)' },
+    { key: 'month', label: 'Month', of: r => (r.date || '').slice(0, 7), title: r => Q.monthLabel(r.date, { blank: 'No date' }), dot: () => 'var(--qx)' }
   ],
   groupByDefault: 'group', groupSum: r => r.total,
   sortDefault: { key: 'date', dir: 'desc' },

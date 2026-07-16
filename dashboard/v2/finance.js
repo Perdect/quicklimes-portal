@@ -653,7 +653,7 @@
       const net = Math.max(0, collected - itc);
       const [y, mo] = ym.split('-');
       return {
-        ym, label: new Date(+y, +mo - 1, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
+        ym, label: QLD.monthLabel(ym, { short: true, blank: ym }),
         collected, itc, net, paidBank, refundBank,
         refundPending: +rec.refundPending || 0,
         status: rec.status || 'Pending', note: rec.note || ''
@@ -793,7 +793,7 @@
     return { title, headers, rows, totals };
   }
   function accLabel(id) { const a = QLD.finance.accounts.find(x => x.id === id); return a ? a.label : id; }
-  function caLabel(ym) { if (!ym) return ''; const [y, m] = ym.split('-'); return new Date(+y, +m - 1, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }); }
+  function caLabel(ym) { return QLD.monthLabel(ym, { short: true }); }
 
   /* ── Generic spreadsheet-import helpers (shared by Sales/Purchase) ── */
   // Find the header row: `groups` is a list of keyword-groups, ALL must match

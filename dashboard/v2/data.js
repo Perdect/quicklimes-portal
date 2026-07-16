@@ -826,6 +826,29 @@
     'Loading Charges': 'Loading Charges', 'Bag Printing': 'Bag Printing', 'Other Packaging': 'Other Packaging'
   };
   function itemShort(it) { return ITEM_SHORT[it] || it || ''; }
+  /* 'YYYY-MM' → 'March 2026'. One implementation: this string was being built from
+     scratch in reconcile.js, dashboard.js and here, which is how one screen ends up
+     saying "March 2026" while its neighbour says "2026-03". Parsed as LOCAL time
+     ('-01T00:00', never 'Z') — new Date('2026-03-01') is UTC midnight, which in a
+     negative-offset zone renders as February. */
+  function monthLabel(ym, opts) {
+    const blank = (opts && opts.blank) || '';
+    ym = (ym || '').toString().slice(0, 7);
+    const m = /^(\d{4})-(\d{2})$/.exec(ym);
+    if (!m || +m[2] < 1 || +m[2] > 12) return blank;
+    const d = new Date(ym + '-01T00:00:00');
+    /* An invalid Date does NOT throw — toLocaleDateString returns the STRING
+       "Invalid Date", which would render as a group header. A try/catch cannot see
+       that, which is how the first version of this shipped.
+
+       This is redundant with the month-range check above, deliberately: mutation
+       testing shows removing EITHER one alone still passes, and only removing BOTH
+       fails. Two cheap guards against a wrong month heading is a trade worth making
+       — but it means neither line is independently pinned, so say so rather than
+       claim a catch. */
+    if (isNaN(d.getTime())) return blank;
+    return d.toLocaleDateString('en-IN', { month: (opts && opts.short) ? 'short' : 'long', year: 'numeric' });
+  }
   // Map a legacy free-text category onto a {group,item} so old bills fit the model.
   function catToGroupItem(p) {
     if (p.group) return { group: p.group, item: p.item || (PGROUP_MAP[p.group] || PGROUP_MAP.other).items[0], dept: p.dept || GROUP_DEPT[p.group] || 'General' };
@@ -2030,7 +2053,7 @@
     salesRows, salesSummary,
     purchaseRows, purchaseSummary, partyRows, partySummary,
     partyLedger, recordLedgerEntry, reverseLedgerEntry, ledgerNet,
-    purchaseGroups: PURCHASE_GROUPS, departments: DEPARTMENTS, purchaseByGroup, purchaseInsights, itemShort,
+    purchaseGroups: PURCHASE_GROUPS, departments: DEPARTMENTS, purchaseByGroup, purchaseInsights, itemShort, monthLabel,
     recordPurchasePayment, billInsights, relatedBills, itemIcon,
     // ── Payments Center (one unified money ledger) ──
     paymentsLedger, paymentsSummary, paymentsInsights, accountBalances,

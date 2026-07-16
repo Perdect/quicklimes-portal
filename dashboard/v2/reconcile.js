@@ -83,7 +83,7 @@ function rcTxnParty(t) {
 }
 function ymOf(d) { return (d || '').slice(0, 7); }
 function inMonth(d) { return !ST.month || ST.month === 'all' || ymOf(d) === ST.month; }
-function monthLabel() { if (!ST.month || ST.month === 'all') return 'All months'; try { return new Date(ST.month + '-01T00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); } catch (_) { return ST.month; } }
+function monthLabel() { return (!ST.month || ST.month === 'all') ? 'All months' : Q.monthLabel(ST.month, { blank: ST.month }); }
 
 /* ── matching engine (ReconCore) ─────────────────────────────────────── */
 function npOf(t) { return { raw: t.raw || t.desc || '', clean: t.clean || '', utr: t.utr || '', cheque: t.cheque || '', mode: t.mode || '' }; }
@@ -768,11 +768,7 @@ function matchCell(t) {
    Only groups when it can help: with a single month selected there is exactly one
    group, and a header saying "June — 74 of 74" is noise. */
 function ymOfDate(d) { return (d || '').slice(0, 7); }
-function monthName(ym) {
-  if (!ym) return 'No date';
-  try { return new Date(ym + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); }
-  catch (_) { return ym; }
-}
+function monthName(ym) { return Q.monthLabel(ym, { blank: 'No date' }); }
 function groupByMonth(rows) {
   const out = [], seen = {};
   rows.forEach(t => {                       // rows arrive newest-first; keep that order

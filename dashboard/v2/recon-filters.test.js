@@ -60,6 +60,17 @@ const QLD = {
   partyRowsReal: [{ idx: 0, name: 'Aziz Chemicals' }, { idx: 1, name: 'Deshwali Minerals' }, { idx: 2, name: 'Shree Cement Ltd' }],
   recon: { txns: TXNS, aliases: {} }, saveRecon: noop, commit: noop, state: { RECON: { txns: TXNS } },
   uiMonth: () => null, setUiMonth: noop, partyLedger: () => [],
+  /* The REAL monthLabel, pulled out of data.js — reconcile.js's monthName() now
+     delegates to it. A hand-written stub here could disagree with the shipped one
+     and this test would happily pass while the page rendered "2026-03". */
+  monthLabel: (() => {
+    const ds = require('fs').readFileSync(require('path').join(__dirname, 'data.js'), 'utf8');
+    const i = ds.indexOf('function monthLabel(ym, opts)');
+    const c = { Date, String, RegExp, isNaN };
+    require('vm').createContext(c);
+    require('vm').runInContext(ds.slice(i, ds.indexOf('\n  }', i) + 4) + '\nthis.monthLabel = monthLabel;', c);
+    return c.monthLabel;
+  })(),
   statementRows: () => [], lastStatement: () => null,
 };
 const ctx = {

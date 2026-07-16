@@ -204,7 +204,7 @@
   }
   function monthLabel() {
     if (!S.month || S.month === 'all') return 'All months';
-    try { return new Date(S.month + '-01T00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); } catch (_) { return S.month; }
+    return (window.QLD && QLD.monthLabel) ? QLD.monthLabel(S.month, { blank: S.month }) : S.month;
   }
   function emptyMsg() {
     if (CFG.monthFilter && S.month && S.month !== 'all') return `No ${esc(CFG.emptyLabel || CFG.noun || 'record')} data found for ${esc(monthLabel())}`;
@@ -418,7 +418,7 @@
     const first = new Date(y, m, 1).getDay(), days = new Date(y, m + 1, 0).getDate();
     const byDay = {};
     rows.forEach(r => { const d = df(r); if (d && d.slice(0, 7) === S.calMonth) { const dn = +d.slice(8, 10); (byDay[dn] = byDay[dn] || []).push(r); } });
-    const monthName = base.toLocaleString('en-US', { month: 'long' }) + ' ' + y;
+    const monthName = (window.QLD && QLD.monthLabel) ? QLD.monthLabel(y + '-' + String(base.getMonth() + 1).padStart(2, '0'), { blank: String(y) }) : (base.toLocaleString('en-IN', { month: 'long' }) + ' ' + y);
     let cells = '';
     for (let i = 0; i < first; i++) cells += '<div class="qx-cal-cell blank"></div>';
     for (let d = 1; d <= days; d++) {
