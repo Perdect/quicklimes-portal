@@ -22,38 +22,49 @@
 <link rel="stylesheet" href="./mobile.css?v=m7">
 <style>
   .pd-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: var(--ql-space-5); }
-  .pd-kpi { background: var(--ql-surface); border: 1px solid var(--ql-border); border-radius: 14px; padding: 16px; box-shadow: var(--ql-shadow-sm); }
-  .pd-kpi .lb { font-size: 12px; color: var(--ql-text-soft); font-weight: 600; }
+  .pd-kpi { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px; padding: 16px; box-shadow: var(--ql-shadow-sm); }
+  .pd-kpi .lb { font-size: 12px; color: var(--ql-text-muted); font-weight: 600; }
   .pd-kpi .v { font-size: 25px; font-weight: 800; letter-spacing: -.02em; margin-top: 6px; }
-  .pd-kpi .m { font-size: 11.5px; color: var(--ql-text-soft); margin-top: 3px; }
-  .pd-sec-h { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ql-text-soft); margin: var(--ql-space-5) 0 var(--ql-space-3); }
+  .pd-kpi .m { font-size: 11.5px; color: var(--ql-text-muted); margin-top: 3px; }
+  .pd-sec-h { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ql-text-muted); margin: var(--ql-space-5) 0 var(--ql-space-3); }
   .pd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
-  .pd-cat { background: var(--ql-surface); border: 1px solid var(--ql-border); border-radius: 14px; padding: 14px 16px; box-shadow: var(--ql-shadow-sm); }
+  .pd-cat { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px; padding: 14px 16px; box-shadow: var(--ql-shadow-sm); }
   .pd-cat .top { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
   .pd-cat .ic { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 17px; flex: none; }
-  .pd-cat .nm { font-weight: 700; font-size: 14px; } .pd-cat .sub { font-size: 11.5px; color: var(--ql-text-soft); }
+  .pd-cat .nm { font-weight: 700; font-size: 14px; } .pd-cat .sub { font-size: 11.5px; color: var(--ql-text-muted); }
   .pd-cat .v { font-size: 20px; font-weight: 800; }
   .pd-kv { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-top: 1px dashed var(--ql-border); }
   .pd-kv span:last-child { font-weight: 600; color: var(--ql-text); }
-  .pd-tbl { width: 100%; border-collapse: collapse; background: var(--ql-surface); border: 1px solid var(--ql-border); border-radius: 14px; overflow: hidden; }
-  .pd-tbl th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: var(--ql-text-soft); padding: 10px 14px; border-bottom: 1px solid var(--ql-border); }
+  .pd-tbl { width: 100%; border-collapse: collapse; background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px; overflow: hidden; }
+  .pd-tbl th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: var(--ql-text-muted); padding: 10px 14px; border-bottom: 1px solid var(--ql-border); }
   .pd-tbl td { padding: 11px 14px; border-bottom: 1px solid var(--ql-border); font-size: 13.5px; }
   .pd-tbl tr:last-child td { border-bottom: 0; }
   .pd-tbl td.r, .pd-tbl th.r { text-align: right; }
   .pd-due { color: #dc2626; font-weight: 600; }
   .pd-alert { display: flex; gap: 10px; align-items: flex-start; padding: 11px 14px; border-radius: 11px; font-size: 13px; margin-bottom: 8px; }
-  .pd-alert.warn { background: color-mix(in srgb, #f59e0b 9%, var(--ql-surface)); border: 1px solid color-mix(in srgb, #f59e0b 28%, var(--ql-border)); }
-  .pd-alert.info { background: color-mix(in srgb, var(--ql-primary) 7%, var(--ql-surface)); border: 1px solid color-mix(in srgb, var(--ql-primary) 22%, var(--ql-border)); }
-  .pd-empty { color: var(--ql-text-soft); font-size: 14px; padding: var(--ql-space-5); text-align: center; }
+  .pd-alert.warn { background: color-mix(in srgb, #f59e0b 9%, var(--ql-card)); border: 1px solid color-mix(in srgb, #f59e0b 28%, var(--ql-border)); }
+  .pd-alert.info { background: color-mix(in srgb, var(--ql-brand-600) 7%, var(--ql-card)); border: 1px solid color-mix(in srgb, var(--ql-brand-600) 22%, var(--ql-border)); }
+  .pd-empty { color: var(--ql-text-muted); font-size: 14px; padding: var(--ql-space-5); text-align: center; }
 </style>
 </head>
 <body class="ql-v2">
 <div id="ql-page">
   <div class="dash">
-    <div class="page-head">
+    <div class="page-head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap">
       <div>
         <h1 class="page-title">Purchase Dashboard</h1>
         <div class="page-sub" id="pdSub">Spend, categories, suppliers & dues — from your purchase bills</div>
+      </div>
+      <!-- A <select>, NOT a calendar popover. The app already carries three month
+           pickers and the year-arrow bug has been fixed in two of them, twice; a
+           fourth copy is exactly how that repeats. A select cannot have that bug,
+           and for "which month" it is also less to learn. -->
+      <div class="pd-head-r" style="display:flex;gap:8px;align-items:center;flex:none">
+        <select class="ql-input" id="pdMonth" aria-label="Month" style="width:auto;min-width:150px"></select>
+        <a class="ql-btn ql-btn-secondary" id="pdReport" href="purchase.html" style="flex:none;display:inline-flex;gap:6px;align-items:center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;flex:none"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg>
+          Report
+        </a>
       </div>
     </div>
     <div id="pdBody"></div>
@@ -86,9 +97,30 @@ const CAT = {
   other:     { ic: '📄', bg: '#f1f5f9', tint: '#64748b', unit: '' }
 };
 
+/* The month lives in QLD.uiMonth — the app's SHARED, per-company month state that
+   qlx.js already reads. Setting it here means the Purchase Register opens on the
+   same month, so "Report" continues the thought instead of resetting it. */
+let pdMonth = QLD.uiMonth() || 'all';
+
+function pdPaintMonthSel(all) {
+  const sel = document.getElementById('pdMonth');
+  if (!sel) return;
+  const ms = [...new Set(all.map(r => (r.date || '').slice(0, 7)).filter(Boolean))].sort().reverse();
+  if (!ms.includes(pdMonth)) pdMonth = 'all';        // a stored month with no bills would show an empty page
+  sel.innerHTML = '<option value="all">All months</option>' +
+    ms.map(m => `<option value="${m}" ${pdMonth === m ? 'selected' : ''}>${QLD.monthLabel(m, { blank: m })}</option>`).join('');
+  sel.value = pdMonth;
+  sel.onchange = () => { pdMonth = sel.value; if (pdMonth !== 'all') QLD.setUiMonth(pdMonth); render(); };
+}
+
 function render() {
-  const rows = QLD.purchaseRows().filter(r => r.status !== 'cancelled');
-  $('#pdSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + 'from ' + rows.length + ' purchase bill' + (rows.length === 1 ? '' : 's');
+  const all = QLD.purchaseRows().filter(r => r.status !== 'cancelled');
+  pdPaintMonthSel(all);
+  /* Every card, alert and total below reads `rows`, so the month scopes the WHOLE
+     page or none of it. One card filtered while its neighbour is not is the bug
+     this app keeps producing. */
+  const rows = pdMonth === 'all' ? all : all.filter(r => (r.date || '').slice(0, 7) === pdMonth);
+  $('#pdSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + (pdMonth === 'all' ? '' : QLD.monthLabel(pdMonth, { blank: pdMonth }) + ' · ') + 'from ' + rows.length + ' purchase bill' + (rows.length === 1 ? '' : 's');
 
   if (!rows.length) {
     $('#pdBody').innerHTML = `<div class="pd-empty" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:56px 20px">
@@ -118,7 +150,13 @@ function render() {
 
   const kpis = [
     ['Purchases · ' + monLbl, fC(monVal), monRows.length + ' bills this month'],
-    ['Total purchases', fC(totVal), 'all bills · input GST ' + fC(gstPaid)],
+    /* SAY WHICH FIGURE THIS IS. These totals are bill values INCLUDING GST — what
+       leaves the bank. Inventory values the same bills EXCLUDING GST, because for
+       costing the GST is reclaimable input credit, not a cost (getPL agrees — its
+       COGS is ex-GST). Both are right for their purpose; the same 16 petcoke bills
+       reading ₹88,77,112 here and ₹75,22,976 there with both called "purchase
+       value" is not. Neither number moves — they are just named now. */
+    ['Total purchases', fC(totVal), 'incl. GST · input GST ' + fC(gstPaid) + ' is reclaimable'],
     ['Pending bills', pend.length + '', fC(pendVal) + ' to pay'],
     ['Suppliers owed', supDue + '', supDue === 1 ? '1 supplier' : supDue + ' suppliers']
   ].map(k => `<div class="pd-kpi"><div class="lb">${esc(k[0])}</div><div class="v">${k[1]}</div><div class="m">${esc(k[2])}</div></div>`).join('');
@@ -147,7 +185,7 @@ function render() {
     bySup[k].due += r.outstanding; bySup[k].n++; if (r.date > bySup[k].last) bySup[k].last = r.date;
   });
   const topSup = Object.entries(bySup).sort((a, b) => b[1].spend - a[1].spend).slice(0, 10);
-  const supRows = topSup.map(([, d]) => `<tr><td>${esc(d.nm)}${d.gstin ? `<div style="font-size:11px;color:var(--ql-text-soft)">${esc(d.gstin)}</div>` : ''}</td>
+  const supRows = topSup.map(([, d]) => `<tr><td>${esc(d.nm)}${d.gstin ? `<div style="font-size:11px;color:var(--ql-text-muted)">${esc(d.gstin)}</div>` : ''}</td>
     <td class="r">${d.n}</td><td class="r">${fC(d.spend)}</td><td class="r ${d.due > 0.5 ? 'pd-due' : ''}">${d.due > 0.5 ? fC(d.due) : '—'}</td><td class="r">${esc(d.last)}</td></tr>`).join('');
 
   // AI alerts (real, derived).
@@ -155,7 +193,7 @@ function render() {
   const worstDue = topSup.map(([, d]) => ({ nm: d.nm, due: d.due })).filter(x => x.due > 0.5).sort((a, b) => b.due - a.due)[0];
   if (worstDue) alerts.push(['warn', '💸', `<b>${esc(worstDue.nm)}</b> has the highest supplier due — <b>${fC(worstDue.due)}</b> pending. Prioritise this payment.`]);
   const topCat = Object.entries(byG).sort((a, b) => b[1].val - a[1].val)[0];
-  if (topCat) alerts.push(['info', '📊', `<b>${esc(topCat[1].label)}</b> is your biggest spend at <b>${fC(topCat[1].val)}</b> (${Math.round(topCat[1].val / totVal * 100)}% of purchases).`]);
+  if (topCat) alerts.push(['info', '📊', `<b>${esc(topCat[1].label)}</b> is your biggest spend (incl. GST) at <b>${fC(topCat[1].val)}</b> (${Math.round(topCat[1].val / totVal * 100)}% of purchases).`]);
   const overdue = pend.filter(r => r.isOverdue);
   if (overdue.length) alerts.push(['warn', '⏰', `<b>${overdue.length}</b> bill${overdue.length > 1 ? 's are' : ' is'} overdue — ${fC(sum(overdue, r => r.outstanding))} past due.`]);
 
