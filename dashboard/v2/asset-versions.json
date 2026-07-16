@@ -4,8 +4,8 @@
     "sha": "eb41cc0fca33"
   },
   "pages.css": {
-    "v": "m12",
-    "sha": "1baa88302b25"
+    "v": "m13",
+    "sha": "16558602c875"
   },
   "party-identity.js": {
     "v": "m27",
@@ -24,8 +24,8 @@
     "sha": "e84bf66cc1ae"
   },
   "data.js": {
-    "v": "m32",
-    "sha": "a2a87b4cb0c2"
+    "v": "m33",
+    "sha": "fd1ff6a85baa"
   },
   "mobile.css": {
     "v": "m9",
@@ -36,8 +36,8 @@
     "sha": "953089d24f6b"
   },
   "shell.js": {
-    "v": "m45",
-    "sha": "d25b029c2446"
+    "v": "m46",
+    "sha": "cf62fd7e20ef"
   },
   "mobile.js": {
     "v": "m11",
@@ -124,8 +124,8 @@
     "sha": "563e1a0f3090"
   },
   "pbill.css": {
-    "v": "p3",
-    "sha": "d3518a6018e8"
+    "v": "p4",
+    "sha": "aa375e030b3f"
   },
   "ledger-core.js": {
     "v": "lc1",
@@ -172,8 +172,8 @@
     "sha": "95507e8f7298"
   },
   "purchase.js": {
-    "v": "m34",
-    "sha": "66528c04af44"
+    "v": "m36",
+    "sha": "46d73f63d600"
   },
   "reconcile.css": {
     "v": "f4",
@@ -204,8 +204,8 @@
     "sha": "315907e53f5c"
   },
   "sales.js": {
-    "v": "m24",
-    "sha": "c4d7db101ab7"
+    "v": "m25",
+    "sha": "db68035e2ef2"
   },
   "selfcheck.js": {
     "v": "s1",

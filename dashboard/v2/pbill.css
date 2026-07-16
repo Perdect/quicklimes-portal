@@ -356,3 +356,14 @@
 @media (hover: none) {
   .pfr-edit { border-color: var(--ql-border); }
   .pfr-edit .pfr-ico { opacity: .55; transform: none; }
+
+/* The freight input — it lives IN the cell, sized to it, so the row never jumps.
+   Replaces a native prompt() that greyed the whole page to ask for one number. */
+.pfr-inp {
+  font: inherit; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+  width: 92px; max-width: 100%; padding: 3px 7px; margin: -3px 0;
+  border: 1px solid var(--ql-brand-600); border-radius: 7px;
+  background: var(--ql-card); color: var(--ql-text);
+  outline: none; box-shadow: 0 0 0 3px var(--ql-brand-50);
+  text-align: right;
+}

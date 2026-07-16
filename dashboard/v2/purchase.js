@@ -33,6 +33,9 @@ function waLink(phone, text) {
 const ADB = 'ql_pur_docs'; let _adb = null;
 function adb() { if (_adb) return _adb; _adb = new Promise((res, rej) => { const r = indexedDB.open(ADB, 1); r.onupgradeneeded = e => { const d = e.target.result; if (!d.objectStoreNames.contains('f')) d.createObjectStore('f'); }; r.onsuccess = e => res(e.target.result); r.onerror = () => rej(r.error); }); return _adb; }
 function aOp(mode, fn) { return adb().then(d => new Promise((res, rej) => { const t = d.transaction('f', mode), o = fn(t.objectStore('f')); t.oncomplete = () => res(o && o.result !== undefined ? o.result : o); t.onerror = () => rej(t.error); })); }
+
+/* attachWhy lives in data.js as QLAttachWhy — sales.html does not load this file,
+   and both pages need the same reasons. One rule, one place. */
 /* The attachment store, exposed. qty-backfill needs to re-read the ORIGINAL bill
    PDFs, and the alternative was a second copy of this IndexedDB plumbing in another
    file — the exact duplication that has caused every "one rule, two places" bug in
@@ -63,29 +66,74 @@ document.addEventListener('click', e => {
   const b = e.target.closest && e.target.closest('[data-fr]');
   if (!b) return;
   e.stopPropagation(); e.preventDefault();
-  editFreight(+b.dataset.fr);
+  editFreight(+b.dataset.fr, b);        // pass the CELL — the input is built inside it, in the row
 });
 
-function editFreight(idx) {
+/* ── Freight: typed IN THE ROW ─────────────────────────────────
+   This was a native prompt(). "when I click on freight then open popup I want to
+   type in same row no need to open anythnig" — and he is right: a browser prompt is
+   a modal system dialog that blocks the page, cannot be styled, says
+   "app.quicklimes.com says", and looks like a virus warning. In a table of 26 bills
+   it also throws away the one thing that makes inline editing worth having: you can
+   see the row you are editing.
+
+   The cell becomes an <input> in place. Enter saves, Escape cancels, blur saves —
+   and the value is committed BEFORE the table repaints, because QLX.refresh()
+   rebuilds every row and would otherwise destroy the input mid-edit.
+
+   I shipped the prompt() and told him the freight cell was "verified" — having
+   checked how it LOOKED and never once clicked it. Verifying the paint of a control
+   is not verifying the control. */
+function editFreight(idx, cell) {
   const p = Q.state.PURCHASES[idx];
   if (!p) return;
   if ((p.freightPays || []).length) {
     toast('This bill has freight payments recorded — open it and use the Freight tab', 'warn');
     return;
   }
+  const host = cell || document.querySelector('[data-fr="' + idx + '"]');
+  if (!host || host.querySelector('input')) return;            // already editing
   const cur = +p.freightAmt || 0;
-  const v = prompt('Freight paid on bill ' + (p.bill || '') + ' (' + (p.sup || '') + ')\n\nEnter the amount in ₹. Leave blank to clear.', cur > 0 ? cur : '');
-  if (v === null) return;                       // cancelled — not the same as "clear"
-  const t = v.toString().trim();
-  if (t === '') { Q.updatePurchase(idx, { freightAmt: 0 }); toast('Freight cleared'); QLX.refresh(); return; }
-  const n = QLFin.parseNum(t);
-  /* Refuse junk rather than storing 0 — a silent 0 would read as "no freight",
-     which is a different fact from "I typed something wrong". */
-  if (!(n > 0)) { toast('“' + t + '” is not an amount — nothing saved', 'err'); return; }
-  Q.updatePurchase(idx, { freightAmt: n });
-  const row = Q.purchaseRows().find(r => r.idx === idx);
-  toast('Freight ' + fC(n) + ' · landed cost ' + fC(row ? row.landed : 0), 'ok');
-  QLX.refresh();
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.inputMode = 'decimal';                                   // phone shows a number pad
+  inp.className = 'pfr-inp';
+  inp.value = cur > 0 ? String(cur) : '';
+  inp.placeholder = '0';
+  inp.setAttribute('aria-label', 'Freight on bill ' + (p.bill || ''));
+
+  const prev = host.innerHTML;
+  host.innerHTML = '';
+  host.appendChild(inp);
+  inp.focus(); inp.select();
+
+  let done = false;
+  const restore = () => { if (!done) { done = true; host.innerHTML = prev; } };
+
+  const commit = () => {
+    if (done) return; done = true;
+    const t = (inp.value || '').trim();
+    if (t === '' && cur === 0) { host.innerHTML = prev; return; }        // nothing typed, nothing to do
+    if (t === '') { Q.updatePurchase(idx, { freightAmt: 0 }); toast('Freight cleared'); QLX.refresh(); return; }
+    const n = QLFin.parseNum(t);
+    /* Refuse junk rather than storing 0 — a silent 0 would read as "no freight",
+       which is a different fact from "I typed something wrong". */
+    if (!(n > 0)) { toast('“' + t + '” is not an amount — nothing saved', 'err'); host.innerHTML = prev; return; }
+    if (n === cur) { host.innerHTML = prev; return; }                    // unchanged — no toast, no write
+    Q.updatePurchase(idx, { freightAmt: n });
+    const row = Q.purchaseRows().find(r => r.idx === idx);
+    toast('Freight ' + fC(n) + ' · landed cost ' + fC(row ? row.landed : 0), 'ok');
+    QLX.refresh();
+  };
+
+  inp.onkeydown = e => {
+    e.stopPropagation();                                       // Esc must not close the drawer behind it
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); restore(); }
+  };
+  inp.onblur = commit;
+  inp.onclick = e => e.stopPropagation();                      // clicking the field must not open the bill
 }
 
 /* ── read the tonnage back off the bills already uploaded ──────
@@ -211,7 +259,7 @@ async function openBillPdf(r) {
       const blob = await aOp('readonly', st => st.get(a.id));
       if (blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
       if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
-    } catch (_) { if (w) w.close(); toast('Could not open the uploaded bill', 'err'); return; }
+    } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the bill — ' + QLAttachWhy(e), 'err'); return; }
   }
   pdfWindow(r);
 }
@@ -230,7 +278,7 @@ async function viewBill(r) {
       const blob = await aOp('readonly', st => st.get(a.id));
       if (blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
       if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
-    } catch (_) { if (w) w.close(); toast('Could not open the uploaded bill', 'err'); return; }
+    } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the bill — ' + QLAttachWhy(e), 'err'); return; }
   }
   // no upload on this bill → the generated bill. On phones open it as a full-screen
   // PDF (like the sales invoice); on desktop keep the in-app preview drawer.
@@ -479,7 +527,7 @@ async function wireInvoice(body, r) {
       : `<iframe src="${url}#toolbar=1" title="${esc(a.name)}" style="width:100%;height:100%;border:0;border-radius:13px"></iframe>`;
     host.style.display = 'block';
     setTimeout(() => URL.revokeObjectURL(url), 120000);
-  } catch (_) { host.textContent = 'Could not open the uploaded bill.'; }
+  } catch (e) { console.warn('[bill] preview failed', e); host.textContent = 'Could not open the bill — ' + QLAttachWhy(e) + '.'; }
 }
 /* ── Freight tab: every truck's freight payment (cash / UPI / bank), living on
    the bill so landed cost = material + freight. Posts to the Payments ledger. */

@@ -109,13 +109,25 @@ const psrc = fs.readFileSync(path.join(__dirname, 'purchase.js'), 'utf8');
 {
   const strip = s => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1');
   const code = strip(psrc);
-  const fn = (code.match(/function editFreight\(idx\)[\s\S]{0,1200}/) || [''])[0];
+  const fn = (code.match(/function editFreight\(idx, cell\)[\s\S]{0,3000}/) || [''])[0];
+
+  /* THE POPUP IS GONE. It was a native prompt() — a system dialog that greys the
+     whole page, says "app.quicklimes.com says", cannot be styled, and hides the very
+     row you are editing. "I want to type in same row no need to open anythnig". */
+  ok(!/\bprompt\s*\(/.test(code), 'NO native prompt() anywhere in purchase.js — the popup is gone');
+  ok(/document\.createElement\('input'\)/.test(fn), 'the cell builds a real <input> — you type IN the row');
+  ok(/host\.appendChild\(inp\)/.test(fn), '  inside the freight cell itself, not in a dialog');
+  ok(/inp\.focus\(\); inp\.select\(\)/.test(fn), '  focused and selected, so you can just type');
+  ok(/inputMode = 'decimal'/.test(fn), '  and a phone gets a number pad');
 
   ok(/freightPays \|\| \[\]\)\.length/.test(fn),
     'THE RULE: editFreight REFUSES a bill that has freight payments — writing freightAmt there is silently ignored');
   ok(/Freight tab/.test(fn), '  and points at the tab that actually owns it');
-  ok(/if \(v === null\) return;/.test(fn), 'Cancel does nothing — it is not the same as clearing');
-  ok(/if \(t === ''\)[\s\S]{0,80}freightAmt: 0/.test(fn), 'a blank CLEARS the freight (deliberate, and distinct from cancel)');
+  ok(/e\.key === 'Escape'[\s\S]{0,40}restore\(\)/.test(fn), 'Escape cancels — it restores the cell, it does not clear the value');
+  ok(/e\.key === 'Enter'[\s\S]{0,40}commit\(\)/.test(fn), 'Enter saves');
+  ok(/inp\.onblur = commit/.test(fn), 'clicking away saves — no OK button to hunt for');
+  ok(/if \(t === ''\) \{ Q\.updatePurchase\(idx, \{ freightAmt: 0 \}\)/.test(fn), 'a blank CLEARS the freight (deliberate, and distinct from Escape)');
+  ok(/if \(n === cur\)[\s\S]{0,40}return;/.test(fn), 'an unchanged value writes nothing and says nothing');
   ok(/if \(!\(n > 0\)\)[\s\S]{0,60}nothing saved/.test(fn),
     'junk is REFUSED, not stored as 0 — a silent 0 reads as "no freight", a different fact from a typo');
   ok(/updatePurchase\(idx, \{ freightAmt: n \}\)/.test(fn), 'a real amount is written through the real mutation');
