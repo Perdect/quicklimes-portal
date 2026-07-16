@@ -23,6 +23,7 @@
 <script src="./dedupe.js?v=m29"></script>
 <script src="./dedupe-ui.js?v=m29"></script>
 <script src="./i18n.js?v=h1"></script>
+<script src="./selfcheck.js?v=s1"></script>
 <script src="./data.js?v=m32"></script>
 <script src="./recon-core.js?v=rc5"></script>
 <link rel="stylesheet" href="./mobile.css?v=m7">
@@ -47,6 +48,22 @@
         </div>
       </div>
       <div id="coList" style="margin-top:var(--ql-space-4)"></div>
+    </div>
+
+    <!-- DATA HEALTH. He asked "If you cannot test from here, who will test??" —
+         a fair question I had no good answer to. My tests prove the code against
+         fixtures I invent; they cannot see HIS 26 bills. This runs in HIS browser,
+         on HIS data, and compares each figure against the same figure computed
+         another way. Read-only. -->
+    <div class="card" id="dhCard" style="margin-bottom:var(--ql-space-5)">
+      <div class="ft-head">
+        <div>
+          <h3 class="ft-title">Data health</h3>
+          <div class="ft-note">Checks your books against themselves — the same figure worked out two ways has to agree. Runs on <b>your</b> data, in this browser. It never changes anything.</div>
+        </div>
+        <button class="ql-btn ql-btn-secondary" id="dhRun" style="flex:none">Run checks</button>
+      </div>
+      <div id="dhOut" style="margin-top:var(--ql-space-4)"></div>
     </div>
 
     <!-- LANGUAGE. The app shipped with no UI language setting at all; the only
@@ -182,7 +199,32 @@ function renderLang() {
     : '<b>' + n + '</b> Hindi phrases ready. Switch to हिन्दी to use them.';
 }
 
+function dhRender(r) {
+  const out = document.getElementById('dhOut');
+  if (!out) return;
+  if (r.error) { out.innerHTML = '<div class="ft-note" style="color:var(--ql-danger-600)">Could not run: ' + r.error + '</div>'; return; }
+  const row = c => {
+    /* SKIPPED is grey, never green — a tick for a check that never ran is the exact
+       lie this whole feature exists to prevent. */
+    const tone = c.skipped ? ['#64748b', '—'] : c.ok ? ['#15803d', '✓'] : ['#b91c1c', '✗'];
+    const fig = (!c.skipped && !c.ok) ? '<div style="font-size:12px;color:var(--ql-text-muted);margin-top:3px">' +
+      (c.srcA || '') + ': <b>' + QLD.fC(c.a) + '</b> &nbsp;·&nbsp; ' + (c.srcB || '') + ': <b>' + QLD.fC(c.b) + '</b></div>' : '';
+    return '<div style="display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--ql-border)">' +
+      '<b style="color:' + tone[0] + ';flex:none;width:14px">' + tone[1] + '</b>' +
+      '<div><div style="font-size:13px;color:var(--ql-text)">' + c.what + '</div>' + fig +
+      (c.note ? '<div style="font-size:11.5px;color:var(--ql-text-muted);margin-top:2px">' + c.note + '</div>' : '') +
+      '</div></div>';
+  };
+  const head = r.failed
+    ? '<div style="font-weight:700;color:#b91c1c;margin-bottom:6px">' + r.failed + ' problem' + (r.failed === 1 ? '' : 's') + ' found in your books</div>'
+    : '<div style="font-weight:700;color:#15803d;margin-bottom:6px">All ' + r.ran + ' checks passed on your data</div>';
+  const skip = r.skipped ? '<div class="ft-note" style="margin-top:8px">' + r.skipped + ' check' + (r.skipped === 1 ? '' : 's') + ' could not run — shown as “—”. Not counted as passed.</div>' : '';
+  out.innerHTML = head + r.checks.map(row).join('') + skip;
+}
+
 function render() {
+  const dh = document.getElementById('dhRun');
+  if (dh && window.QLSelfCheck) dh.onclick = () => dhRender(QLSelfCheck.run());
   renderLang();
   const feats = QLShell.features();
   const core = feats.filter(f => f.core), opt = feats.filter(f => !f.core);
