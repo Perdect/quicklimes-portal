@@ -307,7 +307,12 @@ async function parseBankFile(file, password) {
      trip: fileToRows returns the pre-header lines, and bankHeaderRow() already
      told us where the table starts, so everything above `hi` IS the header.
      Best-effort throughout: a header we cannot read costs a pre-fill, never an
-     import — so this is wrapped and falls back to today's table-only detect. */
+     import — so this is wrapped and falls back to today's table-only detect.
+     KNOWN COST: pdfPages has no page limit, so it re-extracts the whole document
+     to read page 1 — roughly a second on a long statement, on top of the read the
+     user is already waiting through. Reusing the tested exported reader beats
+     copying pdf.js line-grouping into this file; the real fix is a page-count
+     argument on pdfPages (finance.js), which is a change for that file's owner. */
   let hdr = { bank: '', acctNo: '', ifsc: '' };
   try {
     let headText = rows.slice(0, hi).map(r => (r || []).join(' ')).join('\n');

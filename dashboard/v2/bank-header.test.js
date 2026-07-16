@@ -110,11 +110,26 @@ IFSC ICIC0000021
   eq('a UTR is not mistaken for an account number', h.acctNo, '');
 }
 {
-  // THE REGRESSION THIS FUNCTION WAS NEARLY BORN WITH: "Statement of Account for
-  // the period 01-04-2025 to 31-03-2026" — the word "Account" is right there, and
-  // a hyphen-tolerant value pattern parses the PERIOD as the account number.
   const h = RC.parseStatementHeader('BANK OF BARODA\nStatement of Account for the period 01-04-2025 to 31-03-2026');
   eq('the statement PERIOD after the word "Account" is not an account number', h.acctNo, '');
+}
+{
+  /* THE FALSE POSITIVE THIS PARSER WAS NEARLY BORN WITH — and the case that
+     MUTATION TESTING caught the first version of this file failing to cover.
+     Banks really do print "Statement of Account : 01-04-2025 to 31-03-2026". The
+     word Account, a colon, and then something that is 8 digits once you ignore
+     the hyphens. A hyphen-tolerant value pattern reads the STATEMENT PERIOD as
+     the account number — and 01042025 is a perfectly plausible-looking account.
+     That is the worst possible outcome: a confident, wrong, unnoticed answer.
+     Refusing hyphens inside the value is what stops it, and this is the test
+     that proves the refusal is load-bearing.
+     (Known, accepted cost: an account genuinely printed as 3358-0500-0012 reads
+     as blank. Blank asks the user. Wrong does not.) */
+  const h = RC.parseStatementHeader('BANK OF BARODA\nStatement of Account : 01-04-2025 to 31-03-2026');
+  eq('a DATE RANGE directly after an account label is refused, not read as 01042025', h.acctNo, '');
+  eq('  ...same shape with slashes', RC.parseStatementHeader('Account : 01/04/2025 to 31/03/2026').acctNo, '');
+  eq('  ...and a hyphenated value is refused rather than guessed at',
+    RC.parseStatementHeader('Account No : 3358-0500-0012').acctNo, '');
 }
 {
   const h = RC.parseStatementHeader('Account Type : Current Account\nAccount Branch : NAGAUR\nHDFC BANK');

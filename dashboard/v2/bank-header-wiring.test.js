@@ -112,20 +112,25 @@ const upload = async (rows, name) => {
 (async () => {
   /* ══════════ 1. THE HEADER REACHES THE PARSER ══════════ */
   {
+    /* ORDER IS THE TEST. The statement belongs to BA1 (…4521), but the WRONG
+       account (…9999) is deliberately listed FIRST, because both are "Bank of
+       Baroda" and the old bank-NAME match returns the first hit. If the importer
+       ignores the account number and falls back to the name, it picks BA2 and
+       these fail. Listing BA1 first — as an earlier version of this file did —
+       lets the coin flip land on the right answer by luck, and the test cannot
+       tell a real match from a lucky one. Mutation testing is what exposed that:
+       deleting the acctNo match entirely left this section green. */
     ACCOUNTS = [
-      { id: 'BA1', bank: 'Bank of Baroda', label: 'BOB Current', acctNo: '33580500004521', type: 'current' },
-      { id: 'BA2', bank: 'Bank of Baroda', label: 'BOB CC/OD', acctNo: '33580500009999', type: 'cc_od' }
+      { id: 'BA2', bank: 'Bank of Baroda', label: 'BOB CC/OD', acctNo: '33580500009999', type: 'cc_od' },
+      { id: 'BA1', bank: 'Bank of Baroda', label: 'BOB Current', acctNo: '33580500004521', type: 'current' }
     ];
     const html = await upload(BOB_ROWS);
     ok('the account-choice modal is shown', /Which account is this statement from/.test(html));
     ok('THE WIRING: the account number from the header block reaches the modal', /33580500004521/.test(html));
 
-    /* THE POINT OF THE WHOLE FEATURE. Both accounts are Bank of Baroda, so the old
-       bank-NAME match picks whichever comes first — a coin flip. Only the number
-       tells them apart. BA1 must be selected and BA2 must not. */
     const selBlock = html.slice(html.indexOf('<select'), html.indexOf('</select>'));
-    ok('the RIGHT of two same-bank accounts is auto-selected', /value="BA1"\s+selected/.test(selBlock));
-    ok('  ...and the wrong one is NOT selected', !/value="BA2"\s+selected/.test(selBlock));
+    ok('the RIGHT of two same-bank accounts is auto-selected (by NUMBER, not by name)', /value="BA1"\s+selected/.test(selBlock));
+    ok('  ...and the wrong same-bank account, listed first, is NOT selected', !/value="BA2"\s+selected/.test(selBlock));
     ok('  ...and the modal says which account it matched', /matched to/.test(html) && /BOB Current/.test(html));
   }
 
