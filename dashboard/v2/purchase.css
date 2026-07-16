@@ -171,9 +171,5 @@ table.prt td { padding: 15px 16px; border-bottom: 1px solid #f2f4f7; color: #101
 /* honor the hidden attribute over display rules */
 .prf-adv[hidden], .prf-btn[hidden], .prf-cols-menu[hidden], .pex-form[hidden] { display: none !important; }
 
-/* Freight cell: a real control. It must LOOK editable or nobody will click it —
-   the column was a row of dashes people looked at and never touched. */
-.pfr-edit { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ql-text);
-  background: transparent; border: 1px dashed var(--ql-border); border-radius: 7px;
-  padding: 2px 8px; cursor: pointer; transition: all .12s; font-variant-numeric: tabular-nums; }
-.pfr-edit:hover { border-color: var(--ql-brand-600); border-style: solid; color: var(--ql-brand-600); background: var(--ql-brand-50); }
+
+}

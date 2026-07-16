@@ -322,3 +322,37 @@
   .qx-dp-amt { font-size: 16px; }
   .pb-kpis { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Freight cell: a value first, a control on hover ──────────
+   I built this as a permanent dashed button in every row, reasoning "it must LOOK
+   editable or nobody will click it". That over-corrected from a dead column
+   straight into 26 boxes shouting for attention in a column you read far more
+   often than you edit — and a booked freight amount rendered as a BUTTON, so the
+   one column with a real number in it looked less like data than the ones around
+   it. "after add frieght value it will look same as other fields no need to
+   background".
+
+   So: the value is just a number, styled exactly like every other amount in the
+   table. The affordance appears when you hover the ROW — the standard inline-edit
+   pattern: quiet until you go looking, obvious the moment you do. */
+.pfr-edit { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ql-text);
+  background: transparent; border: 1px solid transparent; border-radius: 7px;
+  padding: 2px 7px; margin: -2px -7px; cursor: pointer; font-variant-numeric: tabular-nums;
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: border-color .13s, background .13s, color .13s; }
+/* Empty cells read as "—", identical to every other blank in the table (.qx-dash),
+   until the row is hovered. */
+.pfr-edit .pfr-add { color: var(--ql-text-muted); }
+.pfr-edit .pfr-ico { width: 12px; height: 12px; flex: none; opacity: 0; transform: translateX(-3px);
+  transition: opacity .13s, transform .13s; }
+/* Row hover: the frame and the pencil fade in — "this one you can change". */
+.qx-row:hover .pfr-edit { border-color: var(--ql-border); }
+.qx-row:hover .pfr-edit .pfr-ico { opacity: .55; transform: none; }
+.pfr-edit:hover { border-color: var(--ql-brand-600); background: var(--ql-brand-50); color: var(--ql-brand-600); }
+.pfr-edit:hover .pfr-add { color: var(--ql-brand-600); }
+.pfr-edit:hover .pfr-ico { opacity: 1; }
+.pfr-edit:focus-visible { outline: 2px solid var(--ql-brand-600); outline-offset: 1px; border-color: transparent; }
+/* A touch screen has no hover, so the pencil must simply be there. */
+@media (hover: none) {
+  .pfr-edit { border-color: var(--ql-border); }
+  .pfr-edit .pfr-ico { opacity: .55; transform: none; }

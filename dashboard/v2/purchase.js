@@ -830,7 +830,14 @@ QLX.mount({
       cell: r => {
         const paid = (r.freightPays || []).length;
         if (paid) return `<span class="qx-num" title="${paid} freight payment${paid > 1 ? 's' : ''} — edit in the bill's Freight tab">${fC(r.freightAmt)} <span class="qx-mut" style="font-size:10px">·${paid}</span></span>`;
-        return `<button class="pfr-edit" data-fr="${r.idx}" title="Click to set the freight paid on this bill">${r.freightAmt > 0 ? fC(r.freightAmt) : '<span class="qx-mut">— add</span>'}</button>`;
+        /* A VALUE, not a button. The amount renders as plain tabular figures like
+           every other money column; only on row-hover does the pencil and frame
+           appear. An empty cell is "—", the same blank the rest of the table uses,
+           not an "add" button demanding attention 26 times down the page. */
+        const has = r.freightAmt > 0;
+        return `<button class="pfr-edit" data-fr="${r.idx}" title="${has ? 'Click to change the freight on this bill' : 'Click to add the freight paid on this bill'}">`
+          + (has ? `<span class="qx-num">${fC(r.freightAmt)}</span>` : '<span class="pfr-add">—</span>')
+          + `<svg class="pfr-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>`;
       } },
     { key: 'status', label: 'Status', sort: true, cell: stCell },
     { key: 'dueDate', label: 'Due Date', hidden: true, cell: r => `<span class="qx-mut">${r.dueDate ? fDS(r.dueDate) : '—'}</span>` },
