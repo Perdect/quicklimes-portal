@@ -239,7 +239,23 @@
     } catch (_) {}
     // avatar photo/initial mirror from shell
     const av = $('qlmAvatar'); const src = document.querySelector('.tb-avatar');
-    if (av && src) { av.textContent = src.textContent; if (src.style.backgroundImage) { av.style.backgroundImage = src.style.backgroundImage; av.textContent = ''; } }
+    /* Mirror the avatar the way the shell ACTUALLY sets it. This read
+       `src.style.backgroundImage`, which the shell never sets — applyAvatarPhoto()
+       sets the custom property --ql-photo and adds .has-photo, and the shared
+       .has-photo rule turns that into the background. So the condition was always
+       false and the profile photo never crossed to the phone: desktop showed the
+       photo, mobile showed the initial.
+
+       It cannot simply be left to applyAvatarPhoto's own querySelectorAll
+       ('[data-avatar]') either — that runs at shell mount, BEFORE this file builds
+       the mobile header, so the mobile avatar does not exist yet to be painted.
+       Mirroring here covers both the first build and every later repaint. */
+    if (av && src) {
+      av.textContent = src.textContent;
+      const photo = src.style.getPropertyValue('--ql-photo');
+      if (photo) { av.style.setProperty('--ql-photo', photo); av.classList.add('has-photo'); }
+      else { av.style.removeProperty('--ql-photo'); av.classList.remove('has-photo'); }
+    }
     // FAB visibility (hide where there's no obvious create action)
 
   }
