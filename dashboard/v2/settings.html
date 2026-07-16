@@ -20,7 +20,10 @@
 <script src="ql-api.js?v=a2"></script>
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
+<script src="./dedupe.js?v=m28"></script>
+<script src="./dedupe-ui.js?v=m28"></script>
 <script src="./data.js?v=m28"></script>
+<script src="./recon-core.js?v=rc5"></script>
 <link rel="stylesheet" href="./mobile.css?v=m7">
 </head>
 <body class="ql-v2">
@@ -350,16 +353,12 @@ $('#teamAdd').addEventListener('click', () => {
     } });
 });
 
-/* ── Bank accounts (multi-bank) ─────────────────────────────────── */
-const BANK_SPECS = () => [
-  { k: 'bank', label: 'Bank name', req: true, ph: 'e.g. Bank of Baroda' },
-  { k: 'label', label: 'Nickname (shown in the app)', ph: 'e.g. BOB Current — Gotan' },
-  { k: 'acctNo', label: 'Account number', ph: '335805…' },
-  { k: 'ifsc', label: 'IFSC', upper: true, ph: 'BARB0MERTAC' },
-  { k: 'type', label: 'Account type', type: 'select', opts: Object.entries(QLD.BANK_TYPES) },
-  { k: 'openingBalance', label: 'Opening balance (₹)', type: 'number', ph: '0' },
-  { k: 'openingDate', label: 'Opening balance as on', type: 'date' }
-];
+/* ── Bank accounts (multi-bank) ───────────────────────────────────
+   The form's field list is NOT defined here. It lives once in recon-core.js
+   (ReconCore.bankFormSpecs) because the Banks page adds accounts too, and a
+   second copy of this list is exactly how the two pages drift apart.
+   bank-header.test.js fails if anyone pastes it back. */
+const BANK_SPECS = () => ReconCore.bankFormSpecs(QLD.BANK_TYPES);
 let bankShowArch = false;
 function renderBanks() {
   $('#bankCo').textContent = QLD.co ? QLD.co.short : 'this firm';

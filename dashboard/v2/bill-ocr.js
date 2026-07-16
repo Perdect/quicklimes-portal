@@ -175,6 +175,27 @@
   var MON = 'jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec';
   var DATE_RE = new RegExp('(\\d{1,2})[\\/\\-. ](\\d{1,2}|' + MON + ')[a-z]*[\\/\\-. ](\\d{2,4})', 'i');
   function firstDate(s) { var re = new RegExp(DATE_RE.source, 'ig'), m; while ((m = re.exec(s))) { var v = validateDate(m[0]); if (v) return v; } return null; }
+
+  /* Is this whole token a DATE? A date is never a bill number, and this is the
+     ONE place that decides — both the inline scan and the grid picker call it.
+     They each used to carry their own copy of `\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}`,
+     which only knew NUMERIC dates, so Tally's "30-Apr-26" walked straight into
+     the bill-number field and showed up in the REF column (the reported bug).
+     One rule, two copies, is how that rule drifts — so there is only one now.
+
+     Careful in the other direction: eating a real bill number is WORSE than
+     admitting a date, because dedupe keys on bill number + supplier. Indian
+     fiscal-year numbers look date-ish ("392/25-26", "1/25-26"), so a NUMERIC
+     middle group must be a real month 1-12 — that keeps "1/25-26" (invoice 1 of
+     FY 25-26) a bill number while "30/04/2026" stays a date. */
+  var DATE_TOKEN_RE = new RegExp('^(\\d{1,2})[\\/\\-. ](\\d{1,2}|(?:' + MON + ')[a-z]*)[\\/\\-. ](\\d{2,4})$', 'i');
+  function isDateToken(s) {
+    var m = DATE_TOKEN_RE.exec(String(s == null ? '' : s).trim());
+    if (!m) return false;
+    if (+m[1] < 1 || +m[1] > 31) return false;                       // day must be a day
+    if (/^\d+$/.test(m[2])) return +m[2] >= 1 && +m[2] <= 12;        // numeric month must BE a month
+    return true;                                                      // alpha month — Apr, April, APR
+  }
   function findDate(text) {
     // Prefer the value on a "Date/Dated" line — but scan the WHOLE line with the
     // date regex (never a fixed-width filler, which used to eat the day's first
@@ -347,7 +368,7 @@
       var pre = T.slice(T.lastIndexOf('\n', mm.index - 1) + 1, mm.index);   // same line only
       if (/e-?\s*way|\birn\b|ack\b|original/i.test(pre)) continue;
       var cand = mm[1].replace(/[^A-Za-z0-9\/\-]/g, ''); var digits = (cand.match(/\d/g) || []).length;
-      if (digits && (digits >= 2 || /[\/\-]/.test(cand)) && !/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/i.test(cand) && !/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(cand)) { billNo = cand; break; }
+      if (digits && (digits >= 2 || /[\/\-]/.test(cand)) && !/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/i.test(cand) && !isDateToken(cand)) { billNo = cand; break; }
     }
     // Tally / e-invoice grids print the label ("Invoice No.") and its value on
     // SEPARATE lines ("Invoice No.  Dated" ↵ "222/26-27  29-Jun-26"). If the
@@ -370,7 +391,7 @@
             var tk = tm2[0].replace(/[^A-Za-z0-9\/\-]/g, '');
             if (!/\d/.test(tk) || tk.length < 2 || tk.length > 24) continue;
             if ((tk.match(/\d/g) || []).length < 2 && !/[\/\-]/.test(tk)) continue;
-            if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(tk)) continue;                 // date
+            if (isDateToken(tk)) continue;                                                // date
             if (/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/i.test(tk)) continue;              // GSTIN
             if (/^(?:invoice|no|dated|date|number)$/i.test(tk)) continue;
             /* This picker scores candidates by how near their COLUMN is to the
@@ -901,7 +922,7 @@
 
   return {
     parse: parse, legacy: legacy, isLabel: isLabel, validGstin: validGstin, plausibleName: plausibleName,
-    detectGroup: detectGroup, goodName: goodName, findDate: findDate, nMoney: nMoney, LABEL_RE: LABEL_RE,
+    detectGroup: detectGroup, goodName: goodName, findDate: findDate, isDateToken: isDateToken, nMoney: nMoney, LABEL_RE: LABEL_RE,
     SAMPLES: SAMPLES, selfTest: selfTest
   };
 });

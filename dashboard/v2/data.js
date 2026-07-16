@@ -1413,6 +1413,24 @@
       .sort((a, b) => (b.uploadedAt || '').localeCompare(a.uploadedAt || ''));
   }
   function lastStatement(accountId) { return statementRows(accountId)[0] || null; }
+  /* Remove duplicate bank rows found by dedupe.js. Bank rows have no soft-delete —
+     the row builders and Trash only cover the TRASHABLE modules — so this is a real
+     splice. That is acceptable here and nowhere else: dedupe only ever hands over
+     EXTRA COPIES of a row whose original stays put, so nothing the bank told you is
+     lost. It is audited by id so the removal is at least accountable.
+     Refuses ids it cannot find rather than reporting a bigger number than it did. */
+  function removeReconTxns(ids, reason) {
+    const want = new Set((ids || []).filter(Boolean));
+    if (!want.size) return { ok: true, removed: 0 };
+    const arr = (S.RECON && S.RECON.txns) || [];
+    const gone = arr.filter(t => want.has(t.id));
+    if (!gone.length) return { ok: true, removed: 0 };
+    S.RECON.txns = arr.filter(t => !want.has(t.id));
+    gone.forEach(t => logAudit('delete', 'bankTxn', t, { ref: t.utr || t.ref || t.desc || '' }));
+    commit();
+    return { ok: true, removed: gone.length };
+  }
+
   function removeStatement(id) {
     const i = S.STATEMENTS.findIndex(s => s.id === id);
     if (i < 0) return false;
@@ -2041,7 +2059,7 @@
     // ── Bank accounts (multi-bank) ──
     BANK_TYPES, bankAccounts, bankAccountById, bankAccountLabel,
     addBankAccount, updateBankAccount, setBankAccountArchived,
-    addStatement, statementRows, lastStatement, removeStatement, statementConflict,
+    addStatement, removeReconTxns, statementRows, lastStatement, removeStatement, statementConflict,
 
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal, wipeData,

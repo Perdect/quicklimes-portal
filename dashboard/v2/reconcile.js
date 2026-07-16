@@ -292,7 +292,33 @@ async function parseBankFile(file, password) {
   const cRef = col('ref', 'utr', 'cheque', 'chq', 'reference', 'ref no', 'instrument', 'chq/ref');
   const cAmt = col('amount', 'txn amount', 'transaction amount');
   const cType = col('type', 'dr/cr', 'cr/dr', 'indicator');
-  const bank = RC.detectBank(rows.slice(0, 25).map(r => (r || []).join(' ')).join(' '));
+  /* ── who does this statement BELONG to? ───────────────────────────────
+     Every bank prints "Account No : … / IFSC : …" above the transaction table.
+     Reading it is what lets the import modal pre-fill and auto-select instead
+     of asking the user cold (the "Which account is this statement from?" with
+     nothing in it).
+
+     WHERE THE TEXT COMES FROM — this is the subtle bit. pdfBankTable() walks
+     the pages and SKIPS every line until it finds the column header row
+     (`if (!cols) { …; continue; }` in finance.js), so its output starts at the
+     table: the account-number block above it is already gone by the time we get
+     `rows`. It is not recoverable from `rows` — so for PDFs we re-read page 1's
+     text with QLFin.pdfPages, which keeps the whole page. CSV/Excel need no such
+     trip: fileToRows returns the pre-header lines, and bankHeaderRow() already
+     told us where the table starts, so everything above `hi` IS the header.
+     Best-effort throughout: a header we cannot read costs a pre-fill, never an
+     import — so this is wrapped and falls back to today's table-only detect. */
+  let hdr = { bank: '', acctNo: '', ifsc: '' };
+  try {
+    let headText = rows.slice(0, hi).map(r => (r || []).join(' ')).join('\n');
+    if (isPdf && parsed.kind === 'pdf' && QLFin.pdfPages) {
+      try { const pgs = await QLFin.pdfPages(file, password); if (pgs && pgs[0]) headText = pgs[0] + '\n' + headText; } catch (_) {}
+    }
+    if (RC.parseStatementHeader) hdr = RC.parseStatementHeader(headText) || hdr;
+  } catch (_) {}
+  // The bank name keeps its old source as a fallback: the header block may be an
+  // image (scanned statement) while the table still says "BANK OF BARODA".
+  const bank = hdr.bank || RC.detectBank(rows.slice(0, 25).map(r => (r || []).join(' ')).join(' '));
   const out = [];
   for (let r = hi + 1; r < rows.length; r++) {
     const row = rows[r]; if (!row) continue;
@@ -349,6 +375,11 @@ async function parseBankFile(file, password) {
       }
     }
   } catch (_) {}
+  /* The header rides on the ARRAY, not on the transactions: askAccount needs it,
+     but every txn in `out` gets pushed into the stored books, and stamping the
+     firm's account number onto ten thousand transaction records would bloat the
+     blob to say once what the account already says. */
+  out._hdr = hdr;
   return out;
 }
 
@@ -1131,15 +1162,25 @@ function openUpload() {
   const askAccount = (f, parsed, sha) => {
     const accounts = (Q.bankAccounts ? Q.bankAccounts() : []);
     const detected = parsed[0].bank || '';
-    if (!accounts.length && !detected) { finishImport(parsed, f, sha); return; }   // nothing to choose from — behave like today
+    const hdr = parsed._hdr || { acctNo: '', ifsc: '' };
+    if (!accounts.length && !detected && !hdr.acctNo) { finishImport(parsed, f, sha); return; }   // nothing to choose from — behave like today
     const dl = detected.toLowerCase();
-    const hit = accounts.find(a => { const ab = (a.bank || '').toLowerCase(); return dl && ab && (ab.includes(dl) || dl.includes(ab)); })
+    /* THE ACCOUNT NUMBER WINS. Two accounts at the same bank are the normal case
+       (a Current and a CC/OD at Bank of Baroda), and a bank-NAME match cannot tell
+       them apart — it just picks whichever comes first, which is a coin flip that
+       mis-files half the statements. The number printed on the statement is the
+       only thing that actually identifies the account, so it is tried first; the
+       name match stays as the fallback it always was. accountByAcctNo returns null
+       when it is not certain (unknown OR ambiguous), and then we simply ask. */
+    const byNo = (RC.accountByAcctNo && hdr.acctNo) ? RC.accountByAcctNo(hdr.acctNo, accounts) : null;
+    const hit = byNo
+      || accounts.find(a => { const ab = (a.bank || '').toLowerCase(); return dl && ab && (ab.includes(dl) || dl.includes(ab)); })
       || accounts.find(a => dl && (a.label || '').toLowerCase().includes(dl));
     const pre = hit ? hit.id : (accounts.length === 1 ? accounts[0].id : '__new');
     msg.innerHTML = `<div class="rc-pw">
       <div class="rc-pw-head">${svg('<line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/>')}
         <div><div class="rc-pw-t">Which account is this statement from?</div>
-        <div class="rc-pw-s">${parsed.length} transactions read from <b>${esc(f.name)}</b>${detected ? ' · looks like a <b>' + esc(detected) + '</b> statement' : ''}. Each account keeps its own balance.</div></div></div>
+        <div class="rc-pw-s">${parsed.length} transactions read from <b>${esc(f.name)}</b>${detected ? ' · looks like a <b>' + esc(detected) + '</b> statement' : ''}${hdr.acctNo ? ' for A/C <b>' + esc(hdr.acctNo) + '</b>' : ''}${byNo ? ' — matched to <b>' + esc(byNo.label) + '</b>' : ''}. Each account keeps its own balance.</div></div></div>
       <div class="rc-pw-row">
         <select class="rc-pw-in" id="rcAccSel" aria-label="Bank account">
           ${accounts.map(a => `<option value="${esc(a.id)}" ${a.id === pre ? 'selected' : ''}>${esc(a.label)}${a.acctNo ? ' · ··' + esc(String(a.acctNo).slice(-4)) : ''}</option>`).join('')}
@@ -1147,10 +1188,18 @@ function openUpload() {
         </select>
         <button class="rc-btn rc-btn-primary" id="rcAccGo">Import</button>
       </div>
+      <!-- Compact on purpose (this sits inside an upload dialog), but the account
+           NUMBER is now here: without it every account born during an import had
+           acctNo:'' for life, so it could never be auto-matched on the NEXT import
+           and never showed its ··1234 suffix in any picker. Pre-filled from the
+           statement header when we could read it. Optional — a statement whose
+           header we cannot read must still import. -->
       <div class="rc-pw-row" id="rcAccNew" style="display:${pre === '__new' ? 'flex' : 'none'};gap:8px;flex-wrap:wrap">
         <input class="rc-pw-in" id="rcAccBank" placeholder="Bank name" value="${esc(detected)}" style="flex:2;min-width:120px">
         <input class="rc-pw-in" id="rcAccLabel" placeholder="Nickname (optional)" style="flex:2;min-width:120px">
         <select class="rc-pw-in" id="rcAccType" style="flex:1;min-width:90px">${Object.entries(Q.BANK_TYPES || { current: 'Current' }).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select>
+        <input class="rc-pw-in" id="rcAccNo" placeholder="Account number (optional)" value="${esc(hdr.acctNo || '')}" style="flex:2;min-width:120px">
+        <input class="rc-pw-in" id="rcAccIfsc" placeholder="IFSC (optional)" value="${esc(hdr.ifsc || '')}" style="flex:1;min-width:100px">
       </div>
       <div class="rc-pw-n">Manage accounts in Settings → Bank accounts. <a href="#" id="rcAccSkip">Continue without assigning an account</a></div>
     </div>`;
@@ -1162,7 +1211,8 @@ function openUpload() {
       if (accId === '__new') {
         const bank = document.getElementById('rcAccBank').value.trim();
         if (!bank) { document.getElementById('rcAccBank').focus(); return; }
-        const acc = Q.addBankAccount({ bank, label: document.getElementById('rcAccLabel').value.trim(), type: document.getElementById('rcAccType').value });
+        const acc = Q.addBankAccount({ bank, label: document.getElementById('rcAccLabel').value.trim(), type: document.getElementById('rcAccType').value,
+          acctNo: document.getElementById('rcAccNo').value.trim(), ifsc: document.getElementById('rcAccIfsc').value.trim().toUpperCase() });
         accId = acc.id;
       }
       parsed.forEach(t => { t.accountId = accId; });

@@ -530,6 +530,114 @@
     ['IDFC', /IDFC/], ['IndusInd', /INDUSIND/], ['Federal', /FEDERAL BANK/], ['YES', /\bYES BANK\b/], ['AU', /\bAU (SMALL|BANK)/], ['IOB', /INDIAN OVERSEAS/]];
   function detectBank(text) { var U = (text || '').toString().toUpperCase(); for (var i = 0; i < BANKS.length; i++) if (BANKS[i][1].test(U)) return BANKS[i][0]; return ''; }
 
+  /* ── statement HEADER parsing ────────────────────────────────────────────
+     Every bank prints WHO the statement belongs to above the transaction
+     table — "Account No : 33580500000123 / IFSC: BARB0MERTAC". Until now the
+     app read only the BANK NAME (detectBank), so a firm with two Bank of
+     Baroda accounts had to pick by hand every time, and an account created
+     during an import was born with acctNo:''.
+
+     THE RULE THAT SHAPES THIS CODE: a WRONG account number is worse than no
+     account number. A wrong one silently files a whole statement against the
+     wrong account — the balances of two accounts are then both wrong and
+     nothing on screen says so. A blank one just asks the user. So every
+     branch below prefers '' over a guess:
+       · the value must sit immediately after a real account LABEL. A bare
+         12-digit number anywhere on the page is not an account number (it is
+         far more often a UTR, a cheque number or a customer id).
+       · no hyphens inside the value. This single restriction is what stops
+         "Statement of Account 01-04-2025 to 31-03-2026" parsing the PERIOD as
+         the account number — the exact false positive this function must never
+         produce. Indian statements print the account unbroken or space-grouped.
+       · the digits-and-mask core must be 8–20 chars and contain a digit.
+     Returns { bank, acctNo, ifsc } with '' for anything not found. */
+
+  // Labels that genuinely introduce an account number. UTR/CHEQUE/CUSTOMER ID
+  // are deliberately absent — they introduce numbers that are NOT accounts.
+  var ACCT_LABEL = '(?:\\bACCOUNT\\b|\\bACCT\\b|\\bA\\s*\\/\\s*C\\b|\\bAC\\s*\\/\\s*NO\\b)';
+  var ACCT_RE = new RegExp(ACCT_LABEL + '\\s*(?:NO\\.?|NUMBER|NUM|N0)?\\s*[:.\\-–—]?\\s*((?:[0-9Xx*]+[ ]){0,4}[0-9Xx*]{2,})', 'i');
+  var IFSC_SHAPE = /\b([A-Z]{4}0[A-Z0-9]{6})\b/;
+
+  // Is this token a plausible account number, or something that merely looks
+  // numeric? Pure shape check — no context, so it can be reasoned about alone.
+  function plausibleAcct(tok) {
+    var core = (tok || '').toString().replace(/\s+/g, '');
+    if (!/^[0-9Xx*]+$/.test(core)) return '';        // hyphens/slashes ⇒ a date or a ref, never an account
+    if (!/\d/.test(core)) return '';                 // "XXXXXXXX" alone identifies nothing
+    if (core.length < 8 || core.length > 20) return '';
+    return core;
+  }
+
+  function parseStatementHeader(text) {
+    var t = (text || '').toString();
+    var out = { bank: detectBank(t), acctNo: '', ifsc: '' };
+
+    // ACCOUNT NO — scan every label hit, not just the first: the first "Account"
+    // on a page is often the title ("Statement of Account"), which carries no
+    // number, and a first-match-only regex would stop there and return ''.
+    var scan = t, guard = 0;
+    while (guard++ < 40) {
+      var m = ACCT_RE.exec(scan);
+      if (!m) break;
+      var core = plausibleAcct(m[1]);
+      if (core) { out.acctNo = core; break; }
+      scan = scan.slice(m.index + Math.max(1, m[0].length - m[1].length));
+    }
+
+    // IFSC — the 5th character of a real IFSC is always the DIGIT zero. That is
+    // the whole test: BARB0MERTAC is an IFSC, BARBOMERTAC (letter O) is a typo
+    // or an OCR slip, and returning it would write an unusable code into the
+    // account. Prefer a labelled hit; fall back to the bare shape.
+    var U = t.toUpperCase();
+    var lm = /\bIFSC(?:\s*CODE)?\s*[:.\-]?\s*([A-Z0-9]{4,15})/.exec(U);
+    if (lm && IFSC_SHAPE.test(lm[1])) out.ifsc = lm[1];
+    else { var sm = IFSC_SHAPE.exec(U); if (sm) out.ifsc = sm[1]; }
+
+    return out;
+  }
+
+  /* Which stored account is this statement's account number?
+     Statements MASK ("XXXXXXXX4521"), so a full-string compare never matches.
+     We compare the TAIL — the digits a mask leaves visible — and only the tail,
+     because the visible part of a masked number is always its END. A minimum of
+     4 digits keeps "…21" from matching half the firm's accounts, and an
+     AMBIGUOUS result (two accounts sharing the tail) returns null rather than
+     picking one: an account this function guesses wrong is a mis-filed
+     statement, and the modal is right there to ask. */
+  var ACCT_MIN_TAIL = 4;
+  function acctDigits(s) { return (s || '').toString().replace(/\D/g, ''); }
+  function acctTailMatch(a, b) {
+    var x = acctDigits(a), y = acctDigits(b);
+    var n = Math.min(x.length, y.length);
+    if (n < ACCT_MIN_TAIL) return false;
+    return x.slice(-n) === y.slice(-n);
+  }
+  function accountByAcctNo(acctNo, accounts) {
+    if (!acctDigits(acctNo)) return null;
+    var hits = (accounts || []).filter(function (a) { return acctTailMatch(acctNo, a.acctNo); });
+    return hits.length === 1 ? hits[0] : null;      // 0 = unknown, 2+ = ambiguous — both mean "ask"
+  }
+
+  /* ── the ONE definition of the bank-account form ─────────────────────────
+     Settings and the Banks page both add bank accounts. When each page owned
+     its own copy of this list they drifted — this codebase has already shipped
+     one company-switch implemented in 8 of 20 pages and one waLink copied 7
+     times. So the specs live HERE, once, and every page renders from it.
+     Kept DOM-free (plain data) so it stays testable in Node: bankTypes is
+     passed in because data.js owns BANK_TYPES, not the engine.
+     Pinned by bank-header.test.js — a second copy fails the suite. */
+  function bankFormSpecs(bankTypes) {
+    return [
+      { k: 'bank', label: 'Bank name', req: true, ph: 'e.g. Bank of Baroda' },
+      { k: 'label', label: 'Nickname (shown in the app)', ph: 'e.g. BOB Current — Gotan' },
+      { k: 'acctNo', label: 'Account number', ph: '335805…' },
+      { k: 'ifsc', label: 'IFSC', upper: true, ph: 'BARB0MERTAC' },
+      { k: 'type', label: 'Account type', type: 'select', opts: Object.entries(bankTypes || { current: 'Current' }) },
+      { k: 'openingBalance', label: 'Opening balance (₹)', type: 'number', ph: '0' },
+      { k: 'openingDate', label: 'Opening balance as on', type: 'date' }
+    ];
+  }
+
   /* ── multi-bank backfill (Phase 6) ────────────────────────────────────────
      Pure planner: given the stored txns and the firm's BANK_ACCOUNTS, decide
      which txns get which accountId (matching each txn's import-time t.bank to
@@ -650,6 +758,8 @@
     normName: normName, tokens: tokens, distinctive: distinctive, daysBetween: daysBetween,
     parseNarration: parseNarration, nameMatch: nameMatch, classifyDebit: classifyDebit,
     scoreMatch: scoreMatch, bestMatch: bestMatch, dedupeKey: dedupeKey, dedupeKeyBase: dedupeKeyBase, detectBank: detectBank,
+    parseStatementHeader: parseStatementHeader, accountByAcctNo: accountByAcctNo, acctTailMatch: acctTailMatch,
+    plausibleAcct: plausibleAcct, bankFormSpecs: bankFormSpecs,
     // already-recorded payments (freight/labour/royalty/EMI) + "who we pay every month"
     scoreEntry: scoreEntry, bestEntry: bestEntry, resolve: resolve,
     recurringPayees: recurringPayees, knownPayee: knownPayee, MIN_RUNS: MIN_RUNS,
