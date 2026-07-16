@@ -80,7 +80,7 @@ async function viewBillSale(r) {
       const blob = await getAttachBlob(a.id);
       if (blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
       if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
-    } catch (_) { if (w) w.close(); toast('Could not open the uploaded bill', 'err'); return; }
+    } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the bill — ' + QLAttachWhy(e), 'err'); return; }
   }
   let html = ''; try { html = QLShell.getInvoiceHTML(r.idx); } catch (_) {}
   QLX.viewDoc({ eyebrow: 'GST Invoice', title: r.inv || '—', sub: r.party + ' · tax invoice', html: html || salesBillHTML(r), onPrint: () => printInv(r), onShare: () => shareInv(r) });

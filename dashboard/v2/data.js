@@ -2181,3 +2181,19 @@
 /* build m20: addFreightPayment/deleteFreightPayment + freightPays landed-cost derivation */
 
 /* build m21: #auth handoff always wins + ql_cache_owner identity guard (session isolation) */
+
+/* WHY the bill would not open. This used to be `catch (_) { toast('Could not open
+   the uploaded bill') }` — the browser told us exactly what went wrong and we threw
+   it away, leaving a message that helps nobody: not the owner, who cannot act on
+   it, and not me, who then has to guess. Each of these has a completely different
+   fix, and the user can only take the right one if we say which. */
+window.QLAttachWhy = function (e) {
+  const n = (e && e.name) || '';
+  if (n === 'DataError') return 'this attachment has no file id saved — the bill was booked without its scan';
+  if (n === 'NotFoundError') return 'the attachment store is missing in this browser';
+  if (n === 'QuotaExceededError') return 'this browser is out of storage';
+  if (n === 'InvalidStateError' || n === 'SecurityError') return 'this browser blocks local file storage (private/incognito mode?)';
+  if (n === 'VersionError') return 'the local file store is from a newer version — close other QuickLimes tabs and retry';
+  return (e && (e.message || e.name)) || 'unknown error';
+};
+
