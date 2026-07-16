@@ -90,16 +90,24 @@
     localStorage.setItem('ql_cache_owner', QL_PLANT.id);
   } catch (_) {}
 
-  /* ── Seller details for tax invoices (ported from v1, keyed by name) ── */
+  /* ── Seller details for tax invoices ──────────────────────────────
+     Keyed by GSTIN, NOT by company name. These are two real firms' private
+     banking details, shipped in JS that every tenant downloads. Keyed by name, a
+     tenant who called their plant "GOTAN LIME INDUSTRIES" printed Gotan's Bank of
+     Baroda account on THEIR invoices — even with their own GSTIN set, because the
+     bank fields had no plant-row fallback. A GSTIN is government-issued and unique,
+     so it cannot collide: a firm gets these details only if it IS that firm.
+     (Deeper fix, not done here: move this off the shipped bundle into per-plant
+     server data so one tenant's account number never reaches another's browser.) */
   const HSN = '25221000';   // Quick Lime / Hydrated Lime
-  const SELLER_DEFAULTS = {
-    'DESHWALI MINERALS': {
+  const SELLER_BY_GSTIN = {
+    '08NLIPS9801K1Z5': {
       address: 'Ground Floor, Kali Talai, Near Hafiz Sahab Ki Dragha, Merta City, Nagaur, Rajasthan - 341510',
       state: 'Rajasthan (08)', pin: '341510', gstin: '08NLIPS9801K1Z5', phone: '9610099006',
       bank: 'HDFC Bank', bankBranch: 'Merta City', accNo: '50200089605146', ifsc: 'HDFC0002670',
       product: 'Manufactures of Quick Lime and Hydrated Lime.', tan: 'JDPM00000D', jurisdiction: 'MERTA CITY'
     },
-    'GOTAN LIME INDUSTRIES': {
+    '08BNAPM0488E1Z3': {
       address: 'TALANPUR ROAD ,SH 86B,, CHANDRA TYRE RETREADING GOTAN, DISTRICT -NAGAUR',
       state: 'Rajasthan (08)', pin: '342604', gstin: '08BNAPM0488E1Z3', phone: '9460034743',
       email: 'gotanlimeindustries@gmail.com', station: 'GOTAN',
@@ -115,7 +123,8 @@
   const COMPANIES = {};
   plants.forEach(p => {
     const nm = (p.plant_name || '').trim().toUpperCase();
-    const seller = SELLER_DEFAULTS[nm] || {};
+    // By GSTIN — the only key that cannot be forged by naming a plant after a firm.
+    const seller = SELLER_BY_GSTIN[(p.gst_number || '').trim().toUpperCase()] || {};
     COMPANIES[p.id] = {
       key: p.id,
       name: (p.plant_name || 'Your Plant').toUpperCase(),
@@ -2050,7 +2059,10 @@
     waCfg, saveWaCfg, waLogRows, waRecord, waSetStatus, waSentKeys, waStats,
     // All of the user's own firm names (sister companies) — recon uses these
     // to tell an inter-firm transfer from an unknown party.
-    ownFirmNames: Object.keys(SELLER_DEFAULTS),
+    /* The CURRENT tenant's own plant names, for inter-firm transfer detection —
+       NOT the hardcoded seller list, which handed every tenant Gotan + Deshwali and
+       made a stranger's payment look like an internal transfer. */
+    ownFirmNames: plants.map(pl => (pl.plant_name || '').trim().toUpperCase()).filter(Boolean),
     get activeCo() { return ACTIVE_CO; },
     // Shared, persisted UI month filter — ONE source of truth across Sales,
     // Purchase, Reconciliation and Dashboard, scoped per company, kept in
