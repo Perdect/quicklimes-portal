@@ -400,15 +400,25 @@
   const AVG = ['#2563EB,#1D4ED8', '#F59E0B,#D97706', '#16A34A,#15803D', '#7C3AED,#5B21B6', '#DB2777,#9D174D', '#0891B2,#155E75'];
   function paintWorkspace() {
     const Q = window.QLD; if (!Q) return;
-    const co = Q.co;
+    /* `co` is a GETTER — COMPANIES[ACTIVE_CO] — and it is undefined until the data
+       lands (and for a stale dm_active_co that no longer exists). Reading co.short
+       here threw, and this function is what replaces the header's shipped
+       placeholders: avatar "D", name "Loading…". So the throw left the WRONG
+       COMPANY'S INITIAL on screen — reported as "selected Gotan lime but profile
+       showing D" — and on a page whose other plant is Deshwali Minerals that D is
+       not a cosmetic glitch, it says you are looking at the other firm's books. */
+    const co = Q.co || null;
     const wsAv = document.querySelector('#wsBtn .workspace-avatar');
     const wsNm = document.querySelector('#wsBtn .workspace-name');
     const wsMeta = document.querySelector('#wsBtn .workspace-meta');
-    if (wsAv) wsAv.textContent = co.short.charAt(0).toUpperCase();
-    if (wsNm) wsNm.textContent = co.short;
-    if (wsMeta) wsMeta.textContent = (co.isPrimary ? 'Primary' : 'Linked') + ' · Quick Lime';
+    /* A neutral dot beats a confident wrong letter: "·" says "not loaded", "D" says
+       "Deshwali Minerals". Never leave an invented letter standing. */
+    if (wsAv) wsAv.textContent = co ? co.short.charAt(0).toUpperCase() : '·';
+    if (wsNm) wsNm.textContent = co ? co.short : 'Loading…';
+    if (wsMeta) wsMeta.textContent = co ? ((co.isPrimary ? 'Primary' : 'Linked') + ' · Quick Lime') : '';
     const menu = $('wsMenu');
-    menu.innerHTML = Object.values(Q.COMPANIES).map((c, i) => `
+    if (!menu) { paintAvatarLetter(co); refreshNotifDot(); return; }
+    menu.innerHTML = Object.values(Q.COMPANIES || {}).map((c, i) => `
       <button class="ws-row ${c.key === Q.activeCo ? 'active' : ''}" data-co="${c.key}">
         <span class="ws-row-av" style="background:linear-gradient(135deg,${AVG[i % AVG.length]})">${c.short.charAt(0).toUpperCase()}</span>
         <span>${c.short}</span>
@@ -445,13 +455,13 @@
     if (addBtn) addBtn.addEventListener('click', () => { menu.classList.remove('open'); toast('Add company — contact support to link a plant'); });
     // profile name
     const sbName = document.querySelector('.sb-profile-name');
-    if (sbName) sbName.textContent = co.short;
+    if (sbName && co) sbName.textContent = co.short;   // leave the placeholder rather than crash
     /* Q.plant is null until login lands, and paintWorkspace runs during init — an
        unguarded Q.plant.owner_name here is the same crash-the-whole-page bug the
        avatar letter just had, two lines up. The guard is not defensive noise: this
        function has sixteen callers and takes their tail down with it. */
     const pl = Q.plant || {};
-    const pmName = $('pmName'); if (pmName) pmName.textContent = pl.owner_name || co.short;
+    const pmName = $('pmName'); if (pmName) pmName.textContent = pl.owner_name || (co ? co.short : '');
     const pmEmail = $('pmEmail'); if (pmEmail) pmEmail.textContent = pl.owner_phone ? ('+91 ' + pl.owner_phone) : '—';
     paintAvatarLetter(co);
     // collections badge
@@ -547,6 +557,23 @@
 
   /* ── Profile menu + photo (ported) ───────────────────────────── */
   const PHOTO_KEY = 'ql_v2_profile_photo';
+
+  /* THE PHOTO LIVES IN THE CLOUD, so removing it locally is not removing it.
+     data.js:395 puts profile_pic in the saved blob (from dm_profile_pic), and
+     data.js:384 writes it BACK into localStorage on every cloud pull. Save and
+     remove both only touched localStorage and never told the cloud — so the blob
+     kept the old photo and handed it back to the next device that opened the app.
+     Removed on the phone, still there on the desktop; refresh the phone and it
+     returned too. Reported repeatedly, and correctly: it never actually deleted.
+
+     commit() writes local now and pushes the cloud on a 300ms debounce, taking
+     dm_profile_pic as it stands — the photo when set, null when removed. So one
+     call is the whole fix for BOTH directions: a new photo now reaches the other
+     devices, and a removed one stays removed. */
+  function pushPhoto() {
+    try { if (window.QLD && QLD.commit) QLD.commit(); }
+    catch (e) { console.warn('profile photo did not reach the cloud', e); }
+  }
 
   /* The avatar's LETTER. Every [data-avatar] shipped with a hardcoded "D" in its
      markup and nothing ever replaced it — applyAvatarPhoto() only ever set a
@@ -666,10 +693,12 @@
       const url = out.toDataURL('image/jpeg', 0.88);
       localStorage.setItem(PHOTO_KEY, url); localStorage.setItem('dm_profile_pic', url);
       applyAvatarPhoto(url); $('photoBack').classList.remove('open');
+      pushPhoto();
     };
     QLShell.removePhoto = function () {
       localStorage.removeItem(PHOTO_KEY); localStorage.removeItem('dm_profile_pic');
       crop.img = null; applyAvatarPhoto(null); $('photoBack').classList.remove('open');
+      pushPhoto();
     };
   }
 
@@ -2036,6 +2065,40 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       if (opts.title) this.setBreadcrumb(opts.title);
       renderPalette('');
       this.applyFeatureVisibility();
+
+      /* ── THE SHELL PAINTS ITS OWN HEADER ──────────────────────────
+         This used to be each page's job: call QLShell.paintWorkspace() yourself
+         once your data lands. Twenty pages remembered. SIX did not — ai, banks,
+         inventory, invoice-designs, purchasedash, refunds — and on those the header
+         simply kept the placeholders it shipped with: avatar "D", name "Loading…".
+         That is how "selected Gotan lime but profile showing D" happened on the
+         Inventory page: nothing was wrong with the company, the header had never
+         been painted at all.
+
+         Same lesson as the company switch directly below: a shared header cannot be
+         a convention that twenty-six pages re-implement — that is twenty-six chances
+         to forget, and forgetting is silent. The shell owns its own chrome now.
+
+         Paint once immediately (shows "·" + "Loading…" honestly until data lands),
+         then again whenever the page's own render fires — which is exactly when the
+         data has arrived. QLD.init(render) calls render twice: local cache first,
+         then authoritative cloud. Wrapping it means the header follows both, on
+         every page, whether or not the page ever heard of paintWorkspace. */
+      paintWorkspace();
+      const Qd = window.QLD;
+      if (Qd && !Qd.__qlShellPaints) {
+        Qd.__qlShellPaints = true;                       // wrap once per page load
+        const after = render => function () {
+          /* finally: the header must paint even if the page's own render throws.
+             A page bug should not also cost you the name of the company you are
+             looking at. */
+          try { if (typeof render === 'function') render.apply(this, arguments); }
+          finally { try { paintWorkspace(); } catch (_) {} }
+        };
+        const origInit = Qd.init, origSwitch = Qd.switchCompany;
+        if (typeof origInit === 'function') Qd.init = function (render) { return origInit.call(Qd, after(render)); };
+        if (typeof origSwitch === 'function') Qd.switchCompany = function (id, render) { return origSwitch.call(Qd, id, after(render)); };
+      }
       // mobile app layer (no-op on desktop)
       try { if (window.QLMobile) QLMobile.init({ active: _active, title: opts.title }); } catch (_) {}
       // restore the chosen theme (assistant header toggles it)

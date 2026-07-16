@@ -1,7 +1,7 @@
 /* QuickLimes v2 — service worker (installable PWA + offline shell).
    Local-first app: data lives in localStorage, so once the CSS/JS shell is cached
    the app opens offline. Never caches the /api backend or cross-origin requests. */
-const CACHE = 'ql-v2-cache-118';   // bumped: paintAvatarLetter ReferenceError killed every paintWorkspace caller (feature toggles dead)
+const CACHE = 'ql-v2-cache-119';   // bumped: shell paints its own header (6 pages showed 'D/Loading…'); photo delete now reaches the cloud
 
 self.addEventListener('install', () => self.skipWaiting());
 
