@@ -432,3 +432,11 @@
 .rc-lg-g .rc-lg-amt { color: #16a34a; } .rc-lg-g .rc-lg-dir { color: #16a34a; }
 .rc-lg-m .rc-lg-amt, .rc-lg-m .rc-lg-dir { color: var(--ql-text-muted, #94a3b8); }
 @media (max-width: 640px) { .rc-lg-head { grid-template-columns: 1fr 1fr; } .rc-lg-head .rc-lg-hcard:last-child { display: none; } .rc-lg-av { width: 34px; height: 34px; } }
+
+/* Filters panel — reuses QLX's .qx-adv / .qx-sel / .qx-date so it is the same
+   control the user already learned on the Sales Register. Only the amount
+   inputs need a rule: .qx-sel is built for a <select> and stretches, which
+   would give two ₹ boxes the width of a party dropdown. */
+.rc-amt { width: 92px; }
+.qx-adv .rc-amt::-webkit-outer-spin-button,
+.qx-adv .rc-amt::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }

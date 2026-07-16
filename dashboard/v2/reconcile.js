@@ -44,7 +44,24 @@ const STAT = {
 function tierColor(t) { return t === 'green' ? ['#dcfce7', '#15803d'] : t === 'yellow' ? ['#fef9c3', '#a16207'] : ['#fef2f2', '#dc2626']; }
 const toast = (m, t) => (QLShell.toast ? QLShell.toast(m, t) : 0);
 
-let ST = { view: 'recon', month: 'all', monthInit: false, ftype: 'all', fstatus: 'all', q: '', sel: new Set(), foOpen: false, acc: '' };
+let ST = {
+  view: 'recon', month: 'all', monthInit: false, ftype: 'all', fstatus: 'all', q: '', sel: new Set(), foOpen: false, acc: '',
+  /* Advanced filters, the same shape QLX uses for its Filters panel (S.adv) so
+     the two behave identically even though this page is not a QLX mount.
+     'all' means the filter is off — never '' , so an empty <select> value can
+     never be mistaken for "show nothing". */
+  adv: { party: 'all', cat: 'all', conf: 'all', from: '', to: '', min: '', max: '' },
+  advOpen: false
+};
+/* How many filters are actually narrowing the list — drives the button's badge.
+   Counted from the SAME object the predicate reads, so the badge can never claim
+   a filter that is not being applied. */
+function advCount() {
+  const a = ST.adv;
+  return ['party', 'cat', 'conf'].filter(k => a[k] && a[k] !== 'all').length
+    + (a.from ? 1 : 0) + (a.to ? 1 : 0) + (a.min !== '' ? 1 : 0) + (a.max !== '' ? 1 : 0);
+}
+function advReset() { ST.adv = { party: 'all', cat: 'all', conf: 'all', from: '', to: '', min: '', max: '' }; }
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
 function txns() { return (Q.recon.txns || []); }
@@ -439,7 +456,7 @@ function render() {
   let root = document.getElementById('rcRoot');
   if (!root) { main.innerHTML = '<div class="rc" id="rcRoot"></div>'; root = document.getElementById('rcRoot'); }
   try {
-    root.innerHTML = heroHTML() + (txns().length ? accBarHTML() + summaryHTML() + finOverviewHTML() + aiHTML() + toolbarHTML() + `<div class="rc-panel">${viewHTML()}</div>` + bulkBarHTML() : emptyHTML());
+    root.innerHTML = heroHTML() + (txns().length ? accBarHTML() + summaryHTML() + finOverviewHTML() + aiHTML() + toolbarHTML() + filtersPanelHTML() + `<div class="rc-panel">${viewHTML()}</div>` + bulkBarHTML() : emptyHTML());
     wire();
   } catch (e) { console.warn('recon render deferred:', e); }
   QLShell.paintWorkspace && QLShell.paintWorkspace();
@@ -539,6 +556,7 @@ function toolbarHTML() {
     <div class="rc-ftabs">${tab('all', 'All')}${tab('review', 'Needs review')}${tab('matched', 'Matched')}${tab('partial', 'Partial')}${tab('unmatched', 'Unmatched')}${tab('duplicate', 'Duplicate')}</div>
     <div class="rc-tb-r">
       <div class="rc-typtog">${typ('all', 'All')}${typ('credit', 'Credit')}${typ('debit', 'Debit')}</div>
+      ${filtersBtnHTML()}
       <div class="rc-searchw">${svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')}<input class="rc-search2" id="rcSearch" placeholder="Search party, ref, amount…" value="${esc(ST.q)}"></div>
       <button class="rc-mini2" data-view="ledger" title="Party ledger">${svg('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>')}<span>Ledger</span></button>
     </div></div>`;
@@ -554,6 +572,88 @@ function bulkBarHTML() {
     <button class="rc-bulk-b" data-bulk="export">${svg(IC.dl)} Export</button>
     <button class="rc-bulk-x" data-bulk="clear" title="Clear">${svg(IC.x)}</button></div>`;
 }
+/* The Filters button + panel. Deliberately reuses QLX's own classes (qx-tool,
+   qx-adv, qx-sel, qx-date) rather than new rc-* ones: this page is not a QLX
+   mount, but it sits next to pages that are, and the control the user learned on
+   the Sales Register must look and behave the same here. qlx.css is already
+   loaded on this page, so this costs no new CSS. */
+function filtersBtnHTML() {
+  /* Byte-for-byte the Sales Register's control: class qx-tool, `on` when a filter
+     is active, the same funnel icon, no badge. My first draft invented a
+     .qx-tool-n count chip — a class that does not exist in qlx.css, so it would
+     have rendered as unstyled text next to a control the user already knows.
+     Matching beats inventing when the whole point is that it looks the same. */
+  const n = advCount();
+  return `<button class="qx-tool ${n ? 'on' : ''}" id="rcFilBtn" title="${n ? n + ' filter' + (n > 1 ? 's' : '') + ' active' : 'Filters'}">
+    ${svg('<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>')} Filters</button>`;
+}
+function filtersPanelHTML() {
+  if (!ST.advOpen) return '';
+  const o = advOptions();
+  const sel = (k, label, opts) => `<select class="qx-sel" data-fk="${k}" aria-label="${esc(label)}">
+    <option value="all">${esc('All ' + label.toLowerCase())}</option>
+    ${opts.map(v => `<option value="${esc(v)}" ${ST.adv[k] === v ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select>`;
+  const conf = `<select class="qx-sel" data-fk="conf" aria-label="Confidence">
+    ${[['all', 'Any confidence'], ['high', 'High · 95%+ (auto-matched)'], ['med', 'Medium · 75–94% (needs a look)'],
+       ['low', 'Low · under 75%'], ['none', 'No suggestion at all']]
+      .map(o2 => `<option value="${o2[0]}" ${ST.adv.conf === o2[0] ? 'selected' : ''}>${esc(o2[1])}</option>`).join('')}</select>`;
+  return `<div class="qx-adv" id="rcAdv">
+    ${sel('party', 'Parties', o.party)}
+    ${sel('cat', 'Types', o.cat)}
+    ${conf}
+    <input class="qx-date" type="date" data-dk="from" value="${esc(ST.adv.from)}" aria-label="From date">
+    <span class="qx-dash">–</span>
+    <input class="qx-date" type="date" data-dk="to" value="${esc(ST.adv.to)}" aria-label="To date">
+    <input class="qx-sel rc-amt" type="number" data-dk="min" value="${esc(ST.adv.min)}" placeholder="Min ₹" aria-label="Minimum amount">
+    <input class="qx-sel rc-amt" type="number" data-dk="max" value="${esc(ST.adv.max)}" placeholder="Max ₹" aria-label="Maximum amount">
+    ${advCount() ? `<button class="qx-tool" id="rcFilClear">${svg(IC.x)} Clear</button>` : ''}
+  </div>`;
+}
+
+/* ── Advanced filters ────────────────────────────────────────────
+   The Sales Register has a Filters panel; this page had only tabs, a
+   credit/debit toggle and search — so "show me everything over ₹50,000 that
+   Aziz Chemicals sent in the last fortnight" meant scrolling.
+
+   Every option list is derived from the ROWS ON SCREEN (monthTxns), not from a
+   hardcoded enum. A filter that offers "Petcoke" when no line is petcoke is a
+   dead end the user has to discover by trying it. */
+function txnParty(t) { return (t.m && t.m.party) || t.clean || ''; }
+function txnCat(t) { return (t.m && t.m.cat) || ''; }
+function txnAmt(t) { return (t.credit || 0) || (t.debit || 0) || 0; }
+
+function advOptions() {
+  const rows = monthTxns();
+  const uniq = (fn) => [...new Set(rows.map(fn).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  return {
+    party: uniq(txnParty),
+    cat: uniq(txnCat)
+  };
+}
+
+function advMatch(t) {
+  const a = ST.adv;
+  if (a.party !== 'all' && txnParty(t) !== a.party) return false;
+  if (a.cat !== 'all' && txnCat(t) !== a.cat) return false;
+  if (a.conf !== 'all') {
+    /* Confidence bands mirror the ENGINE's own tiers (recon-core: >=95 green,
+       >=75 yellow) rather than inventing new ones — two different definitions of
+       "high confidence" in one product is how a user stops trusting either. */
+    const c = (t.m && t.m.confidence != null) ? t.m.confidence : -1;
+    if (a.conf === 'high' && !(c >= 95)) return false;
+    if (a.conf === 'med' && !(c >= 75 && c < 95)) return false;
+    if (a.conf === 'low' && !(c >= 0 && c < 75)) return false;
+    if (a.conf === 'none' && c >= 0) return false;      // no suggestion at all
+  }
+  const d = t.date || '';
+  if (a.from && d && d < a.from) return false;
+  if (a.to && d && d > a.to) return false;
+  const amt = txnAmt(t);
+  if (a.min !== '' && amt < (+a.min || 0)) return false;
+  if (a.max !== '' && amt > (+a.max || 0)) return false;
+  return true;
+}
+
 function filteredTxns() {
   let r = monthTxns();
   if (ST.ftype === 'credit') r = r.filter(t => (t.credit || 0) > 0);
@@ -563,7 +663,8 @@ function filteredTxns() {
   else if (ST.fstatus === 'unmatched') r = r.filter(t => statusKey(t) === 'unmatched');
   else if (ST.fstatus === 'partial') r = r.filter(t => statusKey(t) === 'partial');
   else if (ST.fstatus === 'duplicate') r = r.filter(t => statusKey(t) === 'duplicate');
-  if (ST.q) { const q = ST.q.toLowerCase(); r = r.filter(t => { const b = billFor(t); return ((t.clean || '') + ' ' + (t.raw || t.desc || '') + ' ' + (t.utr || '') + ' ' + (t.ref || '') + ' ' + (t.credit || t.debit || '') + ' ' + (b ? (b.party || b.sup || '') + ' ' + (b.inv || b.bill || '') : '')).toLowerCase().includes(q); }); }
+  r = r.filter(advMatch);          // advanced filters (Filters panel)
+  if (ST.q) { const q = ST.q.toLowerCase(); r = r.filter(t => { const b = billFor(t); return ((t.clean || '') + ' ' + (t.raw || t.desc || '') + ' ' +(t.utr || '') + ' ' + (t.ref || '') + ' ' + (t.credit || t.debit || '') + ' ' + (b ? (b.party || b.sup || '') + ' ' + (b.inv || b.bill || '') : '')).toLowerCase().includes(q); }); }
   return r.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 }
 function badge(t) {
@@ -1161,6 +1262,15 @@ function wire() {
   if ($('rcAiReview')) $('rcAiReview').onclick = () => { ST.fstatus = 'review'; render(); };
   root.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { ST.view = b.dataset.view; render(); });
   root.querySelectorAll('[data-ftype]').forEach(b => b.onclick = () => { ST.ftype = b.dataset.ftype; render(); });
+  /* Filters. render() rebuilds the toolbar, so these rebind every paint — the
+     same pattern the tab buttons above already use. */
+  if ($('rcFilBtn')) $('rcFilBtn').onclick = () => { ST.advOpen = !ST.advOpen; render(); };
+  if ($('rcFilClear')) $('rcFilClear').onclick = () => { advReset(); render(); };
+  root.querySelectorAll('#rcAdv [data-fk]').forEach(el => el.onchange = () => { ST.adv[el.dataset.fk] = el.value; render(); });
+  /* Dates and amounts use change, not input: re-rendering on every keystroke of a
+     number would steal focus mid-typing — the same bug that made the invoice
+     form drop characters. */
+  root.querySelectorAll('#rcAdv [data-dk]').forEach(el => el.onchange = () => { ST.adv[el.dataset.dk] = el.value; render(); });
   root.querySelectorAll('[data-fstatus]').forEach(b => b.onclick = () => { ST.fstatus = b.dataset.fstatus; render(); });
   root.querySelectorAll('[data-facc]').forEach(b => b.onclick = () => { ST.acc = b.dataset.facc; ST.sel.clear(); render(); });
   if ($('rcSearch')) { const s = $('rcSearch'); s.oninput = () => { ST.q = s.value; const p = document.querySelector('.rc-panel'); if (p) { p.innerHTML = viewHTML(); wire(); s2focus(); } }; }
