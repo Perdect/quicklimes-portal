@@ -22,6 +22,7 @@
 <script src="./import-guard.js?v=m28"></script>
 <script src="./dedupe.js?v=m29"></script>
 <script src="./dedupe-ui.js?v=m29"></script>
+<script src="./i18n.js?v=h1"></script>
 <script src="./data.js?v=m32"></script>
 <script src="./recon-core.js?v=rc5"></script>
 <link rel="stylesheet" href="./mobile.css?v=m7">
@@ -46,6 +47,23 @@
         </div>
       </div>
       <div id="coList" style="margin-top:var(--ql-space-4)"></div>
+    </div>
+
+    <!-- LANGUAGE. The app shipped with no UI language setting at all; the only
+         Devanagari string in the codebase was a per-CUSTOMER WhatsApp preference
+         that nothing reads. This is the real one. -->
+    <div class="card" id="langCard" style="margin-bottom:var(--ql-space-5)">
+      <div class="ft-head">
+        <div>
+          <h3 class="ft-title">भाषा / Language</h3>
+          <div class="ft-note">Hindi is being rolled out module by module. Anything not yet translated stays in <b>English</b> rather than going blank — so the app always works, whichever you pick.</div>
+        </div>
+        <select class="ql-input" id="langSel" style="flex:none;width:180px">
+          <option value="en">English</option>
+          <option value="hi">हिन्दी Hindi</option>
+        </select>
+      </div>
+      <div class="ft-note" id="langCov" style="margin-top:var(--ql-space-3)"></div>
     </div>
 
     <div class="card">
@@ -152,7 +170,20 @@ function row(f) {
     <span class="ft-switch"><input type="checkbox" data-key="${f.key}" ${f.active ? 'checked' : ''} ${f.locked ? 'disabled' : ''}><span class="ft-slider"></span></span>
   </label>`;
 }
+/* Honest coverage: the real phrase count, not a claim of "Hindi support". */
+function renderLang() {
+  const sel = document.getElementById('langSel');
+  if (!sel || !window.QLI18n) return;
+  sel.value = QLI18n.lang();
+  sel.onchange = () => QLI18n.setLang(sel.value);   // setLang reloads — strings render at build time
+  const n = QLI18n.stats().phrases;
+  document.getElementById('langCov').innerHTML = QLI18n.lang() === 'hi'
+    ? '<b>' + n + '</b> phrases translated so far — Sales (बिक्री) and Purchase (खरीद) first. The rest of the app still reads in English.'
+    : '<b>' + n + '</b> Hindi phrases ready. Switch to हिन्दी to use them.';
+}
+
 function render() {
+  renderLang();
   const feats = QLShell.features();
   const core = feats.filter(f => f.core), opt = feats.filter(f => !f.core);
   const onCount = opt.filter(f => f.active).length;

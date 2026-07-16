@@ -202,17 +202,22 @@ function salesInsightsPanel(rows) {
 }
 
 /* ══════════════════ CONFIG ══════════════════ */
+/* Hindi pilot. Aliased locally, never globally — `t` is the most common local name
+   in this codebase, so a window.t would be one undeclared assignment from silent
+   breakage. An untranslated phrase renders in English, never blank. */
+const t = window.QLI18n ? QLI18n.t : (x => x);
+
 QLX.mount({
-  active: 'sales', title: 'Sales Register', accent: 'blue', noun: 'invoice', nounPl: 'invoices',
+  active: 'sales', title: t('Sales Register'), accent: 'blue', noun: 'invoice', nounPl: 'invoices',
   icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
   data: () => Q.salesRows(), rowId: r => r.idx, dateField: r => r.date,
   monthFilter: true, monthOf: r => r.date, emptyLabel: 'sales',
   emptySub: 'Create a GST invoice, or use “Upload Bills” to import from PDF / photo.',
   subtitle: () => { const s = Q.salesSummary(); return `<b>${esc(Q.co.short)}</b> · ${s.count} invoices · <b>${fC(s.taxable)}</b> sales`; },
   banner: rows => salesInsightsPanel(rows),
-  primary: { label: 'New invoice', icon: IC.plus, onClick: () => QLShell.openSaleForm() },
+  primary: { label: t('New Sale'), icon: IC.plus, onClick: () => QLShell.openSaleForm() },
   tools: [
-    { label: 'Upload Bills', icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => importInvoices() },
+    { label: t('Upload Bills'), icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => importInvoices() },
     { label: 'Export', icon: IC.dl, onClick: () => exportRows(QLX.rows()) },
     { label: 'Report', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>', onClick: () => openSalesReport(QLX.rows()) }
   ],
@@ -245,9 +250,9 @@ QLX.mount({
     { key: 'status', label: 'Status', options: () => STATUSES, test: (r, v) => r.status === v }
   ],
   groupBy: [
-    { key: 'status', label: 'Status', of: r => r.status, title: r => r.status[0].toUpperCase() + r.status.slice(1), dot: r => STDOT[r.status] },
-    { key: 'party', label: 'Customer', of: r => r.party, title: r => esc(r.party), dot: () => 'var(--qx)' },
-    { key: 'month', label: 'Month', of: r => (r.date || '').slice(0, 7), title: r => Q.monthLabel(r.date, { blank: 'No date' }), dot: () => 'var(--qx)' }
+    { key: 'status', label: t('Status'), of: r => r.status, title: r => r.status[0].toUpperCase() + r.status.slice(1), dot: r => STDOT[r.status] },
+    { key: 'party', label: t('Customer'), of: r => r.party, title: r => esc(r.party), dot: () => 'var(--qx)' },
+    { key: 'month', label: t('Month'), of: r => (r.date || '').slice(0, 7), title: r => Q.monthLabel(r.date, { blank: 'No date' }), dot: () => 'var(--qx)' }
   ],
   // Grouped by month by default, like the Purchase Register — a flat list of every
   // invoice ever is not readable, and the month totals are the thing being asked for.

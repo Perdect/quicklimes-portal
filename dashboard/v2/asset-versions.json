@@ -147,6 +147,10 @@
     "v": "m2c",
     "sha": "df6932574047"
   },
+  "i18n.js": {
+    "v": "h1",
+    "sha": "f87a35d04868"
+  },
   "bill-ocr.js": {
     "v": "ocr28",
     "sha": "646c8500dbf6"
@@ -164,8 +168,8 @@
     "sha": "2116641d73a0"
   },
   "purchase.js": {
-    "v": "m28",
-    "sha": "d6025f83ed98"
+    "v": "m29",
+    "sha": "6a36fd21770b"
   },
   "reconcile.css": {
     "v": "f3",
@@ -196,8 +200,8 @@
     "sha": "315907e53f5c"
   },
   "sales.js": {
-    "v": "m23",
-    "sha": "26f83fb10afd"
+    "v": "m24",
+    "sha": "c4d7db101ab7"
   },
   "tds.js": {
     "v": "m2",

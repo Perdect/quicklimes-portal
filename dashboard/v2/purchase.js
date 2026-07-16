@@ -6,6 +6,8 @@
    PDF / import logic that already shipped.
    ═══════════════════════════════════════════════════════════════════════ */
 const Q = window.QLD, fC = Q.fC, fmt = Q.fmt, fDS = d => Q.fDS(d);
+/* Hindi pilot — see sales.js. Local alias, English fallback. */
+const t = window.QLI18n ? QLI18n.t : (x => x);
 const esc = QLX.esc, svg = QLX.svg, IC = QLX.icons;
 const GCOL = { limestone: ['#f6f0e4', '#8a6d3b'], petcoke: ['#fdeceb', '#c0392b'], packaging: ['#eaf1ff', '#2f5fd0'], labour: ['#e9f9ee', '#1c7c3a'], maintenance: ['#f2eefb', '#6b3fa0'], utilities: ['#fff5e0', '#b7791f'], office: ['#eef2f7', '#475569'], other: ['#f1f5f9', '#64748b'] };
 // Short, friendly names for the Item filter (falls back to the full item name).
@@ -652,14 +654,14 @@ QLX.mount({
   emptySub: 'Add a purchase bill, or use “Upload Bills” to import petcoke / limestone / bag invoices.',
   subtitle: () => { const s = Q.purchaseSummary(); return `<b>${esc(Q.co.short)}</b> · ${s.count} bills · <b>${fC(s.total)}</b> purchase value`; },
   banner: rows => aiInsightsPanel(rows),
-  primary: { label: 'Add Bill', icon: IC.plus, onClick: () => QLShell.openPurchaseForm() },
+  primary: { label: t('Add Bill'), icon: IC.plus, onClick: () => QLShell.openPurchaseForm() },
   tools: [
-    { label: 'Upload Bills', icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => importBills() },
+    { label: t('Upload Bills'), icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => importBills() },
     { label: 'Export', icon: IC.dl, onClick: () => exportRows(QLX.rows()) },
     { label: 'Report', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>', onClick: () => openPurchaseReport(QLX.rows()) },
     // Covers bank rows, invoices AND bills in one pass — the duplicates the user
     // already has predate the import gate, which only stops NEW ones.
-    { label: 'Find duplicates', icon: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', onClick: () => QLDedupe.open() }
+    { label: t('Find duplicates'), icon: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', onClick: () => QLDedupe.open() }
   ],
   // Month-scoped: `rows` is the selected month's bills (all statuses).
   stats: rows => {
@@ -688,11 +690,11 @@ QLX.mount({
     { key: 'sup', label: 'Supplier', options: rows => [...new Set(rows.map(r => r.sup))].filter(s => s && s !== '—').sort().map(s => [s, s]), test: (r, v) => r.sup === v }
   ],
   groupBy: [
-    { key: 'group', label: 'Purchase Group', of: r => r.group, title: r => esc(r.groupLabel), dot: r => (GCOL[r.group] || GCOL.other)[1] },
-    { key: 'item', label: 'Purchase Item', of: r => r.item || '—', title: r => esc(Q.itemShort(r.item) || '—'), dot: r => (GCOL[r.group] || GCOL.other)[1] },
-    { key: 'status', label: 'Payment status', of: r => (r.isOverdue ? 'overdue' : r.status), title: r => (r.isOverdue ? 'Overdue' : r.status[0].toUpperCase() + r.status.slice(1)), dot: r => STDOT[r.isOverdue ? 'overdue' : r.status] },
-    { key: 'sup', label: 'Supplier', of: r => r.sup, title: r => esc(r.sup), dot: () => 'var(--qx)' },
-    { key: 'month', label: 'Month', of: r => (r.date || '').slice(0, 7), title: r => Q.monthLabel(r.date, { blank: 'No date' }), dot: () => 'var(--qx)' }
+    { key: 'group', label: t('Purchase Group'), of: r => r.group, title: r => esc(r.groupLabel), dot: r => (GCOL[r.group] || GCOL.other)[1] },
+    { key: 'item', label: t('Purchase Item'), of: r => r.item || '—', title: r => esc(Q.itemShort(r.item) || '—'), dot: r => (GCOL[r.group] || GCOL.other)[1] },
+    { key: 'status', label: t('Payment status'), of: r => (r.isOverdue ? 'overdue' : r.status), title: r => (r.isOverdue ? 'Overdue' : r.status[0].toUpperCase() + r.status.slice(1)), dot: r => STDOT[r.isOverdue ? 'overdue' : r.status] },
+    { key: 'sup', label: t('Supplier'), of: r => r.sup, title: r => esc(r.sup), dot: () => 'var(--qx)' },
+    { key: 'month', label: t('Month'), of: r => (r.date || '').slice(0, 7), title: r => Q.monthLabel(r.date, { blank: 'No date' }), dot: () => 'var(--qx)' }
   ],
   groupByDefault: 'group', groupSum: r => r.total,
   sortDefault: { key: 'date', dir: 'desc' },
