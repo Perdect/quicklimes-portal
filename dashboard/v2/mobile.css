@@ -14,6 +14,28 @@
   --qlm-safe-bottom: env(safe-area-inset-bottom, 0px);
   --qlm-header-h: 54px;
   --qlm-nav-h: 60px;
+
+  /* ── The gradient ──────────────────────────────────────────────
+     Violet → brand blue. It is a TOKEN, not a literal sprinkled at each
+     call site, because a gradient repeated by hand is a gradient that
+     drifts: six near-identical purples is how a design system rots.
+     Anchored on --ql-brand-600 at the blue end so it stays welded to the
+     brand — restyle the brand and this follows, rather than the app
+     slowly acquiring a second accent colour nobody chose. */
+  --qlm-violet: #7C3AED;
+  --qlm-grad: linear-gradient(135deg, var(--qlm-violet) 0%, var(--ql-brand-600) 100%);
+  /* The lift under a gradient control. Tinted violet rather than black:
+     a grey shadow under a saturated button reads as dirt. */
+  --qlm-grad-shadow: 0 8px 20px -6px color-mix(in srgb, var(--qlm-violet) 55%, transparent);
+
+  /* Native-app radii. The reference sits at 16–24; tokens.css tops out
+     lower because it also has to serve dense desktop tables. */
+  --qlm-r-card: 20px;
+  --qlm-r-ctl: 14px;
+  --qlm-r-sheet: 24px;
+  /* One touch height for every primary control. 52px is the spec and it
+     clears Apple's 44pt minimum with room for a shadow. */
+  --qlm-touch: 52px;
 }
 
 /* The mobile chrome DOM is always present but hidden on desktop. Listing
@@ -113,6 +135,11 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
   padding-bottom: var(--qlm-safe-bottom);
   background: var(--ql-bg-elevated);                 /* opaque fallback — never see-through */
   border-top: 1px solid var(--ql-border);
+  /* Rounded top corners (spec). The radius is on the BAR while the safe-area
+     inset stays as padding, so on a notched iPhone the curve tops the bar and
+     the home indicator still gets its clearance underneath. */
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -4px 24px -8px rgba(15,23,42,.10);
   z-index: 250;
 }
 @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
@@ -138,14 +165,17 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-tab::before {
   content: ""; position: absolute; z-index: -1;
   top: 4px; left: 50%; margin-left: -23px; width: 46px; height: 28px; border-radius: 999px;
-  background: color-mix(in srgb, var(--ql-brand-600) 12%, transparent);
+  background: var(--qlm-grad);
+  box-shadow: var(--qlm-grad-shadow);
   opacity: 0; transform: scale(.5);
   transition: opacity .18s var(--ql-ease-out), transform .34s cubic-bezier(.34, 1.56, .64, 1);
 }
 .qlm-tab.active::before { opacity: 1; transform: none; }
 .qlm-tab svg { width: 22px; height: 22px; stroke-width: 2;
   transition: transform .34s cubic-bezier(.34, 1.56, .64, 1); }
-.qlm-tab.active { color: var(--ql-brand-600); }
+/* White ON the gradient pill — not brand blue, which was legible against the
+   old 12% tint but would sit blue-on-blue now that the pill is saturated. */
+.qlm-tab.active { color: #fff; }
 .qlm-tab.active svg { transform: translateY(-1px) scale(1.06); stroke-width: 2.2; }
 .qlm-tab:active svg { transform: scale(0.84); }
 .qlm-tab:active::before { transform: scale(.92); }
@@ -264,12 +294,47 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-chips::-webkit-scrollbar { display: none; }
 .qlm-chip {
   flex: none; scroll-snap-align: start;
-  padding: 8px 15px; border-radius: 99px; border: 1px solid var(--ql-border);
+  padding: 9px 16px; border-radius: 99px; border: 1px solid var(--ql-border);
   background: var(--ql-bg-elevated); color: var(--ql-text-secondary);
   font-size: 13px; font-weight: 600; white-space: nowrap;
-  transition: all var(--ql-duration-fast) var(--ql-ease-out);
+  transition: color var(--ql-duration-fast) var(--ql-ease-out),
+              border-color var(--ql-duration-fast) var(--ql-ease-out),
+              transform var(--ql-duration-fast) var(--ql-ease-out);
+  position: relative; isolation: isolate;
 }
-.qlm-chip.active { background: var(--ql-neutral-900); color: #fff; border-color: var(--ql-neutral-900); }
+/* The gradient rides on a ::before that CROSS-FADES, because background-image
+   is not an animatable property — swapping it on .active snaps, and a snap is
+   the one thing that tells you this is a web page. Under it the chip keeps a
+   solid gradient-coloured border so the shape never depends on the fade. */
+.qlm-chip::before {
+  content: ""; position: absolute; inset: -1px; z-index: -1;
+  border-radius: 99px; background: var(--qlm-grad);
+  opacity: 0; transition: opacity var(--ql-duration-base) var(--ql-ease-out);
+}
+.qlm-chip.active { color: #fff; border-color: transparent; }
+.qlm-chip.active::before { opacity: 1; }
+.qlm-chip:active { transform: scale(0.95); }
+@media (prefers-reduced-motion: reduce) {
+  .qlm-chip, .qlm-chip::before { transition: none; }
+}
+
+/* Sticky filter rail — the spec pins the filters directly under the header.
+   `top` has to clear the header AND the notch, or on an iPhone the pills park
+   under the clock. z-index sits below the header's 250 so the header always
+   wins the overlap. */
+.qlm-chips.sticky {
+  position: sticky; z-index: 240;
+  top: calc(var(--qlm-header-h) + var(--qlm-safe-top));
+  padding-top: 8px; padding-bottom: 8px; margin-bottom: 8px;
+  background: color-mix(in srgb, var(--ql-bg) 88%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  backdrop-filter: saturate(180%) blur(14px);
+}
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  /* No blur = no glass. An 88%-transparent rail with content scrolling
+     visibly through it is worse than an honest opaque one. */
+  .qlm-chips.sticky { background: var(--ql-bg); }
+}
 
 /* “More” app library (bottom-sheet grid of module tiles) */
 .qlm-more { padding-top: 2px; }
@@ -368,8 +433,12 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 #ql-main > .dx { display: none !important; }
 .qlm-dash { display: flex; flex-direction: column; gap: 16px; }
 .qlm-dash-greet { }
-.qlm-dash-greet h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
-.qlm-dash-greet p { color: var(--ql-text-secondary); font-size: 14px; margin: 3px 0 0; }
+/* Type scale, per spec: page title 28 / section 20 / card 16 / body 14 / label 12.
+   The tighter letter-spacing is not decoration — at 28px the default tracking
+   in Geist reads loose and webby; -0.03em is what makes it look set rather
+   than typed. */
+.qlm-dash-greet h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; margin: 0; line-height: 1.15; }
+.qlm-dash-greet p { color: var(--ql-text-secondary); font-size: 14px; margin: 4px 0 0; }
 
 /* The .qlm-seg segmented tabs lived here. They are DELETED, not hidden: the pills
    duplicated the bottom nav's five labels 60px away while meaning something
@@ -409,10 +478,16 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-tint-red { background: var(--ql-danger-50); color: var(--ql-danger-600); }
 .qlm-tint-violet { background: #F5F3FF; color: #7C3AED; }
 .qlm-tint-cyan { background: #ECFEFF; color: #0891B2; }
+/* blue/green/amber/red tints ride --ql-*-50, which tokens.css already flips for
+   dark. Violet and cyan have no token family, so they were LITERAL light hexes —
+   two glowing near-white tiles on a dark dashboard once dark mode shipped. Same
+   palette dash.css uses for .dx-t-violet, so phone and desktop stay one product. */
+[data-theme="dark"] .qlm-tint-violet { background: #2E1065; color: #C4B5FD; }
+[data-theme="dark"] .qlm-tint-cyan { background: #083344; color: #67E8F9; }
 
 /* section title */
 .qlm-sec { display: flex; align-items: center; justify-content: space-between; margin: 6px 2px -2px; }
-.qlm-sec h3 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.qlm-sec h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
 .qlm-sec a { font-size: 13px; font-weight: 600; color: var(--ql-brand-600); }
 
 /* mini bar chart (simplified) */
@@ -544,6 +619,195 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 
 /* smooth momentum + tap feedback everywhere */
 * { -webkit-tap-highlight-color: transparent; }
+
+/* ═══════════════ 15 · NATIVE CONTROLS ═══════════════ */
+/* Buttons, action cards, settings rows and forms in the reference's language.
+   These RE-SKIN the shared .ql-btn / .ql-field the whole app already uses —
+   they do not invent a parallel mobile button. A second button class is how
+   you end up with two half-styled buttons and a bug report six weeks later. */
+
+/* ── Primary: the gradient action ── */
+.ql-btn.ql-btn-primary {
+  height: var(--qlm-touch); border-radius: var(--qlm-r-ctl);
+  background: var(--qlm-grad); border: 0; color: #fff;
+  font-size: 15px; font-weight: 700; letter-spacing: -0.01em;
+  box-shadow: var(--qlm-grad-shadow);
+  transition: transform var(--ql-duration-fast) var(--ql-ease-out),
+              box-shadow var(--ql-duration-fast) var(--ql-ease-out);
+}
+.ql-btn.ql-btn-primary:active {
+  transform: scale(0.975);
+  box-shadow: 0 3px 10px -4px color-mix(in srgb, var(--qlm-violet) 55%, transparent);
+}
+.ql-btn.ql-btn-primary:disabled { opacity: .5; box-shadow: none; }
+
+/* ── Secondary: white, bordered, same height so a row of two aligns ── */
+.ql-btn.ql-btn-ghost, .ql-btn.ql-btn-secondary {
+  height: var(--qlm-touch); border-radius: var(--qlm-r-ctl);
+  background: var(--ql-bg-elevated); border: 1px solid var(--ql-border);
+  color: var(--ql-text); font-size: 15px; font-weight: 600;
+}
+.ql-btn.ql-btn-ghost:active, .ql-btn.ql-btn-secondary:active {
+  background: var(--ql-neutral-100); transform: scale(0.975);
+}
+
+/* ── Ripple ──────────────────────────────────────────────────────
+   Pure CSS, no JS listener: the ::after is scaled up from the centre on
+   :active. A real Material ripple starts at the fingertip, which needs the
+   touch coordinate — not worth a listener on every button for a 300ms
+   flourish. This reads as a press without the machinery. */
+.qlm-ripple { position: relative; overflow: hidden; isolation: isolate; }
+.qlm-ripple::after {
+  content: ""; position: absolute; inset: 0; z-index: 0;
+  background: radial-gradient(circle at center, rgba(255,255,255,.45) 0%, transparent 62%);
+  opacity: 0; transform: scale(.35);
+  transition: opacity .45s var(--ql-ease-out), transform .45s var(--ql-ease-out);
+  pointer-events: none;
+}
+.qlm-ripple:active::after { opacity: 1; transform: scale(1); transition-duration: 0s, 0s; }
+
+/* ── Action card: icon · title · subtitle · chevron ──
+   The reference's headline row. Also the shape of a settings list item, so
+   ONE class serves both — .qlm-act on a dashboard card and on a settings row
+   is deliberate, not laziness. */
+.qlm-act {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  padding: 14px; text-align: left; text-decoration: none;
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: var(--qlm-r-card); box-shadow: var(--ql-shadow-xs);
+  color: var(--ql-text);
+  transition: transform var(--ql-duration-fast) var(--ql-ease-out),
+              box-shadow var(--ql-duration-fast) var(--ql-ease-out);
+}
+.qlm-act:active { transform: scale(0.985); box-shadow: var(--ql-shadow-sm); }
+.qlm-act-ic {
+  width: 44px; height: 44px; flex: none; border-radius: var(--qlm-r-ctl);
+  display: grid; place-items: center;
+}
+.qlm-act-ic svg { width: 22px; height: 22px; stroke-width: 1.9; }
+.qlm-act-tx { flex: 1; min-width: 0; }
+.qlm-act-t { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.qlm-act-s {
+  font-size: 13px; color: var(--ql-text-secondary); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.qlm-act-ch { flex: none; color: var(--ql-text-muted); display: flex; }
+.qlm-act-ch svg { width: 18px; height: 18px; }
+
+/* Grouped list — rows fused into one card, iOS Settings style */
+.qlm-group {
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: var(--qlm-r-card); box-shadow: var(--ql-shadow-xs); overflow: hidden;
+}
+.qlm-group .qlm-act {
+  border: 0; border-radius: 0; box-shadow: none; background: transparent;
+  border-bottom: 1px solid var(--ql-border);
+}
+.qlm-group .qlm-act:last-child { border-bottom: 0; }
+.qlm-group .qlm-act:active { background: var(--ql-neutral-100); transform: none; }
+
+/* ── Forms ───────────────────────────────────────────────────────
+   NO floating-label block here, and that is a decision, not an omission.
+
+   The spec asks for floating labels. Implementing them needs `input:…+ label`
+   — the label AFTER the input in the DOM. But .qlm-field is not mine: qlx.js
+   (:321, :323) and mobile.js's fieldHTML (:370-373) both emit
+   `<div class="qlm-field"><label>…</label><input>` — label FIRST — and they
+   own every filter form and wizard field in the app.
+
+   So the sibling selector could never match, and the absolutely-positioned
+   label it needs would have dropped on top of live inputs across QLX. A
+   cosmetic flourish is not worth breaking forms that work; the fields below
+   (:577) already have the radius, the focus ring and the 16px that stops
+   iOS zooming. Doing this properly means changing the markup in both
+   engines — a real change with a real test, not a paint job. */
+
+/* Fields inherit the new control radius so they sit with the buttons. */
+.qlm-field input, .qlm-field select, .qlm-field textarea { border-radius: var(--qlm-r-ctl); }
+
+/* ── The period filter ───────────────────────────────────────────
+   The control the owner asked for: "in the mobile view we don't have this
+   option which important". mobile.js builds it from QLShell.monthButton —
+   the desktop's OWN trigger — so the two surfaces cannot drift apart. This
+   only dresses it for a thumb. */
+.qlm-dfilter {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+}
+.qlm-dfilter .ql-mp-btn {
+  flex: 1; height: 44px; border-radius: var(--qlm-r-ctl);
+  font-size: 14px; font-weight: 600; justify-content: center;
+}
+/* The picker is OPEN — say so. .on is what closeMonthPicker resets, so the
+   lit state and the close path already agree; no second flag to fall out of
+   step with the sheet. */
+.qlm-dfilter .ql-mp-btn.on {
+  border-color: transparent; color: #fff; background: var(--qlm-grad);
+  box-shadow: var(--qlm-grad-shadow);
+}
+.qlm-dfilter .ql-mp-btn.on svg { color: #fff; }
+.qlm-dfilter .qx-btn {
+  flex: none; height: 44px; padding: 0 14px; border-radius: var(--qlm-r-ctl);
+  font-size: 14px; font-weight: 600;
+}
+
+/* ── Month picker → bottom sheet ─────────────────────────────────
+   EVERY position property here needs !important, and that is not style
+   cargo: shell.js:1447 sets top/left INLINE to place the desktop popover
+   next to its trigger, and an inline style beats any stylesheet rule that
+   is not !important. Without these the sheet would open 264px wide, parked
+   at a desktop coordinate somewhere up the page. */
+.qlm-mp-back {
+  display: block; position: fixed; inset: 0; z-index: 429;
+  background: rgba(15,23,42,0); transition: background var(--ql-duration-base) var(--ql-ease-out);
+}
+.qlm-mp-back.open { background: rgba(15,23,42,.44); }
+.ql-mp.qlm-mp {
+  position: fixed !important;
+  top: auto !important; bottom: 0 !important; left: 0 !important; right: 0 !important;
+  width: auto !important; max-width: 100vw !important;
+  border-radius: var(--qlm-r-sheet) var(--qlm-r-sheet) 0 0 !important;
+  border-bottom: 0 !important;
+  padding: 8px 16px calc(18px + var(--qlm-safe-bottom)) !important;
+  z-index: 430 !important;
+  box-shadow: 0 -10px 40px -8px rgba(15,23,42,.28) !important;
+  animation: qlm-mp-up .3s var(--ql-ease-out) !important;   /* overrides qlMpIn's 4px drop */
+}
+@keyframes qlm-mp-up { from { transform: translateY(100%); } to { transform: none; } }
+/* Grab handle — the sheet's own affordance, no extra markup for mobile.js to
+   build (and for a future edit to forget). */
+.ql-mp.qlm-mp::before {
+  content: ""; display: block; width: 38px; height: 5px; margin: 3px auto 10px;
+  border-radius: 99px; background: var(--ql-neutral-300);
+}
+/* Thumb-sized cells. The desktop grid is built for a cursor; 44px is Apple's
+   minimum and these were nowhere near it. */
+.ql-mp.qlm-mp .ql-mp-grid { gap: 8px !important; }
+.ql-mp.qlm-mp .ql-mp-grid button,
+.ql-mp.qlm-mp .ql-mp-wide { height: 46px !important; font-size: 14px !important; border-radius: 12px !important; }
+.ql-mp.qlm-mp .ql-mp-nav { width: 40px !important; height: 40px !important; }
+.ql-mp.qlm-mp .ql-mp-grid button.on,
+.ql-mp.qlm-mp .ql-mp-wide.on {
+  background: var(--qlm-grad) !important; color: #fff !important; border-color: transparent !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ql-mp.qlm-mp { animation: none !important; }
+}
+
+/* ── Page transition ─────────────────────────────────────────────
+   Applied by mobile.js on mount. Opacity + a short rise only: a real
+   horizontal slide needs the OUTGOING page too, and this is a multi-page
+   app — each navigation is a document load, so the old page is already
+   gone. Faking a slide with one page in hand reads as a jolt. */
+@keyframes qlm-page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.qlm-page-in { animation: qlm-page-in .26s var(--ql-ease-out) both; }
+@media (prefers-reduced-motion: reduce) {
+  .qlm-page-in { animation: none; }
+  .qlm-ripple::after { transition: none; }
+  .ql-btn.ql-btn-primary { transition: none; }
+}
 
 } /* end @media */
 

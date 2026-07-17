@@ -76,13 +76,26 @@ function monthMetrics() {
     salesTax, purchTax, invoices: ms.length, bills: mp.length,
     collected: ms.reduce((a, r) => a + r.paid, 0), pending: ms.reduce((a, r) => a + r.outstanding, 0),
     qty: ms.reduce((a, r) => a + r.qty, 0), gst: ms.reduce((a, r) => a + r.gst, 0),
-    profit: salesTax - purchTax
+    profit: salesTax - purchTax,
+    /* itc / payable are additive — nothing on the desktop dashboard reads them.
+       The mobile dashboard shows both and must scope them the SAME way as every
+       other number here, so they are computed off the same filtered `mp` rather
+       than from QLD.purchaseSummary(), which is all-time and has no period. */
+    itc: mp.reduce((a, r) => a + (r.itc || 0), 0),
+    payable: mp.reduce((a, r) => a + (r.outstanding || 0), 0)
   };
 }
-/* ── Month report download — everything the dashboard shows for the selected
-   month (or all months) as ONE CSV: summary, sales, purchases, payments.
-   Cancelled records are excluded, same as every on-screen number. ── */
-function exportMonthReport() {
+/* ── Month report — everything the dashboard shows for the selected month (or
+   all months) as ONE CSV: summary, sales, purchases, payments. Cancelled
+   records are excluded, same as every on-screen number.
+
+   BUILD and DELIVER are split because the phone delivers it differently: a
+   mobile browser has no Downloads shelf to point at, so mobile.js hands the
+   same bytes to navigator.share() instead. Splitting is what stopped that from
+   becoming a second CSV writer with its own column order — the report a phone
+   shares and the report a desktop downloads are byte-identical by construction,
+   not by two authors agreeing to stay in step. ── */
+function buildMonthReport() {
   const m = monthSel(), lbl = dashMonthLabel();
   const inM = d => !m || (d || '').slice(0, 7) === m;
   const S = Q.salesRows().filter(r => inM(r.date) && r.status !== 'cancelled');
@@ -117,13 +130,41 @@ function exportMonthReport() {
   out.push(row(['Date', 'Party', 'Type', 'Method', 'Bank account', 'Reference', 'In', 'Out']));
   L.forEach(e => out.push(row([e.date, e.party, e.ptype, e.method, e.account || '', e.ref, e.credit || '', e.debit || ''])));
   const name = 'QuickLimes_' + (Q.co.short || 'report').replace(/\s+/g, '') + '_' + (m || 'AllMonths') + '.csv';
-  const blob = new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  // '﻿' = the BOM Excel needs to read ₹ and Devanagari as UTF-8 — part of the
+  // bytes, so it must live in the builder, not in the download path.
+  return { name, lbl, text: '﻿' + out.join('\r\n'), counts: { sales: S.length, purchases: P.length, payments: L.length } };
+}
+const reportToast = r => 'Report downloaded — ' + r.lbl + ' (' + r.counts.sales + ' sales · ' + r.counts.purchases + ' purchases · ' + r.counts.payments + ' payments)';
+function exportMonthReport() {
+  const r = buildMonthReport();
+  const blob = new Blob([r.text], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = name;
+  a.href = URL.createObjectURL(blob); a.download = r.name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  if (QLShell.toast) QLShell.toast('Report downloaded — ' + lbl + ' (' + S.length + ' sales · ' + P.length + ' purchases · ' + L.length + ' payments)', 'ok');
+  if (QLShell.toast) QLShell.toast(reportToast(r), 'ok');
+  return r;
 }
+
+/* ── The period, as an ADDRESS the mobile layer can reach ──────────
+   `dashMonth` is a module-local `let`, so mobile.js could not read it — and
+   reading QLD.uiMonth() instead is NOT the same thing: uiMonth is null until
+   the first deliberate pick, and this page then seeds itself to the LATEST DATA
+   MONTH (see render()). A phone that read uiMonth directly would show all-time
+   next to a desktop showing June, which is the disagreement this exists to end.
+   So the seed has exactly one owner and mobile asks it what the period is. */
+window.__qlDashPeriod = {
+  get: () => dashMonth,
+  months: availMonths,
+  metrics: monthMetrics,
+  label: dashMonthLabel,
+  report: exportMonthReport,
+  buildReport: buildMonthReport,
+  /* One writer for a pick, whichever surface it came from: store it in the
+     shared uiMonth key AND re-render the desktop dashboard, so the two views
+     can never hold different periods. */
+  set(p) { dashMonth = p; if (Q.setUiMonth) Q.setUiMonth(p); render(); }
+};
 
 /* The calendar is QLShell.monthPicker — the app's ONE picker, shared with Sales,
    Purchase, Reconciliation and Inventory. This function used to be a verbatim

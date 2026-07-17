@@ -515,6 +515,168 @@
     { key: 'overview', label: 'Overview' }, { key: 'sales', label: 'Sales' },
     { key: 'purchase', label: 'Purchase' }, { key: 'finance', label: 'Finance' }, { key: 'production', label: 'Production' }
   ];
+
+  /* ═══════════════ THE PERIOD ═══════════════
+     The owner picks June on the desktop, walks to the plant gate, opens the same
+     app on his phone and sees ALL-TIME. Same company, same app, different
+     figures, no explanation. The missing button was never the bug — this file
+     had no reference to the period AT ALL, so every mobile KPI called the
+     all-time aggregates (QLD.kpis / salesSummary / purchaseSummary), which take
+     no period and never did.
+
+     dashboard.js owns the period (window.__qlDashPeriod). Mobile does not keep a
+     copy and does not read QLD.uiMonth() directly: uiMonth is null until the
+     first deliberate pick, and dashboard.js then seeds itself to the latest data
+     month — so a phone reading uiMonth would default to all-time beside a
+     desktop showing June, re-creating the exact disagreement. One owner, one
+     seed, one key; both views render from it. */
+  const DP = () => window.__qlDashPeriod;
+  const dPeriod = () => { const d = DP(); return (d && d.get()) || 'all'; };
+  const dPeriodLbl = () => { const d = DP(); return d ? d.label() : 'All months'; };
+  const dMetrics = () => { const d = DP(); return d ? d.metrics() : null; };
+  // A month period anchors the trend charts at the PICKED month; 'all' anchors at now.
+  const dAnchor = () => { const p = dPeriod(); return /^\d{4}-\d{2}$/.test(p) ? p : undefined; };
+
+  /* Trend vs the month BEFORE the picked one. Only a month period has a
+     "previous" — under All months there is nothing to compare to, so the card
+     shows no arrow rather than an arrow computed against itself. */
+  function periodTrend(valFn) {
+    const p = dAnchor(); if (!p) return undefined;
+    try {
+      const ser = Q().monthSeries(2, p), cur = valFn(ser[1] || {}), prv = valFn(ser[0] || {});
+      if (!prv) return undefined;
+      return (cur - prv) / Math.abs(prv) * 100;
+    } catch (_) { return undefined; }
+  }
+  const prevMonthName = () => {
+    const p = dAnchor(); if (!p) return '';
+    try { const s = Q().monthSeries(2, p); return s[0] ? 'vs ' + s[0].m : ''; } catch (_) { return ''; }
+  };
+
+  /* ── The picker, in the mobile idiom ──────────────────────────
+     The calendar is QLShell.monthPicker — the app's ONE picker, the same control
+     Sales/Purchase/Dashboard open, with the same data, the same have-dots and
+     the same onPick contract. monthpicker.test.js forbids a second copy, and a
+     copy is also what made the five calendars drift apart in the first place.
+
+     What changes on a phone is PRESENTATION only: a 264px popover pinned under a
+     button is a desktop gesture, and near the bottom of a 375×812 screen it
+     opens over the thing you tapped. So the same element is re-laid-out as a
+     bottom sheet in mobile.css (≤768px, `.ql-mp.qlm-mp`) — exactly how .qx-dp
+     (the QLX drawer) already becomes a sheet here. No fork, no second calendar:
+     one control, two layouts.
+
+     `years` is deliberately NOT passed, matching dashboard.js: monthMetrics()
+     filters with a slice(0,7) compare, so a 'YYYY' period would match no rows
+     and every number would read zero — a picker that renders and filters
+     nothing, which is this codebase's signature bug. Mobile must not offer a
+     period the dashboard cannot honour. */
+  function openPeriodSheet(btn) {
+    const d = DP(); if (!d || !window.QLShell || !QLShell.monthPicker) return;
+    QLShell.monthPicker(btn, {
+      month: dPeriod(),
+      have: new Set(d.months()),
+      /* The rebuild must be explicit. d.set() re-renders the desktop INTO
+         #dxRoot — a mutation of that node's SUBTREE — while buildDashboard's
+         observer watches #ql-main for childList only. So it fires on a data
+         reload (which replaces #ql-main's children) and never on a pick.
+         Leaving it to the observer leaves the phone showing July's numbers
+         under a June heading: a filter that visibly does nothing, which is
+         worse than the missing button it replaced. The pick is ours — we
+         rebuild for it. */
+      onPick: p => { d.set(p); buildDashboard(); }
+    });
+    const mp = document.querySelector('.ql-mp');
+    if (!mp) return;                 // second tap on the trigger closes it — nothing to dress
+    mp.classList.add('qlm-mp');
+    const back = el('div', 'qlm-mp-back');
+    document.body.appendChild(back);
+    requestAnimationFrame(() => back.classList.add('open'));
+    /* The sheet has many exits — pick a month, tap the backdrop, tap the
+       trigger again, rotate the phone — and QLShell owns all of them. Watching
+       for the picker's REMOVAL catches every one; hooking onPick alone would
+       leave a dead backdrop over the app on the other three. */
+    const mo = new MutationObserver(() => {
+      if (document.body.contains(mp)) return;
+      back.classList.remove('open');
+      setTimeout(() => back.remove(), 200);
+      mo.disconnect();
+    });
+    mo.observe(document.body, { childList: true });
+  }
+
+  /* ── Report ───────────────────────────────────────────────────
+     dashboard.js builds the CSV; this only chooses how a phone receives it.
+     Share first (the invoice viewer's shareDoc() already established
+     navigator.share as this app's mobile hand-off), fall back to the desktop
+     download — which is a real fallback, not a stub: Android Chrome shares the
+     file, iOS Safari opens the share sheet, and a desktop-at-375px just
+     downloads. Either way the bytes come from buildMonthReport(). */
+  async function shareReport() {
+    const d = DP(); if (!d) return;
+    let r;
+    try { r = d.buildReport(); } catch (e) { if (window.QLShell && QLShell.toast) QLShell.toast('Could not build the report', 'err'); return; }
+    try {
+      const file = new File([r.text], r.name, { type: 'text/csv' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'QuickLimes — ' + r.lbl });
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;      // he tapped Cancel — not a failure
+    }
+    d.report();                                       // plain download + the shared toast
+  }
+  /* ── The trigger ──────────────────────────────────────────────
+     openPeriodSheet and shareReport were both written, and neither was ever
+     called: the whole point of the work ("in the mobile view we don't have this
+     option") is a control under the owner's thumb, and there was none. So this
+     is the half that makes the rest exist.
+
+     QLShell.monthButton is the SAME trigger the desktop filter bar renders — not
+     a mobile lookalike — so the two surfaces cannot drift into two controls with
+     two behaviours, and closeMonthPicker's `.ql-mp-btn.on` reset finds this one
+     too. Built only when a period owner exists: mobile.js loads on 23 pages and
+     only the dashboard has one, so elsewhere there is nothing behind the tap. */
+  function periodBar() {
+    if (!DP() || !window.QLShell || !QLShell.monthButton) return '';
+    return `<div class="qlm-dfilter">
+      ${QLShell.monthButton({ id: 'qlmPeriodBtn', label: dPeriodLbl() })}
+      <button class="qx-btn" id="qlmReportBtn" title="Share the report for this period">${IC.reports}<span>Report</span></button>
+    </div>`;
+  }
+  /* stopPropagation mirrors dashboard.js's dxMonth: without it the tap that
+     opens the picker also reaches the document close-handler the picker installs. */
+  function wireDashHead() {
+    const b = $('qlmPeriodBtn'); if (b) b.onclick = e => { e.stopPropagation(); openPeriodSheet(b); };
+    const r = $('qlmReportBtn'); if (r) r.onclick = () => shareReport();
+  }
+  /* ── Quick actions ───────────────────────────────────────────────
+     The four things the owner opens the app to DO, above the numbers that
+     tell him how it went. Every one is a real page that already exists.
+
+     The subtitles describe the DESTINATION, never a statistic. That is
+     deliberate: a card promising "3 bills pending" has to be kept true by
+     someone, and the moment it isn't, it is a lie on the home screen. The
+     KPI cards below already carry the numbers, and they are period-scoped
+     and derived — these are doors, and a door says where it goes. */
+  const QACTS = [
+    { t: 'New GST invoice', s: 'Build it and share the PDF', ic: 'invoice', tint: 'blue', href: 'invoice.html' },
+    { t: 'Upload bills', s: 'Photo or PDF — read automatically', ic: 'box', tint: 'violet', href: 'purchase.html' },
+    { t: 'Record a payment', s: 'Money in or out, straight to the cashbook', ic: 'wallet', tint: 'green', href: 'payments.html' },
+    { t: 'Reports', s: 'GST, P&L and outstanding', ic: 'reports', tint: 'amber', href: 'reports.html' }
+  ];
+  function actCard(o) {
+    return `<a class="qlm-act qlm-ripple" href="${o.href}">
+      <span class="qlm-act-ic qlm-tint-${o.tint}">${IC[o.ic] || ''}</span>
+      <span class="qlm-act-tx"><span class="qlm-act-t">${esc(o.t)}</span><span class="qlm-act-s">${esc(o.s)}</span></span>
+      <span class="qlm-act-ch">${IC.chev || ''}</span>
+    </a>`;
+  }
+  function quickActions() {
+    return `<div class="qlm-sec"><h3>Quick actions</h3></div>
+      <div class="qlm-group">${QACTS.map(actCard).join('')}</div>`;
+  }
   function trendHTML(t) {
     if (t == null) return `<span class="qlm-kpi-t flat">—</span>`;
     const up = t >= 0; return `<span class="qlm-kpi-t ${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(t).toFixed(1)}%</span>`;
@@ -528,23 +690,42 @@
       ${o.meta ? `<div class="qlm-kpi-m">${esc(o.meta)}</div>` : ''}
     </div>`;
   }
+  /* Every card here reads monthMetrics() — dashboard.js's period-scoped numbers,
+     the SAME function the desktop KPI row renders from. That is deliberate: the
+     old cards called QLD.kpis() / purchaseSummary(), which are all-time and take
+     no period, so the phone could not have agreed with the desktop even once the
+     button existed. Sharing the metrics function makes the two views agree by
+     construction rather than by two authors keeping two sums in step.
+
+     Cash + Bank is the one number NOT scoped, because a balance is an as-of, not
+     a sum over a month: "cash in June" is not a quantity a bank account has. The
+     desktop shows it unscoped too — so the meta line says "today" out loud
+     rather than letting a period-looking card imply a period it doesn't have. */
   function overviewCards() {
-    const q = Q(); const k = q.kpis(); const bal = q.accountBalances ? q.accountBalances() : { cash: 0, bank: 0 };
-    const ps = q.purchaseSummary ? q.purchaseSummary() : { pending: 0 };
+    const q = Q(), M = dMetrics(); if (!M) return '';
+    const bal = q.accountBalances ? q.accountBalances() : { cash: 0, bank: 0 };
+    const lbl = dPeriodLbl(), vs = prevMonthName();
     return [
-      kpiCard({ label: 'Sales (month)', value: k.sales.v, tint: 'blue', icon: IC.sales, trend: k.sales.trend, href: 'sales.html' }),
-      kpiCard({ label: 'Collections due', value: k.collections.v, tint: 'amber', icon: IC.coll, meta: k.collections.meta, href: 'collections.html' }),
-      kpiCard({ label: 'Cash + Bank', value: fc((bal.cash || 0) + (bal.bank || 0)), tint: 'green', icon: IC.wallet, meta: 'Cash ' + fc(bal.cash || 0), href: 'payments.html' }),
-      kpiCard({ label: 'Purchase due', value: fc(ps.pending || 0), tint: 'red', icon: IC.due, meta: 'To suppliers', href: 'payables.html' }),
-      kpiCard({ label: 'Production', value: k.production.v, tint: 'violet', icon: IC.production, trend: k.production.trend, meta: k.production.meta }),
-      kpiCard({ label: 'Profit (net)', value: k.profit.v, tint: 'cyan', icon: IC.trend, trend: k.profit.trend, meta: k.profit.meta, href: 'pl.html' })
+      kpiCard({ label: 'Sales · ' + lbl, value: fc(M.salesTax), tint: 'blue', icon: IC.sales, trend: periodTrend(d => d.sales || 0), meta: M.invoices + ' invoices' + (vs ? ' · ' + vs : ''), href: 'sales.html' }),
+      kpiCard({ label: 'Pending · ' + lbl, value: fc(M.pending), tint: 'amber', icon: IC.coll, meta: 'Still receivable', href: 'collections.html' }),
+      kpiCard({ label: 'Cash + Bank', value: fc((bal.cash || 0) + (bal.bank || 0)), tint: 'green', icon: IC.wallet, meta: 'Balance today · cash ' + fc(bal.cash || 0), href: 'payments.html' }),
+      kpiCard({ label: 'Purchase due · ' + lbl, value: fc(M.payable), tint: 'red', icon: IC.due, meta: M.bills + ' bills', href: 'payables.html' }),
+      kpiCard({ label: 'Production · ' + lbl, value: (q.fmt ? q.fmt(M.qty, 1) : M.qty) + ' T', tint: 'violet', icon: IC.production, trend: periodTrend(d => d.qty || 0), meta: 'Lime dispatched' + (vs ? ' · ' + vs : '') }),
+      kpiCard({ label: 'Gross profit · ' + lbl, value: fc(M.profit), tint: 'cyan', icon: IC.trend, meta: 'Sales − purchases', href: 'pl.html' })
     ].join('');
   }
   function miniBars(series, valFn, fmt) {
     const max = Math.max(1, ...series.map(valFn));
     return `<div class="qlm-bars">${series.map(s => `<div class="qlm-bar"><div class="qlm-bar-fill" style="height:${Math.max(4, valFn(s) / max * 100)}%"></div><div class="qlm-bar-lbl">${esc(s.label || s.month || '')}</div></div>`).join('')}</div>`;
   }
-  function monthSeriesSafe(n) { try { const s = Q().monthSeries(n); return s.map(m => ({ label: (m.month || m.label || '').slice(5), sales: m.sales, purchases: m.purchases, qty: m.qty, profit: m.profit })); } catch (_) { return []; } }
+  /* Anchored at the PICKED month (QLD.monthSeries' endYm), not at today. A chart
+     headed "last 3 months" that ends in July while every KPI beside it says June
+     is the same disagreement in miniature — the trend has to walk back to the
+     month the page claims to be showing. Under All months there is nothing to
+     anchor to, so endYm is undefined and it means "the last n months" again. */
+  function monthSeriesSafe(n) {
+    try { const s = Q().monthSeries(n, dAnchor()); return s.map(m => ({ label: m.m || (m.ym || '').slice(5), sales: m.sales, purchases: m.purchases, qty: m.qty, profit: m.profit })); } catch (_) { return []; }
+  }
   /* Shared native list row (avatar · name · vehicle/sub · date · amount · status · chevron).
      Used by the mobile dashboard AND the QLX mobile lists so Sales/Purchase match. */
   function listRow(c, opts) {
@@ -565,10 +746,15 @@
   // vehicle number is the headline sub-line; fall back to the invoice/bill no. if none
   const vehSub = (veh, docLabel, doc) => veh ? ('🚚 ' + veh) : (docLabel + ': ' + (doc || '—'));
 
+  /* Scoped like everything else: under June this lists June's invoices, not the
+     newest six in the book. An unfiltered list under a filtered header is how a
+     period filter looks when it renders but does not filter. */
   function recentSales() {
-    const rows = (Q().salesRows ? Q().salesRows() : []).slice(0, 6);
+    const q = Q(), p = dPeriod();
+    const all = (q.salesRows ? q.salesRows() : []).filter(r => !q.inPeriod || q.inPeriod(r.date, p));
+    const rows = all.slice(0, 6);
     if (!rows.length) return '';
-    return `<div class="qlm-sec"><h3>Recent invoices</h3><a href="sales.html">View All</a></div><div class="qlm-list">` +
+    return `<div class="qlm-sec"><h3>Invoices · ${esc(dPeriodLbl())}</h3><a href="sales.html">View All</a></div><div class="qlm-list">` +
       rows.map(r => listRow({ party: r.party || '—', sub: vehSub(r.veh, 'Invoice', r.inv), date: r.date, amount: fc(r.total), status: statusPill(r.status) },
         { onclick: `QLMobile.showInvoice(${r.idx})` })).join('') +
       `</div>`;
@@ -584,36 +770,49 @@
      where they are labelled; nothing is lost. */
   function dashTabContent(tab) {
     const q = Q(); if (!q) return '';
+    const M = dMetrics();
+    /* No metrics = dashboard.js has not run (mobile.js loads on 23 pages; only
+       this one has a period owner). Render nothing rather than silently falling
+       back to the all-time aggregates — a wrong number is worse than a gap. */
+    if (!M) return '';
     if (tab === 'overview') return `<div class="qlm-kpis">${overviewCards()}</div>`;
-    if (tab === 'sales') { const s = q.salesSummary(); return `<div class="qlm-kpis">
-        ${kpiCard({ label: 'Sales (excl GST)', value: fc(s.taxable), tint: 'blue', icon: IC.sales })}
-        ${kpiCard({ label: 'Collected', value: fc(s.collected), tint: 'green', icon: IC.coll })}
-        ${kpiCard({ label: 'Pending', value: fc(s.pending), tint: 'amber', icon: IC.due })}
-        ${kpiCard({ label: 'Invoices', value: s.count, tint: 'violet', icon: IC.invoice })}
-      </div>` + salesChartCard() + recentSales(); }
-    if (tab === 'purchase') { const p = q.purchaseSummary(); return `<div class="qlm-kpis">
-        ${kpiCard({ label: 'Purchases', value: fc(p.total), tint: 'blue', icon: IC.purchase })}
-        ${kpiCard({ label: 'ITC', value: fc(p.itc), tint: 'green', icon: IC.finance })}
-        ${kpiCard({ label: 'Payable', value: fc(p.pending), tint: 'red', icon: IC.due })}
-        ${kpiCard({ label: 'Bills', value: p.count, tint: 'violet', icon: IC.box })}
-      </div>` + chartCard('Purchases · last 3 months', monthSeriesSafe(3), s => s.purchases || 0); }
+    if (tab === 'sales') return `<div class="qlm-kpis">
+        ${kpiCard({ label: 'Sales (excl GST)', value: fc(M.salesTax), tint: 'blue', icon: IC.sales })}
+        ${kpiCard({ label: 'Collected', value: fc(M.collected), tint: 'green', icon: IC.coll })}
+        ${kpiCard({ label: 'Pending', value: fc(M.pending), tint: 'amber', icon: IC.due })}
+        ${kpiCard({ label: 'Invoices', value: M.invoices, tint: 'violet', icon: IC.invoice })}
+      </div>` + salesChartCard() + recentSales();
+    if (tab === 'purchase') return `<div class="qlm-kpis">
+        ${kpiCard({ label: 'Purchases', value: fc(M.purchTax), tint: 'blue', icon: IC.purchase })}
+        ${kpiCard({ label: 'ITC', value: fc(M.itc), tint: 'green', icon: IC.finance })}
+        ${kpiCard({ label: 'Payable', value: fc(M.payable), tint: 'red', icon: IC.due })}
+        ${kpiCard({ label: 'Bills', value: M.bills, tint: 'violet', icon: IC.box })}
+      </div>` + chartCard('Purchases', monthSeriesSafe(3), s => s.purchases || 0);
+    /* Balances are as-of, not per-period (see overviewCards) — so this section
+       deliberately does not move with the picker, and its heading says so. */
     if (tab === 'finance') { const b = q.accountBalances ? q.accountBalances() : { cash: 0, bank: 0, upi: 0, total: 0 }; return `<div class="qlm-kpis">
         ${kpiCard({ label: 'Cash', value: fc(b.cash), tint: 'green', icon: IC.wallet })}
         ${kpiCard({ label: 'Bank', value: fc(b.bank), tint: 'blue', icon: IC.bank })}
         ${kpiCard({ label: 'UPI', value: fc(b.upi), tint: 'violet', icon: IC.finance })}
         ${kpiCard({ label: 'Total balance', value: fc(b.total), tint: 'cyan', icon: IC.trend })}
       </div>`; }
-    if (tab === 'production') { const k = q.kpis(); return `<div class="qlm-kpis">
-        ${kpiCard({ label: 'Total dispatched', value: k.production.v, tint: 'violet', icon: IC.production, trend: k.production.trend })}
-        ${kpiCard({ label: 'This month', value: k.dispatch.v, tint: 'blue', icon: IC.box, meta: k.dispatch.meta })}
-      </div>` + chartCard('Quantity · last 3 months (T)', monthSeriesSafe(3), s => s.qty || 0); }
+    if (tab === 'production') return `<div class="qlm-kpis">
+        ${kpiCard({ label: 'Dispatched · ' + dPeriodLbl(), value: (q.fmt ? q.fmt(M.qty, 1) : M.qty) + ' T', tint: 'violet', icon: IC.production, trend: periodTrend(d => d.qty || 0), meta: prevMonthName() })}
+        ${kpiCard({ label: 'Invoices', value: M.invoices, tint: 'blue', icon: IC.box, meta: 'Dispatches billed' })}
+      </div>` + chartCard('Quantity (T)', monthSeriesSafe(3), s => s.qty || 0, v => (q.fmt ? q.fmt(v, 1) : v) + ' T');
     return '';
   }
-  function salesChartCard() { return chartCard('Sales · last 3 months', monthSeriesSafe(3), s => s.sales || 0); }
-  function chartCard(title, series, valFn) {
+  function salesChartCard() { return chartCard('Sales', monthSeriesSafe(3), s => s.sales || 0); }
+  /* The title now names the months it actually plots instead of the old fixed
+     "last 3 months", which stopped being true the moment the chart could be
+     anchored at a picked month. `fmt` exists because the quantity chart is in
+     TONNES and every total here was being printed through fc() — a ₹ sign over
+     a tonnage total. */
+  function chartCard(title, series, valFn, fmtV) {
     if (!series.length) return '';
     const tot = series.reduce((a, s) => a + valFn(s), 0);
-    return `<div class="qlm-chartcard"><div class="qlm-chartcard-h"><span class="t">${esc(title)}</span><span class="s">${fc(tot)}</span></div>${miniBars(series, valFn)}</div>`;
+    const range = series.length > 1 ? series[0].label + ' – ' + series[series.length - 1].label : series[0].label;
+    return `<div class="qlm-chartcard"><div class="qlm-chartcard-h"><span class="t">${esc(title)} · ${esc(range)}</span><span class="s">${(fmtV || fc)(tot)}</span></div>${miniBars(series, valFn)}</div>`;
   }
 
   function buildDashboard() {
@@ -624,6 +823,19 @@
     // nothing to undo if the viewport later widens
     let root = main.querySelector('.qlm-dash');
     if (!root) { root = el('div', 'qlm-dash'); main.appendChild(root); }
+    /* skeleton() was written and then called by NOTHING — the shimmer existed,
+       and no one ever saw it. Before the blob lands, dMetrics() is null and every
+       section returns '', so the phone showed a greeting over a blank screen and
+       then snapped into a full dashboard. This is the gap it was built for.
+       The observer below re-runs this the moment data arrives. */
+    if (!dMetrics()) {
+      root.innerHTML = `<div class="qlm-dash-greet"><h1>Welcome back</h1></div>`;
+      const host = el('div', ''); root.appendChild(host); skeleton(host);
+      root.classList.add('qlm-page-in');
+      if (!_dashObs) _dashObs = new MutationObserver(() => { clearTimeout(_dashObs._t); _dashObs._t = setTimeout(buildDashboard, 50); });
+      _dashObs.observe(main, { childList: true });
+      return;
+    }
     const co = Q().co ? Q().co.short : '';
     /* Every section, stacked, in one scroll — no pills, no hidden panels.
        `overview` keeps no heading: the greeting above it already says what it is,
@@ -640,8 +852,11 @@
     }).join('');
     root.innerHTML =
       `<div class="qlm-dash-greet"><h1>Welcome back</h1><p>${esc(co)} · here's today</p></div>
-       <div id="qlmDashBody">${sections}</div>`;
+       ${periodBar()}
+       <div id="qlmDashBody">${quickActions()}${sections}</div>`;
+    wireDashHead();
     animateBars();
+    root.classList.add('qlm-page-in');
     // rebuild whenever the desktop dashboard re-renders into #ql-main (fresh data)
     if (!_dashObs) _dashObs = new MutationObserver(() => { clearTimeout(_dashObs._t); _dashObs._t = setTimeout(buildDashboard, 50); });
     _dashObs.observe(main, { childList: true });
