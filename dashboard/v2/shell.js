@@ -309,10 +309,9 @@
   <aside class="sidebar" id="sidebar">
     <div class="sb-head">
       <button class="workspace" id="wsBtn" aria-expanded="false">
-        <span class="workspace-avatar">D</span>
         <span class="workspace-text">
           <span class="workspace-name">Loading…</span>
-          <span class="workspace-meta">Quick Lime</span>
+          <span class="workspace-meta">Business Operations System</span>
         </span>
         <svg class="workspace-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
@@ -469,14 +468,19 @@
        showing D" — and on a page whose other plant is Deshwali Minerals that D is
        not a cosmetic glitch, it says you are looking at the other firm's books. */
     const co = Q.co || null;
-    const wsAv = document.querySelector('#wsBtn .workspace-avatar');
     const wsNm = document.querySelector('#wsBtn .workspace-name');
     const wsMeta = document.querySelector('#wsBtn .workspace-meta');
-    /* A neutral dot beats a confident wrong letter: "·" says "not loaded", "D" says
-       "Deshwali Minerals". Never leave an invented letter standing. */
-    if (wsAv) wsAv.textContent = co ? co.short.charAt(0).toUpperCase() : '·';
     if (wsNm) wsNm.textContent = co ? co.short : 'Loading…';
-    if (wsMeta) wsMeta.textContent = co ? ((co.isPrimary ? 'Primary' : 'Linked') + ' · Quick Lime') : '';
+    /* The product's name, not the company's status. "Linked · Quick Lime" answered a
+       question nobody asks — the firm's name is on the line directly above, and
+       Primary-vs-Linked is plumbing about how two plants relate, not something the
+       owner needs on every screen. He can still see and switch companies from the
+       menu this button opens. The avatar is gone with it: it was the company's
+       initial repeated next to the company's name.
+       (The old "always shows D" bug died with the element, but the LESSON stays —
+       see paintAvatarLetter: never leave an invented letter standing. The profile
+       avatars still resolve person → firm → neutral dot.) */
+    if (wsMeta) wsMeta.textContent = 'Business Operations System';
     const menu = $('wsMenu');
     if (!menu) { paintAvatarLetter(co); refreshNotifDot(); return; }
     menu.innerHTML = Object.values(Q.COMPANIES || {}).map((c, i) => `

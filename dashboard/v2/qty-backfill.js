@@ -14,9 +14,15 @@
    with the same tested parser. His Indian Oil bill yields qty 32.49, unit TO,
    rate 12,680 — matching what is printed on it.
 
-   COMPARE FIRST, WRITE LAST — the same rule as the Tally ledger import and the
-   duplicate cleanup. This SCANS and reports. It writes only what he confirms, and
-   only onto bills that have no quantity today:
+   IT RUNS ITSELF NOW. "no need to read quantities separate when uploaded
+   documents then read same time" — he is right, and for NEW uploads that is
+   already true (the importer maps qty). The button existed only to repair bills
+   imported before that fix. A button asking him to go re-run a bug is not a
+   feature, so auto() does it in the background, once per bill, and TELLS HIM what
+   it read. The gate below is unchanged and still decides every write.
+
+   WRITE ONLY WHAT THE ARITHMETIC PROVES — the same rule as the Tally ledger
+   import. It writes only onto bills that have no quantity today:
 
    · A bill that already HAS a qty is never touched. Someone typed that in; a
      parser is not entitled to overrule a human on his own books.
@@ -68,11 +74,22 @@
     });
   }
 
+  /* A bill's identity for the "already tried" marker. NOT the row index — idx is
+     positional and shifts the moment a bill is deleted, which would re-scan some
+     bills forever and skip others that were never read. */
+  function billKey(r) {
+    return [(r.bill || '').toString().trim().toUpperCase(),
+      (r.gstin || r.sup || '').toString().trim().toUpperCase(),
+      (r.date || '')].join('|');
+  }
+
   /* ── the browser half ───────────────────────────────────────── */
-  async function scan(onProgress) {
+  /* `rows` lets auto() pass the subset it has not tried yet. Defaults to every
+     candidate, which is what the manual path always scanned. */
+  async function scan(onProgress, rows) {
     var Q = root.QLD, F = root.QLFin, OCR = root.BillOCR;
     if (!Q || !F || !OCR) return { error: 'The bill reader is not loaded on this page.' };
-    var rows = candidates(Q.purchaseRows());
+    rows = rows || candidates(Q.purchaseRows());
     var found = [], missed = [], i = 0;
 
     for (var k = 0; k < rows.length; k++) {
@@ -91,8 +108,95 @@
       var v = verdict(r, f);
       if (v.ok) found.push({ idx: r.idx, bill: r.bill, sup: r.sup, taxable: r.taxable, qty: v.qty, unit: v.unit, rate: v.rate, why: v.why });
       else if (!v.skip) missed.push({ idx: r.idx, bill: r.bill, sup: r.sup, why: v.why });
+
+      /* YIELD. Parsing a PDF is heavy synchronous work, and this runs unasked
+         while he is reading the register — a loop that never returns to the event
+         loop freezes the page and looks like a crash. One turn per bill lets the
+         browser paint and keeps clicks alive. */
+      await new Promise(function (res) { setTimeout(res, 0); });
     }
     return { found: found, missed: missed, scanned: rows.length };
+  }
+
+  /* ── THE AUTOMATIC PASS ──────────────────────────────────────
+     His 26 bills predate the importer mapping qty, so they carry no tonnage and
+     Production shows "—" for them. New uploads read it at import. Rather than
+     leave a button that means "go fix the old bug yourself", this reads them back
+     off their own PDFs on its own, once, in the background.
+
+     THE RULES IT MUST NOT BREAK:
+     · Never block the page. Scheduled on idle, and scan() yields between bills.
+     · Never overwrite a human's number — apply() re-checks that at write time.
+     · Never guess. Only what the arithmetic gate accepts is written; the rest
+       stays a dash, which is the honest answer.
+     · Never run twice for the same bill. The marker is per BILL, not per page:
+       a bill that could not be read is not retried on every load, and a bill that
+       arrives later still gets its one chance.
+     · NEVER FINISH SILENTLY. A background job that writes to his books and says
+       nothing is indistinguishable from one that did nothing — the ai-status bug
+       exactly. It reports what it read and what it could not. */
+  function markerKey() {
+    var co = root.QLD && root.QLD.co;
+    return 'ql_qtyscan_' + ((co && co.key) || 'default');
+  }
+  function tried() {
+    try { var v = JSON.parse(localStorage.getItem(markerKey()) || '[]'); return Array.isArray(v) ? v : []; }
+    catch (_) { return []; }
+  }
+  function remember(keys) {
+    try {
+      var all = tried().concat(keys || []);
+      var uniq = all.filter(function (k, i) { return k && all.indexOf(k) === i; });
+      localStorage.setItem(markerKey(), JSON.stringify(uniq.slice(-500)));
+    } catch (_) {}
+  }
+  /* Which bills this pass should even look at: a candidate we have never tried. */
+  function pending(rows) {
+    var seen = tried();
+    return candidates(rows).filter(function (r) { return seen.indexOf(billKey(r)) < 0; });
+  }
+
+  function idle(fn) {
+    if (typeof root.requestIdleCallback === 'function') root.requestIdleCallback(fn, { timeout: 4000 });
+    else setTimeout(fn, 800);
+  }
+
+  /* Returns a promise resolving to what happened — so a test can await it and the
+     page does not have to. Never throws into the page: this is unasked-for work
+     and must not take the register down with it. */
+  function auto(opts) {
+    opts = opts || {};
+    var Q = root.QLD;
+    if (!Q || !root.QLAttach) return Promise.resolve({ ran: false, why: 'not on a page that holds the bills' });
+    var todo = pending(Q.purchaseRows());
+    if (!todo.length) return Promise.resolve({ ran: false, why: 'nothing to read' });
+
+    return new Promise(function (res) {
+      idle(async function () {
+        var r;
+        try { r = await scan(null, todo); }
+        catch (e) { res({ ran: false, why: 'the bill reader failed' }); return; }
+        if (r.error) { res({ ran: false, why: r.error }); return; }
+
+        var wrote = apply(r.found);
+        /* Mark every bill we TRIED, read or not — including the ones that failed
+           the gate. Retrying them on every load would re-parse the same PDFs to
+           the same refusal forever. */
+        remember(todo.map(billKey));
+        var out = { ran: true, wrote: wrote, missed: r.missed.length, scanned: r.scanned };
+        if (opts.onDone) { try { opts.onDone(out); } catch (_) {} }
+        res(out);
+      });
+    });
+  }
+
+  /* The sentence he sees. Kept next to the logic that produces the numbers so the
+     two cannot drift, and exported so a test can pin the wording. */
+  function report(o) {
+    if (!o || !o.ran || (!o.wrote && !o.missed)) return '';
+    if (!o.wrote) return 'Could not read a quantity off ' + o.missed + ' bill' + (o.missed === 1 ? '' : 's') + ' — the figures did not reconcile, so nothing was changed.';
+    return 'Read tonnage off ' + o.wrote + ' bill' + (o.wrote === 1 ? '' : 's')
+      + (o.missed ? ' · ' + o.missed + ' could not be read' : '');
   }
 
   /* Writes ONLY what was confirmed. Re-checks each row is still qty-less at write
@@ -111,7 +215,8 @@
     return n;
   }
 
-  var API = { scan: scan, apply: apply, verdict: verdict, candidates: candidates, arithmeticAgrees: arithmeticAgrees };
+  var API = { scan: scan, apply: apply, verdict: verdict, candidates: candidates, arithmeticAgrees: arithmeticAgrees,
+    auto: auto, pending: pending, billKey: billKey, report: report, markerKey: markerKey, _tried: tried, _remember: remember };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.QLQtyBackfill = API;
 })(typeof window !== 'undefined' ? window : globalThis);

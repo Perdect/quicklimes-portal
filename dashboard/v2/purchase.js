@@ -139,38 +139,24 @@ function editFreight(idx, cell) {
 }
 
 /* ── read the tonnage back off the bills already uploaded ──────
-   The Qty column dashes on old bills because the importer dropped the number the
-   OCR had already read. The BILLS are still in IndexedDB, so it is recoverable —
-   this re-reads them. Shows first, writes only what he confirms, and only where the
-   bill's own arithmetic (qty × rate = the booked taxable) proves the read is right. */
-async function openQtyBackfill() {
-  const n = QLQtyBackfill.candidates(Q.purchaseRows()).length;
-  QLShell.panel({ title: 'Read quantities from your bills', wide: true,
-    sub: 'Reading ' + n + ' bill' + (n === 1 ? '' : 's') + '…',
-    body: '<div class="pb-empty"><div class="pb-empty-t">Opening each bill…</div><div class="pb-empty-s">Nothing is changed while this runs.</div></div>' });
+   There is no button for this any more. "no need to read quantities separate when
+   uploaded documents then read same time" — and for new uploads that is already
+   how it works: the importer maps qty at import. The only bills that need this are
+   the ones imported BEFORE that fix, which carry no tonnage and show "—" in
+   Production. Asking him to press a button to repair an old bug is not a feature.
 
-  const r = await QLQtyBackfill.scan((i, tot, bill) => {
-    const e = document.querySelector('.pb-empty-t');
-    if (e) e.textContent = 'Reading ' + i + ' of ' + tot + '  ·  ' + bill;
+   So it runs itself, once per bill, on idle. QLQtyBackfill owns the rules: the
+   arithmetic gate decides every write, a human's number is never overruled, and
+   anything that does not reconcile stays a dash. It must SAY what it did — a
+   background job that writes to the books in silence is the ai-status bug. */
+function runQtyBackfill() {
+  if (!window.QLQtyBackfill) return;
+  QLQtyBackfill.auto().then(o => {
+    const msg = QLQtyBackfill.report(o);
+    if (!msg) return;                    // nothing read and nothing refused — nothing to say
+    toast(msg, o.wrote ? 'ok' : 'err');
+    if (o.wrote) QLX.refresh();          // the Qty column has new numbers in it
   });
-  if (r.error) { QLShell.panel({ title: 'Read quantities', body: '<div class="pb-empty"><div class="pb-empty-t">' + esc(r.error) + '</div></div>', actions: [{ label: 'Close' }] }); return; }
-
-  const row = (x, good) => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--ql-border);font-size:13px">
-    <b style="color:${good ? '#15803d' : '#a16207'};flex:none;width:14px">${good ? '✓' : '—'}</b>
-    <div><div><b>${esc(x.bill || '(no number)')}</b> · ${esc(x.sup || '')}</div>
-    <div style="font-size:12px;color:var(--ql-text-muted);margin-top:2px">${good ? '<b>' + fmt(x.qty, 2) + ' ' + esc(x.unit || 'T') + '</b> at ₹' + fC(Math.round(x.rate)).replace('₹', '') + '/T — ' + esc(x.why) : esc(x.why)}</div></div></div>`;
-
-  const body = (r.found.length ? '<div style="font-weight:700;color:#15803d;margin-bottom:6px">' + r.found.length + ' bill' + (r.found.length === 1 ? '' : 's') + ' — quantity read and checked</div>' + r.found.map(x => row(x, true)).join('') : '')
-    + (r.missed.length ? '<div style="font-weight:700;color:#a16207;margin:14px 0 6px">' + r.missed.length + ' could not be read</div>' + r.missed.map(x => row(x, false)).join('') : '')
-    + (!r.found.length && !r.missed.length ? '<div class="pb-empty"><div class="pb-empty-t">Nothing to read</div><div class="pb-empty-s">Every bill with a file already has its quantity.</div></div>' : '')
-    /* Say what the check IS. "Trust me" is not a reason to let something write to his books. */
-    + '<div class="rc-note" style="margin-top:12px">A quantity is only applied when the bill\'s own arithmetic proves it: <b>quantity × rate must equal the amount already booked</b>. Anything that does not reconcile is left alone rather than guessed — a wrong tonnage is worse than none, because it silently changes your cost per tonne.</div>';
-
-  QLShell.panel({ title: 'Read quantities from your bills', wide: true,
-    sub: r.scanned + ' bill' + (r.scanned === 1 ? '' : 's') + ' read · nothing is saved until you choose',
-    body: body,
-    actions: r.found.length ? [{ label: 'Cancel' }, { label: 'Save ' + r.found.length + ' quantit' + (r.found.length === 1 ? 'y' : 'ies'), primary: true,
-      onClick: () => { const w = QLQtyBackfill.apply(r.found); toast('Saved ' + w + ' quantit' + (w === 1 ? 'y' : 'ies'), 'ok'); QLX.refresh(); } }] : [{ label: 'Close' }] });
 }
 
 /* ── row action helpers (mutations) ── */
@@ -789,17 +775,18 @@ QLX.mount({
   tools: [
     { label: t('Upload Bills'), icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>', onClick: () => importBills() },
     { label: 'Export', icon: IC.dl, onClick: () => exportRows(QLX.rows()) },
-    { label: 'Report', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>', onClick: () => openPurchaseReport(QLX.rows()) },
-    // Covers bank rows, invoices AND bills in one pass — the duplicates the user
-    // already has predate the import gate, which only stops NEW ones.
-    /* No `hidden:` — qlx.js renders every tool unconditionally (qlx.js:195), so a
-       hidden option would have been a phantom API that silently did nothing. Adding
-       one to the engine would touch every register for cosmetics. The panel handles
-       the empty case honestly instead: "every bill with a file already has its
-       quantity". */
-    { label: 'Read quantities', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/>',
-      onClick: () => openQtyBackfill() },
-    { label: t('Find duplicates'), icon: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', onClick: () => QLDedupe.open() }
+    { label: 'Report', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>', onClick: () => openPurchaseReport(QLX.rows()) }
+    /* "Read quantities" and "Find duplicates" were both here, and both were
+       remediation for bugs that are now fixed at the source:
+       · Quantities are read AT IMPORT (cfg.ocrMap maps qty). The old bills that
+         missed that fix are repaired by runQtyBackfill() on its own, in the
+         background — see above.
+       · Duplicates are REFUSED before they are stored, at the one chokepoint every
+         import goes through (data.js addPurchase → ImportGuard.docVerdict). A
+         broom for duplicates that can no longer get in is an invitation to sweep
+         up real bills.
+       Neither is coming back as a button. If either bug returns, the fix belongs
+       where the bug is, not in a tool that asks the owner to clean up after us. */
   ],
   // Month-scoped: `rows` is the selected month's bills (all statuses).
   stats: rows => {
@@ -983,6 +970,11 @@ QLX.mount({
   })
 });
 
+/* The old bills' tonnage, read back off their own PDFs — unasked, on idle, once
+   per bill. Fired AFTER mount so the register is on screen first: this is
+   repair work, and it must never be the reason the page is slow to appear. */
+runQtyBackfill();
+
 /* ── Export / Import (reused) ── */
 function exportRows(rows) {
   rows = rows || [];
@@ -1079,6 +1071,11 @@ function importBills() {
     // (e.g. "the buyer. For" vs "Indian Oil Corporation Limited") and let duplicates through.
     existing: () => new Set(Q.state.PURCHASES.filter(p => p.bill).map(dupKeyP)),
     keyOf: dupKeyP,
+    /* The SAVED bills, for the importer to ask ImportGuard the same question
+       addPurchase will ask at save time. Without this the review table had to
+       guess with dupKeyP — a narrower key than the gate's — and told him a bill
+       was ready that the register then refused. */
+    rows: () => Q.state.PURCHASES.filter(p => !p._del),
     preview: { headers: ['Bill', 'Date', 'Supplier', 'Group', 'Taxable', 'GST%'], right: [4, 5], row: p => [p.bill || '—', p.date || '—', p.sup || '—', (Q.purchaseGroups.find(g => g.key === p.group) || { label: p.cat || '—' }).label, Q.fC(p.taxable), p.grate + '%'] },
     /* RETURNS the attach promise. It used to swallow it in a synchronous
        try/catch — which cannot catch an async rejection, so a scan that failed to

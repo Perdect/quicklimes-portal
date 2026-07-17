@@ -95,12 +95,18 @@ function harness(opts) {
 /* ══════════ 1. THE "D" — the wrong company's initial ══════════ */
 {
   const { S, nodes, avatars } = harness();
-  eq('the header SHIPS showing "D" (Deshwali) — the placeholder in the markup', nodes['#wsBtn .workspace-avatar'].textContent, 'D');
+  /* THE WORKSPACE AVATAR IS GONE (removed by request). It repeated the company's
+     initial next to the company's name, and its whole bug history — "always shows D"
+     — was a letter the app INVENTED. An element that cannot render cannot lie.
+     What must still hold: the header shows the RIGHT company, and the remaining
+     avatars resolve person → firm → neutral dot, never a stale letter. */
+  const src = fs.readFileSync(path.join(__dirname, 'shell.js'), 'utf8');
+  ok(!/class="workspace-avatar"/.test(src), 'the workspace avatar element is gone from the shell markup');
+  ok(!/wsAv/.test(src), '  and no code paints it — a JS ref to a removed node would throw');
   S.paintWorkspace();
-  eq('THE FIX: painting replaces it with the ACTIVE company\'s letter', nodes['#wsBtn .workspace-avatar'].textContent, 'G');
-  eq('  and the real company name, not "Loading…"', nodes['#wsBtn .workspace-name'].textContent, 'GOTAN');
-  eq('  the profile avatars show the PERSON, not a stale D', avatars.map(a => a.textContent), ['S', 'S']);
-  ok(!/^D$/.test(nodes['#wsBtn .workspace-avatar'].textContent), '  no "D" survives anywhere in the header');
+  eq('the header shows the real company name, not "Loading…"', nodes['#wsBtn .workspace-name'].textContent, 'GOTAN');
+  eq('the subtitle is the PRODUCT, not the company\'s Primary/Linked plumbing', nodes['#wsBtn .workspace-meta'].textContent, 'Business Operations System');
+  eq('  the profile avatars still show the PERSON, not a stale D', avatars.map(a => a.textContent), ['S', 'S']);
 }
 
 /* Data not loaded yet: co is a GETTER returning undefined. This threw. */
@@ -109,8 +115,7 @@ function harness(opts) {
   let threw = null;
   try { S.paintWorkspace(); } catch (e) { threw = e; }
   ok(!threw, 'a page whose data has not landed does not throw (co is undefined until it does)');
-  eq('  the avatar shows a NEUTRAL dot — "·" means unknown; "D" would be a lie', nodes['#wsBtn .workspace-avatar'].textContent, '·');
-  ok(nodes['#wsBtn .workspace-avatar'].textContent !== 'D', '  and never the other company\'s initial');
+  eq('  the name stays "Loading…" — it does not invent a company', nodes['#wsBtn .workspace-name'].textContent, 'Loading…');
   eq('  the profile avatar still resolves from the PERSON, who is known', avatars.map(a => a.textContent), ['S', 'S']);
 }
 
@@ -142,11 +147,9 @@ function harness(opts) {
   ok(page.length === 6, 'the six pages that never called paintWorkspace: ' + page.join(', '));
   /* Simulate what those pages do: mount, then QLD.init(render) — never touching
      paintWorkspace themselves. */
-  nodes['#wsBtn .workspace-avatar'].textContent = 'D';
   nodes['#wsBtn .workspace-name'].textContent = 'Loading…';
   ctx.QLShell.mount({ active: 'inventory', title: 'Inventory' });
-  eq('a page that NEVER calls paintWorkspace still gets a painted avatar', nodes['#wsBtn .workspace-avatar'].textContent, 'G');
-  eq('  and a painted name', nodes['#wsBtn .workspace-name'].textContent, 'GOTAN');
+  eq('a page that NEVER calls paintWorkspace still gets a painted company name', nodes['#wsBtn .workspace-name'].textContent, 'GOTAN');
 }
 
 /* ══════════ 3. THE PHOTO MUST ACTUALLY DELETE ══════════ */

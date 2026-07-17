@@ -384,15 +384,55 @@
     else bill.status = 'ready';
   }
 
-  /* second pass: duplicate detection (against saved data + within this batch) */
+  /* second pass: duplicate detection (against saved data + within this batch)
+
+     "we can not upload duplicates file, show error its already uploaded".
+
+     TWO CHECKS, AND THEY ARE NOT THE SAME CHECK — that was the bug.
+
+     1. THE GATE'S OWN VERDICT, against what is already saved. This pass used to
+        have a PRIVATE opinion: cfg.keyOf. On Purchase that key is
+        bill|gstin|amount|date — NARROWER than the gate the register actually
+        enforces (ImportGuard.docKey = number|party). So re-uploading the same
+        bill whose OCR read the amount a rupee differently sailed through this
+        pass as "ready", and was then refused at save with a message nothing
+        rendered. He saw a bare "Failed" badge and no reason. A pre-pass whose
+        opinion differs from the gate's is worse than no pre-pass: it promises an
+        import the register will reject. So ask the GATE. It is the same call
+        addPurchase/addSale make, so what is flagged here is exactly what would be
+        refused there — and its sentence is the sentence he sees.
+     2. WITHIN THIS BATCH — the same file twice in one upload. The gate cannot see
+        this: neither bill is saved yet, so there is nothing for it to match
+        against. cfg.keyOf still earns its keep here. */
+  function dupNote(reason) { return 'Already uploaded — ' + (reason || 'this document is already in the register.'); }
   function finishBatch(cfg) {
     var seen = new Set();
     try { (cfg.existing ? cfg.existing() : []).forEach(function (k) { if (k) seen.add(k); }); } catch (_) {}
+    var saved = [];
+    try { saved = (cfg.rows ? cfg.rows() : []) || []; } catch (_) { saved = []; }
+    var guard = (typeof ImportGuard !== 'undefined' && ImportGuard.docVerdict) ? ImportGuard : null;
+
     BATCH.bills.forEach(function (b) {
-      if (b.status === 'failed' || !b.built || !cfg.keyOf) return;
+      if (b.status === 'failed' || !b.built) return;
+      var flag = function (why, hard) {
+        b.dupe = true; b.dupWhy = why;
+        /* `hard` = the GATE says this one is already in the books, so no click of
+           any button will store it. Anything else (the same file twice in one
+           batch) is still saveable — the other copy is not in the register yet. */
+        b.dupHard = !!hard;
+        if (b.status === 'ready' || b.status === 'review') b.status = 'duplicate';
+        b.reason = dupNote(why);          // the table already renders b.reason under the badge
+      };
+      /* 1 — what the register itself will say. */
+      if (guard && saved.length) {
+        var v; try { v = guard.docVerdict(b.built, saved); } catch (_) { v = null; }
+        if (v && v.dup) { flag(v.reason, true); return; }
+      }
+      /* 2 — the same bill twice inside this one batch. */
+      if (!cfg.keyOf) return;
       var k; try { k = cfg.keyOf(b.built); } catch (_) { k = ''; }
       if (!k) return;
-      if (seen.has(k)) { b.dupe = true; if (b.status === 'ready' || b.status === 'review') b.status = 'duplicate'; }
+      if (seen.has(k)) flag('the same bill appears twice in this upload.', false);
       else seen.add(k);
     });
     hideProgress();
@@ -500,7 +540,13 @@
           '<div class="qlb-dh-s">' + esc(bill.source || '') + '</div></div></div>' +
         '<button class="qlb-x" id="qlbDX">&times;</button>' +
       '</div>' +
+      /* bill.error = the file never read. bill.err = the register REFUSED it (the
+         duplicate gate). Two different facts, both fatal to the save, and only the
+         first was ever printed — so a refused duplicate opened a drawer that
+         looked perfectly fine and gave no hint why Save would not take. */
       (bill.error ? '<div class="qlb-warn qlb-warn-r">✕ ' + esc(bill.error) + '</div>' : '') +
+      (bill.err ? '<div class="qlb-warn qlb-warn-r">✕ ' + esc(bill.err) + '</div>' : '') +
+      (bill.dupe && bill.dupWhy ? '<div class="qlb-warn qlb-warn-r">✕ ' + esc(dupNote(bill.dupWhy)) + '</div>' : '') +
       (bill.flag ? '<div class="qlb-warn">⚠ ' + esc(bill.flag) + '</div>' : '') +
       (g._warn && g._warn.length ? '<div class="qlb-warn">⚠ ' + g._warn.map(esc).join(' · ') + '</div>' : '') +
       '<div class="qlb-dbody">' +
@@ -546,11 +592,18 @@
       } catch (_) {}
       bill.confirmed = true;
       if (opts.solo) {
-        // Duplicate guard: this exact bill (bill no + supplier identity) already
-        // exists. First click warns; a deliberate second click saves anyway.
+        /* ALREADY UPLOADED — say so, and say WHICH bill.
+           This used to offer "Click Save again to add it anyway" for every
+           duplicate. For one already in the register that was a promise the app
+           cannot keep: the gate in data.js refuses it on the second click too, so
+           the override did nothing but produce a second, more confusing error. A
+           button that cannot do what it says is worse than no button.
+           The same file twice in ONE batch is a different case — neither copy is
+           saved yet, so that one is still genuinely overridable. */
+        if (bill.dupHard) { toast(dupNote(bill.dupWhy), 'err'); return; }
         if (bill.dupe && !bill.forceDupe) {
           bill.forceDupe = true;
-          toast('This bill already exists in the register. Click Save again to add it anyway.', 'err');
+          toast(dupNote(bill.dupWhy) + ' Click Save again to add it anyway.', 'err');
           return;
         }
         // Only claim "Saved" when the save actually happened; on failure keep
@@ -700,6 +753,13 @@
       bill.err = 'missing supplier / amount — nothing to save';
     } catch (e) { bill.err = (e && e.message) || 'could not save the bill'; }
     bill.status = 'failed';
+    /* SAY IT ON THE ROW. bill.err was written here and read NOWHERE the batch
+       table looks — it renders bill.reason. So a bill the register refused (a
+       duplicate, most often) landed in the Failed tab as a bare red badge with no
+       explanation, and the guard's sentence — the one that names the invoice and,
+       when the amounts differ, both figures — died in a field nobody printed. The
+       refusal is the whole point of refusing; it has to be legible. */
+    bill.reason = bill.err;
     return false;
   }
 

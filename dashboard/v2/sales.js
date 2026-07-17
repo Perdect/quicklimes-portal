@@ -396,6 +396,10 @@ function importInvoices() {
     },
     existing: () => new Set(Q.state.SALES.map(s => (s.inv || '').toString().toUpperCase()).filter(Boolean)),
     keyOf: s => s.inv ? s.inv.toUpperCase() : '',
+    /* The SAVED invoices, so the review table asks ImportGuard exactly what
+       addSale will ask at save time — instead of keyOf's bare invoice number,
+       which flags two different customers' INV-1 as the same document. */
+    rows: () => Q.state.SALES.filter(s => !s._del),
     preview: { headers: ['Invoice', 'Date', 'Party', 'Qty', 'Taxable', 'GST%'], right: [3, 4, 5], row: s => [s.inv || '—', s.date || '—', s.party || '—', s.qty || '', Q.fC(s.qty * s.rate), s.gstR + '%'] },
     // Throws on a duplicate ON PURPOSE: bulk.js postOne() catches, marks the bill
     // failed and shows the reason in its Failed tab. That is the importer's error

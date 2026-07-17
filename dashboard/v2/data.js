@@ -54,7 +54,10 @@
     const kill = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (/^ql_data_/.test(k) || /^ql_bill_aliases_/.test(k)) kill.push(k);
+      /* ql_qtyscan_ = "these bills have already had their tonnage read off the
+         PDF". It is a statement about ANOTHER account's bills; left behind, it
+         tells the new account's backfill to skip bills it has never looked at. */
+      if (/^ql_data_/.test(k) || /^ql_bill_aliases_/.test(k) || /^ql_qtyscan_/.test(k)) kill.push(k);
     }
     kill.push('dm_active_co', 'dm_loans', 'dm_profile_pic', 'ql_notif_state');
     kill.forEach(k => { try { localStorage.removeItem(k); } catch (_) {} });
@@ -736,9 +739,17 @@
   function backupJSON() { return JSON.stringify({ company: (COMPANIES[ACTIVE_CO] || {}).name || ACTIVE_CO, exportedAt: nowISO(), data: blob(true) }, null, 2); }
 
   /* ── Aggregates for the dashboard ────────────────────────────── */
-  function monthSeries(nMonths = 7) {
+  function monthSeries(nMonths = 7, endYm) {
     const out = [];
-    const now = new Date();
+    /* Anchored at NOW by default — every existing caller (the dashboard sparklines,
+       kpis(), insights()) means "the last n months" and must not move. Production's
+       trend chart is the one that has to end somewhere else: picking June 2026 has
+       to walk the chart back to the 7 months ENDING in June, not leave it showing
+       the 7 ending today while every other figure on the page says June.
+       A malformed endYm falls back to now rather than to an Invalid Date, which
+       would emit NaN month buckets instead of failing. */
+    const em = /^(\d{4})-(\d{2})$/.exec(String(endYm || ''));
+    const now = (em && +em[2] >= 1 && +em[2] <= 12) ? new Date(+em[1], +em[2] - 1, 1) : new Date();
     for (let i = nMonths - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
@@ -849,15 +860,51 @@
     };
   }
 
-  function topProducts() {
-    const ts = totS();
-    const qty = S.SALES.filter(notCancelled).reduce((a, s) => a + (s.qty || 0), 0);
+  /* ── Production figures for a PICKED period ─────────────────────────────
+     production() above answers "what is happening NOW": today, this week, this
+     month. Those three are pinned to the clock and CANNOT be honestly re-aimed at
+     a past month — a card labelled "Today" showing a June number is simply a lie,
+     and relabelling it "Today (June)" is the same lie with better manners. So the
+     Production page swaps the whole card set for these when the picked period does
+     not contain today, and keeps the live ones when it does.
+
+     Same tonnage basis as production().month (invoice qty; cancelled and trashed
+     excluded), deliberately — two dispatch figures on one screen must never
+     disagree, which is the bug production-derived.test.js §5b was written for.
+
+     `invoices` vs `withQty` is the honest-empty half. `dispatched === 0` means one
+     of two very different things: no invoices at all, or invoices that carry no
+     tonnage. Both render "0.0 T" and he has twice read a silent zero as a broken
+     screen — so the page needs the counts to say WHICH, and cannot get them from a
+     single sum. */
+  function productionPeriod(period) {
+    const sal = S.SALES.filter(s => notCancelled(s) && inPeriod(s.date, period));
+    const chu = S.CHUNNA.filter(c => notCancelled(c) && inPeriod(c.date, period));
+    const byDay = {};
+    sal.forEach(s => { const q = +s.qty || 0; if (q > 0 && s.date) byDay[s.date] = (byDay[s.date] || 0) + q; });
+    // Ties break on the EARLIER date so the answer is stable across renders rather
+    // than depending on key order.
+    const peak = Object.keys(byDay).sort((a, b) => byDay[b] - byDay[a] || a.localeCompare(b))[0];
+    return {
+      period: period || 'all',
+      dispatched: sal.reduce((a, s) => a + (+s.qty || 0), 0),
+      invoices: sal.length,
+      withQty: sal.filter(s => +s.qty > 0).length,
+      chunna: chu.reduce((a, c) => a + (parseFloat(c.qty) || 0), 0),
+      chunnaSales: chu.length,
+      peak: peak ? { date: peak, qty: byDay[peak] } : null
+    };
+  }
+
+  function topProducts(period) {
+    const ts = totS(period);
+    const qty = S.SALES.filter(s => notCancelled(s) && inPeriod(s.date, period)).reduce((a, s) => a + (s.qty || 0), 0);
     const rows = [{
       icon: '⚪', name: 'Quick Lime', sub: 'GST invoiced dispatches',
       qty: fmt(qty, 1) + ' T', avg: qty ? fC(ts.tx / qty) : '—', rev: fC(ts.tot)
     }];
-    const cQty = S.CHUNNA.filter(notCancelled).reduce((a, c) => a + (parseFloat(c.qty) || 0), 0);
-    const cTot = S.CHUNNA.filter(notCancelled).reduce((a, c) => a + (parseFloat(c.total) || 0), 0);
+    const cQty = S.CHUNNA.filter(c => notCancelled(c) && inPeriod(c.date, period)).reduce((a, c) => a + (parseFloat(c.qty) || 0), 0);
+    const cTot = S.CHUNNA.filter(c => notCancelled(c) && inPeriod(c.date, period)).reduce((a, c) => a + (parseFloat(c.total) || 0), 0);
     if (cQty || cTot) rows.push({
       icon: '🧱', name: 'Chunna', sub: 'Cash + PhonePe sales',
       qty: fmt(cQty, 1) + ' T', avg: cQty ? fC(cTot / cQty) : '—', rev: fC(cTot)
@@ -969,33 +1016,127 @@
     if (isNaN(d.getTime())) return blank;
     return d.toLocaleDateString('en-IN', { month: (opts && opts.short) ? 'short' : 'long', year: 'numeric' });
   }
-  /* ── PERIOD: one rule for "which month/year am I looking at" ──────
-     The picker (QLShell.monthPicker) emits exactly three shapes, and every page
-     that scopes numbers has to agree on what they mean. They were about to be
+  /* ── PERIOD: one rule for "which month/year/span am I looking at" ──────
+     The picker (QLShell.monthPicker) emits these shapes, and every page that
+     scopes numbers has to agree on what they mean. They were about to be
      re-decided per page, which is how monthLabel reached five copies:
 
        'all' / null / ''   every row
        'YYYY-MM'           that month        ← the picker's grid cells
        'YYYY'              that whole year   ← the picker's `years: true` button
+       'r:<key>'           a RELATIVE span   ← the picker's quick-range list
+       'c:FROM..TO'        a custom span, both endpoints INCLUSIVE
+       {from,to}           the same custom span, object form
 
-     A prefix test covers all three because dates are ISO ('2026-03-14'), and a
-     prefix is the ONLY thing that reads a year and a month with one comparison —
-     the alternative (`slice(0,7) === p`) silently matches NOTHING for 'YYYY',
-     which is a picker that renders and filters nothing. */
+     The first three are matched by a PREFIX test because dates are ISO
+     ('2026-03-14'), and a prefix is the ONLY thing that reads a year and a month
+     with one comparison — the alternative (`slice(0,7) === p`) silently matches
+     NOTHING for 'YYYY', which is a picker that renders and filters nothing.
+
+     The span forms arrived when the owner asked for reports.html's pill row
+     (Today · Yesterday · This week · Quarter · Custom) to live inside the one
+     calendar. They are dispatched BEFORE the prefix test and are namespaced
+     'r:'/'c:' precisely so they can never collide with an ISO prefix — 'year'
+     bare would read as a prefix of nothing and quietly match zero rows, and that
+     class of silent-empty is what this whole comment block exists to prevent.
+
+     'r:month' is NOT 'YYYY-MM' of today: it is month-TO-DATE (1st → now),
+     whereas the grid cell means the WHOLE month. Same for 'r:year' vs 'YYYY'.
+     They are different questions and the owner can ask both. */
+  const RANGE_KEYS = ['today', 'yday', 'week', 'month', 'lastmon', 'quarter', 'year'];
+  const RANGE_LABEL = { today: 'Today', yday: 'Yesterday', week: 'This week', month: 'This month', lastmon: 'Last month', quarter: 'Quarter', year: 'Year' };
+  /* Local Y-M-D. NOT toISOString() — that converts to UTC and hands back
+     yesterday for every IST evening, which moves every month/quarter/year edge
+     by a day. reports.html learned this first; this is that line, shared. */
+  const isoOf = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const weekStart = n => new Date(n.getFullYear(), n.getMonth(), n.getDate() - ((n.getDay() + 6) % 7));   // Monday
+  /* Resolve ANY period to { from, to } (inclusive, or null/null for all time).
+     `now` is injectable for tests ONLY — every caller in the app omits it, so a
+     relative range is recomputed from the real clock on EVERY call. That is the
+     whole reason this is a function and not a table: a tab left open overnight
+     re-resolves 'r:today' to the new today the next time anything renders,
+     instead of quietly still meaning yesterday. */
+  function rangeSpan(period, now) {
+    const none = { from: null, to: null };
+    if (!period || period === 'all') return none;
+    if (typeof period === 'object') {
+      return (period.from || period.to) ? { from: period.from || null, to: period.to || null } : none;
+    }
+    const p = String(period);
+    const c = /^c:(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(p);
+    if (c) return c[1] <= c[2] ? { from: c[1], to: c[2] } : { from: c[2], to: c[1] };   // tolerate a backwards pick
+    if (/^c:/.test(p)) return none;                       // half-filled custom = not yet a span
+    if (/^r:/.test(p)) {
+      const k = p.slice(2);
+      const d = now ? new Date(now) : new Date(), y = d.getFullYear(), m = d.getMonth(), dd = d.getDate();
+      const day = (a, b, cc) => isoOf(new Date(a, b, cc));
+      switch (k) {
+        case 'today': return { from: isoOf(d), to: isoOf(d) };
+        case 'yday': return { from: day(y, m, dd - 1), to: day(y, m, dd - 1) };
+        case 'week': return { from: isoOf(weekStart(d)), to: isoOf(d) };
+        case 'month': return { from: day(y, m, 1), to: isoOf(d) };
+        case 'lastmon': return { from: day(y, m - 1, 1), to: day(y, m, 0) };       // day 0 = last day of prev month
+        case 'quarter': return { from: day(y, Math.floor(m / 3) * 3, 1), to: isoOf(d) };
+        case 'year': return { from: day(y, 0, 1), to: isoOf(d) };
+        default: return none;                             // unknown key = never invent a span
+      }
+    }
+    if (/^\d{4}$/.test(p)) return { from: p + '-01-01', to: p + '-12-31' };
+    if (/^\d{4}-\d{2}$/.test(p)) {
+      const [yy, mm] = p.split('-').map(Number);
+      return { from: p + '-01', to: isoOf(new Date(yy, mm, 0)) };
+    }
+    return none;
+  }
+  /* A stored value's own span. inPeriod is called with a full ISO date on most
+     pages but with a bare 'YYYY-MM' on two (qlx's register filter used to
+     truncate, and monthlyRegister IS a list of months). Against a prefix that
+     never mattered; against a SPAN a naive compare reads '2026-07' as before
+     '2026-07-01' and drops the row. So a value is a span too, and the test is
+     OVERLAP — "does this month contain any day I asked for". A full date is just
+     the degenerate one-day case, so one rule covers both. */
+  function valueSpan(v) {
+    const s = String(v || '');
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return { s: s.slice(0, 10), e: s.slice(0, 10) };
+    if (/^\d{4}-\d{2}$/.test(s)) { const [yy, mm] = s.split('-').map(Number); return { s: s + '-01', e: isoOf(new Date(yy, mm, 0)) }; }
+    if (/^\d{4}$/.test(s)) return { s: s + '-01-01', e: s + '-12-31' };
+    return null;
+  }
   function inPeriod(date, period) {
     if (!period || period === 'all') return true;
-    const p = String(period);
-    return String(date || '').slice(0, p.length) === p;
+    const isSpan = typeof period === 'object' || /^[rc]:/.test(String(period));
+    if (!isSpan) {                                        // ── the original prefix rule, untouched
+      const p = String(period);
+      return String(date || '').slice(0, p.length) === p;
+    }
+    const { from, to } = rangeSpan(period);
+    if (!from && !to) return true;                        // an unresolvable span filters nothing
+    const v = valueSpan(date);
+    if (!v) return false;                                 // no date on the row = not in a dated span
+    if (from && v.e < from) return false;
+    if (to && v.s > to) return false;
+    return true;
   }
-  /* 'March 2026' / 'Year 2026' / 'All months'. monthLabel deliberately returns
-     blank for a bare 'YYYY' (it validates a MONTH), so the year case must be
-     handled before delegating — inventory.html learned this first, and this is
-     that function hoisted to where the other pages can reach it rather than
-     copied a seventh time. */
+  /* 'March 2026' / 'Year 2026' / 'This week' / '1 Apr – 30 Jun 2026' / 'All months'.
+     monthLabel deliberately returns blank for a bare 'YYYY' (it validates a
+     MONTH), so the year case must be handled before delegating — inventory.html
+     learned this first, and this is that function hoisted to where the other
+     pages can reach it rather than copied a seventh time. */
   function periodLabel(p, allLabel) {
     if (!p || p === 'all') return allLabel || 'All months';
-    if (/^\d{4}$/.test(String(p))) return 'Year ' + p;
-    return monthLabel(p, { blank: String(p) });
+    if (typeof p !== 'object') {
+      if (/^r:/.test(String(p))) return RANGE_LABEL[String(p).slice(2)] || (allLabel || 'All months');
+      if (/^\d{4}$/.test(String(p))) return 'Year ' + p;
+      if (!/^c:/.test(String(p))) return monthLabel(p, { blank: String(p) });
+    }
+    const { from, to } = rangeSpan(p);
+    if (!from || !to) return 'Custom range';              // half-picked — say so, never show a fake span
+    /* fDS2 carries the year, fDS does not. Printing it twice for one year
+       ("1 Apr 2026 – 30 Jun 2026") is noise in a 264px button, so the start
+       drops it only when both ends agree — across a rollover both must show it
+       or the span reads as impossible ("1 Dec – 31 Jan"). */
+    if (from === to) return fDS2(from);
+    return (from.slice(0, 4) === to.slice(0, 4) ? fDS(from) : fDS2(from)) + ' – ' + fDS2(to);
   }
   // Map a legacy free-text category onto a {group,item} so old bills fit the model.
   function catToGroupItem(p) {
@@ -1413,13 +1554,17 @@
     commit();
   }
   function deleteProduction(i, reason) { return softDelete('production', i, reason); }
-  function productionRows() {
+  /* `period` is optional and filters AFTER withIdx, never before: idx is the row's
+     address in S.PROD and is what the delete button posts back. Filtering first
+     would renumber it and delete the wrong run. */
+  function productionRows(period) {
     return withIdx(S.PROD).map(([p, i]) => ({
       idx: i, date: p.date,
       limestone: nQ(p.limestone), petcoke: nQ(p.petcoke), bags: nQ(p.bags),
       quicklime: nQ(p.quicklime), hydrated: nQ(p.hydrated), labour: nQ(p.labour),
       output: nQ(p.quicklime) + nQ(p.hydrated), note: p.note || ''
-    })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    })).filter(r => inPeriod(r.date, period))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   }
   // Average purchase rate (₹ per T / per bag) for a material group — from real bills.
   function avgRate(group) {
@@ -1513,12 +1658,19 @@
   }
   const measuredCell = (v, refs) => ({ v: v > 0 ? v : null, bills: refs.length, read: refs.length, missing: 0, refs, measured: true });
 
-  function productionDerived() {
+  /* `period` scopes which MONTHS are emitted — 'all' | 'YYYY' | 'YYYY-MM', through
+     QLD.inPeriod like every other page, so "Whole year 2026" widens the table
+     instead of emptying it (a `=== period` test here would match nothing for a
+     year). The per-month arithmetic below is untouched by it: each month is still
+     built from every bill dated in that month, so a scoped row and an unscoped row
+     for the same month are the same row. */
+  function productionDerived(period) {
     const sal = salesRows().filter(r => r.status !== 'cancelled');
     const pur = purchaseRows().filter(r => r.status !== 'cancelled');
     const runs = productionRows();
     const ymOk = m => /^\d{4}-\d{2}$/.test(m);
-    const months = [...new Set([...sal, ...pur, ...runs].map(r => ymOf(r.date)).filter(ymOk))].sort().reverse();
+    const months = [...new Set([...sal, ...pur, ...runs].map(r => ymOf(r.date)).filter(ymOk))]
+      .filter(ym => inPeriod(ym, period)).sort().reverse();
     // A sale states its product only when it was raised in the invoice builder; a
     // bill imported by OCR does not. The app has always treated an unstated GST sale
     // as quick lime (topProducts, invoiceData) — keep that one convention rather than
@@ -1570,12 +1722,13 @@
     });
   }
   /* How much of the tonnage is simply missing off the bills. This is the number that
-     decides whether the page is useful or whether he needs "Read quantities" first —
-     so it is computed, not assumed, and the page says it out loud. */
-  function derivedQtyGaps() {
-    const pur = purchaseRows().filter(r => r.status !== 'cancelled')
+     decides whether the page is useful yet — the Purchase register reads the old
+     bills' tonnage back off their PDFs on its own, so this shrinks on its own once
+     he opens it. Computed, not assumed, and the page says it out loud. */
+  function derivedQtyGaps(period) {
+    const pur = purchaseRows().filter(r => r.status !== 'cancelled' && inPeriod(r.date, period))
       .filter(r => ['limestone', 'petcoke', 'packaging'].includes(r.group) && isMaterialBuy(r.item));
-    const sal = salesRows().filter(r => r.status !== 'cancelled');
+    const sal = salesRows().filter(r => r.status !== 'cancelled' && inPeriod(r.date, period));
     const miss = a => a.filter(r => !(parseFloat(r.qty) > 0)).length;
     return {
       purchase: { total: pur.length, missing: miss(pur), fixable: pur.filter(r => !(parseFloat(r.qty) > 0) && (r.attach || []).length).length },
@@ -1727,23 +1880,13 @@
       .sort((a, b) => (b.uploadedAt || '').localeCompare(a.uploadedAt || ''));
   }
   function lastStatement(accountId) { return statementRows(accountId)[0] || null; }
-  /* Remove duplicate bank rows found by dedupe.js. Bank rows have no soft-delete —
-     the row builders and Trash only cover the TRASHABLE modules — so this is a real
-     splice. That is acceptable here and nowhere else: dedupe only ever hands over
-     EXTRA COPIES of a row whose original stays put, so nothing the bank told you is
-     lost. It is audited by id so the removal is at least accountable.
-     Refuses ids it cannot find rather than reporting a bigger number than it did. */
-  function removeReconTxns(ids, reason) {
-    const want = new Set((ids || []).filter(Boolean));
-    if (!want.size) return { ok: true, removed: 0 };
-    const arr = (S.RECON && S.RECON.txns) || [];
-    const gone = arr.filter(t => want.has(t.id));
-    if (!gone.length) return { ok: true, removed: 0 };
-    S.RECON.txns = arr.filter(t => !want.has(t.id));
-    gone.forEach(t => logAudit('delete', 'bankTxn', t, { ref: t.utr || t.ref || t.desc || '' }));
-    commit();
-    return { ok: true, removed: gone.length };
-  }
+  /* removeReconTxns() lived here: a hard splice of bank rows, built for
+     dedupe.js's "Find duplicates" broom and called by nothing else. It went with
+     it. Duplicates are refused at import now (ImportGuard, above), so a function
+     whose whole job is HARD-DELETING bank rows — no soft-delete, no Trash, no
+     restore — had no remaining caller and no reason to stay on the API where the
+     next "clean this up" feature would find it and reach for it. Bank rows are
+     what the bank told you; the app does not get to quietly drop them. */
 
   function removeStatement(id) {
     const i = S.STATEMENTS.findIndex(s => s.id === id);
@@ -2357,13 +2500,16 @@
     updateCompany, validGstinFmt,
     state: S,
     fmt, fC, fL, fDS, daysAgo, cS,
-    kpis, monthSeries, collections, insights, production, topProducts, activity,
+    kpis, monthSeries, collections, insights, production, productionPeriod, topProducts, activity,
     salesRows, salesSummary,
     purchaseRows, purchaseSummary, partyRows, partySummary,
     partyLedger, recordLedgerEntry, reverseLedgerEntry, ledgerNet,
     purchaseGroups: PURCHASE_GROUPS, departments: DEPARTMENTS, purchaseByGroup, purchaseInsights, itemShort, monthLabel,
-    // The period vocabulary every page shares with QLShell.monthPicker.
-    inPeriod, periodLabel,
+    /* The period vocabulary every page shares with QLShell.monthPicker.
+       rangeSpan turns ANY period — month, year, named range, custom — into the
+       { from, to } that buildReport() already takes, which is what let reports
+       drop its private copy of all this. */
+    inPeriod, periodLabel, rangeSpan, rangeKeys: () => RANGE_KEYS.slice(), rangeLabel: k => RANGE_LABEL[k] || k,
     recordPurchasePayment, billInsights, relatedBills, itemIcon,
     // ── Payments Center (one unified money ledger) ──
     paymentsLedger, paymentsSummary, paymentsInsights, accountBalances,
@@ -2393,7 +2539,7 @@
     // ── Bank accounts (multi-bank) ──
     BANK_TYPES, bankAccounts, bankAccountById, bankAccountLabel,
     addBankAccount, updateBankAccount, setBankAccountArchived,
-    addStatement, removeReconTxns, statementRows, lastStatement, removeStatement, statementConflict,
+    addStatement, statementRows, lastStatement, removeStatement, statementConflict,
 
     // ── Writes (persist local immediately + cloud debounced) ──
     commit, saveLocal, wipeData,

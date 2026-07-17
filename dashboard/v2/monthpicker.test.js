@@ -317,6 +317,11 @@ const S = { SALES: [], PURCHASES: [], WORKERS: [], CASHBOOK: [], CHUNNA: [] };
 const dctx = { console, Math, Object, Array, Number, String, Date, RegExp, isNaN, parseFloat, S, partyGstin: () => '' };
 vm.createContext(dctx);
 vm.runInContext([
+  grab('const RANGE_KEYS =', '\n'), grab('const RANGE_LABEL =', '\n'),
+  grab('const isoOf =', '\n'), grab('const weekStart =', '\n'),
+  grab('const parseD = s =>', '\n'), grab('const fDS = s =>', '\n'), grab('function fDS2(s)', '\n'),
+  grab('function rangeSpan(period, now)', '\n  }'),
+  grab('function valueSpan(v)', '\n  }'),
   grab('function inPeriod(date, period)', '\n  }'),
   grab('function monthLabel(ym, opts)', '\n  }'),
   grab('function periodLabel(p, allLabel)', '\n  }'),
@@ -325,7 +330,7 @@ vm.runInContext([
   grab('const saleInter =', '\n'),
   grab('const totS =', '\n'), grab('const totP =', '\n'),
   grab('function gstSummary(period)', '\n  }'),
-  'this.P = { inPeriod, periodLabel, gstSummary };'
+  'this.P = { inPeriod, periodLabel, gstSummary, rangeSpan, RANGE_KEYS };'
 ].join('\n'), dctx);
 const P = dctx.P;
 
@@ -352,6 +357,151 @@ const P = dctx.P;
   ok(L('2026') === 'Year 2026', 'periodLabel: a YEAR reads as "Year 2026" — QLD.monthLabel alone returns blank here, which is how the year button ends up with an empty label');
   ok(L('all') === 'All months' && L(null) === 'All months', 'periodLabel: the unfiltered case');
   ok(L('all', 'All time') === 'All time', 'periodLabel: Inventory\'s "All time" is still expressible (allLabel)');
+}
+
+/* ══════════ 11. THE RANGES REPORTS USED TO OWN ══════════
+   "make sure we will use same date filter as second image" — the calendar goes
+   everywhere, and reports.html's pill row goes away. The pills carried Today /
+   Yesterday / This week / Quarter / Custom Range, which the month grid cannot
+   say. Deleting them WOULD have deleted five real capabilities from his books,
+   silently: every assertion below is one of those capabilities, now expressed by
+   the shared control instead of by reports' private copy.
+
+   `now` is injected so a boundary can be tested AT the boundary. The app never
+   passes it — see the note on rangeSpan. */
+{
+  const R = (p, now) => P.rangeSpan(p, now);
+  const at = s => new Date(s);                        // a fixed "now", local time
+
+  /* ── the relative ranges, resolved against a known Tuesday ──
+     Tue 14 Jul 2026. Week starts Monday (13th), quarter Q3 (1 Jul), year 1 Jan. */
+  const tue = at('2026-07-14T15:30:00');
+  eq2('r:today  → just today', JSON.stringify(R('r:today', tue)), JSON.stringify({ from: '2026-07-14', to: '2026-07-14' }));
+  eq2('r:yday   → just yesterday', JSON.stringify(R('r:yday', tue)), JSON.stringify({ from: '2026-07-13', to: '2026-07-13' }));
+  eq2('r:week   → Monday to today', JSON.stringify(R('r:week', tue)), JSON.stringify({ from: '2026-07-13', to: '2026-07-14' }));
+  eq2('r:month  → the 1st to today (month-TO-DATE, not the whole month)', JSON.stringify(R('r:month', tue)), JSON.stringify({ from: '2026-07-01', to: '2026-07-14' }));
+  eq2('r:lastmon→ the whole PREVIOUS month, both ends', JSON.stringify(R('r:lastmon', tue)), JSON.stringify({ from: '2026-06-01', to: '2026-06-30' }));
+  eq2('r:quarter→ Q3 starts 1 Jul', JSON.stringify(R('r:quarter', tue)), JSON.stringify({ from: '2026-07-01', to: '2026-07-14' }));
+  eq2('r:year   → 1 Jan to today', JSON.stringify(R('r:year', tue)), JSON.stringify({ from: '2026-01-01', to: '2026-07-14' }));
+
+  /* ── week: the Sunday trap ──
+     JS getDay() is 0 for SUNDAY. `now.getDate() - now.getDay()` (the obvious
+     line) makes Sunday its OWN week start, so on Sunday "This week" would show
+     one day and the six days he actually worked would vanish. (n.getDay()+6)%7
+     is the Monday-start fix; this is the assertion that pins it. */
+  eq2('r:week on a SUNDAY reaches back to the Monday BEFORE it, not to itself',
+    JSON.stringify(R('r:week', at('2026-07-19T10:00:00'))), JSON.stringify({ from: '2026-07-13', to: '2026-07-19' }));
+  eq2('r:week on a MONDAY is that Monday alone',
+    JSON.stringify(R('r:week', at('2026-07-13T10:00:00'))), JSON.stringify({ from: '2026-07-13', to: '2026-07-13' }));
+
+  /* ── quarter boundaries: all four, at the first instant of each ──
+     Math.floor(m/3)*3 is the whole rule; a wrong quarter start misstates GST. */
+  for (const [d, qs] of [['2026-01-01', '2026-01-01'], ['2026-03-31', '2026-01-01'],
+                         ['2026-04-01', '2026-04-01'], ['2026-06-30', '2026-04-01'],
+                         ['2026-07-01', '2026-07-01'], ['2026-09-30', '2026-07-01'],
+                         ['2026-10-01', '2026-10-01'], ['2026-12-31', '2026-10-01']]) {
+    eq2('r:quarter on ' + d + ' starts ' + qs, R('r:quarter', at(d + 'T12:00:00')).from, qs);
+  }
+
+  /* ── year rollover: the arithmetic that only breaks one day a year ──
+     `new Date(y, m-1, 1)` with m=0 is DECEMBER OF LAST YEAR, which is correct and
+     is why the code does not hand-roll `y - (m===0)`. On 1 Jan, "last month" must
+     be last December, and "yesterday" must be last New Year's Eve. */
+  const jan1 = at('2026-01-01T09:00:00');
+  eq2('r:lastmon on 1 Jan is DECEMBER, of the previous year', JSON.stringify(R('r:lastmon', jan1)), JSON.stringify({ from: '2025-12-01', to: '2025-12-31' }));
+  eq2('r:yday on 1 Jan is 31 Dec, of the previous year', R('r:yday', jan1).from, '2025-12-31');
+  eq2('r:week across the rollover reaches into December', R('r:week', jan1).from, '2025-12-29');
+  eq2('r:year on 1 Jan is that one day, not the old year', JSON.stringify(R('r:year', jan1)), JSON.stringify({ from: '2026-01-01', to: '2026-01-01' }));
+  /* Leap day: Feb 2028 has 29 days. `new Date(y, m, 0)` asks the calendar rather
+     than a 30/31 table, so this is free — but only if nobody replaces it. */
+  eq2('r:lastmon in March 2028 ends on the LEAP day', R('r:lastmon', at('2028-03-10T12:00:00')).to, '2028-02-29');
+
+  /* ── the month grid + year button, through the SAME resolver ──
+     This is what let reports delete its private ranges(): a month IS a span. */
+  eq2('a grid cell resolves to the whole month, last day and all', JSON.stringify(R('2026-02')), JSON.stringify({ from: '2026-02-01', to: '2026-02-28' }));
+  eq2('  including a leap February — asked of the calendar, not a table', R('2028-02').to, '2028-02-29');
+  eq2('the year button resolves to the whole year', JSON.stringify(R('2026')), JSON.stringify({ from: '2026-01-01', to: '2026-12-31' }));
+  eq2('all time has no bounds (buildReport reads null as unbounded)', JSON.stringify(R('all')), JSON.stringify({ from: null, to: null }));
+
+  /* ── custom range ── */
+  eq2('c:FROM..TO is the span it says', JSON.stringify(R('c:2026-04-01..2026-06-30')), JSON.stringify({ from: '2026-04-01', to: '2026-06-30' }));
+  eq2('a BACKWARDS custom pick is swapped, not silently empty', JSON.stringify(R('c:2026-06-30..2026-04-01')), JSON.stringify({ from: '2026-04-01', to: '2026-06-30' }));
+  eq2('a half-filled custom range is NOT a span — it must filter nothing yet, not everything from one date', JSON.stringify(R('c:2026-04-01..')), JSON.stringify({ from: null, to: null }));
+  eq2('an unknown range key invents no span', JSON.stringify(R('r:fortnight')), JSON.stringify({ from: null, to: null }));
+  eq2('the object form is accepted as-is (buildReport already speaks it)', JSON.stringify(R({ from: '2026-04-01', to: '2026-06-30' })), JSON.stringify({ from: '2026-04-01', to: '2026-06-30' }));
+
+  /* ══ inPeriod over a span — BOTH endpoints inclusive ══
+     An exclusive `to` drops every sale made on the last day of the range, which
+     for "Today" is every sale he has made today: the filter would read empty all
+     morning and he would think the app lost his books. */
+  const I = P.inPeriod;
+  const q = 'c:2026-04-01..2026-06-30';
+  ok(I('2026-04-01', q), 'custom range INCLUDES its first day');
+  ok(I('2026-06-30', q), 'custom range INCLUDES its last day — an exclusive `to` silently drops today\'s sales');
+  ok(I('2026-05-15', q), 'custom range includes the middle');
+  ok(!I('2026-03-31', q), 'custom range excludes the day before it');
+  ok(!I('2026-07-01', q), 'custom range excludes the day after it');
+  ok(!I('', q) && !I(null, q), 'a row with no date is in no span — and does not throw');
+  ok(I('2026-04-10T14:00:00', q), 'a date carrying a time still lands inside the span');
+
+  /* ══ THE TRUNCATION TRAP ══
+     inPeriod is called with a bare 'YYYY-MM' on two surfaces (monthlyRegister IS
+     a list of months). A naive string compare reads '2026-05' as BEFORE
+     '2026-05-01' and drops it — the month vanishes from the register the moment a
+     span is picked. A stored value is a span too, and the test is OVERLAP. */
+  ok(I('2026-05', q), 'a bare MONTH value overlaps a span that covers it — not dropped by a string compare');
+  ok(I('2026-06', q), '  the span\'s LAST month overlaps even though "2026-06" < "2026-06-30"');
+  ok(I('2026-04', q), '  and its first, even though "2026-04" > "2026-04-01" is false');
+  ok(!I('2026-07', q), '  a month wholly outside the span is still out');
+  ok(I('2026-03', 'c:2026-03-31..2026-04-02'), 'a month overlapping by ONE day is in (the register lists that month)');
+  ok(I('2026', q), 'a bare YEAR value overlaps a span inside it');
+  ok(!I('2025', q), '  but a year that does not is out');
+
+  /* ══ THE PREFIX FORMS STILL WORK ══
+     Every page depends on these. The span dispatch runs FIRST, so if it were too
+     eager ('2026-03' mistaken for a range) it would take the whole app down at
+     once. Re-asserted here against the range-aware implementation. */
+  ok(I('2026-03-14', '2026-03'), 'prefix form: a March date is still in March');
+  ok(!I('2026-04-01', '2026-03'), 'prefix form: an April date is still not in March');
+  ok(I('2026-03-14', '2026'), 'prefix form: the year still widens');
+  ok(I('2026-03-14', 'all') && I('2026-03-14', null), 'prefix form: all/null still take everything');
+  ok(I('2026-03', '2026-03') && I('2026-03', '2026'), 'prefix form: the bare-month VALUE still matches its month and year (qlx + monthlyRegister)');
+
+  /* ══ RELATIVE MEANS RELATIVE TO NOW ══
+     "a tab left open overnight must not still mean yesterday". rangeSpan reads
+     the clock on every call; a table computed once at load would not. */
+  eq2('r:today is resolved from the clock at CALL time, not cached at load (before midnight)', R('r:today', at('2026-07-14T23:59:59')).from, '2026-07-14');
+  eq2('  and after midnight the SAME period string means the new day', R('r:today', at('2026-07-15T00:00:01')).from, '2026-07-15');
+  ok(P.RANGE_KEYS.every(k => { const s = R('r:' + k, tue); return s.from && s.to && s.from <= s.to; }),
+    'every named range resolves to a real, non-inverted span (from <= to)');
+
+  /* ══ THE LABEL FOLLOWS THE PICK ══
+     The button is the only place he can see WHAT he is looking at. */
+  const L = P.periodLabel;
+  eq2('label: a named range says its name', L('r:week'), 'This week');
+  eq2('label: Quarter', L('r:quarter'), 'Quarter');
+  eq2('label: a custom span reads as a span, with the year', L('c:2026-04-01..2026-06-30'), '01 Apr – 30 Jun 2026');
+  eq2('label: a span ACROSS a year shows both years — "01 Dec – 31 Jan" would read as impossible', L('c:2025-12-01..2026-01-31'), '01 Dec 2025 – 31 Jan 2026');
+  eq2('label: a one-day custom span is a date, not "x – x"', L('c:2026-04-01..2026-04-01'), '01 Apr 2026');
+  eq2('label: a half-picked custom range says so — never a fake span', L('c:2026-04-01..'), 'Custom range');
+  eq2('label: the month grid is untouched by any of this', L('2026-06'), 'June 2026');
+}
+
+/* ══════════ 12. THE NUMBERS MOVE FOR A RANGE TOO ══════════
+   Section 10 proves a month rescopes the money. A span must too — through the
+   same gstSummary(), i.e. through every page's data path, not a reports-only one. */
+{
+  S.SALES.length = 0;
+  const sale = (date, rate) => ({ date, qty: 100, rate, gstR: 5, gstin: '08AAA0000A1Z5', status: 'pending' });
+  S.SALES.push(sale('2026-04-10', 100));   // taxable 10,000 — Q1 (Apr–Jun)
+  S.SALES.push(sale('2026-06-30', 200));   // taxable 20,000 — Q1, LAST day
+  S.SALES.push(sale('2026-07-01', 400));   // taxable 40,000 — the day AFTER
+
+  eq2('a custom span sums only what is inside it', Math.round(P.gstSummary('c:2026-04-01..2026-06-30').taxable), 30000);
+  eq2('  the boundary sale is IN (inclusive `to`, through the real data path)', Math.round(P.gstSummary('c:2026-06-30..2026-06-30').taxable), 20000);
+  eq2('  and the next day is OUT', Math.round(P.gstSummary('c:2026-04-01..2026-06-29').taxable), 10000);
+  eq2('a span with no books is ₹0, not all-time', Math.round(P.gstSummary('c:2026-01-01..2026-01-31').taxable), 0);
+  eq2('all time still sees every sale', Math.round(P.gstSummary('all').taxable), 70000);
 }
 
 /* ══════════ 10. THE NUMBERS MOVE ══════════

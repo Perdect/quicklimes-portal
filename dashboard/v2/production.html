@@ -139,11 +139,9 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="ql-api.js?v=a2"></script>
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
-<script src="./dedupe.js?v=m29"></script>
-<script src="./dedupe-ui.js?v=m30"></script>
-<script src="./data.js?v=m35"></script>
+<script src="./data.js?v=m36"></script>
 <script src="./wa-core.js?v=w2"></script>
-<script src="./shell.js?v=m49"></script>
+<script src="./shell.js?v=m50"></script>
 <script src="./mobile.js?v=m12"></script>
 <script>
 QLShell.mount({ active: 'ql-prod', title: 'Production' });
@@ -195,7 +193,7 @@ function dcell(c, dec) {
     // "1 limestone bills" reads like a bug even when the number is right.
     const nBills = c.bills + ' ' + (c.bills === 1 ? (c.label || 'bill').replace(/s$/, '') : (c.label || 'bills'));
     if (!c.bills) return dash('No ' + (c.label || 'bills') + ' this month — nothing to read');
-    return dash(nBills + ' this month, but ' + (c.bills === 1 ? 'it does not carry' : 'none carry') + ' a readable quantity. The tonnage is on the PDFs — it was never read off them. Run “Read quantities” on the Purchase register.')
+    return dash(nBills + ' this month, but ' + (c.bills === 1 ? 'it does not carry' : 'none carry') + ' a readable quantity. The tonnage is on the PDFs — it was never read off them. Open the Purchase register and it reads them off the bills on its own.')
       + `<span class="prd-warn" title="${esc(nBills + ' with no quantity')}">!</span>`;
   }
   const lines = c.refs.slice(0, 12).map(r => `${r.ref || '—'}${r.date ? ' · ' + r.date : ''}${r.party ? ' · ' + r.party : ''} → ${QLD.fmt(r.qty, dec)}`);
@@ -218,8 +216,8 @@ function renderRuns() {
   g.innerHTML = (pm || sm) ? `<div class="prd-gap">
     <div class="prd-gap-ic">!</div>
     <div><div class="prd-gap-t">${pm ? pm + ' of ' + gaps.purchase.total + ' material bills ' + (pm === 1 ? 'has' : 'have') + ' no quantity' : ''}${pm && sm ? ' · ' : ''}${sm ? sm + ' of ' + gaps.sales.total + ' invoices ' + (sm === 1 ? 'has' : 'have') + ' no quantity' : ''}</div>
-    <div class="prd-gap-s">Those bills are left out of the figures below — they are not counted as zero. ${gaps.purchase.fixable ? '<b>' + gaps.purchase.fixable + '</b> of them still ' + (gaps.purchase.fixable === 1 ? 'has' : 'have') + ' the original PDF attached, so the tonnage can be read straight off the paper: open the Purchase register → <b>Read quantities</b>.' : 'Add the quantity on each bill to bring it into these totals.'}</div></div>
-    ${gaps.purchase.fixable ? '<a class="ql-btn ql-btn-ghost" href="/v2/purchase">Read quantities →</a>' : ''}
+    <div class="prd-gap-s">Those bills are left out of the figures below — they are not counted as zero. ${gaps.purchase.fixable ? '<b>' + gaps.purchase.fixable + '</b> of them still ' + (gaps.purchase.fixable === 1 ? 'has' : 'have') + ' the original PDF attached, so the tonnage can be read straight off the paper — open the Purchase register and it does that on its own, then come back.' : 'Add the quantity on each bill to bring it into these totals.'}</div></div>
+    ${gaps.purchase.fixable ? '<a class="ql-btn ql-btn-ghost" href="/v2/purchase">Open Purchase register →</a>' : ''}
   </div>` : '';
 
   const stat = (lb, v, m) => `<div class="kpi-tile"><div><div class="kpi-label">${lb}</div><div class="kpi-val">${v}</div><div class="kpi-meta">${m}</div></div></div>`;
