@@ -2,6 +2,13 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — runs before the splash paints. The app shell applies the theme
+   at mount, which is far too late: the splash is inline at the top of <body>, so
+   a late flip = white flash, then dark. Resolves 'system' here too, so data-theme
+   is ALWAYS a literal light|dark and CSS never has to ask twice. */
+(function(){try{var t=localStorage.getItem('ql_theme')||'system';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Profit &amp; Loss — QuickLimes v2</title>
 <meta name="theme-color" content="#2563EB">
@@ -16,8 +23,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r5"><link rel="stylesheet" href="./pages.css?v=m14">
-<link rel="stylesheet" href="./mobile.css?v=m9">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r6"><link rel="stylesheet" href="./pages.css?v=m15">
+<link rel="stylesheet" href="./mobile.css?v=m10">
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
 <link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/375x667@2x.png">
@@ -64,7 +71,7 @@
 @keyframes qs-show{to{opacity:1}}
 @keyframes qs-run{0%{transform:translateX(-110%)}100%{transform:translateX(360%)}}
 @keyframes qs-failsafe{to{opacity:0;visibility:hidden;pointer-events:none}}
-@media (prefers-color-scheme:dark){#ql-splash{background:#020617}.qs-name{color:#F1F5F9}.qs-bar{background:rgba(241,245,249,.13)}}
+[data-theme="dark"] #ql-splash{background:#020617}[data-theme="dark"] .qs-name{color:#F1F5F9}[data-theme="dark"] .qs-bar{background:rgba(241,245,249,.13)}
 @media (prefers-reduced-motion:reduce){.qs-bar::after{animation-duration:2.4s}}
 </style>
 <div id="ql-splash" role="status" aria-label="Loading">
@@ -74,14 +81,14 @@
   <div class="dash">
     <div class="page-head">
       <div><h1 class="page-title">Profit &amp; Loss</h1><div class="page-sub" id="plSub">Revenue · costs · net profit</div></div>
-      <div class="page-actions">
+      <div class="page-actions" id="plActions">
         <button class="ql-btn ql-btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
       </div>
     </div>
     <div class="kpi-strip" id="plKpis" style="grid-template-columns:repeat(4,1fr)"></div>
     <div class="gst-grid">
       <div class="card gst-liab">
-        <div class="card-head"><div><div class="card-title">Income statement</div><div class="card-sub">All-time, derived from your sales, purchases &amp; labour</div></div></div>
+        <div class="card-head"><div><div class="card-title">Income statement</div><div class="card-sub" id="plScope">Derived from your sales, purchases &amp; labour</div></div></div>
         <div class="gst-rows" id="plRows"></div>
       </div>
       <div class="card">
@@ -95,15 +102,36 @@
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./dedupe.js?v=m29"></script>
-<script src="./dedupe-ui.js?v=m29"></script>
-<script src="./data.js?v=m34"></script>
+<script src="./dedupe-ui.js?v=m30"></script>
+<script src="./data.js?v=m35"></script>
 <script src="./wa-core.js?v=w2"></script>
-<script src="./shell.js?v=m48"></script>
-<script src="./mobile.js?v=m11"></script>
+<script src="./shell.js?v=m49"></script>
+<script src="./mobile.js?v=m12"></script>
 <script>
 QLShell.mount({ active: 'pl', title: 'Profit & Loss' });
+
+/* The month/year filter. "Did I make money in March" is the question a P&L is
+   FOR, and this page could only answer "ever".
+
+   The honest catch, surfaced rather than hidden: revenue, material cost and GST
+   are all dated and scope cleanly — but a WORKER record carries a wage and no
+   date, and attendance is keyed by day-number inside one unlabelled month grid.
+   So all-time labour = the worker masters (unchanged), and a picked period =
+   dated cash-book wage payments — the same rule the Reports Hub's date-scoped
+   P&L already uses. The two bases genuinely differ, so the line below NAMES the
+   one in use. Subtracting an all-time wage bill from one month's revenue would
+   have been the alternative, and it would have reported a loss where he made a
+   profit. */
+let PF = null;
+const plHave = () => new Set([...QLD.salesRows().map(r => (r.date || '').slice(0, 7)),
+  ...QLD.purchaseRows().map(r => (r.date || '').slice(0, 7))].filter(Boolean));
 function render() {
-  const co = QLD.co, p = QLD.getPL();
+  if (!PF) PF = QLShell.periodFilter('plActions', { id: 'plMonthBtn', have: plHave, prepend: true, onChange: () => render() });
+  const co = QLD.co, p = QLD.getPL(PF.period());
+  const per = PF.label(), scoped = p.labourSrc === 'cashbook';
+  document.getElementById('plScope').textContent = per + ' · ' + (scoped
+    ? 'labour = cash-book wage payments in this period (worker records carry no date)'
+    : 'derived from your sales, purchases & labour');
   const K = [
     { label: 'Revenue', v: QLD.fC(p.rev), meta: 'taxable sales', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-5"/></svg>' },
     { label: 'Gross Profit', v: QLD.fC(p.gp), meta: p.gpm.toFixed(1) + '% margin', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M5 12l7-7 7 7"/></svg>' },
@@ -111,12 +139,13 @@ function render() {
     { label: 'Net Profit', v: QLD.fC(p.np), meta: p.npm.toFixed(1) + '% margin', bg: p.np >= 0 ? 'var(--ql-success-50)' : 'var(--ql-danger-50)', fg: p.np >= 0 ? 'var(--ql-success-600)' : 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>' }
   ];
   document.getElementById('plKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
-  document.getElementById('plSub').textContent = `${co.short} · Net profit ${QLD.fC(p.np)} (${p.npm.toFixed(1)}%)`;
+  document.getElementById('plSub').textContent = `${co.short} · ${per} · Net profit ${QLD.fC(p.np)} (${p.npm.toFixed(1)}%)`;
   const rows = [
     { l: 'Revenue (taxable sales)', v: p.rev, sign: '' },
     { l: 'Less: Cost of materials', v: p.cogs, sign: '−', neg: true },
     { l: 'Gross profit', v: p.gp, strong: true },
-    { l: 'Less: Labour cost', v: p.labour, sign: '−', neg: true },
+    // The label names its own source — see the note above render().
+    { l: scoped ? 'Less: Labour paid (cash book)' : 'Less: Labour cost', v: p.labour, sign: '−', neg: true },
     { l: 'EBITDA', v: p.ebitda, strong: true },
     { l: 'Less: Net GST payable', v: p.netGST, sign: '−', neg: true },
     { l: 'Net profit', v: p.np, total: true }

@@ -371,18 +371,17 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-dash-greet h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
 .qlm-dash-greet p { color: var(--ql-text-secondary); font-size: 14px; margin: 3px 0 0; }
 
-/* segmented tabs */
-.qlm-seg {
-  display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
-  margin: 0 -14px; padding: 0 14px 2px;
-}
-.qlm-seg::-webkit-scrollbar { display: none; }
-.qlm-seg-btn {
-  flex: none; padding: 8px 15px; border-radius: 99px; border: 1px solid var(--ql-border);
-  background: var(--ql-bg-elevated); color: var(--ql-text-secondary);
-  font-size: 13.5px; font-weight: 600; white-space: nowrap;
-}
-.qlm-seg-btn.active { background: var(--ql-neutral-900); color: #fff; border-color: var(--ql-neutral-900); }
+/* The .qlm-seg segmented tabs lived here. They are DELETED, not hidden: the pills
+   duplicated the bottom nav's five labels 60px away while meaning something
+   different, and the dashboard now stacks its sections in one scroll.
+   Deleted rather than left dead because unused CSS is how a removed control
+   quietly comes back — the class is still valid, so the next innerHTML that
+   happens to write `class="qlm-seg"` silently gets a styled tab bar and nobody
+   greps for it. (Same reasoning as no-fab.test.js.) */
+
+/* dashboard sections — the stack that replaced the tabs */
+.qlm-dsec { display: flex; flex-direction: column; gap: 12px; }
+.qlm-dsec + .qlm-dsec { margin-top: 20px; }
 
 /* KPI grid — 2 per row */
 .qlm-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

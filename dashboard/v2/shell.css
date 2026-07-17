@@ -527,3 +527,26 @@ button { font-family: inherit; cursor: pointer; }
 .ql-mp-wide:hover { border-color: var(--ql-brand-400, #60a5fa); color: var(--ql-brand-600); }
 .ql-mp-wide.on { background: var(--ql-brand-600); border-color: var(--ql-brand-600); color: #fff; }
 @media (max-width: 640px) { .ql-mp-btn span { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ql-mp { width: 240px; } }
+
+/* ── DARK: the app chrome ────────────────────────────────────────────────
+   The tint ramps (--ql-brand/success/warning/danger-50/100) are deliberately
+   NOT flipped in tokens.css. Each of their ~75 call sites pairs a -50
+   background with -600/-700 text of the same hue, so flipping the background
+   alone would put dark text on a dark tint; and the -600/-700 tokens cannot
+   flip either — brand-600 IS the primary button's background and the link
+   colour. Left alone they stay READABLE in dark (dark text on a light pill),
+   just bright. That is an imperfection, not a bug.
+
+   These few are different: they are CHROME, on every page, and the sidebar's
+   active pill is the brightest thing on a dark screen. Each flips background
+   AND text together, so the pair stays consistent. Dark-only: light is
+   untouched. */
+[data-theme="dark"] .sb-link.active { background: #172554; color: #93b4fd; }
+[data-theme="dark"] .ws-row.active { background: #172554; color: #93b4fd; }
+[data-theme="dark"] .sb-link-badge { background: #451a03; color: #fcd34d; }
+[data-theme="dark"] .placeholder-icon { background: #172554; color: #93b4fd; }
+[data-theme="dark"] .tb-action.is-ai:hover { background: #172554; border-color: #1e3a5f; }
+
+/* Same half-flipped gradient as .gst-liab (see pages.css): brand-50 stayed
+   light while --ql-card went dark. */
+[data-theme="dark"] .sb-upgrade { background: linear-gradient(160deg, #172554, var(--ql-card)); border-color: #1e3a5f; }

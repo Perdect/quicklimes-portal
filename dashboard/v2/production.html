@@ -2,6 +2,13 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — runs before the splash paints. The app shell applies the theme
+   at mount, which is far too late: the splash is inline at the top of <body>, so
+   a late flip = white flash, then dark. Resolves 'system' here too, so data-theme
+   is ALWAYS a literal light|dark and CSS never has to ask twice. */
+(function(){try{var t=localStorage.getItem('ql_theme')||'system';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Production — QuickLimes v2</title>
 <meta name="theme-color" content="#2563EB">
@@ -16,8 +23,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r5"><link rel="stylesheet" href="./pages.css?v=m14">
-<link rel="stylesheet" href="./mobile.css?v=m9">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r6"><link rel="stylesheet" href="./pages.css?v=m15">
+<link rel="stylesheet" href="./mobile.css?v=m10">
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
 <link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/375x667@2x.png">
@@ -64,12 +71,31 @@
 @keyframes qs-show{to{opacity:1}}
 @keyframes qs-run{0%{transform:translateX(-110%)}100%{transform:translateX(360%)}}
 @keyframes qs-failsafe{to{opacity:0;visibility:hidden;pointer-events:none}}
-@media (prefers-color-scheme:dark){#ql-splash{background:#020617}.qs-name{color:#F1F5F9}.qs-bar{background:rgba(241,245,249,.13)}}
+[data-theme="dark"] #ql-splash{background:#020617}[data-theme="dark"] .qs-name{color:#F1F5F9}[data-theme="dark"] .qs-bar{background:rgba(241,245,249,.13)}
 @media (prefers-reduced-motion:reduce){.qs-bar::after{animation-duration:2.4s}}
 </style>
 <div id="ql-splash" role="status" aria-label="Loading">
 <svg class="qs-mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="115" fill="#0073EC"/><polygon points="96,200 160,128 352,128 416,200 256,400" fill="#fff"/></svg>
 <div class="qs-name">Gotan Lime</div><div class="qs-bar"></div></div>
+<style id="prd-css">
+/* Derived-table marks. Scoped to this page on purpose: pages.css is shared and this
+   vocabulary (a derived figure, a bill that never gave up its tonnage) exists nowhere
+   else yet. Uses tokens only, so dark mode follows without a second rule. */
+.prd-note{font-size:12.5px;line-height:1.55;color:var(--ql-text-soft);background:var(--ql-surface-2,var(--ql-bg));border:1px solid var(--ql-divider);border-radius:10px;padding:10px 12px;margin-bottom:var(--ql-space-3)}
+.prd-note b{color:var(--ql-text)}
+.prd-dash{color:var(--ql-text-muted);cursor:help}
+.prd-warn{display:inline-grid;place-items:center;width:14px;height:14px;margin-left:5px;border-radius:50%;background:var(--ql-warning-50);color:var(--ql-warning-600);font-size:10px;font-weight:800;cursor:help;vertical-align:middle}
+.prd-meas{font-weight:700}
+.prd-sub{font-size:11px;color:var(--ql-text-muted);margin-top:1px}
+.prd-src{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;cursor:help;white-space:nowrap}
+.prd-src-d{background:var(--ql-brand-50);color:var(--ql-brand-600)}
+.prd-src-m{background:var(--ql-success-50);color:var(--ql-success-600)}
+.prd-gap{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;margin-bottom:var(--ql-space-3);border:1px solid var(--ql-warning-200,var(--ql-divider));background:var(--ql-warning-50);border-radius:10px}
+.prd-gap-ic{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--ql-warning-600);color:#fff;font-weight:800;font-size:12px}
+.prd-gap-t{font-weight:700;font-size:13px;color:var(--ql-text)}
+.prd-gap-s{font-size:12px;line-height:1.5;color:var(--ql-text-soft);margin-top:2px}
+.prd-gap .ql-btn{flex:none;margin-left:auto;align-self:center}
+</style>
 <div id="ql-page">
   <div class="dash">
     <div class="page-head">
@@ -89,10 +115,23 @@
 
     <div class="card" style="margin-top:var(--ql-space-4)">
       <div class="card-head">
-        <div><h3 class="card-title">Production runs</h3><div class="card-sub" id="prdRunSub">Record what was consumed &amp; produced — this is what makes stock & cost/ton real</div></div>
+        <div><h3 class="card-title">Material &amp; output by month</h3><div class="card-sub" id="prdRunSub">Read off the bills you already uploaded — intake from purchases, dispatch from invoices</div></div>
         <button class="ql-btn ql-btn-primary" id="prdAdd">+ Record production</button>
       </div>
+      <div id="prdGap"></div>
+      <div class="prd-note">
+        <b>These rows are derived from your bills, not measured on the floor.</b>
+        A purchase bill proves material <b>arrived</b>; an invoice proves lime <b>left the gate</b>. Neither one proves what was burnt and made on a given day —
+        so this table never claims an output figure, and a blank cell means the bills don't say. Record a run to override a month with measured numbers.
+      </div>
       <div class="kpi-strip" id="prdStats" style="grid-template-columns:repeat(4,1fr);margin-bottom:var(--ql-space-3)"></div>
+      <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Month</th><th class="num">Limestone (T)</th><th class="num">Petcoke (T)</th><th class="num">Bags</th><th class="num">Quick Lime (T)</th><th class="num">Hydrated (T)</th><th class="num">Implied</th><th>Source</th></tr></thead><tbody id="prdDerived"></tbody></table></div>
+    </div>
+
+    <div class="card" id="prdRunsCard" style="margin-top:var(--ql-space-4);display:none">
+      <div class="card-head">
+        <div><h3 class="card-title">Measured runs</h3><div class="card-sub">Recorded on site — the only source of true output. Each one overrides its month above.</div></div>
+      </div>
       <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Date</th><th class="num">Limestone (T)</th><th class="num">Petcoke (T)</th><th class="num">Bags</th><th class="num">Quick Lime (T)</th><th class="num">Hydrated (T)</th><th class="num">Labour</th><th></th></tr></thead><tbody id="prdRuns"></tbody></table></div>
     </div>
   </div>
@@ -101,11 +140,11 @@
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./dedupe.js?v=m29"></script>
-<script src="./dedupe-ui.js?v=m29"></script>
-<script src="./data.js?v=m34"></script>
+<script src="./dedupe-ui.js?v=m30"></script>
+<script src="./data.js?v=m35"></script>
 <script src="./wa-core.js?v=w2"></script>
-<script src="./shell.js?v=m48"></script>
-<script src="./mobile.js?v=m11"></script>
+<script src="./shell.js?v=m49"></script>
+<script src="./mobile.js?v=m12"></script>
 <script>
 QLShell.mount({ active: 'ql-prod', title: 'Production' });
 function bars(series) {
@@ -140,28 +179,97 @@ function render() {
   QLShell.paintWorkspace();
 }
 const fC = v => QLD.fC(v), nT = v => QLD.fmt(v || 0, 1);
+const esc = s => (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* One cell of the derived table. The whole honesty of this page lives here, so it is
+   worth being explicit about the three states it can be in:
+     · a number  — real, and its title lists the exact bills it was added up from;
+     · '—' quiet — there were no bills of that kind that month, nothing to report;
+     · '—' flagged — there WERE bills, but not one of them carries a quantity. That is
+       not "zero tonnes", it is "your bills don't say", and it is the single most
+       useful thing this page can tell him, so it gets a marker instead of a shrug. */
+function dcell(c, dec) {
+  const dash = t => `<span class="prd-dash" title="${esc(t)}">—</span>`;
+  if (!c) return dash('Not derived');
+  if (c.v == null) {
+    // "1 limestone bills" reads like a bug even when the number is right.
+    const nBills = c.bills + ' ' + (c.bills === 1 ? (c.label || 'bill').replace(/s$/, '') : (c.label || 'bills'));
+    if (!c.bills) return dash('No ' + (c.label || 'bills') + ' this month — nothing to read');
+    return dash(nBills + ' this month, but ' + (c.bills === 1 ? 'it does not carry' : 'none carry') + ' a readable quantity. The tonnage is on the PDFs — it was never read off them. Run “Read quantities” on the Purchase register.')
+      + `<span class="prd-warn" title="${esc(nBills + ' with no quantity')}">!</span>`;
+  }
+  const lines = c.refs.slice(0, 12).map(r => `${r.ref || '—'}${r.date ? ' · ' + r.date : ''}${r.party ? ' · ' + r.party : ''} → ${QLD.fmt(r.qty, dec)}`);
+  if (c.refs.length > 12) lines.push('…and ' + (c.refs.length - 12) + ' more');
+  const tip = (c.measured ? 'Measured on site\n' : 'Added up from ' + c.read + ' bill' + (c.read === 1 ? '' : 's') + ':\n') + lines.join('\n')
+    + (c.missing ? '\n\n' + c.missing + ' more bill' + (c.missing === 1 ? '' : 's') + ' with no readable quantity — NOT counted, so this figure is a floor, not a total.' : '');
+  return `<span class="${c.measured ? 'prd-meas' : ''}" title="${esc(tip)}">${QLD.fmt(c.v, dec)}</span>`
+    + (c.missing ? `<span class="prd-warn" title="${esc(c.missing + ' bill(s) with no quantity are missing from this figure')}">!</span>` : '');
+}
+
 function renderRuns() {
+  const der = QLD.productionDerived(), gaps = QLD.derivedQtyGaps();
   const rows = QLD.productionRows(), st = QLD.prodStats();
+
+  /* Say it loudly, with his own numbers. A feature that is blocked on data must
+     announce that it is blocked — not quietly render a table of dashes and let him
+     conclude the app is broken. */
+  const g = document.getElementById('prdGap');
+  const pm = gaps.purchase.missing, sm = gaps.sales.missing;
+  g.innerHTML = (pm || sm) ? `<div class="prd-gap">
+    <div class="prd-gap-ic">!</div>
+    <div><div class="prd-gap-t">${pm ? pm + ' of ' + gaps.purchase.total + ' material bills ' + (pm === 1 ? 'has' : 'have') + ' no quantity' : ''}${pm && sm ? ' · ' : ''}${sm ? sm + ' of ' + gaps.sales.total + ' invoices ' + (sm === 1 ? 'has' : 'have') + ' no quantity' : ''}</div>
+    <div class="prd-gap-s">Those bills are left out of the figures below — they are not counted as zero. ${gaps.purchase.fixable ? '<b>' + gaps.purchase.fixable + '</b> of them still ' + (gaps.purchase.fixable === 1 ? 'has' : 'have') + ' the original PDF attached, so the tonnage can be read straight off the paper: open the Purchase register → <b>Read quantities</b>.' : 'Add the quantity on each bill to bring it into these totals.'}</div></div>
+    ${gaps.purchase.fixable ? '<a class="ql-btn ql-btn-ghost" href="/v2/purchase">Read quantities →</a>' : ''}
+  </div>` : '';
+
   const stat = (lb, v, m) => `<div class="kpi-tile"><div><div class="kpi-label">${lb}</div><div class="kpi-val">${v}</div><div class="kpi-meta">${m}</div></div></div>`;
-  document.getElementById('prdStats').innerHTML = st.runs ? [
-    stat('Consumed', nT(st.consumed.limestone) + ' T', 'limestone · ' + nT(st.consumed.petcoke) + ' T petcoke'),
-    stat('Produced', nT(st.output) + ' T', nT(st.produced.quicklime) + ' T QL · ' + nT(st.produced.hydrated) + ' T HL'),
-    stat('Cost / ton', st.costPerTon ? fC(st.costPerTon) : '—', 'material + labour'),
-    stat('Yield', st.yield ? st.yield.toFixed(0) + '%' : '—', 'output ÷ limestone')
-  ].join('') : '';
-  const tb = document.getElementById('prdRuns');
-  if (!rows.length) { tb.innerHTML = `<tr><td colspan="8"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:36px 20px;text-align:center">
-    <div style="width:54px;height:54px;border-radius:15px;display:grid;place-items:center;background:#e9f9ee;font-size:25px;margin-bottom:4px">🏭</div>
-    <div style="font-weight:700;color:var(--ql-text)">No production runs yet</div>
-    <div style="color:var(--ql-text-soft);font-size:13px;max-width:340px">Record a day's consumption &amp; output to compute real stock and cost per ton.</div>
-    <button class="ql-btn ql-btn-primary" onclick="document.getElementById('prdAdd').click()" style="margin-top:10px">+ Record production</button>
-  </div></td></tr>`; return; }
-  tb.innerHTML = rows.map(r => `<tr>
+  const sum = k => der.reduce((a, r) => a + (r[k].v || 0), 0);
+  const any = k => der.some(r => r[k].v != null);
+  const hasOut = any('quicklime') || any('hydrated');
+  const totIn = sum('limestone'), totOut = sum('quicklime') + sum('hydrated');
+  /* Never a yield. Output ÷ intake is a ratio of two real numbers and nothing more —
+     he can dispatch stock he burnt last month — which is why it is not allowed to be
+     called a yield anywhere on this page. Both sides must be real or it stays blank. */
+  const ratio = (any('limestone') && totIn > 0 && hasOut) ? (totOut / totIn * 100).toFixed(0) + '%' : '—';
+  document.getElementById('prdStats').innerHTML = [
+    stat('Limestone in', any('limestone') ? nT(totIn) + ' T' : '—', any('limestone') ? 'from purchase bills' : 'no quantity on any bill'),
+    stat('Petcoke in', any('petcoke') ? nT(sum('petcoke')) + ' T' : '—', any('petcoke') ? 'from purchase bills' : 'no quantity on any bill'),
+    stat('Lime dispatched', hasOut ? nT(totOut) + ' T' : '—', 'from your invoices'),
+    stat('Implied ratio', ratio, 'dispatch ÷ intake · not a yield')
+  ].join('');
+
+  const tb = document.getElementById('prdDerived');
+  if (!der.length) {
+    tb.innerHTML = `<tr><td colspan="8"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:36px 20px;text-align:center">
+      <div style="width:54px;height:54px;border-radius:15px;display:grid;place-items:center;background:#e9f9ee;font-size:25px;margin-bottom:4px">🏭</div>
+      <div style="font-weight:700;color:var(--ql-text)">No bills yet</div>
+      <div style="color:var(--ql-text-soft);font-size:13px;max-width:380px">Upload a purchase bill or raise an invoice and this table fills itself — limestone and petcoke in, lime out, month by month. Or record a run to enter measured figures.</div>
+      <button class="ql-btn ql-btn-primary" onclick="document.getElementById('prdAdd').click()" style="margin-top:10px">+ Record production</button>
+    </div></td></tr>`;
+  } else {
+    tb.innerHTML = der.map(r => {
+      const badge = r.source === 'measured'
+        ? `<span class="prd-src prd-src-m" title="${esc('Measured on site: ' + (r.overrode || []).join(', ') + ' come from ' + r.runs + ' recorded run(s) and override what the bills implied for ' + r.label + '. Remaining columns are still from the bills.')}">Measured</span>`
+        : `<span class="prd-src prd-src-d" title="Every figure in this row was added up from your uploaded bills. Nothing here was measured or estimated.">From bills</span>`;
+      return `<tr>
+      <td><div style="font-weight:600">${esc(r.label)}</div>${r.source === 'measured' ? `<div class="prd-sub">overrides the bills for this month</div>` : ''}</td>
+      <td class="num">${dcell(r.limestone, 1)}</td><td class="num">${dcell(r.petcoke, 1)}</td><td class="num">${dcell(r.bags, 0)}</td>
+      <td class="num">${dcell(r.quicklime, 1)}</td><td class="num">${dcell(r.hydrated, 1)}</td>
+      <td class="num">${r.implied == null ? `<span class="prd-dash" title="Needs a real intake AND a real dispatch figure for this month. One side is missing, so there is nothing honest to divide.">—</span>` : `<span title="${esc('Dispatch ÷ limestone intake for ' + r.label + '. This is what the paperwork implies, NOT a measured yield — lime dispatched this month may have been burnt last month.')}">${r.implied.toFixed(0)}%</span>`}</td>
+      <td>${badge}</td></tr>`;
+    }).join('');
+  }
+
+  // The measured runs keep their own table: it is the only place true output lives,
+  // and the only place a run can be deleted from.
+  document.getElementById('prdRunsCard').style.display = rows.length ? '' : 'none';
+  const rt = document.getElementById('prdRuns');
+  rt.innerHTML = rows.map(r => `<tr>
     <td>${r.date || '—'}</td><td class="num">${r.limestone ? nT(r.limestone) : '—'}</td><td class="num">${r.petcoke ? nT(r.petcoke) : '—'}</td>
     <td class="num">${r.bags ? r.bags.toLocaleString('en-IN') : '—'}</td><td class="num">${r.quicklime ? nT(r.quicklime) : '—'}</td>
     <td class="num">${r.hydrated ? nT(r.hydrated) : '—'}</td><td class="num">${r.labour ? fC(r.labour) : '—'}</td>
     <td class="num"><button class="ql-btn ql-btn-ghost" data-del="${r.idx}" title="Delete">✕</button></td></tr>`).join('');
-  tb.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { QLShell.confirmDelete({ title: 'Move production run to Trash?', desc: 'This production run will move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { QLD.deleteProduction(+b.dataset.del, reason); render(); } }); });
+  rt.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { QLShell.confirmDelete({ title: 'Move production run to Trash?', desc: 'This production run will move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { QLD.deleteProduction(+b.dataset.del, reason); render(); } }); });
 }
 const PROD_SPECS = [
   { k: 'date', label: 'Date', type: 'date', req: true },

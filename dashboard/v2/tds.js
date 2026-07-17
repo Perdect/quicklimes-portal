@@ -11,11 +11,17 @@ QLX.mount({
   data: () => Q.tdsRows(), rowId: r => r.idx, dateField: r => r.date,
   primary: { label: 'Add TDS', icon: IC.plus, onClick: () => QLShell.openTdsForm() },
   tools: [{ label: 'Export', icon: IC.dl, onClick: () => exportTds() }],
-  stats: () => { const s = Q.tdsSummary(); return [
-    { label: 'Entries', value: s.count, sub: 'TDS deductions', tint: 'blue', icon: IP.file },
-    { label: 'Gross Amount', value: fC(s.amount), sub: 'total billed', tint: 'indigo', icon: IP.sum },
-    { label: 'TDS Deducted', value: fC(s.tds), sub: 'to deposit', tint: 'rose', icon: IP.cut },
-    { label: 'Net Paid', value: fC(s.net), sub: 'after TDS', tint: 'green', icon: IP.net }
+  /* TDS is filed per period — a quarter, built out of months — so "what did I
+     deduct in March / in 2026" is the question this page exists to answer, and
+     every entry carries a date. Nothing here is a running balance. */
+  monthFilter: true, monthOf: r => r.date, emptyLabel: 'TDS',
+  /* Summed from the scoped `rows` QLX passes in, not Q.tdsSummary() — which is
+     always all-time and would have left these four cards frozen. */
+  stats: rows => { const per = QLX.monthLabel().toLowerCase(); return [
+    { label: 'Entries', value: rows.length, sub: 'TDS deductions · ' + per, tint: 'blue', icon: IP.file },
+    { label: 'Gross Amount', value: fC(rows.reduce((a, r) => a + r.amount, 0)), sub: 'total billed', tint: 'indigo', icon: IP.sum },
+    { label: 'TDS Deducted', value: fC(rows.reduce((a, r) => a + r.tds, 0)), sub: 'to deposit', tint: 'rose', icon: IP.cut },
+    { label: 'Net Paid', value: fC(rows.reduce((a, r) => a + r.net, 0)), sub: 'after TDS', tint: 'green', icon: IP.net }
   ]; },
   search: (r, q) => (r.party + ' ' + r.pan + ' ' + r.sec).toLowerCase().includes(q),
   filters: [
@@ -46,4 +52,5 @@ QLX.mount({
   footer: rows => { const a = rows.reduce((x, r) => x + r.amount, 0), t = rows.reduce((x, r) => x + r.tds, 0), n = rows.reduce((x, r) => x + r.net, 0); return [{ label: 'Entries', value: rows.length }, { label: 'Gross', value: fC(a) }, { label: 'TDS', value: fC(t), strong: true }, { label: 'Net', value: fC(n) }]; },
   detail: r => ({ eyebrow: 'TDS · ' + esc(r.sec), title: esc(r.party), sub: 'TDS ' + fC(r.tds) + ' · ' + fDS(r.date), actions: [{ label: 'Edit', icon: IC.edit, primary: true, onClick: r => QLShell.openTdsForm(r.idx) }], tabs: [{ label: 'Overview', icon: IC.file, render: tabOverview }] })
 });
-function exportTds() { const r = Q.tdsRows(); QLShell.exportCSV('tds_' + (Q.co.short || 'entries').replace(/\s+/g, '_'), ['Date', 'Party', 'PAN', 'Section', 'Rate', 'Amount', 'TDS', 'Net', 'Remarks'], r.map(x => [x.date, x.party, x.pan, x.sec, x.rate, x.amount, x.tds, x.net, x.remarks])); toast('Exported ' + r.length + ' entries'); }
+// The scoped rows, so the CSV is the return period on screen — not every year.
+function exportTds() { const r = QLX.rows(); QLShell.exportCSV('tds_' + (Q.co.short || 'entries').replace(/\s+/g, '_') + (QLX.month() ? '_' + QLX.month() : ''), ['Date', 'Party', 'PAN', 'Section', 'Rate', 'Amount', 'TDS', 'Net', 'Remarks'], r.map(x => [x.date, x.party, x.pan, x.sec, x.rate, x.amount, x.tds, x.net, x.remarks])); toast('Exported ' + r.length + ' entries' + (QLX.month() ? ' · ' + QLX.monthLabel() : '')); }

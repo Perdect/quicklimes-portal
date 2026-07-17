@@ -114,7 +114,16 @@ function loadPage(fx) {
     console, Date, Math, Number, String, Array, Set, Map, JSON, RegExp, isNaN, parseFloat, parseInt,
     document: doc, QLD,
     window: { QLD, scrollY: 0, innerWidth: 1280, addEventListener: noop },
-    QLShell: { mount: noop, toast: noop, modal: noop, panel: noop },
+    /* monthButton/monthPicker are the app's ONE month picker (shell.js). The stub
+       echoes the label into the markup because that is exactly what the assertions
+       below care about: that the PAGE hands the picker the right label ("March
+       2026" from QLD.monthLabel). The real button's chrome is shell.js's business
+       and monthpicker.test.js's to pin — not this file's. */
+    QLShell: {
+      mount: noop, toast: noop, modal: noop, panel: noop,
+      monthButton: o => `<button class="ql-mp-btn" id="${o.id}">${o.label}</button>`,
+      monthPicker: noop, closeMonthPicker: noop
+    },
     QLMobile: null, setTimeout: noop, clearTimeout: noop
   };
   ctx.window.document = doc;
@@ -560,28 +569,31 @@ const FULL = { purchases: LIMESTONE_9.concat(PETCOKE_16, BAGS_1), sales: SALES_R
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   15. THE YEAR ARROWS
-   monthpicker.test.js pins this for every .js file — but it globs `*.js`, so an
-   inline <script> in a .html page is invisible to it and this picker would ship
-   unguarded. Same assertions, applied to inventory.html.
+   15. THE PICKER IS NOT THIS PAGE'S
+   This section used to assert that inventory.html binds its OWN year arrows and
+   that they carry the stopPropagation fix — because back then this page had its
+   own picker, the fourth copy. Its stated reason was that monthpicker.test.js
+   "globs `*.js`, so an inline <script> in a .html page is invisible to it".
+
+   Both halves are now obsolete, and in the right direction: the page has no
+   picker to guard (it calls QLShell.monthPicker), and monthpicker.test.js reads
+   .html files too, so the blind spot this section covered is closed at the
+   source. What is left worth pinning here is that Inventory did not quietly LOSE
+   anything in the consolidation.
    ══════════════════════════════════════════════════════════════════════════ */
 {
-  /* Strip comments first: this file EXPLAINS the bug in prose, and a bare
-     /stopPropagation/ would happily match the explanation instead of the code.
-     That false positive has already bitten once, in waphone.test.js. */
   const code = HTML.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1');
-  const handlers = code.match(/\[data-yr\][^\n]*onclick[^\n]*/g) || [];
-  eq('inventory.html binds its year arrows', handlers.length, 1);
-  handlers.forEach(h => {
-    ok(/stopPropagation/.test(h),
-      'the ‹ › year arrows do not stopPropagation. paint() detaches the clicked button, the click bubbles ' +
-      'to the document close-handler, and the picker shuts instead of changing year. Fixed three times ' +
-      'already in qlx.js / dashboard.js / reconcile.js — copy it.');
-    ok(/onclick\s*=\s*(e|ev|event)\s*=>/.test(h), 'the year-arrow handler takes no event argument, so it cannot stop propagation');
-  });
-  const cells = code.match(/\[data-ym\][^\n]*onclick[^\n]*/g) || [];
-  eq('inventory.html binds its month cells', cells.length, 1);
-  cells.forEach(c => ok(/close/i.test(c), 'picking a month should CLOSE the picker — this handler never calls close'));
+  ok(!/\[data-yr\]/.test(code) && !/data-yr\s*=/.test(code),
+    'inventory.html must not build its own year arrows — it had the 4th copy of the picker. Use QLShell.monthPicker.');
+  ok(/QLShell\.monthPicker\s*\(/.test(code), 'inventory.html opens the SHARED picker');
+  ok(/QLShell\.monthButton\s*\(/.test(code), '  and renders the shared trigger, so the button matches the calendar');
+
+  /* Inventory's picker genuinely does more than the registers': stock is a
+     running position, so it offers "Whole year 2026" and calls the unfiltered
+     case "All time", not "All months". Those survived as OPTIONS on the shared
+     picker — losing them would be a silent feature deletion dressed as cleanup. */
+  ok(/years:\s*true/.test(code), 'inventory keeps its "Whole year" option (years: true on the shared picker)');
+  ok(/allLabel:\s*'All time'/.test(code), 'inventory keeps "All time" (not "All months" — stock is not a monthly book)');
 
   ok(/QLD\.monthLabel/.test(HTML), 'the page defers to QLD.monthLabel for "March 2026" rather than building a sixth copy');
   /* Both quote styles. monthlabel.test.js only matches single quotes, and

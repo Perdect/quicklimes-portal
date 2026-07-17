@@ -75,7 +75,12 @@ vm.runInContext([
   grabLine('function addCashEntry(e)'),
   grabBlock('function addLedgerPayment(o)', '\n  }'),
   grabBlock('function addTransfer(o)', '\n  }'),
-  'this.X = { withIdx, methodToMode, modeToMethod, accountBalances, cashbookBalances, cashbookRows, addCashEntry, addLedgerPayment, addTransfer };'
+  /* The REAL period helpers — the page's month filter runs on these, and a copy
+     of inPeriod living in this file could agree with a broken original. */
+  grabBlock('function inPeriod(date, period)', '\n  }'),
+  grabBlock('function monthLabel(ym, opts)', '\n  }'),
+  grabBlock('function periodLabel(p, allLabel)', '\n  }'),
+  'this.X = { withIdx, methodToMode, modeToMethod, accountBalances, cashbookBalances, cashbookRows, addCashEntry, addLedgerPayment, addTransfer, inPeriod, periodLabel };'
 ].join('\n'), dctx);
 const X = dctx.X;
 ok(typeof X.accountBalances === 'function', 'the real balance maths loaded out of data.js');
@@ -268,6 +273,8 @@ const doc = {
   createElement: () => elStub, addEventListener: noop, body: elStub, documentElement: elStub
 };
 let CFG = null, exported = null, deleted = null;
+// The month/year the shared picker is standing on. 'all' | 'YYYY' | 'YYYY-MM'.
+let QLXPERIOD = 'all';
 /* QLD here is the REAL extracted maths over the REAL store — not a hand-written
    stub. So the page's footer/stats are computed from the same code the app runs. */
 const QLD = {
@@ -279,6 +286,7 @@ const QLD = {
   salesRows: () => [], purchaseRows: () => [], partyRows: () => [],
   bankAccounts: () => [], bankAccountById: () => null, bankAccountLabel: () => '',
   deleteCashEntry: (i, reason) => { deleted = { i, reason }; },
+  inPeriod: (d, p) => X.inPeriod(d, p), periodLabel: (p, a) => X.periodLabel(p, a),
   uiMonth: () => null, setUiMonth: noop
 };
 const ctx = {
@@ -286,7 +294,12 @@ const ctx = {
   QLShell: { mount: noop, modal: noop, toast: noop, openForm: noop, confirmDelete: noop, openCashForm: noop,
     exportCSV: (name, head, rows) => { exported = { name, head, rows }; } },
   QLD, QLFin: {}, QLMobile: null,
+  /* rows/month/monthLabel are the month-filter half of the real QLX — the page's
+     stats and export read them, so a stub without them fails only here. */
   QLX: { esc: s => String(s == null ? '' : s), svg: () => '', icons: {}, toast: noop, refresh: noop,
+    rows: () => QLD.cashbookRows().filter(r => QLD.inPeriod(r.date, QLXPERIOD)),
+    month: () => (QLXPERIOD && QLXPERIOD !== 'all') ? QLXPERIOD : null,
+    monthLabel: () => QLD.periodLabel(QLXPERIOD),
     state: () => ({}), actionsCell: () => '', open: noop, close: noop, mount: c => { CFG = c; } },
   setTimeout: noop, clearTimeout: noop, requestAnimationFrame: noop,
   localStorage: { getItem: () => null, setItem: noop }, sessionStorage: { getItem: () => null, setItem: noop },
@@ -326,8 +339,11 @@ ok(CFG !== null, 'the real cashbook.js mounted and handed over its config');
   eq('quick filter Money Out', qf('debit').length, 2);
 
   /* The stat cards. Money Out must sum debits only — if it ever included credits
-     the card would read ₹15,000 on ₹5,000 of spending. */
-  const stats = CFG.stats();
+     the card would read ₹15,000 on ₹5,000 of spending.
+     stats() is called the way QLX calls it — with the month-scoped rows — because
+     that is the real contract; calling it bare tested a signature the app never
+     uses, and would pass a stats() that throws the moment a month is picked. */
+  const stats = CFG.stats(CFG.data());
   const stat = l => stats.find(s => s.label === l).value;
   eq('Cash card', stat('Cash'), '₹10,000');
   eq('Bank card', stat('Bank'), '₹-4,000');
@@ -387,7 +403,7 @@ ok(CFG !== null, 'the real cashbook.js mounted and handed over its config');
   eq('the register lists no entries', CFG.data().length, 0);
   eq('  and the footer agrees there is no money in', CFG.footer(CFG.data())[0].value, '₹0');
   eq('  ✗ BUG: but the Total Balance card still shows the trashed ₹1,000',
-    CFG.stats().find(s => s.label === 'Total Balance').value, '₹1,000');
+    CFG.stats(CFG.data()).find(s => s.label === 'Total Balance').value, '₹1,000');
   ok(/0 entries/.test(CFG.subtitle()) && /₹1,000/.test(CFG.subtitle()),
     '  ✗ BUG: the subtitle literally renders "0 entries · Balance ₹1,000"');
 }

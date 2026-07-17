@@ -1,15 +1,15 @@
 {
   "shell.css": {
-    "v": "r5",
-    "sha": "cd5aab0219a5"
+    "v": "r6",
+    "sha": "e14b59b8e371"
   },
   "pages.css": {
-    "v": "m14",
-    "sha": "d856dfcc04b0"
+    "v": "m15",
+    "sha": "8efc2427553e"
   },
   "mobile.css": {
-    "v": "m9",
-    "sha": "be4799fc6345"
+    "v": "m10",
+    "sha": "9b5298d52147"
   },
   "party-identity.js": {
     "v": "m27",
@@ -24,48 +24,48 @@
     "sha": "2aabbbfb2b20"
   },
   "dedupe-ui.js": {
-    "v": "m29",
-    "sha": "e84bf66cc1ae"
+    "v": "m30",
+    "sha": "dfb6fc4b9fbb"
   },
   "data.js": {
-    "v": "m34",
-    "sha": "e0b0e608b795"
+    "v": "m35",
+    "sha": "ce5a4bf3ff02"
   },
   "wa-core.js": {
     "v": "w2",
     "sha": "953089d24f6b"
   },
   "shell.js": {
-    "v": "m48",
-    "sha": "97921aa31743"
+    "v": "m49",
+    "sha": "0de40dda6e5d"
   },
   "mobile.js": {
-    "v": "m11",
-    "sha": "68bae01c08a8"
+    "v": "m12",
+    "sha": "6f87dd3e6551"
   },
   "recon-core.js": {
     "v": "rc5",
     "sha": "22530e020ddc"
   },
   "qlx.css": {
-    "v": "m8",
-    "sha": "0b65599fb422"
+    "v": "m9",
+    "sha": "978638765795"
   },
   "qlx.js": {
-    "v": "m16",
-    "sha": "a9d79f9e588b"
+    "v": "m17",
+    "sha": "aac79cd4bf19"
   },
   "cashbook.js": {
-    "v": "m2",
-    "sha": "15b6843e22d8"
+    "v": "m3",
+    "sha": "e860f2d1b5b2"
   },
   "chat.js": {
-    "v": "ch1",
-    "sha": "592499fb4060"
+    "v": "ch2",
+    "sha": "05f85ba612e5"
   },
   "wa.js": {
-    "v": "w3",
-    "sha": "8fd3693c17c3"
+    "v": "w4",
+    "sha": "5fe01c9cd041"
   },
   "collections.js": {
     "v": "c3",
@@ -84,16 +84,16 @@
     "sha": "707a2d4aedb9"
   },
   "dash.css": {
-    "v": "d4",
-    "sha": "3184db361059"
+    "v": "d5",
+    "sha": "e6c4b9c7e05c"
   },
   "dashboard.js": {
     "v": "m21",
     "sha": "50815f9ec226"
   },
   "finance.js": {
-    "v": "ocr21",
-    "sha": "6bd02010b845"
+    "v": "ocr22",
+    "sha": "eaa9463375d0"
   },
   "inventory.css": {
     "v": "i2",
@@ -112,8 +112,8 @@
     "sha": "ee705d0052bf"
   },
   "crm.css": {
-    "v": "m4",
-    "sha": "28184f0d3431"
+    "v": "m5",
+    "sha": "cf2c6c76914e"
   },
   "ledger.js": {
     "v": "lg3",
@@ -136,16 +136,16 @@
     "sha": "174a7b01f0d4"
   },
   "icp.js": {
-    "v": "i1",
-    "sha": "829ffd24ba67"
+    "v": "i2",
+    "sha": "c80d58b5e4b0"
   },
   "parties.js": {
     "v": "crm9c",
     "sha": "92f29dea02a8"
   },
   "payments.js": {
-    "v": "m2c",
-    "sha": "df6932574047"
+    "v": "m2d",
+    "sha": "12261323db3a"
   },
   "i18n.js": {
     "v": "h2",
@@ -168,16 +168,16 @@
     "sha": "80f63b457dbf"
   },
   "bulk.js": {
-    "v": "b13",
-    "sha": "d4c20d38014d"
+    "v": "b14",
+    "sha": "f146b650ccfe"
   },
   "purchase.js": {
-    "v": "m37",
-    "sha": "cb0f8172d0ac"
+    "v": "m38",
+    "sha": "963b90d06b13"
   },
   "reconcile.css": {
-    "v": "f5",
-    "sha": "f8080f6ce826"
+    "v": "f6",
+    "sha": "6b98dfae34e7"
   },
   "recon-apply.js": {
     "v": "ra1",
@@ -212,7 +212,7 @@
     "sha": "15eb5f5bc346"
   },
   "tds.js": {
-    "v": "m2",
-    "sha": "43ca14a96598"
+    "v": "m3",
+    "sha": "68d16b01e9b8"
   }
 }

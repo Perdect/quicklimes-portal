@@ -2,6 +2,13 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — runs before the splash paints. The app shell applies the theme
+   at mount, which is far too late: the splash is inline at the top of <body>, so
+   a late flip = white flash, then dark. Resolves 'system' here too, so data-theme
+   is ALWAYS a literal light|dark and CSS never has to ask twice. */
+(function(){try{var t=localStorage.getItem('ql_theme')||'system';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>GST — QuickLimes v2</title>
 <meta name="theme-color" content="#2563EB">
@@ -16,8 +23,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r5"><link rel="stylesheet" href="./pages.css?v=m14">
-<link rel="stylesheet" href="./mobile.css?v=m9">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r6"><link rel="stylesheet" href="./pages.css?v=m15">
+<link rel="stylesheet" href="./mobile.css?v=m10">
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
 <link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/375x667@2x.png">
@@ -64,7 +71,7 @@
 @keyframes qs-show{to{opacity:1}}
 @keyframes qs-run{0%{transform:translateX(-110%)}100%{transform:translateX(360%)}}
 @keyframes qs-failsafe{to{opacity:0;visibility:hidden;pointer-events:none}}
-@media (prefers-color-scheme:dark){#ql-splash{background:#020617}.qs-name{color:#F1F5F9}.qs-bar{background:rgba(241,245,249,.13)}}
+[data-theme="dark"] #ql-splash{background:#020617}[data-theme="dark"] .qs-name{color:#F1F5F9}[data-theme="dark"] .qs-bar{background:rgba(241,245,249,.13)}
 @media (prefers-reduced-motion:reduce){.qs-bar::after{animation-duration:2.4s}}
 </style>
 <div id="ql-splash" role="status" aria-label="Loading">
@@ -74,7 +81,9 @@
   <div class="dash">
     <div class="page-head">
       <div><h1 class="page-title">GST Summary</h1><div class="page-sub" id="gsSub">Output tax · Input credit · Net liability</div></div>
-      <div class="page-actions">
+      <!-- QLShell.periodFilter prepends the shared month/year button here. GST is
+           filed BY PERIOD, so an all-time-only GST screen was the odd one out. -->
+      <div class="page-actions" id="gsActions">
         <button class="ql-btn ql-btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> GSTR report</button>
       </div>
     </div>
@@ -95,23 +104,35 @@
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./dedupe.js?v=m29"></script>
-<script src="./dedupe-ui.js?v=m29"></script>
-<script src="./data.js?v=m34"></script>
+<script src="./dedupe-ui.js?v=m30"></script>
+<script src="./data.js?v=m35"></script>
 <script src="./wa-core.js?v=w2"></script>
-<script src="./shell.js?v=m48"></script>
-<script src="./mobile.js?v=m11"></script>
+<script src="./shell.js?v=m49"></script>
+<script src="./mobile.js?v=m12"></script>
 <script>
 QLShell.mount({ active: 'gst', title: 'GST Summary' });
+
+/* The month/year filter. GST is a PERIOD tax — GSTR-3B is filed for one month —
+   so this page had the strongest claim to the picker and none of it. Both sides
+   of the liability are dated (sales, purchases), so every number below scopes
+   honestly; nothing here is a running balance. */
+let PF = null;
+const gstHave = () => new Set([...QLD.salesRows().map(r => (r.date || '').slice(0, 7)),
+  ...QLD.purchaseRows().map(r => (r.date || '').slice(0, 7))].filter(Boolean));
 function render() {
-  const co = QLD.co, g = QLD.gstSummary();
+  /* One mount, not one per render: periodFilter appends its button, and calling
+     it from render() would stack a new calendar button on every refresh. */
+  if (!PF) PF = QLShell.periodFilter('gsActions', { id: 'gsMonthBtn', have: gstHave, prepend: true, onChange: () => render() });
+  const co = QLD.co, g = QLD.gstSummary(PF.period());
+  const per = PF.label();
   const K = [
-    { label: 'Output GST', v: QLD.fC(g.outGST), meta: 'collected on sales', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>' },
-    { label: 'Input Tax Credit', v: QLD.fC(g.itc), meta: 'paid on purchases', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>' },
-    { label: 'Net Payable', v: QLD.fC(g.net), meta: 'to government', bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>' },
-    { label: 'Taxable Sales', v: QLD.fC(g.taxable), meta: 'net of GST', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-5"/></svg>' }
+    { label: 'Output GST', v: QLD.fC(g.outGST), meta: 'collected on sales · ' + per, bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>' },
+    { label: 'Input Tax Credit', v: QLD.fC(g.itc), meta: 'paid on purchases · ' + per, bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>' },
+    { label: 'Net Payable', v: QLD.fC(g.net), meta: 'to government · ' + per, bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>' },
+    { label: 'Taxable Sales', v: QLD.fC(g.taxable), meta: 'net of GST · ' + per, bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-5"/></svg>' }
   ];
   document.getElementById('gsKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
-  document.getElementById('gsSub').textContent = `${co.short} · Net payable ${QLD.fC(g.net)}`;
+  document.getElementById('gsSub').textContent = `${co.short} · ${per} · Net payable ${QLD.fC(g.net)}`;
   const liab = [
     { l: 'CGST (output)', v: g.cgst, sign: '+' },
     { l: 'SGST (output)', v: g.sgst, sign: '+' },

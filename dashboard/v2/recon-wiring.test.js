@@ -56,7 +56,14 @@ const QLD = {
   uiMonth: () => null, setUiMonth: noop, partyLedger: () => [],
 };
 const ctx = {
-  console, window: {}, document: doc, QLShell: { mount: noop, modal: noop, toast: noop, openForm: noop },
+  /* monthButton/monthPicker: the app's ONE month picker, which reconcile.js now
+     calls instead of carrying the 3rd copy of it. */
+  console, window: {}, document: doc,
+  QLShell: {
+    mount: noop, modal: noop, toast: noop, openForm: noop,
+    monthButton: o => `<button class="ql-mp-btn" id="${o.id}">${o.label}</button>`,
+    monthPicker: noop, closeMonthPicker: noop
+  },
   QLD: QLD, QLFin: {}, QLMobile: null, setTimeout: noop, clearTimeout: noop, requestAnimationFrame: noop,
   localStorage: { getItem: () => null, setItem: noop }, sessionStorage: { getItem: () => null, setItem: noop },
   location: { href: 'https://app.quicklimes.com/v2/reconcile', search: '', hash: '', pathname: '/v2/reconcile' },

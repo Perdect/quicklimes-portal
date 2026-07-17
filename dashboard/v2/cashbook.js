@@ -12,18 +12,28 @@ QLX.mount({
   active: 'cashbook', title: 'Expenses & Cash Book', accent: 'blue', noun: 'entry', nounPl: 'entries',
   icon: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>',
   data: () => Q.cashbookRows(), rowId: r => r.idx, dateField: r => r.date,
+  /* Cash-book entries are dated, so the month/year filter is honest here. The
+     BALANCE cards are not scoped and must not be: cash-in-hand is a running
+     position reached by every entry ever made, and "Cash in March 2026" would be
+     a number that was never in the drawer. They keep their all-time value and
+     their subs now say "today"; the MOVEMENT cards below follow the picker. */
+  monthFilter: true, monthOf: r => r.date, emptyLabel: 'cash book',
   subtitle: () => { const b = Q.accountBalances(); return `<b>${esc(Q.co.short)}</b> · ${Q.cashbookRows().length} entries · Balance <b>${fC(b.total)}</b>`; },
   primary: { label: 'Add Entry', icon: IC.plus, onClick: () => QLShell.openCashForm() },
   tools: [{ label: 'Export', icon: IC.dl, onClick: () => exportCash() }],
-  stats: () => {
-    const b = Q.accountBalances(), rows = Q.cashbookRows();
+  // `rows` = the scoped set QLX hands in. The old code called cashbookRows()
+  // again, which is every row ever — the cards would not have moved.
+  stats: rows => {
+    const b = Q.accountBalances(), per = QLX.monthLabel().toLowerCase();
+    const cin = rows.filter(r => r.type === 'credit').reduce((a, r) => a + r.amount, 0);
     const cout = rows.filter(r => r.type === 'debit').reduce((a, r) => a + r.amount, 0);
     return [
-      { label: 'Cash', value: fC(b.cash), sub: 'in hand', tint: 'teal', icon: IP.cash },
-      { label: 'Bank', value: fC(b.bank), sub: 'current a/c', tint: 'blue', icon: IP.bank },
-      { label: 'UPI', value: fC(b.upi), sub: 'PhonePe · GPay', tint: 'violet', icon: IP.upi },
-      { label: 'Total Balance', value: fC(b.total), sub: 'all accounts', tint: 'green', icon: IP.wallet },
-      { label: 'Money Out', value: fC(cout), sub: 'total debits', tint: 'rose', icon: IP.out }
+      { label: 'Cash', value: fC(b.cash), sub: 'in hand · today', tint: 'teal', icon: IP.cash },
+      { label: 'Bank', value: fC(b.bank), sub: 'current a/c · today', tint: 'blue', icon: IP.bank },
+      { label: 'UPI', value: fC(b.upi), sub: 'PhonePe · GPay · today', tint: 'violet', icon: IP.upi },
+      { label: 'Total Balance', value: fC(b.total), sub: 'all accounts · today', tint: 'green', icon: IP.wallet },
+      { label: 'Money In', value: fC(cin), sub: 'credits · ' + per, tint: 'green', icon: IP.wallet },
+      { label: 'Money Out', value: fC(cout), sub: 'debits · ' + per, tint: 'rose', icon: IP.out }
     ];
   },
   quickFilters: [
@@ -63,4 +73,6 @@ QLX.mount({
   footer: rows => { const cin = rows.filter(r => r.type === 'credit').reduce((a, r) => a + r.amount, 0), cout = rows.filter(r => r.type === 'debit').reduce((a, r) => a + r.amount, 0); return [{ label: 'Money In', value: fC(cin) }, { label: 'Money Out', value: fC(cout) }, { label: 'Net', value: fC(cin - cout), strong: true }]; },
   detail: r => ({ eyebrow: r.type === 'credit' ? 'Money In' : 'Money Out', title: (r.type === 'credit' ? '+ ' : '− ') + fC(r.amount), sub: (r.category || '—') + ' · ' + fDS(r.date), actions: [{ label: 'Edit', icon: IC.edit, primary: true, onClick: r => QLShell.openCashForm(r.idx) }], tabs: [{ label: 'Overview', icon: IC.file, render: tabOverview }] })
 });
-function exportCash() { const r = Q.cashbookRows(); QLShell.exportCSV('cashbook_' + (Q.co.short || 'entries').replace(/\s+/g, '_'), ['Date', 'Type', 'Category', 'Party', 'Account', 'Amount', 'Reference', 'Notes'], r.map(x => [x.date, x.type, x.category, x.party, x.mode, x.amount, x.ref, x.notes])); toast('Exported ' + r.length + ' entries'); }
+// QLX.rows() = what the picker left on screen. Exporting cashbookRows() would
+// hand him every month while the page shows one.
+function exportCash() { const r = QLX.rows(); QLShell.exportCSV('cashbook_' + (Q.co.short || 'entries').replace(/\s+/g, '_') + (QLX.month() ? '_' + QLX.month() : ''), ['Date', 'Type', 'Category', 'Party', 'Account', 'Amount', 'Reference', 'Notes'], r.map(x => [x.date, x.type, x.category, x.party, x.mode, x.amount, x.ref, x.notes])); toast('Exported ' + r.length + ' entries' + (QLX.month() ? ' · ' + QLX.monthLabel() : '')); }

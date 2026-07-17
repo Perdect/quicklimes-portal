@@ -924,7 +924,7 @@ QLX.mount({
        column header does this job; a card has no header. */
     id: r.bill || '—', title: `<span style="color:var(--qx)">${esc(r.bill || '—')}</span>`,
     amount: r.freightAddon > 0
-      ? `${fC(r.landed)} <span style="font-size:10px;font-weight:600;color:var(--mut,#64748b)">landed</span>`
+      ? `${fC(r.landed)} <span style="font-size:10px;font-weight:600;color:var(--ql-text-secondary)">landed</span>`
       : fC(r.total),
     party: r.sup, partySub: r.emoji + ' ' + r.groupLabel, sub: r.veh ? '🚚 ' + r.veh : 'Bill: ' + (r.bill || '—'), date: r.date, calLabel: r.sup, status: stPill(r),
     chips: [groupChip(r), (r.freight && !(r.freightAddon > 0)) ? '<span class="qx-frt">freight</span>' : ''].filter(Boolean),

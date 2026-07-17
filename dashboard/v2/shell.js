@@ -14,6 +14,67 @@
                  // ...then the page render code... </script>
      </body>
    ═══════════════════════════════════════════════════════════════ */
+/* ── THEME ───────────────────────────────────────────────────────
+   One owner of the rule. Three choices — light | dark | system — and
+   'system' is not a stored colour, it is a live subscription: the OS
+   flipping at sunset must move the app with it, with no reload.
+
+   The <head> boot script already resolved and applied the theme before
+   first paint (a flip at mount = white flash, then dark). This is the
+   same resolve, exported, so nothing hand-rolls data-theme again.
+   ─────────────────────────────────────────────────────────────── */
+(function () {
+  'use strict';
+  const KEY = 'ql_theme', MODES = ['light', 'dark', 'system'];
+  const mq = () => (window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null);
+
+  /* Last resort when localStorage cannot be written (Safari private mode throws
+     on setItem). Without this the choice silently bounced back: we swallowed the
+     write error, then re-read the key we had failed to write, got null, and
+     resolved 'system' — so picking Dark showed light. It cannot persist across a
+     reload there, but it must at least hold for the session. */
+  let mem = null;
+
+  /* Junk, null, or a mode we no longer ship all mean 'system'. */
+  function get() {
+    let v = null;
+    try { v = localStorage.getItem(KEY); } catch (_) {}
+    if (MODES.indexOf(v) < 0) v = mem;
+    return MODES.indexOf(v) >= 0 ? v : 'system';
+  }
+  function resolve(mode) {
+    const m = mode || get();
+    if (m === 'dark') return 'dark';
+    if (m === 'light') return 'light';
+    const q = mq();
+    return q && q.matches ? 'dark' : 'light';
+  }
+  function apply() {
+    document.documentElement.setAttribute('data-theme', resolve());
+    return resolve();
+  }
+  function set(mode) {
+    if (MODES.indexOf(mode) < 0) mode = 'system';
+    mem = mode;
+    try { localStorage.setItem(KEY, mode); } catch (_) {}
+    return apply();          // instant, no reload
+  }
+  let watching = false;
+  function init() {
+    apply();
+    if (watching) return;    // mount() can run more than once per page
+    const q = mq();
+    if (!q) return;
+    /* Only 'system' follows the OS — an explicit choice must not be overridden.
+       apply() re-reads the mode itself, so the guard lives there. */
+    const onOS = () => { if (get() === 'system') apply(); };
+    if (q.addEventListener) q.addEventListener('change', onOS);
+    else if (q.addListener) q.addListener(onOS);   // Safari < 14
+    watching = true;
+  }
+  window.QLTheme = { get, set, apply, init, resolve, MODES };
+})();
+
 (function () {
   'use strict';
 
@@ -1390,6 +1451,61 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     window.addEventListener('resize', closeMonthPicker, { once: true });
   }
 
+  /* ── periodFilter: the picker, WIRED ──────────────────────────────
+     monthPicker() is the calendar. This is the six lines around it that every
+     page was about to write for itself: render the trigger, seed the period from
+     QLD.uiMonth() so the pick rides in from Sales, persist a new pick, re-render.
+
+     qlx.js does this itself (it owns a toolbar and a skeleton); the plain pages —
+     GST, P&L, Chunna, Monthly Register, Refunds — have no toolbar, and hand-
+     rolling the wiring five more times is how the CALENDAR reached five copies.
+     Same lesson, one layer up: what gets duplicated is whatever has no home.
+
+       QLShell.periodFilter('#gstHead', { have, onChange: render })
+
+     `have` may be an array or a Set of 'YYYY-MM' — the dots showing which months
+     actually have books. onChange gets 'all' | 'YYYY' | 'YYYY-MM' (QLD.inPeriod
+     reads all three). Returns { period() } for the caller's render to read. */
+  function periodFilter(host, cfg) {
+    cfg = cfg || {};
+    host = typeof host === 'string' ? (document.getElementById(host.replace(/^#/, '')) || document.querySelector(host)) : host;
+    if (!host) return { period: () => 'all' };
+    /* Seeded from the shared pick, so arriving from Sales-in-March lands on
+       GST-in-March rather than silently resetting to all time. Unlike the
+       registers there is no "latest month with data" default: a GST or P&L page
+       that quietly showed ONE month when he expected the year would misstate his
+       books far more dangerously than showing everything. All time is the honest
+       default; the picker is how he narrows it. */
+    let period = 'all';
+    try { const m = QLD.uiMonth && QLD.uiMonth(); if (m) period = m; } catch (_) {}
+    const id = cfg.id || 'qlPeriodBtn';
+    const paintBtn = () => {
+      const b = document.getElementById(id);
+      if (b) b.outerHTML = monthButton({ id, label: label(), title: cfg.title || 'Filter by month or year' });
+      wire();
+    };
+    const label = () => (window.QLD && QLD.periodLabel) ? QLD.periodLabel(period, cfg.allLabel) : (period || 'All months');
+    const wire = () => {
+      const b = document.getElementById(id);
+      if (!b) return;
+      b.onclick = () => monthPicker(b, {
+        month: period,
+        have: cfg.have ? (typeof cfg.have === 'function' ? cfg.have() : cfg.have) : [],
+        years: cfg.years !== false, allLabel: cfg.allLabel,
+        onPick: p => {
+          if (p === period) return;
+          period = p;
+          try { if (QLD.setUiMonth) QLD.setUiMonth(p); } catch (_) {}
+          paintBtn();
+          if (cfg.onChange) cfg.onChange(p);
+        }
+      });
+    };
+    host.insertAdjacentHTML(cfg.prepend ? 'afterbegin' : 'beforeend', monthButton({ id, label: label(), title: cfg.title || 'Filter by month or year' }));
+    wire();
+    return { period: () => period, label, repaint: paintBtn };
+  }
+
   /* ════════════════════ RIGHT-SIDE DRAWER ═══════════════════════
      Shared slide-in panel hosting Notifications and the AI assistant. */
   function openDrawer(mode) {
@@ -2156,7 +2272,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     closeModal, openForm, panel, confirmDelete, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
     rowMenu, printInvoice, exportCSV, csvCell, csvRow, downloadCSV,
     // THE month picker — every page's calendar. See monthPicker() above.
-    monthButton, monthPicker, closeMonthPicker,
+    monthButton, monthPicker, closeMonthPicker, periodFilter,
     _comboFilter, _comboFocus, _comboBlur, _comboPick, _comboKey,
     formPrompt(title, specs, onSave, sub) { openForm({ title, sub, specs, saveLabel: 'Save', initial: {}, onSave(v) { onSave(v); } }); },
     /* ── Invoice rendering — the ONE door every invoice goes through ──
@@ -2253,8 +2369,10 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       }
       // mobile app layer (no-op on desktop)
       try { if (window.QLMobile) QLMobile.init({ active: _active, title: opts.title }); } catch (_) {}
-      // restore the chosen theme (assistant header toggles it)
-      try { const t = localStorage.getItem('ql_theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (_) {}
+      // The theme is already on <html> — the inline boot script in every page's
+      // <head> set it before the splash painted. This only starts the live
+      // matchMedia watch, so "System" tracks the OS without a reload.
+      try { QLTheme.init(); } catch (_) {}
       // installable PWA (service worker + install prompt)
       try { initPWA(); } catch (_) {}
       // Floating AI button — the Business Assistant is one tap away on EVERY

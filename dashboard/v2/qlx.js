@@ -122,6 +122,18 @@
   // because they all read allRows(). Default = the latest month that has data.
   function monthOf(r) { return ((CFG.monthOf ? CFG.monthOf(r) : r.date) || '').slice(0, 7); }
   function latestMonth(rows) { const ms = rows.map(monthOf).filter(Boolean).sort(); return ms.length ? ms[ms.length - 1] : 'all'; }
+  /* S.month holds a PERIOD, not just a month: the shared picker offers "Whole
+     year 2026" (cfg.years) alongside the grid, so the value can be 'YYYY'. A
+     `monthOf(r) === S.month` equality test — what this was — matches nothing at
+     all for a year, i.e. the year button would EMPTY the table instead of
+     widening it. QLD.inPeriod is the one prefix rule.
+
+     No `QLD ? … : monthOf(r) === S.month` fallback, deliberately: data.js loads
+     before qlx.js on every register, so the fallback could only ever run in a
+     world where allRows() has already thrown — while quietly reintroducing the
+     exact broken comparison this line exists to delete. A dead wrong branch is
+     still a wrong branch, and it is the copy nobody greps for. */
+  const rowInPeriod = r => QLD.inPeriod(monthOf(r), S.month);
   function allRows() {
     let rows = (CFG.data ? CFG.data() : []) || [];
     if (!CFG.monthFilter) return rows;
@@ -140,7 +152,7 @@
       }
       S._dl = dl;
     }
-    if (S.month && S.month !== 'all') rows = rows.filter(r => monthOf(r) === S.month);
+    if (S.month && S.month !== 'all') rows = rows.filter(rowInPeriod);
     return rows;
   }
   function rawRows() { return (CFG.data ? CFG.data() : []) || []; }   // pre-month, for the picker
@@ -204,9 +216,11 @@
       <div class="qx-hero-r">${month}${tools}${prim}</div>
     </div>`;
   }
+  /* "March 2026" / "Year 2026" / "All months" — QLD.periodLabel owns all three.
+     QLD.monthLabel alone cannot: it validates a MONTH and returns blank for a
+     bare 'YYYY', so the year pick would have shown an empty button. */
   function monthLabel() {
-    if (!S.month || S.month === 'all') return 'All months';
-    return (window.QLD && QLD.monthLabel) ? QLD.monthLabel(S.month, { blank: S.month }) : S.month;
+    return (window.QLD && QLD.periodLabel) ? QLD.periodLabel(S.month, CFG.allLabel) : (S.month || 'All months');
   }
   function emptyMsg() {
     if (CFG.monthFilter && S.month && S.month !== 'all') return `No ${esc(CFG.emptyLabel || CFG.noun || 'record')} data found for ${esc(monthLabel())}`;
@@ -217,10 +231,20 @@
   function emptyBlock(pad) {
     const ic = CFG.emptyIcon || IC.inbox;
     const add = CFG.primary ? `<button class="qx-btn qx-btn-primary" id="qxEmptyAdd" style="margin-top:14px">${svg(CFG.primary.icon || IC.plus)}<span>${esc(CFG.primary.label)}</span></button>` : '';
-    const sub = CFG.emptySub ? `<div style="font-size:12.5px;color:var(--qx-muted,#94a3b8);max-width:360px;margin-top:2px">${esc(CFG.emptySub)}</div>` : '';
+    /* These carried var(--qx-text,#0f172a) / var(--qx-hover,#f1f5f9) /
+       var(--qx-muted,#94a3b8) — three --qx-* names that have never been
+       defined, so the hardcoded LIGHT fallback was always the real value.
+       "No bills in this view" rendered #0F172A on a #020617 page: contrast
+       1.13, i.e. invisible. An inline style in a template literal is the one
+       place no stylesheet can reach and no [data-theme] rule can override,
+       which is why it outlived every dark rule in the app.
+       Each is now the real token whose LIGHT value is byte-identical to the
+       fallback it replaces (ql-text #0F172A, neutral-100 #F1F5F9,
+       text-muted = neutral-400 #94A3B8), so light does not move. */
+    const sub = CFG.emptySub ? `<div style="font-size:12.5px;color:var(--ql-text-muted);max-width:360px;margin-top:2px">${esc(CFG.emptySub)}</div>` : '';
     return `<div class="qx-empty" style="padding:${pad || 48}px 20px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center">
-      <div style="width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:var(--qx-hover,#f1f5f9);color:var(--qx-muted,#94a3b8);margin-bottom:8px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ic}</svg></div>
-      <div style="font-weight:600;color:var(--qx-text,#0f172a)">${esc(emptyMsg())}</div>${sub}${add}</div>`;
+      <div style="width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:var(--ql-neutral-100);color:var(--ql-text-muted);margin-bottom:8px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ic}</svg></div>
+      <div style="font-weight:600;color:var(--ql-text)">${esc(emptyMsg())}</div>${sub}${add}</div>`;
   }
   function setMonth(ym) {
     if (S.month === ym) return;
@@ -239,6 +263,11 @@
     QLShell.monthPicker(anchor, {
       month: S.month,
       have: new Set(rawRows().map(monthOf).filter(Boolean)),
+      /* "how can I filter month or year give option calendar fo all" — the year
+         button, on every QLX register, not just Inventory. It is one option on
+         the shared picker; opting out (CFG.years: false) is for a page whose
+         data cannot honestly answer a year, not a default. */
+      years: CFG.years !== false, allLabel: CFG.allLabel,
       onPick: setMonth
     });
   }
@@ -713,7 +742,9 @@
     rows: () => allRows(),                               // current month's rows (all statuses)
     month: () => (S.month && S.month !== 'all') ? S.month : null,
     monthLabel, setMonth,
-    inMonth: date => !CFG.monthFilter || !S.month || S.month === 'all' || (date || '').slice(0, 7) === S.month,
+    // Same prefix rule as the row filter — a `slice(0,7) ===` here matched no
+    // date at all once the picker could return a year.
+    inMonth: date => !CFG.monthFilter || (window.QLD && QLD.inPeriod ? QLD.inPeriod(date, S.month) : true),
     config: () => CFG, state: () => S
   };
 })();

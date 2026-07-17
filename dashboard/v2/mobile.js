@@ -100,7 +100,9 @@
   };
 
   /* ── State ─────────────────────────────────────────────────── */
-  let _active = 'dashboard', _title = '', _built = false, _dashTab = 'overview', _dashObs = null, _guard = false;
+  // _dashTab is gone with the pills — the mobile dashboard has no selected tab to
+  // remember now that every section is on screen at once.
+  let _active = 'dashboard', _title = '', _built = false, _dashObs = null, _guard = false;
 
   /* ═══════════════ CHROME (header · bottom-nav · fab) ═══════════════ */
   function build() {
@@ -497,7 +499,19 @@
   }
 
   /* ═══════════════ MOBILE DASHBOARD ═══════════════ */
-  const DTABS = [
+  /* "Dashboard tab pills — remove in mobile version."
+     These were Overview|Sales|Purchase|Finance|Production pills sitting ~60px
+     above a bottom nav carrying the SAME five words and meaning something else:
+     the pills swapped a panel in place, the nav navigated away. Two identical
+     vocabularies, two behaviours, one thumb — you cannot tell which you are
+     about to get, and on a phone you find out by being somewhere unexpected.
+     Desktop keeps its tabs; it has room and a cursor, and no bottom nav.
+
+     So this is now a SECTION MANIFEST, not a tab bar: same five keys, same
+     content builders, rendered stacked in one scroll. Nothing was deleted —
+     content that took a tap now takes a scroll, which is the gesture a phone is
+     already built around. */
+  const DSECTIONS = [
     { key: 'overview', label: 'Overview' }, { key: 'sales', label: 'Sales' },
     { key: 'purchase', label: 'Purchase' }, { key: 'finance', label: 'Finance' }, { key: 'production', label: 'Production' }
   ];
@@ -562,9 +576,15 @@
   function statusPill(s) { s = s || 'pending'; const map = { paid: ['ok', 'Paid'], cash: ['ok', 'Cash'], pending: ['warn', 'Pending'] }; const m = map[s] || ['mut', s]; return `<span class="qlm-pill ${m[0]}">${m[1]}</span>`; }
   function avc(name) { const p = ['#2563EB', '#16A34A', '#D97706', '#7C3AED', '#DB2777', '#0891B2']; let h = 0; for (const c of String(name || '?')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return p[h % p.length]; }
 
+  /* One section's content. Unchanged from when these were tabs — the same five
+     builders, the same data. Only `overview` differs, and only to avoid printing
+     the sales chart and the recent-invoice list TWICE now that both sections are
+     on screen at once: they were in overview AND in sales, which reads as a bug
+     when you scroll past the same chart a second time. They live under Sales,
+     where they are labelled; nothing is lost. */
   function dashTabContent(tab) {
     const q = Q(); if (!q) return '';
-    if (tab === 'overview') return `<div class="qlm-kpis">${overviewCards()}</div>` + salesChartCard() + recentSales();
+    if (tab === 'overview') return `<div class="qlm-kpis">${overviewCards()}</div>`;
     if (tab === 'sales') { const s = q.salesSummary(); return `<div class="qlm-kpis">
         ${kpiCard({ label: 'Sales (excl GST)', value: fc(s.taxable), tint: 'blue', icon: IC.sales })}
         ${kpiCard({ label: 'Collected', value: fc(s.collected), tint: 'green', icon: IC.coll })}
@@ -605,11 +625,22 @@
     let root = main.querySelector('.qlm-dash');
     if (!root) { root = el('div', 'qlm-dash'); main.appendChild(root); }
     const co = Q().co ? Q().co.short : '';
+    /* Every section, stacked, in one scroll — no pills, no hidden panels.
+       `overview` keeps no heading: the greeting above it already says what it is,
+       and a heading there would only push the KPIs below the fold. The other four
+       are headed, because unlabelled cards mid-scroll are unreadable — the pill
+       used to be their label, so the label has to survive the pill.
+       A section whose builder returns '' (no data) renders nothing at all rather
+       than a heading over emptiness. */
+    const sections = DSECTIONS.map(s => {
+      const body = dashTabContent(s.key);
+      if (!body) return '';
+      const head = s.key === 'overview' ? '' : `<div class="qlm-sec"><h3>${esc(s.label)}</h3></div>`;
+      return `<section class="qlm-dsec" data-dsec="${s.key}">${head}${body}</section>`;
+    }).join('');
     root.innerHTML =
       `<div class="qlm-dash-greet"><h1>Welcome back</h1><p>${esc(co)} · here's today</p></div>
-       <div class="qlm-seg">${DTABS.map(t => `<button class="qlm-seg-btn ${t.key === _dashTab ? 'active' : ''}" data-dt="${t.key}">${t.label}</button>`).join('')}</div>
-       <div id="qlmDashBody">${dashTabContent(_dashTab)}</div>`;
-    root.querySelectorAll('[data-dt]').forEach(b => b.onclick = () => { _dashTab = b.dataset.dt; root.querySelectorAll('[data-dt]').forEach(x => x.classList.toggle('active', x === b)); $('qlmDashBody').innerHTML = dashTabContent(_dashTab); animateBars(); });
+       <div id="qlmDashBody">${sections}</div>`;
     animateBars();
     // rebuild whenever the desktop dashboard re-renders into #ql-main (fresh data)
     if (!_dashObs) _dashObs = new MutationObserver(() => { clearTimeout(_dashObs._t); _dashObs._t = setTimeout(buildDashboard, 50); });

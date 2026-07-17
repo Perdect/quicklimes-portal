@@ -2,6 +2,13 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — runs before the splash paints. The app shell applies the theme
+   at mount, which is far too late: the splash is inline at the top of <body>, so
+   a late flip = white flash, then dark. Resolves 'system' here too, so data-theme
+   is ALWAYS a literal light|dark and CSS never has to ask twice. */
+(function(){try{var t=localStorage.getItem('ql_theme')||'system';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QuickLimes v2 — Design System</title>
 <meta name="theme-color" content="#2563EB">

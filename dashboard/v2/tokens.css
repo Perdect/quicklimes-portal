@@ -43,6 +43,10 @@
   --ql-neutral-0:   #FFFFFF;
   --ql-neutral-50:  #F8FAFC;   /* page background */
   --ql-neutral-100: #F1F5F9;
+  --ql-neutral-150: #EEF1F6;   /* subtle track/badge — was referenced by 4 rules
+                                  as var(--ql-neutral-150, #eef1f6) against a slot
+                                  that had never been defined, so the fallback was
+                                  the real value. Now it exists and can go dark. */
   --ql-neutral-200: #E2E8F0;   /* hairline border */
   --ql-neutral-300: #CBD5E1;
   --ql-neutral-400: #94A3B8;
@@ -161,8 +165,30 @@
   --ql-z-tooltip:  600;
 }
 
+/* Native chrome the app does not paint itself: <select>/<input> that declare no
+   background, dropdown popups, scrollbars, date pickers. .ql-input sets colours
+   for none of these, so a <select class="ql-input"> fell through to the User
+   Agent stylesheet and rendered WHITE-on-black in dark — a bug no grep for
+   `#fff` can find, because the white is not in our source at all. One
+   declaration moves all of it. */
+:root { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }
+
 /* ── DARK MODE (token swap only — components reference vars) ── */
 [data-theme="dark"] {
+  /* THE TOKEN GAP. These three were never overridden, so `background:
+     var(--ql-neutral-50)` stayed near-WHITE in dark — tokenised yet not
+     dark-safe. 80 of the ~85 uses of neutral-0/50/100 are `background:`;
+     not one is a border or a text colour. So we flip them here rather than
+     rewrite 80 call sites — and flipping them keeps the 0→50→100 elevation
+     ladder intact, which migrating everything to --ql-card would flatten.
+     Light ladder: 0=white card, 50=page bg, 100=subtle fill.
+     Dark ladder:  0=card,       50=page bg (darkest), 100=raised fill. */
+  --ql-neutral-0:   #0F172A;
+  --ql-neutral-50:  #020617;
+  --ql-neutral-100: #1E293B;
+  --ql-neutral-150: #1E293B;
+
   --ql-bg:           #020617;
   --ql-bg-elevated: #0F172A;
   --ql-card:        #0F172A;
@@ -173,6 +199,10 @@
   --ql-text:        #F1F5F9;
   --ql-text-secondary: #94A3B8;
   --ql-text-muted:  #64748B;
+  /* The ONE casualty of flipping neutral-0: text-inverted aliases it, and it is
+     white text sitting on the primary BLUE button — which stays blue in dark.
+     Left alone it would become #0F172A on blue. Pinned to a literal. */
+  --ql-text-inverted: #FFFFFF;
 
   --ql-shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.30);
   --ql-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.40);

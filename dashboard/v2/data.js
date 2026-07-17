@@ -259,11 +259,28 @@
      kept inflating ITC. Void was handled, trash was not. Both stores must gain this
      together: fixing only sales would drop the payable while leaving stale ITC. */
   const notCancelled = x => (x.status || 'pending') !== 'cancelled' && !x._del && !x._arch;
-  const totS = () => S.SALES.filter(notCancelled).reduce((a, x) => { const c = cS(x), inter = saleInter(x); return { tx: a.tx + c.tx, cgst: a.cgst + (inter ? 0 : c.cgst), sgst: a.sgst + (inter ? 0 : c.sgst), igst: a.igst + (inter ? c.cgst + c.sgst : 0), tot: a.tot + c.tot }; }, { tx: 0, cgst: 0, sgst: 0, igst: 0, tot: 0 });
-  const totP = () => S.PURCHASES.filter(notCancelled).reduce((a, x) => { const c = cP(x); return { tx: a.tx + (+x.taxable || 0), g: a.g + c.g, tot: a.tot + c.tot, itc: a.itc + c.itc }; }, { tx: 0, g: 0, tot: 0, itc: 0 });
+  /* `p` = the picked period ('all' | 'YYYY' | 'YYYY-MM'), see inPeriod(). Omitted
+     ⇒ all time, which is what every existing caller passes, so behaviour is
+     unchanged for them. */
+  const totS = p => S.SALES.filter(x => notCancelled(x) && inPeriod(x.date, p)).reduce((a, x) => { const c = cS(x), inter = saleInter(x); return { tx: a.tx + c.tx, cgst: a.cgst + (inter ? 0 : c.cgst), sgst: a.sgst + (inter ? 0 : c.sgst), igst: a.igst + (inter ? c.cgst + c.sgst : 0), tot: a.tot + c.tot }; }, { tx: 0, cgst: 0, sgst: 0, igst: 0, tot: 0 });
+  const totP = p => S.PURCHASES.filter(x => notCancelled(x) && inPeriod(x.date, p)).reduce((a, x) => { const c = cP(x); return { tx: a.tx + (+x.taxable || 0), g: a.g + c.g, tot: a.tot + c.tot, itc: a.itc + c.itc }; }, { tx: 0, g: 0, tot: 0, itc: 0 });
+  /* NO period argument, deliberately. A worker record carries a wage and a
+     designation — no date — and attendance is keyed by DAY NUMBER inside one
+     unlabelled month grid (S.ATT[workerId][17]), so there is nothing here to
+     filter a month or a year by. Adding a `p` that silently did nothing is the
+     exact failure this codebase keeps repeating; getPL() below takes the dated
+     route instead when a period is picked, and says so on screen. */
   const totL = () => S.WORKERS.reduce((a, w) => { const c = cW(w); return { gross: a.gross + c.gross, net: a.net + c.net, cost: a.cost + c.cost }; }, { gross: 0, net: 0, cost: 0 });
-  function getPL() {
-    const ts = totS(), tp = totP(), tl = totL();
+  /* Wage money that IS dated: cash-book debits that read as labour. Same rule
+     (same regex) the Reports Hub's date-scoped P&L already uses — that report
+     and this page must not disagree about what "labour in March" means. */
+  const LABOUR_RE = /labour|labor|wage|salary|mazdoor|hamali|payroll/i;
+  function labourPaid(p) {
+    return S.CASHBOOK.filter(e => e.type === 'debit' && inPeriod(e.date, p) && LABOUR_RE.test((e.category || '') + ' ' + (e.notes || '') + ' ' + (e.party || '')))
+      .reduce((a, e) => a + (+e.amount || 0), 0);
+  }
+  function getPL(period) {
+    const ts = totS(period), tp = totP(period);
     const rev = ts.tx;
     /* tp.tx, not a fresh sum of S.PURCHASES: that raw reduce counted CANCELLED and
        trashed bills, and returned NaN if any row lacked `taxable` — poisoning Gross
@@ -271,13 +288,23 @@
        already computes it this way, so the two screens disagreed on one number. */
     const cogs = tp.tx;
     const gp = rev - cogs;
-    const labour = tl.cost, ebitda = gp - labour;
+    /* All time → the worker masters, exactly as before. A picked month/year →
+       dated cash-book wage payments, because the masters cannot answer "March".
+       Subtracting an ALL-TIME labour cost from ONE month's revenue would not be
+       a scoped P&L, it would be a wrong one — a loss reported where there was a
+       profit. The two sources genuinely differ, so `labourSrc` travels with the
+       number and pl.html prints which one it used rather than swapping the
+       basis behind the owner's back. */
+    const scoped = !!(period && period !== 'all');
+    const labour = scoped ? labourPaid(period) : totL().cost;
+    const labourSrc = scoped ? 'cashbook' : 'workers';
+    const ebitda = gp - labour;
     /* IGST was missing. Every inter-state sale showed ZERO output GST here, so net
        profit was overstated by the whole IGST amount — while the dashboard's card
        (which uses gstSummary) reported it correctly on the same data. totS already
        splits intra/inter; this just has to read the field. */
     const outGST = ts.cgst + ts.sgst + (ts.igst || 0), netGST = Math.max(0, outGST - tp.itc), np = ebitda - netGST;
-    return { rev, cogs, gp, labour, ebitda, netGST, np, outGST, itc: tp.itc, gpm: rev ? gp / rev * 100 : 0, npm: rev ? np / rev * 100 : 0 };
+    return { rev, cogs, gp, labour, labourSrc, ebitda, netGST, np, outGST, itc: tp.itc, gpm: rev ? gp / rev * 100 : 0, npm: rev ? np / rev * 100 : 0 };
   }
 
   /* ── Persistence (port of v1 loadLocal / cloud pull) ─────────── */
@@ -715,8 +742,11 @@
     for (let i = nMonths - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-      const sal = S.SALES.filter(s => ymOf(s.date) === ym);
-      const pur = S.PURCHASES.filter(p => ymOf(p.date) === ym);
+      /* notCancelled, not a bare date filter: a cancelled or trashed invoice is not a
+         dispatch. Without this the trend chart counts tonnage that was voided —
+         totS()/totP() have always filtered, these month buckets never did. */
+      const sal = S.SALES.filter(s => ymOf(s.date) === ym && notCancelled(s));
+      const pur = S.PURCHASES.filter(p => ymOf(p.date) === ym && notCancelled(p));
       const sTot = sal.reduce((a, s) => a + cS(s).tot, 0);
       const sTx  = sal.reduce((a, s) => a + cS(s).tx, 0);
       const pTx  = pur.reduce((a, p) => a + p.taxable, 0);
@@ -743,7 +773,7 @@
     const overdueParties = [...new Set(outRows.filter(r => r.days > 30).map(r => _pIdx.keyOf(r.party, r.gstin)))];
     const collAmt = outRows.reduce((a, r) => a + r.outstanding, 0);
     const payAmt = purchaseRows().filter(r => r.outstanding > 0.5 && r.status !== 'cancelled').reduce((a, r) => a + r.outstanding, 0);
-    const totQty = S.SALES.reduce((a, s) => a + (s.qty || 0), 0);
+    const totQty = S.SALES.filter(notCancelled).reduce((a, s) => a + (s.qty || 0), 0);
     return {
       sales:       { v: fC(ts.tx), trend: mom(cur.sales, prev.sales), meta: S.SALES.length + ' invoices · excl. GST' },
       profit:      { v: fC(pl.np), trend: mom(cur.profit, prev.profit), meta: 'Margin ' + pl.npm.toFixed(1) + '%' },
@@ -808,25 +838,26 @@
 
   function production() {
     const today = new Date(); const tISO = today.toISOString().slice(0, 10);
-    const qtyIn = f => S.SALES.filter(f).reduce((a, s) => a + (s.qty || 0), 0);
+    // A cancelled/trashed invoice never left the gate — it must not be "dispatched".
+    const qtyIn = f => S.SALES.filter(s => notCancelled(s) && f(s)).reduce((a, s) => a + (s.qty || 0), 0);
     const ymNow = tISO.slice(0, 7);
     return {
       today: qtyIn(s => s.date === tISO),
       week:  qtyIn(s => daysAgo(s.date) <= 7),
       month: qtyIn(s => ymOf(s.date) === ymNow),
-      chunnaMonth: S.CHUNNA.filter(c => ymOf(c.date) === ymNow).reduce((a, c) => a + (parseFloat(c.qty) || 0), 0)
+      chunnaMonth: S.CHUNNA.filter(c => ymOf(c.date) === ymNow && notCancelled(c)).reduce((a, c) => a + (parseFloat(c.qty) || 0), 0)
     };
   }
 
   function topProducts() {
     const ts = totS();
-    const qty = S.SALES.reduce((a, s) => a + (s.qty || 0), 0);
+    const qty = S.SALES.filter(notCancelled).reduce((a, s) => a + (s.qty || 0), 0);
     const rows = [{
       icon: '⚪', name: 'Quick Lime', sub: 'GST invoiced dispatches',
       qty: fmt(qty, 1) + ' T', avg: qty ? fC(ts.tx / qty) : '—', rev: fC(ts.tot)
     }];
-    const cQty = S.CHUNNA.reduce((a, c) => a + (parseFloat(c.qty) || 0), 0);
-    const cTot = S.CHUNNA.reduce((a, c) => a + (parseFloat(c.total) || 0), 0);
+    const cQty = S.CHUNNA.filter(notCancelled).reduce((a, c) => a + (parseFloat(c.qty) || 0), 0);
+    const cTot = S.CHUNNA.filter(notCancelled).reduce((a, c) => a + (parseFloat(c.total) || 0), 0);
     if (cQty || cTot) rows.push({
       icon: '🧱', name: 'Chunna', sub: 'Cash + PhonePe sales',
       qty: fmt(cQty, 1) + ' T', avg: cQty ? fC(cTot / cQty) : '—', rev: fC(cTot)
@@ -864,7 +895,8 @@
       const paid = (s.status === 'paid' || s.status === 'cash') ? c.tot : (+s.paid || 0);
       return {
         idx: i, inv: s.inv, date: s.date, party: s.party || '—',
-        qty: s.qty || 0, taxable: c.tx, gst: c.cgst + c.sgst, total: c.tot,
+        qty: s.qty || 0, unit: s.unit || '', product: s.product || '',
+        taxable: c.tx, gst: c.cgst + c.sgst, total: c.tot,
         status: s.status || 'pending', veh: s.veh || '', gstin: s.gstin || partyGstin(s.party),
         days: daysAgo(s.date), paid, outstanding: Math.max(0, c.tot - paid),
         payments: s.payments || [], paidMode: s.paidMode || '', paidDate: s.paidDate || '', attach: s.attach || []
@@ -936,6 +968,34 @@
        claim a catch. */
     if (isNaN(d.getTime())) return blank;
     return d.toLocaleDateString('en-IN', { month: (opts && opts.short) ? 'short' : 'long', year: 'numeric' });
+  }
+  /* ── PERIOD: one rule for "which month/year am I looking at" ──────
+     The picker (QLShell.monthPicker) emits exactly three shapes, and every page
+     that scopes numbers has to agree on what they mean. They were about to be
+     re-decided per page, which is how monthLabel reached five copies:
+
+       'all' / null / ''   every row
+       'YYYY-MM'           that month        ← the picker's grid cells
+       'YYYY'              that whole year   ← the picker's `years: true` button
+
+     A prefix test covers all three because dates are ISO ('2026-03-14'), and a
+     prefix is the ONLY thing that reads a year and a month with one comparison —
+     the alternative (`slice(0,7) === p`) silently matches NOTHING for 'YYYY',
+     which is a picker that renders and filters nothing. */
+  function inPeriod(date, period) {
+    if (!period || period === 'all') return true;
+    const p = String(period);
+    return String(date || '').slice(0, p.length) === p;
+  }
+  /* 'March 2026' / 'Year 2026' / 'All months'. monthLabel deliberately returns
+     blank for a bare 'YYYY' (it validates a MONTH), so the year case must be
+     handled before delegating — inventory.html learned this first, and this is
+     that function hoisted to where the other pages can reach it rather than
+     copied a seventh time. */
+  function periodLabel(p, allLabel) {
+    if (!p || p === 'all') return allLabel || 'All months';
+    if (/^\d{4}$/.test(String(p))) return 'Year ' + p;
+    return monthLabel(p, { blank: String(p) });
   }
   // Map a legacy free-text category onto a {group,item} so old bills fit the model.
   function catToGroupItem(p) {
@@ -1306,14 +1366,19 @@
       mode: c.mode || 'cash'
     })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   }
-  function chunnaSummary() {
-    const r = chunnaRows();
+  function chunnaSummary(period) {
+    const all = chunnaRows();
+    const r = all.filter(x => inPeriod(x.date, period));
     const ym = new Date().toISOString().slice(0, 7);
     return {
       count: r.length,
       qty: r.reduce((a, x) => a + x.qty, 0),
       total: r.reduce((a, x) => a + x.total, 0),
-      monthTotal: r.filter(x => (x.date || '').slice(0, 7) === ym).reduce((a, x) => a + x.total, 0),
+      /* Out of `all`, NOT `r`: this card means "the calendar month we are in",
+         which does not change because the owner is looking at last March — it
+         would just read ₹0 there, which is not what it says on the tin. The page
+         hides it while a period is picked; `total` is the scoped number. */
+      monthTotal: all.filter(x => (x.date || '').slice(0, 7) === ym).reduce((a, x) => a + x.total, 0),
       cash: r.filter(x => x.mode === 'cash').reduce((a, x) => a + x.total, 0),
       phonepay: r.filter(x => x.mode === 'phonepay').reduce((a, x) => a + x.total, 0)
     };
@@ -1377,6 +1442,144 @@
       matCost, totalCost,
       costPerTon: output ? totalCost / output : 0,
       yield: consumed.limestone ? output / consumed.limestone * 100 : 0
+    };
+  }
+
+  /* ── Production DERIVED from the bills already uploaded ─────────────────
+     "no need to add Production data you can get from uploded sales or purchase
+      data bills with automation make sure you will also get quantity mainly"
+
+     He is right that the tonnage is already in the books. He is wrong that it
+     adds up to a production run, and the difference has to survive contact with
+     this table or it becomes a lie that reads like a fact:
+
+     · A SALES bill proves a DISPATCH — tonnes that left the gate on a date.
+     · A PURCHASE bill proves an INTAKE — tonnes that arrived on a date.
+     · A production RUN is limestone BURNT → lime MADE on a day. Neither bill
+       witnesses that. He can dispatch out of last month's stock, and he can
+       stockpile limestone for weeks. So this function never emits "produced".
+       It emits what the paperwork actually saw, per month, marked as derived.
+
+     The one honest bridge is the IMPLIED ratio: dispatch ÷ limestone intake over
+     the same month. Two real numbers divided. It is NOT a yield — a yield needs a
+     measured output — which is why it is called implied and only ever appears when
+     BOTH sides are real.
+
+     UNKNOWN IS NOT ZERO. A month whose limestone bills carry no readable quantity
+     returns null, never 0. `0` claims he bought nothing; `null` admits the bills
+     don't say. The first silently halves every ratio below it. Each figure carries
+     the bills it was built from (refs) so he can check it against the paper, and
+     the count it could NOT read (missing) so a blank is explained, not just blank. */
+
+  /* Tonnes off one line. The purchase register heads its column "Qty (T)" and every
+     other screen reads qty as tonnes, so a bare number is tonnes here too — one
+     convention, not a new stricter one that would print '—' where the register
+     prints a figure. KG/QTL convert by exact factor: arithmetic, not a guess. A unit
+     that is not a weight at all (BAG, NOS, LTR) is NOT quietly counted as tonnes —
+     it returns null and the line is reported as unread. */
+  const U_TONNE = /^(m\.?t\.?s?|tonnes?|ton|to|t)$/i;
+  const U_KG    = /^(kgs?|kilograms?)$/i;
+  const U_QTL   = /^(qtls?|quintals?)$/i;
+  const U_COUNT = /^(nos?|pcs?|pieces?|units?|bags?)$/i;
+  function tonnesOf(r) {
+    const q = parseFloat(r && r.qty); if (!(q > 0)) return null;
+    const u = ((r.unit || '') + '').trim();
+    if (!u || U_TONNE.test(u)) return q;
+    if (U_KG.test(u))  return q / 1000;
+    if (U_QTL.test(u)) return q / 10;
+    return null;
+  }
+  function countOf(r) {
+    const q = parseFloat(r && r.qty); if (!(q > 0)) return null;
+    const u = ((r.unit || '') + '').trim();
+    if (!u || U_COUNT.test(u)) return q;
+    return null;                        // bags billed in MT: we don't know how many bags
+  }
+  /* Freight, royalty and loading ride INSIDE the limestone/petcoke groups (that is
+     the whole point of the landed-cost taxonomy). Their qty is the same tonnage as
+     the material bill they attach to — counting them as intake would book every load
+     twice. Only the material purchase itself is an intake. */
+  const isMaterialBuy = it => !isFreightItem(it) && !/royalty/i.test(it || '');
+
+  function derivedCell(rows, conv, label) {
+    let v = null, read = 0; const refs = [];
+    (rows || []).forEach(r => {
+      const n = conv(r);
+      if (n == null) return;
+      v = (v || 0) + n; read++;
+      refs.push({ ref: r.bill || r.inv || '—', date: r.date, party: r.sup || r.party || '', qty: n });
+    });
+    return { v, label: label || '', bills: (rows || []).length, read, missing: (rows || []).length - read, refs, measured: false };
+  }
+  const measuredCell = (v, refs) => ({ v: v > 0 ? v : null, bills: refs.length, read: refs.length, missing: 0, refs, measured: true });
+
+  function productionDerived() {
+    const sal = salesRows().filter(r => r.status !== 'cancelled');
+    const pur = purchaseRows().filter(r => r.status !== 'cancelled');
+    const runs = productionRows();
+    const ymOk = m => /^\d{4}-\d{2}$/.test(m);
+    const months = [...new Set([...sal, ...pur, ...runs].map(r => ymOf(r.date)).filter(ymOk))].sort().reverse();
+    // A sale states its product only when it was raised in the invoice builder; a
+    // bill imported by OCR does not. The app has always treated an unstated GST sale
+    // as quick lime (topProducts, invoiceData) — keep that one convention rather than
+    // invent a second. Hydrated is counted ONLY where the invoice says so, so a firm
+    // that never types it sees '—' rather than a number nobody wrote down.
+    const isHyd = p => /hydrat|slaked/i.test(p || '');
+    return months.map(ym => {
+      const inM = r => ymOf(r.date) === ym;
+      const pM = pur.filter(inM), sM = sal.filter(inM), rM = runs.filter(inM);
+      const lime  = pM.filter(r => r.group === 'limestone' && isMaterialBuy(r.item));
+      const coke  = pM.filter(r => r.group === 'petcoke'   && isMaterialBuy(r.item));
+      const bags  = pM.filter(r => r.group === 'packaging' && !/printing/i.test(r.item));
+      const hyd   = sM.filter(r => isHyd(r.product));
+      const ql    = sM.filter(r => !isHyd(r.product));
+      const row = {
+        ym, label: monthLabel(ym, { short: true }), source: 'derived', runs: rM.length,
+        limestone: derivedCell(lime, tonnesOf, 'limestone bills'),
+        petcoke:   derivedCell(coke, tonnesOf, 'petcoke bills'),
+        bags:      derivedCell(bags, countOf,  'packaging bills'),
+        quicklime: derivedCell(ql,   tonnesOf, 'quick lime invoices'),
+        hydrated:  derivedCell(hyd,  tonnesOf, 'hydrated lime invoices'),
+        labour: null, implied: null
+      };
+      /* A measured run beats the paperwork for the period it covers: its limestone is
+         CONSUMED (not merely delivered) and its lime is PRODUCED (not merely sold).
+         It overrides — but only cell by cell, and only where he actually wrote a
+         number. A run that records limestone and leaves output blank must not blank
+         out the dispatch the invoices prove. What the bills said is kept in `bills`
+         so the row can show its own working. */
+      if (rM.length) {
+        const sum = k => rM.reduce((a, r) => a + (+r[k] || 0), 0);
+        const refs = rM.map(r => ({ ref: 'Run ' + (r.date || ''), date: r.date, party: '', qty: 0 }));
+        const over = {};
+        [['limestone', 'limestone'], ['petcoke', 'petcoke'], ['bags', 'bags'], ['quicklime', 'quicklime'], ['hydrated', 'hydrated']]
+          .forEach(([k, f]) => { const v = sum(f); if (v > 0) over[k] = measuredCell(v, refs); });
+        if (Object.keys(over).length) {
+          row.bills = { limestone: row.limestone, petcoke: row.petcoke, bags: row.bags, quicklime: row.quicklime, hydrated: row.hydrated };
+          row.source = 'measured';
+          Object.assign(row, over);
+          row.overrode = Object.keys(over);
+        }
+        const lab = sum('labour'); row.labour = lab > 0 ? lab : null;
+      }
+      // Implied ratio: only when BOTH sides are real numbers, never on one alone.
+      const out = (row.quicklime.v || 0) + (row.hydrated.v || 0);
+      const hasOut = row.quicklime.v != null || row.hydrated.v != null;
+      if (hasOut && row.limestone.v > 0) row.implied = out / row.limestone.v * 100;
+      return row;
+    });
+  }
+  /* How much of the tonnage is simply missing off the bills. This is the number that
+     decides whether the page is useful or whether he needs "Read quantities" first —
+     so it is computed, not assumed, and the page says it out loud. */
+  function derivedQtyGaps() {
+    const pur = purchaseRows().filter(r => r.status !== 'cancelled')
+      .filter(r => ['limestone', 'petcoke', 'packaging'].includes(r.group) && isMaterialBuy(r.item));
+    const sal = salesRows().filter(r => r.status !== 'cancelled');
+    const miss = a => a.filter(r => !(parseFloat(r.qty) > 0)).length;
+    return {
+      purchase: { total: pur.length, missing: miss(pur), fixable: pur.filter(r => !(parseFloat(r.qty) > 0) && (r.attach || []).length).length },
+      sales:    { total: sal.length, missing: miss(sal) }
     };
   }
 
@@ -1804,8 +2007,8 @@
   }
 
   /* ── GST summary ─────────────────────────────────────────────── */
-  function gstSummary() {
-    const ts = totS(), tp = totP();
+  function gstSummary(period) {
+    const ts = totS(period), tp = totP(period);
     const out = ts.cgst + ts.sgst + ts.igst;
     return { outGST: out, cgst: ts.cgst, sgst: ts.sgst, igst: ts.igst || 0, itc: tp.itc, net: Math.max(0, out - tp.itc), taxable: ts.tx, purchaseTaxable: tp.tx };
   }
@@ -1836,8 +2039,13 @@
   function deleteTds(i, reason) { return softDelete('tds', i, reason); }
 
   /* ── Monthly register (combined sales + purchase by month) ───── */
-  function monthlyRegister() {
-    const months = [...new Set([...S.SALES.map(s => ymOf(s.date)), ...S.PURCHASES.map(p => ymOf(p.date))].filter(Boolean))].sort().reverse();
+  /* `period` narrows WHICH month rows the register lists — 'YYYY' is the useful
+     one here (a year's twelve rows, which is what this table is for); 'YYYY-MM'
+     legitimately leaves a single row, because the register is a list of months
+     and the owner asked for one. */
+  function monthlyRegister(period) {
+    const months = [...new Set([...S.SALES.map(s => ymOf(s.date)), ...S.PURCHASES.map(p => ymOf(p.date))].filter(Boolean))]
+      .filter(ym => inPeriod(ym, period)).sort().reverse();
     return months.map(ym => {
       const sal = S.SALES.filter(s => ymOf(s.date) === ym);
       const pur = S.PURCHASES.filter(p => ymOf(p.date) === ym);
@@ -1852,8 +2060,11 @@
       };
     });
   }
-  function monthlyRegisterTotals() {
-    return monthlyRegister().reduce((a, m) => ({ invoices: a.invoices + m.invoices, bills: a.bills + m.bills, qty: a.qty + m.qty, salesTotal: a.salesTotal + m.salesTotal, purchaseTax: a.purchaseTax + m.purchaseTax, profit: a.profit + m.profit }), { invoices: 0, bills: 0, qty: 0, salesTotal: 0, purchaseTax: 0, profit: 0 });
+  // The totals row must add up the rows ACTUALLY on screen, so it takes the same
+  // period — a footer that totals twelve months under a one-month table is the
+  // half-wired filter this whole change exists to avoid.
+  function monthlyRegisterTotals(period) {
+    return monthlyRegister(period).reduce((a, m) => ({ invoices: a.invoices + m.invoices, bills: a.bills + m.bills, qty: a.qty + m.qty, salesTotal: a.salesTotal + m.salesTotal, purchaseTax: a.purchaseTax + m.purchaseTax, profit: a.profit + m.profit }), { invoices: 0, bills: 0, qty: 0, salesTotal: 0, purchaseTax: 0, profit: 0 });
   }
 
   /* ── Custom renewal reminders (localStorage, per plant) ──────── */
@@ -2130,10 +2341,16 @@
        made a stranger's payment look like an internal transfer. */
     ownFirmNames: plants.map(pl => (pl.plant_name || '').trim().toUpperCase()).filter(Boolean),
     get activeCo() { return ACTIVE_CO; },
-    // Shared, persisted UI month filter — ONE source of truth across Sales,
-    // Purchase, Reconciliation and Dashboard, scoped per company, kept in
-    // sessionStorage so a deliberate pick survives navigation + refresh (a
-    // multi-page app reloads on every page change). Returns null until first set.
+    /* Shared, persisted UI period filter — ONE source of truth across every page
+       that scopes numbers, scoped per company, kept in sessionStorage so a
+       deliberate pick survives navigation + refresh (a multi-page app reloads on
+       every page change). Returns null until first set.
+
+       Holds a PERIOD, not only a month: 'YYYY-MM', 'YYYY' or 'all' (see
+       inPeriod). The name is historical — renaming it would touch 30 call sites
+       to buy nothing, but a reader must not assume the value matches /\d{4}-\d{2}/.
+       'all' is stored explicitly: it is a deliberate pick like any other, and
+       dropping it made the next page re-default to its latest month instead. */
     uiMonth() { try { return sessionStorage.getItem('ql_uimonth_' + ACTIVE_CO) || null; } catch (_) { return null; } },
     setUiMonth(ym) { try { if (ym) sessionStorage.setItem('ql_uimonth_' + ACTIVE_CO, ym); } catch (_) {} },
     get co() { return COMPANIES[ACTIVE_CO]; },
@@ -2145,6 +2362,8 @@
     purchaseRows, purchaseSummary, partyRows, partySummary,
     partyLedger, recordLedgerEntry, reverseLedgerEntry, ledgerNet,
     purchaseGroups: PURCHASE_GROUPS, departments: DEPARTMENTS, purchaseByGroup, purchaseInsights, itemShort, monthLabel,
+    // The period vocabulary every page shares with QLShell.monthPicker.
+    inPeriod, periodLabel,
     recordPurchasePayment, billInsights, relatedBills, itemIcon,
     // ── Payments Center (one unified money ledger) ──
     paymentsLedger, paymentsSummary, paymentsInsights, accountBalances,
@@ -2154,6 +2373,7 @@
     loanRows, loanSummary, gstSummary,
     getPL, chunnaRows, chunnaSummary, attendanceData,
     productionRows, prodStats, addProduction, updateProduction, deleteProduction,
+    productionDerived, derivedQtyGaps, tonnesOf, countOf,
     refundRows, refundSummary, addRefund, updateRefund, deleteRefund, refundJournal,
     // ── Soft-delete / Trash / Archive / Audit (recoverable deletion) ──
     softDelete, restoreRecord, purgeRecord, voidRecord, archiveRecord, archiveRows, archiveCount, trashRows, trashCount, auditRows, backupJSON, trashModules: () => Object.keys(TRASHABLE),

@@ -528,6 +528,78 @@
 [data-theme="dark"] .qx-dp { background: rgba(15,23,42,.97); }
 [data-theme="dark"] .qx-grid thead th { background: rgba(15,23,42,.9); }
 [data-theme="dark"] .qx-kcard, [data-theme="dark"] .qx-card, [data-theme="dark"] .qx-cal-cell, [data-theme="dark"] .qx-an-card { background: var(--ql-card); }
+/* The rest of the engine's white surfaces. Each of these is `background:#fff`
+   under text that comes from var(--ql-text) — near-white in dark, so the
+   control renders its own text invisible. Fixed here as dark-ONLY rules
+   rather than by editing the light declarations: light is what he uses
+   today, and a rule that only exists under [data-theme="dark"] cannot
+   regress it. .qx-inv-frame is deliberately absent — an invoice is white
+   paper in both themes. */
+[data-theme="dark"] .qx-search:focus-within,   /* went white ON FOCUS — you could not see what you typed */
+[data-theme="dark"] .qx-date,
+[data-theme="dark"] .qx-cbx,
+[data-theme="dark"] .qx-view.active,
+[data-theme="dark"] .qx-ib:hover,
+[data-theme="dark"] .qx-pg button,
+[data-theme="dark"] .qx-cal-nav,
+[data-theme="dark"] .qx-dp-x,
+[data-theme="dark"] .qx-tl-i::before,
+[data-theme="dark"] .qx-bulk-card,
+[data-theme="dark"] .qx-bulk-x { background: var(--ql-card); }
+/* These two carry a hairline tuned for a white page (rgba near-black at 6%),
+   which is invisible on a dark one. */
+[data-theme="dark"] .qx-bulk-card, [data-theme="dark"] .qx-bulk-x { border-color: var(--ql-border); }
+
+/* The AI insights bar — it sits on Purchase, Payments and Sales, i.e. most of
+   the app. Two separate faults, both invisible to a grep for '#fff':
+     .qx-aibar-h was a hardcoded #6d28d9 (dark violet) — 1.25:1 on the dark
+       bar, so the "AI" label simply was not there.
+     .qx-aibar-i was rgba(255,255,255,.7) — a 70%-white pill. Alpha, not a
+       hex, so nothing flagged it; but it composites to light grey under
+       var(--ql-text), which is near-white in dark. Flip it to the same 70%
+       of the CARD colour and the pill follows the theme for free. */
+[data-theme="dark"] .qx-aibar-h { color: #c4b5fd; }
+[data-theme="dark"] .qx-aibar-i { background: rgba(15,23,42,.7); }
+
+/* Translucent near-white washes — rgba(248,250,252,.6–.75). Not one of them
+   contains the string '#fff', so they survived the white sweep and every dark
+   rule: over the dark page they composite to LIGHT GREY, and .qx-foot's total
+   (var(--ql-text), near-white) landed on it at 1.67:1 — the register's totals
+   row, on the flagship page. Same alpha, over the card colour instead. */
+[data-theme="dark"] .qx-adv { background: rgba(15,23,42,.6); }
+[data-theme="dark"] .qx-grp-bar { background: rgba(15,23,42,.7); }
+[data-theme="dark"] .qx-foot { background: rgba(15,23,42,.75); }
+[data-theme="dark"] .qx-col { background: rgba(15,23,42,.7); }
+/* ── The --qx accent ramp, inverted ──────────────────────────────────────
+   Every accent defines --qx-soft (a near-white tint) and --qx-ink (dark ink
+   for text ON that tint). Unlike the --ql-brand ramp, this pair is cleanly
+   separated: --qx-soft is 9 uses and ALL of them are `background`; --qx-ink is
+   8 uses and ALL of them are `color`. Nothing else depends on either. So the
+   pair CAN be flipped as a pair — dark tint + light ink — which inverts the
+   active tab, .qx-tool.on, .qx-cal-ev, .qx-dp-tab-ct and .qx-drop:hover for
+   every accent at once, instead of restating each call site.
+   (--ql-brand-600 is not so lucky: it is the primary button's background AND
+   the link colour, so its ramp has to stay put. See shell.css.) */
+[data-theme="dark"] .qx { --qx-ink: #93b4fd; --qx-soft: #172554; --qx-soft2: #1e3a8a; }
+[data-theme="dark"] .qx-a-blue   { --qx-ink:#93b4fd; --qx-soft:#172554; --qx-soft2:#1e3a8a; }
+[data-theme="dark"] .qx-a-green  { --qx-ink:#86efac; --qx-soft:#052e16; --qx-soft2:#14532d; }
+[data-theme="dark"] .qx-a-amber  { --qx-ink:#fcd34d; --qx-soft:#451a03; --qx-soft2:#78350f; }
+[data-theme="dark"] .qx-a-violet { --qx-ink:#c4b5fd; --qx-soft:#2e1065; --qx-soft2:#4c1d95; }
+[data-theme="dark"] .qx-a-teal   { --qx-ink:#5eead4; --qx-soft:#042f2e; --qx-soft2:#134e4a; }
+[data-theme="dark"] .qx-a-rose   { --qx-ink:#fda4af; --qx-soft:#4c0519; --qx-soft2:#881337; }
+[data-theme="dark"] .qx-a-cyan   { --qx-ink:#67e8f9; --qx-soft:#083344; --qx-soft2:#164e63; }
+[data-theme="dark"] .qx-a-indigo { --qx-ink:#a5b4fc; --qx-soft:#1e1b4b; --qx-soft2:#312e81; }
+[data-theme="dark"] .qx-a-orange { --qx-ink:#fdba74; --qx-soft:#431407; --qx-soft2:#7c2d12; }
+[data-theme="dark"] .qx-a-slate  { --qx-ink:#cbd5e1; --qx-soft:#1e293b; --qx-soft2:#334155; }
+[data-theme="dark"] .qx-a-purple { --qx-ink:#d8b4fe; --qx-soft:#3b0764; --qx-soft2:#581c87; }
+[data-theme="dark"] .qx-a-red    { --qx-ink:#fca5a5; --qx-soft:#450a0a; --qx-soft2:#7f1d1d; }
+/* The counter chip is a 70%-WHITE pill designed to sit on the near-white
+   active tab. With the tab now dark, 70% white would be a headlight; 16% is
+   the same idea (a lift off the pill) in the other direction. */
+[data-theme="dark"] .qx-tab.active .qx-tab-ct { background: rgba(255,255,255,.16); color: var(--qx-ink); }
+/* The counter pill is rgba(15,23,42,.05) — near-black at 5%, i.e. invisible
+   ON a dark card. Lift it instead of sinking it. */
+[data-theme="dark"] .qx-col-ct { background: rgba(255,255,255,.08); }
 
 /* ── Month filter (registers) ───────────────────────────────────────────── */
 /* The month picker — button AND calendar — is shell.css's .ql-mp-btn / .ql-mp.

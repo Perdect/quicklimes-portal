@@ -40,10 +40,16 @@ function grabBlock(startsWith, endsWith) {
   return src.slice(i, src.indexOf(endsWith, i) + endsWith.length);
 }
 
-const S = { SALES: [], PURCHASES: [], WORKERS: [] };
-const ctx = { console, Math, Object, Array, Number, isNaN, S, partyGstin: () => '' };
+const S = { SALES: [], PURCHASES: [], WORKERS: [], CASHBOOK: [] };
+const ctx = { console, Math, Object, Array, Number, isNaN, S, partyGstin: () => '', String, RegExp };
 vm.createContext(ctx);
 vm.runInContext([
+  /* inPeriod is the month/year filter totS/totP/labourPaid all run rows through.
+     Undefined ⇒ all time, which is what every assertion below passes, so these
+     stay all-time tests — but the function has to BE here or they ReferenceError
+     rather than telling you anything. */
+  grabBlock('function inPeriod(date, period)', '\n  }'),
+  grabBlock('function labourPaid(p)', '\n  }'), grabLine('const LABOUR_RE ='),
   grabLine('const cS = s =>'), grabLine('const cP = p =>'),
   /* cW (wage maths) is multi-line, so grabLine would take only its first line and
      leave an unbalanced brace — which surfaces as "Unexpected end of input" and
@@ -52,9 +58,13 @@ vm.runInContext([
      copy of the real one is not. */
   'const cW = () => { throw new Error("cW is stubbed — this test does not cover labour"); };',
   grabLine('const saleInter ='), grabLine('const notCancelled = x =>'),
-  grabLine('const totS = ()'), grabLine('const totP = ()'), grabLine('const totL = ()'),
-  grabBlock('function getPL()', '\n  }'),
-  grabBlock('function gstSummary()', '\n  }'),
+  /* totS/totP now take a period ('const totS = p =>'), and getPL/gstSummary take
+     one too — so these anchors match the signature, not a frozen copy of it.
+     Slicing data.js by exact text is this harness's business, not the guard: the
+     assertions below are unchanged and still pin IGST, COGS and trashed rows. */
+  grabLine('const totS ='), grabLine('const totP ='), grabLine('const totL ='),
+  grabBlock('function getPL(period)', '\n  }'),
+  grabBlock('function gstSummary(period)', '\n  }'),
   'this.getPL = getPL; this.gstSummary = gstSummary;'
 ].join('\n'), ctx);
 ok(typeof ctx.getPL === 'function', 'the real getPL + gstSummary loaded out of data.js');

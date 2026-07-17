@@ -147,6 +147,12 @@ QLX.mount({
   active: 'finance', title: 'Payments Center', accent: 'blue', noun: 'payment', nounPl: 'payments',
   icon: '<path d="M2 8h20M2 8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2M2 8v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8"/><path d="M6 14h4"/>',
   data: () => Q.paymentsLedger(), rowId: r => r.idx, dateField: r => r.date,
+  /* Every payment carries a date, so "show me March" / "show me 2026" is a
+     question this ledger can answer honestly — and the numbers below move with
+     it. What CANNOT move is the account BALANCES: a balance is a position as of
+     today, arrived at by every entry ever made, so scoping it to March would
+     invent a number that was never true. Those cards stay all-time and say so. */
+  monthFilter: true, monthOf: r => r.date, emptyLabel: 'payment',
   subtitle: () => { const s = Q.paymentsSummary(); return `<b>${esc(Q.co.short)}</b> · ${s.count} transactions · Balance <b>${fC(s.total)}</b>`; },
   primary: { label: 'Receive Payment', icon: '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>', onClick: receivePaymentModal },
   tools: [
@@ -155,16 +161,25 @@ QLX.mount({
     { label: 'Record', icon: IC.plus, onClick: recordModal },
     { label: 'Export', icon: IC.dl, onClick: () => exportPayments() }
   ],
-  stats: () => {
-    const s = Q.paymentsSummary();
+  /* `rows` is the month/year-scoped set (QLX passes allRows() in). Reading it —
+     rather than calling paymentsSummary() again, which is always all-time — is
+     the difference between a filter and a decoration. */
+  stats: rows => {
+    const s = Q.paymentsSummary(), per = QLX.monthLabel().toLowerCase();
+    const moneyIn = rows.reduce((a, r) => a + r.credit, 0);
+    const moneyOut = rows.reduce((a, r) => a + r.debit, 0);
     return [
-      { label: 'Money In Today', value: fC(s.inToday), sub: 'received today', tint: 'green', icon: '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>' },
-      { label: 'Money Out Today', value: fC(s.outToday), sub: 'paid today', tint: 'rose', icon: '<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>' },
-      { label: 'Customer Outstanding', value: fC(s.custOutstanding), sub: 'to collect', tint: 'amber', icon: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
-      { label: 'Supplier Outstanding', value: fC(s.supOutstanding), sub: s.pendingBills + ' bills to pay', tint: 'orange', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
-      { label: 'Cash Balance', value: fC(s.cash), sub: 'in hand', tint: 'teal', icon: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>' },
-      { label: 'Bank Balance', value: fC(s.bank), sub: 'current a/c', tint: 'blue', icon: '<line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/>' },
-      { label: 'UPI Balance', value: fC(s.upi), sub: 'PhonePe · GPay', tint: 'violet', icon: '<rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/>' },
+      { label: 'Money In', value: fC(moneyIn), sub: 'received · ' + per, tint: 'green', icon: '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>' },
+      { label: 'Money Out', value: fC(moneyOut), sub: 'paid · ' + per, tint: 'rose', icon: '<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>' },
+      /* From here down: positions as of TODAY, not the picked period, and every
+         sub says so. What you are owed is what you are owed — it is not a
+         March number, and pretending otherwise would be the more dangerous
+         "consistency". */
+      { label: 'Customer Outstanding', value: fC(s.custOutstanding), sub: 'to collect · today', tint: 'amber', icon: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
+      { label: 'Supplier Outstanding', value: fC(s.supOutstanding), sub: s.pendingBills + ' bills to pay · today', tint: 'orange', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>' },
+      { label: 'Cash Balance', value: fC(s.cash), sub: 'in hand · today', tint: 'teal', icon: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>' },
+      { label: 'Bank Balance', value: fC(s.bank), sub: 'current a/c · today', tint: 'blue', icon: '<line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/>' },
+      { label: 'UPI Balance', value: fC(s.upi), sub: 'PhonePe · GPay · today', tint: 'violet', icon: '<rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/>' },
       { label: 'Pending Bills', value: s.pendingBills, sub: 'awaiting payment', tint: 'indigo', icon: IC.file }
     ];
   },
@@ -219,10 +234,14 @@ QLX.mount({
   })
 });
 
+/* QLX.rows(), not paymentsLedger(): the export must be the month/year on SCREEN.
+   A CSV that quietly holds every month while the page shows March is the way a
+   filter gets believed and then disbelieved — sales.js already exports this way. */
 function exportPayments() {
-  const r = Q.paymentsLedger();
-  QLShell.exportCSV('payments_' + (Q.co.short || 'ledger').replace(/\s+/g, '_'), ['Date', 'Party', 'Type', 'Reference', 'Method', 'Account', 'Debit', 'Credit', 'Balance', 'Status', 'Notes'], r.map(x => [x.date, x.party, x.ptype, x.ref, x.method, accLabel(x.mode), x.debit || '', x.credit || '', x.balance, x.status, x.notes]));
-  QLX.toast('Exported ' + r.length + ' transactions');
+  const r = QLX.rows();
+  const mo = QLX.month() ? '_' + QLX.month() : '';
+  QLShell.exportCSV('payments_' + (Q.co.short || 'ledger').replace(/\s+/g, '_') + mo, ['Date', 'Party', 'Type', 'Reference', 'Method', 'Account', 'Debit', 'Credit', 'Balance', 'Status', 'Notes'], r.map(x => [x.date, x.party, x.ptype, x.ref, x.method, accLabel(x.mode), x.debit || '', x.credit || '', x.balance, x.status, x.notes]));
+  QLX.toast('Exported ' + r.length + ' transactions' + (QLX.month() ? ' · ' + QLX.monthLabel() : ''));
 }
 
 /* build: bank-account field in payment modals + account line in ledger */

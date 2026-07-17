@@ -11,7 +11,7 @@
 .crm-ai-head { display: flex; align-items: center; gap: 8px; padding: 11px 15px 3px; }
 .crm-ai-head svg { width: 16px; height: 16px; fill: var(--ql-brand-500); stroke: none; }
 .crm-ai-head span { font-weight: 800; font-size: 13px; letter-spacing: -.01em; background: linear-gradient(90deg, var(--ql-brand-600), #8b5cf6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-.crm-ai-head em { font-style: normal; font-size: 11px; color: var(--ql-text-tertiary, var(--ql-text-secondary)); margin-left: auto; }
+.crm-ai-head em { font-style: normal; font-size: 11px; color: var(--ql-text-secondary); margin-left: auto; }
 .crm-ai-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 8px 13px 14px; }
 .crm-ai-c { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border-radius: var(--ql-radius-lg, 12px);
   background: var(--ql-card); border: 1px solid var(--ql-border); }
@@ -40,7 +40,7 @@
 
 /* ── health bar (in table) ── */
 .crm-hb { display: flex; align-items: center; gap: 7px; justify-content: flex-end; }
-.crm-hb-t { width: 46px; height: 6px; border-radius: 99px; background: var(--ql-neutral-150, #eef1f6); overflow: hidden; }
+.crm-hb-t { width: 46px; height: 6px; border-radius: 99px; background: var(--ql-neutral-150); overflow: hidden; }
 .crm-hb-f { height: 100%; border-radius: 99px; transition: width .3s ease; }
 .crm-hb b { font-size: 12px; font-weight: 700; min-width: 20px; text-align: right; font-variant-numeric: tabular-nums; }
 

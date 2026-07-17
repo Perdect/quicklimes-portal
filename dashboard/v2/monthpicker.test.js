@@ -32,6 +32,9 @@ const fs = require('fs'), path = require('path');
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ❌ ' + m); } };
+// Value-comparing form: a bare ok() on a number reports "failed" without saying
+// what it got, which is useless when the whole point is which number appeared.
+const eq2 = (m, a, b) => ok(a === b, m + '\n     got: ' + a + '  expected: ' + b);
 
 /* Strip comments before asserting: every file here EXPLAINS this bug in prose,
    and a bare /stopPropagation/ would match the explanation rather than the code.
@@ -155,6 +158,128 @@ console.log('\n═══ month picker · exactly one of it ═══\n');
   }
 }
 
+/* ══════════ 6. THE PICKER REACHES EVERY PERIOD-SCOPED PAGE ══════════
+   "how can I filter month or year give option calendar fo all". It reached 2 of
+   13 QLX pages. These are the pages whose numbers are built from DATED rows, so
+   "show me March" is a question they can answer honestly — listed by name
+   because the failure mode is a page quietly never getting one, which no generic
+   check can see. Pages deliberately WITHOUT it are section 8; that list is the
+   other half of this one, and a page must appear in exactly one of them. */
+const QLX_SCOPED = {
+  'sales.js': 'Sales Register', 'purchase.js': 'Purchase Register',
+  'payments.js': 'Payments Center', 'cashbook.js': 'Cash Book', 'tds.js': 'TDS'
+};
+const HTML_SCOPED = {
+  'gst.html': 'GST Summary', 'pl.html': 'Profit & Loss',
+  'chunna.html': 'Chunna Sales', 'monthreg.html': 'Monthly Register'
+};
+{
+  for (const [f, what] of Object.entries(QLX_SCOPED)) {
+    const src = SRC.get(f) || '';
+    ok(/monthFilter:\s*true/.test(src),
+      f + ' (' + what + '): every row here is dated, but the page never opts into the month filter ' +
+      '(monthFilter: true). qlx.js renders the shared picker only for pages that ask.');
+    ok(/monthOf:/.test(src),
+      f + ' (' + what + '): declares monthFilter but no monthOf — qlx.js would not know which field dates a row.');
+  }
+  for (const [f, what] of Object.entries(HTML_SCOPED)) {
+    ok(/QLShell\.periodFilter\s*\(/.test(SRC.get(f) || ''),
+      f + ' (' + what + '): shows period-scoped numbers with no month picker. Call QLShell.periodFilter ' +
+      '(shell.js) — it is the shared wiring around the shared calendar.');
+  }
+}
+
+/* ══════════ 7. THE PICKER MUST ACTUALLY RESCOPE ══════════
+   The signature bug of this codebase: built, not wired. A calendar that renders
+   and filters nothing is WORSE than no calendar — it is a wrong number the owner
+   has been invited to trust. Every check below is a specific way that happens. */
+{
+  /* (a) qlx.js hands the month-scoped rows to CFG.stats(). A page that declares
+     `stats: () =>` and re-reads an all-time summary renders six cards that never
+     move while the table beneath them does. payments/cashbook/tds all did. */
+  for (const [f, what] of Object.entries(QLX_SCOPED)) {
+    const src = SRC.get(f) || '';
+    if (!/stats:/.test(src)) continue;
+    ok(!/stats:\s*\(\s*\)\s*=>/.test(src),
+      f + ' (' + what + '): `stats: () =>` ignores the month-scoped rows qlx.js passes in, so the ' +
+      'stat cards keep showing all-time totals while the table shows one month. Take the rows: `stats: rows => …`.');
+  }
+
+  /* (b) The export must be what is ON SCREEN. QLX.rows() is the scoped set; the
+     raw row builder is every month ever. A CSV that disagrees with the page is
+     how a filter gets believed and then disbelieved. */
+  const exports = {
+    'payments.js': 'paymentsLedger', 'cashbook.js': 'cashbookRows', 'tds.js': 'tdsRows'
+  };
+  for (const [f, builder] of Object.entries(exports)) {
+    const src = SRC.get(f) || '';
+    const fn = (src.match(/function export\w+\([^)]*\)\s*\{[\s\S]{0,600}?\n\}/) || [''])[0]
+      || (src.match(/function export\w+\([^)]*\)\s*\{[^\n]*\}/) || [''])[0];
+    if (!fn) continue;
+    ok(/QLX\.rows\(\)/.test(fn),
+      f + ': its export reads ' + builder + '() — every row ever — while the page shows one month. ' +
+      'Export QLX.rows(), the scoped set (sales.js already does).');
+  }
+
+  /* (c) The plain pages must PASS the period to the data layer. Mounting the
+     button and then calling the all-time summary is the same bug wearing the
+     shared control's clothes — and it would look completely correct. */
+  const feeds = {
+    'gst.html': /gstSummary\(\s*PF\.period\(\)\s*\)/,
+    'pl.html': /getPL\(\s*PF\.period\(\)\s*\)/,
+    'chunna.html': /chunnaSummary\(\s*PF\.period\(\)\s*\)/,
+    'monthreg.html': /monthlyRegister\(\s*per\s*\)/
+  };
+  for (const [f, re] of Object.entries(feeds)) {
+    ok(re.test(SRC.get(f) || ''),
+      f + ': renders the picker but never passes the picked period to its data call — the numbers ' +
+      'would not move. This is the "built, not wired" failure the whole change exists to avoid.');
+  }
+
+  /* (d) An equality test cannot read a YEAR. `slice(0,7) === period` matches
+     NOTHING for '2026', so the year button would EMPTY the page instead of
+     widening it — a filter that renders and lies. QLD.inPeriod is the one rule. */
+  const qlx = SRC.get('qlx.js') || '';
+  ok(!/monthOf\(r\)\s*===\s*S\.month/.test(qlx),
+    'qlx.js: filters rows with `monthOf(r) === S.month`, which matches nothing when the picker ' +
+    'returns a year. Use QLD.inPeriod — the shared prefix rule.');
+  ok(/QLD\.inPeriod/.test(qlx),
+    'qlx.js: must run rows through QLD.inPeriod so "Whole year 2026" widens the table instead of emptying it.');
+}
+
+/* ══════════ 8. THE PAGES THAT MUST *NOT* BE MONTH-SCOPED ══════════
+   The other half of section 6, and the more important half. Forcing the picker
+   onto these would be a bug wearing a consistency costume: a running balance or
+   an outstanding position is arrived at by every entry EVER, so scoping it to
+   March invents a number that was never true on any day. The reason is recorded
+   against each page so the next person adding "the missing pickers" reads WHY
+   before deciding these were an oversight. */
+{
+  const NOT_SCOPED = {
+    'collections.js': 'one row per CUSTOMER = what they owe TODAY, not what they bought in March',
+    'payables.js': 'one row per SUPPLIER = what we owe TODAY; same position, other direction',
+    'loans.js': 'one row per LOAN; outstanding is a running balance, meaningless per month',
+    'labour.js': 'one row per WORKER — no date on the record at all, and attendance is keyed by day-number inside one unlabelled month grid, so there is nothing to filter'
+  };
+  for (const [f, why] of Object.entries(NOT_SCOPED)) {
+    const src = SRC.get(f) || '';
+    ok(!/monthFilter:\s*true/.test(src),
+      f + ': took the month filter, but ' + why + '. A picker here would produce a number that was ' +
+      'never true. If the data model changed to make this honest, move it to QLX_SCOPED above.');
+  }
+  /* Reports owns a RANGE picker — "what span" is a different question from "which
+     month", and replacing it would be a downgrade dressed as consistency. */
+  ok(!/QLShell\.periodFilter\s*\(/.test(SRC.get('reports.html') || ''),
+    'reports.html: has its own from/to RANGE picker. "What span" ≠ "which month" — do not replace it.');
+  /* A page cannot be in both lists. Reads as pedantic; it is the check that fires
+     when someone resolves "why has this no picker?" by adding one and leaving the
+     reason behind. */
+  for (const f of Object.keys(NOT_SCOPED)) {
+    ok(!QLX_SCOPED[f] && !HTML_SCOPED[f],
+      f + ': is listed as both month-scoped and deliberately-not. Decide which, in one place.');
+  }
+}
+
 /* ══════════ 5. THE PICK STILL PERSISTS ══════════
    QLD.uiMonth/setUiMonth is the shared month state — it is why picking March on
    Sales keeps you in March on Purchase. A refactor that dropped it would look
@@ -174,6 +299,82 @@ console.log('\n═══ month picker · exactly one of it ═══\n');
   const shell = SRC.get('shell.js') || '';
   ok(/cfg\.years/.test(shell) && /cfg\.allLabel/.test(shell),
     'shell.js: the shared picker supports years/allLabel — the options that made consolidating Inventory safe');
+}
+
+/* ══════════ 9. THE RULE ITSELF, RUN ══════════
+   Sections 6–8 are static: they prove the wiring exists. They cannot prove it
+   WORKS. QLD.inPeriod is what every one of those pages now filters through, so
+   it is the single point where "month or year" is either right or silently
+   wrong everywhere at once. Run the real one out of data.js. */
+const vm = require('vm');
+const dsrc = fs.readFileSync(path.join(__dirname, 'data.js'), 'utf8');
+const grab = (start, end) => {
+  const i = dsrc.indexOf(start);
+  if (i < 0) throw new Error('not found in data.js: ' + start);
+  return dsrc.slice(i, dsrc.indexOf(end, i) + end.length);
+};
+const S = { SALES: [], PURCHASES: [], WORKERS: [], CASHBOOK: [], CHUNNA: [] };
+const dctx = { console, Math, Object, Array, Number, String, Date, RegExp, isNaN, parseFloat, S, partyGstin: () => '' };
+vm.createContext(dctx);
+vm.runInContext([
+  grab('function inPeriod(date, period)', '\n  }'),
+  grab('function monthLabel(ym, opts)', '\n  }'),
+  grab('function periodLabel(p, allLabel)', '\n  }'),
+  grab('const notCancelled = x =>', '\n'),
+  grab('const cS = s =>', '\n'), grab('const cP = p =>', '\n'),
+  grab('const saleInter =', '\n'),
+  grab('const totS =', '\n'), grab('const totP =', '\n'),
+  grab('function gstSummary(period)', '\n  }'),
+  'this.P = { inPeriod, periodLabel, gstSummary };'
+].join('\n'), dctx);
+const P = dctx.P;
+
+{
+  const I = P.inPeriod;
+  /* A month. */
+  ok(I('2026-03-14', '2026-03'), 'inPeriod: a March date is in March');
+  ok(!I('2026-04-01', '2026-03'), 'inPeriod: an April date is not in March');
+  ok(!I('2025-03-14', '2026-03'), 'inPeriod: same month, WRONG YEAR, is not in March 2026');
+  /* A year — the thing the owner asked for, and the case a `slice(0,7) ===`
+     implementation silently answers NO to for every row on earth. */
+  ok(I('2026-03-14', '2026'), 'inPeriod: a March date is in the year 2026');
+  ok(I('2026-12-31', '2026'), 'inPeriod: December too — the year is the whole year');
+  ok(!I('2025-12-31', '2026'), 'inPeriod: last New Year\'s Eve is not in 2026 (the off-by-one-day boundary)');
+  /* All / empty. */
+  ok(I('2026-03-14', 'all'), 'inPeriod: "all" takes everything');
+  ok(I('2026-03-14', null) && I('2026-03-14', ''), 'inPeriod: no period takes everything (the default every old caller relies on)');
+  /* Junk must not throw — these run over rows whose date may be missing. */
+  ok(!I('', '2026-03') && !I(null, '2026-03') && !I(undefined, '2026-03'),
+    'inPeriod: a row with NO date is in no month — and does not throw');
+
+  const L = P.periodLabel;
+  ok(L('2026-03') === 'March 2026', 'periodLabel: a month reads as a month');
+  ok(L('2026') === 'Year 2026', 'periodLabel: a YEAR reads as "Year 2026" — QLD.monthLabel alone returns blank here, which is how the year button ends up with an empty label');
+  ok(L('all') === 'All months' && L(null) === 'All months', 'periodLabel: the unfiltered case');
+  ok(L('all', 'All time') === 'All time', 'periodLabel: Inventory\'s "All time" is still expressible (allLabel)');
+}
+
+/* ══════════ 10. THE NUMBERS MOVE ══════════
+   The proof the static checks cannot give: pick a month, and the money CHANGES.
+   Two sales in two different months and one in another year — if any assertion
+   below reads the all-time total, the filter is decorative. */
+{
+  S.SALES.length = 0;
+  const sale = (date, rate) => ({ date, qty: 100, rate, gstR: 5, gstin: '08AAA0000A1Z5', status: 'pending' });
+  S.SALES.push(sale('2026-03-10', 100));   // taxable 10,000 · GST 500
+  S.SALES.push(sale('2026-07-10', 200));   // taxable 20,000 · GST 1,000
+  S.SALES.push(sale('2025-07-10', 400));   // taxable 40,000 · GST 2,000 — LAST year
+
+  eq2('all time is every sale', Math.round(P.gstSummary('all').taxable), 70000);
+  eq2('March 2026 is March 2026 alone', Math.round(P.gstSummary('2026-03').taxable), 10000);
+  eq2('July 2026 is a DIFFERENT number — the picker moves the money', Math.round(P.gstSummary('2026-07').taxable), 20000);
+  /* The year: wider than a month, narrower than all time. A `slice(0,7) ===`
+     filter returns 0 here, and an unwired one returns 70000. Both are wrong, and
+     only this assertion tells them apart. */
+  eq2('Year 2026 WIDENS to both 2026 months', Math.round(P.gstSummary('2026').taxable), 30000);
+  eq2('  and excludes 2025 — a year is a year, not "everything"', Math.round(P.gstSummary('2025').taxable), 40000);
+  eq2('the output GST scopes with it (not just the taxable value)', Math.round(P.gstSummary('2026-03').outGST), 500);
+  eq2('a month with no books is ₹0, not all-time', Math.round(P.gstSummary('2026-01').taxable), 0);
 }
 
 console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');

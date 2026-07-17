@@ -86,7 +86,13 @@ vm.runInContext([
   grabBlock('function salesRows()', '\n  }'),
   grabBlock('function purchaseRows()', '\n  }'),
   grabLine('const PAY_METHODS ='),
-  'this.X = { methodToMode, accountBalances, paymentsLedger, paymentsSummary, receiveSalesPayment, payPurchaseBill, addLedgerPayment, addTransfer, salesRows, purchaseRows, cS, cP, PAY_METHODS };'
+  /* The REAL period helpers, not a re-implementation: they are what the page's
+     month filter runs on, and a hand-copied `inPeriod` in this file would be
+     free to agree with a broken one in data.js. */
+  grabBlock('function inPeriod(date, period)', '\n  }'),
+  grabBlock('function monthLabel(ym, opts)', '\n  }'),
+  grabBlock('function periodLabel(p, allLabel)', '\n  }'),
+  'this.X = { methodToMode, accountBalances, paymentsLedger, paymentsSummary, receiveSalesPayment, payPurchaseBill, addLedgerPayment, addTransfer, salesRows, purchaseRows, cS, cP, PAY_METHODS, inPeriod, periodLabel };'
 ].join('\n'), dctx);
 const X = dctx.X;
 ok(typeof X.receiveSalesPayment === 'function', 'the real posting maths loaded out of data.js');
@@ -337,6 +343,8 @@ const doc = {
   createElement: () => elStub, addEventListener: noop, body: elStub, documentElement: elStub
 };
 let CFG = null, FORM = null, toasts = [], exported = null, confirmed = null;
+// The month/year the shared picker is standing on. 'all' | 'YYYY' | 'YYYY-MM'.
+let QLXPERIOD = 'all';
 /* The REAL extracted data.js functions over the REAL store — so firing a modal's
    onSave posts real money through the real path and the real ledger reads it back. */
 const QLD = {
@@ -345,6 +353,7 @@ const QLD = {
   co: { name: 'Gotan Lime Industries', short: 'GOTAN' }, COMPANIES: {}, ownFirmNames: [], activeCo: 'gotan',
   paymentsLedger: () => X.paymentsLedger(), paymentsSummary: () => X.paymentsSummary(),
   paymentsInsights: () => [], accountBalances: () => X.accountBalances(),
+  inPeriod: (d, p) => X.inPeriod(d, p), periodLabel: (p, a) => X.periodLabel(p, a),
   salesRows: () => X.salesRows(), purchaseRows: () => X.purchaseRows(),
   receiveSalesPayment: (i, o) => X.receiveSalesPayment(i, o),
   payPurchaseBill: (i, o) => X.payPurchaseBill(i, o),
@@ -364,8 +373,15 @@ const ctx = {
     exportCSV: (name, head, rows) => { exported = { name, head, rows }; }
   },
   QLD, QLFin: {}, QLMobile: null,
+  /* rows/month/monthLabel are the month-filter half of the real QLX. The page
+     reads them for its stats, its export and its subtitle, so a stub without
+     them is not a smaller QLX — it is a different one, and the page would only
+     fail here. `QLXPERIOD` lets a test drive the picker. */
   QLX: { esc: s => String(s == null ? '' : s), svg: () => '', icons: {},
     toast: (m, t) => { toasts.push([m, t]); }, refresh: noop, state: () => ({}),
+    rows: () => QLD.paymentsLedger().filter(r => QLD.inPeriod(r.date, QLXPERIOD)),
+    month: () => (QLXPERIOD && QLXPERIOD !== 'all') ? QLXPERIOD : null,
+    monthLabel: () => QLD.periodLabel(QLXPERIOD),
     actionsCell: () => '', open: noop, close: noop, mount: c => { CFG = c; } },
   setTimeout: noop, clearTimeout: noop, requestAnimationFrame: noop,
   localStorage: { getItem: () => null, setItem: noop }, sessionStorage: { getItem: () => null, setItem: noop },
