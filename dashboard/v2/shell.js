@@ -1986,13 +1986,23 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
   // Fade out the branded splash once the shell + first page paint are done.
   // Kept on screen a minimum time so it reads as intentional, not a flash.
   function hideSplash() {
-    const s = document.getElementById('ql-splash'); if (!s || s.classList.contains('qs-hide')) return;
-    const go = () => requestAnimationFrame(() => {
+    const s = document.getElementById('ql-splash'); if (!s || s.__qsGoing) return;
+    s.__qsGoing = true;                                // fade exactly once
+    const fade = () => {
       s.classList.add('qs-hide');
       setTimeout(() => { if (s && s.parentNode) s.parentNode.removeChild(s); const css = document.getElementById('ql-splash-css'); if (css) css.remove(); }, 600);
-    });
+    };
     // ensure the page has actually painted content, and a graceful minimum dwell
-    setTimeout(go, 450);
+    setTimeout(() => {
+      /* rAF starts the fade on a real frame, so it looks smooth. But rAF NEVER
+         fires while the tab is hidden — a page that loads in a background tab
+         would keep the splash up forever on nothing but a missed frame. The
+         setTimeout is the guarantee; whichever wins, `done` makes it once. */
+      let done = false;
+      const once = () => { if (done) return; done = true; fade(); };
+      requestAnimationFrame(once);
+      setTimeout(once, 200);
+    }, 450);
   }
 
   /* ════════════════════════ PWA (installable app) ══════════════════════════ */
