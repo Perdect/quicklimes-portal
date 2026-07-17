@@ -544,7 +544,7 @@ function heroHTML() {
   return `<div class="rc-hero">
     <div><div class="rc-h1">Bank Reconciliation</div><div class="rc-sub">${esc(monthLabel())} · <b>${esc(Q.co.short || 'Company')}</b> · ${monthTxns().length} transaction${monthTxns().length === 1 ? '' : 's'}</div></div>
     <div class="rc-hero-r">
-      <button class="rc-btn" id="rcMonth">${svg(IC.cal)}<span>${esc(monthLabel())}</span>${svg('<polyline points="6 9 12 15 18 9"/>')}</button>
+      ${QLShell.monthButton({ id: 'rcMonth', label: monthLabel() })}
       ${txns().length ? `<button class="rc-btn rc-btn-ai" id="rcMatch" title="Run the AI matching engine">${svg(IC.ai)}<span>AI Reconcile</span></button><button class="rc-btn" id="rcApply" title="Post payments for the matched bills so their status stops saying Pending">${svg(IC.ck)}<span>Update Payments</span></button><button class="rc-btn" id="rcExport">${svg(IC.dl)}<span>Export</span></button>` : ''}
       <button class="rc-btn rc-btn-primary" id="rcUpload">${svg(IC.up)}<span>Upload statement</span></button>
     </div></div>`;
@@ -1018,25 +1018,17 @@ function placeRcMenu(m, anchor) {
   let top = r.bottom + 6; if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - 6 - mh);
   m.style.top = top + 'px'; m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - mw - 12)) + 'px'; _rcMenu = m;
 }
+/* The calendar is QLShell.monthPicker — the app's ONE picker. This was the third
+   of four copies, and the one that shipped WITHOUT the year-arrow fix its
+   siblings already had: the user found it, which is why monthpicker.test.js
+   exists. There is nothing left here to drift. */
 function openMonthMenu(anchor) {
   closeRcMenu();
-  const have = new Set(txns().map(t => ymOf(t.date)).filter(Boolean));
-  let year = +((ST.month && ST.month !== 'all' ? ST.month : new Date().toISOString().slice(0, 7)).slice(0, 4)) || new Date().getFullYear();
-  const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const m = document.createElement('div'); m.className = 'rc-menu rc-month-menu';
-  const paint = () => {
-    m.innerHTML = `<div class="rc-mm-yr"><button data-yr="-1">${svg('<polyline points="15 18 9 12 15 6"/>')}</button><span>${year}</span><button data-yr="1">${svg('<polyline points="9 18 15 12 9 6"/>')}</button></div>
-      <div class="rc-mm-grid">${MN.map((mn, i) => { const ym = year + '-' + String(i + 1).padStart(2, '0'); return `<button class="rc-mm-c${ST.month === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-ym="${ym}">${mn}</button>`; }).join('')}</div>
-      <button class="rc-mm-all${(!ST.month || ST.month === 'all') ? ' on' : ''}" data-ym="all">All months</button>`;
-    /* stopPropagation: paint() re-renders the menu, detaching this button; without
-       it the click bubbles to the document close-handler, which sees a target no
-       longer inside .rc-menu and closes the picker — so the ‹ › year arrows did
-       nothing here while working on Sales/Purchase. qlx.js and dashboard.js each
-       carry this same fix with this same comment; this third copy never got it. */
-    m.querySelectorAll('[data-yr]').forEach(b => b.onclick = e => { e.stopPropagation(); year += +b.dataset.yr; paint(); });
-    m.querySelectorAll('[data-ym]').forEach(b => b.onclick = () => { ST.month = b.dataset.ym; ST.monthInit = true; if (Q.setUiMonth) Q.setUiMonth(b.dataset.ym); closeRcMenu(); render(); });
-  };
-  paint(); placeRcMenu(m, anchor);
+  QLShell.monthPicker(anchor, {
+    month: ST.month,
+    have: new Set(txns().map(t => ymOf(t.date)).filter(Boolean)),
+    onPick(ym) { ST.month = ym; ST.monthInit = true; if (Q.setUiMonth) Q.setUiMonth(ym); render(); }
+  });
 }
 function openMark(tid, anchor) {
   closeRcMenu();

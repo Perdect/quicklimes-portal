@@ -194,7 +194,9 @@
     const tlabel = t => esc(typeof t.label === 'function' ? t.label() : t.label);
     const tools = (CFG.tools || []).map((t, i) => `<button class="qx-btn" data-tool="${i}">${t.icon ? svg(t.icon) : ''}<span>${tlabel(t)}</span></button>`).join('');
     const prim = CFG.primary ? `<button class="qx-btn qx-btn-primary" id="qxPrimary">${svg(CFG.primary.icon || IC.plus)}<span>${esc(CFG.primary.label)}</span></button>` : '';
-    const month = CFG.monthFilter ? `<button class="qx-month" id="qxMonthBtn" title="Filter by month">${svg('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>')}<span>${esc(monthLabel())}</span>${svg('<polyline points="6 9 12 15 18 9"/>')}</button>` : '';
+    // The month button is QLShell's — the same control the dashboard, recon and
+    // inventory render. Do not inline a copy of this markup here again.
+    const month = CFG.monthFilter ? QLShell.monthButton({ id: 'qxMonthBtn', label: monthLabel() }) : '';
     return `<div class="qx-hero">
       <div class="qx-hero-l">
         <div class="qx-hero-tt"><div class="qx-title">${esc(CFG.title)}</div></div>
@@ -228,24 +230,17 @@
     if (root) { root.innerHTML = skeletonHTML(); root.dataset.ready = ''; }   // loading skeleton on change
     setTimeout(() => refresh(), 230);
   }
+  /* The picker itself is QLShell.monthPicker — the app's ONE calendar. This used
+     to be a hand-rolled clone of it (and dashboard.js, reconcile.js and
+     inventory.html each had their own). All that belongs here is the wiring:
+     which months have data, and what to do with the pick. */
   function openMonthMenu(anchor) {
     closeMenu();
-    const have = new Set(rawRows().map(monthOf).filter(Boolean));
-    let year = +((S.month && S.month !== 'all' ? S.month : new Date().toISOString().slice(0, 7)).slice(0, 4)) || new Date().getFullYear();
-    const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const m = document.createElement('div'); m.className = 'qx-menu qx-month-menu';
-    function paint() {
-      m.innerHTML = `<div class="qx-mm-yr"><button class="qx-mm-nav" data-yr="-1">${svg('<polyline points="15 18 9 12 15 6"/>')}</button><span>${year}</span><button class="qx-mm-nav" data-yr="1">${svg('<polyline points="9 18 15 12 9 6"/>')}</button></div>
-        <div class="qx-mm-grid">${MN.map((mn, i) => { const ym = year + '-' + String(i + 1).padStart(2, '0'); return `<button class="qx-mm-cell${S.month === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-ym="${ym}">${mn}</button>`; }).join('')}</div>
-        <button class="qx-mm-all${(!S.month || S.month === 'all') ? ' on' : ''}" data-ym="all">All months</button>`;
-      // stopPropagation: paint() re-renders the menu, detaching this button; without
-      // it the click bubbles to the document close-handler which then sees a detached
-      // target (not inside .qx-menu) and closes the picker — so year nav never worked.
-      m.querySelectorAll('[data-yr]').forEach(b => b.onclick = e => { e.stopPropagation(); year += +b.dataset.yr; paint(); });
-      m.querySelectorAll('[data-ym]').forEach(b => b.onclick = () => { const ym = b.dataset.ym; closeMenu(); setMonth(ym); });
-    }
-    paint();
-    placeMenu(m, anchor);
+    QLShell.monthPicker(anchor, {
+      month: S.month,
+      have: new Set(rawRows().map(monthOf).filter(Boolean)),
+      onPick: setMonth
+    });
   }
 
   function statsHTML() {

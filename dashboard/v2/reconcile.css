@@ -97,18 +97,8 @@
 .rc-menu-h { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ql-text-muted); padding: 6px 9px 4px; }
 .rc-menu-i { display: block; width: 100%; text-align: left; border: none; background: none; padding: 8px 10px; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 500; color: var(--ql-text); cursor: pointer; }
 .rc-menu-i:hover { background: var(--ql-neutral-100); }
-.rc-month-menu { width: 262px; padding: 12px; }
-.rc-mm-yr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.rc-mm-yr span { font-size: 14px; font-weight: 700; }
-.rc-mm-yr button { width: 30px; height: 30px; border: 1px solid var(--ql-border); border-radius: 8px; background: var(--ql-card); cursor: pointer; display: grid; place-items: center; color: var(--ql-text-secondary); }
-.rc-mm-yr button svg { width: 15px; height: 15px; }
-.rc-mm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.rc-mm-c { position: relative; height: 38px; border: 1px solid var(--ql-border); border-radius: 9px; background: var(--ql-card); font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ql-text-secondary); cursor: pointer; transition: all .13s; }
-.rc-mm-c:hover { border-color: var(--ql-brand-400, #60a5fa); color: var(--ql-brand-600); background: var(--ql-brand-50, #eff4ff); }
-.rc-mm-c.has::after { content: ""; position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--ql-brand-500); }
-.rc-mm-c.on { background: var(--ql-brand-600); border-color: var(--ql-brand-600); color: #fff; }
-.rc-mm-all { width: 100%; margin-top: 10px; height: 36px; border: 1px solid var(--ql-border); border-radius: 9px; background: var(--ql-neutral-50); font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ql-text); cursor: pointer; }
-.rc-mm-all.on { background: var(--ql-brand-600); border-color: var(--ql-brand-600); color: #fff; }
+/* The month calendar is shell.css's .ql-mp — one copy, every page. The
+   .rc-mm-* clone that lived here is deleted, not overridden. */
 
 /* modals */
 .rc-back { position: fixed; inset: 0; z-index: 4000; background: rgba(15,23,42,.45); display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(3px); }

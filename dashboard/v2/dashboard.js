@@ -125,28 +125,17 @@ function exportMonthReport() {
   if (QLShell.toast) QLShell.toast('Report downloaded — ' + lbl + ' (' + S.length + ' sales · ' + P.length + ' purchases · ' + L.length + ' payments)', 'ok');
 }
 
+/* The calendar is QLShell.monthPicker — the app's ONE picker, shared with Sales,
+   Purchase, Reconciliation and Inventory. This function used to be a verbatim
+   copy of it that had drifted (it keyed cells `data-m` instead of `data-ym`,
+   which also made monthpicker.test.js blind to this file). Only the wiring
+   lives here now. */
 function openDashMonthMenu(anchor) {
-  document.querySelectorAll('.dx-month-menu').forEach(x => x.remove());
-  const have = new Set(availMonths()), cur = monthSel();
-  let year = +((cur || new Date().toISOString().slice(0, 7)).slice(0, 4)) || new Date().getFullYear();
-  const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const menu = document.createElement('div');
-  menu.className = 'dx-month-menu';
-  const r = anchor.getBoundingClientRect();
-  menu.style.cssText = `position:fixed;top:${r.bottom + 6}px;left:${Math.min(r.left, window.innerWidth - 280)}px;z-index:1500`;
-  function paint() {
-    menu.innerHTML = `<div class="dx-mm-yr"><button class="dx-mm-nav" data-yr="-1">${svg('<polyline points="15 18 9 12 15 6"/>')}</button><span>${year}</span><button class="dx-mm-nav" data-yr="1">${svg('<polyline points="9 18 15 12 9 6"/>')}</button></div>
-      <div class="dx-mm-grid">${MN.map((mn, i) => { const ym = year + '-' + String(i + 1).padStart(2, '0'); return `<button class="dx-mm-cell${cur === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-m="${ym}">${mn}</button>`; }).join('')}</div>
-      <button class="dx-mm-all${!cur ? ' on' : ''}" data-m="all">All months</button>`;
-    // stopPropagation: paint() replaces menu.innerHTML, detaching this button; without
-    // it the click bubbles to the document close-handler below, which sees a detached
-    // target (not inside the menu) and closes the picker — so year nav never worked.
-    menu.querySelectorAll('[data-yr]').forEach(b => b.onclick = e => { e.stopPropagation(); year += +b.dataset.yr; paint(); });
-    menu.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { dashMonth = b.dataset.m; if (Q.setUiMonth) Q.setUiMonth(b.dataset.m); menu.remove(); render(); });
-  }
-  paint();
-  document.body.appendChild(menu);
-  setTimeout(() => document.addEventListener('click', function h(e) { if (!menu.contains(e.target) && e.target.id !== 'dxMonth' && !anchor.contains(e.target)) { menu.remove(); document.removeEventListener('click', h); } }), 0);
+  QLShell.monthPicker(anchor, {
+    month: monthSel() || 'all',
+    have: new Set(availMonths()),
+    onPick(m) { dashMonth = m; if (Q.setUiMonth) Q.setUiMonth(m); render(); }
+  });
 }
 
 function render() {
@@ -179,8 +168,8 @@ function filterBar(co) {
   return `<div class="dx-fbar">
     <div class="dx-fbar-l"><h1 class="dx-h1">Dashboard</h1><span class="dx-fbar-co">${esc(co.short || co.name || '')}</span></div>
     <div class="dx-fbar-r">
-      <button class="dx-fchip dx-month-btn" id="dxMonth">${svg(I.cal)}<b>${esc(dashMonthLabel())}</b>${svg(I.chevD)}</button>
-      <button class="dx-fchip" id="dxExport" title="Download a report of the selected month">${svg(I.dl)}<b>Report</b></button>
+      ${QLShell.monthButton({ id: 'dxMonth', label: dashMonthLabel() })}
+      <button class="qx-btn" id="dxExport" title="Download a report of the selected month">${svg(I.dl)}<span>Report</span></button>
     </div></div>`;
 }
 

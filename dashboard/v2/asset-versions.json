@@ -1,7 +1,7 @@
 {
   "shell.css": {
-    "v": "r4",
-    "sha": "eb41cc0fca33"
+    "v": "r5",
+    "sha": "cd5aab0219a5"
   },
   "pages.css": {
     "v": "m14",
@@ -36,8 +36,8 @@
     "sha": "953089d24f6b"
   },
   "shell.js": {
-    "v": "m47",
-    "sha": "4ee1583d68ce"
+    "v": "m48",
+    "sha": "97921aa31743"
   },
   "mobile.js": {
     "v": "m11",
@@ -48,12 +48,12 @@
     "sha": "22530e020ddc"
   },
   "qlx.css": {
-    "v": "m7",
-    "sha": "6b83e6442382"
+    "v": "m8",
+    "sha": "0b65599fb422"
   },
   "qlx.js": {
-    "v": "m15",
-    "sha": "d9adc77512c8"
+    "v": "m16",
+    "sha": "a9d79f9e588b"
   },
   "cashbook.js": {
     "v": "m2",
@@ -84,20 +84,20 @@
     "sha": "707a2d4aedb9"
   },
   "dash.css": {
-    "v": "d3",
-    "sha": "477547fb119b"
+    "v": "d4",
+    "sha": "3184db361059"
   },
   "dashboard.js": {
-    "v": "m20",
-    "sha": "67ac768f07e5"
+    "v": "m21",
+    "sha": "50815f9ec226"
   },
   "finance.js": {
     "v": "ocr21",
     "sha": "6bd02010b845"
   },
   "inventory.css": {
-    "v": "i1",
-    "sha": "519bbad65819"
+    "v": "i2",
+    "sha": "2f851ca20b7d"
   },
   "invoice-templates.js": {
     "v": "t3",
@@ -176,8 +176,8 @@
     "sha": "cb0f8172d0ac"
   },
   "reconcile.css": {
-    "v": "f4",
-    "sha": "4e72e9c43511"
+    "v": "f5",
+    "sha": "f8080f6ce826"
   },
   "recon-apply.js": {
     "v": "ra1",
@@ -188,8 +188,8 @@
     "sha": "ad192a754db7"
   },
   "reconcile.js": {
-    "v": "f8",
-    "sha": "b4f05e8002d2"
+    "v": "f9",
+    "sha": "4321c132f9de"
   },
   "refund-ocr.js": {
     "v": "r2",

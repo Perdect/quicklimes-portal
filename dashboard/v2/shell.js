@@ -1304,6 +1304,92 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     window.addEventListener('resize', closeRowMenu, { once: true });
   }
 
+  /* ════════════════════ THE MONTH PICKER ═══════════════════════
+     ONE month picker. The only one. It lives here — in shell.js — because shell
+     is the only file all 31 pages load (qlx.css/qlx.js are absent from Inventory
+     and Reports), so this is the one address every surface can reach.
+
+     "I think you're lazy why you changed design of calendar" — he was looking at
+     FIVE pickers. Same control, hand-copied five times, drifted five ways:
+
+       qlx.js .qx-month           Sales, Purchase   ← the design kept, below
+       dashboard.js .dx-month     a verbatim clone, but data-m not data-ym
+       reconcile.js .rc-menu      clone, minus the selected-cell shadow
+       inventory.html .inv-menu   clone, grey hover instead of blue
+       purchasedash.html          a bare <select> — no calendar at all
+
+     Each copy also owned a CSS clone of the same 264px grid, which is why the
+     calendars looked different: nobody restyled anything, the copies just never
+     agreed. monthpicker.test.js exists because a fix landed in two of three
+     copies and the user found the third. Deleting the copies is the fix that
+     test was asking for; it now pins that there is exactly one.
+
+     Behaviour is deliberately UNCHANGED — this is the union of what the copies
+     already did, not a redesign. `years` (Inventory's "Whole year") and
+     `allLabel` ("All time" there, "All months" everywhere else) are options
+     because those pages genuinely differ; everything else is identical. The
+     month filter scopes cards/insights/tables/GST/export — do not "improve" it.
+
+       QLShell.monthButton({ id, label })   → the trigger's HTML
+       QLShell.monthPicker(anchor, { month, have, onPick, allLabel, years })
+  */
+  let _mp = null;
+  function closeMonthPicker() {
+    if (_mp) { _mp.remove(); _mp = null; }
+    document.querySelectorAll('.ql-mp-btn.on').forEach(b => b.classList.remove('on'));
+  }
+  const MP_CAL = '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>';
+  const mpSvg = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  /* The trigger. Every page renders THIS button, so the control that opens the
+     calendar looks the same as the calendar itself. */
+  function monthButton(o) {
+    o = o || {};
+    return `<button class="ql-mp-btn" id="${o.id || 'qlMonthBtn'}" title="${esc(o.title || 'Filter by month')}">${mpSvg(MP_CAL)}<span>${esc(o.label || 'All months')}</span>${mpSvg('<polyline points="6 9 12 15 18 9"/>')}</button>`;
+  }
+  function monthPicker(anchor, cfg) {
+    cfg = cfg || {};
+    const wasOpen = _mp && _mp._anchor === anchor;
+    closeMonthPicker();
+    if (wasOpen) return;                                  // second click closes
+    const cur = cfg.month || 'all';
+    const have = cfg.have instanceof Set ? cfg.have : new Set(cfg.have || []);
+    const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    let year = +((/^(\d{4})/.exec(cur) || [])[1]) || new Date().getFullYear();
+    const m = document.createElement('div');
+    m.className = 'ql-mp'; m._anchor = anchor;
+    function paint() {
+      m.innerHTML = `<div class="ql-mp-yr"><button class="ql-mp-nav" data-yr="-1" aria-label="Previous year">${mpSvg('<polyline points="15 18 9 12 15 6"/>')}</button><span>${year}</span><button class="ql-mp-nav" data-yr="1" aria-label="Next year">${mpSvg('<polyline points="9 18 15 12 9 6"/>')}</button></div>
+        <div class="ql-mp-grid">${MN.map((mn, i) => { const ym = year + '-' + String(i + 1).padStart(2, '0'); return `<button class="ql-mp-cell${cur === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-ym="${ym}">${mn}</button>`; }).join('')}</div>
+        ${cfg.years ? `<button class="ql-mp-wide${cur === String(year) ? ' on' : ''}" data-ym="${year}">Whole year ${year}</button>` : ''}
+        <button class="ql-mp-wide ql-mp-all${(!cur || cur === 'all') ? ' on' : ''}" data-ym="all">${esc(cfg.allLabel || 'All months')}</button>`;
+      /* stopPropagation: paint() re-renders the menu, DETACHING the button just
+         clicked; without it the click bubbles to the document close-handler,
+         which sees a target no longer inside .ql-mp and shuts the picker — so
+         the ‹ › year arrows do nothing. This bug was found and fixed FOUR times
+         in four copies of this function. There is one copy now. It has the fix.
+         The handler must take `e` to be able to stop it — `() => {}` cannot. */
+      m.querySelectorAll('[data-yr]').forEach(b => b.onclick = e => { e.stopPropagation(); year += +b.dataset.yr; paint(); });
+      /* Month cells are the opposite case and must NOT stop propagation:
+         picking a month is meant to close the picker. */
+      m.querySelectorAll('[data-ym]').forEach(b => b.onclick = () => { const v = b.dataset.ym; closeMonthPicker(); if (cfg.onPick) cfg.onPick(v); });
+    }
+    paint();
+    document.body.appendChild(m);
+    /* position:fixed off the trigger's rect — works inside scrolled panels and
+       sticky bars alike (the copies disagreed here too: fixed vs absolute). */
+    const r = anchor.getBoundingClientRect(), mw = m.offsetWidth || 264, mh = m.offsetHeight || 300;
+    const below = r.bottom + 6, top = (below + mh > window.innerHeight - 8 && r.top - mh - 6 > 8) ? r.top - mh - 6 : below;
+    m.style.top = Math.max(8, Math.min(top, window.innerHeight - mh - 8)) + 'px';
+    m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - mw - 12)) + 'px';
+    if (anchor.classList) anchor.classList.add('on');
+    _mp = m;
+    setTimeout(() => document.addEventListener('click', function h(e) {
+      if (_mp !== m) { document.removeEventListener('click', h); return; }
+      if (!m.contains(e.target) && !anchor.contains(e.target)) { closeMonthPicker(); document.removeEventListener('click', h); }
+    }), 0);
+    window.addEventListener('resize', closeMonthPicker, { once: true });
+  }
+
   /* ════════════════════ RIGHT-SIDE DRAWER ═══════════════════════
      Shared slide-in panel hosting Notifications and the AI assistant. */
   function openDrawer(mode) {
@@ -2069,6 +2155,8 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     // form modals + row action menus
     closeModal, openForm, panel, confirmDelete, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
     rowMenu, printInvoice, exportCSV, csvCell, csvRow, downloadCSV,
+    // THE month picker — every page's calendar. See monthPicker() above.
+    monthButton, monthPicker, closeMonthPicker,
     _comboFilter, _comboFocus, _comboBlur, _comboPick, _comboKey,
     formPrompt(title, specs, onSave, sub) { openForm({ title, sub, specs, saveLabel: 'Save', initial: {}, onSave(v) { onSave(v); } }); },
     /* ── Invoice rendering — the ONE door every invoice goes through ──

@@ -12,8 +12,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r4"><link rel="stylesheet" href="./pages.css?v=m14">
-<link rel="stylesheet" href="./inventory.css?v=i1">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r5"><link rel="stylesheet" href="./pages.css?v=m14">
+<link rel="stylesheet" href="./inventory.css?v=i2">
 <link rel="stylesheet" href="./mobile.css?v=m9">
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
@@ -87,7 +87,7 @@
 <script src="./dedupe-ui.js?v=m29"></script>
 <script src="./data.js?v=m34"></script>
 <script src="./wa-core.js?v=w2"></script>
-<script src="./shell.js?v=m47"></script>
+<script src="./shell.js?v=m48"></script>
 <script src="./mobile.js?v=m11"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -381,60 +381,31 @@ function periodLabel(p) {
   return (QLD.monthLabel ? QLD.monthLabel(p) : p) || p;
 }
 
-let MENU = null, MENU_OFF = null;
-function closeMenu() {
-  if (MENU && MENU.parentNode) MENU.parentNode.removeChild(MENU);
-  MENU = null;
-  if (MENU_OFF) { document.removeEventListener('click', MENU_OFF); MENU_OFF = null; }
-  const b = $('#invPerBtn'); if (b) b.classList.remove('on');
-}
+function closeMenu() { QLShell.closeMonthPicker(); }
 function setPeriod(p) {
   if (PERIOD === p) return;
   PERIOD = p;
   if (/^\d{4}-\d{2}$/.test(p) && QLD.setUiMonth) QLD.setUiMonth(p);   // persist a deliberate month pick, as qlx.js does
   render();
 }
+/* The calendar is QLShell.monthPicker — the app's ONE picker, shared with Sales,
+   Purchase, the Dashboard and Reconciliation. Inventory was the fourth
+   hand-rolled copy.
+
+   Inventory is the one page whose picker genuinely does MORE: it also offers
+   "Whole year 2026" and calls the unfiltered case "All time" rather than "All
+   months", because stock is a running position, not a monthly book. Those are
+   the `years` and `allLabel` options — kept exactly as they were. Consolidating
+   was only safe because the shared picker could express this difference; the
+   alternative (dropping whole-year to force sameness) would have been a
+   redesign wearing a refactor's clothes. */
 function openMenu(anchor) {
-  closeMenu();
-  const have = new Set(invMonths([QLD.purchaseRows(), QLD.salesRows()]));
-  const now = new Date();
-  let year = +((/^\d{4}/.exec(PERIOD) || [])[0]) || now.getFullYear();
-  const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const m = document.createElement('div');
-  m.className = 'inv-menu';
-  function paint() {
-    m.innerHTML = `<div class="inv-mm-yr">
-        <button class="inv-mm-nav" data-yr="-1" aria-label="Previous year">${ic('left')}</button>
-        <span>${year}</span>
-        <button class="inv-mm-nav" data-yr="1" aria-label="Next year">${ic('right')}</button>
-      </div>
-      <div class="inv-mm-grid">${MN.map((mn, i) => {
-        const ym = year + '-' + String(i + 1).padStart(2, '0');
-        return `<button class="inv-mm-cell${PERIOD === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-ym="${ym}">${mn}</button>`;
-      }).join('')}</div>
-      <button class="inv-mm-wide${PERIOD === String(year) ? ' on' : ''}" data-ym="${year}">Whole year ${year}</button>
-      <button class="inv-mm-wide${(!PERIOD || PERIOD === 'all') ? ' on' : ''}" data-ym="all">All time</button>`;
-    /* stopPropagation: paint() re-renders the menu, which DETACHES the button
-       that was just clicked; without this the click bubbles to the document
-       close-handler, that handler sees a target no longer inside .inv-menu, and
-       it shuts the picker — so the year arrows appear to do nothing. This exact
-       bug has been found and fixed three times in this codebase (qlx.js,
-       dashboard.js, reconcile.js) and monthpicker.test.js pins it. The handler
-       must take `e` to be able to stop it — `() => {...}` cannot. */
-    m.querySelectorAll('[data-yr]').forEach(b => b.onclick = e => { e.stopPropagation(); year += +b.dataset.yr; paint(); });
-    /* Month cells are the opposite case and must NOT stop propagation: picking a
-       period is meant to close the menu. */
-    m.querySelectorAll('[data-ym]').forEach(b => b.onclick = () => { const v = b.dataset.ym; closeMenu(); setPeriod(v); });
-  }
-  paint();
-  document.body.appendChild(m);
-  const r = anchor.getBoundingClientRect();
-  m.style.top = (r.bottom + window.scrollY + 6) + 'px';
-  m.style.left = Math.max(8, Math.min(r.left + window.scrollX, window.innerWidth - m.offsetWidth - 8)) + 'px';
-  MENU = m;
-  anchor.classList.add('on');
-  MENU_OFF = ev => { if (MENU && !MENU.contains(ev.target) && ev.target !== anchor && !anchor.contains(ev.target)) closeMenu(); };
-  setTimeout(() => document.addEventListener('click', MENU_OFF), 0);
+  QLShell.monthPicker(anchor, {
+    month: PERIOD,
+    have: new Set(invMonths([QLD.purchaseRows(), QLD.salesRows()])),
+    years: true, allLabel: 'All time',
+    onPick: setPeriod
+  });
 }
 
 /* ── render ─────────────────────────────────────────────────────────────── */
@@ -529,7 +500,7 @@ function bannerHTML(M) {
 }
 function barHTML() {
   return `<div class="inv-bar">
-    <button class="inv-per" id="invPerBtn">${ic('cal')}<span>${esc(periodLabel(PERIOD))}</span>${ic('chev')}</button>
+    ${QLShell.monthButton({ id: 'invPerBtn', label: periodLabel(PERIOD), title: 'Filter by period' })}
     <span class="inv-scope" id="invScope"></span>
     <span class="inv-bar-sp"></span>
   </div>`;
@@ -541,7 +512,8 @@ function render() {
 
   $('#invSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + 'derived from real purchase & sales bills';
   $('#invBar').innerHTML = barHTML();
-  $('#invPerBtn').onclick = e => { e.stopPropagation(); if (MENU) closeMenu(); else openMenu($('#invPerBtn')); };
+  // monthPicker toggles itself off on a second click of the same trigger.
+  $('#invPerBtn').onclick = e => { e.stopPropagation(); openMenu($('#invPerBtn')); };
 
   const nBills = M.raw.reduce((a, c) => a + c.bills, 0) + (M.fg ? M.fg.bills : 0);
   $('#invScope').innerHTML = nBills

@@ -12,16 +12,14 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r4"><link rel="stylesheet" href="./pages.css?v=m14"><link rel="stylesheet" href="./qlx.css?v=m7">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r5"><link rel="stylesheet" href="./pages.css?v=m14"><link rel="stylesheet" href="./qlx.css?v=m8">
 <style>
-  /* The select WEARS .qx-month rather than reimplementing it: the wrapper owns the
-     border/height/radius from qlx.css, the select inside is stripped of its native
-     chrome. One skin, one place — if .qx-month changes, this follows it. */
+  /* No month styling here. The picker (button + calendar) is QLShell's, styled
+     once in shell.css. What used to sit here was a <select> WEARING .qx-month —
+     it borrowed the skin and reimplemented the control, so this page showed a
+     native dropdown where every other page shows a calendar. Sharing the CSS is
+     not sharing the component. */
   .pd-head-r { display: flex; gap: 8px; align-items: center; flex: none; }
-  .pd-msel-w { cursor: pointer; padding-right: 10px; }
-  .pd-msel-w select { appearance: none; -webkit-appearance: none; border: 0; background: transparent;
-    font: inherit; font-size: 13px; font-weight: 600; color: inherit; cursor: pointer; padding: 0; outline: none; }
-  .pd-msel-chev { opacity: .55; }
 </style>
 <link rel="stylesheet" href="./mobile.css?v=m9">
 <style>
@@ -109,22 +107,19 @@
         <h1 class="page-title">Purchase Dashboard</h1>
         <div class="page-sub" id="pdSub">Spend, categories, suppliers & dues — from your purchase bills</div>
       </div>
-      <!-- A <select>, NOT a calendar popover. The app already carries three month
-           pickers and the year-arrow bug has been fixed in two of them, twice; a
-           fourth copy is exactly how that repeats. A select cannot have that bug,
-           and for "which month" it is also less to learn. -->
-      <!-- The SAME chrome the registers use — .qx-month and .qx-tool from qlx.css,
-           which this page did not even load, which is why my first attempt looked
-           like a browser default. Report is a <button>, not an <a>: that is why it
-           rendered underlined. The month stays a <select> (the app already carries
-           three calendar popovers and the year-arrow bug has been fixed in two of
-           them twice) but now wears the register's skin. -->
+      <!-- This was a <select> — the deliberate choice of the author before me, whose
+           comment read: "The app already carries three month pickers and the
+           year-arrow bug has been fixed in two of them, twice; a fourth copy is
+           exactly how that repeats. A select cannot have that bug."
+
+           The diagnosis was right and the cure was the disease. Avoiding a fourth
+           copy of the bug by shipping a fifth, DIFFERENT control is what made the
+           owner say the calendars keep changing between pages. The bug was never
+           the popover; it was that the popover had no shared home. It has one now
+           (QLShell.monthPicker), so this page gets the real picker, and the
+           year-arrow fix here is the same line of code as everywhere else. -->
       <div class="pd-head-r">
-        <span class="qx-month pd-msel-w">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          <select id="pdMonth" aria-label="Filter by month"></select>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pd-msel-chev"><polyline points="6 9 12 15 18 9"/></svg>
-        </span>
+        <span id="pdMonthWrap"></span>
         <button class="qx-tool" id="pdReport" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg>
           Report
@@ -143,7 +138,7 @@
 <script src="./data.js?v=m34"></script>
 <script src="./wa-core.js?v=w2"></script>
 
-<script src="./shell.js?v=m47"></script>
+<script src="./shell.js?v=m48"></script>
 <script src="./mobile.js?v=m11"></script>
 <script>
 QLShell.mount({ active: 'purchasedash', title: 'Purchase Dashboard' });
@@ -171,16 +166,27 @@ const CAT = {
    qlx.js already reads. Setting it here means the Purchase Register opens on the
    same month, so "Report" continues the thought instead of resetting it. */
 let pdMonth = QLD.uiMonth() || 'all';
+/* The seeded month (carried in from another page) is snapped to All months when
+   this page has no bills for it — that check exists so arriving here never lands
+   on a blank page. It must run ONCE, at seed time: applying it on every render
+   would also undo a DELIBERATE pick of an empty month, silently bouncing the
+   filter back to All months. A deliberate pick stands and shows the empty state,
+   exactly as Sales and Purchase do. */
+let pdSeeded = false;
 
-function pdPaintMonthSel(all) {
-  const sel = document.getElementById('pdMonth');
-  if (!sel) return;
+function pdPaintMonth(all) {
+  const wrap = document.getElementById('pdMonthWrap');
+  if (!wrap) return;
   const ms = [...new Set(all.map(r => (r.date || '').slice(0, 7)).filter(Boolean))].sort().reverse();
-  if (!ms.includes(pdMonth)) pdMonth = 'all';        // a stored month with no bills would show an empty page
-  sel.innerHTML = '<option value="all">All months</option>' +
-    ms.map(m => `<option value="${m}" ${pdMonth === m ? 'selected' : ''}>${QLD.monthLabel(m, { blank: m })}</option>`).join('');
-  sel.value = pdMonth;
-  sel.onchange = () => { pdMonth = sel.value; if (pdMonth !== 'all') QLD.setUiMonth(pdMonth); render(); };
+  if (!pdSeeded) { pdSeeded = true; if (pdMonth !== 'all' && !ms.includes(pdMonth)) pdMonth = 'all'; }
+  wrap.innerHTML = QLShell.monthButton({ id: 'pdMonth', label: pdMonth === 'all' ? 'All months' : QLD.monthLabel(pdMonth, { blank: pdMonth }) });
+  document.getElementById('pdMonth').onclick = e => {
+    e.stopPropagation();
+    QLShell.monthPicker(e.currentTarget, {
+      month: pdMonth, have: new Set(ms),
+      onPick(m) { pdMonth = m; if (m !== 'all') QLD.setUiMonth(m); render(); }
+    });
+  };
   const rep = document.getElementById('pdReport');
   // The register owns the report — the month rides across in uiMonth.
   if (rep) rep.onclick = () => { location.href = 'purchase.html'; };
@@ -188,7 +194,7 @@ function pdPaintMonthSel(all) {
 
 function render() {
   const all = QLD.purchaseRows().filter(r => r.status !== 'cancelled');
-  pdPaintMonthSel(all);
+  pdPaintMonth(all);
   /* Every card, alert and total below reads `rows`, so the month scopes the WHOLE
      page or none of it. One card filtered while its neighbour is not is the bug
      this app keeps producing. */
