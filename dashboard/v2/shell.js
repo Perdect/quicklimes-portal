@@ -2188,28 +2188,24 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     vis.forEach(o => o.classList.remove('active')); if (vis[i]) { vis[i].classList.add('active'); vis[i].scrollIntoView({ block: 'nearest' }); }
   }
 
-  /* ════════════════════════ Launch splash ══════════════════════════ */
-  // Fade out the branded splash once the shell + first page paint are done.
-  // Kept on screen a minimum time so it reads as intentional, not a flash.
-  function hideSplash() {
-    const s = document.getElementById('ql-splash'); if (!s || s.__qsGoing) return;
-    s.__qsGoing = true;                                // fade exactly once
-    const fade = () => {
-      s.classList.add('qs-hide');
-      setTimeout(() => { if (s && s.parentNode) s.parentNode.removeChild(s); const css = document.getElementById('ql-splash-css'); if (css) css.remove(); }, 600);
-    };
-    // ensure the page has actually painted content, and a graceful minimum dwell
-    setTimeout(() => {
-      /* rAF starts the fade on a real frame, so it looks smooth. But rAF NEVER
-         fires while the tab is hidden — a page that loads in a background tab
-         would keep the splash up forever on nothing but a missed frame. The
-         setTimeout is the guarantee; whichever wins, `done` makes it once. */
-      let done = false;
-      const once = () => { if (done) return; done = true; fade(); };
-      requestAnimationFrame(once);
-      setTimeout(once, 200);
-    }, 450);
-  }
+  /* ════════════════════════ Launch splash — REMOVED ══════════════════════
+     Deleted by request ("remove site loder"), and it was costing more than it
+     bought. It was inline in ALL 30 pages, and this app is multi-page: every
+     tap on Sales or Purchase is a document load, so the "launch" splash ran on
+     every navigation — with a deliberate 450ms + 200ms minimum dwell. It was
+     not covering a gap, it was manufacturing one, ~650ms at a time.
+
+     The white-void bug it was added for ("my pwa app opens with white screen
+     blank") stays fixed, by the platforms' OWN launch screens, which is where
+     that job belongs:
+       · iOS     — the 22 <link rel="apple-touch-startup-image"> in each <head>
+       · Android — background_color #F4F7FC + the 512px icon in app.webmanifest
+     Those are native, instant, and cost nothing on navigation. The inline
+     splash was a web-level duplicate of them.
+
+     The theme-boot script in <head> stays and still matters: it resolves the
+     theme before first paint, so a Light user on a dark OS never sees a flash.
+     It just no longer has a splash to race. */
 
   /* ════════════════════════ PWA (installable app) ══════════════════════════ */
   let _pwaDone = false, _deferredInstall = null;
@@ -2392,10 +2388,8 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
           document.body.appendChild(fab);
         }
       } catch (_) {}
-      // fade out the launch splash now the app is on screen
-      try { hideSplash(); } catch (_) {}
     },
-    promptInstall, hideSplash,
+    promptInstall,
     // expose nav + active for the mobile layer (bottom-nav "More" respects Feature Management)
     nav() { return NAV; },
     get _active() { return _active; }

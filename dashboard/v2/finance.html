@@ -2,9 +2,11 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<script data-theme-boot>/* THEME BOOT — runs before the splash paints. The app shell applies the theme
-   at mount, which is far too late: the splash is inline at the top of <body>, so
-   a late flip = white flash, then dark. Resolves 'system' here too, so data-theme
+<script data-theme-boot>/* THEME BOOT — runs before the FIRST PAINT. The app shell applies the theme at
+   mount, which is far too late: the browser would paint the page light and then
+   flip, so a Light user on a dark Mac sees a white flash. Must stay in <head>,
+   above every stylesheet. (It used to guard the launch splash; the splash is
+   gone, the flash it prevents is not.) Resolves 'system' here too, so data-theme
    is ALWAYS a literal light|dark and CSS never has to ask twice. */
 (function(){try{var t=localStorage.getItem('ql_theme')||'system';
 var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
@@ -51,32 +53,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/440x956@3x-dark.png">
 </head>
 <body class="ql-v2">
-<!-- ── LAUNCH BOOT SCREEN ────────────────────────────────────────────────
-     Inline on purpose. This is the FIRST thing in <body> and it carries its
-     own <style>, so it can paint with zero extra requests. Anything external
-     (a css/js file) would land behind the app's own blocking resources and
-     could not paint here. Continues the iOS launch image seamlessly: same
-     mark, same size, same font stack, same centre — so there is no jump.
-     QLShell.mount() calls hideSplash() the moment the shell is on screen.
-     The 8s CSS failsafe is not decoration: if JS ever dies the splash MUST
-     still get out of the way, because a permanently white screen is worse
-     than the bug we are fixing. -->
-<style id="ql-splash-css">
-#ql-splash{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#F4F7FC;-webkit-user-select:none;user-select:none;transition:opacity .45s ease;animation:qs-failsafe .6s ease 8s forwards}
-#ql-splash.qs-hide{opacity:0;pointer-events:none}
-.qs-mark{width:84px;height:84px;border-radius:19px;box-shadow:0 12px 34px -10px rgba(0,115,236,.5)}
-.qs-name{font:600 17px/1.2 -apple-system,system-ui,'Segoe UI',Roboto,sans-serif;letter-spacing:-.01em;color:#0F172A}
-.qs-bar{position:absolute;bottom:16%;width:110px;height:3px;border-radius:3px;background:rgba(15,23,42,.1);overflow:hidden;opacity:0;animation:qs-show .3s ease .8s forwards}
-.qs-bar::after{content:'';position:absolute;top:0;bottom:0;width:40%;border-radius:3px;background:#0073EC;animation:qs-run 1.15s ease-in-out infinite}
-@keyframes qs-show{to{opacity:1}}
-@keyframes qs-run{0%{transform:translateX(-110%)}100%{transform:translateX(360%)}}
-@keyframes qs-failsafe{to{opacity:0;visibility:hidden;pointer-events:none}}
-[data-theme="dark"] #ql-splash{background:#020617}[data-theme="dark"] .qs-name{color:#F1F5F9}[data-theme="dark"] .qs-bar{background:rgba(241,245,249,.13)}
-@media (prefers-reduced-motion:reduce){.qs-bar::after{animation-duration:2.4s}}
-</style>
-<div id="ql-splash" role="status" aria-label="Loading">
-<svg class="qs-mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="115" fill="#0073EC"/><polygon points="96,200 160,128 352,128 416,200 256,400" fill="#fff"/></svg>
-<div class="qs-name">Gotan Lime</div><div class="qs-bar"></div></div>
 <div id="ql-page">
   <div class="dash">
     <div class="page-head">
@@ -122,7 +98,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./finance.js?v=ocr22"></script>
 <script src="./wa-core.js?v=w2"></script>
 
-<script src="./shell.js?v=m50"></script>
+<script src="./shell.js?v=m51"></script>
 <script src="./mobile.js?v=m13"></script>
 <script>
 QLShell.mount({ active: 'finance', title: 'Finance + GST Portal' });

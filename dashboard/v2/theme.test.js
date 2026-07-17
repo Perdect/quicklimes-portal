@@ -121,23 +121,32 @@ function harness(opts) {
 
 /* ── 2. Every page reaches dark before first paint ─────────────────── */
 {
-  console.log('· every page applies the theme BEFORE the splash paints');
+  console.log('· every page applies the theme BEFORE the first paint');
   const pages = fs.readdirSync(__dirname).filter(f => f.endsWith('.html'))
     .filter(f => fs.statSync(path.join(__dirname, f)).size > 0);
-  const noBoot = [], lateBoot = [], oldSplash = [];
+  const noBoot = [], lateBoot = [], splashBack = [];
   for (const f of pages) {
     const s = read(f);
     const boot = s.indexOf('THEME BOOT');
     if (boot < 0) { noBoot.push(f); continue; }
-    const splash = s.indexOf('id="ql-splash"');
-    /* The splash is inline at the top of <body>. A theme flip after it = a
-       white flash, then dark. The boot script must come first. */
-    if (splash >= 0 && boot > splash) lateBoot.push(f);
-    if (s.indexOf('prefers-color-scheme:dark){#ql-splash') >= 0) oldSplash.push(f);
+    /* ANCHOR CHANGED — and this is the point of the rewrite.
+       These checks used to be measured against the launch splash. The splash
+       is deleted, so `indexOf('id="ql-splash"')` is now -1 on every page and
+       the guard `if (splash >= 0 && …)` could never fire again: the assertion
+       would have gone on passing forever while testing NOTHING.
+
+       The real requirement never mentioned the splash. The boot script must
+       run before the browser paints ANYTHING, which means before the first
+       stylesheet and before <body>. Those are the things that actually paint,
+       so those are what it is measured against now. */
+    const firstCss = s.indexOf('<link rel="stylesheet"');
+    const body = s.indexOf('<body');
+    if ((firstCss >= 0 && boot > firstCss) || (body >= 0 && boot > body)) lateBoot.push(f);
+    if (s.indexOf('ql-splash') >= 0) splashBack.push(f);
   }
   eq('every non-empty page carries the boot script', noBoot, []);
-  eq('THE FLASH: none boots the theme after the splash has painted', lateBoot, []);
-  eq('the splash follows the CHOICE, not the OS (Light on a dark Mac must not flash dark)', oldSplash, []);
+  eq('THE FLASH: none boots the theme after a stylesheet or <body> — it must beat the first paint', lateBoot, []);
+  eq('the launch splash stays deleted ("remove site loder") — it ran on EVERY navigation, not just launch', splashBack, []);
   ok(pages.length >= 30, 'the sweep actually covered the app (' + pages.length + ' pages)');
 
   /* Mutation-test the guard above: if it cannot fail, it is not a test. */
