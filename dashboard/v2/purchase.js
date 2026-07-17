@@ -42,12 +42,14 @@ function aOp(mode, fn) { return adb().then(d => new Promise((res, rej) => { cons
    this codebase. One store, one accessor. Read-only from outside. */
 window.QLAttach = { get: id => aOp('readonly', st => st.get(id)), DB: ADB };
 
-async function addAttach(idx, file, kind) {
-  const id = 'pa' + Date.now().toString(36) + Math.floor(Math.random() * 1e5).toString(36);
-  await aOp('readwrite', st => st.put(file, id));
-  const p = Q.state.PURCHASES[idx]; const attach = (p.attach || []).concat([{ id, name: file.name, type: file.type || '', kind: kind || 'Invoice', size: file.size, at: new Date().toISOString() }]);
-  Q.updatePurchase(idx, { attach });
-}
+/* Delegates to Q.attachDoc — the ONE writer for both registers' doc stores.
+   The copy that lived here wrote the same store with the same record shape as the
+   sales one, which is two places that had to agree forever about an id prefix and
+   six field names for the eye button to open anything. It also read
+   Q.state.PURCHASES[idx] AFTER its await and dereferenced it unchecked, so a row
+   that moved threw an async rejection into a synchronous try/catch that could not
+   catch it. Q.attachDoc throws honestly; every caller here handles it. */
+function addAttach(idx, file, kind) { return Q.attachDoc('purchase', idx, file, kind); }
 async function openAttach(idx, id, dl) { const a = (Q.state.PURCHASES[idx].attach || []).find(x => x.id === id); if (!a) return; const b = await aOp('readonly', st => st.get(a.id)); if (!b) { toast('File not found in this browser', 'err'); return; } const url = URL.createObjectURL(b); if (dl) { const x = document.createElement('a'); x.href = url; x.download = a.name; x.click(); } else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 4000); }
 async function delAttach(idx, id) { const p = Q.state.PURCHASES[idx]; Q.updatePurchase(idx, { attach: (p.attach || []).filter(a => a.id !== id) }); try { await aOp('readwrite', st => st.delete(id)); } catch (_) {} QLX.refresh(); }
 
@@ -1078,10 +1080,14 @@ function importBills() {
     existing: () => new Set(Q.state.PURCHASES.filter(p => p.bill).map(dupKeyP)),
     keyOf: dupKeyP,
     preview: { headers: ['Bill', 'Date', 'Supplier', 'Group', 'Taxable', 'GST%'], right: [4, 5], row: p => [p.bill || '—', p.date || '—', p.sup || '—', (Q.purchaseGroups.find(g => g.key === p.group) || { label: p.cat || '—' }).label, Q.fC(p.taxable), p.grate + '%'] },
+    /* RETURNS the attach promise. It used to swallow it in a synchronous
+       try/catch — which cannot catch an async rejection, so a scan that failed to
+       store failed in total silence while the importer said "Imported". The
+       importer awaits this and reports a lost scan. */
     add: (p, file) => {
       const r = Q.addPurchase(p);
       if (r && r.ok === false) throw new Error(r.reason);
-      if (file) { try { addAttach(Q.state.PURCHASES.length - 1, file, 'Invoice'); } catch (_) {} }
+      if (file) return addAttach(Q.state.PURCHASES.length - 1, file, 'Invoice');
     },
     // After an import, JUMP the month filter to the imported bill's month —
     // otherwise a bill from another month is saved but invisible behind the

@@ -730,14 +730,43 @@ body.ql-ai-open .ql-ai-fab { display: none; }          /* never cover the input 
   color: var(--ql-brand-600); font-size: 12px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .ql-ai-dl:hover { background: var(--ql-brand-50); border-color: var(--ql-brand-300, #93b6f8); }
 /* Floating AI button — every page, above the mobile bottom nav */
+/* ── The AI pill ──────────────────────────────────────────────
+   "this icon look like old design make it modern or animated". It was a flat
+   gradient lozenge that moved 2px on hover and did nothing else — on a screen where
+   everything else now breathes, a dead button reads as older than it is.
+
+   What it gets: a soft light sweep across the gradient (the assistant is the one
+   thing here that is "thinking", so it is the one control allowed to shimmer), a
+   glass rim so it sits ON the page rather than being pasted onto it, and a spark
+   that turns when you hover. It squashes on press like the composer buttons — one
+   family across the app. */
 .ql-ai-fab { position: fixed; right: 18px; bottom: 18px; z-index: 900; display: inline-flex; align-items: center; gap: 7px;
-  height: 46px; padding: 0 16px; border: none; border-radius: 999px; cursor: pointer;
+  height: 46px; padding: 0 17px; border: none; border-radius: 999px; cursor: pointer;
   background: linear-gradient(135deg, var(--ql-brand-600, #2563eb), #6d28d9); color: #fff;
   font: inherit; font-size: 13px; font-weight: 700; letter-spacing: .02em;
-  box-shadow: 0 8px 24px rgba(37, 99, 235, .35); transition: transform .14s, box-shadow .14s; }
-.ql-ai-fab svg { width: 18px; height: 18px; }
-.ql-ai-fab:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(37, 99, 235, .45); }
+  box-shadow: 0 8px 24px rgba(37, 99, 235, .35), inset 0 1px 0 rgba(255, 255, 255, .22);
+  transition: transform .16s var(--ql-ease-out), box-shadow .16s;
+  overflow: hidden; isolation: isolate; -webkit-tap-highlight-color: transparent; }
+/* The sweep. ::before so it rides above the gradient but under the label. */
+.ql-ai-fab::before { content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .34) 50%, transparent 70%);
+  transform: translateX(-120%); animation: qlFabSweep 4.5s ease-in-out infinite; }
+@keyframes qlFabSweep {
+  0%, 62% { transform: translateX(-120%); }
+  86%, 100% { transform: translateX(120%); }
+}
+.ql-ai-fab svg { width: 18px; height: 18px; transition: transform .4s var(--ql-ease-out); }
+.ql-ai-fab:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(37, 99, 235, .48), inset 0 1px 0 rgba(255, 255, 255, .3); }
+.ql-ai-fab:hover svg { transform: rotate(90deg) scale(1.08); }
+.ql-ai-fab:active { transform: translateY(0) scale(.95); }
 .ql-ai-fab:focus-visible { outline: 3px solid var(--ql-brand-200, #c7d7fe); outline-offset: 2px; }
+/* A shimmer that never stops is a nag, and it is the wrong signal for someone who
+   has told the OS they do not want motion. */
+@media (prefers-reduced-motion: reduce) {
+  .ql-ai-fab::before { animation: none; opacity: 0; }
+  .ql-ai-fab svg { transition: none; }
+  .ql-ai-fab:hover svg { transform: none; }
+}
 /* The AI pill used to be shoved 94px left to make room for a round "+" FAB sharing
    this corner. Both "+" FABs are gone (dashboard .dx-fab, register .qx-fab-desktop
    — neither is rendered by anything now), so the pill sits where it belongs. This

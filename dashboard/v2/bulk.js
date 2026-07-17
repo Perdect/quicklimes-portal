@@ -554,14 +554,20 @@
           return;
         }
         // Only claim "Saved" when the save actually happened; on failure keep
-        // the drawer open and say exactly why.
-        if (postOne(bill, cfg)) {
-          toast('Saved 1 ' + noun + (bill.routed ? ' → moved to the ' + bill.routed + ' register' : ''), 'ok');
-          if (cfg.done) cfg.done(1, bill);
-          closeAll();
-        } else {
-          toast('NOT saved — ' + (bill.err || 'could not build the record') + '.', 'err');
-        }
+        // the drawer open and say exactly why. Awaited so the scan's write has
+        // landed (or honestly failed) before we say a word about it.
+        var btn = this; btn.disabled = true;
+        postOne(bill, cfg).then(function (okd) {
+          btn.disabled = false;
+          if (okd) {
+            if (bill.scanErr) toast('Saved 1 ' + noun + ' — but WITHOUT the scan (' + bill.scanErr + '). Attach it from the bill\'s Documents tab.', 'err');
+            else toast('Saved 1 ' + noun + (bill.routed ? ' → moved to the ' + bill.routed + ' register' : ''), 'ok');
+            if (cfg.done) cfg.done(1, bill);
+            closeAll();
+          } else {
+            toast('NOT saved — ' + (bill.err || 'could not build the record') + '.', 'err');
+          }
+        });
       } else {
         bill.status = 'ready';
         openTable(nextReview(bill));   // return to table, optionally jump to next needy bill
@@ -644,30 +650,90 @@
     Object.keys(cfg.ocrMap || {}).forEach(function (fk) { var gk = cfg.ocrMap[fk]; if (gk && bill.vals[fk] != null && bill.vals[fk] !== '') g[gk] = bill.vals[fk]; });
     return g;
   }
-  function postOne(bill, cfg) {
+  /* THE SCAN GOES WITH THE BILL.
+     A bill saved without its scan is a bill you cannot check against the paper —
+     the eye button opens nothing and the only copy of the document is in the
+     owner's downloads folder, if it is anywhere. The same-register path carries
+     it through cfg.add(row, file), which each register turns into an attachment.
+     The CROSS-register path did not: importGenericBill takes fields only, so any
+     bill auto-routed to the opposite register was filed with no document at all
+     and nothing said so. It returns the new row's index precisely so the scan can
+     follow it — into the DESTINATION register's store, not this page's.
+
+     async, and awaited by every caller: the attach is an IndexedDB write, and the
+     old code fired it into the void from inside a synchronous try/catch that could
+     not have caught its rejection anyway. A save that reports success before the
+     write lands is not reporting on the write. */
+  async function postOne(bill, cfg) {
+    var file = bill.file || null;
+    bill.scanErr = '';
     // route a confidently-detected opposite-register bill to the CORRECT register
     if (bill.crossKind && window.QLD && QLD.importGenericBill) {
-      try { QLD.importGenericBill(bill.crossKind, valsToGeneric(bill, cfg)); bill.status = 'imported'; bill.routed = bill.crossKind; return true; }
+      try {
+        var idx = QLD.importGenericBill(bill.crossKind, valsToGeneric(bill, cfg));
+        bill.status = 'imported'; bill.routed = bill.crossKind;
+        // The bill IS saved at this point. If the scan will not attach, say so —
+        // but never undo the bill over it: losing the record too would turn a
+        // missing document into a missing bill.
+        if (file && QLD.attachDoc && idx != null && idx >= 0) await attachScan(bill, QLD.attachDoc(bill.crossKind, idx, file, 'Invoice'));
+        return true;
+      }
       catch (e) { bill.err = (e && e.message) || 'cross-register import failed'; }
     }
     // NEVER swallow a failure silently — the caller must know, or the UI says
     // "Saved" while the table stays empty (the exact bug users reported).
     try {
       var row = cfg.buildRow(function (k) { return bill.vals[k] != null ? bill.vals[k] : ''; });
-      if (row) { cfg.add(row, bill.file || undefined); bill.status = 'imported'; bill.savedRow = row; return true; }
+      if (row) {
+        // cfg.add pushes the row SYNCHRONOUSLY and throws there if the register
+        // refuses it (the duplicate gate) — so a throw from this call is a bill
+        // that was never saved. It then RETURNS the attach promise.
+        var p = cfg.add(row, file || undefined);
+        // The row is in the register from this line on. Mark it saved BEFORE
+        // awaiting the scan: a scan that will not store must never walk back a
+        // bill that is already committed — that trades a missing document for a
+        // missing purchase, which is far worse and much harder to notice.
+        bill.status = 'imported'; bill.savedRow = row;
+        await attachScan(bill, p);
+        return true;
+      }
       bill.err = 'missing supplier / amount — nothing to save';
     } catch (e) { bill.err = (e && e.message) || 'could not save the bill'; }
     bill.status = 'failed';
     return false;
   }
 
-  function importReady(cfg) {
+  /* Await the scan's write. Called ONLY once the row is committed, so a failure
+     here is never a lost bill — it is a saved bill with no document, which is a
+     different fact and gets reported as itself. Recorded rather than thrown: the
+     caller's job is to finish saving and then tell the truth about the scan. */
+  async function attachScan(bill, p) {
+    if (!p || typeof p.then !== 'function') return;
+    try { await p; }
+    catch (e) { bill.scanErr = (e && e.message) || 'could not store the scan'; }
+  }
+
+  /* One honest line about scans that did not attach. The bills saved; their
+     documents did not, and the user is the only one who can still do something
+     about it (the file is still on their disk). Silence here is what turns a
+     failed write into a discovery months later. */
+  function scanNote(bills) {
+    var bad = (bills || []).filter(function (b) { return b.scanErr; });
+    if (!bad.length) return;
+    toast(bad.length + ' bill' + (bad.length === 1 ? '' : 's') + ' saved WITHOUT the scan — ' + bad[0].scanErr + '. Attach the file from the bill\'s Documents tab.', 'err');
+  }
+
+  async function importReady(cfg) {
     var ready = BATCH.bills.filter(function (b) { return b.status === 'ready'; });
     if (!ready.length) { toast('Nothing ready to import', 'err'); return; }
     var n = 0;
-    ready.forEach(function (b) { if (postOne(b, cfg)) n++; });
+    // SEQUENTIAL, and awaited. Each post pushes a row and then attaches to the
+    // index it just created; run concurrently they interleave that push with each
+    // other's index read, and a scan lands on the wrong bill.
+    for (var i = 0; i < ready.length; i++) { if (await postOne(ready[i], cfg)) n++; }
     var failedN = ready.length - n;
     toast('Imported ' + n + ' ' + (cfg.noun || 'bill') + (n === 1 ? '' : 's') + (failedN ? ' · ' + failedN + ' FAILED — see the Failed tab' : ''), failedN ? 'err' : 'ok');
+    scanNote(ready);
     if (cfg.done) cfg.done(n, ready.filter(function (b) { return b.status === 'imported'; }).slice(-1)[0]);
     // any leftover (review/invalid/duplicate) stay open so the user can resolve them
     var left = BATCH.bills.filter(function (b) { return b.status !== 'imported' && b.status !== 'failed'; });

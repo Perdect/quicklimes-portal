@@ -4,8 +4,12 @@
     "sha": "eb41cc0fca33"
   },
   "pages.css": {
-    "v": "m13",
-    "sha": "16558602c875"
+    "v": "m14",
+    "sha": "d856dfcc04b0"
+  },
+  "mobile.css": {
+    "v": "m9",
+    "sha": "be4799fc6345"
   },
   "party-identity.js": {
     "v": "m27",
@@ -24,20 +28,16 @@
     "sha": "e84bf66cc1ae"
   },
   "data.js": {
-    "v": "m33",
-    "sha": "fd1ff6a85baa"
-  },
-  "mobile.css": {
-    "v": "m9",
-    "sha": "be4799fc6345"
+    "v": "m34",
+    "sha": "e0b0e608b795"
   },
   "wa-core.js": {
     "v": "w2",
     "sha": "953089d24f6b"
   },
   "shell.js": {
-    "v": "m46",
-    "sha": "cf62fd7e20ef"
+    "v": "m47",
+    "sha": "4ee1583d68ce"
   },
   "mobile.js": {
     "v": "m11",
@@ -168,12 +168,12 @@
     "sha": "80f63b457dbf"
   },
   "bulk.js": {
-    "v": "b12",
-    "sha": "95507e8f7298"
+    "v": "b13",
+    "sha": "d4c20d38014d"
   },
   "purchase.js": {
-    "v": "m36",
-    "sha": "46d73f63d600"
+    "v": "m37",
+    "sha": "cb0f8172d0ac"
   },
   "reconcile.css": {
     "v": "f4",
@@ -204,8 +204,8 @@
     "sha": "315907e53f5c"
   },
   "sales.js": {
-    "v": "m25",
-    "sha": "db68035e2ef2"
+    "v": "m26",
+    "sha": "e6358b7ca93d"
   },
   "selfcheck.js": {
     "v": "s1",

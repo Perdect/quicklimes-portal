@@ -525,6 +525,58 @@
     addPurchase({ bill: (g.docno || '').toString().trim(), date, sup: (g.name || '').toString().trim(), gstin, taxable, grate: rate, itc: g.itc || 'Eligible', veh, cat: cat || undefined, status: 'pending' });
     return S.PURCHASES.length - 1;
   }
+  /* ── BILL DOCUMENTS — the original scan, one store per register ─────────
+     ONE writer for both registers. The record shape written here is exactly what
+     viewBill / openBillPdf / wireInvoice read back, and the id prefix is what
+     separates a purchase doc from a sales one — so a second implementation that
+     drifts by a single field is a bill whose scan cannot be opened. purchase.js
+     and sales.js delegate their addAttach here instead of keeping a copy each.
+
+     `kind` is the DESTINATION register, never the page the upload started from.
+     A sales invoice auto-routed off the Purchase register must land in the SALES
+     store: written to the purchase store it is filed where nothing will ever
+     look for it, which is the same as losing it. */
+  const DOC_DB = { purchase: 'ql_pur_docs', sales: 'ql_sal_docs' };
+  const DOC_PFX = { purchase: 'pa', sales: 'sa' };
+  const _docDb = {};
+  function docDb(kind) {
+    const name = DOC_DB[kind];
+    if (!name) return Promise.reject(new Error('unknown register “' + kind + '” — nowhere to file the scan'));
+    if (_docDb[name]) return _docDb[name];
+    _docDb[name] = new Promise((res, rej) => {
+      const r = indexedDB.open(name, 1);
+      r.onupgradeneeded = e => { const d = e.target.result; if (!d.objectStoreNames.contains('f')) d.createObjectStore('f'); };
+      r.onsuccess = e => res(e.target.result); r.onerror = () => rej(r.error);
+    });
+    return _docDb[name];
+  }
+  function docOp(kind, mode, fn) {
+    return docDb(kind).then(d => new Promise((res, rej) => {
+      const t = d.transaction('f', mode), o = fn(t.objectStore('f'));
+      t.oncomplete = () => res(o && o.result !== undefined ? o.result : o);
+      t.onerror = () => rej(t.error);
+    }));
+  }
+  /* Put the file in the store, then pin its record to the row. THROWS on failure
+     — the caller must be able to say "the bill saved, the scan did not" instead
+     of dropping the failure on the floor and letting the eye button discover it
+     weeks later. Returns the new attachment id. */
+  async function attachDoc(kind, idx, file, label) {
+    if (!file) return '';
+    const arr = kind === 'sales' ? S.SALES : S.PURCHASES;
+    if (!arr[idx]) throw new Error('the bill row is no longer there — scan not attached');
+    const id = (DOC_PFX[kind] || 'da') + Date.now().toString(36) + Math.floor(Math.random() * 1e5).toString(36);
+    await docOp(kind, 'readwrite', st => st.put(file, id));
+    // Re-read AFTER the await: the row is what we are about to write to, and the
+    // store could have moved under us while IndexedDB was busy.
+    const row = arr[idx];
+    if (!row) throw new Error('the bill row is no longer there — scan not attached');
+    const attach = (row.attach || []).concat([{ id, name: file.name, type: file.type || '', kind: label || 'Invoice', size: file.size, at: new Date().toISOString() }]);
+    if (kind === 'sales') updateSale(idx, { attach }); else updatePurchase(idx, { attach });
+    return id;
+  }
+  function getDoc(kind, id) { return docOp(kind, 'readonly', st => st.get(id)); }
+
   function updatePurchase(i, e) { if (S.PURCHASES[i]) { S.PURCHASES[i] = { ...S.PURCHASES[i], ...e }; if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); commit(); } }
   function deletePurchase(i, reason) { return softDelete('purchase', i, reason); }
   function setPurchaseStatus(i, st, pay) { if (S.PURCHASES[i]) { Object.assign(S.PURCHASES[i], { status: st }, pay || {}); commit(); } }
@@ -2128,6 +2180,7 @@
     upsertParty, deleteParty,
     addSale, updateSale, deleteSale, setSaleStatus,
     addPurchase, updatePurchase, deletePurchase, setPurchaseStatus, importGenericBill,
+    attachDoc, getDoc,
     addFreightPayment, deleteFreightPayment, updateFreightNote,
     addWorker, updateWorker, deleteWorker,
     addCashEntry, deleteCashEntry,

@@ -15,11 +15,11 @@ const toast = (m, t) => QLX.toast(m, t);
 const ADB = 'ql_sal_docs'; let _adb = null;
 function adb() { if (_adb) return _adb; _adb = new Promise((res, rej) => { const r = indexedDB.open(ADB, 1); r.onupgradeneeded = e => { const d = e.target.result; if (!d.objectStoreNames.contains('f')) d.createObjectStore('f'); }; r.onsuccess = e => res(e.target.result); r.onerror = () => rej(r.error); }); return _adb; }
 function aOp(mode, fn) { return adb().then(d => new Promise((res, rej) => { const t = d.transaction('f', mode), o = fn(t.objectStore('f')); t.oncomplete = () => res(o && o.result !== undefined ? o.result : o); t.onerror = () => rej(t.error); })); }
-async function addAttach(idx, file, kind) {
-  const id = 'sa' + Date.now().toString(36) + Math.floor(Math.random() * 1e5).toString(36);
-  await aOp('readwrite', st => st.put(file, id));
-  const s = Q.state.SALES[idx]; Q.updateSale(idx, { attach: (s.attach || []).concat([{ id, name: file.name, type: file.type || '', kind: kind || 'Invoice', size: file.size, at: new Date().toISOString() }]) });
-}
+/* Delegates to Q.attachDoc — the ONE writer for both registers' doc stores.
+   See the note in purchase.js: two copies of this had to agree forever about an
+   id prefix and six field names, and the old body dereferenced the row after its
+   await without checking it was still there. */
+function addAttach(idx, file, kind) { return Q.attachDoc('sales', idx, file, kind); }
 function getAttachBlob(id) { return aOp('readonly', st => st.get(id)); }
 async function openAttach(idx, id, dl) { const a = (Q.state.SALES[idx].attach || []).find(x => x.id === id); if (!a) return; const b = await getAttachBlob(a.id); if (!b) { toast('File not found in this browser', 'err'); return; } const url = URL.createObjectURL(b); if (dl) { const x = document.createElement('a'); x.href = url; x.download = a.name; x.click(); } else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 4000); }
 async function delAttach(idx, id) { const s = Q.state.SALES[idx]; Q.updateSale(idx, { attach: (s.attach || []).filter(a => a.id !== id) }); try { await aOp('readwrite', st => st.delete(id)); } catch (_) {} QLX.refresh(); }
@@ -400,10 +400,11 @@ function importInvoices() {
     // Throws on a duplicate ON PURPOSE: bulk.js postOne() catches, marks the bill
     // failed and shows the reason in its Failed tab. That is the importer's error
     // channel; the add form uses `return false` instead. Same gate, both surfaces.
+    /* RETURNS the attach promise — see the note on purchase.js's add. */
     add: (s, file) => {
       const r = Q.addSale(s);
       if (r && r.ok === false) throw new Error(r.reason);
-      if (file) { try { addAttach(Q.state.SALES.length - 1, file, 'Invoice'); } catch (_) {} }
+      if (file) return addAttach(Q.state.SALES.length - 1, file, 'Invoice');
     },
     // Jump the month filter to the imported invoice's month so it is VISIBLE
     // immediately (same fix as the purchase register).
