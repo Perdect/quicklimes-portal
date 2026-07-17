@@ -152,13 +152,37 @@ ok(/const r = Q\.addPurchase\(p\);\s*\n\s*if \(r && r\.ok === false\) throw new 
 ok(/const r = Q\.addSale\(s\);\s*\n\s*if \(r && r\.ok === false\) throw new Error\(r\.reason\);/.test(ssrc),
   'sales cfg.add does too');
 
+/* THE DELETED-BILL FIX, pinned at the source. existing() (the dedup set) and
+   rows() (the gate's list) must share one "live" predicate — when they diverged,
+   a deleted bill was refused on re-upload. Assert both files derive both from the
+   same livePurchases()/liveSales(), so no future edit can un-sync them. */
+ok(/const livePurchases = \(\) => Q\.state\.PURCHASES\.filter\(p => !p\._del\)/.test(psrc),
+  'purchase.js defines ONE livePurchases() predicate (excludes deleted)');
+ok(/existing: \(\) => new Set\(livePurchases\(\)/.test(psrc) && /rows: livePurchases/.test(psrc),
+  '  and BOTH existing() and rows() use it — they cannot disagree about a deleted bill');
+ok(/const liveSales = \(\) => Q\.state\.SALES\.filter\(s => !s\._del\)/.test(ssrc),
+  'sales.js defines ONE liveSales() predicate (excludes deleted)');
+ok(/existing: \(\) => new Set\(liveSales\(\)/.test(ssrc) && /rows: liveSales/.test(ssrc),
+  '  and BOTH existing() and rows() use it');
+
+/* bulk.js must not seed the within-batch set from existing() — that seeding is
+   exactly what let a deleted bill flag its own re-upload as "twice in this
+   upload". The within-batch set starts empty; existing() is a guard-absent
+   backstop only. */
+ok(/var batchSeen = new Set\(\);/.test(bsrc) && !/batchSeen[\s\S]{0,60}cfg\.existing/.test(bsrc),
+  'bulk.js within-batch set (batchSeen) is NOT seeded from existing() — the gate owns register-dup');
+ok(/if \(!guard\) \{[\s\S]{0,120}cfg\.existing/.test(bsrc),
+  '  existing() is consulted ONLY as a backstop when there is no ImportGuard');
+
 const purAdd = (p) => { const r = D.addPurchase(p); if (r && r.ok === false) throw new Error(r.reason); };
 const cfg = {
   kind: 'purchase', noun: 'bill', ocrMap: {},
   buildRow: get => ({ bill: get('bill'), sup: get('sup'), gstin: get('gstin'), date: get('date'), taxable: +get('taxable') || 0, total: +get('total') || 0 }),
   add: purAdd,
   keyOf: p => (String(p.bill || '') + '|' + String(p.gstin || p.sup || '') + '|' + Math.round(+p.taxable || 0) + '|' + (p.date || '')).toUpperCase(),
-  existing: () => new Set(S.PURCHASES.filter(p => p.bill).map(p => (String(p.bill || '') + '|' + String(p.gstin || p.sup || '') + '|' + Math.round(+p.taxable || 0) + '|' + (p.date || '')).toUpperCase())),
+  /* existing() and rows() must agree on what "live" means — a deleted bill is
+     neither. Mirrors the real purchase.js: both derive from the SAME predicate. */
+  existing: () => new Set(S.PURCHASES.filter(p => !p._del && p.bill).map(p => (String(p.bill || '') + '|' + String(p.gstin || p.sup || '') + '|' + Math.round(+p.taxable || 0) + '|' + (p.date || '')).toUpperCase())),
   rows: () => S.PURCHASES.filter(p => !p._del)
 };
 const vals = o => ({ bill: o.bill, sup: o.sup, gstin: o.gstin, date: o.date, taxable: String(o.taxable), total: String(o.total) });
@@ -223,6 +247,36 @@ ok(/b\.reason/.test(rowRender), 'the batch table prints b.reason under the statu
     eq('  the second copy is flagged', c.status, 'duplicate');
     ok(/twice in this upload/.test(c.reason || ''), '  and says why: “' + c.reason + '”');
     ok(c.dupHard === false, '  but NOT as hard — neither copy is saved yet, so this one is genuinely overridable');
+  }
+
+  /* ── DELETE, then re-upload the same bill. It must be importable again. ──
+     The owner deleted a bill, uploaded the same file, and the app still said
+     "Already uploaded". Delete is soft (data.js sets _del), so the record keeps
+     its bill number. rows() excludes _del, so the GATE correctly says not-dup —
+     but the dedup `seen` set was seeded from existing(), which did NOT exclude
+     _del, so a deleted bill's key lingered and flagged the re-upload as a dup
+     "twice in this upload" (a within-batch message, for a bill not in the batch).
+     A deleted thing is not an existing thing. */
+  {
+    S.PURCHASES.length = 0;
+    D.addPurchase(Object.assign({}, BILL));
+    S.PURCHASES[0]._del = { at: 'now', by: 'owner' };        // the user hits Delete
+
+    /* ADVERSARIAL cfg: its existing() deliberately still reports the deleted
+       bill's key (the exact bug the real code had). finishBatch must IGNORE
+       existing() for register-dup and trust rows() (the gate), which excludes
+       _del. This pins the root fix: within-batch dedup no longer trusts
+       existing(), so a wrong existing() can never resurrect a deleted bill. */
+    const advCfg = Object.assign({}, cfg, {
+      existing: () => new Set(S.PURCHASES.filter(p => p.bill).map(cfg.keyOf))   // NO !_del — on purpose
+    });
+    const again = mk('e1', Object.assign({}, BILL));         // same file, uploaded again
+    again.built = cfg.buildRow(k => again.vals[k] != null ? again.vals[k] : '');
+    B.BATCH = { bills: [again], cfg: advCfg, dropped: [] };
+    B.finishBatch(advCfg);
+    eq('a DELETED bill re-uploaded is importable again, even when existing() lies', again.status, 'ready');
+    ok(!again.dupe, '  not flagged as a duplicate');
+    ok(!again.reason, '  and no "Already uploaded" message: “' + (again.reason || '') + '”');
   }
 
   /* ── a clean bill is untouched. The gate must not eat real work. ── */

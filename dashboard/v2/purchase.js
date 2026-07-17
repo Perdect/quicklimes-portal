@@ -1027,6 +1027,10 @@ function importBills() {
     const b = String(p.bill || '').trim(), id = String(p.gstin || p.sup || '').trim(), amt = Math.round(+p.taxable || 0);
     return (b || id) ? (b + '|' + id + '|' + amt + '|' + (p.date || '')).toUpperCase() : '';
   };
+  // The one definition of "a bill that still counts" — shared by the dedup set
+  // (existing) and the gate's list (rows) so they can never disagree about a
+  // deleted bill again.
+  const livePurchases = () => Q.state.PURCHASES.filter(p => !p._del);
   const cfg = {
     kind: 'purchase',
     title: 'Import purchase bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',
@@ -1069,13 +1073,18 @@ function importBills() {
     // Dedup by bill no. + a stable supplier identity (GSTIN, else taxable amount) —
     // NOT the parsed supplier name, which can vary between OCR runs of the same bill
     // (e.g. "the buyer. For" vs "Indian Oil Corporation Limited") and let duplicates through.
-    existing: () => new Set(Q.state.PURCHASES.filter(p => p.bill).map(dupKeyP)),
+    /* existing() and rows() must never disagree on what "live" means — when they
+       did, a deleted bill was gone from rows() (the gate) but still in existing()
+       (the dedup set), so re-uploading a bill you deleted was refused. Both now
+       derive from ONE predicate, so they cannot drift apart again. A deleted bill
+       is not a live bill. */
+    existing: () => new Set(livePurchases().filter(p => p.bill).map(dupKeyP)),
     keyOf: dupKeyP,
     /* The SAVED bills, for the importer to ask ImportGuard the same question
        addPurchase will ask at save time. Without this the review table had to
        guess with dupKeyP — a narrower key than the gate's — and told him a bill
        was ready that the register then refused. */
-    rows: () => Q.state.PURCHASES.filter(p => !p._del),
+    rows: livePurchases,
     preview: { headers: ['Bill', 'Date', 'Supplier', 'Group', 'Taxable', 'GST%'], right: [4, 5], row: p => [p.bill || '—', p.date || '—', p.sup || '—', (Q.purchaseGroups.find(g => g.key === p.group) || { label: p.cat || '—' }).label, Q.fC(p.taxable), p.grate + '%'] },
     /* RETURNS the attach promise. It used to swallow it in a synchronous
        try/catch — which cannot catch an async rejection, so a scan that failed to

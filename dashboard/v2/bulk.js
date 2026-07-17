@@ -406,34 +406,49 @@
         against. cfg.keyOf still earns its keep here. */
   function dupNote(reason) { return 'Already uploaded — ' + (reason || 'this document is already in the register.'); }
   function finishBatch(cfg) {
-    var seen = new Set();
-    try { (cfg.existing ? cfg.existing() : []).forEach(function (k) { if (k) seen.add(k); }); } catch (_) {}
+    /* TWO SETS, kept apart on purpose — conflating them is what refused a
+       DELETED-then-re-uploaded bill and printed the wrong sentence for it.
+         · `saved` (rows()) is the register the GATE checks. It excludes deleted
+           bills, so the gate is right about what is really in the books.
+         · `batchSeen` starts EMPTY. A hit here means this exact file appeared
+           EARLIER IN THIS UPLOAD — the only claim "twice in this upload" can
+           honestly make. It is never seeded from the register.
+       The old code seeded the within-batch set from existing(), which did not
+       exclude deleted bills — so a bill you deleted still sat in the set and
+       flagged its own re-upload. existing() is now only a BACKSTOP, consulted
+       solely when there is no gate to ask. */
     var saved = [];
     try { saved = (cfg.rows ? cfg.rows() : []) || []; } catch (_) { saved = []; }
     var guard = (typeof ImportGuard !== 'undefined' && ImportGuard.docVerdict) ? ImportGuard : null;
+    var registered = new Set();       // backstop only — used when guard is absent
+    if (!guard) { try { (cfg.existing ? cfg.existing() : []).forEach(function (k) { if (k) registered.add(k); }); } catch (_) {} }
+    var batchSeen = new Set();
 
     BATCH.bills.forEach(function (b) {
       if (b.status === 'failed' || !b.built) return;
       var flag = function (why, hard) {
         b.dupe = true; b.dupWhy = why;
-        /* `hard` = the GATE says this one is already in the books, so no click of
-           any button will store it. Anything else (the same file twice in one
-           batch) is still saveable — the other copy is not in the register yet. */
+        /* `hard` = it is genuinely in the register, so no click of any button
+           will store it. The same file twice in ONE batch is soft — the other
+           copy is not saved yet, so this one is still overridable. */
         b.dupHard = !!hard;
         if (b.status === 'ready' || b.status === 'review') b.status = 'duplicate';
         b.reason = dupNote(why);          // the table already renders b.reason under the badge
       };
-      /* 1 — what the register itself will say. */
+      /* 1 — what the register itself will say (authoritative; excludes deleted). */
       if (guard && saved.length) {
         var v; try { v = guard.docVerdict(b.built, saved); } catch (_) { v = null; }
         if (v && v.dup) { flag(v.reason, true); return; }
       }
-      /* 2 — the same bill twice inside this one batch. */
       if (!cfg.keyOf) return;
       var k; try { k = cfg.keyOf(b.built); } catch (_) { k = ''; }
       if (!k) return;
-      if (seen.has(k)) flag('the same bill appears twice in this upload.', false);
-      else seen.add(k);
+      /* 2 — the same bill twice inside this one upload. */
+      if (batchSeen.has(k)) { flag('the same bill appears twice in this upload.', false); return; }
+      batchSeen.add(k);
+      /* 3 — backstop: already in the register, but there was no gate to ask.
+         Never fires while ImportGuard is loaded — step 1 owns that verdict. */
+      if (!guard && registered.has(k)) flag('this document is already in the register.', true);
     });
     hideProgress();
     var n = BATCH.bills.length;

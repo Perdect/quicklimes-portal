@@ -4,8 +4,8 @@
     "v": "ocr28"
   },
   "bulk.js": {
-    "sha": "5c7eaba7b03b",
-    "v": "b15"
+    "sha": "4950181b5f98",
+    "v": "b16"
   },
   "cashbook.js": {
     "sha": "e860f2d1b5b2",
@@ -140,8 +140,8 @@
     "v": "p4"
   },
   "purchase.js": {
-    "sha": "9003f55794b5",
-    "v": "m39"
+    "sha": "63b1f1eade03",
+    "v": "m40"
   },
   "qlx.css": {
     "sha": "978638765795",
@@ -188,8 +188,8 @@
     "v": "r1"
   },
   "sales.js": {
-    "sha": "055e326f3b7d",
-    "v": "m27"
+    "sha": "cfec954ef327",
+    "v": "m28"
   },
   "selfcheck.js": {
     "sha": "15eb5f5bc346",

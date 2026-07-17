@@ -372,6 +372,10 @@ function openSalesReport(rows) {
   w.document.write(html); w.document.close();
 }
 function importInvoices() {
+  // One definition of "a live invoice" — shared by the dedup set (existing) and
+  // the gate's list (rows) so a deleted invoice can't be live in one and gone
+  // in the other.
+  const liveSales = () => Q.state.SALES.filter(s => !s._del);
   const cfg = {
     kind: 'sales',
     title: 'Import sales bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',
@@ -394,12 +398,16 @@ function importInvoices() {
       if (!party && !qty && !taxable && !total) return null;
       return { inv: (get('inv') || '').toString().trim(), date: date || '', party, gstin: (get('gstin') || '').toString().trim().toUpperCase(), qty: +(qty || 0), rate: +(rate || 0), gstR, veh: (get('veh') || '').toString().trim(), status: 'pending' };
     },
-    existing: () => new Set(Q.state.SALES.map(s => (s.inv || '').toString().toUpperCase()).filter(Boolean)),
+    /* existing() and rows() derive from the SAME live set — a deleted invoice is
+       in neither, so re-uploading one you deleted is not refused as a duplicate.
+       They used to diverge (existing() kept deleted invoices), which is the bug
+       the owner hit on the purchase side. */
+    existing: () => new Set(liveSales().map(s => (s.inv || '').toString().toUpperCase()).filter(Boolean)),
     keyOf: s => s.inv ? s.inv.toUpperCase() : '',
     /* The SAVED invoices, so the review table asks ImportGuard exactly what
        addSale will ask at save time — instead of keyOf's bare invoice number,
        which flags two different customers' INV-1 as the same document. */
-    rows: () => Q.state.SALES.filter(s => !s._del),
+    rows: liveSales,
     preview: { headers: ['Invoice', 'Date', 'Party', 'Qty', 'Taxable', 'GST%'], right: [3, 4, 5], row: s => [s.inv || '—', s.date || '—', s.party || '—', s.qty || '', Q.fC(s.qty * s.rate), s.gstR + '%'] },
     // Throws on a duplicate ON PURPOSE: bulk.js postOne() catches, marks the bill
     // failed and shows the reason in its Failed tab. That is the importer's error
