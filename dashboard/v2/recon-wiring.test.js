@@ -80,7 +80,7 @@ ok('recon-core.js loaded and exposed ReconCore', !!(ctx.window.ReconCore || ctx.
 ctx.RC = ctx.window.ReconCore || ctx.ReconCore;
 
 let loaded = true, err = null;
-try { vm.runInContext(fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8') + '\n;this.__autoMatch = autoMatch; this.__entriesFor = entriesFor; this.__isLinked = isLinked; this.__resetRecur = function () { RECUR = null; }; this.__runMatchAll = runMatchAll;', ctx); }
+try { vm.runInContext(fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8') + '\n;this.__autoMatch = autoMatch; this.__entriesFor = entriesFor; this.__isLinked = isLinked; this.__toolbarHTML = toolbarHTML; this.__filtersPanelHTML = filtersPanelHTML; this.__ST = ST; this.__advCount = advCount; this.__advReset = advReset; this.__resetRecur = function () { RECUR = null; }; this.__runMatchAll = runMatchAll;', ctx); }
 catch (e) { loaded = false; err = e; }
 ok('the REAL reconcile.js loads' + (err ? ' — ' + err.message : ''), loaded);
 
@@ -197,6 +197,41 @@ if (loaded) {
   const t4 = row('t4', '2026-06-16', 54944, 0, 'EBANK:SELF/151/NAGAUR GOLDEN TRANSPORT COMP');
   const m4 = autoMatch(t4);
   ok('a confident recorded payment outranks a narration rule', m4.kind === 'entry' || m4.status === 'other');
+
+  /* ── 7. the toolbar redesign: six tabs → one status dropdown ──
+     "there is too manny option". The REAL toolbarHTML is rendered here, so a
+     redesign that unhooks the control (new markup, no data-fstatus, wrong
+     routing) fails in this file — the exact class of bug the mobile month
+     picker shipped with. */
+  const TB = ctx.__toolbarHTML, RST = ctx.__ST;
+  RST.view = 'recon'; RST.stOpen = false;
+  let tb = TB();
+  ok('the toolbar renders the status DROPDOWN trigger', /id="rcStBtn"/.test(tb));
+  ok('  showing the active status and its count', /rc-st-n/.test(tb));
+  ok('  the six-tab strip is GONE from the recon toolbar', !/rc-ftab k-/.test(tb) && !(tb.match(/data-fstatus/g) || []).length);
+  ok('  and the direction toggle left the toolbar too', !/rc-typtog/.test(tb));
+  RST.stOpen = true;
+  tb = TB();
+  const items = tb.match(/data-fstatus="([a-z]+)"/g) || [];
+  eq('open: the menu offers all six statuses via data-fstatus — the attribute the wiring routes',
+    items.length, 6);
+  ok('  including the working queue', /data-fstatus="review"/.test(tb));
+  ok('  each option carries its colour dot', (tb.match(/rc-st-dot/g) || []).length >= 7);   // trigger + 6 items
+  RST.stOpen = false;
+
+  /* Direction now lives in the Filters panel, same data-ftype attributes. */
+  RST.advOpen = true;
+  const fp = ctx.__filtersPanelHTML();
+  eq('the Filters panel carries the 3 direction buttons', (fp.match(/data-ftype/g) || []).length, 3);
+  RST.advOpen = false;
+
+  /* A narrowed direction is a FILTER now: it must light the button and Clear
+     must reset it — a hidden filter that quietly halves the list is worse than
+     the toolbar clutter it replaced. */
+  RST.ftype = 'debit';
+  ok('a narrowed direction counts as an active filter', ctx.__advCount() >= 1);
+  ctx.__advReset();
+  eq('  and Clear resets it', RST.ftype, 'all');
 }
 
 console.log('\n════ does the PAGE use the engine? ════\n  Passed: ' + pass + '   Failed: ' + fail);

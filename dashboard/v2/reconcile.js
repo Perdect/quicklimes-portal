@@ -46,6 +46,9 @@ const toast = (m, t) => (QLShell.toast ? QLShell.toast(m, t) : 0);
 
 let ST = {
   view: 'recon', month: 'all', monthInit: false, ftype: 'all', fstatus: 'all', q: '', sel: new Set(), foOpen: false, acc: '',
+  /* The status dropdown ("too many options" — the six tabs became one select).
+     View state only, like advOpen: closed on every pick and on click-away. */
+  stOpen: false,
   /* The party ledger's own view state. `lq` is separate from `q`: the recon search
      matches narrations and refs, the ledger searches party names, and sharing one
      box would carry a half-typed narration search into the ledger and show nothing. */
@@ -66,9 +69,14 @@ let ST = {
 function advCount() {
   const a = ST.adv;
   return ['party', 'cat', 'conf'].filter(k => a[k] && a[k] !== 'all').length
-    + (a.from ? 1 : 0) + (a.to ? 1 : 0) + (a.min !== '' ? 1 : 0) + (a.max !== '' ? 1 : 0);
+    + (a.from ? 1 : 0) + (a.to ? 1 : 0) + (a.min !== '' ? 1 : 0) + (a.max !== '' ? 1 : 0)
+    /* Direction moved INTO the Filters panel (the toolbar had "too many
+       options"), so a narrowed direction must light the button and be cleared
+       by Clear like any other filter — a hidden filter that quietly halves the
+       list is how "where did my rows go" tickets start. */
+    + (ST.ftype !== 'all' ? 1 : 0);
 }
-function advReset() { ST.adv = { party: 'all', cat: 'all', conf: 'all', from: '', to: '', min: '', max: '' }; }
+function advReset() { ST.adv = { party: 'all', cat: 'all', conf: 'all', from: '', to: '', min: '', max: '' }; ST.ftype = 'all'; }
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
 function txns() { return (Q.recon.txns || []); }
@@ -605,11 +613,10 @@ function aiHTML() {
     <button class="rc-aibar-btn" id="rcAiReview">Review needs-action</button>
   </div>`;
 }
-/* ── ONE clean filter toolbar: status tabs (with counts) + type toggle + search ── */
+/* ── ONE clean filter toolbar: a status dropdown + Filters + search ── */
 function toolbarHTML() {
   const tt = monthTxns();
   const cnt = k => k === 'all' ? tt.length : k === 'review' ? tt.filter(needsReview).length : tt.filter(t => statusKey(t) === k).length;
-  const tab = (k, l) => `<button class="rc-ftab ${ST.fstatus === k ? 'on' : ''} k-${k}" data-fstatus="${k}">${l}<span class="rc-ftab-n">${cnt(k)}</span></button>`;
   if (ST.view === 'ledger') {
     /* Counts come from the SAME rows the list renders (ledgerRows), so a chip can
        never promise a number the list does not show. */
@@ -629,11 +636,29 @@ function toolbarHTML() {
         <button class="rc-mini2" id="rcLedgerExp">${svg(IC.dl)} Export ledger</button>
       </div></div>`;
   }
-  const typ = (k, l) => `<button class="rc-typ ${ST.ftype === k ? 'on' : ''}" data-ftype="${k}">${l}</button>`;
+  /* ── Status: ONE dropdown, not six tabs ──────────────────────────
+     "there is too manny option" — the toolbar carried 6 status tabs + a
+     3-way direction toggle + Filters + search + Ledger, eleven controls
+     fighting for one row. Now: one Status select (each option keeps its
+     count and a colour dot from the SAME STAT palette the row pills use),
+     direction lives inside the Filters panel, and the row is four controls.
+
+     The menu items carry data-fstatus — the EXACT attribute the old tabs
+     carried — so the existing wire() handler routes them untouched. New
+     markup, zero new routing: the class of bug where a redesign quietly
+     unhooks a control cannot start here. */
+  const stLabel = { all: 'All', review: 'Needs review', matched: 'Matched', partial: 'Partial', unmatched: 'Unmatched', duplicate: 'Duplicate' };
+  const stDot = k => `<span class="rc-st-dot" style="background:${k === 'all' ? 'var(--ql-text-muted)' : (STAT[k] || ['', '', 'var(--ql-text-muted)'])[2]}"></span>`;
+  const stItem = k => `<button class="rc-st-it ${ST.fstatus === k ? 'on' : ''}" data-fstatus="${k}" role="menuitemradio" aria-checked="${ST.fstatus === k}">${stDot(k)}<span>${stLabel[k]}</span><b>${cnt(k)}</b></button>`;
+  const stSel = `<div class="rc-stwrap">
+    <button class="rc-stbtn ${ST.fstatus !== 'all' ? 'on' : ''}" id="rcStBtn" aria-haspopup="menu" aria-expanded="${!!ST.stOpen}" title="Filter by status">
+      ${stDot(ST.fstatus)}<span>${stLabel[ST.fstatus]}</span><b class="rc-st-n">${cnt(ST.fstatus)}</b>${svg('<polyline points="6 9 12 15 18 9"/>')}
+    </button>
+    ${ST.stOpen ? `<div class="rc-stmenu" role="menu">${Object.keys(stLabel).map(stItem).join('')}</div>` : ''}
+  </div>`;
   return `<div class="rc-toolbar2">
-    <div class="rc-ftabs">${tab('all', 'All')}${tab('review', 'Needs review')}${tab('matched', 'Matched')}${tab('partial', 'Partial')}${tab('unmatched', 'Unmatched')}${tab('duplicate', 'Duplicate')}</div>
+    <div class="rc-ftabs">${stSel}</div>
     <div class="rc-tb-r">
-      <div class="rc-typtog">${typ('all', 'All')}${typ('credit', 'Credit')}${typ('debit', 'Debit')}</div>
       ${filtersBtnHTML()}
       <div class="rc-searchw">${svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')}<input class="rc-search2" id="rcSearch" placeholder="Search party, ref, amount…" value="${esc(ST.q)}"></div>
       <button class="rc-mini2" data-view="ledger" title="Party ledger">${svg('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>')}<span>Ledger</span></button>
@@ -677,7 +702,11 @@ function filtersPanelHTML() {
     ${[['all', 'Any confidence'], ['high', 'High · 95%+ (auto-matched)'], ['med', 'Medium · 75–94% (needs a look)'],
        ['low', 'Low · under 75%'], ['none', 'No suggestion at all']]
       .map(o2 => `<option value="${o2[0]}" ${ST.adv.conf === o2[0] ? 'selected' : ''}>${esc(o2[1])}</option>`).join('')}</select>`;
+  /* Direction (All / Credit / Debit) lives here now, out of the toolbar — same
+     buttons, same data-ftype attributes, so the existing handler routes them. */
+  const typ = (k, l) => `<button class="rc-typ ${ST.ftype === k ? 'on' : ''}" data-ftype="${k}">${l}</button>`;
   return `<div class="qx-adv" id="rcAdv">
+    <div class="rc-typtog">${typ('all', 'All')}${typ('credit', 'Credit')}${typ('debit', 'Debit')}</div>
     ${sel('party', 'Parties', o.party)}
     ${sel('cat', 'Types', o.cat)}
     ${conf}
@@ -1620,7 +1649,16 @@ function wire() {
      number would steal focus mid-typing — the same bug that made the invoice
      form drop characters. */
   root.querySelectorAll('#rcAdv [data-dk]').forEach(el => el.onchange = () => { ST.adv[el.dataset.dk] = el.value; render(); });
-  root.querySelectorAll('[data-fstatus]').forEach(b => b.onclick = () => { ST.fstatus = b.dataset.fstatus; render(); });
+  root.querySelectorAll('[data-fstatus]').forEach(b => b.onclick = () => { ST.fstatus = b.dataset.fstatus; ST.stOpen = false; render(); });
+  /* The status dropdown. stopPropagation so the open click does not immediately
+     reach the click-away closer below — the same trap the month picker hit. */
+  if ($('rcStBtn')) $('rcStBtn').onclick = e => { e.stopPropagation(); ST.stOpen = !ST.stOpen; render(); };
+  if (!window.__rcStAway) {
+    window.__rcStAway = 1;   // bound once per page load — wire() runs on every render
+    document.addEventListener('click', e => {
+      if (ST.stOpen && !e.target.closest('.rc-stwrap')) { ST.stOpen = false; render(); }
+    });
+  }
   root.querySelectorAll('[data-facc]').forEach(b => b.onclick = () => { ST.acc = b.dataset.facc; ST.sel.clear(); render(); });
   /* Repaint the panel, keep the caret where the user left it — same shape as the
      recon search below. */

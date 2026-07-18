@@ -277,6 +277,54 @@
    sentence, not just "All". */
 .rc-ftab svg { width: 15px; height: 15px; flex: none; }
 .rc-ftab { white-space: nowrap; }
+
+/* ── Status dropdown — the six tabs, folded into one select ──────────
+   Composes entirely from tokens so dark mode needs no second block. The
+   trigger sits at the qx-tool height (38px) so the row reads as one family;
+   the menu is the month-picker popover's shape (card, 14px radius, shadow-lg).
+   Dot colours come inline from the SAME STAT palette as the row pills. */
+.rc-stwrap { position: relative; }
+.rc-stbtn {
+  display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px;
+  border: 1px solid var(--ql-border); border-radius: 12px; background: var(--ql-card);
+  font: inherit; font-size: 13.5px; font-weight: 600; color: var(--ql-text);
+  cursor: pointer; white-space: nowrap;
+  transition: border-color .13s, box-shadow .13s;
+}
+.rc-stbtn:hover { border-color: var(--ql-brand-400); box-shadow: 0 4px 12px -6px rgba(37, 99, 235, .25); }
+.rc-stbtn.on { border-color: var(--ql-brand-600); color: var(--ql-brand-700); }
+.rc-stbtn svg { width: 15px; height: 15px; flex: none; color: var(--ql-text-muted); }
+.rc-st-dot { width: 8px; height: 8px; border-radius: 99px; flex: none; }
+.rc-st-n {
+  font-weight: 700; font-size: 12px; padding: 1px 8px; border-radius: 99px;
+  background: var(--ql-neutral-100); color: var(--ql-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.rc-stbtn.on .rc-st-n { background: var(--ql-brand-100); color: var(--ql-brand-700); }
+.rc-stmenu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+  min-width: 224px; padding: 6px;
+  background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: 14px; box-shadow: var(--ql-shadow-lg);
+  animation: rcStIn .13s var(--ql-ease-out, ease-out);
+}
+@keyframes rcStIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .rc-stmenu { animation: none; } }
+.rc-st-it {
+  display: flex; align-items: center; gap: 9px; width: 100%; height: 40px; padding: 0 10px;
+  border: 0; border-radius: 9px; background: transparent;
+  font: inherit; font-size: 13.5px; font-weight: 600; color: var(--ql-text);
+  cursor: pointer; text-align: left;
+}
+.rc-st-it:hover { background: var(--ql-neutral-100); }
+.rc-st-it.on { background: var(--ql-brand-50); color: var(--ql-brand-700); }
+.rc-st-it b {
+  margin-left: auto; font-weight: 700; font-size: 12px; color: var(--ql-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rc-st-it.on b { color: var(--ql-brand-700); }
+/* Direction group inside the Filters panel keeps its .rc-typtog styling; the
+   panel lays out with gaps already, nothing extra needed. */
 .rc-accbar svg { width: 15px; height: 15px; flex: none; }
 .rc-ftab.on { background: var(--ql-card); border-color: var(--ql-border); color: var(--ql-text); box-shadow: var(--ql-shadow-sm); }
 .rc-ftab-n { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 99px; background: var(--ql-neutral-150); color: var(--ql-text-secondary); }
