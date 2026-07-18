@@ -113,8 +113,10 @@
     'Payment status': 'भुगतान स्थिति',
 
     /* materials — the plant's own vocabulary */
-    'Limestone': 'चूना पत्थर',
-    'Petcoke': 'पेटकोक',
+    /* ◆ corrected by the owner 2026-07-19: his operators say पत्थर and कोयला,
+       not the dictionary words I had guessed. His word wins, verbatim. */
+    'Limestone': 'पत्थर',
+    'Petcoke': 'कोयला',
     'Bags': 'बोरी',
     'Quick Lime': 'क्विक लाइम',
     'Freight': 'भाड़ा',
