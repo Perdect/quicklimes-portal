@@ -116,6 +116,7 @@
        </div>
        <div class="qlm-h-actions">
          <button class="qlm-h-btn" id="qlmSearch" aria-label="Search">${IC.search}</button>
+         <button class="qlm-h-btn qlm-h-lang" id="qlmLang" aria-label="Switch language"></button>
          <button class="qlm-h-btn" id="qlmBell" aria-label="Notifications">${IC.bell}<span class="qlm-h-badge" id="qlmBellBadge" hidden>0</span></button>
          <button class="qlm-h-avatar" id="qlmAvatar" data-avatar>D</button>
        </div>`;
@@ -143,6 +144,18 @@
 
     // wire
     $('qlmSearch').onclick = () => window.QLShell && QLShell.openPalette();
+    /* Language: the shell paints the face + owns the toggle (one implementation,
+       both headers). Hidden if i18n never loaded — a dead button teaches the
+       user the control is broken. */
+    (function () {
+      const b = $('qlmLang'), I = window.QLI18n;
+      if (!b) return;
+      if (!I) { b.hidden = true; return; }
+      const hi = I.lang() === 'hi';
+      b.textContent = hi ? 'A' : 'अ';
+      b.title = hi ? 'View in English' : 'हिन्दी में देखें';
+      b.onclick = () => window.QLShell && QLShell.toggleLang ? QLShell.toggleLang() : I.setLang(hi ? 'en' : 'hi');
+    })();
     $('qlmBell').onclick = () => window.QLShell && QLShell.openNotifications();
     $('qlmAvatar').onclick = openProfileSheet;
     /* The #qlmCo chip is gone from the header (see paintCo). Binding a click to an

@@ -405,6 +405,11 @@ button { font-family: inherit; cursor: pointer; }
               border-color var(--ql-duration-fast) var(--ql-ease-out);
 }
 .tb-action:hover { background: var(--ql-neutral-50); border-color: var(--ql-border); color: var(--ql-text); }
+/* The language toggle is a TEXT glyph (अ / A — the language a tap takes you to),
+   in a row of SVG buttons; without its own size it inherits body 14px and reads
+   as a stray letter rather than a control. */
+.tb-lang { font-size: 16px; font-weight: 700; color: var(--ql-text-secondary); line-height: 1; }
+.tb-lang:hover { color: var(--ql-brand-600); }
 .tb-action svg { width: 16px; height: 16px; }
 .tb-action-dot {
   position: absolute; top: 6px; right: 8px;

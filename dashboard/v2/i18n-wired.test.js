@@ -127,6 +127,16 @@ function el(tag, attrs, children) {
 
   const st = fs.readFileSync(path.join(__dirname, 'settings.html'), 'utf8');
   ok(/QLI18n\.setLang\(sel\.value\)/.test(st), 'the Settings switcher still calls setLang (save + reload)');
+
+  /* The header toggle — one tap next to search, both headers. Each pin is a
+     caller, not a definition: the button exists in the MARKUP, the painter is
+     CALLED at mount, the tap REACHES setLang. */
+  const sh = fs.readFileSync(path.join(__dirname, 'shell.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
+  ok(/id="tbLang"[^>]*onclick="QLShell\.toggleLang\(\)"/.test(sh), 'the desktop header carries the language button, wired to toggleLang');
+  ok(/paintLang\(\);/.test(sh), '  and mount() PAINTS its face (a button JS never fills renders empty)');
+  ok(/I\.setLang\(I\.lang\(\) === 'hi' \? 'en' : 'hi'\)/.test(sh), '  and a tap flips the language through QLI18n.setLang');
+  const mo = fs.readFileSync(path.join(__dirname, 'mobile.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
+  ok(/id="qlmLang"/.test(mo) && /\$\('qlmLang'\)/.test(mo), 'the phone header has the same button, painted and bound');
 }
 
 /* ── 4. the checker can fail (probe) ── */

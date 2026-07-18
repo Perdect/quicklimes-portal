@@ -331,6 +331,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <span>Search…</span><kbd>⌘K</kbd>
     </button>
+    <button class="tb-action tb-lang" id="tbLang" title="भाषा / Language" onclick="QLShell.toggleLang()" aria-label="Switch language"></button>
     <button class="tb-action tb-bell" title="Notifications" onclick="QLShell.openNotifications()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       <span class="tb-badge" id="tbNotifBadge" hidden>0</span>
@@ -2207,6 +2208,26 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
      theme before first paint, so a Light user on a dark OS never sees a flash.
      It just no longer has a splash to race. */
 
+  /* ════════════════════════ Language toggle ══════════════════════════
+     One tap in the header, next to search — Settings still has the full
+     selector, but an operator who reads Hindi should not need to find it.
+     The button's face shows the language a tap TAKES YOU TO (अ while in
+     English, A while in Hindi), the convention every translate button uses:
+     the glyph is a destination, not a status. setLang() reloads the page,
+     which is the translator's own contract — strings render at build time. */
+  function paintLang() {
+    const b = document.getElementById('tbLang'); if (!b) return;
+    const I = window.QLI18n;
+    if (!I) { b.hidden = true; return; }             // i18n not loaded → no dead button
+    const hi = I.lang() === 'hi';
+    b.textContent = hi ? 'A' : 'अ';
+    b.title = hi ? 'View in English' : 'हिन्दी में देखें';
+  }
+  function toggleLang() {
+    const I = window.QLI18n; if (!I) return;
+    I.setLang(I.lang() === 'hi' ? 'en' : 'hi');       // saves + reloads
+  }
+
   /* ════════════════════════ PWA (installable app) ══════════════════════════ */
   let _pwaDone = false, _deferredInstall = null;
   function initPWA() {
@@ -2353,6 +2374,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
          then authoritative cloud. Wrapping it means the header follows both, on
          every page, whether or not the page ever heard of paintWorkspace. */
       paintWorkspace();
+      paintLang();
       const Qd = window.QLD;
       if (Qd && !Qd.__qlShellPaints) {
         Qd.__qlShellPaints = true;                       // wrap once per page load
@@ -2389,7 +2411,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
         }
       } catch (_) {}
     },
-    promptInstall,
+    promptInstall, toggleLang, paintLang,
     // expose nav + active for the mobile layer (bottom-nav "More" respects Feature Management)
     nav() { return NAV; },
     get _active() { return _active; }
