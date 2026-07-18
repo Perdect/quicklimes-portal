@@ -502,16 +502,20 @@
      that is the server's own data coming back, not an import. */
   function dupCheck(e, existing) {
     if (!(typeof ImportGuard !== 'undefined' && ImportGuard.docVerdict)) return null;   // page did not load the guard — import-guard-loaded.test.js pins that it does
-    /* Deleted records are NOT "already recorded". Delete keeps the row (soft,
-       restorable from Trash) so its invoice number stays in the raw array — and
-       this gate used to read that raw array, which produced the two-door bug:
-       the review pre-pass (fixed first) said "fine", then THIS gate refused the
-       save with "already recorded". A bill the user deleted must be uploadable
-       again, and both doors must apply the SAME rule — the pre-pass filters
-       !_del (purchase.js livePurchases / sales.js liveSales), so the gate does
-       too. Cancelled stays counted on purpose: a voided invoice is still a
-       recorded document; re-issuing its number deserves the warning. */
-    const v = ImportGuard.docVerdict(e, (existing || []).filter(x => !x._del));
+    /* Only LIVE documents can be "already recorded". The register has THREE
+       ways to retire a document — Delete (Trash, _del), Archive (_arch), and
+       Void/Cancel (status 'cancelled') — and the user does not distinguish
+       them when the gate throws his upload back: "I deleted this one but when
+       I upload again it says already uploaded", twice, once per door. The
+       void dialog itself promises the invoice "drops out of live sales
+       totals"; a document that is out of the totals cannot also be the reason
+       an upload is refused. So the gate applies the SAME live-record rule as
+       notCancelled (:264) and the importer pre-pass (liveSales/livePurchases)
+       — one rule, every door, or the doors disagree and he meets the odd one
+       out. The voided record itself STAYS in the register for GST/audit;
+       re-adding its number just creates the redo alongside it. */
+    const live = x => !x._del && !x._arch && (x.status || 'pending') !== 'cancelled';
+    const v = ImportGuard.docVerdict(e, (existing || []).filter(live));
     return v.dup ? { ok: false, dup: true, of: v.of, amountDiffers: !!v.amountDiffers, reason: v.reason } : null;
   }
   function addSale(e) {

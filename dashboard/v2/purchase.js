@@ -1029,8 +1029,10 @@ function importBills() {
   };
   // The one definition of "a bill that still counts" — shared by the dedup set
   // (existing) and the gate's list (rows) so they can never disagree about a
-  // deleted bill again.
-  const livePurchases = () => Q.state.PURCHASES.filter(p => !p._del);
+  // deleted bill again. Voided and archived are retired too: same rule as the
+  // save gate (data.js dupCheck) and notCancelled, or the pre-pass promises an
+  // import the gate then refuses — the exact two-door bug this line closed.
+  const livePurchases = () => Q.state.PURCHASES.filter(p => !p._del && !p._arch && (p.status || 'pending') !== 'cancelled');
   const cfg = {
     kind: 'purchase',
     title: 'Import purchase bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',

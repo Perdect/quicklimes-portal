@@ -156,12 +156,12 @@ ok(/const r = Q\.addSale\(s\);\s*\n\s*if \(r && r\.ok === false\) throw new Erro
    rows() (the gate's list) must share one "live" predicate — when they diverged,
    a deleted bill was refused on re-upload. Assert both files derive both from the
    same livePurchases()/liveSales(), so no future edit can un-sync them. */
-ok(/const livePurchases = \(\) => Q\.state\.PURCHASES\.filter\(p => !p\._del\)/.test(psrc),
-  'purchase.js defines ONE livePurchases() predicate (excludes deleted)');
+ok(/const livePurchases = \(\) => Q\.state\.PURCHASES\.filter\(p => !p\._del && !p\._arch && \(p\.status \|\| 'pending'\) !== 'cancelled'\)/.test(psrc),
+  'purchase.js defines ONE livePurchases() predicate — deleted, archived AND voided are all retired');
 ok(/existing: \(\) => new Set\(livePurchases\(\)/.test(psrc) && /rows: livePurchases/.test(psrc),
-  '  and BOTH existing() and rows() use it — they cannot disagree about a deleted bill');
-ok(/const liveSales = \(\) => Q\.state\.SALES\.filter\(s => !s\._del\)/.test(ssrc),
-  'sales.js defines ONE liveSales() predicate (excludes deleted)');
+  '  and BOTH existing() and rows() use it — they cannot disagree about a retired bill');
+ok(/const liveSales = \(\) => Q\.state\.SALES\.filter\(s => !s\._del && !s\._arch && \(s\.status \|\| 'pending'\) !== 'cancelled'\)/.test(ssrc),
+  'sales.js defines ONE liveSales() predicate — deleted, archived AND voided are all retired');
 ok(/existing: \(\) => new Set\(liveSales\(\)/.test(ssrc) && /rows: liveSales/.test(ssrc),
   '  and BOTH existing() and rows() use it');
 
@@ -303,6 +303,38 @@ ok(/b\.reason/.test(rowRender), 'the batch table prints b.reason under the statu
     /* the gate still refuses a LIVE duplicate — the fix must not open the door to real dups */
     const again = D.addSale(Object.assign({}, INV));
     ok(again && again.ok === false, '  but a LIVE duplicate is still refused: ' + JSON.stringify(again && again.reason));
+  }
+
+  /* ── VOIDED is not live either. Sales offers TWO removal actions — Delete
+     (Trash, _del) and Void/Cancel (status 'cancelled') — and the void dialog
+     itself promises the invoice "drops out of live sales totals". The gate
+     kept counting voided documents, so a voided invoice blocked its own
+     re-upload exactly like the deleted one did: "still I can't upload sales
+     bill". One rule for every door: not live ⇒ cannot block an upload. ── */
+  /* voidRecord itself needs half of data.js (TRASHABLE, whoami, audit) — so pin
+     its exact writes from SOURCE, then apply those same writes here. If voiding
+     ever changes shape, the pin fails and this simulation must follow. */
+  {
+    const vsrc = grabBlock(dsrc, 'function voidRecord(module, idx, reason) {', '\n  }');
+    ok(/rec\._void = \{/.test(vsrc) && /rec\.status = 'cancelled';/.test(vsrc),
+      'voidRecord marks a record with _void + status "cancelled" (the writes simulated below)');
+  }
+  {
+    S.SALES.length = 0;
+    const INV = { inv: 'INV-9', date: '2026-06-10', party: 'Ultratech', gstin: '24AAACU5678B1Z9', qty: 5, rate: 200, gstR: 5 };
+    D.addSale(Object.assign({}, INV));
+    S.SALES[0]._void = { at: 'now', by: 'owner', reason: 'wrong party' };   // exactly what voidRecord writes
+    S.SALES[0].status = 'cancelled';
+    const r = D.addSale(Object.assign({}, INV));
+    ok(r && r.ok === true, 'SAVE GATE (sales): a VOIDED invoice can be uploaded again — got ' + JSON.stringify(r && r.reason || r));
+  }
+  {
+    S.PURCHASES.length = 0;
+    D.addPurchase(Object.assign({}, BILL));
+    S.PURCHASES[0]._void = { at: 'now', by: 'owner', reason: 'duplicate entry' };
+    S.PURCHASES[0].status = 'cancelled';
+    const r = D.addPurchase(Object.assign({}, BILL));
+    ok(r && r.ok === true, 'SAVE GATE (purchase): a VOIDED bill can be uploaded again — got ' + JSON.stringify(r && r.reason || r));
   }
 
   /* ── a clean bill is untouched. The gate must not eat real work. ── */

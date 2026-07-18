@@ -374,8 +374,9 @@ function openSalesReport(rows) {
 function importInvoices() {
   // One definition of "a live invoice" — shared by the dedup set (existing) and
   // the gate's list (rows) so a deleted invoice can't be live in one and gone
-  // in the other.
-  const liveSales = () => Q.state.SALES.filter(s => !s._del);
+  // in the other. Voided and archived count as retired too, matching the save
+  // gate (data.js dupCheck) — the pre-pass and the gate must never disagree.
+  const liveSales = () => Q.state.SALES.filter(s => !s._del && !s._arch && (s.status || 'pending') !== 'cancelled');
   const cfg = {
     kind: 'sales',
     title: 'Import sales bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',
