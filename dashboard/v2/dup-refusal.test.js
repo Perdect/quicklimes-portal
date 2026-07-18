@@ -279,6 +279,32 @@ ok(/b\.reason/.test(rowRender), 'the batch table prints b.reason under the statu
     ok(!again.reason, '  and no "Already uploaded" message: “' + (again.reason || '') + '”');
   }
 
+  /* ── THE SECOND DOOR: the SAVE GATE itself must ignore deleted records. ──
+     Yesterday's fix corrected the review pre-pass (cfg.existing/rows exclude
+     _del) — but addSale/addPurchase run dupCheck against the RAW arrays, so a
+     deleted bill sailed through review and was then refused at save: "still I
+     can't upload sales bill". The two doors MUST agree on what "live" means. */
+  {
+    S.PURCHASES.length = 0;
+    D.addPurchase(Object.assign({}, BILL));
+    S.PURCHASES[0]._del = { at: 'now', by: 'owner' };          // user deletes the bill
+    const r = D.addPurchase(Object.assign({}, BILL));           // same bill, uploaded again
+    ok(r && r.ok === true, 'SAVE GATE (purchase): a deleted bill can be added again — got ' + JSON.stringify(r && r.reason || r));
+    eq('  and it is really saved', S.PURCHASES.filter(p => !p._del).length, 1);
+  }
+  {
+    S.SALES.length = 0;
+    const INV = { inv: 'INV-7', date: '2026-06-08', party: 'Ambuja Cement', gstin: '24AAACA1234A1Z5', qty: 10, rate: 100, gstR: 5 };
+    D.addSale(Object.assign({}, INV));
+    S.SALES[0]._del = { at: 'now', by: 'owner' };
+    const r = D.addSale(Object.assign({}, INV));
+    ok(r && r.ok === true, 'SAVE GATE (sales): a deleted invoice can be added again — got ' + JSON.stringify(r && r.reason || r));
+    eq('  and it is really saved', S.SALES.filter(s => !s._del).length, 1);
+    /* the gate still refuses a LIVE duplicate — the fix must not open the door to real dups */
+    const again = D.addSale(Object.assign({}, INV));
+    ok(again && again.ok === false, '  but a LIVE duplicate is still refused: ' + JSON.stringify(again && again.reason));
+  }
+
   /* ── a clean bill is untouched. The gate must not eat real work. ── */
   {
     S.PURCHASES.length = 0;

@@ -502,7 +502,16 @@
      that is the server's own data coming back, not an import. */
   function dupCheck(e, existing) {
     if (!(typeof ImportGuard !== 'undefined' && ImportGuard.docVerdict)) return null;   // page did not load the guard — import-guard-loaded.test.js pins that it does
-    const v = ImportGuard.docVerdict(e, existing);
+    /* Deleted records are NOT "already recorded". Delete keeps the row (soft,
+       restorable from Trash) so its invoice number stays in the raw array — and
+       this gate used to read that raw array, which produced the two-door bug:
+       the review pre-pass (fixed first) said "fine", then THIS gate refused the
+       save with "already recorded". A bill the user deleted must be uploadable
+       again, and both doors must apply the SAME rule — the pre-pass filters
+       !_del (purchase.js livePurchases / sales.js liveSales), so the gate does
+       too. Cancelled stays counted on purpose: a voided invoice is still a
+       recorded document; re-issuing its number deserves the warning. */
+    const v = ImportGuard.docVerdict(e, (existing || []).filter(x => !x._del));
     return v.dup ? { ok: false, dup: true, of: v.of, amountDiffers: !!v.amountDiffers, reason: v.reason } : null;
   }
   function addSale(e) {
