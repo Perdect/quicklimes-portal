@@ -121,6 +121,199 @@
     'Royalty': 'रॉयल्टी'
   };
 
+  /* ── The app-wide sweep (2026-07-19) ─────────────────────────────
+     "still not change complete in hindi language make sure all things will
+     convert" — with four screenshots. He was right: the walker worked and the
+     glossary stopped at ~80 phrases, so the nav, the stat cards, the table
+     headers and every toolbar stayed English. These are the strings harvested
+     from the ACTUAL source (label:/title:/headers/placeholders), keyed
+     exactly as the code emits them. Appended with Object.assign so the
+     owner's ◆ block above stays byte-identical — his words are not edited to
+     add mine. Still unmarked = still mine to have checked. */
+  Object.assign(HI, {
+    /* navigation + sections */
+    'Dashboard': 'डैशबोर्ड',
+    'GST Invoice': 'GST बिल',
+    'Collections': 'वसूली',
+    'Sales Pipeline': 'बिक्री पाइपलाइन',
+    'Purchase Dashboard': 'खरीद डैशबोर्ड',
+    'Payments Due': 'देय भुगतान',
+    'Payments Center': 'भुगतान केंद्र',
+    'Banks': 'बैंक',
+    'Bank': 'बैंक',
+    'GST Refunds': 'GST रिफंड',
+    'Expenses': 'खर्च',
+    'Attendance': 'हाज़िरी',
+    'AI Assistant': 'AI सहायक',
+    'All Parties': 'सभी पार्टियाँ',
+    'Command Center': 'कमांड सेंटर',
+    'Business Analytics': 'व्यापार विश्लेषण',
+    'Reports': 'रिपोर्ट',
+    'Inventory': 'स्टॉक',
+    'Settings': 'सेटिंग्स',
+    'Loans': 'लोन',
+    'Labour': 'मज़दूरी',
+    'Daily Production': 'दैनिक उत्पादन',
+    'Chunna Production': 'चूना उत्पादन',
+    'Monthly Register': 'मासिक रजिस्टर',
+    'Trash': 'रद्दी',
+    'Profile': 'प्रोफ़ाइल',
+    'Logout': 'लॉग आउट',
+    'Notifications': 'सूचनाएँ',
+    'Finance': 'वित्त',
+    'Business Operations System': 'व्यापार संचालन प्रणाली',
+
+    /* toolbar + buttons */
+    'All months': 'सभी महीने',
+    'This month': 'इस महीने',
+    'Whole year': 'पूरा साल',
+    'Upload statement': 'स्टेटमेंट अपलोड करें',
+    'Update Payments': 'भुगतान अपडेट करें',
+    'AI Reconcile': 'AI मिलान',
+    'Download': 'डाउनलोड',
+    'Group': 'समूह',
+    'Columns': 'कॉलम',
+    'Clear': 'हटाएँ',
+    'Save': 'सेव करें',
+    'Cancel': 'रद्द करें',
+    'Close': 'बंद करें',
+    'Add': 'जोड़ें',
+    'Add Entry': 'एंट्री जोड़ें',
+    'Add Party': 'पार्टी जोड़ें',
+    'Add Worker': 'मज़दूर जोड़ें',
+    'Receive Payment': 'भुगतान लें',
+    'Pay Bill': 'बिल चुकाएँ',
+    'Record payment': 'भुगतान दर्ज करें',
+    'View': 'देखें',
+    'Print': 'प्रिंट',
+    'Share': 'शेयर',
+    'Delete': 'हटाएँ',
+    'Edit': 'बदलें',
+    'Restore': 'वापस लाएँ',
+    'Archive': 'आर्काइव',
+    'Back': 'वापस',
+    'Next': 'आगे',
+    'Done': 'हो गया',
+    'Apply': 'लागू करें',
+    'Reset': 'रीसेट',
+    'Call': 'कॉल',
+    'Ask AI': 'AI से पूछें',
+    'Download PDF': 'PDF डाउनलोड',
+    'Review': 'जाँचें',
+    'Identify': 'पहचानें',
+
+    /* search boxes (placeholders translate too) */
+    'Search': 'खोजें',
+    'Search…': 'खोजें…',
+    'Search...': 'खोजें…',
+    'Search invoices': 'बिल खोजें',
+    'Search bills': 'बिल खोजें',
+    'Search party, ref, amount…': 'पार्टी, रेफ, राशि खोजें…',
+    'Search party…': 'पार्टी खोजें…',
+    'Search parties…': 'पार्टी खोजें…',
+
+    /* stat cards + summaries */
+    'Total Invoices': 'कुल बिल',
+    'Total Sales': 'कुल बिक्री',
+    'Total Bills': 'कुल बिल',
+    'Total Purchases': 'कुल खरीद',
+    'Total Balance': 'कुल बैलेंस',
+    'Collected': 'वसूला गया',
+    'GST Output': 'GST आउटपुट',
+    'GST Input Credit': 'GST इनपुट क्रेडिट',
+    'Pending Payment': 'लंबित भुगतान',
+    'Paid Amount': 'चुकाई राशि',
+    'Money In': 'आया पैसा',
+    'Money Out': 'गया पैसा',
+    'Needs Review': 'जाँच ज़रूरी',
+    'Needs review': 'जाँच ज़रूरी',
+    'Gross Profit': 'सकल लाभ',
+    'Revenue': 'आमदनी',
+    'Purchases': 'खरीद',
+    'Cash Balance': 'नकद बैलेंस',
+    'Bank Balance': 'बैंक बैलेंस',
+    'Customer Outstanding': 'ग्राहक बकाया',
+    'Supplier Outstanding': 'आपूर्तिकर्ता बकाया',
+    'Receivables': 'लेना है',
+    'Payables': 'देना है',
+    'Net Flow': 'शुद्ध प्रवाह',
+    'Trucks Loaded': 'ट्रक लदे',
+    'Plastic Bags': 'प्लास्टिक बोरी',
+    'AI Insights': 'AI जानकारी',
+    'Financial overview': 'वित्तीय सार',
+    'All accounts': 'सभी खाते',
+    'Unassigned': 'बिना खाता',
+    'Avg Health': 'औसत सेहत',
+    'At-risk': 'जोखिम में',
+    'Dormant': 'निष्क्रिय',
+
+    /* card sub-lines (each its own text node) */
+    'excl. GST': 'GST के बिना',
+    'paid + cash': 'भुगतान + नकद',
+    'awaiting payment': 'भुगतान बाकी',
+    'collected GST': 'वसूला GST',
+    'settled to date': 'अब तक चुकाया',
+    'available ITC': 'उपलब्ध ITC',
+    'all time': 'पूरा समय',
+    'this month': 'इस महीने',
+    'last month': 'पिछले महीने',
+    'vs previous': 'पिछले से तुलना',
+    'last 6 months': 'पिछले 6 महीने',
+    'receivables': 'लेना है',
+    'payables': 'देना है',
+    'net flow': 'शुद्ध प्रवाह',
+    'non-bill entry': 'बिना-बिल एंट्री',
+    'Highest overdue.': 'सबसे ज़्यादा बकाया।',
+
+    /* table headers (CSS uppercases the English; Devanagari has no case) */
+    'Bill No': 'बिल नं',
+    'Bill No.': 'बिल नं',
+    'Bill Date': 'बिल तारीख',
+    'Due Date': 'नियत तारीख',
+    'Vehicle No': 'गाड़ी नं',
+    'Vehicle No.': 'गाड़ी नं',
+    'Party / Description': 'पार्टी / विवरण',
+    'Description': 'विवरण',
+    'Suggested Match': 'सुझाया मिलान',
+    'Type': 'प्रकार',
+    'Account': 'खाता',
+    'Category': 'श्रेणी',
+    'Balance': 'बैलेंस',
+    'Day': 'दिन',
+    'Ref': 'रेफ',
+    'Notes': 'नोट',
+    'Method': 'तरीका',
+    'Credit': 'क्रेडिट',
+    'Debit': 'डेबिट',
+    'Cash': 'नकद',
+    /* no 'UPI' entry — it IS its name in both languages, and the English
+       fallback already renders it; a self-mapping is a no-op that looks done
+       (i18n.test.js forbids exactly that). */
+    'Documents': 'दस्तावेज़',
+    'Created By': 'बनाया',
+
+    /* tabs + statuses */
+    'To receive': 'लेना है',
+    'To pay': 'देना है',
+    'Settled': 'चुकता',
+    'Matched': 'मिलान हुआ',
+    'Unmatched': 'बिना मिलान',
+    'Duplicate': 'दोहरा',
+    'Loan recovery': 'लोन वसूली',
+    'Bank charges': 'बैंक शुल्क',
+    'Interest (CC/OD)': 'ब्याज (CC/OD)',
+    'Ignored': 'छोड़ा गया',
+    'Linked': 'जुड़ा',
+
+    /* months — the picker, group headers and chart axes.
+       Short forms match the chart's own axis labels. */
+    'January': 'जनवरी', 'February': 'फ़रवरी', 'March': 'मार्च', 'April': 'अप्रैल',
+    'May': 'मई', 'June': 'जून', 'July': 'जुलाई', 'August': 'अगस्त',
+    'September': 'सितंबर', 'October': 'अक्टूबर', 'November': 'नवंबर', 'December': 'दिसंबर',
+    'Jan': 'जन', 'Feb': 'फ़र', 'Mar': 'मार्च', 'Apr': 'अप्रै', 'Jun': 'जून',
+    'Jul': 'जुला', 'Aug': 'अग', 'Sep': 'सितं', 'Oct': 'अक्टू', 'Nov': 'नवं', 'Dec': 'दिसं'
+  });
+
   /* Read once. The setter reloads, so nothing can hold a stale value. */
   function lang() {
     try { return localStorage.getItem(LANG_KEY) === 'hi' ? 'hi' : 'en'; } catch (_) { return 'en'; }
@@ -180,6 +373,14 @@
        · anything when lang() is 'en' — zero cost in English
      Call-site adoption with t() can still happen page by page later; a string
      already in Hindi simply stops matching and the walker leaves it alone. */
+  /* "June 2026" → "जून 2026". Only fires when the month NAME is a dictionary
+     key — so it can never invent a translation the glossary doesn't carry. */
+  function mYr(s) {
+    var m = /^([A-Z][a-z]+)\s+(\d{4})$/.exec(s);
+    if (m && Object.prototype.hasOwnProperty.call(HI, m[1])) return HI[m[1]] + ' ' + m[2];
+    return null;
+  }
+
   function applyTo(node) {
     if (lang() !== 'hi' || !node) return 0;
     var SKIP = { SCRIPT: 1, STYLE: 1, IFRAME: 1, INPUT: 1, TEXTAREA: 1, SELECT: 1, OPTION: 1 };
@@ -188,9 +389,29 @@
       if (!el) return;
       if (el.nodeType === 3) {                       // text node
         var raw = el.nodeValue, s = raw == null ? '' : raw.trim();
-        if (s && Object.prototype.hasOwnProperty.call(HI, s)) {
+        if (!s) return;
+        if (Object.prototype.hasOwnProperty.call(HI, s)) {
           el.nodeValue = raw.replace(s, HI[s]); n++;
+          return;
         }
+        /* "Sales · All months" / "AI Insights · all time" — one node, built by
+           joining known phrases with ' · '. Translate each segment on its own;
+           an unknown segment stays English, exactly like a whole node would. */
+        if (s.indexOf(' · ') > 0) {
+          var parts = s.split(' · '), hit = false;
+          for (var p = 0; p < parts.length; p++) {
+            var seg = parts[p].trim();
+            if (Object.prototype.hasOwnProperty.call(HI, seg)) { parts[p] = HI[seg]; hit = true; }
+            else { var my = mYr(seg); if (my) { parts[p] = my; hit = true; } }
+          }
+          if (hit) { el.nodeValue = raw.replace(s, parts.join(' · ')); n++; }
+          return;
+        }
+        /* "June 2026" — the month picker, the register group headers, the recon
+           month bars. The month name is in the dictionary; the year is a number
+           and numbers are never translated (see the header note). */
+        var m = mYr(s);
+        if (m) { el.nodeValue = raw.replace(s, m); n++; }
         return;
       }
       if (el.nodeType !== 1) return;

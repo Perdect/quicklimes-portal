@@ -78,6 +78,36 @@ function el(tag, attrs, children) {
   LANG = 'hi';
 }
 
+/* ── 2b. the app-wide sweep ("make sure all things will convert") ──
+   His screenshots showed the walker working against an 80-phrase glossary:
+   nav, stat cards, table headers, toolbars all still English. The dictionary
+   grew to cover the app chrome, and the walker learned the two composite
+   shapes a register uses everywhere. */
+{
+  ok(I.stats().phrases >= 250, 'the glossary covers the app chrome (' + I.stats().phrases + ' phrases — the floor is 250, it may only grow)');
+  ['Dashboard', 'Payments Center', 'Total Invoices', 'Money In', 'Upload statement', 'Vehicle No', 'All months', 'excl. GST']
+    .forEach(k => ok(I.has(k), '  covers “' + k + '”'));
+
+  /* composite: known phrases joined by ' · ' translate segment-by-segment */
+  const t1 = text('Sales · All months');
+  I.applyTo(el('DIV', {}, [t1]));
+  eq('a " · " composite translates each segment', t1.nodeValue, 'बिक्री · सभी महीने');
+  const t2 = text('AI Insights · all time');
+  I.applyTo(el('DIV', {}, [t2]));
+  eq('  mixed known segments too', t2.nodeValue, 'AI जानकारी · पूरा समय');
+  const t3 = text('Sales · Zebra Quarter');
+  I.applyTo(el('DIV', {}, [t3]));
+  eq('  an unknown segment stays English while the known one converts', t3.nodeValue, 'बिक्री · Zebra Quarter');
+
+  /* month-year: the picker and every register group header */
+  const t4 = text('June 2026');
+  I.applyTo(el('DIV', {}, [t4]));
+  eq('"June 2026" becomes "जून 2026" — the year is a number and numbers never translate', t4.nodeValue, 'जून 2026');
+  const t5 = text('Junk 2026');
+  I.applyTo(el('DIV', {}, [t5]));
+  eq('  a non-month word with a year is left alone', t5.nodeValue, 'Junk 2026');
+}
+
 /* ── 3. THE WIRING — what was actually missing ── */
 {
   /* Strip BOTH comment styles — a `//boot();` would satisfy a block-only strip
