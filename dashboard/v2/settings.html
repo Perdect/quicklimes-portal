@@ -211,7 +211,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="ql-api.js?v=a2"></script>
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
-<script src="./i18n.js?v=h2"></script>
+<script src="./i18n.js?v=h3"></script>
 <script src="./selfcheck.js?v=s2"></script>
 <script src="./data.js?v=m39"></script>
 <script src="./recon-core.js?v=rc5"></script>
@@ -267,7 +267,7 @@ function renderLang() {
   sel.onchange = () => QLI18n.setLang(sel.value);   // setLang reloads — strings render at build time
   const n = QLI18n.stats().phrases;
   document.getElementById('langCov').innerHTML = QLI18n.lang() === 'hi'
-    ? '<b>' + n + '</b> phrases translated so far — Sales (बिक्री) and Purchase (खरीद) first. The rest of the app still reads in English.'
+    ? '<b>' + n + '</b> phrases translate across the whole app — anything not yet in the glossary stays in English rather than guessing.'
     : '<b>' + n + '</b> Hindi phrases ready. Switch to हिन्दी to use them.';
 }
 

@@ -158,9 +158,77 @@
   function stats() { return { phrases: Object.keys(HI).length }; }
   function has(s) { return Object.prototype.hasOwnProperty.call(HI, String(s)); }
 
-  var API = { t: t, both: both, lang: lang, setLang: setLang, stats: stats, has: has, DICT: HI, LANG_KEY: LANG_KEY };
+  /* ── The DOM translator — the wiring the layer never had ─────────
+     This file shipped with t(), a dictionary, and a Settings switcher — and
+     ZERO call sites. Nothing anywhere called QLI18n.t(), so switching to
+     हिन्दी reloaded the page into perfect English: the layer existed, the
+     language did not. The half-wired bug, in its purest form.
+
+     Retrofitting t() into 450+ template-literal strings across 34 pages is a
+     giant diff that would take weeks to trust. This is the one-point wiring
+     instead: after every render, walk the page and replace EXACT dictionary
+     matches in text nodes and a few attributes. The dictionary is keyed by
+     the full English string (a deliberate choice made at line 8), which is
+     precisely what makes this safe — 'Sales Register' matches or it doesn't;
+     there is no partial replacement, ever.
+
+     What it never touches:
+       · INPUT/TEXTAREA/SELECT values — the user's own data is not ours to
+         rewrite (placeholders and titles are UI, those translate)
+       · SCRIPT/STYLE/IFRAME, and anything marked data-no-i18n (the invoice
+         preview keeps its printed-English GST format)
+       · anything when lang() is 'en' — zero cost in English
+     Call-site adoption with t() can still happen page by page later; a string
+     already in Hindi simply stops matching and the walker leaves it alone. */
+  function applyTo(node) {
+    if (lang() !== 'hi' || !node) return 0;
+    var SKIP = { SCRIPT: 1, STYLE: 1, IFRAME: 1, INPUT: 1, TEXTAREA: 1, SELECT: 1, OPTION: 1 };
+    var n = 0;
+    (function walk(el) {
+      if (!el) return;
+      if (el.nodeType === 3) {                       // text node
+        var raw = el.nodeValue, s = raw == null ? '' : raw.trim();
+        if (s && Object.prototype.hasOwnProperty.call(HI, s)) {
+          el.nodeValue = raw.replace(s, HI[s]); n++;
+        }
+        return;
+      }
+      if (el.nodeType !== 1) return;
+      if (el.getAttribute && el.getAttribute('data-no-i18n') != null) return;
+      /* Attributes FIRST, then the skip check: a search box's placeholder is
+         UI and must translate even though the box's VALUE (the user's own
+         text) never will. Skipping the whole element skipped its placeholder
+         too — the test caught it. */
+      for (var a = 0; a < ATTRS.length; a++) {
+        var k = ATTRS[a], v = el.getAttribute && el.getAttribute(k);
+        if (v && Object.prototype.hasOwnProperty.call(HI, v.trim())) { el.setAttribute(k, HI[v.trim()]); n++; }
+      }
+      if (SKIP[el.tagName]) return;        // never descend into values or script text
+      for (var c = el.firstChild; c; c = c.nextSibling) walk(c);
+    })(node);
+    return n;
+  }
+  var ATTRS = ['placeholder', 'title', 'aria-label'];
+
+  /* Auto-wiring: translate on load, then re-translate when the app repaints.
+     Debounced — render() rebuilds whole subtrees, and translating once after
+     the burst beats translating every intermediate mutation. The observer's
+     own text edits re-fire it, but a translated node no longer matches any
+     key, so the second pass finds 0 and the loop starves out immediately. */
+  function boot() {
+    if (typeof document === 'undefined' || lang() !== 'hi') return;
+    var t0 = null;
+    var run = function () { t0 = null; try { applyTo(document.body); } catch (_) {} };
+    var kick = function () { if (t0) clearTimeout(t0); t0 = setTimeout(run, 60); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
+    try { new MutationObserver(kick).observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {}
+  }
+
+  var API = { t: t, both: both, lang: lang, setLang: setLang, stats: stats, has: has, applyTo: applyTo, DICT: HI, LANG_KEY: LANG_KEY };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.QLI18n = API;
+  boot();
   /* NO global `t`. It was tempting — this is called hundreds of times — but `t` is
      the most common local name in this codebase (txn, toast, tab, timer), and one
      future undeclared `t = ...` anywhere would silently clobber the translator with
