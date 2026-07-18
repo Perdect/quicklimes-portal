@@ -305,6 +305,24 @@
     'Ignored': 'छोड़ा गया',
     'Linked': 'जुड़ा',
 
+    /* the mobile app layer — the owner runs the business from his phone,
+       and the phone dashboard has its own strings (mobile.js) */
+    'Welcome back': 'वापसी पर स्वागत है',
+    "here's today": 'आज का हाल',
+    'Quick actions': 'तुरंत काम',
+    'New GST invoice': 'नया GST बिल',
+    'Build it and share the PDF': 'बनाएँ और PDF शेयर करें',
+    'Upload bills': 'बिल अपलोड करें',
+    'Photo or PDF — read automatically': 'फोटो या PDF — अपने आप पढ़ा जाएगा',
+    'Record a payment': 'भुगतान दर्ज करें',
+    'Money in or out, straight to the cashbook': 'पैसा आया या गया, सीधे रोकड़ बही में',
+    'GST, P&L and outstanding': 'GST, लाभ-हानि और बकाया',
+    'More': 'और',
+    'Overview': 'सार',
+    'Recent invoices': 'हाल के बिल',
+    'Switch company': 'कंपनी बदलें',
+    'Install app': 'ऐप इंस्टॉल करें',
+
     /* months — the picker, group headers and chart axes.
        Short forms match the chart's own axis labels. */
     'January': 'जनवरी', 'February': 'फ़रवरी', 'March': 'मार्च', 'April': 'अप्रैल',
