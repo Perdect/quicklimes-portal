@@ -8,8 +8,8 @@
     "v": "b16"
   },
   "cashbook.js": {
-    "sha": "e860f2d1b5b2",
-    "v": "m3"
+    "sha": "c4b7a4fa1346",
+    "v": "m4"
   },
   "chat.js": {
     "sha": "05f85ba612e5",
@@ -40,8 +40,8 @@
     "v": "m22"
   },
   "data.js": {
-    "sha": "4e2a560e22bb",
-    "v": "m38"
+    "sha": "8af9e3b382a0",
+    "v": "m39"
   },
   "dedupe-ui.js": {
     "sha": "dfb6fc4b9fbb",
@@ -192,8 +192,8 @@
     "v": "m29"
   },
   "selfcheck.js": {
-    "sha": "15eb5f5bc346",
-    "v": "s1"
+    "sha": "5e7f1cf587f5",
+    "v": "s2"
   },
   "shell.css": {
     "sha": "e14b59b8e371",

@@ -110,15 +110,21 @@
     } else add({ id: 'receivable', what: 'Receivables check', skipped: true, note: 'salesRows/partyLedger unavailable' });
 
     /* ── 5. Cash: two functions bucket the same entries ───────────
-       accountBalances() and cashbookBalances() both split the cashbook into
-       cash/bank/upi. They use different rules: one drops mode 'upi' entirely. */
+       accountBalances() and cashbookBalances() now share one rule (liveMoney +
+       methodToMode). cashbookBalances returns the UPI money under BOTH `upi`
+       and the legacy `phonepay` key — the same number twice, an alias, so this
+       check must count it ONCE or it manufactures the very mismatch it exists
+       to catch. accountBalances alone carries opening balances; compare the
+       moved money, not the openings. */
     if (have('accountBalances') && have('cashbookBalances')) {
       var ab = Q.accountBalances(), cb = Q.cashbookBalances();
+      var opening = (Q.state && Q.state.FINANCE && Q.state.FINANCE.opening) || {};
+      var openSum = (+opening.cash || 0) + (+opening.bank || 0) + (+opening.upi || 0);
       add({ id: 'cash-total', what: 'The cash book totals the same on the dashboard and the Command Center',
-        ok: near((ab.cash || 0) + (ab.bank || 0) + (ab.upi || 0), (cb.cash || 0) + (cb.bank || 0) + (cb.upi || 0) + (cb.phonepay || 0)),
-        a: (ab.cash || 0) + (ab.bank || 0) + (ab.upi || 0),
-        b: (cb.cash || 0) + (cb.bank || 0) + (cb.upi || 0) + (cb.phonepay || 0),
-        srcA: 'Dashboard (accountBalances)', srcB: 'Command Center (cashbookBalances)',
+        ok: near((ab.cash || 0) + (ab.bank || 0) + (ab.upi || 0) - openSum, (cb.cash || 0) + (cb.bank || 0) + (cb.upi || 0)),
+        a: (ab.cash || 0) + (ab.bank || 0) + (ab.upi || 0) - openSum,
+        b: (cb.cash || 0) + (cb.bank || 0) + (cb.upi || 0),
+        srcA: 'Dashboard (accountBalances, openings excluded)', srcB: 'Command Center (cashbookBalances)',
         note: 'Two functions bucket the same entries. If they differ, one is dropping a payment mode.' });
     } else add({ id: 'cash-total', what: 'Cash check', skipped: true, note: 'balance functions unavailable' });
 

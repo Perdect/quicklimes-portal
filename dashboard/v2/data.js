@@ -664,6 +664,12 @@
   // row builders exclude soft-deleted records while keeping idx stable for
   // delete/restore. Usage: withIdx(S.SALES).map(([s, i]) => ({ idx: i, ... })).
   const withIdx = arr => arr.map((r, i) => [r, i]).filter(([r]) => !r._del && !r._arch);
+  /* Money that still counts: not trashed, not archived, not voided. The BALANCE
+     functions must use the same rule as the LISTS (withIdx) plus the void rule,
+     or the page contradicts itself — cashbook.test.js pinned the exact screen:
+     delete the only entry and the subtitle still said "0 entries · Balance
+     ₹1,000", forever, because payment records can never be purged. */
+  const liveMoney = e => !e._del && !e._arch && (e.status || '') !== 'cancelled';
   function logAudit(action, module, rec, meta) {
     meta = meta || {}; const w = whoami();
     S.AUDIT.push({
@@ -1502,13 +1508,23 @@
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   }
   function cashbookBalances() {
-    const bal = m => {
-      const cr = S.CASHBOOK.filter(e => e.mode === m && e.type === 'credit').reduce((s, e) => s + (e.amount || 0), 0);
-      const dr = S.CASHBOOK.filter(e => e.mode === m && e.type === 'debit').reduce((s, e) => s + (e.amount || 0), 0);
-      return cr - dr;
-    };
-    const cash = bal('cash'), phonepay = bal('phonepay'), bank = bal('bank');
-    return { cash, phonepay, bank, total: cash + phonepay + bank, count: S.CASHBOOK.length };
+    /* THREE bugs lived in this one function, all pinned by cashbook.test.js:
+       1. It read the raw array — a deleted entry counted forever ("0 entries ·
+          Balance ₹1,000"). Now liveMoney, the same rule the lists use.
+       2. It bucketed by raw `e.mode === 'phonepay'` — a word the Payments page
+          never writes (it writes 'upi'), so every PhonePe/GPay rupee vanished
+          from this total while accountBalances counted it. Now the SAME
+          methodToMode normalizer accountBalances uses: one vocabulary, two
+          functions, no gap for money to fall through.
+       3. `s + (e.amount || 0)` string-CONCATENATED uncoerced amounts:
+          '1500' + '200' = ₹15,00,200. Now +e.amount like everywhere else.
+       `phonepay` stays as an alias of upi — callers only read .total today,
+       but a stale reader of .phonepay must see the money, not a phantom 0. */
+    const rows = S.CASHBOOK.filter(liveMoney);
+    const bal = m => rows.filter(e => methodToMode(e.method || e.mode) === m)
+      .reduce((s, e) => s + (e.type === 'credit' ? 1 : -1) * (+e.amount || 0), 0);
+    const cash = bal('cash'), upi = bal('upi'), bank = bal('bank');
+    return { cash, upi, phonepay: upi, bank, total: cash + upi + bank, count: rows.length };
   }
 
   /* ── Chunna (cash/PhonePe lime-powder sales) ─────────────────── */
@@ -1987,7 +2003,11 @@
   function modeToMethod(m) { return { cash: 'Cash', bank: 'Bank', upi: 'UPI', phonepay: 'PhonePe' }[m] || 'Bank'; }
   function accountBalances() {
     const openA = (S.FINANCE && S.FINANCE.opening) || {};
-    const bucket = b => S.CASHBOOK.reduce((s, e) => methodToMode(e.method || e.mode) !== b ? s : s + (e.type === 'credit' ? 1 : -1) * (+e.amount || 0), +openA[b] || 0);
+    /* liveMoney, same as the lists: a trashed payment must leave the BALANCE,
+       not only the timeline. Payments can never be purged (financial guard), so
+       without this the headline number was overstated by every deleted entry,
+       permanently, on every screen that shows it. */
+    const bucket = b => S.CASHBOOK.filter(liveMoney).reduce((s, e) => methodToMode(e.method || e.mode) !== b ? s : s + (e.type === 'credit' ? 1 : -1) * (+e.amount || 0), +openA[b] || 0);
     const cash = bucket('cash'), bank = bucket('bank'), upi = bucket('upi');
     return { cash, bank, upi, total: cash + bank + upi };
   }

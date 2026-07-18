@@ -43,7 +43,11 @@ QLX.mount({
   ],
   search: (r, q) => ((r.category || '') + ' ' + (r.party || '') + ' ' + (r.ref || '') + ' ' + (r.notes || '')).toLowerCase().includes(q),
   filters: [
-    { key: 'mode', label: 'Account', options: () => [['cash', 'Cash'], ['bank', 'Bank'], ['phonepay', 'PhonePe / UPI']], test: (r, v) => r.mode === v },
+    /* The option is 'upi' because that is what the Payments page writes; legacy
+       rows from the old cash form say 'phonepay' for the same money, so the test
+       accepts both. The old option value was 'phonepay' — a word new rows never
+       carry — which made "PhonePe / UPI" a filter that could not match anything. */
+    { key: 'mode', label: 'Account', options: () => [['cash', 'Cash'], ['bank', 'Bank'], ['upi', 'PhonePe / UPI']], test: (r, v) => v === 'upi' ? (r.mode === 'upi' || r.mode === 'phonepay') : r.mode === v },
     { key: 'category', label: 'Category', options: rows => [...new Set(rows.map(r => r.category))].filter(Boolean).sort().map(c => [c, c]), test: (r, v) => r.category === v },
     { key: 'party', label: 'Party', options: rows => [...new Set(rows.map(r => r.party))].filter(Boolean).sort().map(p => [p, p]), test: (r, v) => r.party === v }
   ],

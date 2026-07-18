@@ -7,25 +7,25 @@
  *   2. The PAGE — the real cashbook.js is loaded in a VM and its QLX.mount config
  *      driven directly, so the footer/stats/filters under test are the ones that ship.
  *
- * What this file found (documented, NOT fixed — see the ✗ BUG sections):
+ * What this file found — and, as of 2026-07-18, PINS AS FIXED:
  *
- *   A. cashbookBalances() DROPS every UPI rupee. It buckets on e.mode ∈ {cash,
+ *   A. cashbookBalances() dropped every UPI rupee: it bucketed on e.mode ∈ {cash,
  *      phonepay, bank}, but methodToMode() — which every data.js writer runs the
  *      mode through — returns 'upi' and never 'phonepay'. A ₹5,000 PhonePe receipt
- *      is ₹5,000 to accountBalances() and ₹0 to cashbookBalances(). Two functions,
- *      one store, different money. cashbookBalances() feeds the "Cash balance low"
- *      AI insight and the reports page.
- *   B. BOTH balance functions read S.CASHBOOK raw and so COUNT TRASHED ENTRIES.
- *      cashbookRows() filters them (withIdx), the balances do not — the page renders
- *      "0 entries · Balance ₹1,000" off the same store.
- *   C. The page's Account filter offers 'phonepay' but rows carry mode 'upi', so
- *      "PhonePe / UPI" matches nothing that data.js wrote. Same vocabulary split as A.
+ *      was ₹5,000 to accountBalances() and ₹0 to cashbookBalances(). NOW both
+ *      functions bucket through the same methodToMode, and .phonepay is an alias
+ *      of .upi so a stale reader sees the money, never a phantom 0.
+ *   B. BOTH balance functions read S.CASHBOOK raw and counted TRASHED entries —
+ *      the page rendered "0 entries · Balance ₹1,000" off one store, forever,
+ *      because payments can never be purged. NOW both filter liveMoney (not
+ *      trashed, not archived, not voided), the same rule as the lists.
+ *   C. The page's Account filter offered 'phonepay' while rows carry 'upi', so
+ *      "PhonePe / UPI" matched nothing. NOW the option is 'upi' and its test also
+ *      accepts legacy 'phonepay' rows.
  *
- * Note on which balance is right: accountBalances() is. It normalises through
- * methodToMode(e.method || e.mode), which absorbs BOTH vocabularies — shell.js's
- * openCashForm writes mode:'phonepay' with no method, data.js writes mode:'upi'
- * with method:'PhonePe', and accountBalances gets both to 'upi'. So the assertions
- * below pin accountBalances as correct and cashbookBalances as the defect.
+ * These sections originally pinned the bugs AS-IS ("✗ BUG"), each stating the day
+ * someone fixed the code the line would fail loudly. That day came: all 15 pins
+ * failed on the fix commit and were flipped to assert the correct behaviour.
  *
  *   node cashbook.test.js
  */
@@ -64,6 +64,7 @@ const dctx = {
 vm.createContext(dctx);
 vm.runInContext([
   grabLine('const withIdx = arr =>'),
+  grabLine('const liveMoney = e =>'),   // the balances' live-record rule (the trash fix)
   grabLine('  let _seq = 0;').trim(),
   grabLine('function idStamp()'),
   grabLine('function fmtISO(d)'),
@@ -160,15 +161,16 @@ const viaForm = o => X.addCashEntry(Object.assign({ date: '2026-07-01', type: 'c
   reset();
   X.addLedgerPayment({ dir: 'in', amount: 5000, method: 'PhonePe', date: '2026-07-01', party: 'A' });
   eq('a ₹5,000 PhonePe receipt IS money (accountBalances agrees)', X.accountBalances().total, 5000);
-  eq('  ✗ BUG: cashbookBalances reports ₹0 — the UPI bucket is dropped', X.cashbookBalances().total, 0);
-  /* Stated as the divergence itself, so the day someone fixes cashbookBalances this
-     line fails loudly and points at this comment. */
-  ok(X.accountBalances().total !== X.cashbookBalances().total,
-    '  ✗ BUG: two functions over ONE store disagree by the whole UPI balance (₹5,000)');
+  eq('  FIXED: cashbookBalances counts the ₹5,000 too — the UPI bucket exists now', X.cashbookBalances().total, 5000);
+  /* That day came. The two functions now share one bucketing rule. */
+  ok(X.accountBalances().total === X.cashbookBalances().total,
+    '  FIXED: two functions over ONE store agree to the rupee');
 
-  /* The mechanism, pinned: the bucket key it looks for is one methodToMode never emits. */
+  /* The mechanism, fixed: buckets go through methodToMode, and the legacy
+     .phonepay key is an alias of .upi so no stale reader sees a phantom 0. */
   eq('  the entry data.js wrote carries mode "upi"…', S.CASHBOOK[0].mode, 'upi');
-  eq('  …but cashbookBalances buckets "phonepay", which is always empty', X.cashbookBalances().phonepay, 0);
+  eq('  …and cashbookBalances files it under upi', X.cashbookBalances().upi, 5000);
+  eq('  …with .phonepay as an alias of the SAME money, not a phantom 0', X.cashbookBalances().phonepay, 5000);
 
   /* Cash and bank DO work — which is exactly why this survived: the common path is fine. */
   reset();
@@ -191,7 +193,7 @@ const viaForm = o => X.addCashEntry(Object.assign({ date: '2026-07-01', type: 'c
   viaForm({ type: 'credit', mode: 'phonepay', amount: 3000 });               // old form
   X.addLedgerPayment({ dir: 'in', amount: 7000, method: 'PhonePe', date: '2026-07-01', party: 'B' });  // payments page
   eq('accountBalances sees all ₹10,000 of UPI money', X.accountBalances().upi, 10000);
-  eq('  ✗ BUG: cashbookBalances sees only the ₹3,000 legacy half', X.cashbookBalances().total, 3000);
+  eq('  FIXED: cashbookBalances sees all ₹10,000 — both vocabularies, one bucket', X.cashbookBalances().total, 10000);
 
   /* Latent, not reachable through the Add Entry form (shell.js:711 parseFloats
      number fields first) — but addCashEntry is a public API and cloud-restored /
@@ -203,8 +205,8 @@ const viaForm = o => X.addCashEntry(Object.assign({ date: '2026-07-01', type: 'c
   X.addCashEntry({ date: '2026-07-01', type: 'credit', mode: 'cash', amount: '1500' });
   X.addCashEntry({ date: '2026-07-01', type: 'credit', mode: 'cash', amount: '200' });
   eq('accountBalances coerces string amounts and adds them', X.accountBalances().cash, 1700);
-  eq('  ✗ LATENT: cashbookBalances CONCATENATES them — ₹1,500 + ₹200 becomes ₹15,00,200',
-    X.cashbookBalances().cash, 1500200);
+  eq('  FIXED: cashbookBalances coerces too — ₹1,500 + ₹200 is ₹1,700, not ₹15,00,200',
+    X.cashbookBalances().cash, 1700);
   /* One string alone round-trips, which is why this never showed up. */
   reset();
   X.addCashEntry({ date: '2026-07-01', type: 'credit', mode: 'cash', amount: '1500' });
@@ -223,20 +225,20 @@ const viaForm = o => X.addCashEntry(Object.assign({ date: '2026-07-01', type: 'c
   /* The exact shape softDelete('payment', …) writes onto S.CASHBOOK[i]. */
   S.CASHBOOK[0]._del = { at: '2026-07-02T10:00:00.000Z', by: 'owner', role: 'owner', reason: 'entered twice' };
   eq('a TRASHED entry leaves the cash book list', X.cashbookRows().length, 0);
-  eq('  ✗ BUG: but accountBalances still counts its ₹1,000', X.accountBalances().total, 1000);
-  eq('  ✗ BUG: and so does cashbookBalances', X.cashbookBalances().total, 1000);
-  eq('  ✗ BUG: cashbookBalances.count counts trashed rows too — the page says 0', X.cashbookBalances().count, 1);
+  eq('  FIXED: accountBalances lets it go', X.accountBalances().total, 0);
+  eq('  FIXED: and so does cashbookBalances', X.cashbookBalances().total, 0);
+  eq('  FIXED: cashbookBalances.count agrees with the page — 0 entries', X.cashbookBalances().count, 0);
   /* The user-visible contradiction, in one assertion: the subtitle renders
      "N entries · Balance ₹X" from these two functions. */
-  ok(X.cashbookRows().length === 0 && X.accountBalances().total === 1000,
-    '  ✗ BUG: the page renders "0 entries · Balance ₹1,000" off one store');
+  ok(X.cashbookRows().length === 0 && X.accountBalances().total === 0,
+    '  FIXED: the page renders "0 entries · Balance ₹0" — the list and the money finally agree');
 
   /* Archived behaves the same way — withIdx filters _arch, the balances do not. */
   reset();
   X.addLedgerPayment({ dir: 'in', amount: 2000, method: 'Bank', date: '2026-07-01', party: 'A' });
   S.CASHBOOK[0]._arch = true;
   eq('an ARCHIVED entry leaves the list', X.cashbookRows().length, 0);
-  eq('  ✗ BUG: but still counts toward the balance', X.accountBalances().total, 2000);
+  eq('  FIXED: and leaves the balance with it', X.accountBalances().total, 0);
 
   /* Live entries alongside trashed ones — the realistic mix. */
   reset();
@@ -244,7 +246,7 @@ const viaForm = o => X.addCashEntry(Object.assign({ date: '2026-07-01', type: 'c
   X.addLedgerPayment({ dir: 'in', amount: 500, method: 'Bank', date: '2026-07-02', party: 'B' });
   S.CASHBOOK[1]._del = { at: 'x' };
   eq('the list shows only the live entry', X.cashbookRows().length, 1);
-  eq('  ✗ BUG: the balance is overstated by the trashed ₹500', X.accountBalances().total, 1500);
+  eq('  FIXED: the balance is the live ₹1,000 — the trashed ₹500 is gone', X.accountBalances().total, 1000);
 }
 
 /* ══════════ 5. cashbookRows — shape and ordering ══════════ */
@@ -361,17 +363,16 @@ ok(CFG !== null, 'the real cashbook.js mounted and handed over its config');
   eq('search is case-insensitive', search('HAMALI'.toLowerCase()).length, 1);
   eq('search misses nothing it should not', search('zzzz').length, 0);
 
-  /* ✗ BUG C — the Account filter's PhonePe/UPI option is unreachable. */
+  /* FIXED C — the Account filter's PhonePe/UPI option now reaches the money.
+     The option value is 'upi' (what the Payments page writes) and its test also
+     accepts legacy 'phonepay' rows — one option, both vocabularies. */
   const modeF = CFG.filters.find(f => f.key === 'mode');
-  eq('the Account filter offers three options', modeF.options().map(o => o[0]), ['cash', 'bank', 'phonepay']);
+  eq('the Account filter offers three options', modeF.options().map(o => o[0]), ['cash', 'bank', 'upi']);
   eq('  Cash matches', rows.filter(r => modeF.test(r, 'cash')).length, 1);
   eq('  Bank matches', rows.filter(r => modeF.test(r, 'bank')).length, 1);
-  eq('  ✗ BUG: "PhonePe / UPI" matches NOTHING — the option is "phonepay", the rows are "upi"',
-    rows.filter(r => modeF.test(r, 'phonepay')).length, 0);
-  ok(rows.some(r => r.mode === 'upi'),
-    '  ✗ BUG: …even though a UPI entry is right there in the register');
-  ok(!modeF.options().some(o => o[0] === 'upi'),
-    '  ✗ BUG: and there is no "upi" option to pick instead — the money is unfilterable');
+  eq('  FIXED: "PhonePe / UPI" matches the UPI entry', rows.filter(r => modeF.test(r, 'upi')).length, 1);
+  eq('  and a legacy phonepay row is caught by the SAME option',
+    [{ mode: 'phonepay' }].filter(r => modeF.test(r, 'upi')).length, 1);
 
   /* Category / Party filters build their options off the live rows. */
   const catF = CFG.filters.find(f => f.key === 'category');
@@ -402,10 +403,10 @@ ok(CFG !== null, 'the real cashbook.js mounted and handed over its config');
   S.CASHBOOK[0]._del = { at: 'x' };
   eq('the register lists no entries', CFG.data().length, 0);
   eq('  and the footer agrees there is no money in', CFG.footer(CFG.data())[0].value, '₹0');
-  eq('  ✗ BUG: but the Total Balance card still shows the trashed ₹1,000',
-    CFG.stats(CFG.data()).find(s => s.label === 'Total Balance').value, '₹1,000');
-  ok(/0 entries/.test(CFG.subtitle()) && /₹1,000/.test(CFG.subtitle()),
-    '  ✗ BUG: the subtitle literally renders "0 entries · Balance ₹1,000"');
+  eq('  FIXED: the Total Balance card agrees — ₹0',
+    CFG.stats(CFG.data()).find(s => s.label === 'Total Balance').value, '₹0');
+  ok(/0 entries/.test(CFG.subtitle()) && !/₹1,000/.test(CFG.subtitle()),
+    '  FIXED: the subtitle renders "0 entries" beside a balance that agrees');
 }
 
 console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');
