@@ -107,6 +107,8 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 /* language toggle: the A/अ badge (SVG tile). Slightly larger than the mono
    icons around it so the two letters stay legible on a phone. */
 .qlm-h-lang svg { width: 24px; height: 24px; display: block; }
+/* AI: the brand-accented header door to the assistant (the FAB's twin). */
+.qlm-h-ai { color: var(--ql-brand-600); }
 .qlm-h-badge {
   position: absolute; top: 3px; right: 4px; min-width: 15px; height: 15px; padding: 0 3px;
   border-radius: 99px; background: var(--ql-danger-500); color: #fff;

@@ -410,6 +410,9 @@ button { font-family: inherit; cursor: pointer; }
    as a stray letter rather than a control. */
 /* The A/अ badge (an SVG tile now, not a text glyph). Sized like the other
    header actions; a hair of scale on hover so it reads as a control. */
+/* AI gets the brand accent — it's the one action that isn't plumbing. */
+.tb-action.tb-ai { color: var(--ql-brand-600); }
+.tb-action.tb-ai:hover { background: var(--ql-brand-50); border-color: var(--ql-brand-200); }
 .tb-lang { padding: 0; }
 /* .tb-action.tb-lang (0,2,1) to outrank `.tb-action svg {16px}` (0,1,1) which is
    declared later in this file — equal specificity would let the 16px win on order. */

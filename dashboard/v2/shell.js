@@ -331,6 +331,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <span>Search…</span><kbd>⌘K</kbd>
     </button>
+    <button class="tb-action tb-ai" id="tbAi" title="AI Assistant / व्यापार AI सहायक" onclick="QLShell.openAssistant()" aria-label="Open the AI Business Assistant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/><circle cx="18" cy="18" r="1.4"/><circle cx="5" cy="17" r="1"/></svg></button>
     <button class="tb-action tb-lang" id="tbLang" title="भाषा / Language" onclick="QLShell.toggleLang()" aria-label="Switch language"></button>
     <button class="tb-action tb-bell" title="Notifications" onclick="QLShell.openNotifications()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>

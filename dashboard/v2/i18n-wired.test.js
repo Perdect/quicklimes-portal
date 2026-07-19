@@ -161,6 +161,13 @@ function el(tag, attrs, children) {
   const icon = (sh.match(/function langIconHTML\(\)\s*\{[\s\S]*?\n  \}/) || [''])[0];
   ok(/<svg/.test(icon) && />A</.test(icon) && />अ</.test(icon), '  the badge carries BOTH A and अ');
   ok(/QLShell\.langIconHTML/.test(mo), '  and the phone header uses the SAME builder — no drift');
+
+  /* AI in the header — a second, always-there door to the assistant (the FAB
+     hides on the AI page and when the module is off). Both headers, wired to
+     the same opener the FAB uses. */
+  ok(/id="tbAi"[^>]*onclick="QLShell\.openAssistant\(\)"/.test(sh), 'desktop header has the AI button, wired to openAssistant');
+  ok(/id="qlmAi"/.test(mo) && /\$\('qlmAi'\)/.test(mo) && /openAssistant/.test(mo), 'phone header has the AI button, wired to openAssistant');
+  ok(/function openAssistant\(\)/.test(sh), 'openAssistant exists (the opener both the FAB and header use)');
 }
 
 /* ── 4. the checker can fail (probe) ── */

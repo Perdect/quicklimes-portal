@@ -112,12 +112,12 @@
     "v": "b2"
   },
   "mobile.css": {
-    "sha": "feacf57837e3",
-    "v": "m13"
+    "sha": "197d7f49cc59",
+    "v": "m14"
   },
   "mobile.js": {
-    "sha": "485f8182f73f",
-    "v": "m15"
+    "sha": "106ad4847e8d",
+    "v": "m16"
   },
   "pages.css": {
     "sha": "8efc2427553e",
@@ -140,8 +140,8 @@
     "v": "p4"
   },
   "purchase.js": {
-    "sha": "138b29098bbd",
-    "v": "m43"
+    "sha": "44dae405ffb8",
+    "v": "m44"
   },
   "qlx.css": {
     "sha": "7a5dd227bdbb",
@@ -196,12 +196,12 @@
     "v": "s2"
   },
   "shell.css": {
-    "sha": "441006f45ade",
-    "v": "r8"
+    "sha": "0da03e78cb95",
+    "v": "r9"
   },
   "shell.js": {
-    "sha": "7f92766c53e6",
-    "v": "m54"
+    "sha": "2ad5e8741dff",
+    "v": "m55"
   },
   "tds.js": {
     "sha": "68d16b01e9b8",

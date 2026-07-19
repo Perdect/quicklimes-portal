@@ -90,5 +90,14 @@ const cell = vm.runInContext('(r => ' + expr + ')', ctx);
     '  and it derives qty = taxable ÷ rate, then stores qty (one base field, both columns fill)');
 }
 
+/* ── BULK "Set rate ₹/T": one rate across many bills, each qty from its own amount ── */
+{
+  const s = src.replace(/\/\*[\s\S]*?\*\//g, ' ');
+  ok(/label: 'Set rate ₹\/T'/.test(s), 'the register offers a bulk "Set rate ₹/T" action');
+  ok(/rows\.filter\(r => \+r\.taxable > 0\)/.test(s), '  applied only to bills with a taxable amount (something to divide)');
+  ok(/\(\+r\.taxable\) \/ rate/.test(s) && /Q\.updatePurchase\(r\.idx, \{ qty \}\)/.test(s),
+    '  each bill gets ITS OWN qty = taxable ÷ rate (not a copied tonnage)');
+}
+
 console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');
 process.exit(fail ? 1 : 0);

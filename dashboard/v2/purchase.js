@@ -1039,6 +1039,28 @@ QLX.mount({
     { label: 'Delete', icon: IC.trash, cls: 'del', onClick: delBill }
   ],
   bulkActions: [
+    /* Set ONE rate across many bills — the answer to "every petcoke bill has a
+       rate" when 30 IOC bills carry the same ₹/T but no tonnage. Applies only to
+       bills with a taxable amount (nothing to divide otherwise), and derives +
+       stores each bill's own qty (qty = taxable ÷ rate), so every row's tonnage
+       is correct for ITS amount, not a copied number. */
+    { label: 'Set rate ₹/T', icon: (IC.tag || IC.edit || IC.check), onClick: rows => {
+        const eligible = rows.filter(r => +r.taxable > 0);
+        if (!eligible.length) { toast('None of the selected bills have a taxable amount to price', 'warn'); return; }
+        QLShell.openForm({
+          title: 'Set rate for ' + eligible.length + ' bill' + (eligible.length === 1 ? '' : 's'),
+          sub: 'Type the ₹/T off the bill — each bill\'s tonnage fills in from its own taxable amount',
+          specs: [{ k: 'rate', label: 'Rate ₹/T', type: 'number', req: true, reqNonZero: true }],
+          saveLabel: 'Apply rate',
+          onSave(v) {
+            const rate = +v.rate; if (!(rate > 0)) { toast('Enter a rate above 0', 'err'); return; }
+            let done = 0;
+            eligible.forEach(r => { const qty = Math.round((+r.taxable) / rate * 100) / 100; if (qty > 0) { Q.updatePurchase(r.idx, { qty }); done++; } });
+            toast('Rate ' + fC(rate) + '/T applied to ' + done + ' bill' + (done === 1 ? '' : 's') + ' — tonnage filled in', 'ok');
+            QLX.refresh();
+          }
+        });
+      } },
     { label: 'Mark paid', icon: IC.check, onClick: rows => { rows.forEach(r => r.outstanding > 0 && Q.recordPurchasePayment(r.idx, r.outstanding, 'bank')); toast(rows.length + ' bills marked paid', 'ok'); QLX.refresh(); } },
     { label: 'Export', icon: IC.dl, onClick: rows => { exportRows(rows); } },
     { label: 'Delete', icon: IC.trash, cls: 'del', onClick: rows => { QLShell.confirmDelete({ title: 'Move ' + rows.length + ' bills to Trash?', desc: 'All ' + rows.length + ' selected bills move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { rows.map(r => r.idx).sort((a, b) => b - a).forEach(i => Q.deletePurchase(i, reason)); toast(rows.length + ' moved to Trash'); QLX.refresh(); } }); } }

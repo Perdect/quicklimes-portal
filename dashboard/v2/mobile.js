@@ -116,6 +116,7 @@
        </div>
        <div class="qlm-h-actions">
          <button class="qlm-h-btn" id="qlmSearch" aria-label="Search">${IC.search}</button>
+         <button class="qlm-h-btn qlm-h-ai" id="qlmAi" aria-label="AI Assistant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/><circle cx="18" cy="18" r="1.4"/><circle cx="5" cy="17" r="1"/></svg></button>
          <button class="qlm-h-btn qlm-h-lang" id="qlmLang" aria-label="Switch language"></button>
          <button class="qlm-h-btn" id="qlmBell" aria-label="Notifications">${IC.bell}<span class="qlm-h-badge" id="qlmBellBadge" hidden>0</span></button>
          <button class="qlm-h-avatar" id="qlmAvatar" data-avatar>D</button>
@@ -144,6 +145,10 @@
 
     // wire
     $('qlmSearch').onclick = () => window.QLShell && QLShell.openPalette();
+    /* AI in the header, next to search — the FAB can be hidden (on the AI page,
+       or when the module is off), so the header gives a second, always-there
+       door. Same opener the FAB uses. */
+    { const a = $('qlmAi'); if (a) a.onclick = () => window.QLShell && QLShell.openAssistant && QLShell.openAssistant(); }
     /* Language: the shell paints the face + owns the toggle (one implementation,
        both headers). Hidden if i18n never loaded — a dead button teaches the
        user the control is broken. */
