@@ -265,6 +265,13 @@ QLX.mount({
     { key: 'party', label: 'Party', sort: true, cell: partyCell },
     { key: 'veh', label: 'Vehicle No', sort: true, cell: r => r.veh ? `<span class="qx-mut">🚚 ${esc(r.veh)}</span>` : '<span class="qx-mut">—</span>' },
     { key: 'qty', label: 'Qty (T)', sort: true, num: true, cell: r => `<span class="qx-num">${fmt(r.qty, 2)}</span>` },
+    /* DERIVED taxable ÷ qty, byte-for-byte the Purchase register's cell — the
+       two registers must say the same rate for the same numbers. Derived, not
+       stored: cS() already computes taxable FROM qty × rate, so reading the
+       stored rate and the derived one can only disagree when the record was
+       hand-edited — and then the derived one matches the money on the row. A
+       row with no tonnage shows a dash, never ₹Infinity. */
+    { key: 'rate', label: 'Rate ₹/T', sort: true, num: true, cell: r => (+r.qty > 0 && +r.taxable > 0 ? `<span class="qx-num">${fC(Math.round(r.taxable / r.qty))}</span>` : `<span class="qx-dash">—</span>`) },
     { key: 'taxable', label: 'Taxable', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` },
     { key: 'gst', label: 'GST', sort: true, num: true, cell: r => `<span class="qx-num qx-mut">${fC(r.gst)}</span>` },
     { key: 'total', label: 'Total', sort: true, num: true, cell: r => `<span class="qx-num qx-strong">${fC(r.total)}</span>` },
@@ -291,7 +298,10 @@ QLX.mount({
     { label: 'Export', icon: IC.dl, onClick: rows => exportRows(rows) },
     { label: 'Delete', icon: IC.trash, cls: 'del', onClick: rows => { QLShell.confirmDelete({ title: 'Move ' + rows.length + ' invoices to Trash?', desc: 'All ' + rows.length + ' selected invoices move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { rows.map(r => r.idx).sort((a, b) => b - a).forEach(i => Q.deleteSale(i, reason)); toast(rows.length + ' moved to Trash'); QLX.refresh(); } }); } }
   ],
-  card: r => ({ id: r.inv || '—', title: `<span style="color:var(--qx)">${esc(r.inv || '—')}</span>`, amount: fC(r.total), party: r.party, partySub: r.gstin || '', sub: r.veh ? '🚚 ' + r.veh : 'Invoice: ' + (r.inv || '—'), date: r.date, calLabel: r.party, status: stPill(r), rows: [['Qty', fmt(r.qty, 2) + ' T'], ['Taxable', fC(r.taxable)], ['GST', fC(r.gst)], ['Status', stPill(r)]] }),
+  /* The card's sub-line carries qty · rate — the phone view of the register,
+     where the owner reads a bill as "16.78 T @ ₹5,300". Same derived rate as
+     the table column; vehicle keeps its slot after the money. */
+  card: r => ({ id: r.inv || '—', title: `<span style="color:var(--qx)">${esc(r.inv || '—')}</span>`, amount: fC(r.total), party: r.party, partySub: r.gstin || '', sub: [(+r.qty > 0 ? fmt(r.qty, 2) + ' T' : ''), (+r.qty > 0 && +r.taxable > 0 ? '@ ' + fC(Math.round(r.taxable / r.qty)) + '/T' : ''), (r.veh ? '🚚 ' + r.veh : '')].filter(Boolean).join(' · ') || 'Invoice: ' + (r.inv || '—'), date: r.date, calLabel: r.party, status: stPill(r), rows: [['Qty', fmt(r.qty, 2) + ' T'], ['Taxable', fC(r.taxable)], ['GST', fC(r.gst)], ['Status', stPill(r)]] }),
   footer: rows => { const t = rows.reduce((a, r) => ({ qty: a.qty + r.qty, tax: a.tax + r.taxable, gst: a.gst + r.gst, tot: a.tot + r.total, paid: a.paid + r.paid, out: a.out + r.outstanding }), { qty: 0, tax: 0, gst: 0, tot: 0, paid: 0, out: 0 }); return [{ label: 'Qty', value: fmt(t.qty, 1) + ' T' }, { label: 'Taxable', value: fC(t.tax) }, { label: 'GST', value: fC(t.gst) }, { label: 'Grand Total', value: fC(t.tot), strong: true }, { label: 'Collected', value: fC(t.paid) }, { label: 'Pending', value: fC(t.out) }]; },
   analytics: () => {
     const rows = Q.salesRows();
@@ -335,7 +345,7 @@ window.addEventListener('hashchange', () => {
 function exportRows(rows) {
   rows = rows || [];
   const mo = QLX.month() ? '_' + QLX.month() : '';
-  QLShell.exportCSV('sales_' + (Q.co.short || 'register').replace(/\s+/g, '_') + mo, ['Invoice', 'Date', 'Party', 'GSTIN', 'Vehicle', 'Qty (MT)', 'Taxable', 'GST', 'Total', 'Status'], rows.map(x => [x.inv, x.date, x.party, x.gstin || '—', x.veh || '—', x.qty, x.taxable, x.gst, x.total, x.status]));
+  QLShell.exportCSV('sales_' + (Q.co.short || 'register').replace(/\s+/g, '_') + mo, ['Invoice', 'Date', 'Party', 'GSTIN', 'Vehicle', 'Qty (MT)', 'Rate ₹/T', 'Taxable', 'GST', 'Total', 'Status'], rows.map(x => [x.inv, x.date, x.party, x.gstin || '—', x.veh || '—', x.qty, (+x.qty > 0 && +x.taxable > 0 ? Math.round(x.taxable / x.qty) : ''), x.taxable, x.gst, x.total, x.status]));
   toast('Exported ' + rows.length + ' invoices' + (QLX.month() ? ' · ' + QLX.monthLabel() : ''));
 }
 function exportInvoices() { exportRows(QLX.rows()); }
