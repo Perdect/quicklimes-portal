@@ -208,16 +208,16 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 
 <div id="setToast" class="fin-toast" hidden></div>
 
-<script src="ql-api.js?v=a2"></script>
+<script src="ql-api.js?v=a3"></script>
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./i18n.js?v=h8"></script>
 <script src="./selfcheck.js?v=s2"></script>
-<script src="./data.js?v=m39"></script>
+<script src="./data.js?v=m40"></script>
 <script src="./recon-core.js?v=rc5"></script>
 <script src="./wa-core.js?v=w2"></script>
 
-<script src="./shell.js?v=m55"></script>
+<script src="./shell.js?v=m56"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 QLShell.mount({ active: 'settings', title: 'Settings' });
@@ -595,10 +595,28 @@ function renderCo() {
           : 'GSTIN ' + esc(c.gstin) + (c.city ? ' · ' + esc(c.city) : '')}</div>
       </div>
       <button class="ql-btn ${missing ? 'ql-btn-primary' : 'ql-btn-secondary'}" data-co-edit="${esc(c.key)}" style="flex:none">${missing ? 'Add GSTIN' : 'Edit'}</button>
+      ${c.isPrimary ? '' : `<button class="ql-btn ql-btn-danger" data-co-remove="${esc(c.key)}" style="flex:none;margin-left:var(--ql-space-2)">Remove</button>`}
     </div>`;
   }).join('');
   $('#coList').querySelectorAll('[data-co-edit]').forEach(b => b.onclick = () => {
     const c = QLD.COMPANIES[b.dataset.coEdit]; if (c) editCo(c);
+  });
+  // Remove a SECONDARY company (never the primary — it has no Remove button, and
+  // the server refuses it too). Destructive: deletes the company and ALL its
+  // data, so it's gated behind typing the company's name.
+  $('#coList').querySelectorAll('[data-co-remove]').forEach(b => b.onclick = () => {
+    const c = QLD.COMPANIES[b.dataset.coRemove]; if (!c) return;
+    QLShell.confirmDelete({
+      title: 'Remove ' + (c.short || c.name) + '?',
+      desc: 'This permanently deletes this company and ALL its data — every bill, payment, and ledger entry. Your other companies are untouched, but this one cannot be recovered.',
+      reason: false, needType: (c.short || c.name), confirmLabel: 'Remove company',
+      async onConfirm() {
+        const r = await QLD.removeCompany(c.key);
+        if (!r || !r.ok) { toast((r && r.err) || 'Could not remove the company', 'err'); return; }
+        toast('Company removed', 'ok');
+        setTimeout(() => location.reload(), 400);          // rebuild COMPANIES without it
+      }
+    });
   });
 }
 

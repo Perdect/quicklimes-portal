@@ -519,7 +519,30 @@
       });
     }));
     const addBtn = menu.querySelector('.ws-add');
-    if (addBtn) addBtn.addEventListener('click', () => { menu.classList.remove('open'); toast('Add company — contact support to link a plant'); });
+    if (addBtn) addBtn.addEventListener('click', () => {
+      menu.classList.remove('open');
+      // Was a dead stub ("contact support"). Now a real self-service form. The
+      // GSTIN is required: it is what tells a firm's own sales from its
+      // purchases, so a company can never again be born without it (the bug
+      // that filed all of Deshwali's sales as purchases).
+      openForm({
+        title: 'Add a company',
+        sub: 'A second business under your account',
+        specs: [
+          { k: 'name', label: 'Company name', req: true, ph: 'e.g. Deshwali Minerals' },
+          { k: 'gstin', label: 'GSTIN', req: true, ph: '08BNAPM0488E1Z3' },
+          { k: 'city', label: 'City', ph: 'e.g. Gotan' }
+        ],
+        note: 'The GSTIN is required — it is what tells this firm’s own sales from its purchases, so every bill files correctly from the start.',
+        saveLabel: 'Add company',
+        onSave: async v => {
+          const r = await Q.addCompany({ name: v.name, gstin: v.gstin, city: v.city });
+          if (!r || !r.ok) { toast((r && r.err) || 'Could not add the company', 'err'); return false; }   // keep the form open
+          toast('Company added — switching…', 'ok');
+          setTimeout(() => location.reload(), 400);        // rebuild COMPANIES and land on the new one
+        }
+      });
+    });
     // profile name
     const sbName = document.querySelector('.sb-profile-name');
     if (sbName && co) sbName.textContent = co.short;   // leave the placeholder rather than crash

@@ -195,6 +195,71 @@
     return { ok: true };
   }
 
+  /* ── Add a company (self-service) ─────────────────────────────────
+     Creates a new company under this account. GSTIN is REQUIRED — a company
+     born without one files every uploaded bill as a Purchase (the Deshwali
+     bug). The same checks run server-side (ql_company_add); duplicating the
+     cheap ones here just gives a faster message. On success the new company is
+     written into the cached family and made active; the caller reloads so
+     COMPANIES rebuilds from it (add is rare — a reload is simpler and cannot
+     leave a half-built company in memory). Returns { ok, id } / { ok:false, err }. */
+  async function addCompany(o) {
+    o = o || {};
+    const name = String(o.name || '').trim();
+    const gstin = String(o.gstin || '').trim().toUpperCase().replace(/\s/g, '');
+    const city = String(o.city || '').trim();
+    if (name.length < 2) return { ok: false, err: 'Company name is required' };
+    if (!gstin) return { ok: false, err: 'GSTIN is required — it is what tells this firm’s sales from its purchases' };
+    if (!validGstinFmt(gstin)) return { ok: false, err: 'That GSTIN doesn’t look right — it should be 15 characters, like 08BNAPM0488E1Z3' };
+    const clash = Object.values(COMPANIES).find(c => (c.gstin || '').toUpperCase() === gstin);
+    if (clash) return { ok: false, err: gstin + ' is already used by ' + (clash.short || clash.name) };
+    const limit = +(QL_PLANT.plan_limit || 2);
+    if (Object.keys(COMPANIES).length >= limit) return { ok: false, err: 'Your plan allows ' + limit + ' companies. Contact support to add more.' };
+    if (!DB) return { ok: false, err: 'Not connected — check your internet and try again' };
+
+    let res;
+    try { res = await DB.rpc('add_my_company', { p_plant_name: name, p_gst_number: gstin, p_city: city || null }); }
+    catch (e) { return { ok: false, err: 'Could not add (' + (e && e.message ? e.message : 'network') + ')' }; }
+    const err = (res && res.error && res.error.message) || (res && res.data && res.data.error);
+    if (err) return { ok: false, err };                 // NEVER report success on a failed write
+    const plant = res && res.data && res.data.plant;
+    if (!plant || !plant.id) return { ok: false, err: 'Could not add the company — please try again' };
+
+    QL_PLANT.plants = QL_PLANT.plants || [];
+    QL_PLANT.plants.push(plant);
+    try { localStorage.setItem('ql_plant', JSON.stringify(QL_PLANT)); } catch (_) {}
+    localStorage.setItem('dm_active_co', plant.id);     // land on the new company after reload
+    return { ok: true, id: plant.id };
+  }
+
+  /* ── Remove a company (self-service) ──────────────────────────────
+     Deletes a SECONDARY company and its data. The main company (the one that
+     holds the login) can never be removed — the server refuses it too, this is
+     just a faster message. On success the company is dropped from the cached
+     family and its local cache cleared; if it was active, the main company
+     takes over. The caller reloads. Returns { ok } / { ok:false, err }. */
+  async function removeCompany(id) {
+    if (!COMPANIES[id]) return { ok: false, err: 'Unknown company' };
+    if (id === (QL_PLANT.id || '')) return { ok: false, err: 'You can’t remove your main company — it holds your login.' };
+    if (!DB) return { ok: false, err: 'Not connected — check your internet and try again' };
+
+    let res;
+    try { res = await DB.rpc('remove_my_company', { p_plant_id: id }); }
+    catch (e) { return { ok: false, err: 'Could not remove (' + (e && e.message ? e.message : 'network') + ')' }; }
+    const err = (res && res.error && res.error.message) || (res && res.data && res.data.error);
+    if (err) return { ok: false, err };
+
+    QL_PLANT.plants = (QL_PLANT.plants || []).filter(p => p.id !== id);
+    try { localStorage.setItem('ql_plant', JSON.stringify(QL_PLANT)); } catch (_) {}
+    try { localStorage.removeItem('ql_data_' + id); } catch (_) {}
+    try { sessionStorage.removeItem('ql_uimonth_' + id); } catch (_) {}
+    if (ACTIVE_CO === id) {
+      const primary = (QL_PLANT.id) || ((QL_PLANT.plants[0] || {}).id) || '';
+      if (primary) localStorage.setItem('dm_active_co', primary);
+    }
+    return { ok: true };
+  }
+
   /* ── State ───────────────────────────────────────────────────── */
   const S = {
     SALES: [], PURCHASES: [], WORKERS: [], WORK_LOG: [], ATT: {},
@@ -2530,7 +2595,7 @@
     uiMonth() { try { return sessionStorage.getItem('ql_uimonth_' + ACTIVE_CO) || null; } catch (_) { return null; } },
     setUiMonth(ym) { try { if (ym) sessionStorage.setItem('ql_uimonth_' + ACTIVE_CO, ym); } catch (_) {} },
     get co() { return COMPANIES[ACTIVE_CO]; },
-    updateCompany, validGstinFmt,
+    updateCompany, addCompany, removeCompany, validGstinFmt,
     state: S,
     fmt, fC, fL, fDS, daysAgo, cS,
     kpis, monthSeries, collections, insights, production, productionPeriod, topProducts, activity,

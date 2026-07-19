@@ -1,0 +1,141 @@
+/* company-manage.test.js — self-service Add / Remove company (client side).
+ *
+ * The "Add company" button in the switcher was a dead stub ("contact support").
+ * Now it creates a real company (GSTIN required), and Settings → Company profile
+ * can remove a secondary one. This runs the REAL addCompany / removeCompany out
+ * of data.js against a mocked DB.rpc, proves ql-api.js routes the two RPCs to
+ * company.php, and pins that the buttons actually call them (the half-wired trap).
+ *
+ *   node company-manage.test.js
+ */
+'use strict';
+const fs = require('fs'), path = require('path'), vm = require('vm');
+
+let pass = 0, fail = 0;
+const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ❌ ' + m); } };
+const eq = (m, a, b) => ok(JSON.stringify(a) === JSON.stringify(b), m + '  (got ' + JSON.stringify(a) + ')');
+
+console.log('\n═══ Add / Remove company (client) ═══\n');
+
+const dataSrc = fs.readFileSync(path.join(__dirname, 'data.js'), 'utf8');
+
+/* Slice a top-level `function name(...) { … }` out of data.js by brace-matching. */
+function grabFn(sig) {
+  const i = dataSrc.indexOf(sig);
+  if (i < 0) throw new Error('not found: ' + sig);
+  let depth = 0, started = false;
+  for (let j = i; j < dataSrc.length; j++) {
+    const ch = dataSrc[j];
+    if (ch === '{') { depth++; started = true; }
+    else if (ch === '}') { depth--; if (started && depth === 0) return dataSrc.slice(i, j + 1); }
+  }
+  throw new Error('unbalanced: ' + sig);
+}
+
+/* A mutable in-memory environment mirroring data.js's module scope. */
+function makeEnv(opts) {
+  opts = opts || {};
+  const store = {};
+  const ctx = {
+    QL_PLANT: opts.QL_PLANT || { id: 'GOTAN', plan_limit: 3, plants: [{ id: 'GOTAN' }, { id: 'DESH' }] },
+    COMPANIES: opts.COMPANIES || { GOTAN: { key: 'GOTAN', short: 'Gotan', gstin: '08BNAPM0488E1Z3', isPrimary: true }, DESH: { key: 'DESH', short: 'Deshwali', gstin: '', isPrimary: false } },
+    ACTIVE_CO: opts.ACTIVE_CO || 'GOTAN',
+    DB: opts.DB || { rpc: async () => ({ data: { success: true, plant: { id: 'NEW', plant_name: 'X', gst_number: '08AABCG1234H1Z5' } }, error: null }) },
+    validGstinFmt: g => /^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/.test(g) && +g.slice(0, 2) >= 1 && +g.slice(0, 2) <= 38,
+    localStorage: { _s: store, setItem: (k, v) => { store[k] = v; }, getItem: k => store[k] || null, removeItem: k => { delete store[k]; } },
+    sessionStorage: { setItem() {}, getItem: () => null, removeItem() {} },
+    console
+  };
+  vm.createContext(ctx);
+  vm.runInContext(grabFn('async function addCompany(o)') + '\n' + grabFn('async function removeCompany(id)') +
+    '\nthis.addCompany = addCompany; this.removeCompany = removeCompany;', ctx);
+  return ctx;
+}
+
+/* ══════════ addCompany ══════════ */
+(async () => {
+  {
+    const env = makeEnv();
+    const r = await env.addCompany({ name: 'New Lime Co', gstin: '08AABCG1234H1Z5', city: 'Jodhpur' });
+    ok(r.ok && r.id === 'NEW', 'add: happy path returns the new id');
+    ok(JSON.parse(env.localStorage.getItem('ql_plant')).plants.some(p => p.id === 'NEW'), '  the new company is cached in the family');
+    eq('  it becomes the active company', env.localStorage.getItem('dm_active_co'), 'NEW');
+  }
+  {
+    const env = makeEnv();
+    ok(!(await env.addCompany({ name: 'New Co', gstin: '' })).ok, 'add: blank GSTIN refused');
+    ok((await env.addCompany({ name: 'New Co', gstin: '' })).err.includes('GSTIN is required'), '  with the right message');
+    ok(!(await env.addCompany({ name: 'New Co', gstin: '08BNAPM0488E1Z' })).ok, 'add: malformed GSTIN refused');
+    ok(!(await env.addCompany({ name: 'A', gstin: '08AABCG1234H1Z5' })).ok, 'add: 1-char name refused');
+  }
+  {
+    const env = makeEnv();
+    const r = await env.addCompany({ name: 'Dup', gstin: '08BNAPM0488E1Z3' });   // Gotan's GSTIN
+    ok(!r.ok && /already used by/.test(r.err), 'add: a GSTIN already in the account is refused');
+  }
+  {
+    const env = makeEnv({ QL_PLANT: { id: 'GOTAN', plan_limit: 2, plants: [{ id: 'GOTAN' }, { id: 'DESH' }] } });
+    const r = await env.addCompany({ name: 'Third', gstin: '08AABCG1234H1Z5' });
+    ok(!r.ok && /plan allows 2/.test(r.err), 'add: at the plan limit, refused with a clear message');
+  }
+  {
+    // A server-side failure must NOT report success.
+    const env = makeEnv({ DB: { rpc: async () => ({ data: { error: 'boom' }, error: null }) } });
+    const r = await env.addCompany({ name: 'New', gstin: '08AABCG1234H1Z5' });
+    ok(!r.ok && r.err === 'boom', 'add: a server error is surfaced, not swallowed');
+  }
+
+  /* ══════════ removeCompany ══════════ */
+  {
+    const env = makeEnv({ DB: { rpc: async () => ({ data: { success: true, id: 'DESH' }, error: null }) } });
+    env.localStorage.setItem('ql_data_DESH', 'blob');
+    const r = await env.removeCompany('DESH');
+    ok(r.ok, 'remove: a secondary company succeeds');
+    ok(!JSON.parse(env.localStorage.getItem('ql_plant')).plants.some(p => p.id === 'DESH'), '  it is dropped from the cached family');
+    eq('  its local data cache is cleared', env.localStorage.getItem('ql_data_DESH'), null);
+  }
+  {
+    const env = makeEnv();
+    const r = await env.removeCompany('GOTAN');           // the primary
+    ok(!r.ok && /main company/.test(r.err), 'remove: the MAIN company is refused (holds the login)');
+  }
+  {
+    const env = makeEnv();
+    ok(!(await env.removeCompany('NOPE')).ok, 'remove: an unknown company is refused');
+  }
+
+  /* ══════════ ql-api.js routes the two RPCs ══════════ */
+  {
+    const apiSrc = fs.readFileSync(path.join(__dirname, 'ql-api.js'), 'utf8');
+    let captured = null;
+    const win = {};
+    const ctx = {
+      window: win, location: { hostname: 'app.quicklimes.com' },
+      localStorage: { getItem: () => JSON.stringify({ token: 'T' }) },
+      fetch: async (url, opts) => { captured = { url, body: JSON.parse(opts.body) }; return { json: async () => ({ success: true, plant: { id: 'NEW' } }) }; },
+      console
+    };
+    vm.createContext(ctx);
+    vm.runInContext(apiSrc, ctx);
+    const client = win.supabase.createClient();
+    await client.rpc('add_my_company', { p_plant_name: 'X', p_gst_number: '08AABCG1234H1Z5' });
+    ok(/company\.php$/.test(captured.url), 'ql-api: add_my_company → /api/company.php');
+    eq('  with action "add"', captured.body.action, 'add');
+    eq('  and the token attached', captured.body.token, 'T');
+    await client.rpc('remove_my_company', { p_plant_id: 'DESH' });
+    eq('ql-api: remove_my_company → action "remove"', captured.body.action, 'remove');
+  }
+
+  /* ══════════ WIRED: the buttons actually call the methods ══════════ */
+  {
+    const shell = fs.readFileSync(path.join(__dirname, 'shell.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
+    ok(/\.ws-add/.test(shell) && /Q\.addCompany\(/.test(shell), 'the switcher "Add company" button calls Q.addCompany');
+    ok(!/contact support to link a plant/.test(shell), '  the old dead "contact support" stub is gone');
+    const settings = fs.readFileSync(path.join(__dirname, 'settings.html'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
+    ok(/data-co-remove/.test(settings) && /QLD\.removeCompany\(/.test(settings), 'Settings → Company profile "Remove" calls QLD.removeCompany');
+    ok(/needType:/.test(settings), '  gated behind a typed confirmation');
+  }
+
+  console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');
+  process.exit(fail ? 1 : 0);
+})();

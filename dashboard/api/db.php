@@ -680,3 +680,144 @@ function ql_llm() {
     'maxImg'=> (int)($c['LLM_MAX_IMAGES'] ?? 3),
   ];
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Self-service company management (Add / Remove a company).
+
+   A firm's OWN GSTIN is what tells its SALES from its PURCHASES — the bill
+   parser uses it to decide whether OUR firm is the issuer (a sale) or the
+   recipient (a purchase). A company created WITHOUT one files every uploaded
+   bill as a Purchase (that is exactly what happened to Deshwali Minerals).
+   So the self-service "Add company" REQUIRES a valid GSTIN — the missing
+   field is the whole bug this closes.
+
+   The logic lives here as pure functions taking a PDO so company.test.php can
+   drive the full add/remove flow against an in-memory SQLite, no HTTP or live
+   DB needed (same philosophy as ql_wa_parse_message). company.php is a thin
+   wrapper that only does auth + ql_out.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* GSTIN shape + state-code check. MUST agree with signup.php's inline rule
+   and the JS side (data.js validGstinFmt / bill-ocr.js validGstin) — a rule
+   accepted here but rejected there would store an identity the parser ignores,
+   silently reviving the bug. company.test.php pins this against signup.php. */
+function ql_gstin_valid($g) {
+  $g = strtoupper(preg_replace('/\s+/', '', (string)$g));
+  if (preg_match('/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/', $g) !== 1) return false;
+  $st = (int)substr($g, 0, 2);
+  return $st >= 1 && $st <= 38;                       // valid GST state codes
+}
+
+/* Resolve the account's PRIMARY plant (the one that carries the password and
+   parents the family). The login token is signed with the primary id, but
+   resolve defensively so a child id can never spawn a grandchild — the family
+   must stay one level deep (login lists id = primary OR parent_plant_id =
+   primary). Returns [primaryId, ownerPhone, planLimit] or null. */
+function ql_account_primary($db, $plantId) {
+  $q = $db->prepare('SELECT id, owner_phone, parent_plant_id, plan_limit FROM plants WHERE id = ? LIMIT 1');
+  $q->execute([$plantId]);
+  $row = $q->fetch(PDO::FETCH_ASSOC);
+  if (!$row) return null;
+  $par = $row['parent_plant_id'];
+  $primaryId = ($par !== null && $par !== '') ? $par : $row['id'];
+  if ($primaryId === $row['id']) {
+    return [$primaryId, (string)$row['owner_phone'], ((int)$row['plan_limit'] ?: 2)];
+  }
+  $p = $db->prepare('SELECT owner_phone, plan_limit FROM plants WHERE id = ? LIMIT 1');
+  $p->execute([$primaryId]);
+  $pr = $p->fetch(PDO::FETCH_ASSOC);
+  if (!$pr) return null;
+  return [$primaryId, (string)$pr['owner_phone'], ((int)$pr['plan_limit'] ?: 2)];
+}
+
+/* RFC-4122 v4 uuid (same shape as the existing plant ids). */
+function ql_uuid4() {
+  $d = random_bytes(16);
+  $d[6] = chr((ord($d[6]) & 0x0f) | 0x40);
+  $d[8] = chr((ord($d[8]) & 0x3f) | 0x80);
+  $h = bin2hex($d);
+  return substr($h, 0, 8) . '-' . substr($h, 8, 4) . '-' . substr($h, 12, 4) . '-' .
+         substr($h, 16, 4) . '-' . substr($h, 20, 12);
+}
+
+/* Add a company (child plant) under $ctx's account.
+   Returns ['code'=>int, 'body'=>array]; pure except for $db. */
+function ql_company_add($db, $ctx, $in) {
+  if (!$ctx)                           return ['code' => 401, 'body' => ['error' => 'Unauthorized']];
+  if (!ql_role_can($ctx['role'], '*')) return ['code' => 403, 'body' => ['error' => 'Forbidden']];   // owner-level only
+
+  $name = trim((string)($in['p_plant_name'] ?? ''));
+  $gst  = strtoupper(preg_replace('/\s+/', '', (string)($in['p_gst_number'] ?? '')));
+  $city = trim((string)($in['p_city'] ?? ''));
+  $addr = trim((string)($in['p_address'] ?? ''));
+
+  if (strlen($name) < 2)     return ['code' => 200, 'body' => ['error' => 'Company name is required']];
+  if ($gst === '')           return ['code' => 200, 'body' => ['error' => 'GSTIN is required — it is what tells this firm’s sales from its purchases']];
+  if (!ql_gstin_valid($gst)) return ['code' => 200, 'body' => ['error' => 'That GSTIN doesn’t look right — it should be 15 characters, like 08BNAPM0488E1Z3']];
+
+  $acct = ql_account_primary($db, $ctx['plant']);
+  if (!$acct) return ['code' => 404, 'body' => ['error' => 'Account not found']];
+  $primaryId = $acct[0]; $ownerPhone = $acct[1]; $limit = $acct[2];
+
+  $fam = $db->prepare('SELECT id, gst_number FROM plants WHERE id = ? OR parent_plant_id = ?');
+  $fam->execute([$primaryId, $primaryId]);
+  $members = $fam->fetchAll(PDO::FETCH_ASSOC);
+  if (count($members) >= $limit) {
+    return ['code' => 200, 'body' => ['error' => 'Your plan allows ' . $limit . ' companies. Contact support to add more.']];
+  }
+  foreach ($members as $m) {                          // one firm per GSTIN (party-identity rule)
+    if (strtoupper((string)$m['gst_number']) === $gst) {
+      return ['code' => 200, 'body' => ['error' => 'A company with GSTIN ' . $gst . ' already exists in your account.']];
+    }
+  }
+
+  $id  = ql_uuid4();
+  $ins = $db->prepare(
+    'INSERT INTO plants (id, owner_phone, plant_name, gst_number, city, address, parent_plant_id, plan_limit)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  );
+  $ins->execute([$id, $ownerPhone, $name, $gst, ($city ?: null), ($addr ?: null), $primaryId, $limit]);
+  return ['code' => 200, 'body' => ['success' => true, 'plant' => [
+    'id' => $id, 'owner_phone' => $ownerPhone, 'plant_name' => $name,
+    'gst_number' => $gst, 'city' => $city, 'address' => $addr, 'parent_plant_id' => $primaryId,
+  ]]];
+}
+
+/* Remove a CHILD company and its data. The primary (the account itself) can
+   NEVER be removed here — that would orphan the login. The target must be a
+   child of THIS account, never another account's company. Deletes the plants
+   row and the company's JSON blob (app_data), then best-effort cleans the
+   company-scoped side tables. Returns ['code','body']. */
+function ql_company_remove($db, $ctx, $in) {
+  if (!$ctx)                           return ['code' => 401, 'body' => ['error' => 'Unauthorized']];
+  if (!ql_role_can($ctx['role'], '*')) return ['code' => 403, 'body' => ['error' => 'Forbidden']];
+
+  $target = (string)($in['p_plant_id'] ?? '');
+  if ($target === '') return ['code' => 200, 'body' => ['error' => 'Which company? (missing id)']];
+
+  $acct = ql_account_primary($db, $ctx['plant']);
+  if (!$acct) return ['code' => 404, 'body' => ['error' => 'Account not found']];
+  $primaryId = $acct[0];
+
+  if ($target === $primaryId) {
+    return ['code' => 200, 'body' => ['error' => 'You can’t remove your main company — it holds your login. Remove a secondary company instead.']];
+  }
+  $chk = $db->prepare('SELECT id FROM plants WHERE id = ? AND parent_plant_id = ? LIMIT 1');
+  $chk->execute([$target, $primaryId]);
+  if (!$chk->fetch(PDO::FETCH_ASSOC)) {
+    return ['code' => 403, 'body' => ['error' => 'That company is not part of your account.']];
+  }
+
+  // The company row and its financial blob (stored at plant_id = primary,
+  // data_id = the company id — see data.php save_my_data).
+  $db->prepare('DELETE FROM plants WHERE id = ? AND parent_plant_id = ?')->execute([$target, $primaryId]);
+  $db->prepare('DELETE FROM app_data WHERE plant_id = ? AND data_id = ?')->execute([$primaryId, $target]);
+  // Best-effort cleanup of company-scoped side tables. A missing table / column
+  // on an older install must not fail the removal, and company_id = target (a
+  // globally-unique uuid) can never match another account's rows.
+  foreach (['bank_txns', 'bank_accounts', 'wa_chats', 'wa_messages', 'party_master', 'party_aliases', 'doc_corrections', 'imported_docs'] as $t) {
+    try { $db->prepare("DELETE FROM $t WHERE company_id = ?")->execute([$target]); }
+    catch (Throwable $e) { /* table absent or no company_id column — ignore */ }
+  }
+  return ['code' => 200, 'body' => ['success' => true, 'id' => $target]];
+}

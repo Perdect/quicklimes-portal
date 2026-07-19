@@ -91,6 +91,18 @@
       });
     }
 
+    // Self-service company management. add_my_company creates a child company
+    // (GSTIN required); remove_my_company deletes a secondary company + its
+    // data. Both hit /api/company.php, distinguished by `action`. Pass through
+    // so the caller reads data.success / data.error like the others.
+    if (fn === 'add_my_company' || fn === 'remove_my_company') {
+      var action = fn === 'remove_my_company' ? 'remove' : 'add';
+      return jfetch(API + 'company.php', {
+        method: 'POST', headers: JSON_HDR,
+        body: JSON.stringify(Object.assign({ action: action }, params, { token: token() }))
+      });
+    }
+
     return { data: null, error: { message: 'Unknown RPC: ' + fn } };
   }
 
