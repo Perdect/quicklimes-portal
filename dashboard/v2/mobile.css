@@ -104,8 +104,9 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 }
 .qlm-h-btn:active { background: var(--ql-neutral-100); }
 .qlm-h-btn svg { width: 21px; height: 21px; }
-/* language toggle: a text glyph among svg buttons — same story as .tb-lang */
-.qlm-h-lang { font-size: 17px; font-weight: 700; }
+/* language toggle: the A/अ badge (SVG tile). Slightly larger than the mono
+   icons around it so the two letters stay legible on a phone. */
+.qlm-h-lang svg { width: 24px; height: 24px; display: block; }
 .qlm-h-badge {
   position: absolute; top: 3px; right: 4px; min-width: 15px; height: 15px; padding: 0 3px;
   border-radius: 99px; background: var(--ql-danger-500); color: #fff;

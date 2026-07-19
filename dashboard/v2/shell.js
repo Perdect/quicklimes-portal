@@ -2225,12 +2225,27 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
      English, A while in Hindi), the convention every translate button uses:
      the glyph is a destination, not a status. setLang() reloads the page,
      which is the translator's own contract — strings render at build time. */
+  /* The A/अ split badge — the translate mark the owner asked for (Google
+     Translate's icon). ONE builder, used by both headers, so the desktop and
+     phone buttons can never show two different icons. Static bilingual mark:
+     it means "language", and the direction lives in the tooltip — the same
+     convention the reference uses. Self-contained colours (brand blue + neutral
+     tile + white/ink letters) so it reads on a light or dark header without a
+     second theme block. */
+  function langIconHTML() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true">'
+      + '<rect x="2" y="2" width="20" height="20" rx="5" fill="#EEF1F6"/>'
+      + '<path d="M2 7a5 5 0 0 1 5-5h5.7c-2.5 6-2.5 14 0 20H7a5 5 0 0 1-5-5z" fill="#2563EB"/>'
+      + '<text x="7.1" y="16.2" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="11" font-weight="800" fill="#fff">A</text>'
+      + '<text x="16.2" y="15.8" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="10.5" font-weight="700" fill="#374151">अ</text>'
+      + '</svg>';
+  }
   function paintLang() {
     const b = document.getElementById('tbLang'); if (!b) return;
     const I = window.QLI18n;
     if (!I) { b.hidden = true; return; }             // i18n not loaded → no dead button
     const hi = I.lang() === 'hi';
-    b.textContent = hi ? 'A' : 'अ';
+    b.innerHTML = langIconHTML();                     // the A/अ badge, not a single letter
     b.title = hi ? 'View in English' : 'हिन्दी में देखें';
   }
   function toggleLang() {
@@ -2421,7 +2436,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
         }
       } catch (_) {}
     },
-    promptInstall, toggleLang, paintLang,
+    promptInstall, toggleLang, paintLang, langIconHTML,
     // expose nav + active for the mobile layer (bottom-nav "More" respects Feature Management)
     nav() { return NAV; },
     get _active() { return _active; }

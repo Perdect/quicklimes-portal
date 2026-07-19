@@ -152,7 +152,7 @@
       if (!b) return;
       if (!I) { b.hidden = true; return; }
       const hi = I.lang() === 'hi';
-      b.textContent = hi ? 'A' : 'अ';
+      b.innerHTML = (window.QLShell && QLShell.langIconHTML) ? QLShell.langIconHTML() : (hi ? 'A' : 'अ');
       b.title = hi ? 'View in English' : 'हिन्दी में देखें';
       b.onclick = () => window.QLShell && QLShell.toggleLang ? QLShell.toggleLang() : I.setLang(hi ? 'en' : 'hi');
     })();

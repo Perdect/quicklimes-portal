@@ -153,6 +153,14 @@ function el(tag, attrs, children) {
   ok(/I\.setLang\(I\.lang\(\) === 'hi' \? 'en' : 'hi'\)/.test(sh), '  and a tap flips the language through QLI18n.setLang');
   const mo = fs.readFileSync(path.join(__dirname, 'mobile.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/id="qlmLang"/.test(mo) && /\$\('qlmLang'\)/.test(mo), 'the phone header has the same button, painted and bound');
+
+  /* The A/अ split badge the owner asked for — ONE builder, both letters, so it
+     can't silently regress to a blank or single glyph. */
+  ok(/function langIconHTML\(\)/.test(sh), 'langIconHTML() builds the translate badge');
+  ok(/langIconHTML\(\)/.test(sh) && /b\.innerHTML = langIconHTML\(\)/.test(sh), '  and paintLang paints it (not a bare letter)');
+  const icon = (sh.match(/function langIconHTML\(\)\s*\{[\s\S]*?\n  \}/) || [''])[0];
+  ok(/<svg/.test(icon) && />A</.test(icon) && />अ</.test(icon), '  the badge carries BOTH A and अ');
+  ok(/QLShell\.langIconHTML/.test(mo), '  and the phone header uses the SAME builder — no drift');
 }
 
 /* ── 4. the checker can fail (probe) ── */
