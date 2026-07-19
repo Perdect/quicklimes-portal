@@ -65,25 +65,12 @@ async function delAttach(idx, id) { const p = Q.state.PURCHASES[idx]; Q.updatePu
    engine every register runs on. Delegation costs nothing and cannot go stale.
    stopPropagation because qlx's row handlers sit above this. */
 document.addEventListener('click', e => {
+  /* Freight is the ONLY inline-editable cell (owner's instruction: qty and rate
+     are read-only). The qty/rate click handlers were removed with their editors. */
   const b = e.target.closest && e.target.closest('[data-fr]');
-  if (b) {
-    e.stopPropagation(); e.preventDefault();
-    editFreight(+b.dataset.fr, b);      // pass the CELL — the input is built inside it, in the row
-    return;
-  }
-  const q = e.target.closest && e.target.closest('[data-qy]');
-  if (q) {
-    e.stopPropagation(); e.preventDefault();
-    editQty(+q.dataset.qy, q);            // same delegation, same reason — cannot go stale
-    return;
-  }
-  /* Enter the RATE directly — the owner knows ₹/T off the bill even when the
-     tonnage was never captured. "every bill has rate." We derive and store the
-     qty (taxable ÷ rate), so both columns fill from one number. */
-  const rt = e.target.closest && e.target.closest('[data-rt]');
-  if (!rt) return;
+  if (!b) return;
   e.stopPropagation(); e.preventDefault();
-  editRate(+rt.dataset.rt, rt);
+  editFreight(+b.dataset.fr, b);        // pass the CELL — the input is built inside it, in the row
 });
 
 /* ── Freight: typed IN THE ROW ─────────────────────────────────
@@ -151,115 +138,6 @@ function editFreight(idx, cell) {
   };
   inp.onblur = commit;
   inp.onclick = e => e.stopPropagation();                      // clicking the field must not open the bill
-}
-
-/* ── inline QUANTITY editor — the freight editor's sibling ─────────
-   "still not show some bills per tone rate": the rate is DERIVED from
-   taxable ÷ qty, and a whole class of bills legitimately has no qty for the
-   machine to find — CSV/Tally imports carry no scan at all, and uploaded
-   scans live in THIS BROWSER's IndexedDB, so qty-backfill cannot read a PDF
-   that sits on the other device. Those rows dashed forever, and the only
-   repair was the full Edit modal. Now the tonnage is typed where the dash
-   is, and the rate appears on the same refresh. A typed number is exactly
-   what qty-backfill treats as sacred — a human's qty is never overruled. */
-function editQty(idx, cell) {
-  const p = Q.state.PURCHASES[idx];
-  if (!p) return;
-  const host = cell || document.querySelector('[data-qy="' + idx + '"]');
-  if (!host || host.querySelector('input')) return;            // already editing
-  const cur = +p.qty || 0;
-
-  const inp = document.createElement('input');
-  inp.type = 'text';
-  inp.inputMode = 'decimal';
-  inp.className = 'pfr-inp';
-  inp.value = cur > 0 ? String(cur) : '';
-  inp.placeholder = '0 T';
-  inp.setAttribute('aria-label', 'Quantity (tonnes) on bill ' + (p.bill || ''));
-
-  const prev = host.innerHTML;
-  host.innerHTML = '';
-  host.appendChild(inp);
-  inp.focus(); inp.select();
-
-  let done = false;
-  const restore = () => { if (!done) { done = true; host.innerHTML = prev; } };
-
-  const commit = () => {
-    if (done) return; done = true;
-    const t = (inp.value || '').trim();
-    if (t === '' && cur === 0) { host.innerHTML = prev; return; }
-    if (t === '') { Q.updatePurchase(idx, { qty: 0 }); toast('Quantity cleared'); QLX.refresh(); return; }
-    const n = QLFin.parseNum(t);
-    if (!(n > 0)) { toast('“' + t + '” is not a tonnage — nothing saved', 'err'); host.innerHTML = prev; return; }
-    if (n === cur) { host.innerHTML = prev; return; }
-    Q.updatePurchase(idx, { qty: n });
-    /* The point of typing the tonnage: the rate exists now. Say it. */
-    const tax = +p.taxable || 0;
-    toast('Qty ' + fmt(n, 2) + ' T' + (tax > 0 ? ' · rate ' + fC(Math.round(tax / n)) + '/T' : ''), 'ok');
-    QLX.refresh();
-  };
-
-  inp.onkeydown = e => {
-    e.stopPropagation();
-    if (e.key === 'Enter') { e.preventDefault(); commit(); }
-    else if (e.key === 'Escape') { e.preventDefault(); restore(); }
-  };
-  inp.onblur = commit;
-  inp.onclick = e => e.stopPropagation();
-}
-
-/* ── inline RATE editor — the qty editor's mirror ─────────────────
-   "every bill has rate": the owner reads ₹/T straight off the bill even when
-   the tonnage was never captured. Typing the rate here derives and STORES the
-   quantity (qty = taxable ÷ rate) — the base field stays qty, so the rate
-   column keeps deriving back to the number he typed and the qty column fills
-   in too. One number, both columns. Refuses when there is no taxable to divide
-   (a rate with nothing to apply it to is not a rate). */
-function editRate(idx, cell) {
-  const p = Q.state.PURCHASES[idx];
-  if (!p) return;
-  const tax = +p.taxable || 0;
-  const host = cell || document.querySelector('[data-rt="' + idx + '"]');
-  if (!host || host.querySelector('input')) return;
-  if (!(tax > 0)) { toast('This bill has no taxable amount — add the amount first', 'warn'); return; }
-  const curQty = +p.qty || 0;
-  const curRate = curQty > 0 ? Math.round(tax / curQty) : 0;
-
-  const inp = document.createElement('input');
-  inp.type = 'text';
-  inp.inputMode = 'decimal';
-  inp.className = 'pfr-inp';
-  inp.value = curRate > 0 ? String(curRate) : '';
-  inp.placeholder = '₹/T';
-  inp.setAttribute('aria-label', 'Rate per tonne on bill ' + (p.bill || ''));
-
-  const prev = host.innerHTML;
-  host.innerHTML = '';
-  host.appendChild(inp);
-  inp.focus(); inp.select();
-
-  let done = false;
-  const restore = () => { if (!done) { done = true; host.innerHTML = prev; } };
-  const commit = () => {
-    if (done) return; done = true;
-    const s = (inp.value || '').trim();
-    if (s === '') { host.innerHTML = prev; return; }
-    const rate = QLFin.parseNum(s);
-    if (!(rate > 0)) { toast('“' + s + '” is not a rate — nothing saved', 'err'); host.innerHTML = prev; return; }
-    if (rate === curRate) { host.innerHTML = prev; return; }     // unchanged
-    const qty = Math.round(tax / rate * 100) / 100;              // derive the tonnage
-    Q.updatePurchase(idx, { qty });
-    toast('Rate ' + fC(rate) + '/T · qty ' + fmt(qty, 2) + ' T', 'ok');
-    QLX.refresh();
-  };
-  inp.onkeydown = e => {
-    e.stopPropagation();
-    if (e.key === 'Enter') { e.preventDefault(); commit(); }
-    else if (e.key === 'Escape') { e.preventDefault(); restore(); }
-  };
-  inp.onblur = commit;
-  inp.onclick = e => e.stopPropagation();
 }
 
 /* ── read the tonnage back off the bills already uploaded ──────
@@ -960,24 +838,14 @@ QLX.mount({
        tonnage went unnoticed for so long: there was no column for the missing number
        to be missing FROM. An unrecorded qty shows '—', not 0: those are different
        facts and the whole Inventory mess came from conflating them. */
-    /* Editable in place, exactly like freight: a VALUE with a pencil on row
-       hover, a dash when empty — never an "add" button shouting down the page.
-       This is the repair path for rate dashes: type the tonnage, the rate
-       column derives on the same refresh. */
-    { key: 'qty', label: t('Qty (T)'), sort: true, num: true, cell: r =>
-        `<button class="pfr-edit" data-qy="${r.idx}" title="${+r.qty > 0 ? 'Click to correct the tonnage on this bill' : 'Click to add the tonnage — the ₹/T rate appears once the bill has a quantity'}">`
-        + (+r.qty > 0 ? `<span class="qx-num">${fmt(r.qty, 2)}</span>` : '<span class="pfr-add">—</span>')
-        + `<svg class="pfr-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>` },
-    /* Editable in place, same as qty: a derived rate with a pencil on hover, or
-       a clickable dash to TYPE the rate off the bill (we back-derive the qty).
-       Only clickable when there is a taxable to divide — a rate with nothing to
-       apply it to would store a bogus qty. */
-    { key: 'rate', label: t('Rate ₹/T'), sort: true, num: true, cell: r =>
-        (+r.taxable > 0
-          ? `<button class="pfr-edit" data-rt="${r.idx}" title="${+r.qty > 0 ? 'Click to correct the rate — the tonnage re-derives' : 'Click to type the rate off the bill — the tonnage fills in'}">`
-            + (+r.qty > 0 ? `<span class="qx-num">${fC(Math.round(r.taxable / r.qty))}</span>` : '<span class="pfr-add">—</span>')
-            + `<svg class="pfr-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>`
-          : `<span class="qx-dash">—</span>`) },
+    /* READ-ONLY by owner's instruction ("QTY or Rate will not editable, only
+       Freight will editable"). Qty comes from the bill (OCR/import) and Rate is
+       DERIVED taxable ÷ qty — neither is hand-edited on the row, so an accidental
+       tap can't change what the bill says. Rates are still filled by the upload
+       reader, the auto-backfill, and the deliberate bulk "Set rate ₹/T" action —
+       just never by editing a single cell. */
+    { key: 'qty', label: t('Qty (T)'), sort: true, num: true, cell: r => (+r.qty > 0 ? `<span class="qx-num">${fmt(r.qty, 2)}</span>` : '<span class="qx-dash">—</span>') },
+    { key: 'rate', label: t('Rate ₹/T'), sort: true, num: true, cell: r => (+r.qty > 0 && +r.taxable > 0 ? `<span class="qx-num">${fC(Math.round(r.taxable / r.qty))}</span>` : '<span class="qx-dash">—</span>') },
     { key: 'taxable', label: 'Taxable', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` },
     // LANDED COST = the bill + the freight paid to get the material here. This is
     // what the petcoke actually cost, and it is what the owner reads the register

@@ -1,218 +1,210 @@
 {
-  "bill-ocr.js": {
-    "sha": "646c8500dbf6",
-    "v": "ocr28"
-  },
-  "bulk.js": {
-    "sha": "1abf109c7a43",
-    "v": "b17"
-  },
-  "cashbook.js": {
-    "sha": "c4b7a4fa1346",
-    "v": "m4"
-  },
-  "chat.js": {
-    "sha": "05f85ba612e5",
-    "v": "ch2"
-  },
-  "collections.js": {
-    "sha": "313d25e71836",
-    "v": "c3"
-  },
-  "crm-core.js": {
-    "sha": "4ac1fb1c9e71",
-    "v": "k1"
-  },
-  "crm.css": {
-    "sha": "24112b3ad8b4",
-    "v": "m6"
-  },
-  "crm.js": {
-    "sha": "707a2d4aedb9",
-    "v": "k1"
-  },
-  "dash.css": {
-    "sha": "fb4d2b9ba55c",
-    "v": "d6"
-  },
-  "dashboard.js": {
-    "sha": "cc08f47c4316",
-    "v": "m22"
-  },
-  "data.js": {
-    "sha": "8af9e3b382a0",
-    "v": "m39"
-  },
-  "dedupe-ui.js": {
-    "sha": "dfb6fc4b9fbb",
-    "v": "m30"
-  },
-  "dedupe.js": {
-    "sha": "2aabbbfb2b20",
-    "v": "m29"
-  },
-  "extract-api.js": {
-    "sha": "80f63b457dbf",
-    "v": "x2"
-  },
-  "extract-schema.js": {
-    "sha": "9718b6585cb1",
-    "v": "x3"
-  },
-  "finance.js": {
-    "sha": "eaa9463375d0",
-    "v": "ocr22"
-  },
-  "i18n.js": {
-    "sha": "82e32fac7f7c",
-    "v": "h8"
-  },
-  "icp-core.js": {
-    "sha": "4b5103393877",
-    "v": "i1"
-  },
-  "icp.js": {
-    "sha": "c80d58b5e4b0",
-    "v": "i2"
-  },
-  "import-guard.js": {
-    "sha": "ef1ad4de9f66",
-    "v": "m28"
-  },
-  "inventory.css": {
-    "sha": "2f851ca20b7d",
-    "v": "i2"
-  },
-  "invoice-templates.js": {
-    "sha": "f963b5df09ab",
-    "v": "t3"
-  },
-  "invoice.js": {
-    "sha": "fed83f3a06b1",
-    "v": "tpl1"
-  },
-  "labour.js": {
-    "sha": "ee705d0052bf",
-    "v": "m2"
-  },
-  "ledger-core.js": {
-    "sha": "b22673458b61",
-    "v": "lc1"
-  },
-  "ledger-import.js": {
-    "sha": "174a7b01f0d4",
-    "v": "li1"
-  },
-  "ledger.js": {
-    "sha": "eca8528cf4fd",
-    "v": "lg3"
-  },
-  "loans.js": {
-    "sha": "563e1a0f3090",
-    "v": "b2"
-  },
-  "mobile.css": {
-    "sha": "197d7f49cc59",
-    "v": "m14"
-  },
-  "mobile.js": {
-    "sha": "106ad4847e8d",
-    "v": "m16"
+  "shell.css": {
+    "v": "r9",
+    "sha": "0da03e78cb95"
   },
   "pages.css": {
-    "sha": "8efc2427553e",
-    "v": "m15"
+    "v": "m15",
+    "sha": "8efc2427553e"
   },
-  "parties.js": {
-    "sha": "92f29dea02a8",
-    "v": "crm9c"
+  "mobile.css": {
+    "v": "m14",
+    "sha": "197d7f49cc59"
   },
   "party-identity.js": {
-    "sha": "a3eec586e482",
-    "v": "m27"
+    "v": "m27",
+    "sha": "a3eec586e482"
   },
-  "payments.js": {
-    "sha": "12261323db3a",
-    "v": "m2d"
+  "import-guard.js": {
+    "v": "m28",
+    "sha": "ef1ad4de9f66"
   },
-  "pbill.css": {
-    "sha": "aa375e030b3f",
-    "v": "p4"
+  "data.js": {
+    "v": "m39",
+    "sha": "8af9e3b382a0"
   },
-  "purchase.js": {
-    "sha": "44dae405ffb8",
-    "v": "m44"
-  },
-  "qlx.css": {
-    "sha": "7a5dd227bdbb",
-    "v": "m10"
-  },
-  "qlx.js": {
-    "sha": "aac79cd4bf19",
-    "v": "m17"
-  },
-  "qty-backfill.js": {
-    "sha": "3a1700830b02",
-    "v": "q2"
-  },
-  "recon-api.js": {
-    "sha": "ad192a754db7",
-    "v": "a2"
-  },
-  "recon-apply.js": {
-    "sha": "0db3c8b0e9a4",
-    "v": "ra1"
-  },
-  "recon-core.js": {
-    "sha": "22530e020ddc",
-    "v": "rc5"
-  },
-  "reconcile.css": {
-    "sha": "23435811d5d3",
-    "v": "f7"
-  },
-  "reconcile.js": {
-    "sha": "b90cb5615a73",
-    "v": "f10"
-  },
-  "refund-ocr.js": {
-    "sha": "bb28f8930d28",
-    "v": "r2"
-  },
-  "report.css": {
-    "sha": "72e239a818db",
-    "v": "r2"
-  },
-  "reports.css": {
-    "sha": "315907e53f5c",
-    "v": "r1"
-  },
-  "sales.js": {
-    "sha": "f8bd4010f91e",
-    "v": "m30"
-  },
-  "selfcheck.js": {
-    "sha": "5e7f1cf587f5",
-    "v": "s2"
-  },
-  "shell.css": {
-    "sha": "0da03e78cb95",
-    "v": "r9"
-  },
-  "shell.js": {
-    "sha": "2ad5e8741dff",
-    "v": "m55"
-  },
-  "tds.js": {
-    "sha": "68d16b01e9b8",
-    "v": "m3"
+  "i18n.js": {
+    "v": "h8",
+    "sha": "82e32fac7f7c"
   },
   "wa-core.js": {
-    "sha": "953089d24f6b",
-    "v": "w2"
+    "v": "w2",
+    "sha": "953089d24f6b"
+  },
+  "shell.js": {
+    "v": "m55",
+    "sha": "2ad5e8741dff"
+  },
+  "mobile.js": {
+    "v": "m16",
+    "sha": "106ad4847e8d"
+  },
+  "recon-core.js": {
+    "v": "rc5",
+    "sha": "22530e020ddc"
+  },
+  "qlx.css": {
+    "v": "m10",
+    "sha": "7a5dd227bdbb"
+  },
+  "qlx.js": {
+    "v": "m17",
+    "sha": "aac79cd4bf19"
+  },
+  "cashbook.js": {
+    "v": "m4",
+    "sha": "c4b7a4fa1346"
+  },
+  "chat.js": {
+    "v": "ch2",
+    "sha": "05f85ba612e5"
   },
   "wa.js": {
-    "sha": "5fe01c9cd041",
-    "v": "w4"
+    "v": "w4",
+    "sha": "5fe01c9cd041"
+  },
+  "collections.js": {
+    "v": "c3",
+    "sha": "313d25e71836"
+  },
+  "crm-core.js": {
+    "v": "k1",
+    "sha": "4ac1fb1c9e71"
+  },
+  "icp-core.js": {
+    "v": "i1",
+    "sha": "4b5103393877"
+  },
+  "crm.js": {
+    "v": "k1",
+    "sha": "707a2d4aedb9"
+  },
+  "dash.css": {
+    "v": "d6",
+    "sha": "fb4d2b9ba55c"
+  },
+  "dashboard.js": {
+    "v": "m22",
+    "sha": "cc08f47c4316"
+  },
+  "finance.js": {
+    "v": "ocr22",
+    "sha": "eaa9463375d0"
+  },
+  "inventory.css": {
+    "v": "i2",
+    "sha": "2f851ca20b7d"
+  },
+  "invoice-templates.js": {
+    "v": "t3",
+    "sha": "f963b5df09ab"
+  },
+  "invoice.js": {
+    "v": "tpl1",
+    "sha": "fed83f3a06b1"
+  },
+  "labour.js": {
+    "v": "m2",
+    "sha": "ee705d0052bf"
+  },
+  "crm.css": {
+    "v": "m6",
+    "sha": "24112b3ad8b4"
+  },
+  "ledger.js": {
+    "v": "lg3",
+    "sha": "eca8528cf4fd"
+  },
+  "loans.js": {
+    "v": "b2",
+    "sha": "563e1a0f3090"
+  },
+  "pbill.css": {
+    "v": "p4",
+    "sha": "aa375e030b3f"
+  },
+  "ledger-core.js": {
+    "v": "lc1",
+    "sha": "b22673458b61"
+  },
+  "ledger-import.js": {
+    "v": "li1",
+    "sha": "174a7b01f0d4"
+  },
+  "icp.js": {
+    "v": "i2",
+    "sha": "c80d58b5e4b0"
+  },
+  "parties.js": {
+    "v": "crm9c",
+    "sha": "92f29dea02a8"
+  },
+  "payments.js": {
+    "v": "m2d",
+    "sha": "12261323db3a"
+  },
+  "qty-backfill.js": {
+    "v": "q2",
+    "sha": "3a1700830b02"
+  },
+  "bill-ocr.js": {
+    "v": "ocr28",
+    "sha": "646c8500dbf6"
+  },
+  "extract-schema.js": {
+    "v": "x3",
+    "sha": "9718b6585cb1"
+  },
+  "extract-api.js": {
+    "v": "x2",
+    "sha": "80f63b457dbf"
+  },
+  "bulk.js": {
+    "v": "b17",
+    "sha": "1abf109c7a43"
+  },
+  "purchase.js": {
+    "v": "m45",
+    "sha": "9b967a199870"
+  },
+  "reconcile.css": {
+    "v": "f7",
+    "sha": "23435811d5d3"
+  },
+  "recon-apply.js": {
+    "v": "ra1",
+    "sha": "0db3c8b0e9a4"
+  },
+  "recon-api.js": {
+    "v": "a2",
+    "sha": "ad192a754db7"
+  },
+  "reconcile.js": {
+    "v": "f10",
+    "sha": "b90cb5615a73"
+  },
+  "refund-ocr.js": {
+    "v": "r2",
+    "sha": "bb28f8930d28"
+  },
+  "report.css": {
+    "v": "r2",
+    "sha": "72e239a818db"
+  },
+  "reports.css": {
+    "v": "r1",
+    "sha": "315907e53f5c"
+  },
+  "sales.js": {
+    "v": "m30",
+    "sha": "f8bd4010f91e"
+  },
+  "selfcheck.js": {
+    "v": "s2",
+    "sha": "5e7f1cf587f5"
+  },
+  "tds.js": {
+    "v": "m3",
+    "sha": "68d16b01e9b8"
   }
 }

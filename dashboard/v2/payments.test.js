@@ -75,6 +75,10 @@ vm.runInContext([
   grabLine('const cS = s =>'), grabLine('const cP = p =>'),
   grabLine('function cleanSup(p)'),
   grabLine('function methodToMode(m)'), grabLine('function modeToMethod(m)'),
+  /* the shared "live money" predicate — a trashed/cancelled payment must leave the
+     BALANCE. accountBalances() closes over it in data.js; grab it or the vm can't
+     see it (it lives in the module scope, not inside accountBalances). */
+  grabLine('const liveMoney = e =>'),
   grabBlock('function accountBalances()', '\n  }'),
   grabBlock('function paymentsLedger()', '\n  }'),
   grabBlock('function paymentsSummary()', '\n  }'),
