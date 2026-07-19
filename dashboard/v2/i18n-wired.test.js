@@ -119,6 +119,22 @@ function el(tag, attrs, children) {
   ok(/new MutationObserver\(/.test(src), '  and arms a MutationObserver, so re-renders re-translate');
   ok(/applyTo\(document\.body\)/.test(src), '  over the real page body');
 
+  /* THE FLASH FIX ("when I click on that english to hindi then data reload
+     quickly again"): the observer must translate the ADDED nodes SYNCHRONOUSLY
+     in its callback — a microtask runs before the next paint, so Hindi is the
+     first thing the screen shows. Any deferral (setTimeout/rAF) re-creates the
+     English flash on every render. */
+  const bootSrc = (src.match(/function boot\(\) \{[\s\S]*?\n  \}/) || [''])[0];
+  ok(bootSrc.length > 50, 'boot() found for inspection');
+  ok(/addedNodes/.test(bootSrc), '  the observer walks the ADDED subtrees, not a deferred whole-body sweep');
+  ok(!/setTimeout|requestAnimationFrame/.test(bootSrc),
+    '  and NOTHING defers it — a deferred translate paints English first, the exact flash he reported');
+
+  /* the owner's ERP glossary (supplied 2026-07-19) is carried */
+  ['Sales Invoice', 'Customer Ledger', 'Raw Material', 'Finished Goods', 'Kiln', 'Dispatch Register']
+    .forEach(k => ok(I.has(k), '  owner glossary carries “' + k + '”'));
+  eq('his direct word-corrections still beat his pasted list', [I.t('Limestone'), I.t('Petcoke')], ['पत्थर', 'कोयला']);
+
   const pages = fs.readdirSync(__dirname).filter(f => f.endsWith('.html'));
   const appPages = pages.filter(f => /data\.js\?v=/.test(fs.readFileSync(path.join(__dirname, f), 'utf8')));
   const missing = appPages.filter(f => !/i18n\.js\?v=/.test(fs.readFileSync(path.join(__dirname, f), 'utf8')));

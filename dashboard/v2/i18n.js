@@ -307,6 +307,28 @@
     'Ignored': 'छोड़ा गया',
     'Linked': 'जुड़ा',
 
+    /* ◆ the owner's Hindi-first ERP glossary (2026-07-19) — GST, manufacturing
+       and ledger terms supplied by him, verbatim. Two of his listed items
+       (Limestone, Petcoke) conflict with the corrections he sent an hour
+       earlier (पत्थर, कोयला); the direct correction wins until he says
+       otherwise — it was specific, the list was general. */
+    'Sales Invoice': 'बिक्री चालान',
+    'Purchase Bill': 'खरीद बिल',
+    'Tax Invoice': 'कर चालान',
+    'Customer Ledger': 'ग्राहक खाता',
+    'Supplier Ledger': 'आपूर्तिकर्ता खाता',
+    'Outstanding Amount': 'बकाया राशि',
+    'Raw Material': 'कच्चा माल',
+    'Finished Goods': 'तैयार माल',
+    'Warehouse': 'गोदाम',
+    'Stock Transfer': 'स्टॉक स्थानांतरण',
+    'Quality Check': 'गुणवत्ता जांच',
+    'Production Batch': 'उत्पादन बैच',
+    'Production Cost': 'उत्पादन लागत',
+    'Kiln': 'भट्टी',
+    'Production Register': 'उत्पादन रजिस्टर',
+    'Dispatch Register': 'प्रेषण रजिस्टर',
+
     /* the mobile app layer — the owner runs the business from his phone,
        and the phone dashboard has its own strings (mobile.js) */
     'Welcome back': 'वापसी पर स्वागत है',
@@ -451,19 +473,34 @@
   }
   var ATTRS = ['placeholder', 'title', 'aria-label'];
 
-  /* Auto-wiring: translate on load, then re-translate when the app repaints.
-     Debounced — render() rebuilds whole subtrees, and translating once after
-     the burst beats translating every intermediate mutation. The observer's
-     own text edits re-fire it, but a translated node no longer matches any
-     key, so the second pass finds 0 and the loop starves out immediately. */
+  /* Auto-wiring: translate on load, then translate every ADDED subtree
+     synchronously inside the MutationObserver callback.
+
+     SYNCHRONOUS IS THE FIX, not a style choice. The first version debounced
+     with setTimeout(60): the browser PAINTED the English, then 60ms later the
+     walker flipped it to Hindi — a visible flash on every render, worst right
+     after the language switch when the whole app repaints ("when I click on
+     that english to hindi then data reload quickly again"). Observer
+     callbacks are microtasks: they run AFTER the DOM change but BEFORE the
+     next paint, so translating here means Hindi is the first thing the
+     screen ever shows.
+
+     Re-entry is structurally impossible now, not merely starved: the walker
+     edits nodeValue (a characterData mutation) and attributes — this
+     observer watches childList only, so its own work can never re-fire it. */
   function boot() {
     if (typeof document === 'undefined' || lang() !== 'hi') return;
-    var t0 = null;
-    var run = function () { t0 = null; try { applyTo(document.body); } catch (_) {} };
-    var kick = function () { if (t0) clearTimeout(t0); t0 = setTimeout(run, 60); };
+    var run = function () { try { applyTo(document.body); } catch (_) {} };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
     else run();
-    try { new MutationObserver(kick).observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {}
+    try {
+      new MutationObserver(function (muts) {
+        for (var i = 0; i < muts.length; i++) {
+          var ad = muts[i].addedNodes;
+          for (var j = 0; ad && j < ad.length; j++) { try { applyTo(ad[j]); } catch (_) {} }
+        }
+      }).observe(document.documentElement, { childList: true, subtree: true });
+    } catch (_) {}
   }
 
   var API = { t: t, both: both, lang: lang, setLang: setLang, stats: stats, has: has, applyTo: applyTo, DICT: HI, LANG_KEY: LANG_KEY };
