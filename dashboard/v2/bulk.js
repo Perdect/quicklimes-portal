@@ -514,6 +514,32 @@
     ready: ['Ready', 'g'], review: ['Needs review', 'a'], duplicate: ['Duplicate', 'p'], invalid: ['Invalid', 'r'], failed: ['Failed', 'r']
   };
   function typeBadge(b) { var m = TYPE_META[b.type] || TYPE_META.unknown; return '<span class="qlb-tag qlb-' + m[1] + '">' + m[0] + '</span>'; }
+  /* The Type cell is a TOGGLE, not just a label. Auto-detection defaults to
+     Purchase when it cannot recognise the firm's own GSTIN — so a firm's own
+     SALES bills (Deshwali's quick lime) all land as Purchase, and before this
+     there was NO way to correct it: import filed them all wrong. Now one tap
+     flips a bill Sales⇄Purchase; crossKind is recomputed so it imports to the
+     register the owner chose, not the one the parser guessed. Only sales/
+     purchase bills flip — a bank statement or e-way bill has no "other side". */
+  function typeCell(b) {
+    if (b.type !== 'purchase' && b.type !== 'sales') return typeBadge(b);
+    var other = b.type === 'sales' ? 'Purchase' : 'Sales';
+    return typeBadge(b) + '<button class="qlb-flip" data-flip="' + b.id + '" title="This is actually a ' + other + ' bill — file it there">⇄ ' + other + '</button>';
+  }
+  function flipType(id) {
+    var b = BATCH.bills.filter(function (x) { return x.id === id; })[0];
+    if (!b || (b.type !== 'purchase' && b.type !== 'sales')) return;
+    var cfg = BATCH.cfg;
+    b.type = b.type === 'sales' ? 'purchase' : 'sales';
+    b.typeWhy = 'set by you';
+    /* crossKind = "imports to the OTHER register than the page I'm on". Clear it
+       when the chosen type matches this register, set it when it differs — the
+       exact rule buildBill uses, so import routes it identically. */
+    b.crossKind = (cfg.kind && b.type !== cfg.kind) ? b.type : null;
+    b.flag = '';
+    recompute(b, cfg);
+    openTable();
+  }
   function statBadge(b) { var m = STAT_META[b.status] || STAT_META.review; return '<span class="qlb-tag qlb-' + m[1] + '">' + m[0] + '</span>'; }
 
   /* ── REVIEW DRAWER (single bill; also opened per table row) ── */
@@ -683,7 +709,7 @@
       '</tr></thead><tbody>' +
         rowsFor().map(function (b) {
           return '<tr data-id="' + b.id + '" class="' + (b.status === 'failed' ? 'qlb-trf' : '') + '">' +
-            '<td>' + typeBadge(b) + '</td>' +
+            '<td>' + typeCell(b) + '</td>' +
             '<td class="qlb-tname"><b>' + esc(b.vals[nk] || (b.error ? '—' : 'Unknown')) + '</b><span>' + esc(b.source || '') + (b.vals.veh ? ' · 🚚 ' + esc(b.vals.veh) : '') + '</span></td>' +
             '<td>' + esc(b.vals[ik] || '—') + '</td>' +
             '<td class="r">' + (b.error ? '—' : fC(amtOf(b))) + '</td>' +
@@ -705,6 +731,7 @@
     t.querySelectorAll('.qlb-ftab').forEach(function (b) { b.onclick = function () { TFILTER = b.dataset.f; openTable(); }; });
     var openRow = function (id) { var b = BATCH.bills.filter(function (x) { return x.id === id; })[0]; if (b && b.status !== 'failed') openDrawer(b, { back: true }); };
     t.querySelectorAll('tr[data-id]').forEach(function (tr) { tr.onclick = function (e) { if (e.target.closest('.qlb-rev')) return; openRow(tr.dataset.id); }; });
+    t.querySelectorAll('.qlb-flip').forEach(function (btn) { btn.onclick = function (e) { e.stopPropagation(); flipType(btn.dataset.flip); }; });
     t.querySelectorAll('.qlb-rev').forEach(function (btn) { btn.onclick = function (e) { e.stopPropagation(); openRow(btn.dataset.id); }; });
     t.querySelector('#qlbImport').onclick = function () { importReady(cfg); };
 
@@ -875,6 +902,8 @@
       '.qlb-tbl .r{text-align:right}.qlb-trf td{opacity:.6}',
       '.qlb-tname b{display:block;font-weight:650;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.qlb-tname span{font-size:10.5px;color:var(--ql-text-muted,#94a3b8);display:block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.qlb-miss{font-size:10px;color:#b91c1c;margin-top:2px;max-width:260px}.qlb-miss-r{color:#b45309}.qlb-miss-i{color:#64748b}',
+      '.qlb-flip{margin-left:7px;border:1px solid var(--ql-border,#e4e9f0);background:var(--ql-card,#fff);color:var(--ql-text-secondary,#5b6472);border-radius:7px;font-weight:600;font-size:11px;padding:2px 8px;cursor:pointer;white-space:nowrap}',
+      '.qlb-flip:hover{border-color:var(--ql-brand-400,#60a5fa);color:var(--ql-brand-600,#2563eb);background:var(--ql-brand-50,#eff6ff)}',
       '.qlb-rev{border:none;background:none;color:var(--ql-brand-600,#2563eb);font-weight:650;font-size:12.5px;cursor:pointer;white-space:nowrap}',
       '.qlb-empty{text-align:center;color:var(--ql-text-muted,#94a3b8);padding:34px !important;font-size:13px}',
       /* tags */
