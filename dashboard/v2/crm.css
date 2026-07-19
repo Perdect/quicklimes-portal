@@ -144,7 +144,14 @@
 .lgp-ai-i.warn b { color: var(--ql-warning-700, #b45309); }
 .lgp-ai-i.bad b { color: var(--ql-danger-600, #dc2626); }
 .lgp-ai-i.good b { color: var(--ql-success-700, #15803d); }
+/* Same trap the QLX grid had (qlx.css .qx-grid-wrap): the th below says
+   position:sticky, but an overflow-x-only wrap is a scroll ancestor that never
+   scrolls vertically — so the header stuck to nothing and scrolled away with
+   the page. The wrap owns the vertical scroll now; the header actually pins. */
 .lgp-tablewrap { padding: 0 !important; overflow-x: auto; }
+@media (min-width: 769px) {
+  .lgp-tablewrap { max-height: calc(100vh - 300px); overflow: auto; overscroll-behavior: contain; }
+}
 .lgp-table { width: 100%; border-collapse: collapse; min-width: 620px; font-size: 13px; }
 .lgp-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--ql-text-secondary); font-weight: 700; padding: 12px 16px; border-bottom: 1px solid var(--ql-border); background: var(--ql-bg); position: sticky; top: 0; }
 .lgp-table td { padding: 11px 16px; border-bottom: 1px solid var(--ql-border); vertical-align: top; }

@@ -571,10 +571,20 @@
     navPages().forEach(([t, href, ic]) => { if (!q || t.toLowerCase().includes(q)) res.push({ group: 'Go to', icon: ic, t, s: 'Page', href }); });
     if (Q && q) {
       const ql = q;
-      [...new Set(Q.state.PARTIES.map(p => p.name))].filter(n => n.toLowerCase().includes(ql)).slice(0, 5)
+      /* GLOBAL search — one keyword, every module. The palette used to match
+         invoice number + party name only, so the searches a plant actually
+         runs ("RJ21GE7361" — which truck was that?, a GSTIN off a bill, a
+         supplier's bill number) found nothing. Each record's searchable text
+         now carries vehicle + GSTIN, and PURCHASES search at all — they never
+         did. Deleted records stay out: a hit you tap and cannot find in the
+         register is worse than no hit. */
+      const live = x => !x._del && !x._arch && (x.status || 'pending') !== 'cancelled';
+      [...new Set(Q.state.PARTIES.filter(p => !p._del).map(p => p.name))].filter(n => n.toLowerCase().includes(ql)).slice(0, 4)
         .forEach(n => res.push({ group: 'Parties', icon: 'users', t: n, s: 'Customer / supplier', href: 'sales.html' }));
-      Q.state.SALES.filter(s => (s.inv + ' ' + s.party).toLowerCase().includes(ql)).slice(0, 6)
-        .forEach(s => res.push({ group: 'Invoices', icon: 'sales', t: s.inv + ' — ' + s.party, s: Q.fDS(s.date), href: 'sales.html' }));
+      Q.state.SALES.filter(live).filter(s => (s.inv + ' ' + s.party + ' ' + (s.veh || '') + ' ' + (s.gstin || '')).toLowerCase().includes(ql)).slice(0, 5)
+        .forEach(s => res.push({ group: 'Invoices', icon: 'sales', t: s.inv + ' — ' + s.party, s: Q.fDS(s.date) + (s.veh ? ' · 🚚 ' + s.veh : ''), href: 'sales.html' }));
+      Q.state.PURCHASES.filter(live).filter(p => ((p.bill || '') + ' ' + (p.sup || '') + ' ' + (p.veh || '') + ' ' + (p.gstin || '')).toLowerCase().includes(ql)).slice(0, 5)
+        .forEach(p => res.push({ group: 'Purchase bills', icon: 'bag', t: (p.bill || '—') + ' — ' + (p.sup || '—'), s: Q.fDS(p.date) + (p.veh ? ' · 🚚 ' + p.veh : ''), href: 'purchase.html' }));
     }
     return res.slice(0, 18);
   }

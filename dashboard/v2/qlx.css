@@ -202,7 +202,18 @@
 .qx-menu-i .qx-drag { margin-left: auto; color: var(--ql-text-muted); cursor: grab; }
 
 /* ═══ TABLE VIEW ═════════════════════════════════════════════════════ */
+/* THE SCROLL CONTAINER, and the reason the sticky header ever worked at all.
+   `position: sticky` sticks to the nearest scrolling ancestor — and a wrap
+   with only overflow-x:auto IS a scroll ancestor, so the thead stuck to a box
+   that never scrolled vertically while the page scrolled past it: "when user
+   scrolls table, header disappears". Giving the wrap the vertical scroll
+   (viewport-bounded max-height) is the enterprise-grid pattern: the header
+   pins while rows scroll under it, and horizontal panning stays. Desktop
+   only — mobile is cards-first and its table fallback scrolls the page. */
 .qx-grid-wrap { overflow-x: auto; }
+@media (min-width: 769px) {
+  .qx-grid-wrap { max-height: calc(100vh - 230px); overflow: auto; overscroll-behavior: contain; }
+}
 .qx-grid { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 900px; }
 .qx-grid thead th {
   position: sticky; top: 0; z-index: 5; background: var(--ql-card);
