@@ -22,8 +22,16 @@
    always occlude what passes under it, so it cannot depend on an effect that may
    not apply. Two bugs in one line — the colour was also hardcoded LIGHT, so the bar
    stayed pale in dark mode. --ql-bg follows the theme. */
-.dx-fbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;
-  padding:14px 2px;margin-bottom:6px;background:var(--ql-bg);flex-wrap:wrap}
+/* THE PIN POINT, not the rest position, is what was wrong. .main is the scroll
+   container with padding-top:--ql-space-6, and a sticky child with top:0 pins at
+   the INNER (content) edge of that padding — 24px below the app topbar. So when
+   scrolled, the KPI cards rode up through that 24px gap and the header sat
+   sandwiched between the card icons and their values. A NEGATIVE top equal to
+   .main's padding makes the bar pin flush against the topbar (gap closed), its
+   opaque background covering the cards; the top padding keeps the title off the
+   edge. Same var as .main's padding, so the pin can never drift from it. */
+.dx-fbar{position:sticky;top:calc(-1 * var(--ql-space-6));z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:var(--ql-space-6) 2px 14px;margin-top:calc(-1 * var(--ql-space-6));margin-bottom:6px;background:var(--ql-bg);flex-wrap:wrap}
 /* A hairline under it once the page has moved, so the bar reads as a layer rather
    than as text floating over content. */
 .dx-fbar::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--ql-border);opacity:0;transition:opacity .15s}
