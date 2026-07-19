@@ -51,21 +51,66 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/430x932@3x-dark.png">
 <link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/402x874@3x-dark.png">
 <link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/440x956@3x-dark.png">
+<style>
+/* ═══ Settings redesign — page-scoped so it matches the PERDECT theme ═══
+   The old page used Inter (the app is Geist) and hard-coded light-mode reds /
+   ambers that clashed in dark mode, with ad-hoc per-card margins. This fixes
+   the font, spaces every card evenly, gives each section an icon chip, and
+   routes every colour through the design tokens so both themes look right.
+   Purely visual — every id / hook the JS uses is untouched. */
+.set-wrap { max-width: 860px; }
+.set-intro { display: flex; align-items: center; gap: 14px; margin-bottom: var(--ql-space-6); }
+.set-intro .set-ico { width: 44px; height: 44px; border-radius: 12px; }
+.set-grid { display: flex; flex-direction: column; gap: var(--ql-space-5); }
+.set-grid .card { margin: 0 !important; border-radius: var(--ql-radius-xl); }
+/* Header: icon chip (first child) + title/note group (flex:1) + action pinned right */
+.set-wrap .ft-head { justify-content: flex-start; align-items: flex-start; gap: 13px; margin-bottom: 18px; }
+.set-wrap .ft-head > div { flex: 1; min-width: 0; }
+.set-ico { flex: none; width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--ql-brand-50, #eff6ff); color: var(--ql-brand-600, #2563eb); }
+.set-ico svg { width: 19px; height: 19px; }
+.set-ico.warn { background: var(--ql-danger-50); color: var(--ql-danger-600); }
+/* Font: Geist everywhere (was Inter → system fallback), sizes kept */
+.set-wrap .ft-title, .set-wrap .ft-note, .set-wrap .ft-label, .set-wrap .ft-desc,
+.set-wrap .ft-section-label, .set-wrap .ft-hint, .set-wrap .ft-lock { font-family: var(--ql-font-sans); }
+.set-wrap .ft-title { font-size: 15px; font-weight: 700; }
+.set-wrap .ft-row:hover { border-color: var(--ql-border-strong); }
+.set-wrap .ft-locked { background: var(--ql-bg); }
+.set-wrap .ft-lock { background: var(--ql-neutral-150); color: var(--ql-text-muted); }
+/* Token-based status badges (were hard-coded light red / amber) */
+.set-badge { font: 600 10px var(--ql-font-sans); text-transform: uppercase; letter-spacing: .4px; padding: 2px 7px; border-radius: 6px; }
+.set-badge.red   { background: var(--ql-danger-50);  color: var(--ql-danger-700); }
+.set-badge.amber { background: #fff7ed; color: #b45309; }
+:root[data-theme="dark"] .set-badge.amber { background: rgba(180,83,9,.18); color: #fdba74; }
+.set-search { width: 100%; margin-bottom: var(--ql-space-3); padding: 9px 12px; border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-lg); font: inherit; background: var(--ql-bg-elevated); color: var(--ql-text); }
+/* Danger zone: a real tinted card that adapts to the theme */
+.set-danger { border-color: var(--ql-danger-500) !important; background: var(--ql-danger-50); }
+:root[data-theme="dark"] .set-danger { background: rgba(220,38,38,.08); }
+.set-danger .ft-title { color: var(--ql-danger-700); }
+:root[data-theme="dark"] .set-danger .ft-title { color: #fca5a5; }
+.set-danger .set-ico { background: var(--ql-danger-600); color: #fff; }
+.set-tabs { display: flex; gap: 8px; margin: var(--ql-space-3) 0; flex-wrap: wrap; }
+</style>
 </head>
 <body class="ql-v2">
 <div id="ql-page">
   <div class="dash">
-    <div class="page-head">
+   <div class="set-wrap">
+    <div class="set-intro">
+      <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
       <div>
         <h1 class="page-title">Settings</h1>
-        <div class="page-sub" id="setSub">Manage which modules appear across the app</div>
+        <div class="page-sub" id="setSub">Manage your company, team, data and app preferences</div>
       </div>
     </div>
+    <div class="set-grid">
 
     <!-- COMPANY PROFILE — the firm's identity. Must come first: the GSTIN here
          is what lets the app tell YOUR bills from your suppliers'. -->
     <div class="card" id="coCard" style="margin-bottom:var(--ql-space-5)">
       <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><path d="M9 7h1M9 11h1M9 15h1M14 7h1M14 11h1M14 15h1"/></svg></span>
         <div>
           <h3 class="ft-title">Company profile</h3>
           <div class="ft-note">Your firm's legal name and <b>GSTIN</b>. The GSTIN is how the app knows which bills are <b>yours</b> — it's what separates a Sale from a Purchase when you upload a bill, and it prints on your GST invoices.</div>
@@ -81,6 +126,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
          another way. Read-only. -->
     <div class="card" id="dhCard" style="margin-bottom:var(--ql-space-5)">
       <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
         <div>
           <h3 class="ft-title">Data health</h3>
           <div class="ft-note">Checks your books against themselves — the same figure worked out two ways has to agree. Runs on <b>your</b> data, in this browser. It never changes anything.</div>
@@ -95,6 +141,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
          that nothing reads. This is the real one. -->
     <div class="card" id="langCard" style="margin-bottom:var(--ql-space-5)">
       <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
         <div>
           <h3 class="ft-title">भाषा / Language</h3>
           <div class="ft-note">Hindi is being rolled out module by module. Anything not yet translated stays in <b>English</b> rather than going blank — so the app always works, whichever you pick.</div>
@@ -111,6 +158,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
          ql_theme, so dark mode was unreachable dead code. This is the switch. -->
     <div class="card" id="themeCard" style="margin-bottom:var(--ql-space-5)">
       <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></span>
         <div>
           <h3 class="ft-title">Appearance</h3>
           <div class="ft-note">Applies instantly, on this device. <b>System</b> follows your phone or computer's own light/dark setting and switches with it — including at sunset.</div>
@@ -126,6 +174,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 
     <div class="card">
       <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></span>
         <div>
           <h3 class="ft-title">Feature Management</h3>
           <div class="ft-note">Turn modules on or off to keep the app simple. Hidden modules are <b>never deleted</b> — switch them back on anytime. Changes apply instantly to the sidebar, search and dashboard, and are saved on this device.</div>
@@ -143,6 +192,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     <!-- TEAM & ACCESS (owner only; hidden for employee logins) -->
     <div class="card" id="teamCard" style="margin-top:var(--ql-space-5);display:none">
       <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
         <div>
           <h3 class="ft-title">Team &amp; access</h3>
           <div class="ft-note">Give staff their own login. Each employee's role decides which modules they can open and what they can save — <b>enforced on the server</b>, not just hidden in the menu.</div>
@@ -155,6 +205,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     <!-- WHATSAPP AUTOMATION -->
     <div class="card" id="waCard" style="margin-top:var(--ql-space-5)">
       <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>
         <div>
           <h3 class="ft-title">WhatsApp Automation</h3>
           <div class="ft-note">Payment reminders, statements and dispatch notices. <b>Without a connected channel QuickLimes stays in one-tap mode</b> — it writes the message and opens WhatsApp, you press send. Connect a channel and it sends on its own.</div>
@@ -167,6 +218,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     <!-- BANK ACCOUNTS (multi-bank, per firm) -->
     <div class="card" id="bankCard" style="margin-top:var(--ql-space-5)">
       <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="21" x2="21" y2="21"/><path d="M3 10h18M12 3 3 8v2h18V8l-9-5zM6 10v8M10 10v8M14 10v8M18 10v8"/></svg></span>
         <div>
           <h3 class="ft-title">Bank accounts</h3>
           <div class="ft-note">The accounts <b><span id="bankCo">this firm</span></b> banks with. Statements import into an account, so each bank keeps its own balance — and transfers between your own accounts never count as income or expense.</div>
@@ -179,30 +231,34 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     <!-- DATA MANAGEMENT: Trash + Audit + Backup -->
     <div class="card" id="dmCard" style="margin-top:var(--ql-space-5)">
       <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg></span>
         <div>
           <h3 class="ft-title">Data Management</h3>
           <div class="ft-note">Deleted records are <b>never gone immediately</b> — they move to Trash for 90 days and can be restored. Download a backup anytime.</div>
         </div>
         <button class="ql-btn ql-btn-secondary" id="dmBackup" style="flex:none">⬇ Download backup</button>
       </div>
-      <div class="dm-tabs" style="display:flex;gap:8px;margin:var(--ql-space-3) 0">
-        <button class="ql-btn ql-btn-secondary dm-tab" data-tab="trash">🗑 Trash <span id="dmTrashN" class="ft-lock" style="background:#fee2e2;color:#b91c1c"></span></button>
-        <button class="ql-btn ql-btn-secondary dm-tab" data-tab="archived">🗄 Archived <span id="dmArchN" class="ft-lock" style="background:#fef3c7;color:#92400e"></span></button>
+      <div class="dm-tabs set-tabs">
+        <button class="ql-btn ql-btn-secondary dm-tab" data-tab="trash">🗑 Trash <span id="dmTrashN" class="set-badge red"></span></button>
+        <button class="ql-btn ql-btn-secondary dm-tab" data-tab="archived">🗄 Archived <span id="dmArchN" class="set-badge amber"></span></button>
         <button class="ql-btn ql-btn-secondary dm-tab" data-tab="audit">📋 Audit log</button>
       </div>
-      <input id="dmSearch" class="ql-input" placeholder="Search trash / audit…" style="width:100%;margin-bottom:var(--ql-space-3);padding:9px 12px;border:1px solid var(--ql-border);border-radius:9px;font:inherit">
+      <input id="dmSearch" class="ql-input set-search" placeholder="Search trash / audit…">
       <div style="overflow-x:auto"><div id="dmBody"></div></div>
     </div>
 
-    <div class="card" style="border-color:#fecaca;margin-top:var(--ql-space-5)">
+    <div class="card set-danger">
       <div class="ft-head">
+        <span class="set-ico warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
         <div>
-          <h3 class="ft-title" style="color:#b91c1c">Danger zone</h3>
+          <h3 class="ft-title">Danger zone</h3>
           <div class="ft-note">Clear <b>every record for <span id="dzCo">this company</span></b> — a fresh-start / demo reset. A <b>backup file downloads first</b>, and this is the only action that does not go to Trash.</div>
         </div>
-        <button class="ql-btn" id="dzClear" style="background:#dc2626;color:#fff;border:none;flex:none">Clear all data</button>
+        <button class="ql-btn" id="dzClear" style="background:var(--ql-danger-600);color:#fff;border:none;flex:none">Clear all data</button>
       </div>
     </div>
+   </div>
+  </div>
   </div>
 </div>
 
