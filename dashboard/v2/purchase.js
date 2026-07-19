@@ -72,9 +72,18 @@ document.addEventListener('click', e => {
     return;
   }
   const q = e.target.closest && e.target.closest('[data-qy]');
-  if (!q) return;
+  if (q) {
+    e.stopPropagation(); e.preventDefault();
+    editQty(+q.dataset.qy, q);            // same delegation, same reason — cannot go stale
+    return;
+  }
+  /* Enter the RATE directly — the owner knows ₹/T off the bill even when the
+     tonnage was never captured. "every bill has rate." We derive and store the
+     qty (taxable ÷ rate), so both columns fill from one number. */
+  const rt = e.target.closest && e.target.closest('[data-rt]');
+  if (!rt) return;
   e.stopPropagation(); e.preventDefault();
-  editQty(+q.dataset.qy, q);            // same delegation, same reason — cannot go stale
+  editRate(+rt.dataset.rt, rt);
 });
 
 /* ── Freight: typed IN THE ROW ─────────────────────────────────
@@ -191,6 +200,59 @@ function editQty(idx, cell) {
     QLX.refresh();
   };
 
+  inp.onkeydown = e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); restore(); }
+  };
+  inp.onblur = commit;
+  inp.onclick = e => e.stopPropagation();
+}
+
+/* ── inline RATE editor — the qty editor's mirror ─────────────────
+   "every bill has rate": the owner reads ₹/T straight off the bill even when
+   the tonnage was never captured. Typing the rate here derives and STORES the
+   quantity (qty = taxable ÷ rate) — the base field stays qty, so the rate
+   column keeps deriving back to the number he typed and the qty column fills
+   in too. One number, both columns. Refuses when there is no taxable to divide
+   (a rate with nothing to apply it to is not a rate). */
+function editRate(idx, cell) {
+  const p = Q.state.PURCHASES[idx];
+  if (!p) return;
+  const tax = +p.taxable || 0;
+  const host = cell || document.querySelector('[data-rt="' + idx + '"]');
+  if (!host || host.querySelector('input')) return;
+  if (!(tax > 0)) { toast('This bill has no taxable amount — add the amount first', 'warn'); return; }
+  const curQty = +p.qty || 0;
+  const curRate = curQty > 0 ? Math.round(tax / curQty) : 0;
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.inputMode = 'decimal';
+  inp.className = 'pfr-inp';
+  inp.value = curRate > 0 ? String(curRate) : '';
+  inp.placeholder = '₹/T';
+  inp.setAttribute('aria-label', 'Rate per tonne on bill ' + (p.bill || ''));
+
+  const prev = host.innerHTML;
+  host.innerHTML = '';
+  host.appendChild(inp);
+  inp.focus(); inp.select();
+
+  let done = false;
+  const restore = () => { if (!done) { done = true; host.innerHTML = prev; } };
+  const commit = () => {
+    if (done) return; done = true;
+    const s = (inp.value || '').trim();
+    if (s === '') { host.innerHTML = prev; return; }
+    const rate = QLFin.parseNum(s);
+    if (!(rate > 0)) { toast('“' + s + '” is not a rate — nothing saved', 'err'); host.innerHTML = prev; return; }
+    if (rate === curRate) { host.innerHTML = prev; return; }     // unchanged
+    const qty = Math.round(tax / rate * 100) / 100;              // derive the tonnage
+    Q.updatePurchase(idx, { qty });
+    toast('Rate ' + fC(rate) + '/T · qty ' + fmt(qty, 2) + ' T', 'ok');
+    QLX.refresh();
+  };
   inp.onkeydown = e => {
     e.stopPropagation();
     if (e.key === 'Enter') { e.preventDefault(); commit(); }
@@ -906,7 +968,16 @@ QLX.mount({
         `<button class="pfr-edit" data-qy="${r.idx}" title="${+r.qty > 0 ? 'Click to correct the tonnage on this bill' : 'Click to add the tonnage — the ₹/T rate appears once the bill has a quantity'}">`
         + (+r.qty > 0 ? `<span class="qx-num">${fmt(r.qty, 2)}</span>` : '<span class="pfr-add">—</span>')
         + `<svg class="pfr-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>` },
-    { key: 'rate', label: t('Rate ₹/T'), sort: true, num: true, cell: r => (+r.qty > 0 && +r.taxable > 0 ? `<span class="qx-num">${fC(Math.round(r.taxable / r.qty))}</span>` : `<span class="qx-dash">—</span>`) },
+    /* Editable in place, same as qty: a derived rate with a pencil on hover, or
+       a clickable dash to TYPE the rate off the bill (we back-derive the qty).
+       Only clickable when there is a taxable to divide — a rate with nothing to
+       apply it to would store a bogus qty. */
+    { key: 'rate', label: t('Rate ₹/T'), sort: true, num: true, cell: r =>
+        (+r.taxable > 0
+          ? `<button class="pfr-edit" data-rt="${r.idx}" title="${+r.qty > 0 ? 'Click to correct the rate — the tonnage re-derives' : 'Click to type the rate off the bill — the tonnage fills in'}">`
+            + (+r.qty > 0 ? `<span class="qx-num">${fC(Math.round(r.taxable / r.qty))}</span>` : '<span class="pfr-add">—</span>')
+            + `<svg class="pfr-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>`
+          : `<span class="qx-dash">—</span>`) },
     { key: 'taxable', label: 'Taxable', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` },
     // LANDED COST = the bill + the freight paid to get the material here. This is
     // what the petcoke actually cost, and it is what the owner reads the register
