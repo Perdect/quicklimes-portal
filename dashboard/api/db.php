@@ -242,6 +242,8 @@ function ql_ensure_tables() {
     owner_phone     VARCHAR(20)  NOT NULL DEFAULT '',
     password_hash   VARCHAR(255) NOT NULL DEFAULT '',
     plant_name      VARCHAR(190) NOT NULL DEFAULT '',
+    owner_name      VARCHAR(190) DEFAULT NULL,
+    contact_phone   VARCHAR(20)  DEFAULT NULL,
     gst_number      VARCHAR(20)  DEFAULT NULL,
     city            VARCHAR(120) DEFAULT NULL,
     address         VARCHAR(255) DEFAULT NULL,
@@ -251,6 +253,15 @@ function ql_ensure_tables() {
     KEY idx_owner (owner_phone),
     KEY idx_parent (parent_plant_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  /* owner_name + contact_phone were added later (company profile: manager name
+     and a per-company mobile that prints on invoices, kept SEPARATE from
+     owner_phone so it can never affect the login). CREATE TABLE IF NOT EXISTS
+     leaves an existing table untouched, so add the columns if they're missing.
+     MySQL has no portable "ADD COLUMN IF NOT EXISTS", so try it and ignore the
+     duplicate-column error. */
+  foreach (['owner_name VARCHAR(190) DEFAULT NULL', 'contact_phone VARCHAR(20) DEFAULT NULL'] as $col) {
+    try { $db->exec("ALTER TABLE plants ADD COLUMN $col"); } catch (Throwable $e) { /* already there */ }
+  }
   $db->exec("CREATE TABLE IF NOT EXISTS app_data (
     plant_id   VARCHAR(64) NOT NULL,
     data_id    VARCHAR(96) NOT NULL,
@@ -708,6 +719,12 @@ function ql_gstin_valid($g) {
   return $st >= 1 && $st <= 38;                       // valid GST state codes
 }
 
+/* A usable mobile number: at least 7 digits (kept lenient so a +country-code or
+   landline isn't wrongly rejected). Must agree with data.js validPhone. */
+function ql_phone_valid($p) {
+  return strlen(preg_replace('/\D/', '', (string)$p)) >= 7;
+}
+
 /* Resolve the account's PRIMARY plant (the one that carries the password and
    parents the family). The login token is signed with the primary id, but
    resolve defensively so a child id can never spawn a grandchild — the family
@@ -746,14 +763,18 @@ function ql_company_add($db, $ctx, $in) {
   if (!$ctx)                           return ['code' => 401, 'body' => ['error' => 'Unauthorized']];
   if (!ql_role_can($ctx['role'], '*')) return ['code' => 403, 'body' => ['error' => 'Forbidden']];   // owner-level only
 
-  $name = trim((string)($in['p_plant_name'] ?? ''));
-  $gst  = strtoupper(preg_replace('/\s+/', '', (string)($in['p_gst_number'] ?? '')));
-  $city = trim((string)($in['p_city'] ?? ''));
-  $addr = trim((string)($in['p_address'] ?? ''));
+  $name  = trim((string)($in['p_plant_name'] ?? ''));
+  $gst   = strtoupper(preg_replace('/\s+/', '', (string)($in['p_gst_number'] ?? '')));
+  $oname = trim((string)($in['p_owner_name'] ?? ''));       // manager / owner — optional
+  $phone = trim((string)($in['p_contact_phone'] ?? ''));    // company mobile — required
+  $city  = trim((string)($in['p_city'] ?? ''));
+  $addr  = trim((string)($in['p_address'] ?? ''));
 
-  if (strlen($name) < 2)     return ['code' => 200, 'body' => ['error' => 'Company name is required']];
-  if ($gst === '')           return ['code' => 200, 'body' => ['error' => 'GSTIN is required — it is what tells this firm’s sales from its purchases']];
-  if (!ql_gstin_valid($gst)) return ['code' => 200, 'body' => ['error' => 'That GSTIN doesn’t look right — it should be 15 characters, like 08BNAPM0488E1Z3']];
+  if (strlen($name) < 2)      return ['code' => 200, 'body' => ['error' => 'Company name is required']];
+  if ($gst === '')            return ['code' => 200, 'body' => ['error' => 'GSTIN is required — it is what tells this firm’s sales from its purchases']];
+  if (!ql_gstin_valid($gst))  return ['code' => 200, 'body' => ['error' => 'That GSTIN doesn’t look right — it should be 15 characters, like 08BNAPM0488E1Z3']];
+  if ($phone === '')          return ['code' => 200, 'body' => ['error' => 'Mobile number is required']];
+  if (!ql_phone_valid($phone)) return ['code' => 200, 'body' => ['error' => 'That mobile number doesn’t look right']];
 
   $acct = ql_account_primary($db, $ctx['plant']);
   if (!$acct) return ['code' => 404, 'body' => ['error' => 'Account not found']];
@@ -773,14 +794,55 @@ function ql_company_add($db, $ctx, $in) {
 
   $id  = ql_uuid4();
   $ins = $db->prepare(
-    'INSERT INTO plants (id, owner_phone, plant_name, gst_number, city, address, parent_plant_id, plan_limit)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO plants (id, owner_phone, plant_name, owner_name, contact_phone, gst_number, city, address, parent_plant_id, plan_limit)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
   );
-  $ins->execute([$id, $ownerPhone, $name, $gst, ($city ?: null), ($addr ?: null), $primaryId, $limit]);
+  $ins->execute([$id, $ownerPhone, $name, ($oname ?: null), $phone, $gst, ($city ?: null), ($addr ?: null), $primaryId, $limit]);
   return ['code' => 200, 'body' => ['success' => true, 'plant' => [
-    'id' => $id, 'owner_phone' => $ownerPhone, 'plant_name' => $name,
-    'gst_number' => $gst, 'city' => $city, 'address' => $addr, 'parent_plant_id' => $primaryId,
+    'id' => $id, 'owner_phone' => $ownerPhone, 'plant_name' => $name, 'owner_name' => $oname,
+    'contact_phone' => $phone, 'gst_number' => $gst, 'city' => $city, 'address' => $addr, 'parent_plant_id' => $primaryId,
   ]]];
+}
+
+/* Update a company's profile (name / GSTIN / mobile / manager / city / address).
+   Mirrors the old plant.php inline UPDATE, but as a testable function with the
+   new required-field rules: GSTIN and mobile are mandatory (a profile with a
+   blank GSTIN is the exact bug that mis-files every bill). The target must be
+   the account's primary or one of its children. Returns ['code','body']. */
+function ql_plant_update($db, $ctx, $in) {
+  if (!$ctx)                           return ['code' => 401, 'body' => ['error' => 'Unauthorized']];
+  if (!ql_role_can($ctx['role'], '*')) return ['code' => 403, 'body' => ['error' => 'Forbidden']];
+
+  $target = (string)($in['p_plant_id'] ?? '');
+  if ($target === '') return ['code' => 400, 'body' => ['error' => 'Missing plant id']];
+
+  $name  = trim((string)($in['p_plant_name'] ?? ''));
+  $gst   = strtoupper(preg_replace('/\s+/', '', (string)($in['p_gst_number'] ?? '')));
+  $oname = trim((string)($in['p_owner_name'] ?? ''));
+  $phone = trim((string)($in['p_contact_phone'] ?? ''));
+  $city  = trim((string)($in['p_city'] ?? ''));
+  $addr  = trim((string)($in['p_address'] ?? ''));
+
+  if (strlen($name) < 2)       return ['code' => 200, 'body' => ['error' => 'Company name is required']];
+  if ($gst === '')             return ['code' => 200, 'body' => ['error' => 'GSTIN is required — it is what tells this firm’s sales from its purchases']];
+  if (!ql_gstin_valid($gst))   return ['code' => 200, 'body' => ['error' => 'That GSTIN doesn’t look right — it should be 15 characters, like 08BNAPM0488E1Z3']];
+  if ($phone === '')           return ['code' => 200, 'body' => ['error' => 'Mobile number is required']];
+  if (!ql_phone_valid($phone)) return ['code' => 200, 'body' => ['error' => 'That mobile number doesn’t look right']];
+
+  // The plant must belong to the token's account (itself or a child).
+  $tok = $ctx['plant'];
+  $chk = $db->prepare('SELECT id FROM plants WHERE id = ? AND (id = ? OR parent_plant_id = ?) LIMIT 1');
+  $chk->execute([$target, $tok, $tok]);
+  if (!$chk->fetch(PDO::FETCH_ASSOC)) return ['code' => 403, 'body' => ['error' => 'That company is not part of your account.']];
+
+  // One GSTIN per account (never let two of the user's firms share one).
+  $dup = $db->prepare('SELECT id FROM plants WHERE id <> ? AND (id = ? OR parent_plant_id = ?) AND UPPER(gst_number) = ? LIMIT 1');
+  $dup->execute([$target, $tok, $tok, $gst]);
+  if ($dup->fetch(PDO::FETCH_ASSOC)) return ['code' => 200, 'body' => ['error' => 'A company with GSTIN ' . $gst . ' already exists in your account.']];
+
+  $st = $db->prepare('UPDATE plants SET plant_name = ?, owner_name = ?, contact_phone = ?, gst_number = ?, city = ?, address = ? WHERE id = ?');
+  $st->execute([$name, ($oname ?: null), $phone, $gst, ($city ?: null), ($addr ?: null), $target]);
+  return ['code' => 200, 'body' => ['success' => true]];
 }
 
 /* Remove a CHILD company and its data. The primary (the account itself) can

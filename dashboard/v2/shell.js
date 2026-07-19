@@ -531,12 +531,14 @@
         specs: [
           { k: 'name', label: 'Company name', req: true, ph: 'e.g. Deshwali Minerals' },
           { k: 'gstin', label: 'GSTIN', req: true, ph: '08BNAPM0488E1Z3' },
+          { k: 'phone', label: 'Mobile number', req: true, ph: 'e.g. 9876543210' },
+          { k: 'ownerName', label: 'Owner / manager name', ph: 'optional' },
           { k: 'city', label: 'City', ph: 'e.g. Gotan' }
         ],
         note: 'The GSTIN is required — it is what tells this firm’s own sales from its purchases, so every bill files correctly from the start.',
         saveLabel: 'Add company',
         onSave: async v => {
-          const r = await Q.addCompany({ name: v.name, gstin: v.gstin, city: v.city });
+          const r = await Q.addCompany({ name: v.name, gstin: v.gstin, phone: v.phone, ownerName: v.ownerName, city: v.city });
           if (!r || !r.ok) { toast((r && r.err) || 'Could not add the company', 'err'); return false; }   // keep the form open
           toast('Company added — switching…', 'ok');
           setTimeout(() => location.reload(), 400);        // rebuild COMPANIES and land on the new one

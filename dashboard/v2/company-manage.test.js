@@ -42,47 +42,78 @@ function makeEnv(opts) {
     ACTIVE_CO: opts.ACTIVE_CO || 'GOTAN',
     DB: opts.DB || { rpc: async () => ({ data: { success: true, plant: { id: 'NEW', plant_name: 'X', gst_number: '08AABCG1234H1Z5' } }, error: null }) },
     validGstinFmt: g => /^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/.test(g) && +g.slice(0, 2) >= 1 && +g.slice(0, 2) <= 38,
+    validPhone: p => String(p || '').replace(/\D/g, '').length >= 7,
     localStorage: { _s: store, setItem: (k, v) => { store[k] = v; }, getItem: k => store[k] || null, removeItem: k => { delete store[k]; } },
     sessionStorage: { setItem() {}, getItem: () => null, removeItem() {} },
     console
   };
   vm.createContext(ctx);
-  vm.runInContext(grabFn('async function addCompany(o)') + '\n' + grabFn('async function removeCompany(id)') +
-    '\nthis.addCompany = addCompany; this.removeCompany = removeCompany;', ctx);
+  vm.runInContext(grabFn('async function addCompany(o)') + '\n' + grabFn('async function removeCompany(id)') + '\n' + grabFn('async function updateCompany(id, o)') +
+    '\nthis.addCompany = addCompany; this.removeCompany = removeCompany; this.updateCompany = updateCompany;', ctx);
   return ctx;
 }
+// Every add now needs a mobile; helper keeps cases terse.
+function addIn(over) { return Object.assign({ name: 'New Lime Co', gstin: '08AABCG1234H1Z5', phone: '9876543210' }, over || {}); }
 
 /* ══════════ addCompany ══════════ */
 (async () => {
   {
     const env = makeEnv();
-    const r = await env.addCompany({ name: 'New Lime Co', gstin: '08AABCG1234H1Z5', city: 'Jodhpur' });
+    const r = await env.addCompany(addIn({ city: 'Jodhpur', ownerName: 'Sameer' }));
     ok(r.ok && r.id === 'NEW', 'add: happy path returns the new id');
     ok(JSON.parse(env.localStorage.getItem('ql_plant')).plants.some(p => p.id === 'NEW'), '  the new company is cached in the family');
     eq('  it becomes the active company', env.localStorage.getItem('dm_active_co'), 'NEW');
   }
   {
     const env = makeEnv();
-    ok(!(await env.addCompany({ name: 'New Co', gstin: '' })).ok, 'add: blank GSTIN refused');
-    ok((await env.addCompany({ name: 'New Co', gstin: '' })).err.includes('GSTIN is required'), '  with the right message');
-    ok(!(await env.addCompany({ name: 'New Co', gstin: '08BNAPM0488E1Z' })).ok, 'add: malformed GSTIN refused');
-    ok(!(await env.addCompany({ name: 'A', gstin: '08AABCG1234H1Z5' })).ok, 'add: 1-char name refused');
+    ok(!(await env.addCompany(addIn({ gstin: '' }))).ok, 'add: blank GSTIN refused');
+    ok((await env.addCompany(addIn({ gstin: '' }))).err.includes('GSTIN is required'), '  with the right message');
+    ok(!(await env.addCompany(addIn({ gstin: '08BNAPM0488E1Z' }))).ok, 'add: malformed GSTIN refused');
+    ok(!(await env.addCompany(addIn({ name: 'A' }))).ok, 'add: 1-char name refused');
   }
   {
     const env = makeEnv();
-    const r = await env.addCompany({ name: 'Dup', gstin: '08BNAPM0488E1Z3' });   // Gotan's GSTIN
+    ok(!(await env.addCompany(addIn({ phone: '' }))).ok, 'add: blank mobile refused');
+    ok((await env.addCompany(addIn({ phone: '' }))).err.includes('Mobile number is required'), '  with the right message');
+    ok(!(await env.addCompany(addIn({ phone: '123' }))).ok, 'add: too-short mobile refused');
+  }
+  {
+    const env = makeEnv();
+    const r = await env.addCompany(addIn({ gstin: '08BNAPM0488E1Z3' }));   // Gotan's GSTIN
     ok(!r.ok && /already used by/.test(r.err), 'add: a GSTIN already in the account is refused');
   }
   {
     const env = makeEnv({ QL_PLANT: { id: 'GOTAN', plan_limit: 2, plants: [{ id: 'GOTAN' }, { id: 'DESH' }] } });
-    const r = await env.addCompany({ name: 'Third', gstin: '08AABCG1234H1Z5' });
+    const r = await env.addCompany(addIn({ name: 'Third' }));
     ok(!r.ok && /plan allows 2/.test(r.err), 'add: at the plan limit, refused with a clear message');
   }
   {
     // A server-side failure must NOT report success.
     const env = makeEnv({ DB: { rpc: async () => ({ data: { error: 'boom' }, error: null }) } });
-    const r = await env.addCompany({ name: 'New', gstin: '08AABCG1234H1Z5' });
+    const r = await env.addCompany(addIn());
     ok(!r.ok && r.err === 'boom', 'add: a server error is surfaced, not swallowed');
+  }
+  {
+    const env = makeEnv();
+    await env.addCompany(addIn({ ownerName: 'Sameer' }));
+    const cap = JSON.parse(env.localStorage.getItem('ql_plant')).plants.find(p => p.id === 'NEW');
+    ok(cap, 'add: the returned plant is cached');   // owner_name/contact_phone ride the RPC params (Object.assign)
+  }
+
+  /* ══════════ updateCompany (edit profile) ══════════ */
+  {
+    const env = makeEnv();
+    const r = await env.updateCompany('DESH', { name: 'Deshwali Minerals', gstin: '08NLIPS9801K1Z5', phone: '9876500000', ownerName: 'Kayyum', city: 'Merta City' });
+    ok(r.ok, 'edit: a valid profile saves');
+    eq('  the cached company gets the mobile', env.COMPANIES.DESH.phone, '9876500000');
+    eq('  and the manager name', env.COMPANIES.DESH.ownerName, 'Kayyum');
+  }
+  {
+    const env = makeEnv();
+    ok((await env.updateCompany('DESH', { name: 'Deshwali', gstin: '', phone: '9876500000' })).err.includes('GSTIN is required'), 'edit: blank GSTIN refused (was optional before)');
+    ok((await env.updateCompany('DESH', { name: 'Deshwali', gstin: '08NLIPS9801K1Z5', phone: '' })).err.includes('Mobile number is required'), 'edit: blank mobile refused');
+    const rr = await env.updateCompany('DESH', { name: 'Deshwali', gstin: '08BNAPM0488E1Z3', phone: '9876500000' });   // Gotan's GSTIN
+    ok(!rr.ok && /already used by/.test(rr.err), 'edit: reusing a sibling GSTIN refused');
   }
 
   /* ══════════ removeCompany ══════════ */

@@ -213,11 +213,11 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./import-guard.js?v=m28"></script>
 <script src="./i18n.js?v=h8"></script>
 <script src="./selfcheck.js?v=s2"></script>
-<script src="./data.js?v=m40"></script>
+<script src="./data.js?v=m41"></script>
 <script src="./recon-core.js?v=rc5"></script>
 <script src="./wa-core.js?v=w2"></script>
 
-<script src="./shell.js?v=m56"></script>
+<script src="./shell.js?v=m57"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 QLShell.mount({ active: 'settings', title: 'Settings' });
@@ -563,14 +563,16 @@ $('#bankAdd').addEventListener('click', () => {
    purchase not working". v1 had this screen; v2 dropped it. */
 const CO_SPECS = () => [
   { k: 'name', label: 'Company name (as registered)', req: true, full: true },
-  { k: 'gstin', label: 'GSTIN', hint: '15 characters, e.g. 08BNAPM0488E1Z3. This is how the app knows a bill is yours.', full: true },
+  { k: 'gstin', label: 'GSTIN', req: true, hint: '15 characters, e.g. 08BNAPM0488E1Z3. This is how the app knows a bill is yours.', full: true },
+  { k: 'phone', label: 'Mobile number', req: true, hint: 'The company’s contact number — prints on your invoices.' },
+  { k: 'ownerName', label: 'Owner / manager name' },
   { k: 'city', label: 'City' },
   { k: 'address', label: 'Address', full: true }
 ];
 function editCo(c) {
   QLShell.openForm({
     title: 'Company profile', sub: c.short || c.name, saveLabel: 'Save profile',
-    specs: CO_SPECS(), initial: { name: c.short || c.name, gstin: c.gstin || '', city: c.city || '', address: c.address || '' },
+    specs: CO_SPECS(), initial: { name: c.short || c.name, gstin: c.gstin || '', phone: c.phone || '', ownerName: c.ownerName || '', city: c.city || '', address: c.address || '' },
     async onSave(v) {
       const res = await QLD.updateCompany(c.key, v);
       // Never say "Saved" on a failed write — the whole point of this card is
@@ -589,7 +591,7 @@ function renderCo() {
     const missing = !c.gstin;
     return `<div class="ft-row" style="align-items:center">
       <div class="ft-info">
-        <div class="ft-label">${esc(c.short || c.name)}${c.isPrimary ? ' <span class="ft-lock">Primary</span>' : ''}</div>
+        <div class="ft-label">${esc(c.short || c.name)}</div>
         <div class="ft-desc">${missing
           ? '<b style="color:var(--ql-danger-600,#dc2626)">No GSTIN set — uploaded bills can’t be sorted into Sales vs Purchase until you add it.</b>'
           : 'GSTIN ' + esc(c.gstin) + (c.city ? ' · ' + esc(c.city) : '')}</div>

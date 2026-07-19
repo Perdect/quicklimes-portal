@@ -134,8 +134,11 @@
       short: p.plant_name || 'Your Plant',
       city: p.city || '',
       gstin: p.gst_number || seller.gstin || '',
-      address: seller.address || '', state: seller.state || 'Rajasthan (08)', pin: seller.pin || '',
-      phone: seller.phone || (QL_PLANT.owner_phone || ''), email: seller.email || '', station: seller.station || p.city || '',
+      address: p.address || seller.address || '', state: seller.state || 'Rajasthan (08)', pin: seller.pin || '',
+      // The company's own contact mobile (editable in the profile) wins over the
+      // seed and the account login phone; it's what prints on invoices.
+      ownerName: p.owner_name || seller.owner_name || '',
+      phone: p.contact_phone || seller.phone || (QL_PLANT.owner_phone || ''), email: seller.email || '', station: seller.station || p.city || '',
       bank: seller.bank || '', bankBranch: seller.bankBranch || '', accNo: seller.accNo || '', ifsc: seller.ifsc || '',
       bank2: seller.bank2 || '', bankBranch2: seller.bankBranch2 || '', accNo2: seller.accNo2 || '', ifsc2: seller.ifsc2 || '',
       product: seller.product || '', msme: seller.msme || '', logo: seller.logo || '', jurisdiction: seller.jurisdiction || '', hsn: HSN,
@@ -158,16 +161,23 @@
      issuer. This writes through to plants.gst_number and refreshes the
      cached identity, so the fix applies without a re-login. */
   const validGstinFmt = g => /^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/.test(g) && +g.slice(0, 2) >= 1 && +g.slice(0, 2) <= 38;
+  const validPhone = p => String(p || '').replace(/\D/g, '').length >= 7;   // agrees with ql_phone_valid
   async function updateCompany(id, o) {
     o = o || {};
     const name = String(o.name || '').trim();
     const gstin = String(o.gstin || '').trim().toUpperCase().replace(/\s/g, '');
+    const ownerName = String(o.ownerName || '').trim();
+    const phone = String(o.phone || '').trim();
     const city = String(o.city || '').trim(), address = String(o.address || '').trim();
     if (!COMPANIES[id]) return { ok: false, err: 'Unknown company' };
     if (name.length < 2) return { ok: false, err: 'Company name is required' };
-    // A wrong GSTIN is worse than none: it would make us mis-identify OUR OWN
-    // bills. Reject anything that is not a real GSTIN rather than store it.
-    if (gstin && !validGstinFmt(gstin)) return { ok: false, err: 'That GSTIN doesn’t look right — it should be 15 characters, like 08BNAPM0488E1Z3' };
+    // GSTIN is now REQUIRED (it is what tells this firm's sales from its
+    // purchases — a blank one mis-files every uploaded bill), and a wrong one is
+    // worse than none, so validate the shape too.
+    if (!gstin) return { ok: false, err: 'GSTIN is required — it is what tells this firm’s sales from its purchases' };
+    if (!validGstinFmt(gstin)) return { ok: false, err: 'That GSTIN doesn’t look right — it should be 15 characters, like 08BNAPM0488E1Z3' };
+    if (!phone) return { ok: false, err: 'Mobile number is required' };
+    if (!validPhone(phone)) return { ok: false, err: 'That mobile number doesn’t look right' };
     // Two of the user's own firms sharing a GSTIN would make inter-firm bills
     // unresolvable (the parser could not tell which firm is which).
     const clash = Object.values(COMPANIES).find(c => c.key !== id && gstin && (c.gstin || '').toUpperCase() === gstin);
@@ -179,6 +189,7 @@
       res = await DB.rpc('update_my_plant', {
         p_plant_id: id, p_plant_name: name, p_city: city || null,
         p_gst_number: gstin || null, p_address: address || null,
+        p_owner_name: ownerName || null, p_contact_phone: phone,
         p_owner_phone: QL_PLANT.owner_phone || null
       });
     } catch (e) { return { ok: false, err: 'Could not save (' + (e && e.message ? e.message : 'network') + ')' }; }
@@ -186,11 +197,12 @@
     if (err) return { ok: false, err: err };            // NEVER report success on a failed write
 
     // Write through to the cached identity so ownGstins is right immediately.
-    const apply = p => { if (!p || p.id !== id) return; p.plant_name = name; p.city = city; p.gst_number = gstin; p.address = address; };
+    const apply = p => { if (!p || p.id !== id) return; p.plant_name = name; p.city = city; p.gst_number = gstin; p.address = address; p.owner_name = ownerName; p.contact_phone = phone; };
     (QL_PLANT.plants || []).forEach(apply); apply(QL_PLANT);
     try { localStorage.setItem('ql_plant', JSON.stringify(QL_PLANT)); } catch (_) {}
     const c = COMPANIES[id];
     c.name = name.toUpperCase(); c.short = name; c.city = city; c.gstin = gstin;
+    c.ownerName = ownerName; c.phone = phone;
     if (address) c.address = address;
     return { ok: true };
   }
@@ -207,10 +219,14 @@
     o = o || {};
     const name = String(o.name || '').trim();
     const gstin = String(o.gstin || '').trim().toUpperCase().replace(/\s/g, '');
+    const ownerName = String(o.ownerName || '').trim();
+    const phone = String(o.phone || '').trim();
     const city = String(o.city || '').trim();
     if (name.length < 2) return { ok: false, err: 'Company name is required' };
     if (!gstin) return { ok: false, err: 'GSTIN is required — it is what tells this firm’s sales from its purchases' };
     if (!validGstinFmt(gstin)) return { ok: false, err: 'That GSTIN doesn’t look right — it should be 15 characters, like 08BNAPM0488E1Z3' };
+    if (!phone) return { ok: false, err: 'Mobile number is required' };
+    if (!validPhone(phone)) return { ok: false, err: 'That mobile number doesn’t look right' };
     const clash = Object.values(COMPANIES).find(c => (c.gstin || '').toUpperCase() === gstin);
     if (clash) return { ok: false, err: gstin + ' is already used by ' + (clash.short || clash.name) };
     const limit = +(QL_PLANT.plan_limit || 2);
@@ -218,7 +234,7 @@
     if (!DB) return { ok: false, err: 'Not connected — check your internet and try again' };
 
     let res;
-    try { res = await DB.rpc('add_my_company', { p_plant_name: name, p_gst_number: gstin, p_city: city || null }); }
+    try { res = await DB.rpc('add_my_company', { p_plant_name: name, p_gst_number: gstin, p_city: city || null, p_owner_name: ownerName || null, p_contact_phone: phone }); }
     catch (e) { return { ok: false, err: 'Could not add (' + (e && e.message ? e.message : 'network') + ')' }; }
     const err = (res && res.error && res.error.message) || (res && res.data && res.data.error);
     if (err) return { ok: false, err };                 // NEVER report success on a failed write
