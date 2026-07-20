@@ -2005,6 +2005,30 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     const pPhone = nm => { const p = Q.partyRows().find(x => (x.name || '').toUpperCase() === (nm || '').toUpperCase()); return p ? p.phone : ''; };
     const waBtn = (nm, amt, bills) => { const ph = pPhone(nm); if (!ph) return ''; const msg = `Dear ${nm},\nGentle reminder: ${fc(amt)} is pending with us${bills ? ` (${bills} bill${bills > 1 ? 's' : ''})` : ''}. Kindly arrange payment.\nThank you,\n${Q.co.short}`; return `<button onclick="window.open('${waLink(ph, msg)}','_blank')">WhatsApp ${esc(nm.split(' ')[0])}</button>`; };
 
+    /* ───── GREETING / HELP / THANKS ─────
+       "hi" used to fall straight through to the robotic capability dump. A
+       greeting should feel like a greeting; help should show tappable examples;
+       thanks should be acknowledged. */
+    if (/^\s*(hi+|hey+|hello+|helo|namaste|namaskar|yo|hola|salaam|salam|good\s*(morning|afternoon|evening|day))\b/.test(t)) {
+      const nm = (Q.co && Q.co.short) || 'there';
+      return `<p>Hello 👋 I'm your business assistant for <b>${esc(nm)}</b>. Ask me anything about your books — here are a few to start:</p>`
+        + acts(`<button onclick="QLShell.assistAsk('sales this month')">Sales this month</button><button onclick="QLShell.assistAsk('who owes me money')">Who owes me</button><button onclick="QLShell.assistAsk('cash balance')">Cash balance</button><button onclick="QLShell.assistAsk('net profit')">Profit</button>`);
+    }
+    if (/^\s*(thanks|thank\s*you|thankyou|thx|ty|shukriya|dhanyavad|great|perfect|nice|good\s*job|well\s*done|awesome|superb?)\b/.test(t)) {
+      return `<p>Happy to help 🙂 Ask me anything else — sales, dues, purchases, cash or profit.</p>`;
+    }
+    if (/^\s*help\s*$/.test(t) || /\b(what can you (do|help|tell)|what do you do|how (do i|to) use (you|this)|your (help|features?|capabilit)|list.*commands|what.*ask)\b/.test(t)) {
+      return `<p>I answer instantly from your live books — money in, money out, and your business. Try any of these:</p>`
+        + acts(`<button onclick="QLShell.assistAsk('sales this month')">Sales this month</button>`
+             + `<button onclick="QLShell.assistAsk('who owes me money')">Who owes me</button>`
+             + `<button onclick="QLShell.assistAsk('pending supplier payments')">Supplier dues</button>`
+             + `<button onclick="QLShell.assistAsk('cash balance')">Cash balance</button>`
+             + `<button onclick="QLShell.assistAsk('net profit')">Profit &amp; margin</button>`
+             + `<button onclick="QLShell.assistAsk('gst payable')">GST payable</button>`
+             + `<button onclick="QLShell.assistAsk('top customers')">Top customers</button>`
+             + `<button onclick="QLShell.assistAsk('production this month')">Production</button>`);
+    }
+
     /* ───── ACTIONS (manual-assist) ───── */
     if (/\b(create|new|add|make|raise)\b.*(invoice|bill|sale)\b/.test(t)) { closeDrawer(); openSaleForm(); return `<p>Opening a new GST invoice form…</p>`; }
     if (/\b(create|new|add)\b.*(supplier|vendor)\b/.test(t)) { closeDrawer(); openPartyForm(); return `<p>Opening the add-party form — set <b>Type: Supplier</b>.</p>`; }
@@ -2165,6 +2189,50 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       return list(rows, [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }, { r: 1, v: r => `<button class="ql-ai-mini" onclick="QLShell.printInvoice(${r.idx})">PDF</button>` }]);
     }
 
+    /* ───── CASH / BANK BALANCE ───── */
+    if (/(cash|bank|money)\s*(balance|in hand|available|left|on hand)|how much (cash|money|balance)|balance (in hand|left|available)|^\s*balance\b/.test(t)) {
+      const cb = Q.cashbookBalances();
+      return `<p>Balance on hand: <b>${fc(cb.total)}</b>.</p>`
+        + list([{ l: 'Cash', v: cb.cash }, { l: 'Bank', v: cb.bank }, { l: 'UPI', v: cb.upi }], [{ v: r => r.l }, { r: 1, v: r => fc(r.v) }])
+        + acts(`<button onclick="location.href='cashbook.html'">Open Cash Book</button>`);
+    }
+    /* ───── COUNTS (how many …) — before the general sales/purchase catch-alls ───── */
+    if (/\b(how many|number of|count of|total (number|count)|how much)\b/.test(t) && /(invoice|bill|customer|client|buyer|party|parties|supplier|vendor)/.test(t)) {
+      const ps = Q.partySummary();
+      if (/customer|client|buyer/.test(t)) return `<p>You have <b>${ps.customers}</b> customer${ps.customers !== 1 ? 's' : ''}.</p>` + acts(`<button onclick="location.href='parties.html#customer'">Open customers</button>`);
+      if (/supplier|vendor/.test(t)) return `<p>You have <b>${ps.suppliers}</b> supplier${ps.suppliers !== 1 ? 's' : ''}.</p>` + acts(`<button onclick="location.href='parties.html#supplier'">Open suppliers</button>`);
+      if (/party|parties/.test(t)) { const n = Q.partyRows().length; return `<p>You have <b>${n}</b> part${n !== 1 ? 'ies' : 'y'} (${ps.customers} customers, ${ps.suppliers} suppliers).</p>`; }
+      if (/purchase|bill/.test(t)) { const n = Q.purchaseRows().length; return `<p><b>${n}</b> purchase bill${n !== 1 ? 's' : ''} recorded.</p>`; }
+      const n = Q.salesRows().length; return `<p><b>${n}</b> invoice${n !== 1 ? 's' : ''} recorded.</p>`;
+    }
+    /* ───── BEST / WORST MONTH ───── */
+    if (/(best|worst|highest|lowest|strongest|weakest|top)\b.*\bmonth/.test(t)) {
+      const ser = Q.monthSeries(12).filter(m => m.sales != null);
+      if (!ser.length) return `<p>Not enough monthly data yet.</p>`;
+      const worst = /worst|lowest|weakest/.test(t);
+      const pick = ser.slice().sort((a, b) => worst ? a.sales - b.sales : b.sales - a.sales)[0];
+      return `<p>Your ${worst ? 'lowest' : 'best'} month was <b>${esc(pick.m)}</b> — <b>${fc(pick.sales)}</b> in sales.</p>`
+        + list(ser.slice().reverse().slice(0, 6), [{ v: r => esc(r.m) }, { r: 1, v: r => fc(r.sales) }]);
+    }
+    /* ───── THIS YEAR / TOTAL SALES ───── */
+    if (/(this year|full year|year (so far|to date)|ytd|financial year|total|overall|lifetime|all[- ]?time)\b.*(sale|revenue|turnover|business|invoice)|(sale|revenue|turnover)\b.*(this year|year|total|overall|so far|lifetime)/.test(t)) {
+      const yr = new Date().getFullYear().toString();
+      const rows = Q.salesRows().filter(r => (r.date || '').slice(0, 4) === yr);
+      const tx = rows.reduce((a, r) => a + r.taxable, 0), tot = rows.reduce((a, r) => a + r.total, 0);
+      return `<p>${yr} so far: <b>${rows.length}</b> invoice${rows.length !== 1 ? 's' : ''} · <b>${fc(tx)}</b> sales (excl. GST), ${fc(tot)} with GST.</p>` + acts(`<button onclick="location.href='sales.html'">Open sales</button>`);
+    }
+    /* ───── EXPENSES / SPENDING ───── */
+    if (/\b(expense|expenses|spend|spent|spending|outgoing|kharch|money out|paid out)\b/.test(t)) {
+      const p = Q.getPL();
+      return `<p>Outgoings this period: <b>${fc(p.cogs + p.labour)}</b> — materials ${fc(p.cogs)} + labour ${fc(p.labour)}.</p>` + acts(`<button onclick="location.href='purchase.html'">Purchases</button><button onclick="location.href='pl.html'">Open P&amp;L</button>`);
+    }
+    /* ───── AVERAGE INVOICE ───── */
+    if (/\b(average|avg|mean)\b/.test(t) && /(invoice|sale|bill|order|ticket|deal)/.test(t)) {
+      const rows = Q.salesRows(); if (!rows.length) return `<p>No invoices yet.</p>`;
+      const avg = rows.reduce((a, r) => a + r.total, 0) / rows.length;
+      return `<p>Average invoice value: <b>${fc(Math.round(avg))}</b> across ${rows.length} invoices.</p>`;
+    }
+
     /* ───── PURCHASES / SALES (general) ───── */
     if (/purchase|supplier|bought|raw material|petcoke/.test(t)) {
       let rows = Q.purchaseRows(); const dm = t.match(/(\d+)\s*day/); if (dm) rows = rows.filter(r => r.days <= +dm[1]);
@@ -2178,7 +2246,8 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       return `<p>${rows.length} invoice${rows.length !== 1 ? 's' : ''}${scope} · <b>${fc(tx)}</b> sales (excl. GST). ${fc(s.pending)} pending.</p>` + list(rows.slice(0, 6), [{ v: r => '<b>' + esc(r.inv) + '</b>' }, { v: r => esc(r.party) }, { r: 1, v: r => fc(r.total) }]) + acts(`<button onclick="location.href='sales.html'">Open sales</button><button onclick="QLShell.assistAsk('export sales')">Export CSV</button>`);
     }
     /* ───── FALLBACK ───── */
-    return `<p>I can pull invoices, a party's bills/ledger, overdue & collections, top customers, supplier rates & payments, profit, GST, production, comparisons and forecasts — and create invoices/parties, draft reminders, download PDFs or export CSV. Try a suggestion below 👇</p>`;
+    return `<p>I didn't quite catch that — but I can pull invoices, a party's bills/ledger, overdue & collections, cash balance, top customers, supplier rates & payments, profit, GST, production, comparisons and forecasts, and I can create invoices/parties, draft reminders or export CSV. Try one 👇</p>`
+      + acts(`<button onclick="QLShell.assistAsk('help')">Show me examples</button>`);
   }
   /* ════════════════════════ Searchable combobox (type: 'searchselect') ══════════════════════════ */
   function _combo(k) { return { s: $('qf_' + k + '_s'), l: $('qf_' + k + '_l'), h: $('qf_' + k) }; }
