@@ -4,8 +4,8 @@
     "sha": "0da03e78cb95"
   },
   "pages.css": {
-    "v": "m15",
-    "sha": "8efc2427553e"
+    "v": "m16",
+    "sha": "4d2bbfcf9961"
   },
   "mobile.css": {
     "v": "m14",
@@ -86,6 +86,10 @@
   "dashboard.js": {
     "v": "m22",
     "sha": "cc08f47c4316"
+  },
+  "finance.css": {
+    "v": "f1",
+    "sha": "8276cdb12be4"
   },
   "finance.js": {
     "v": "ocr22",
