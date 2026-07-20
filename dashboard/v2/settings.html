@@ -70,6 +70,23 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   background: var(--ql-brand-50, #eff6ff); color: var(--ql-brand-600, #2563eb); }
 .set-ico svg { width: 19px; height: 19px; }
 .set-ico.warn { background: var(--ql-danger-50); color: var(--ql-danger-600); }
+.set-ico.wa { background: #e7f9ef; color: #1fa855; }                 /* WhatsApp brand green */
+:root[data-theme="dark"] .set-ico.wa { background: rgba(37,211,102,.16); color: #4ade80; }
+/* Sticky section nav — jump between sections without long scrolling */
+.set-nav { position: sticky; top: 0; z-index: 20; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  padding: 10px 2px; margin: 0 0 var(--ql-space-2); background: var(--ql-bg); -webkit-overflow-scrolling: touch; }
+.set-nav::-webkit-scrollbar { display: none; }
+.set-chip { flex: none; display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; cursor: pointer;
+  font: 600 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-card);
+  border: 1px solid var(--ql-border); border-radius: 999px; white-space: nowrap;
+  transition: color .16s, background .16s, border-color .16s, transform .12s; }
+.set-chip:hover { color: var(--ql-text); border-color: var(--ql-border-strong); transform: translateY(-1px); }
+.set-chip svg { width: 15px; height: 15px; }
+.set-chip.active { color: #fff; background: var(--ql-brand-600, #2563eb); border-color: var(--ql-brand-600, #2563eb); box-shadow: 0 4px 12px rgba(37,99,235,.28); }
+/* briefly flag the section you jumped to */
+@keyframes setFlash { 0% { box-shadow: 0 0 0 0 var(--ql-brand-400, #60a5fa); } 100% { box-shadow: 0 0 0 3px transparent; } }
+.set-grid .card.set-flash { animation: setFlash .9s ease-out; }
+@media (prefers-reduced-motion: reduce) { .set-chip, .set-chip:hover, .set-grid .card.set-flash { transition: none; animation: none; } }
 /* Font: Geist everywhere (was Inter → system fallback), sizes kept */
 .set-wrap .ft-title, .set-wrap .ft-note, .set-wrap .ft-label, .set-wrap .ft-desc,
 .set-wrap .ft-section-label, .set-wrap .ft-hint, .set-wrap .ft-lock { font-family: var(--ql-font-sans); }
@@ -104,6 +121,11 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 :root[data-theme="dark"] .set-danger .ft-title { color: #fca5a5; }
 .set-danger .set-ico { background: var(--ql-danger-600); color: #fff; }
 .set-tabs { display: flex; gap: 8px; margin: var(--ql-space-3) 0; flex-wrap: wrap; }
+/* Danger-zone security-code row */
+.dz-pin { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ql-border); }
+.dz-pin .dz-pin-txt { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); flex: 1; min-width: 180px; }
+.dz-pin .dz-pin-txt b { color: var(--ql-text); }
+.dz-pin .dz-lock { color: var(--ql-text-muted); }
 </style>
 </head>
 <body class="ql-v2">
@@ -117,6 +139,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
         <div class="page-sub" id="setSub">Manage your company, team, data and app preferences</div>
       </div>
     </div>
+    <div class="set-nav" id="setNav"></div>
     <div class="set-grid">
 
     <!-- COMPANY PROFILE — the firm's identity. Must come first: the GSTIN here
@@ -185,7 +208,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
       <div class="ft-note" id="themeNow" style="margin-top:var(--ql-space-3)"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="ftCard">
       <div class="ft-head">
         <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></span>
         <div>
@@ -218,7 +241,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     <!-- WHATSAPP AUTOMATION -->
     <div class="card" id="waCard" style="margin-top:var(--ql-space-5)">
       <div class="ft-head">
-        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>
+        <span class="set-ico wa"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0012.04 2zm0 1.67c2.2 0 4.26.86 5.82 2.42a8.2 8.2 0 012.41 5.82c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 01-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.65c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.16.25-.64.81-.78.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43-.14 0-.31-.01-.48-.01-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.11-.22-.17-.47-.29z"/></svg></span>
         <div>
           <h3 class="ft-title">WhatsApp Automation</h3>
           <div class="ft-note">Payment reminders, statements and dispatch notices. <b>Without a connected channel QuickLimes stays in one-tap mode</b> — it writes the message and opens WhatsApp, you press send. Connect a channel and it sends on its own.</div>
@@ -260,7 +283,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
       <div style="overflow-x:auto"><div id="dmBody"></div></div>
     </div>
 
-    <div class="card set-danger">
+    <div class="card set-danger" id="dzCard">
       <div class="ft-head">
         <span class="set-ico warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
         <div>
@@ -269,6 +292,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
         </div>
         <button class="ql-btn" id="dzClear" style="background:var(--ql-danger-600);color:#fff;border:none;flex:none">Clear all data</button>
       </div>
+      <div id="dzPinRow" class="dz-pin"></div>
     </div>
    </div>
   </div>
@@ -390,7 +414,36 @@ function render() {
     toast((f ? f.label : 'Module') + (inp.checked ? ' turned on' : ' hidden'));
     render();
   }));
+  buildSetNav();
+  renderDz();
   if (window.QLShell && QLShell.paintWorkspace) QLShell.paintWorkspace();
+}
+/* Sticky section nav — one tap jumps to any section (no long scrolling), with a
+   smooth scroll, an active pill, and a brief flash on the target. Rebuilt each
+   render so it reflects which cards are actually visible (Team is owner-only). */
+const SET_SECTIONS = [['coCard', 'Company'], ['dhCard', 'Data health'], ['langCard', 'Language'], ['themeCard', 'Appearance'], ['ftCard', 'Features'], ['teamCard', 'Team'], ['waCard', 'WhatsApp'], ['bankCard', 'Banks'], ['dmCard', 'Data'], ['dzCard', 'Danger']];
+let _setSpy;
+function setActiveChip(id) {
+  document.querySelectorAll('#setNav .set-chip').forEach(c => c.classList.toggle('active', c.dataset.sec === id));
+}
+function buildSetNav() {
+  const nav = document.getElementById('setNav'); if (!nav) return;
+  const shown = SET_SECTIONS.filter(([id]) => { const el = document.getElementById(id); return el && el.offsetParent !== null; });
+  nav.innerHTML = shown.map(([id, label]) => `<button class="set-chip" data-sec="${id}"><span>${esc(label)}</span></button>`).join('');
+  nav.querySelectorAll('[data-sec]').forEach(chip => chip.onclick = () => {
+    const card = document.getElementById(chip.dataset.sec); if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    card.classList.remove('set-flash'); void card.offsetWidth; card.classList.add('set-flash');
+    setActiveChip(chip.dataset.sec);
+  });
+  // Scroll-spy: light up the pill for whichever section is near the top.
+  if (_setSpy) _setSpy.disconnect();
+  if ('IntersectionObserver' in window) {
+    _setSpy = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) setActiveChip(e.target.id); }),
+      { rootMargin: '-12% 0px -72% 0px', threshold: 0 });
+    shown.forEach(([id]) => { const el = document.getElementById(id); if (el) _setSpy.observe(el); });
+  }
+  if (shown[0]) setActiveChip(shown[0][0]);
 }
 $('#ftReset').addEventListener('click', () => {
   QLShell.confirmDelete({ title: 'Reset feature visibility?', desc: 'Restores the default sidebar (Dashboard, Sales, Purchase, Finance, Production, Inventory, Reports, AI, Settings). Your data is untouched.',
@@ -408,17 +461,74 @@ function downloadBackup() {
   } catch (e) { toast('Backup failed'); return false; }
 }
 $('#dmBackup').addEventListener('click', downloadBackup);
+/* ── Security code for the destructive wipe ───────────────────────────────
+   Clearing all data is gated behind a secret code the OWNER sets — so an
+   accidental tap or someone else on this device can't wipe the books. The code
+   is stored only as a SHA-256 hash (never in the clear), per account, on this
+   device. It protects against accidents / casual misuse; it is not a defence
+   against someone with developer tools (no client gate can be). */
+function _acctId() { try { return (JSON.parse(localStorage.getItem('ql_plant') || '{}').id) || 'x'; } catch (_) { return 'x'; } }
+function _pinKey() { return 'ql_clearpin_' + _acctId(); }
+function _hasPin() { try { return !!localStorage.getItem(_pinKey()); } catch (_) { return false; } }
+async function _sha256(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(s)));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function _checkPin(code) { try { return _hasPin() && (await _sha256(code)) === localStorage.getItem(_pinKey()); } catch (_) { return false; } }
+
+function openSetPin() {
+  const changing = _hasPin();
+  QLShell.openForm({
+    title: (changing ? 'Change' : 'Set') + ' security code',
+    sub: 'Required before anyone can clear all data',
+    specs: [
+      ...(changing ? [{ k: 'old', label: 'Current code', type: 'password', req: true }] : []),
+      { k: 'code', label: 'New code (4–6 digits)', type: 'password', req: true, ph: '••••' },
+      { k: 'code2', label: 'Confirm new code', type: 'password', req: true, ph: '••••' }
+    ],
+    note: 'Keep it safe — without it, all-data can’t be cleared. It’s stored only as a one-way hash on this device.',
+    saveLabel: 'Save code',
+    async onSave(v) {
+      if (changing && !(await _checkPin(v.old))) { toast('Current code is wrong'); return false; }
+      if (!/^\d{4,6}$/.test(v.code)) { toast('Code must be 4–6 digits'); return false; }
+      if (v.code !== v.code2) { toast('The two codes don’t match'); return false; }
+      try { localStorage.setItem(_pinKey(), await _sha256(v.code)); } catch (_) { toast('Could not save the code'); return false; }
+      toast('Security code saved'); renderDz();
+    }
+  });
+}
+function renderDz() {
+  const el = $('#dzPinRow'); if (!el) return;
+  const set = _hasPin();
+  el.innerHTML = `<span class="dz-lock">🔒</span>
+    <span class="dz-pin-txt">Security code ${set ? '<b>is set</b> — it’s asked for before clearing data.' : '<b>not set</b> — set one to protect the clear-data action.'}</span>
+    <button class="ql-btn ql-btn-secondary" id="dzSetPin" style="flex:none">${set ? 'Change code' : 'Set code'}</button>`;
+  $('#dzSetPin').onclick = openSetPin;
+}
+
 $('#dzClear').addEventListener('click', () => {
+  // No code set yet → make the owner set one first (this action must be protected).
+  if (!_hasPin()) {
+    QLShell.confirmDelete({
+      title: 'Set a security code first',
+      desc: 'Clearing all data is protected by a secret code. Set one now, then you can use it to clear.',
+      reason: false, confirmLabel: 'Set security code',
+      onConfirm() { openSetPin(); }
+    });
+    return;
+  }
   const co = QLD.co ? (QLD.co.short || QLD.co.name) : 'this company';
-  // No browser prompt — a modern modal with a typed confirmation, and a backup
-  // file downloads before anything is wiped.
-  QLShell.confirmDelete({
+  // A backup downloads first, then the code is verified before anything is wiped.
+  QLShell.openForm({
     title: 'Clear ALL data for ' + co + '?',
-    desc: 'Every sale, purchase, party, payment, production and ledger entry for ' + co + ' will be removed. A backup file downloads first so you can restore. This is the only action that does NOT go to Trash.',
-    reasonLabel: 'Reason', needType: 'CLEAR', confirmLabel: 'Download backup & clear',
-    onConfirm() {
-      if (!downloadBackup()) return;
-      try { QLD.wipeData(); } catch (e) { toast('Could not clear data'); return; }
+    sub: 'Enter your security code to confirm',
+    specs: [{ k: 'code', label: 'Security code', type: 'password', req: true, ph: '••••' }],
+    note: 'Every sale, purchase, party, payment, production and ledger entry for ' + co + ' will be removed. A backup file downloads first so you can restore. This does NOT go to Trash.',
+    saveLabel: 'Download backup & clear',
+    async onSave(v) {
+      if (!(await _checkPin(v.code))) { toast('Wrong security code'); return false; }   // never wipe on a bad code
+      if (!downloadBackup()) return false;
+      try { QLD.wipeData(); } catch (e) { toast('Could not clear data'); return false; }
       toast('Backup saved · all data cleared');
       setTimeout(() => location.href = 'dashboard.html', 1200);
     }
@@ -663,7 +773,7 @@ function renderCo() {
         <div class="ft-label">${esc(c.short || c.name)}</div>
         <div class="ft-desc">${missing
           ? '<b style="color:var(--ql-danger-600,#dc2626)">No GSTIN set — uploaded bills can’t be sorted into Sales vs Purchase until you add it.</b>'
-          : 'GSTIN ' + esc(c.gstin) + (c.city ? ' · ' + esc(c.city) : '')}</div>
+          : 'GSTIN ' + esc(c.gstin) + (c.city ? ' · ' + esc(c.city) : '') + (c.ownerName ? ' · ' + esc(c.ownerName) : '') + (c.phone ? ' · ' + esc(c.phone) : '')}</div>
       </div>
       <button class="ql-btn ${missing ? 'ql-btn-primary' : 'ql-btn-secondary'}" data-co-edit="${esc(c.key)}" style="flex:none">${missing ? 'Add GSTIN' : 'Edit'}</button>
       ${c.isPrimary ? '' : `<button class="ql-btn ql-btn-danger" data-co-remove="${esc(c.key)}" style="flex:none;margin-left:var(--ql-space-2)">Remove</button>`}
