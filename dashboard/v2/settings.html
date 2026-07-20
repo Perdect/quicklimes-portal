@@ -84,6 +84,19 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 :root[data-theme="dark"] .set-badge.amber { background: rgba(180,83,9,.18); color: #fdba74; }
 .set-search { width: 100%; margin-bottom: var(--ql-space-3); padding: 9px 12px; border: 1px solid var(--ql-border);
   border-radius: var(--ql-radius-lg); font: inherit; background: var(--ql-bg-elevated); color: var(--ql-text); }
+/* Proper dropdown — themed select with a custom chevron, matching the app's
+   inputs (the old native <select> ignored the theme entirely). */
+.set-select { appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  font: inherit; font-size: var(--ql-text-md); color: var(--ql-text); cursor: pointer;
+  background-color: var(--ql-bg-elevated); border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-lg); padding: 9px 38px 9px 13px; line-height: 1.3;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 16px;
+  color-scheme: light; transition: border-color .14s, box-shadow .14s; }
+:root[data-theme="dark"] .set-select { color-scheme: dark; }   /* native option popup follows the theme */
+.set-select:hover { border-color: var(--ql-border-strong); }
+.set-select:focus { outline: none; border-color: var(--ql-brand-500, #2563eb); box-shadow: 0 0 0 3px var(--ql-brand-50, #eff6ff); }
+:root[data-theme="dark"] .set-select:focus { box-shadow: 0 0 0 3px rgba(37, 99, 235, .28); }
 /* Danger zone: a real tinted card that adapts to the theme */
 .set-danger { border-color: var(--ql-danger-500) !important; background: var(--ql-danger-50); }
 :root[data-theme="dark"] .set-danger { background: rgba(220,38,38,.08); }
@@ -146,7 +159,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
           <h3 class="ft-title">भाषा / Language</h3>
           <div class="ft-note">Hindi is being rolled out module by module. Anything not yet translated stays in <b>English</b> rather than going blank — so the app always works, whichever you pick.</div>
         </div>
-        <select class="ql-input" id="langSel" style="flex:none;width:180px">
+        <select class="set-select" id="langSel" style="flex:none;width:180px">
           <option value="en">English</option>
           <option value="hi">हिन्दी Hindi</option>
         </select>
@@ -163,7 +176,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
           <h3 class="ft-title">Appearance</h3>
           <div class="ft-note">Applies instantly, on this device. <b>System</b> follows your phone or computer's own light/dark setting and switches with it — including at sunset.</div>
         </div>
-        <select class="ql-input" id="themeSel" style="flex:none;width:180px">
+        <select class="set-select" id="themeSel" style="flex:none;width:180px">
           <option value="light">Light</option>
           <option value="dark">Dark</option>
           <option value="system">System</option>
