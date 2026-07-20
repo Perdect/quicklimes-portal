@@ -32,7 +32,11 @@ function waLink(phone, text) {
 /* ── Attachments (IndexedDB, per browser) ── */
 const ADB = 'ql_pur_docs'; let _adb = null;
 function adb() { if (_adb) return _adb; _adb = new Promise((res, rej) => { const r = indexedDB.open(ADB, 1); r.onupgradeneeded = e => { const d = e.target.result; if (!d.objectStoreNames.contains('f')) d.createObjectStore('f'); }; r.onsuccess = e => res(e.target.result); r.onerror = () => rej(r.error); }); return _adb; }
-function aOp(mode, fn) { return adb().then(d => new Promise((res, rej) => { const t = d.transaction('f', mode), o = fn(t.objectStore('f')); t.oncomplete = () => res(o && o.result !== undefined ? o.result : o); t.onerror = () => rej(t.error); })); }
+/* Resolve to the request RESULT (undefined when the key isn't in this browser).
+   The old resolver fell back to the IDBRequest object on a miss, so
+   createObjectURL got a non-Blob and threw "Overload resolution failed" instead
+   of the clean "re-upload on this device" message. */
+function aOp(mode, fn) { return adb().then(d => new Promise((res, rej) => { const t = d.transaction('f', mode), o = fn(t.objectStore('f')); t.oncomplete = () => res(o instanceof IDBRequest ? o.result : o); t.onerror = () => rej(t.error); })); }
 
 /* attachWhy lives in data.js as QLAttachWhy — sales.html does not load this file,
    and both pages need the same reasons. One rule, one place. */
@@ -50,7 +54,7 @@ window.QLAttach = { get: id => aOp('readonly', st => st.get(id)), DB: ADB };
    that moved threw an async rejection into a synchronous try/catch that could not
    catch it. Q.attachDoc throws honestly; every caller here handles it. */
 function addAttach(idx, file, kind) { return Q.attachDoc('purchase', idx, file, kind); }
-async function openAttach(idx, id, dl) { const a = (Q.state.PURCHASES[idx].attach || []).find(x => x.id === id); if (!a) return; const b = await aOp('readonly', st => st.get(a.id)); if (!b) { toast('File not found in this browser', 'err'); return; } const url = URL.createObjectURL(b); if (dl) { const x = document.createElement('a'); x.href = url; x.download = a.name; x.click(); } else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 4000); }
+async function openAttach(idx, id, dl) { const a = (Q.state.PURCHASES[idx].attach || []).find(x => x.id === id); if (!a) return; const b = await aOp('readonly', st => st.get(a.id)); if (!(b instanceof Blob)) { toast('File not found in this browser', 'err'); return; } const url = URL.createObjectURL(b); if (dl) { const x = document.createElement('a'); x.href = url; x.download = a.name; x.click(); } else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 4000); }
 async function delAttach(idx, id) { const p = Q.state.PURCHASES[idx]; Q.updatePurchase(idx, { attach: (p.attach || []).filter(a => a.id !== id) }); try { await aOp('readwrite', st => st.delete(id)); } catch (_) {} QLX.refresh(); }
 
 /* ── freight, edited in place ─────────────────────────────────
@@ -247,7 +251,7 @@ async function openBillPdf(r) {
     const w = window.open('', '_blank');
     try {
       const blob = await aOp('readonly', st => st.get(a.id));
-      if (blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
+      if (blob instanceof Blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
       if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
     } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the bill — ' + QLAttachWhy(e), 'err'); return; }
   }
@@ -266,7 +270,7 @@ async function viewBill(r) {
     const w = window.open('', '_blank');
     try {
       const blob = await aOp('readonly', st => st.get(a.id));
-      if (blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
+      if (blob instanceof Blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
       if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
     } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the bill — ' + QLAttachWhy(e), 'err'); return; }
   }

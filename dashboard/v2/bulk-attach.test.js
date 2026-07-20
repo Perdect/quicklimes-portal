@@ -50,6 +50,12 @@ const ssrc = fs.readFileSync(path.join(V2, 'sales.js'), 'utf8');
    about the code, which is worse than no test. */
 const DBS = {}; let FAILDB = null;
 const store = name => (DBS[name] = DBS[name] || {});
+/* Faithful to the browser: store operations return IDBRequest INSTANCES, and the
+   sandbox exposes the IDBRequest class — because docOp's resolver is
+   `o instanceof IDBRequest ? o.result : o` (that instanceof is exactly what
+   fixed "Overload resolution failed" on a missing scan; see bill-open.test.js).
+   A mock returning plain {result} objects broke here the way no browser can. */
+class FakeIDBRequest { constructor(result) { this.result = result; } }
 function makeIDB() {
   return {
     open(name) {
@@ -60,8 +66,8 @@ function makeIDB() {
           transaction() {
             const t = {};
             const o = {
-              put(val, key) { if (FAILDB === name) { setTimeout(() => t.onerror && t.onerror(), 0); return {}; } store(name)[key] = val; return { result: key }; },
-              get(key) { return { result: store(name)[key] }; }
+              put(val, key) { if (FAILDB === name) { setTimeout(() => t.onerror && t.onerror(), 0); return new FakeIDBRequest(undefined); } store(name)[key] = val; return new FakeIDBRequest(key); },
+              get(key) { return new FakeIDBRequest(store(name)[key]); }
             };
             setTimeout(() => { if (FAILDB !== name) t.oncomplete && t.oncomplete(); }, 0);
             return {
@@ -86,6 +92,7 @@ const grabLine = (src, k) => { const i = src.indexOf(k); if (i < 0) throw new Er
 const D = {
   console, Math, Object, Array, Number, String, JSON, Date, Promise, setTimeout,
   isFinite, parseFloat, isNaN, S,
+  IDBRequest: FakeIDBRequest,          // the resolver does `o instanceof IDBRequest`
   indexedDB: makeIDB(),
   dupCheck: () => null, upsertParty: () => {}, commit: () => {}, toISODate: d => d, fmtISO: () => '2026-07-17'
 };

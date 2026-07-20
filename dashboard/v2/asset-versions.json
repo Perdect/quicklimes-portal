@@ -20,8 +20,8 @@
     "sha": "ef1ad4de9f66"
   },
   "data.js": {
-    "v": "m41",
-    "sha": "49f28456d1d5"
+    "v": "m42",
+    "sha": "1e7dc90f77af"
   },
   "i18n.js": {
     "v": "h8",
@@ -168,8 +168,8 @@
     "sha": "1abf109c7a43"
   },
   "purchase.js": {
-    "v": "m45",
-    "sha": "9b967a199870"
+    "v": "m46",
+    "sha": "c79f7b80b296"
   },
   "reconcile.css": {
     "v": "f7",
@@ -200,8 +200,8 @@
     "sha": "315907e53f5c"
   },
   "sales.js": {
-    "v": "m30",
-    "sha": "f8bd4010f91e"
+    "v": "m31",
+    "sha": "cf5dd275be74"
   },
   "selfcheck.js": {
     "v": "s2",

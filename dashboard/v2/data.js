@@ -677,7 +677,10 @@
   function docOp(kind, mode, fn) {
     return docDb(kind).then(d => new Promise((res, rej) => {
       const t = d.transaction('f', mode), o = fn(t.objectStore('f'));
-      t.oncomplete = () => res(o && o.result !== undefined ? o.result : o);
+      // Resolve to the request RESULT (undefined on a miss). Returning the
+      // IDBRequest itself on a miss made getDoc() look like it found a non-Blob,
+      // and createObjectURL threw "Overload resolution failed".
+      t.oncomplete = () => res(o instanceof IDBRequest ? o.result : o);
       t.onerror = () => rej(t.error);
     }));
   }

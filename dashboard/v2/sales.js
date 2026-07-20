@@ -14,14 +14,18 @@ const toast = (m, t) => QLX.toast(m, t);
 /* ── Attachments (IndexedDB, per browser) — real scanned/signed invoices ── */
 const ADB = 'ql_sal_docs'; let _adb = null;
 function adb() { if (_adb) return _adb; _adb = new Promise((res, rej) => { const r = indexedDB.open(ADB, 1); r.onupgradeneeded = e => { const d = e.target.result; if (!d.objectStoreNames.contains('f')) d.createObjectStore('f'); }; r.onsuccess = e => res(e.target.result); r.onerror = () => rej(r.error); }); return _adb; }
-function aOp(mode, fn) { return adb().then(d => new Promise((res, rej) => { const t = d.transaction('f', mode), o = fn(t.objectStore('f')); t.oncomplete = () => res(o && o.result !== undefined ? o.result : o); t.onerror = () => rej(t.error); })); }
+/* Resolve to the request's RESULT — which is `undefined` when the key isn't in
+   this browser. The old resolver fell back to the IDBRequest object on a miss,
+   so callers saw a truthy non-Blob and URL.createObjectURL threw "Overload
+   resolution failed" instead of the clean "re-upload on this device" message. */
+function aOp(mode, fn) { return adb().then(d => new Promise((res, rej) => { const t = d.transaction('f', mode), o = fn(t.objectStore('f')); t.oncomplete = () => res(o instanceof IDBRequest ? o.result : o); t.onerror = () => rej(t.error); })); }
 /* Delegates to Q.attachDoc — the ONE writer for both registers' doc stores.
    See the note in purchase.js: two copies of this had to agree forever about an
    id prefix and six field names, and the old body dereferenced the row after its
    await without checking it was still there. */
 function addAttach(idx, file, kind) { return Q.attachDoc('sales', idx, file, kind); }
 function getAttachBlob(id) { return aOp('readonly', st => st.get(id)); }
-async function openAttach(idx, id, dl) { const a = (Q.state.SALES[idx].attach || []).find(x => x.id === id); if (!a) return; const b = await getAttachBlob(a.id); if (!b) { toast('File not found in this browser', 'err'); return; } const url = URL.createObjectURL(b); if (dl) { const x = document.createElement('a'); x.href = url; x.download = a.name; x.click(); } else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 4000); }
+async function openAttach(idx, id, dl) { const a = (Q.state.SALES[idx].attach || []).find(x => x.id === id); if (!a) return; const b = await getAttachBlob(a.id); if (!(b instanceof Blob)) { toast('File not found in this browser', 'err'); return; } const url = URL.createObjectURL(b); if (dl) { const x = document.createElement('a'); x.href = url; x.download = a.name; x.click(); } else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 4000); }
 async function delAttach(idx, id) { const s = Q.state.SALES[idx]; Q.updateSale(idx, { attach: (s.attach || []).filter(a => a.id !== id) }); try { await aOp('readwrite', st => st.delete(id)); } catch (_) {} QLX.refresh(); }
 
 /* ── cells ── */
@@ -41,7 +45,7 @@ async function openInvPdf(r) {
     const w = window.open('', '_blank');
     try {
       const blob = await getAttachBlob(a.id);
-      if (blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
+      if (blob instanceof Blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
       if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
     } catch (_) { if (w) w.close(); toast('Could not open the uploaded invoice', 'err'); return; }
   }
@@ -78,7 +82,7 @@ async function viewBillSale(r) {
     const w = window.open('', '_blank');
     try {
       const blob = await getAttachBlob(a.id);
-      if (blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
+      if (blob instanceof Blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
       if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
     } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the bill — ' + QLAttachWhy(e), 'err'); return; }
   }
