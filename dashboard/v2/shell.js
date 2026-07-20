@@ -1580,19 +1580,16 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
            inside a side panel — a global switch hidden in a corner nobody would look
            for, and the app has no dark-mode setting anywhere else to match it. If
            dark mode ships as a real preference it belongs in Settings, once. */
-        tools.innerHTML = `<button class="ql-ai-ib" id="qlAiHome" title="Back to suggestions">${ICO.home}</button>
-          <button class="ql-ai-ib" id="qlAiNew" title="New chat">${ICO.plus}</button>
-          <button class="ql-ai-ib" id="qlAiHist" title="Conversation history">${ICO.hist}</button>`;
+        /* Header actions (home / new chat / history) removed per owner request —
+           the assistant header is just the title + close now. Kept the container
+           empty rather than deleting it so the rest of openDrawer is untouched. */
+        tools.innerHTML = '';
         head.insertBefore(tools, head.querySelector('.ql-drawer-x'));
-      }
+      } else { tools.innerHTML = ''; }
       renderAssistant();
-      $('qlAiNew').onclick = () => convNew();
-      $('qlAiHist').onclick = () => { if (!_histOpen) convTouch(); _histOpen = !_histOpen; _histQ = ''; renderAssistant(); };
-      /* HOME — back to the suggestions, without discarding the conversation. It
-         closes history if that is what is open, otherwise it parks the current chat
-         (convNew keeps it in history) and returns to the welcome screen. Distinct
-         from "New chat" in intent even when the mechanics overlap: New says "start
-         again", Home says "show me the options". */
+      // The buttons are gone; guard the wiring so nothing references a null node.
+      const nb = $('qlAiNew'); if (nb) nb.onclick = () => convNew();
+      const histBtn = $('qlAiHist'); if (histBtn) histBtn.onclick = () => { if (!_histOpen) convTouch(); _histOpen = !_histOpen; _histQ = ''; renderAssistant(); };
       const hb = $('qlAiHome');
       if (hb) hb.onclick = () => {
         if (_histOpen) { _histOpen = false; renderAssistant(); return; }
