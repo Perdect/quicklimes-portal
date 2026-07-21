@@ -126,9 +126,28 @@ function addIn(over) { return Object.assign({ name: 'New Lime Co', gstin: '08AAB
     eq('  its local data cache is cleared', env.localStorage.getItem('ql_data_DESH'), null);
   }
   {
-    const env = makeEnv();
+    // Removing the MAIN company is ALLOWED (owner's rule: never tell the user
+    // "you can't delete") — the server promotes the sibling; the client must
+    // send the promote target, clear the dead identity, and ask for sign-out.
+    let sent = null;
+    const env = makeEnv({ DB: { rpc: async (fn, params) => { sent = params; return { data: { success: true, id: 'GOTAN', promoted: 'DESH' }, error: null }; } } });
+    env.localStorage.setItem('ql_plant', 'x'); env.localStorage.setItem('dm_active_co', 'GOTAN');
     const r = await env.removeCompany('GOTAN');           // the primary
-    ok(!r.ok && /main company/.test(r.err), 'remove: the MAIN company is refused (holds the login)');
+    ok(r.ok && r.signOut, 'remove: the MAIN company is allowed — and asks for a sign-out');
+    eq('  the sibling is sent as the promote target', sent.p_promote_id, 'DESH');
+    eq('  the dead identity is cleared', env.localStorage.getItem('ql_plant'), null);
+    eq('  and the active-company pointer too', env.localStorage.getItem('dm_active_co'), null);
+  }
+  {
+    // The LAST company → account deletion: same sign-out contract.
+    const env = makeEnv({
+      QL_PLANT: { id: 'GOTAN', plan_limit: 3, plants: [{ id: 'GOTAN' }] },
+      COMPANIES: { GOTAN: { key: 'GOTAN', short: 'Gotan', gstin: '08BNAPM0488E1Z3', isPrimary: true } },
+      DB: { rpc: async () => ({ data: { success: true, id: 'GOTAN', account_deleted: true }, error: null }) }
+    });
+    env.localStorage.setItem('ql_plant', 'x');
+    const r = await env.removeCompany('GOTAN');
+    ok(r.ok && r.signOut && r.accountDeleted, 'remove: the last company deletes the account — sign-out + accountDeleted');
   }
   {
     const env = makeEnv();
@@ -163,9 +182,15 @@ function addIn(over) { return Object.assign({ name: 'New Lime Co', gstin: '08AAB
     ok(/\.ws-add/.test(shell) && /Q\.addCompany\(/.test(shell), 'the switcher "Add company" button calls Q.addCompany');
     ok(!/contact support to link a plant/.test(shell), '  the old dead "contact support" stub is gone');
     const settings = fs.readFileSync(path.join(__dirname, 'settings.html'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
-    ok(/data-co-remove/.test(settings) && /QLD\.removeCompany\(/.test(settings), 'Settings → Company profile "Remove" calls QLD.removeCompany');
-    ok(/needType:/.test(settings), '  gated behind a typed confirmation');
-  }
+    ok(/data-co-remove/.test(settings) && /QLD\.removeCompany\(/.test(settings), 'Settings \u2192 Company profile "Remove" calls QLD.removeCompany');
+    ok(!/c\.isPrimary \? '' :.*data-co-remove/.test(settings), '  the Remove button is on EVERY company (main included — owner\u2019s rule)');
+    // The gate must be INSIDE the remove handler — a _checkPin elsewhere (the
+    // Danger zone has its own) must not satisfy this pin.
+    const rmStart = settings.indexOf("[data-co-remove]");
+    const rmBlock = settings.slice(rmStart, settings.indexOf('});', settings.indexOf('onSave', rmStart)));
+    ok(rmStart > 0 && /_checkPin\(v\.code\)/.test(rmBlock), '  gated behind the security code (inside the remove flow itself)');
+    ok(/_hasPin\(\)/.test(rmBlock.slice(0, 600)) || /_hasPin\(\)/.test(settings.slice(rmStart, rmStart + 600)), '  and a user with no code set is sent to create one first');
+    ok(/signOut/.test(settings) && /location\.replace/.test(settings), '  a main-company removal signs out and returns to login');  }
 
   console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');
   process.exit(fail ? 1 : 0);

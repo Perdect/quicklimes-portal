@@ -128,12 +128,47 @@ echo "\n═══ Self-service Add / Remove company ═══\n\n";
   eq($count($db, 'SELECT COUNT(*) FROM app_data WHERE data_id = ?', ['GOTAN']), 1, '  the OTHER company\'s data is untouched');
 }
 
-/* ══════════ REMOVE — never the primary ══════════ */
+/* ══════════ REMOVE — the MAIN company: the sibling is promoted ══════════
+   Owner's rule: "if user want to delete they can delete." Removing the main
+   company must NOT be refused — the other company inherits the login and every
+   account-keyed row, atomically, and the old main goes. */
 {
   $db = freshDb();
+  // Give each company distinct data so we can prove what moved and what died.
+  $db->prepare("INSERT INTO plants (id, owner_phone, plant_name, parent_plant_id, plan_limit) VALUES (?,?,?,?,?)")
+     ->execute(['THIRD', '9990001111', 'Zinc Works', 'GOTAN', 3]);   // a second sibling, sorts after Deshwali
   $r = ql_company_remove($db, $OWNER, ['p_plant_id' => 'GOTAN']);
-  ok(empty($r['body']['success']) && strpos($r['body']['error'], 'main company') !== false, 'the MAIN company can never be removed (it holds the login)');
-  eq($count($db, 'SELECT COUNT(*) FROM plants WHERE id = ?', ['GOTAN']), 1, '  it is still there');
+  ok(!empty($r['body']['success']), 'removing the MAIN company succeeds');
+  eq($r['body']['promoted'], 'DESH', '  the first sibling (by name) is promoted');
+  $row = $db->prepare('SELECT password_hash, plan_limit, parent_plant_id FROM plants WHERE id = ?'); $row->execute(['DESH']); $g = $row->fetch(PDO::FETCH_ASSOC);
+  eq($g['password_hash'], 'hash', '  the login (password hash) moved to the new main');
+  eq((int)$g['plan_limit'], 3, '  the plan moved too');
+  ok($g['parent_plant_id'] === null || $g['parent_plant_id'] === '', '  the new main is the family root');
+  $row2 = $db->prepare('SELECT parent_plant_id FROM plants WHERE id = ?'); $row2->execute(['THIRD']); $g2 = $row2->fetch(PDO::FETCH_ASSOC);
+  eq($g2['parent_plant_id'], 'DESH', '  the other sibling is re-parented under the new main');
+  eq($count($db, 'SELECT COUNT(*) FROM plants WHERE id = ?', ['GOTAN']), 0, '  the old main row is gone');
+  eq($count($db, 'SELECT COUNT(*) FROM app_data WHERE plant_id = ? AND data_id = ?', ['DESH', 'DESH']), 1, '  the survivor\'s books moved to the new key');
+  eq($count($db, 'SELECT COUNT(*) FROM app_data WHERE data_id = ?', ['GOTAN']), 0, '  the removed company\'s books are gone');
+  eq($count($db, 'SELECT COUNT(*) FROM app_data WHERE plant_id = ?', ['GOTAN']), 0, '  nothing is left under the old key');
+}
+/* explicit promote target — and it must be one of OUR companies */
+{
+  $db = freshDb();
+  $r = ql_company_remove($db, $OWNER, ['p_plant_id' => 'GOTAN', 'p_promote_id' => 'DESH']);
+  ok(!empty($r['body']['success']) && $r['body']['promoted'] === 'DESH', 'an explicit promote target is honoured');
+  $db2 = freshDb();
+  $r2 = ql_company_remove($db2, $OWNER, ['p_plant_id' => 'GOTAN', 'p_promote_id' => 'OUTSIDER']);
+  eq($r2['code'], 403, 'promoting a company outside the account → 403');
+  eq($count($db2, 'SELECT COUNT(*) FROM plants WHERE id = ?', ['GOTAN']), 1, '  and nothing was touched');
+}
+/* ══════════ REMOVE — the ONLY company = account deletion ══════════ */
+{
+  $db = freshDb();
+  ql_company_remove($db, $OWNER, ['p_plant_id' => 'DESH']);            // drop the child first
+  $r = ql_company_remove($db, $OWNER, ['p_plant_id' => 'GOTAN']);      // now the only company
+  ok(!empty($r['body']['success']) && !empty($r['body']['account_deleted']), 'removing the only company deletes the account (the user\'s right)');
+  eq($count($db, 'SELECT COUNT(*) FROM plants', []), 0, '  the login row is gone');
+  eq($count($db, 'SELECT COUNT(*) FROM app_data', []), 0, '  and every blob with it');
 }
 
 /* ══════════ REMOVE — never another account's company ══════════ */

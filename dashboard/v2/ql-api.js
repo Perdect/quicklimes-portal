@@ -32,9 +32,15 @@
     var res, json;
     try { res = await fetch(url, opts); }
     catch (e) { return { data: null, error: { message: 'Network error' } }; }
+    /* 401 = this session is DEAD (expired, or the account it names is gone
+       because a company removal promoted a new main / deleted the account).
+       Every RPC funnels through here, so this is the one place that can catch
+       it on EVERY device — not just the tab that pressed Remove. Without it a
+       stale phone keeps showing the books and silently drops every edit. */
+    if (res.status === 401) { try { if (window.QLAuthLost) window.QLAuthLost(); } catch (_) {} }
     try { json = await res.json(); }
     catch (_) { return { data: null, error: { message: 'Bad response (' + res.status + ')' } }; }
-    return { data: json, error: null };
+    return { data: json, error: null, status: res.status };
   }
 
   var JSON_HDR = { 'Content-Type': 'application/json' };

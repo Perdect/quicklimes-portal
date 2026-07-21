@@ -58,8 +58,8 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
    the font, spaces every card evenly, gives each section an icon chip, and
    routes every colour through the design tokens so both themes look right.
    Purely visual — every id / hook the JS uses is untouched. */
-.set-wrap { max-width: 860px; }
-.set-intro { display: flex; align-items: center; gap: 14px; margin-bottom: var(--ql-space-6); }
+.set-wrap { max-width: 860px; display: flex; flex-direction: column; }   /* flex: no margin-collapse maths on the sticky bar */
+.set-intro { display: flex; align-items: center; gap: 14px; margin-bottom: 0; }
 .set-intro .set-ico { width: 44px; height: 44px; border-radius: 12px; }
 .set-grid { display: flex; flex-direction: column; gap: var(--ql-space-5); }
 .set-grid .card { margin: 0 !important; border-radius: var(--ql-radius-xl); }
@@ -73,8 +73,13 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 .set-ico.wa { background: #e7f9ef; color: #1fa855; }                 /* WhatsApp brand green */
 :root[data-theme="dark"] .set-ico.wa { background: rgba(37,211,102,.16); color: #4ade80; }
 /* Sticky section nav — jump between sections without long scrolling */
-.set-nav { position: sticky; top: 0; z-index: 20; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
-  padding: 10px 2px; margin: 0 0 var(--ql-space-2); background: var(--ql-bg); -webkit-overflow-scrolling: touch; }
+/* Stick FLUSH to the top. The scroll container has --ql-space-6 padding, so a
+   plain top:0 pins the bar 24px too low and rows peek through the strip above
+   it (same bug as the dashboard's dx-fbar). Negative top + the same amount of
+   own padding covers the strip when stuck; the negative margin keeps the
+   in-flow gap between the title and the pills tight (~10px, owner's ask). */
+.set-nav { position: sticky; top: calc(-1 * var(--ql-space-6)); z-index: 20; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  padding: var(--ql-space-6) 2px 8px; margin: 0 0 var(--ql-space-2); background: var(--ql-bg); -webkit-overflow-scrolling: touch; }
 .set-nav::-webkit-scrollbar { display: none; }
 .set-chip { flex: none; display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; cursor: pointer;
   font: 600 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-card);
@@ -301,12 +306,12 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 
 <div id="setToast" class="fin-toast" hidden></div>
 
-<script src="ql-api.js?v=a3"></script>
+<script src="ql-api.js?v=a4"></script>
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./i18n.js?v=h8"></script>
 <script src="./selfcheck.js?v=s2"></script>
-<script src="./data.js?v=m42"></script>
+<script src="./data.js?v=m44"></script>
 <script src="./recon-core.js?v=rc5"></script>
 <script src="./wa-core.js?v=w2"></script>
 
@@ -776,24 +781,52 @@ function renderCo() {
           : 'GSTIN ' + esc(c.gstin) + (c.city ? ' · ' + esc(c.city) : '') + (c.ownerName ? ' · ' + esc(c.ownerName) : '') + (c.phone ? ' · ' + esc(c.phone) : '')}</div>
       </div>
       <button class="ql-btn ${missing ? 'ql-btn-primary' : 'ql-btn-secondary'}" data-co-edit="${esc(c.key)}" style="flex:none">${missing ? 'Add GSTIN' : 'Edit'}</button>
-      ${c.isPrimary ? '' : `<button class="ql-btn ql-btn-danger" data-co-remove="${esc(c.key)}" style="flex:none;margin-left:var(--ql-space-2)">Remove</button>`}
+      <button class="ql-btn ql-btn-danger" data-co-remove="${esc(c.key)}" style="flex:none;margin-left:var(--ql-space-2)">Remove</button>
     </div>`;
   }).join('');
   $('#coList').querySelectorAll('[data-co-edit]').forEach(b => b.onclick = () => {
     const c = QLD.COMPANIES[b.dataset.coEdit]; if (c) editCo(c);
   });
-  // Remove a SECONDARY company (never the primary — it has no Remove button, and
-  // the server refuses it too). Destructive: deletes the company and ALL its
-  // data, so it's gated behind typing the company's name.
+  /* Remove ANY company — the user is never told "you can't" (owner's rule).
+     Removing the main one silently makes the other company the account's main
+     (the server does it atomically) and signs you out once; removing the last
+     one deletes the whole account. Every removal is gated behind the SAME
+     security code as the Danger zone — no code, no delete. */
   $('#coList').querySelectorAll('[data-co-remove]').forEach(b => b.onclick = () => {
     const c = QLD.COMPANIES[b.dataset.coRemove]; if (!c) return;
-    QLShell.confirmDelete({
+    if (!_hasPin()) {
+      QLShell.confirmDelete({
+        title: 'Set a security code first',
+        desc: 'Removing a company is protected by your secret code (the same one that guards Clear all data). Set one now, then remove.',
+        reason: false, confirmLabel: 'Set security code',
+        onConfirm() { openSetPin(); }
+      });
+      return;
+    }
+    const cos = Object.values(QLD.COMPANIES || {});
+    const isMain = !!c.isPrimary, isLast = cos.length <= 1;
+    const other = cos.find(x => x.key !== c.key);
+    const warn = isLast
+      ? 'This is your ONLY company — removing it deletes your ENTIRE account, including your login. Everything goes.'
+      : isMain
+        ? (other ? (other.short || other.name) : 'Your other company') + ' will become your main company automatically, and you\u2019ll be signed out once — log back in with the same phone and password.'
+        : 'Your other companies are untouched.';
+    QLShell.openForm({
       title: 'Remove ' + (c.short || c.name) + '?',
-      desc: 'This permanently deletes this company and ALL its data — every bill, payment, and ledger entry. Your other companies are untouched, but this one cannot be recovered.',
-      reason: false, needType: (c.short || c.name), confirmLabel: 'Remove company',
-      async onConfirm() {
+      sub: 'Enter your security code to confirm',
+      specs: [{ k: 'code', label: 'Security code', type: 'password', req: true, ph: '\u2022\u2022\u2022\u2022' }],
+      note: 'This permanently deletes this company and ALL its data \u2014 every bill, payment, and ledger entry. ' + warn,
+      saveLabel: 'Remove company',
+      async onSave(v) {
+        if (!(await _checkPin(v.code))) { toast('Wrong security code', 'err'); return false; }   // never delete on a bad code
         const r = await QLD.removeCompany(c.key);
-        if (!r || !r.ok) { toast((r && r.err) || 'Could not remove the company', 'err'); return; }
+        if (!r || !r.ok) { toast((r && r.err) || 'Could not remove the company', 'err'); return false; }
+        if (r.signOut) {
+          toast(r.accountDeleted ? 'Account deleted' : 'Company removed \u2014 please log in again', 'ok');
+          const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+          setTimeout(() => location.replace(isLocal ? '/quicklime.html' : 'https://quicklimes.com/portal'), 900);
+          return;
+        }
         toast('Company removed', 'ok');
         setTimeout(() => location.reload(), 400);          // rebuild COMPANIES without it
       }

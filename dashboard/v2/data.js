@@ -79,11 +79,32 @@
       history.replaceState(null, '', location.pathname);
     } catch (_) {}
   }
-  if (!QL_PLANT || !QL_PLANT.id) {
+  const _loginUrl = () => {
     const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.endsWith('.local');
-    location.replace(isLocal ? '/quicklime.html' : 'https://quicklimes.com/portal');
+    return isLocal ? '/quicklime.html' : 'https://quicklimes.com/portal';
+  };
+  if (!QL_PLANT || !QL_PLANT.id) {
+    location.replace(_loginUrl());
     throw new Error('ql_v2_no_session');
   }
+  /* THE SESSION DIED UNDER US. ql-api.js calls this the moment any request
+     comes back 401 — the token expired, or the account it names is gone
+     (a company removal promoted a new main, or deleted the account). This runs
+     on EVERY device, not just the one that pressed Remove.
+
+     Why it must sign out rather than carry on: pullCloud treats an empty/failed
+     read as "no cloud" and keeps rendering the local cache, and saveCloudNow
+     swallows write errors — so without this the user would see their full books
+     while every edit silently went nowhere. Better a login screen than a lie.
+     Runs once (a burst of 401s must not fight over the redirect). */
+  let _authLost = false;
+  window.QLAuthLost = function () {
+    if (_authLost) return; _authLost = true;
+    try { localStorage.removeItem('ql_plant'); } catch (_) {}
+    try { localStorage.removeItem('dm_active_co'); } catch (_) {}
+    try { localStorage.removeItem('ql_cache_owner'); } catch (_) {}
+    try { location.replace(_loginUrl()); } catch (_) {}
+  };
   // Identity marker — catches the OTHER login path too (login page writing
   // ql_plant directly, no #auth hash): if the session's account differs from
   // the one that wrote these caches, the caches belong to someone else.
@@ -256,19 +277,38 @@
      takes over. The caller reloads. Returns { ok } / { ok:false, err }. */
   async function removeCompany(id) {
     if (!COMPANIES[id]) return { ok: false, err: 'Unknown company' };
-    if (id === (QL_PLANT.id || '')) return { ok: false, err: 'You can’t remove your main company — it holds your login.' };
     if (!DB) return { ok: false, err: 'Not connected — check your internet and try again' };
 
+    // Removing the MAIN company is allowed — the server promotes the other
+    // company to carry the login (owner's rule: never tell the user "you
+    // can't delete"). The old login token dies with the old main, so the
+    // caller must sign the user out; we say so with signOut: true.
+    const isMain = id === (QL_PLANT.id || '');
+    const params = { p_plant_id: id };
+    if (isMain) {
+      const other = (QL_PLANT.plants || []).find(p => p.id !== id);
+      if (other) params.p_promote_id = other.id;
+    }
+
     let res;
-    try { res = await DB.rpc('remove_my_company', { p_plant_id: id }); }
+    try { res = await DB.rpc('remove_my_company', params); }
     catch (e) { return { ok: false, err: 'Could not remove (' + (e && e.message ? e.message : 'network') + ')' }; }
     const err = (res && res.error && res.error.message) || (res && res.data && res.data.error);
     if (err) return { ok: false, err };
+    const d = (res && res.data) || {};
+
+    try { localStorage.removeItem('ql_data_' + id); } catch (_) {}
+    try { sessionStorage.removeItem('ql_uimonth_' + id); } catch (_) {}
+    if (d.promoted || d.account_deleted) {
+      // The account anchor changed (or the account is gone): the cached
+      // identity and token are dead. Clear them; the caller redirects to login.
+      try { localStorage.removeItem('ql_plant'); } catch (_) {}
+      try { localStorage.removeItem('dm_active_co'); } catch (_) {}
+      return { ok: true, signOut: true, accountDeleted: !!d.account_deleted };
+    }
 
     QL_PLANT.plants = (QL_PLANT.plants || []).filter(p => p.id !== id);
     try { localStorage.setItem('ql_plant', JSON.stringify(QL_PLANT)); } catch (_) {}
-    try { localStorage.removeItem('ql_data_' + id); } catch (_) {}
-    try { sessionStorage.removeItem('ql_uimonth_' + id); } catch (_) {}
     if (ACTIVE_CO === id) {
       const primary = (QL_PLANT.id) || ((QL_PLANT.plants[0] || {}).id) || '';
       if (primary) localStorage.setItem('dm_active_co', primary);

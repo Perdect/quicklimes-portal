@@ -33,6 +33,14 @@ if (!is_array($body)) { http_response_code(400); exit(json_encode(['ok' => false
 
 ql_ensure_tables();
 $db = ql_db();
+
+/* The webhook URL is registered externally with the plant id baked into the
+   query string, so it long outlives the account. If that account is gone (a
+   company removal promoted a new main, or deleted it outright), inserting here
+   would pile orphan chats/messages under a dead id that nothing ever reads.
+   Ack with 200 so the provider stops retrying, and drop the payload. */
+if (!ql_plant_exists($plantId)) { exit(json_encode(['ok' => true, 'skipped' => 'unknown plant'])); }
+
 $n = 0; $st = 0;
 
 /* ── messages ── */

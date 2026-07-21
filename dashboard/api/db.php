@@ -138,12 +138,38 @@ function ql_verify_token($token, $plantId = '') {
   return $ctx['plant'];
 }
 
+/* Does this plant row still exist? Cached per request (one indexed PK lookup).
+   A QUERY error fails OPEN: a transient DB hiccup must not sign the whole user
+   base out. A missing ROW fails CLOSED — that is the actual security answer. */
+function ql_plant_exists($plantId) {
+  static $seen = [];
+  if ($plantId === '') return false;
+  if (array_key_exists($plantId, $seen)) return $seen[$plantId];
+  try {
+    $q = ql_db()->prepare('SELECT 1 FROM plants WHERE id = ? LIMIT 1');
+    $q->execute([$plantId]);
+    $ok = (bool)$q->fetchColumn();
+  } catch (Throwable $e) { $ok = true; }
+  return $seen[$plantId] = $ok;
+}
+
 /* Full auth context for the CURRENT request's token (or null), optionally
-   scoped to a required plant id. */
+   scoped to a required plant id.
+
+   THE TOKEN MUST NAME A LIVE ACCOUNT. Tokens are stateless 30-day HMACs, so
+   they outlive the account they name: after a company removal promotes a new
+   main (or deletes the account outright) the old plants row is gone, yet its
+   tokens still verify. Without this check every write endpoint would keep
+   accepting them and INSERT rows under the dead plant id — edits made on a
+   second device would vanish into a namespace nothing ever reads again, and a
+   deleted account could be re-uploaded from a stale phone for up to 30 days.
+   One lookup here closes it for data.php, recon, wa, chat, crm, users, jobs,
+   extract, plant and company alike. Pinned by auth-live.test.php. */
 function ql_token_ctx($plantId = '') {
   $ctx = ql_parse_token(ql_token());
   if (!$ctx) return null;
   if ($plantId !== '' && $ctx['plant'] !== $plantId) return null;
+  if (!ql_plant_exists($ctx['plant'])) return null;
   return $ctx;
 }
 
@@ -845,11 +871,22 @@ function ql_plant_update($db, $ctx, $in) {
   return ['code' => 200, 'body' => ['success' => true]];
 }
 
-/* Remove a CHILD company and its data. The primary (the account itself) can
-   NEVER be removed here — that would orphan the login. The target must be a
-   child of THIS account, never another account's company. Deletes the plants
-   row and the company's JSON blob (app_data), then best-effort cleans the
-   company-scoped side tables. Returns ['code','body']. */
+/* Remove ANY company and its data — the user is never told "you can't".
+   (Owner's product rule: "if user want to delete they can delete, we can't
+   restrict our user.") Three cases, all owner-role only, all atomic:
+
+   1. A SECONDARY company: delete its row, its blob, its company-scoped rows.
+   2. The MAIN company while another exists: the other company is PROMOTED to
+      main first — it inherits the login (password hash), the plan, the family
+      parent pointer and every plant-keyed row (app_data + side tables) — then
+      the target is deleted. One transaction: there is no half-state where the
+      login has moved but the old main still exists. The caller must sign in
+      again (tokens are bound to the old main id, which no longer exists).
+   3. The ONLY company: this IS account deletion — everything goes, including
+      the login row. Deliberate: the data is the user's to destroy.
+
+   Returns ['code','body']; body carries 'promoted' => <newMainId> for case 2
+   and 'account_deleted' => true for case 3 so the client knows to sign out. */
 function ql_company_remove($db, $ctx, $in) {
   if (!$ctx)                           return ['code' => 401, 'body' => ['error' => 'Unauthorized']];
   if (!ql_role_can($ctx['role'], '*')) return ['code' => 403, 'body' => ['error' => 'Forbidden']];
@@ -861,25 +898,91 @@ function ql_company_remove($db, $ctx, $in) {
   if (!$acct) return ['code' => 404, 'body' => ['error' => 'Account not found']];
   $primaryId = $acct[0];
 
-  if ($target === $primaryId) {
-    return ['code' => 200, 'body' => ['error' => 'You can’t remove your main company — it holds your login. Remove a secondary company instead.']];
-  }
-  $chk = $db->prepare('SELECT id FROM plants WHERE id = ? AND parent_plant_id = ? LIMIT 1');
-  $chk->execute([$target, $primaryId]);
-  if (!$chk->fetch(PDO::FETCH_ASSOC)) {
-    return ['code' => 403, 'body' => ['error' => 'That company is not part of your account.']];
+  // Tables scoped per company (company_id) and per account (plant_id).
+  $coTables    = ['bank_txns', 'bank_accounts', 'wa_chats', 'wa_messages', 'party_master', 'party_aliases', 'doc_corrections', 'imported_docs'];
+  $plantTables = ['bank_txns', 'bank_accounts', 'wa_chats', 'wa_messages', 'party_master', 'party_aliases', 'doc_corrections', 'imported_docs',
+                  'crm_companies', 'crm_contacts', 'crm_leads', 'crm_activities', 'jobs', 'users'];
+
+  /* ── Case 1: a secondary company ── */
+  if ($target !== $primaryId) {
+    $chk = $db->prepare('SELECT id FROM plants WHERE id = ? AND parent_plant_id = ? LIMIT 1');
+    $chk->execute([$target, $primaryId]);
+    if (!$chk->fetch(PDO::FETCH_ASSOC)) {
+      return ['code' => 403, 'body' => ['error' => 'That company is not part of your account.']];
+    }
+    $db->prepare('DELETE FROM plants WHERE id = ? AND parent_plant_id = ?')->execute([$target, $primaryId]);
+    $db->prepare('DELETE FROM app_data WHERE plant_id = ? AND data_id = ?')->execute([$primaryId, $target]);
+    // Best-effort: a missing table/column on an older install must not fail the
+    // removal, and company_id = target (a uuid) can never match another account.
+    foreach ($coTables as $t) {
+      try { $db->prepare("DELETE FROM $t WHERE company_id = ?")->execute([$target]); }
+      catch (Throwable $e) { /* table absent — ignore */ }
+    }
+    return ['code' => 200, 'body' => ['success' => true, 'id' => $target]];
   }
 
-  // The company row and its financial blob (stored at plant_id = primary,
-  // data_id = the company id — see data.php save_my_data).
-  $db->prepare('DELETE FROM plants WHERE id = ? AND parent_plant_id = ?')->execute([$target, $primaryId]);
-  $db->prepare('DELETE FROM app_data WHERE plant_id = ? AND data_id = ?')->execute([$primaryId, $target]);
-  // Best-effort cleanup of company-scoped side tables. A missing table / column
-  // on an older install must not fail the removal, and company_id = target (a
-  // globally-unique uuid) can never match another account's rows.
-  foreach (['bank_txns', 'bank_accounts', 'wa_chats', 'wa_messages', 'party_master', 'party_aliases', 'doc_corrections', 'imported_docs'] as $t) {
-    try { $db->prepare("DELETE FROM $t WHERE company_id = ?")->execute([$target]); }
-    catch (Throwable $e) { /* table absent or no company_id column — ignore */ }
+  /* ── The target IS the main company ── */
+  $sib = $db->prepare('SELECT id, plant_name FROM plants WHERE parent_plant_id = ? ORDER BY plant_name ASC');
+  $sib->execute([$primaryId]);
+  $siblings = $sib->fetchAll(PDO::FETCH_ASSOC);
+
+  $cur = $db->prepare('SELECT password_hash, plan_limit FROM plants WHERE id = ? LIMIT 1');
+  $cur->execute([$primaryId]);
+  $prow = $cur->fetch(PDO::FETCH_ASSOC);
+  if (!$prow) return ['code' => 404, 'body' => ['error' => 'Account not found']];
+
+  /* ── Case 3: the only company → account deletion ── */
+  if (!count($siblings)) {
+    try {
+      $db->beginTransaction();
+      $db->prepare('DELETE FROM app_data WHERE plant_id = ?')->execute([$primaryId]);
+      foreach ($plantTables as $t) {
+        try { $db->prepare("DELETE FROM $t WHERE plant_id = ?")->execute([$primaryId]); }
+        catch (Throwable $e) { /* table absent — ignore */ }
+      }
+      $db->prepare('DELETE FROM plants WHERE id = ?')->execute([$primaryId]);
+      $db->commit();
+    } catch (Throwable $e) {
+      try { $db->rollBack(); } catch (Throwable $e2) {}
+      return ['code' => 500, 'body' => ['error' => 'Could not delete the account — nothing was changed. Please try again.']];
+    }
+    return ['code' => 200, 'body' => ['success' => true, 'id' => $target, 'account_deleted' => true]];
   }
-  return ['code' => 200, 'body' => ['success' => true, 'id' => $target]];
+
+  /* ── Case 2: promote a sibling, then delete the old main ── */
+  $promote = (string)($in['p_promote_id'] ?? '');
+  if ($promote !== '') {
+    $ok = false; foreach ($siblings as $s2) { if ($s2['id'] === $promote) { $ok = true; break; } }
+    if (!$ok) return ['code' => 403, 'body' => ['error' => 'That company is not part of your account.']];
+  } else {
+    $promote = $siblings[0]['id'];               // deterministic: first by name
+  }
+
+  try {
+    $db->beginTransaction();
+    // The new main inherits the login and the plan, and becomes the family root.
+    $db->prepare('UPDATE plants SET password_hash = ?, plan_limit = ?, parent_plant_id = NULL WHERE id = ?')
+       ->execute([$prow['password_hash'], (int)$prow['plan_limit'] ?: 2, $promote]);
+    $db->prepare('UPDATE plants SET parent_plant_id = ? WHERE parent_plant_id = ? AND id <> ?')
+       ->execute([$promote, $primaryId, $promote]);
+    // Every account-keyed row follows the new main (blobs first — they hold the books).
+    $db->prepare('UPDATE app_data SET plant_id = ? WHERE plant_id = ?')->execute([$promote, $primaryId]);
+    foreach ($plantTables as $t) {
+      try { $db->prepare("UPDATE $t SET plant_id = ? WHERE plant_id = ?")->execute([$promote, $primaryId]); }
+      catch (Throwable $e) { /* table absent — ignore */ }
+    }
+    // Now the old main is an orphan row: delete it and its own company data.
+    $db->prepare('DELETE FROM plants WHERE id = ?')->execute([$primaryId]);
+    $db->prepare('DELETE FROM app_data WHERE plant_id = ? AND data_id = ?')->execute([$promote, $target]);
+    foreach ($coTables as $t) {
+      try { $db->prepare("DELETE FROM $t WHERE company_id = ?")->execute([$target]); }
+      catch (Throwable $e) { /* table absent — ignore */ }
+    }
+    $db->commit();
+  } catch (Throwable $e) {
+    try { $db->rollBack(); } catch (Throwable $e2) {}
+    return ['code' => 500, 'body' => ['error' => 'Could not remove the company — nothing was changed. Please try again.']];
+  }
+  return ['code' => 200, 'body' => ['success' => true, 'id' => $target, 'promoted' => $promote]];
 }
+
