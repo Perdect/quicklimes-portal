@@ -365,6 +365,44 @@ function ql_ensure_tables() {
      NOTE ON `crm_companies.party_id`: a converted lead POINTS AT the ERP party
      rather than copying it. A CRM that duplicates the customer list is how
      sales and accounts start disagreeing about who owes what. */
+  /* ══ Lead Discovery ═════════════════════════════════════════════════
+     Businesses found through a data source (Google Places), BEFORE they are
+     anything to you. A candidate is not a lead: it is a row you have not yet
+     decided about, so it lives here rather than polluting the pipeline.
+
+     CACHING NOTE (Google Places terms): the place_id may be retained
+     indefinitely, but the rest of the place data must not be cached long-term.
+     These rows exist so you can review a search and promote from it; once a
+     candidate is PROMOTED it becomes your own crm_companies record (your note
+     about a business relationship, not a mirror of Google's database), and the
+     rest can be pruned. dismissed/duplicate rows keep name+place_id so the same
+     firm does not come back every single search — that is the dedupe memory. */
+  $db->exec("CREATE TABLE IF NOT EXISTS discovered (
+    id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    plant_id    VARCHAR(64)  NOT NULL,
+    company_id  VARCHAR(96)  NOT NULL DEFAULT '',
+    source      VARCHAR(24)  NOT NULL DEFAULT 'google',
+    place_id    VARCHAR(190) DEFAULT NULL,
+    name        VARCHAR(190) NOT NULL,
+    name_key    VARCHAR(190) NOT NULL DEFAULT '',
+    industry    VARCHAR(32)  NOT NULL DEFAULT '',
+    address     VARCHAR(255) DEFAULT NULL,
+    city        VARCHAR(120) DEFAULT NULL,
+    phone       VARCHAR(32)  DEFAULT NULL,
+    website     VARCHAR(190) DEFAULT NULL,
+    rating      DECIMAL(2,1) DEFAULT NULL,
+    lat         DECIMAL(10,7) DEFAULT NULL,
+    lng         DECIMAL(10,7) DEFAULT NULL,
+    fit_score   INT          DEFAULT NULL,
+    status      VARCHAR(16)  NOT NULL DEFAULT 'new',
+    dupe_of     VARCHAR(190) DEFAULT NULL,
+    query       VARCHAR(190) DEFAULT NULL,
+    created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_co (plant_id, company_id, status),
+    UNIQUE KEY uq_place (plant_id, company_id, place_id),
+    KEY idx_namekey (plant_id, company_id, name_key)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
   $db->exec("CREATE TABLE IF NOT EXISTS crm_companies (
     id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
     plant_id    VARCHAR(64)  NOT NULL,
@@ -984,5 +1022,130 @@ function ql_company_remove($db, $ctx, $in) {
     return ['code' => 500, 'body' => ['error' => 'Could not remove the company — nothing was changed. Please try again.']];
   }
   return ['code' => 200, 'body' => ['success' => true, 'id' => $target, 'promoted' => $promote]];
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Lead Discovery — find businesses by city + trade, dedupe, score, promote.
+
+   ONE DOOR to the provider (same discipline as ql_llm): the key never leaves
+   the server, the provider is explicit config, and a failure is REPORTED, not
+   swallowed — a silent zero-result search is indistinguishable from "there are
+   no such businesses", which is how you conclude a market is empty when really
+   your key expired.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* The key, or '' when discovery simply is not set up. Deliberately does NOT go
+   through ql_config() blindly: ql_config() ABORTS the whole request when
+   config.php is absent, so an optional feature asking "do I have a key?" would
+   kill the process instead of answering "no". An optional feature must never be
+   able to take the app down. */
+function ql_places_key() {
+  if (!is_file(__DIR__ . '/config.php')) return '';
+  $c = ql_config();
+  return trim((string)($c['GOOGLE_PLACES_KEY'] ?? ''));
+}
+
+/* Normalised company name — the dedupe spine. MUST match CRMCore.normName and
+   LeadImport.normName in the browser, or the server and the UI will disagree
+   about what "the same company" is. */
+function ql_norm_name($s) {
+  $s = strtoupper((string)$s);
+  $s = preg_replace('/\b(PVT|PRIVATE|LTD|LIMITED|LLP|INC|CO|COMPANY|THE|M\/S|AND|&)\b/', ' ', $s);
+  $s = preg_replace('/[^A-Z0-9]+/', ' ', $s);
+  return trim($s);
+}
+
+/* Places API (New) searchText response → our candidate rows. Pure: takes the
+   decoded JSON, returns rows. A place with no name is dropped (never a lead). */
+function ql_places_parse($json, $city) {
+  $out = [];
+  $places = (is_array($json) && isset($json['places']) && is_array($json['places'])) ? $json['places'] : [];
+  foreach ($places as $p) {
+    $name = trim((string)($p['displayName']['text'] ?? ''));
+    if ($name === '') continue;
+    $out[] = [
+      'place_id' => (string)($p['id'] ?? ''),
+      'name'     => $name,
+      'name_key' => ql_norm_name($name),
+      'address'  => (string)($p['formattedAddress'] ?? ''),
+      'city'     => (string)$city,
+      'phone'    => (string)($p['nationalPhoneNumber'] ?? ''),
+      'website'  => (string)($p['websiteUri'] ?? ''),
+      'rating'   => isset($p['rating']) ? (float)$p['rating'] : null,
+      'lat'      => isset($p['location']['latitude']) ? (float)$p['location']['latitude'] : null,
+      'lng'      => isset($p['location']['longitude']) ? (float)$p['location']['longitude'] : null,
+    ];
+  }
+  return $out;
+}
+
+/* Decide each candidate's status against what you already know.
+   $crmKeys / $partyKeys are sets of normalised names (CRM prospects, and REAL
+   customers from the ledger — a firm you already supply is the worst possible
+   "new lead" to hand a salesman). $seen is place_ids/name_keys already
+   discovered before, so a repeated search does not re-offer dismissed rows. */
+function ql_discover_classify($cands, $crmKeys, $partyKeys, $seenPlaceIds, $seenNameKeys) {
+  $out = [];
+  foreach ($cands as $c) {
+    $k = $c['name_key'];
+    $st = 'new'; $of = null;
+    if ($k !== '' && isset($partyKeys[$k]))      { $st = 'duplicate'; $of = 'customer'; }
+    elseif ($k !== '' && isset($crmKeys[$k]))    { $st = 'duplicate'; $of = 'crm'; }
+    elseif (($c['place_id'] !== '' && isset($seenPlaceIds[$c['place_id']])) || ($k !== '' && isset($seenNameKeys[$k]))) {
+      $st = 'seen';                              // already discovered in an earlier search
+    }
+    $c['status'] = $st; $c['dupe_of'] = $of;
+    $out[] = $c;
+  }
+  return $out;
+}
+
+/* The provider call, with the key PASSED IN. Split from ql_places_search so
+   every branch — bad key, quota, network death, malformed body — is testable
+   without a config.php and without touching the network. Returns
+   ['ok'=>bool,'places'=>array,'error'=>string]. */
+function ql_places_request($key, $what, $city, $opts = [], $http = null) {
+  $key = trim((string)$key);
+  if ($key === '') return ['ok' => false, 'places' => [], 'error' => 'not_configured'];
+  $what = trim((string)$what); $city = trim((string)$city);
+  if ($what === '') return ['ok' => false, 'places' => [], 'error' => 'Say what to look for'];
+  $q = $what . ($city !== '' ? ' in ' . $city : '');
+
+  $body = ['textQuery' => $q, 'maxResultCount' => (int)($opts['max'] ?? 20)];
+  if (!empty($opts['region'])) $body['regionCode'] = $opts['region'];
+  $fields = 'places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.rating,places.location';
+
+  if ($http === null) {
+    $http = function ($url, $payload, $headers) {
+      $ch = curl_init($url);
+      curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => $headers, CURLOPT_TIMEOUT => 20,
+      ]);
+      $res = curl_exec($ch);
+      $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+      $err = curl_error($ch);
+      curl_close($ch);
+      return ['code' => $code, 'body' => $res, 'err' => $err];
+    };
+  }
+  $r = $http('https://places.googleapis.com/v1/places:searchText', json_encode($body),
+    ['Content-Type: application/json', 'X-Goog-Api-Key: ' . $key, 'X-Goog-FieldMask: ' . $fields]);
+
+  if (!empty($r['err'])) return ['ok' => false, 'places' => [], 'error' => 'Network error contacting Google'];
+  $j = json_decode((string)$r['body'], true);
+  if ((int)$r['code'] !== 200) {
+    /* REPORT the provider's own message. "no results" and "your key is dead"
+       must never look the same — otherwise a dead key reads as an empty market
+       and you conclude there are no buyers in a city full of them. */
+    $msg = (string)($j['error']['message'] ?? ('HTTP ' . $r['code']));
+    return ['ok' => false, 'places' => [], 'error' => $msg];
+  }
+  return ['ok' => true, 'places' => ql_places_parse($j, $city), 'error' => ''];
+}
+
+/* The one door the app uses: reads the key from config, then delegates. */
+function ql_places_search($what, $city, $opts = [], $http = null) {
+  return ql_places_request(ql_places_key(), $what, $city, $opts, $http);
 }
 

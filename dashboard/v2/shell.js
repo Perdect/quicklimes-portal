@@ -199,6 +199,7 @@
       { id: 'customers',   label: 'Customers',       href: 'parties.html#customer', icon: I.users },
       { id: 'collections', label: 'Collections',     href: 'collections.html', icon: I.coll, badgeKey: 'collections' },
       { id: 'crm',         label: 'Sales Pipeline',  href: 'crm.html', icon: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' },
+      { id: 'discover',    label: 'Lead Discovery',  href: 'discover.html', icon: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>' },
       { id: 'monthreg',    label: 'Monthly Register', href: 'monthreg.html', icon: I.cal, feat: 'monthreg' }
     ]},
     { type: 'group', label: 'Purchase', feat: 'purchase', items: [

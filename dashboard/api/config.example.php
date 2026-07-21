@@ -50,6 +50,19 @@ return [
   //    ⚠ Whapi drives a real WhatsApp number unofficially. Meta can ban a
   //    number for bulk unsolicited messages. Do not point this at the number
   //    you cannot afford to lose.
+  /* ── Lead Discovery (Google Places) ────────────────────────────────
+     Finds businesses by trade + city so the pipeline can be filled without
+     buying a list. Leave blank and the Discovery page simply says it is not
+     configured — nothing else breaks.
+       1. console.cloud.google.com -> new project
+       2. APIs & Services -> Library -> enable "Places API (New)"
+       3. Credentials -> Create credentials -> API key
+       4. RESTRICT the key to the Places API (an open key can be spent by
+          anyone who finds it)
+     Billing: text search is charged per request; one search returns up to 20
+     businesses. Check Google's current pricing and set a budget alert. */
+  'GOOGLE_PLACES_KEY' => '',
+
   'WHAPI_TOKEN'  => '',                          // from your Whapi channel page
   'WHAPI_SENDER' => '',                          // the sending number, e.g. 919460034743 (display only)
 

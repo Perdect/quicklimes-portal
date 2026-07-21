@@ -70,7 +70,10 @@ const strip = s => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/
     ok(!fs.existsSync(path.join(V2, f)), f + ' is deleted, not left lying around');
   });
   const pages = fs.readdirSync(V2).filter(f => /\.html$/.test(f));
-  const still = pages.filter(f => /dedupe/.test(fs.readFileSync(path.join(V2, f), 'utf8')));
+  /* Match a SCRIPT REFERENCE, not the English word: a page is allowed to
+     explain that it de-duplicates (Lead Discovery does), it is not allowed
+     to LOAD the deleted module. The bare /dedupe/ grep flagged prose. */
+  const still = pages.filter(f => /src=["'][^"']*dedupe[^"']*\.js/.test(fs.readFileSync(path.join(V2, f), 'utf8')));
   eq('NO page still loads a dedupe script (' + pages.length + ' pages checked)', still, []);
 
   /* removeReconTxns existed only to serve dedupe's broom, and it HARD-deletes bank

@@ -1,0 +1,79 @@
+/* discover-wired.test.js — Lead Discovery is actually reachable and honest.
+ *
+ * The backend logic is proven in api/discover.test.php (40 checks). This pins
+ * the CLIENT half against the dominant bug class here — built but never
+ * connected — plus the one behaviour that decides whether the feature is
+ * trustworthy: a failed search must be SHOWN, never rendered as an empty market.
+ *
+ *   node discover-wired.test.js
+ */
+'use strict';
+const fs = require('fs'), path = require('path');
+const R = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
+
+let pass = 0, fail = 0;
+const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ❌ ' + m); } };
+
+console.log('\n═══ Lead Discovery · wired, and honest about failure ═══\n');
+
+const js = R('discover.js'), html = R('discover.html'), shell = R('shell.js');
+const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
+
+/* ── reachable from the app ── */
+{
+  ok(/id: 'discover'/.test(shell) && /discover\.html/.test(shell), 'the sidebar has a Lead Discovery entry');
+  ok(/QLShell\.mount\(\{ active: 'discover'/.test(bare), 'the page mounts as the "discover" nav item (so it highlights)');
+}
+
+/* ── the four server actions are all driven ── */
+{
+  ['search', 'list', 'promote', 'dismiss'].forEach(a =>
+    ok(new RegExp("action: '" + a + "'").test(bare), 'the page calls the "' + a + '" action'));
+  ok(/fetch\('\/api\/discover'/.test(bare), 'it posts to /api/discover (the .htaccess rewrite serves discover.php)');
+  ok(/token: p\.token/.test(bare), '  authenticated with the session token');
+}
+
+/* ── scoring is the REAL engine, not a decorative number ── */
+{
+  ok(/IC2\.scoreLead/.test(bare), 'FIT comes from ICPCore.scoreLead');
+  ok(/icpByIndustry/.test(bare), '  against an ICP rebuilt from your own sales');
+  ok(/LI\.resolveIndustry/.test(bare), '  and the industry is resolved, never invented');
+  ok(/sort\(\(a, b\) => \(b\.f\.score - a\.f\.score\)/.test(bare), '  the table is ordered best-fit first');
+}
+
+/* ── THE promise: a failed search is never an empty market ── */
+{
+  const i = bare.indexOf('async function runSearch');
+  const block = i > 0 ? bare.slice(i, bare.indexOf('async function load', i)) : '';
+  ok(i > 0, 'runSearch exists');
+  ok(/if \(!r\.ok\)/.test(block), '  it branches on failure');
+  ok(/notice\(/.test(block) && /warn|true/.test(block), '  and SHOWS the failure as a notice');
+  ok(/ok: false/.test(block), '  the recent-search chip records it as failed');
+  ok(/not_configured/.test(block), '  a missing key gets its own explicit message');
+  // The failure branch must return BEFORE anything that reads as success.
+  const failIdx = block.indexOf('if (!r.ok)'), okIdx = block.indexOf("RECENT.unshift({ label: tag, ok: true");
+  ok(failIdx > 0 && okIdx > failIdx, '  and it returns before the success path can run');
+}
+
+/* ── a no-key user still has a way through ── */
+{
+  ok(/Paste \/ import/.test(html), 'the page offers the no-key path (paste / import a list)');
+  ok(/dcImport/.test(bare) && /crm\.html/.test(bare), '  wired to the ranked importer');
+}
+
+/* ── the half-wired trap: the page must load what it uses ── */
+{
+  ['icp-core.js', 'lead-import.js', 'data.js', 'shell.js', 'discover.js'].forEach(f =>
+    ok(new RegExp('src="\\./?' + f.replace('.', '\\.')).test(html), 'discover.html loads ' + f));
+  ok(html.indexOf('icp-core.js') < html.indexOf('discover.js'), '  icp-core loads before discover.js uses it');
+  ok(html.indexOf('lead-import.js') < html.indexOf('discover.js'), '  lead-import too');
+}
+
+/* ── the key never reaches the browser ── */
+{
+  ok(!/GOOGLE_PLACES_KEY/.test(js), 'discover.js never names the API key');
+  ok(!/places\.googleapis\.com/.test(js), '  and never calls Google directly — only our own server does');
+}
+
+console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');
+process.exit(fail ? 1 : 0);

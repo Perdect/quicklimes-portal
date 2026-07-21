@@ -32,8 +32,8 @@
     "sha": "953089d24f6b"
   },
   "shell.js": {
-    "v": "m59",
-    "sha": "ca113b39495a"
+    "v": "m60",
+    "sha": "83401661b581"
   },
   "mobile.js": {
     "v": "m16",
@@ -98,6 +98,10 @@
   "dashboard.js": {
     "v": "m22",
     "sha": "cc08f47c4316"
+  },
+  "discover.js": {
+    "v": "d1",
+    "sha": "8905a29210da"
   },
   "inventory.css": {
     "v": "i2",

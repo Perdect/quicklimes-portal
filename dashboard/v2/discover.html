@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — runs before the FIRST PAINT. The app shell applies the theme at
+   mount, which is far too late: the browser would paint the page light and then
+   flip, so a Light user on a dark Mac sees a white flash. Must stay in <head>,
+   above every stylesheet. (It used to guard the launch splash; the splash is
+   gone, the flash it prevents is not.) Resolves 'system' here too, so data-theme
+   is ALWAYS a literal light|dark and CSS never has to ask twice. */
+(function(){try{var t=localStorage.getItem('ql_theme')||'system';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lead Discovery — QuickLimes</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="manifest" href="/v2/app.webmanifest">
+<link rel="apple-touch-icon" href="/v2/pwa-apple.png?v=g1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r9"><link rel="stylesheet" href="./pages.css?v=m16">
+<link rel="stylesheet" href="./qlx.css?v=m10">
+<link rel="stylesheet" href="./mobile.css?v=m14">
+
+<!-- iOS launch images: without these iOS paints WHITE while the app boots.
+     background_color in the manifest is Android-only. -->
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/375x667@2x.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:736px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x736@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/375x812@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/414x896@2x.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x896@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/390x844@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/428x926@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/393x852@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/430x932@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/402x874@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/440x956@3x.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/375x667@2x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:414px) and (device-height:736px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x736@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/375x812@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/414x896@2x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x896@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/390x844@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/428x926@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/393x852@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/430x932@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/402x874@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/440x956@3x-dark.png">
+<style>
+  /* ═══ Lead Discovery ═══ Its own page-scoped styles: this is the only screen
+     that shows candidates who are not yet anything to you. All colour through
+     tokens so both themes work. */
+  .dc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: var(--ql-space-5); }
+  .dc-kpi { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-xl); padding: 16px 18px; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .dc-kpi .l { font: 700 10.5px var(--ql-font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ql-text-secondary); }
+  .dc-kpi .v { font: 800 27px/1.1 var(--ql-font-sans); color: var(--ql-text); letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 7px; }
+  .dc-kpi .ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none; background: var(--ql-brand-50, #eff6ff); color: var(--ql-brand-600, #2563eb); }
+  .dc-kpi .ic svg { width: 17px; height: 17px; }
+  .dc-kpi .ic.g { background: #dcfce7; color: #15803d; } .dc-kpi .ic.a { background: #fff7ed; color: #b45309; } .dc-kpi .ic.p { background: #f3e8ff; color: #7e22ce; }
+  :root[data-theme="dark"] .dc-kpi .ic.g { background: rgba(22,163,74,.18); color: #4ade80; }
+  :root[data-theme="dark"] .dc-kpi .ic.a { background: rgba(180,83,9,.18); color: #fdba74; }
+  :root[data-theme="dark"] .dc-kpi .ic.p { background: rgba(126,34,206,.2); color: #d8b4fe; }
+
+  .dc-search { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-xl); padding: 18px; margin-bottom: var(--ql-space-4); }
+  .dc-search-h { display: flex; align-items: center; gap: 8px; font: 700 13.5px var(--ql-font-sans); color: var(--ql-text); margin-bottom: 14px; }
+  .dc-search-h svg { width: 16px; height: 16px; color: var(--ql-text-secondary); }
+  .dc-row { display: grid; grid-template-columns: 2fr 1.2fr 1.2fr auto; gap: 12px; align-items: end; }
+  .dc-f label { display: block; font: 600 11.5px var(--ql-font-sans); color: var(--ql-text-secondary); margin-bottom: 5px; }
+  .dc-f input { width: 100%; box-sizing: border-box; font: inherit; font-size: var(--ql-text-md); color: var(--ql-text); background: var(--ql-bg-elevated); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); padding: 9px 12px; }
+  .dc-f input:focus { outline: none; border-color: var(--ql-brand-500, #2563eb); box-shadow: 0 0 0 3px var(--ql-brand-50, #eff6ff); }
+  :root[data-theme="dark"] .dc-f input:focus { box-shadow: 0 0 0 3px rgba(37,99,235,.28); }
+  .dc-chips { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+  .dc-chip { font: 600 12px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: 999px; padding: 5px 11px; cursor: pointer; transition: color .14s, border-color .14s; }
+  .dc-chip:hover { color: var(--ql-text); border-color: var(--ql-border-strong); }
+  .dc-recent { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; margin-bottom: var(--ql-space-4); font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-secondary); }
+  .dc-r { border-radius: 999px; padding: 4px 10px; border: 1px solid var(--ql-border); background: var(--ql-card); }
+  .dc-r.bad { border-color: var(--ql-danger-500); color: var(--ql-danger-700); background: var(--ql-danger-50); }
+  :root[data-theme="dark"] .dc-r.bad { background: rgba(220,38,38,.12); color: #fca5a5; }
+
+  .dc-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--ql-space-3); }
+  .dc-tab { font: 600 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 999px; padding: 7px 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .dc-tab.active { background: var(--ql-text); color: var(--ql-bg-elevated); border-color: var(--ql-text); }
+  .dc-tab .n { font-size: 11px; opacity: .75; }
+
+  .dc-name { font: 700 13.5px var(--ql-font-sans); color: var(--ql-text); }
+  .dc-sub { font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 2px; }
+  .dc-fit { display: inline-flex; align-items: center; gap: 7px; }
+  .dc-bar { width: 44px; height: 5px; border-radius: 99px; background: var(--ql-neutral-200, #e2e8f0); overflow: hidden; }
+  .dc-bar i { display: block; height: 100%; border-radius: 99px; background: var(--ql-brand-600, #2563eb); }
+  .dc-bar.high i { background: #16a34a; } .dc-bar.medium i { background: #d97706; } .dc-bar.low i { background: var(--ql-danger-600); }
+  .dc-score { font: 700 12px var(--ql-font-sans); color: var(--ql-text); font-variant-numeric: tabular-nums; }
+  .dc-score.unknown { color: var(--ql-text-muted); }
+  .dc-ico { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--ql-border); background: var(--ql-bg); color: var(--ql-text-secondary); display: inline-grid; place-items: center; cursor: pointer; }
+  .dc-ico svg { width: 14px; height: 14px; }
+  .dc-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 64px 20px; text-align: center; color: var(--ql-text-secondary); }
+  .dc-note { border: 1px solid var(--ql-border); background: var(--ql-bg); border-radius: var(--ql-radius-lg); padding: 12px 14px; font: 500 12.5px/1.55 var(--ql-font-sans); color: var(--ql-text-secondary); margin-bottom: var(--ql-space-4); }
+  .dc-note b { color: var(--ql-text); }
+  .dc-note.warn { border-color: var(--ql-danger-500); background: var(--ql-danger-50); color: var(--ql-danger-700); }
+  :root[data-theme="dark"] .dc-note.warn { background: rgba(220,38,38,.1); color: #fca5a5; }
+  @media (max-width: 760px) { .dc-row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Lead Discovery</h1>
+        <div class="page-sub">Find businesses by city &amp; trade. Every result is checked against your customers and pipeline first, then you promote the best ones.</div>
+      </div>
+      <div class="page-actions">
+        <button class="ql-btn" id="dcImport">Paste / import a list</button>
+      </div>
+    </div>
+
+    <div id="dcNotice"></div>
+
+    <div class="dc-kpis">
+      <div class="dc-kpi"><div><div class="l">New candidates</div><div class="v" id="kNew">0</div></div>
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span></div>
+      <div class="dc-kpi"><div><div class="l">Promoted to leads</div><div class="v" id="kProm">0</div></div>
+        <span class="ic g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></span></div>
+      <div class="dc-kpi"><div><div class="l">Duplicates caught</div><div class="v" id="kDup">0</div></div>
+        <span class="ic a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span></div>
+      <div class="dc-kpi"><div><div class="l">Total discovered</div><div class="v" id="kAll">0</div></div>
+        <span class="ic p"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span></div>
+    </div>
+
+    <div class="dc-search">
+      <div class="dc-search-h"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover businesses</div>
+      <div class="dc-row">
+        <div class="dc-f"><label for="dcWhat">What to find</label><input id="dcWhat" placeholder="AAC block plants, cement dealers, sugar mills…" autocomplete="off"></div>
+        <div class="dc-f"><label for="dcCity">City</label><input id="dcCity" placeholder="Jodhpur" autocomplete="off"></div>
+        <div class="dc-f"><label for="dcInd">Industry tag</label><input id="dcInd" placeholder="optional" autocomplete="off"></div>
+        <button class="ql-btn ql-btn-primary" id="dcGo" style="height:38px">Search</button>
+      </div>
+      <div class="dc-chips" id="dcChips"></div>
+    </div>
+
+    <div class="dc-recent" id="dcRecent"></div>
+
+    <div class="dc-tabs" id="dcTabs"></div>
+    <div class="card" style="padding:0;overflow:hidden"><div id="dcBody"></div></div>
+  </div>
+</div>
+
+<div id="dcToast" class="fin-toast" hidden></div>
+
+<script src="ql-api.js?v=a4"></script>
+<script src="./crm-core.js?v=k1"></script>
+<script src="./icp-core.js?v=i1"></script>
+<script src="./lead-import.js?v=l1"></script>
+<script src="./party-identity.js?v=m27"></script>
+<script src="./import-guard.js?v=m28"></script>
+<script src="./data.js?v=m44"></script>
+<script src="./i18n.js?v=h8"></script>
+<script src="./wa-core.js?v=w2"></script>
+<script src="./shell.js?v=m60"></script>
+<script src="./mobile.js?v=m16"></script>
+<script src="./qlx.js?v=m17"></script>
+<script src="./discover.js?v=d1"></script>
+</body>
+</html>
