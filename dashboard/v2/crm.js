@@ -210,6 +210,7 @@ QLX.mount({
   primary: { label: 'New lead', icon: IC.plus, onClick: () => editLead(null) },
   tools: [
     { label: 'Add company', icon: IC.plus, onClick: () => addCompany() },
+    { label: 'Import list', icon: IC.inbox, onClick: () => importLeads() },
     { label: 'Export', icon: IC.dl, onClick: () => exportLeads() }
   ],
   insights: () => insightHTML(),
@@ -267,6 +268,86 @@ document.addEventListener('click', async e => {
   const ac = e.target.closest('[data-addct]');
   if (ac) addContact(+ac.dataset.addct);
 });
+
+/* ── Import a list → a RANKED call list ───────────────────────────────────
+   You have 500 rows and twenty phone calls in you. The ICP engine already
+   knows which customers actually earn you money; this pours a spreadsheet
+   through it and hands back "call these first".
+
+   Reuses the proven import wizard (QLFin.importSheet: file → header → auto-map
+   → manual mapper → preview → import) so CSV/Excel quirks are already solved.
+   Everything list-specific — column guessing, row building, ranking, dedupe —
+   lives in LeadImport, which is pure and unit-tested (lead-import.test.js). */
+function importLeads() {
+  const LI = window.LeadImport, F = window.QLFin;
+  if (!LI || !F || !F.importSheet) { toast('Import needs the file reader — reload the page', 'err'); return; }
+
+  // The ICP is rebuilt from YOUR sales at import time, so the ranking reflects
+  // today's margins, not whatever they were when the list was bought.
+  let icp = [];
+  try {
+    const tonnes = (Q.production && Q.production().tonnes) || null;
+    const cpt = IC2 ? IC2.costPerTonne(Q.getPL ? Q.getPL() : null, tonnes) : null;
+    icp = IC2 ? IC2.icpByIndustry({ sales: Q.salesRows(), parties: Q.partyRows(), costPerTonne: cpt }) : [];
+  } catch (_) { icp = []; }
+  const scored = new Map();          // lead-key → {score,tier,why}, for the preview
+
+  F.importSheet({
+    title: 'Import a lead list',
+    sub: 'Exhibition list, IndiaMART export, a bought CSV — anything with company names',
+    noun: 'lead',
+    dropSub: '.csv, .xlsx or .xls',
+    tip: icp.length
+      ? 'Every row is scored against <b>your own margins</b> — who actually earns you money, not who is biggest. Imported contacts are marked <b>bought list</b>, so the app will not cold-WhatsApp them.'
+      : 'No sales history yet, so rows import unranked. Once you have invoices, the list gets scored by <b>your own margins</b> automatically.',
+    fields: LI.FIELDS.map(f => ({ key: f.key, label: f.label, required: !!f.required })),
+    headerGroups: [['company', 'firm', 'name', 'party', 'buyer', 'customer']],
+    autoMap: header => LI.autoMap(header),
+    buildRow: get => {
+      const lead = LI.buildLead(get);
+      if (!lead) return null;                       // no company name ⇒ not a lead
+      lead.industry = LI.resolveIndustry(lead.industry, IC2 ? IC2.INDUSTRIES : []);
+      if (IC2 && IC2.scoreLead) {
+        const s = LI.rank([lead], icp, IC2.scoreLead)[0];
+        scored.set(LI.keyOf(lead) || lead.name, { score: s.score, tier: s.tier, why: s.why });
+      }
+      return lead;
+    },
+    // Already-in-CRM rows are skipped by the wizard, using the same identity
+    // rule as CRMCore.dupeOf — GSTIN first, normalised name otherwise.
+    existing: () => new Set((DATA.companies || []).map(c => LI.keyOf({ name: c.name, gstin: c.gstin })).filter(Boolean)),
+    keyOf: it => LI.keyOf(it),
+    preview: {
+      headers: ['Priority', 'Company', 'Industry', 'City', 'T/month', 'Km'],
+      right: [4, 5],
+      row: it => {
+        const s = scored.get(LI.keyOf(it) || it.name) || { tier: 'unknown', score: 0 };
+        const dot = { high: '🟢', medium: '🟡', low: '🔴', unknown: '⚪' }[s.tier] || '⚪';
+        return [dot + ' ' + (s.tier === 'unknown' ? 'No data' : s.tier[0].toUpperCase() + s.tier.slice(1) + ' · ' + s.score),
+          esc(it.name), esc(it.industry ? (IC2 ? IC2.industryLabel(it.industry) : it.industry) : '—'),
+          esc(it.city || '—'), it.tonnes == null ? '—' : it.tonnes, it.distanceKm == null ? '—' : it.distanceKm];
+      }
+    },
+    errText: 'No company names found — check which column holds the company.',
+    add: async it => {
+      const co = LI.toCompany(it, it.industry, 'apollo');
+      const r = await api({ action: 'upsertCompany', company: co });
+      if (!r.ok) return;
+      // A contact only if the sheet actually had one. LeadImport.toContact
+      // pins consent_basis 'purchased' — a bought number is never
+      // WhatsApp-able (CRMCore.mayContact enforces it).
+      const ct = r.id ? LI.toContact(it, r.id) : null;
+      if (ct) await api({ action: 'upsertContact', contact: ct });
+    },
+    done: async n => {
+      await load();
+      const top = LI.rank((DATA.companies || []).map(c => ({
+        name: c.name, industry: c.industry, tonnes: +c.est_tpm || null, distanceKm: c.distance_km != null ? +c.distance_km : null
+      })), icp, IC2 ? IC2.scoreLead : null).filter(x => x.tier === 'high').length;
+      toast('Imported ' + n + ' lead' + (n === 1 ? '' : 's') + (top ? ' · ' + top + ' high priority' : ''), 'ok');
+    }
+  });
+}
 
 function exportLeads() {
   const r = rows();

@@ -67,6 +67,10 @@
     "v": "c3",
     "sha": "313d25e71836"
   },
+  "finance.css": {
+    "v": "f1",
+    "sha": "8276cdb12be4"
+  },
   "crm-core.js": {
     "v": "k1",
     "sha": "4ac1fb1c9e71"
@@ -75,9 +79,17 @@
     "v": "i1",
     "sha": "4b5103393877"
   },
+  "lead-import.js": {
+    "v": "l1",
+    "sha": "854311e7d4a3"
+  },
+  "finance.js": {
+    "v": "ocr22",
+    "sha": "eaa9463375d0"
+  },
   "crm.js": {
-    "v": "k1",
-    "sha": "707a2d4aedb9"
+    "v": "k2",
+    "sha": "1ff0028f4f98"
   },
   "dash.css": {
     "v": "d6",
@@ -86,14 +98,6 @@
   "dashboard.js": {
     "v": "m22",
     "sha": "cc08f47c4316"
-  },
-  "finance.css": {
-    "v": "f1",
-    "sha": "8276cdb12be4"
-  },
-  "finance.js": {
-    "v": "ocr22",
-    "sha": "eaa9463375d0"
   },
   "inventory.css": {
     "v": "i2",
