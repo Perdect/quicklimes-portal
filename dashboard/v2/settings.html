@@ -177,6 +177,22 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
       <div id="dhOut" style="margin-top:var(--ql-space-4)"></div>
     </div>
 
+    <!-- APP HEALTH (owner only). Data health above checks YOUR BOOKS; this one
+         reports on the APP itself — the standing audit of what is fixed, what
+         is still open, and what was never verified. Hidden for employee logins:
+         it names open bugs and the files they live in, which a dispatch clerk
+         can neither act on nor needs to worry about. -->
+    <div class="card" id="healthCard" style="margin-bottom:var(--ql-space-5);display:none">
+      <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.66 0 3.22.45 4.56 1.24"/></svg></span>
+        <div>
+          <h3 class="ft-title">App health</h3>
+          <div class="ft-note" id="hbCardNote">The standing audit of the app itself — every module, every confirmed issue, and what today's code actually says. Nothing here reads your business data.</div>
+        </div>
+        <a class="ql-btn ql-btn-secondary" href="./health" style="flex:none;text-decoration:none">Open board</a>
+      </div>
+    </div>
+
     <!-- LANGUAGE. The app shipped with no UI language setting at all; the only
          Devanagari string in the codebase was a per-CUSTOMER WhatsApp preference
          that nothing reads. This is the real one. -->
@@ -311,6 +327,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./import-guard.js?v=m28"></script>
 <script src="./i18n.js?v=h8"></script>
 <script src="./selfcheck.js?v=s2"></script>
+<script src="./health-findings.js?v=h1"></script>
 <script src="./data.js?v=m44"></script>
 <script src="./recon-core.js?v=rc5"></script>
 <script src="./wa-core.js?v=w2"></script>
@@ -426,7 +443,7 @@ function render() {
 /* Sticky section nav — one tap jumps to any section (no long scrolling), with a
    smooth scroll, an active pill, and a brief flash on the target. Rebuilt each
    render so it reflects which cards are actually visible (Team is owner-only). */
-const SET_SECTIONS = [['coCard', 'Company'], ['dhCard', 'Data health'], ['langCard', 'Language'], ['themeCard', 'Appearance'], ['ftCard', 'Features'], ['teamCard', 'Team'], ['waCard', 'WhatsApp'], ['bankCard', 'Banks'], ['dmCard', 'Data'], ['dzCard', 'Danger']];
+const SET_SECTIONS = [['coCard', 'Company'], ['dhCard', 'Data health'], ['healthCard', 'App health'], ['langCard', 'Language'], ['themeCard', 'Appearance'], ['ftCard', 'Features'], ['teamCard', 'Team'], ['waCard', 'WhatsApp'], ['bankCard', 'Banks'], ['dmCard', 'Data'], ['dzCard', 'Danger']];
 let _setSpy;
 function setActiveChip(id) {
   document.querySelectorAll('#setNav .set-chip').forEach(c => c.classList.toggle('active', c.dataset.sec === id));
@@ -645,6 +662,20 @@ async function teamApi(body) {
 async function renderTeam() {
   if (!_isOwner()) return;                       // employees never see this card
   $('#teamCard').style.display = '';
+  /* App health is owner-only on the same rule. Revealed BEFORE the team fetch:
+     a failed /api/users.php call must not take an unrelated card down with it. */
+  const hc = $('#healthCard');
+  if (hc) {
+    hc.style.display = '';
+    const H = window.HealthBoard, note = $('#hbCardNote');
+    if (H && note) {
+      const c = H.counts();
+      note.innerHTML = `<b>${c.openBySev.high || 0} high</b> and <b>${c.openBySev.med || 0} medium</b> still open · ` +
+        `${c.fixed || 0} fixed &amp; verified · ${c.awaiting || 0} never verified. Re-checked against the code on ` +
+        new Date(H.RECHECK_DATE + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) +
+        '. Nothing here reads your business data.';
+    }
+  }
   let j; try { j = await teamApi({ action: 'list' }); }
   catch (e) { $('#teamList').innerHTML = '<div class="ft-note">Could not load team (' + esc(e.message) + ')</div>'; return; }
   const us = j.users || [];

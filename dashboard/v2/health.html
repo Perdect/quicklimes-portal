@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — runs before the FIRST PAINT. The app shell applies the theme at
+   mount, which is far too late: the browser would paint the page light and then
+   flip, so a Light user on a dark Mac sees a white flash. Must stay in <head>,
+   above every stylesheet. (It used to guard the launch splash; the splash is
+   gone, the flash it prevents is not.) Resolves 'system' here too, so data-theme
+   is ALWAYS a literal light|dark and CSS never has to ask twice. */
+(function(){try{var t=localStorage.getItem('ql_theme')||'system';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>App Health — QuickLimes</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="manifest" href="/v2/app.webmanifest">
+<link rel="apple-touch-icon" href="/v2/pwa-apple.png?v=g1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r9"><link rel="stylesheet" href="./pages.css?v=m16">
+<link rel="stylesheet" href="./qlx.css?v=m10">
+<link rel="stylesheet" href="./mobile.css?v=m14">
+
+<!-- iOS launch images: without these iOS paints WHITE while the app boots.
+     background_color in the manifest is Android-only. -->
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/375x667@2x.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:736px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x736@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/375x812@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/414x896@2x.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x896@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/390x844@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/428x926@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/393x852@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/430x932@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/402x874@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/440x956@3x.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/375x667@2x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:414px) and (device-height:736px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x736@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/375x812@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/414x896@2x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x896@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/390x844@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/428x926@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/393x852@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/430x932@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/402x874@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/440x956@3x-dark.png">
+<style>
+  /* App Health — an engineering board, so it deliberately looks calmer than the
+     business pages: no tints competing for attention, severity carried by one
+     dot and one border. Everything uses app tokens so it themes with the rest. */
+  .hb-tally { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--ql-space-4); }
+  .hb-pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px;
+    border: 1px solid var(--ql-border); background: var(--ql-card);
+    font: 600 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); font-variant-numeric: tabular-nums; }
+  .hb-pill b { color: var(--ql-text); font-weight: 800; }
+  .hb-dot { width: 8px; height: 8px; border-radius: 99px; flex: none; }
+  .hb-dot.high { background: var(--ql-danger-600, #dc2626); }
+  .hb-dot.med  { background: #b45309; }
+  .hb-dot.low  { background: var(--ql-text-muted); }
+  .hb-dot.fixed { background: #15803d; }
+  .hb-dot.await { background: #6d28d9; }
+
+  .hb-note { border: 1px solid var(--ql-border); background: var(--ql-bg); border-radius: var(--ql-radius-lg);
+    padding: 13px 15px; font: 500 12.5px/1.6 var(--ql-font-sans); color: var(--ql-text-secondary); margin-bottom: var(--ql-space-4); }
+  .hb-note b { color: var(--ql-text); }
+
+  .hb-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: var(--ql-space-5); }
+  .hb-stat { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-xl); padding: 15px 17px; }
+  .hb-stat .n { font: 800 32px/1 var(--ql-font-sans); letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--ql-text); }
+  .hb-stat .l { font: 700 10.5px var(--ql-font-sans); text-transform: uppercase; letter-spacing: .07em; color: var(--ql-text-secondary); margin-top: 7px; }
+  .hb-stat.red .n { color: var(--ql-danger-600, #dc2626); }
+  .hb-stat.green .n { color: #15803d; }
+  .hb-stat.amber .n { color: #b45309; }
+  .hb-stat.violet .n { color: #6d28d9; }
+  :root[data-theme="dark"] .hb-stat.green .n { color: #4ade80; }
+  :root[data-theme="dark"] .hb-stat.amber .n { color: #fbbf24; }
+  :root[data-theme="dark"] .hb-stat.violet .n { color: #a78bfa; }
+  :root[data-theme="dark"] .hb-dot.med { background: #fbbf24; }
+  :root[data-theme="dark"] .hb-dot.fixed { background: #4ade80; }
+  :root[data-theme="dark"] .hb-dot.await { background: #a78bfa; }
+
+  .hb-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--ql-space-3); }
+  .hb-tab { font: 600 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-card);
+    border: 1px solid var(--ql-border); border-radius: 999px; padding: 7px 14px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; }
+  .hb-tab.active { background: var(--ql-text); color: var(--ql-bg-elevated); border-color: var(--ql-text); }
+  .hb-tab .n { font-size: 11px; opacity: .75; }
+
+  .hb-list { display: flex; flex-direction: column; gap: 8px; }
+  .hb-item { background: var(--ql-card); border: 1px solid var(--ql-border); border-left: 4px solid var(--ql-border);
+    border-radius: var(--ql-radius-lg); overflow: hidden; }
+  .hb-item.high  { border-left-color: var(--ql-danger-600, #dc2626); }
+  .hb-item.med   { border-left-color: #b45309; }
+  .hb-item.low   { border-left-color: var(--ql-text-muted); }
+  .hb-item.fixed { border-left-color: #15803d; }
+  .hb-item.await { border-left-color: #6d28d9; }
+  .hb-sum { display: flex; align-items: baseline; gap: 10px; padding: 12px 15px; cursor: pointer; list-style: none; }
+  .hb-sum::-webkit-details-marker { display: none; }
+  .hb-sum:focus-visible { outline: 2px solid var(--ql-brand-500, #2563eb); outline-offset: -2px; }
+  .hb-t { font: 700 13.5px var(--ql-font-sans); color: var(--ql-text); }
+  .hb-mod { margin-left: auto; flex: none; font: 700 10.5px var(--ql-font-sans); text-transform: uppercase;
+    letter-spacing: .05em; color: var(--ql-text-muted); }
+  .hb-body { padding: 0 15px 14px 29px; font: 500 13px/1.6 var(--ql-font-sans); color: var(--ql-text-secondary); }
+  .hb-body p { margin: 0 0 8px; max-width: 68ch; }
+  .hb-body b { color: var(--ql-text); }
+  .hb-body code { font: 12px var(--ql-font-mono, ui-monospace, Menlo, monospace); background: var(--ql-bg);
+    border: 1px solid var(--ql-border); border-radius: 5px; padding: 1px 6px; }
+  .hb-verdict { font: 700 11px var(--ql-font-sans); text-transform: uppercase; letter-spacing: .05em;
+    padding: 2px 8px; border-radius: 999px; border: 1px solid var(--ql-border); color: var(--ql-text-secondary); }
+  .hb-empty { padding: 48px 20px; text-align: center; color: var(--ql-text-secondary); }
+  .hb-denied { max-width: 560px; margin: 60px auto; text-align: center; color: var(--ql-text-secondary); }
+  @media (max-width: 760px) { .hb-sum { flex-wrap: wrap; } .hb-mod { margin-left: 0; width: 100%; } }
+</style>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">App Health</h1>
+        <div class="page-sub" id="hbSub">Every module audited, every confirmed issue — and what today's code actually says.</div>
+      </div>
+    </div>
+    <div id="hbGate"></div>
+    <div id="hbMain" hidden>
+      <div class="hb-tally" id="hbTally"></div>
+      <div class="hb-note" id="hbNote"></div>
+      <div class="hb-stats" id="hbStats"></div>
+      <div class="hb-tabs" id="hbTabs"></div>
+      <div class="hb-list" id="hbList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="ql-api.js?v=a4"></script>
+<script src="./party-identity.js?v=m27"></script>
+<script src="./import-guard.js?v=m28"></script>
+<script src="./data.js?v=m44"></script>
+<script src="./i18n.js?v=h8"></script>
+<script src="./wa-core.js?v=w2"></script>
+<script src="./shell.js?v=m60"></script>
+<script src="./mobile.js?v=m16"></script>
+<script src="./health-findings.js?v=h1"></script>
+<script src="./health.js?v=h1"></script>
+</body>
+</html>
