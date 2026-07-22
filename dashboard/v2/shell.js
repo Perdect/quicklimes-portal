@@ -461,6 +461,42 @@
 
   /* ── Workspace switcher (from QLD) ───────────────────────────── */
   const AVG = ['#2563EB,#1D4ED8', '#F59E0B,#D97706', '#16A34A,#15803D', '#7C3AED,#5B21B6', '#DB2777,#9D174D', '#0891B2,#155E75'];
+  /* Add a company — ONE flow, two doors: the workspace switcher and
+     Settings → Company profile. It lives here rather than in either caller so
+     the two can never drift into asking for different fields; Settings calls it
+     through QLShell.addCompany().
+
+     Was a dead stub ("contact support"). The GSTIN is required: it is what
+     tells a firm's own sales from its purchases, so a company can never again
+     be born without one (the bug that filed all of Deshwali's sales as
+     purchases). Every other rule — name length, GSTIN format, duplicate GSTIN,
+     plan limit — belongs to Q.addCompany and is deliberately not repeated here. */
+  function addCompanyFlow() {
+    /* Declared here, not inherited: this used to live inside paintWorkspace and
+       read that function's Q. Lifting it out left it reading a Q from nowhere —
+       caught by shell-scope.test.js, which exists for exactly this class of bug. */
+    const Q = window.QLD; if (!Q) return;
+    openForm({
+      title: 'Add a company',
+      sub: 'A second business under your account',
+      specs: [
+        { k: 'name', label: 'Company name', req: true, ph: 'e.g. Deshwali Minerals' },
+        { k: 'gstin', label: 'GSTIN', req: true, ph: '08BNAPM0488E1Z3' },
+        { k: 'phone', label: 'Mobile number', req: true, ph: 'e.g. 9876543210' },
+        { k: 'ownerName', label: 'Owner / manager name', ph: 'optional' },
+        { k: 'city', label: 'City', ph: 'e.g. Gotan' }
+      ],
+      note: 'The GSTIN is required — it is what tells this firm’s own sales from its purchases, so every bill files correctly from the start.',
+      saveLabel: 'Add company',
+      onSave: async v => {
+        const r = await Q.addCompany({ name: v.name, gstin: v.gstin, phone: v.phone, ownerName: v.ownerName, city: v.city });
+        if (!r || !r.ok) { toast((r && r.err) || 'Could not add the company', 'err'); return false; }   // keep the form open
+        toast('Company added — switching…', 'ok');
+        setTimeout(() => location.reload(), 400);        // rebuild COMPANIES and land on the new one
+      }
+    });
+  }
+
   function paintWorkspace() {
     const Q = window.QLD; if (!Q) return;
     /* `co` is a GETTER — COMPANIES[ACTIVE_CO] — and it is undefined until the data
@@ -522,29 +558,7 @@
     const addBtn = menu.querySelector('.ws-add');
     if (addBtn) addBtn.addEventListener('click', () => {
       menu.classList.remove('open');
-      // Was a dead stub ("contact support"). Now a real self-service form. The
-      // GSTIN is required: it is what tells a firm's own sales from its
-      // purchases, so a company can never again be born without it (the bug
-      // that filed all of Deshwali's sales as purchases).
-      openForm({
-        title: 'Add a company',
-        sub: 'A second business under your account',
-        specs: [
-          { k: 'name', label: 'Company name', req: true, ph: 'e.g. Deshwali Minerals' },
-          { k: 'gstin', label: 'GSTIN', req: true, ph: '08BNAPM0488E1Z3' },
-          { k: 'phone', label: 'Mobile number', req: true, ph: 'e.g. 9876543210' },
-          { k: 'ownerName', label: 'Owner / manager name', ph: 'optional' },
-          { k: 'city', label: 'City', ph: 'e.g. Gotan' }
-        ],
-        note: 'The GSTIN is required — it is what tells this firm’s own sales from its purchases, so every bill files correctly from the start.',
-        saveLabel: 'Add company',
-        onSave: async v => {
-          const r = await Q.addCompany({ name: v.name, gstin: v.gstin, phone: v.phone, ownerName: v.ownerName, city: v.city });
-          if (!r || !r.ok) { toast((r && r.err) || 'Could not add the company', 'err'); return false; }   // keep the form open
-          toast('Company added — switching…', 'ok');
-          setTimeout(() => location.reload(), 400);        // rebuild COMPANIES and land on the new one
-        }
-      });
+      addCompanyFlow();
     });
     // profile name
     const sbName = document.querySelector('.sb-profile-name');
@@ -2408,7 +2422,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     setBreadcrumb(label) { const c = document.querySelector('.tb-crumb-active'); if (c) c.textContent = label; },
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
     // form modals + row action menus
-    closeModal, openForm, panel, confirmDelete, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
+    closeModal, openForm, panel, confirmDelete, addCompany: addCompanyFlow, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
     rowMenu, printInvoice, exportCSV, csvCell, csvRow, downloadCSV,
     // THE month picker — every page's calendar. See monthPicker() above.
     monthButton, monthPicker, closeMonthPicker, periodFilter,

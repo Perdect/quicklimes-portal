@@ -156,6 +156,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
           <h3 class="ft-title">Company profile</h3>
           <div class="ft-note">Your firm's legal name and <b>GSTIN</b>. The GSTIN is how the app knows which bills are <b>yours</b> — it's what separates a Sale from a Purchase when you upload a bill, and it prints on your GST invoices.</div>
         </div>
+        <button class="ql-btn ql-btn-secondary" id="coAdd" style="flex:none">Add company</button>
       </div>
       <div id="coList" style="margin-top:var(--ql-space-4)"></div>
     </div>
@@ -332,7 +333,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./recon-core.js?v=rc5"></script>
 <script src="./wa-core.js?v=w2"></script>
 
-<script src="./shell.js?v=m60"></script>
+<script src="./shell.js?v=m61"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 QLShell.mount({ active: 'settings', title: 'Settings' });
@@ -799,8 +800,16 @@ function editCo(c) {
     }
   });
 }
+/* Add a company. The flow itself lives in shell.js (QLShell.addCompany) because
+   the workspace switcher offers the same action — one form, two doors, so the
+   two can never drift into asking for different fields. Every rule (GSTIN
+   required and well-formed, duplicate GSTIN, plan limit) belongs to
+   QLD.addCompany and is repeated in neither caller. */
+function addCo() { QLShell.addCompany(); }
 function renderCo() {
   if (!_isOwner()) { $('#coCard').style.display = 'none'; return; }   // owner-level, same as the server
+  const addBtn = $('#coAdd');
+  if (addBtn) addBtn.onclick = addCo;
   const cos = Object.values(QLD.COMPANIES || {});
   $('#coList').innerHTML = cos.map(c => {
     const missing = !c.gstin;

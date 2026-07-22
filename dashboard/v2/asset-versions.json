@@ -32,8 +32,8 @@
     "sha": "953089d24f6b"
   },
   "shell.js": {
-    "v": "m60",
-    "sha": "83401661b581"
+    "v": "m61",
+    "sha": "03a51c008284"
   },
   "mobile.js": {
     "v": "m16",
@@ -102,6 +102,14 @@
   "discover.js": {
     "v": "d2",
     "sha": "0d6353e0cd92"
+  },
+  "health-findings.js": {
+    "v": "h1",
+    "sha": "2ceb2ab5cf40"
+  },
+  "health.js": {
+    "v": "h1",
+    "sha": "1cbad3467ac5"
   },
   "inventory.css": {
     "v": "i2",

@@ -182,6 +182,22 @@ function addIn(over) { return Object.assign({ name: 'New Lime Co', gstin: '08AAB
     ok(/\.ws-add/.test(shell) && /Q\.addCompany\(/.test(shell), 'the switcher "Add company" button calls Q.addCompany');
     ok(!/contact support to link a plant/.test(shell), '  the old dead "contact support" stub is gone');
     const settings = fs.readFileSync(path.join(__dirname, 'settings.html'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
+
+    /* ── ONE add-company flow, two doors ──
+       Settings → Company profile offers the same action as the switcher. Both
+       must reach the SAME form: a second copy in settings.html would drift
+       (different fields, a different note) and one door would start asking for
+       something the other never did. */
+    ok(/function addCompanyFlow\(/.test(shell), 'the add-company form is a single named flow in shell.js');
+    ok(/addCompany: addCompanyFlow/.test(shell), '  exported as QLShell.addCompany for other pages');
+    ok(/\.ws-add/.test(shell) && /addCompanyFlow\(\)/.test(shell), '  the switcher opens that flow');
+    ok(/id="coAdd"/.test(settings), 'Settings → Company profile has an "Add company" button');
+    ok(/addBtn\.onclick = addCo/.test(settings), '  wired to a handler (not a dead button)');
+    ok(/function addCo\(\) \{ QLShell\.addCompany\(\); \}/.test(settings), '  which opens the SAME shell flow');
+    /* The duplication guard: settings.html must not grow its own add form. */
+    ok(!/QLD\.addCompany\(/.test(settings), '  Settings never calls QLD.addCompany itself (one flow owns the rules)');
+    ok(!/title: 'Add a company'/.test(settings), '  and never defines a second "Add a company" form');
+
     ok(/data-co-remove/.test(settings) && /QLD\.removeCompany\(/.test(settings), 'Settings \u2192 Company profile "Remove" calls QLD.removeCompany');
     ok(!/c\.isPrimary \? '' :.*data-co-remove/.test(settings), '  the Remove button is on EVERY company (main included — owner\u2019s rule)');
     // The gate must be INSIDE the remove handler — a _checkPin elsewhere (the
