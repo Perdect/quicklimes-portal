@@ -21,6 +21,10 @@ const Q = window.QLD, IC2 = window.ICPCore, LI = window.LeadImport;
 const esc = (window.QLX && QLX.esc) || (s => (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])));
 
 let ROWS = [], COUNTS = { new: 0, duplicate: 0, promoted: 0, dismissed: 0 }, TAB = 'new', RECENT = [], ICP = [];
+/* OpenStreetMap is the DEFAULT because it is free and needs no key — a user who
+   never touches Google Cloud still has a working feature. Google is offered
+   only when the server says a key exists, so we never present a dead option. */
+let SRC = 'osm', SOURCES = { osm: true, google: false };
 let _tt;
 function toast(msg, tone) {
   const el = document.getElementById('dcToast'); if (!el) return;
@@ -56,6 +60,24 @@ const SUGGEST = [
   ['AAC block manufacturers', 'Jodhpur'], ['Cement dealers', 'Jodhpur'], ['Construction chemical makers', 'Jaipur'],
   ['Steel plants', 'Jodhpur'], ['Sugar mills', 'Nagaur'], ['Paper mills', 'Jaipur']
 ];
+
+function paintSources() {
+  const el = document.getElementById('dcSrc'); if (!el) return;
+  const S = [
+    ['osm', 'OpenStreetMap', true],
+    ['google', 'Google Maps', SOURCES.google]
+  ];
+  el.innerHTML = S.map(([k, label, avail]) =>
+    `<button class="dc-s${SRC === k ? ' on' : ''}" data-s="${k}"${avail ? '' : ' disabled title="Not connected yet — the account owner can switch Google Maps on in Settings"'}>
+      <span class="dot${avail ? '' : ' off'}"></span>${label}${k === 'osm' ? ' <span class="free">free</span>' : ''}
+    </button>`).join('');
+  el.querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
+    if (b.disabled) return;
+    SRC = b.dataset.s; paintSources();
+  });
+  const at = document.getElementById('dcAttrib');
+  if (at) at.style.display = SRC === 'osm' ? '' : 'none';
+}
 
 function paintChips() {
   const el = document.getElementById('dcChips'); if (!el) return;
@@ -150,7 +172,7 @@ async function runSearch() {
   if (!what) { toast('Say what to look for', 'err'); return; }
   const btn = document.getElementById('dcGo'); const label = btn.textContent;
   btn.disabled = true; btn.textContent = 'Searching…';
-  const r = await api({ action: 'search', what, city, industry: ind });
+  const r = await api({ action: 'search', what, city, industry: ind, source: SRC });
   btn.disabled = false; btn.textContent = label;
 
   const tag = what + (city ? ' · ' + city : '');
@@ -171,6 +193,15 @@ async function runSearch() {
   TAB = 'new'; await load();
 }
 
+async function loadSources() {
+  const r = await api({ action: 'sources' });
+  if (r && r.ok) {
+    SOURCES = { osm: !!r.osm, google: !!r.google };
+    if (!SOURCES.google && SRC === 'google') SRC = 'osm';   // never sit on a dead source
+    paintSources();
+  }
+}
+
 async function load() {
   const r = await api({ action: 'list' });
   if (!r.ok) {
@@ -189,9 +220,9 @@ function openPaste() {
 
 QLShell.mount({ active: 'discover', title: 'Lead Discovery' });
 buildIcp();
-paintChips(); paintTabs(); paintTable();
+paintSources(); paintChips(); paintTabs(); paintTable();
 document.getElementById('dcGo').addEventListener('click', runSearch);
 ['dcWhat', 'dcCity', 'dcInd'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); }));
 document.getElementById('dcImport').addEventListener('click', openPaste);
 window.__qlOnSwitchCompany = () => { buildIcp(); load(); };
-Q.init(() => {}).then(() => { buildIcp(); load(); }).catch(() => load());
+Q.init(() => {}).then(() => { buildIcp(); loadSources(); load(); }).catch(() => { loadSources(); load(); });

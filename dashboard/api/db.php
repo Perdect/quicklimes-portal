@@ -1045,6 +1045,12 @@ function ql_places_key() {
   return trim((string)($c['GOOGLE_PLACES_KEY'] ?? ''));
 }
 
+/* Is Google configured? Callers that only need to KNOW whether a key exists ask
+   this and get a bool. They must never call ql_places_key() for the purpose —
+   an endpoint that holds the secret in a variable is one typo away from
+   returning it in a response body. */
+function ql_has_places_key() { return ql_places_key() !== ''; }
+
 /* Normalised company name — the dedupe spine. MUST match CRMCore.normName and
    LeadImport.normName in the browser, or the server and the UI will disagree
    about what "the same company" is. */
@@ -1142,6 +1148,103 @@ function ql_places_request($key, $what, $city, $opts = [], $http = null) {
     return ['ok' => false, 'places' => [], 'error' => $msg];
   }
   return ['ok' => true, 'places' => ql_places_parse($j, $city), 'error' => ''];
+}
+
+/* ── OpenStreetMap (Overpass API) — the FREE source ──────────────────────
+   No key, no billing account, no card. Open data, so it costs nothing forever;
+   the trade-off is thinner coverage than Google — especially phone numbers.
+   It is good at exactly what this business needs though: factories, works and
+   industrial units are among the best-mapped things in OSM.
+
+   LICENCE: OSM data is ODbL. Anything that DISPLAYS it must credit
+   "© OpenStreetMap contributors" — discover.html does, and discover-wired
+   asserts it, because dropping the credit is a licence breach, not a nitpick.
+
+   FAIR USE: the public Overpass endpoint is donated infrastructure. We cap the
+   result count, set a timeout and identify ourselves; hammering it would get
+   every QuickLimes user blocked. */
+function ql_osm_parse($json, $city) {
+  $out = [];
+  $els = (is_array($json) && isset($json['elements']) && is_array($json['elements'])) ? $json['elements'] : [];
+  foreach ($els as $e) {
+    $t = (isset($e['tags']) && is_array($e['tags'])) ? $e['tags'] : [];
+    $name = trim((string)($t['name'] ?? ''));
+    if ($name === '') continue;                       // unnamed geometry is not a business
+
+    // A readable address out of the addr:* tags, else fall back to the city.
+    $parts = [];
+    foreach (['addr:housenumber', 'addr:street', 'addr:suburb', 'addr:city', 'addr:postcode'] as $k) {
+      $v = trim((string)($t[$k] ?? '')); if ($v !== '') $parts[] = $v;
+    }
+    $addr = $parts ? implode(', ', $parts) : '';
+
+    // Ways/relations carry no lat/lon of their own — "out center" supplies one.
+    $lat = isset($e['lat']) ? (float)$e['lat'] : (isset($e['center']['lat']) ? (float)$e['center']['lat'] : null);
+    $lng = isset($e['lon']) ? (float)$e['lon'] : (isset($e['center']['lon']) ? (float)$e['center']['lon'] : null);
+
+    $out[] = [
+      'place_id' => 'osm:' . (string)($e['type'] ?? 'n') . '/' . (string)($e['id'] ?? ''),
+      'name'     => $name,
+      'name_key' => ql_norm_name($name),
+      'address'  => $addr,
+      'city'     => (string)$city,
+      'phone'    => trim((string)($t['phone'] ?? ($t['contact:phone'] ?? ''))),
+      'website'  => trim((string)($t['website'] ?? ($t['contact:website'] ?? ''))),
+      'rating'   => null,                             // OSM has no ratings — never invent one
+      'lat'      => $lat,
+      'lng'      => $lng,
+    ];
+  }
+  return $out;
+}
+
+/* Search OSM. Same return shape as ql_places_request, so the endpoint and the
+   page treat both sources identically. $http is injectable for tests. */
+function ql_osm_search($what, $city, $opts = [], $http = null) {
+  $what = trim((string)$what); $city = trim((string)$city);
+  if ($what === '') return ['ok' => false, 'places' => [], 'error' => 'Say what to look for'];
+  if ($city === '') return ['ok' => false, 'places' => [], 'error' => 'OpenStreetMap needs a city to search inside'];
+  $max = max(1, min(60, (int)($opts['max'] ?? 40)));
+
+  /* Overpass QL. Quotes and backslashes are escaped because the query is a
+     STRING the server parses: an unescaped quote in "what" would break out of
+     the regex and could rewrite the whole query. */
+  $esc = function ($v) { return str_replace(['\\', '"'], ['\\\\', '\\"'], (string)$v); };
+  $q = "[out:json][timeout:25];\n"
+     . 'area["name"~"^' . $esc($city) . '$",i]["boundary"="administrative"]->.a;' . "\n"
+     . '( nwr["name"~"' . $esc($what) . '",i](area.a); );' . "\n"
+     . 'out center ' . $max . ';';
+
+  if ($http === null) {
+    $http = function ($url, $payload, $headers) {
+      $ch = curl_init($url);
+      curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_TIMEOUT => 40,
+        CURLOPT_USERAGENT => 'QuickLimes/1.0 (ERP lead discovery; app.quicklimes.com)',
+      ]);
+      $res = curl_exec($ch);
+      $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+      $err = curl_error($ch);
+      curl_close($ch);
+      return ['code' => $code, 'body' => $res, 'err' => $err];
+    };
+  }
+  $r = $http('https://overpass-api.de/api/interpreter', 'data=' . urlencode($q),
+    ['Content-Type: application/x-www-form-urlencoded']);
+
+  if (!empty($r['err'])) return ['ok' => false, 'places' => [], 'error' => 'Could not reach OpenStreetMap'];
+  $code = (int)$r['code'];
+  if ($code === 429 || $code === 504) {
+    /* Overpass is a donated free service and throttles. Say so plainly: this is
+       "try again in a minute", NOT "there are no such businesses here". */
+    return ['ok' => false, 'places' => [], 'error' => 'OpenStreetMap is busy (it is a free shared service) — wait a minute and try again'];
+  }
+  if ($code !== 200) return ['ok' => false, 'places' => [], 'error' => 'OpenStreetMap error (HTTP ' . $code . ')'];
+  $j = json_decode((string)$r['body'], true);
+  if (!is_array($j)) return ['ok' => false, 'places' => [], 'error' => 'OpenStreetMap sent an unreadable reply'];
+  return ['ok' => true, 'places' => ql_osm_parse($j, $city), 'error' => ''];
 }
 
 /* The one door the app uses: reads the key from config, then delegates. */

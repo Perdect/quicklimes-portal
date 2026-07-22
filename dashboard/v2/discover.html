@@ -100,6 +100,15 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .dc-note b { color: var(--ql-text); }
   .dc-note.warn { border-color: var(--ql-danger-500); background: var(--ql-danger-50); color: var(--ql-danger-700); }
   :root[data-theme="dark"] .dc-note.warn { background: rgba(220,38,38,.1); color: #fca5a5; }
+  .dc-src { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
+  .dc-s { font: 600 12px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: 999px; padding: 6px 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .dc-s .dot { width: 7px; height: 7px; border-radius: 50%; background: #16a34a; }
+  .dc-s .dot.off { background: var(--ql-text-muted); }
+  .dc-s.on { background: var(--ql-text); color: var(--ql-bg-elevated); border-color: var(--ql-text); }
+  .dc-s .free { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #16a34a; }
+  .dc-s.on .free { color: #4ade80; }
+  .dc-attrib { font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-muted); margin-top: 10px; }
+  .dc-attrib a { color: var(--ql-text-secondary); }
   @media (max-width: 760px) { .dc-row { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -131,6 +140,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 
     <div class="dc-search">
       <div class="dc-search-h"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover businesses</div>
+      <div class="dc-src" id="dcSrc"></div>
       <div class="dc-row">
         <div class="dc-f"><label for="dcWhat">What to find</label><input id="dcWhat" placeholder="AAC block plants, cement dealers, sugar mills…" autocomplete="off"></div>
         <div class="dc-f"><label for="dcCity">City</label><input id="dcCity" placeholder="Jodhpur" autocomplete="off"></div>
@@ -144,6 +154,8 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 
     <div class="dc-tabs" id="dcTabs"></div>
     <div class="card" style="padding:0;overflow:hidden"><div id="dcBody"></div></div>
+    <!-- ODbL requires crediting OSM wherever its data is displayed. Not a nicety. -->
+    <div class="dc-attrib" id="dcAttrib">Free results come from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a> (ODbL).</div>
   </div>
 </div>
 
@@ -161,6 +173,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./shell.js?v=m60"></script>
 <script src="./mobile.js?v=m16"></script>
 <script src="./qlx.js?v=m17"></script>
-<script src="./discover.js?v=d1"></script>
+<script src="./discover.js?v=d2"></script>
 </body>
 </html>

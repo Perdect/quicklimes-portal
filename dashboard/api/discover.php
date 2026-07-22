@@ -44,14 +44,26 @@ if ($action === 'search') {
   $city = trim((string)($b['city'] ?? ''));
   $ind  = trim((string)($b['industry'] ?? ''));
 
-  $r = ql_places_search($what, $city, ['max' => 20]);
+  /* TWO SOURCES, one shape. OpenStreetMap is the free one (no key, no billing)
+     and is therefore the DEFAULT: a user who never sets up Google still gets a
+     working feature. Google is richer — better phone coverage — when a key is
+     present. Whichever is used, the rows and the failure contract are identical
+     so nothing downstream has to care. */
+  $src = (string)($b['source'] ?? '');
+  if ($src !== 'google' && $src !== 'osm') $src = ql_has_places_key() ? 'google' : 'osm';
+
+  $r = ($src === 'osm')
+    ? ql_osm_search($what, $city, ['max' => 40])
+    : ql_places_search($what, $city, ['max' => 20]);
+
   if (!$r['ok']) {
     $e = $r['error'];
     if ($e === 'not_configured') {
-      ql_out(['ok' => false, 'not_configured' => true,
-        'error' => 'Lead Discovery needs a Google Places key. Add GOOGLE_PLACES_KEY to api/config.php on your server.']);
+      // Never a dead end: the free source needs nothing at all.
+      ql_out(['ok' => false, 'not_configured' => true, 'source' => $src,
+        'error' => 'Google search needs a key (GOOGLE_PLACES_KEY in api/config.php). OpenStreetMap is free and needs no key — switch the source above.']);
     }
-    ql_out(['ok' => false, 'error' => $e]);
+    ql_out(['ok' => false, 'source' => $src, 'error' => $e]);
   }
 
   list($crmKeys, $partyKeys) = ql_known_keys($db, $plantId, $coId);
@@ -76,7 +88,7 @@ if ($action === 'search') {
   foreach ($rows as $c) {
     if ($c['status'] === 'seen') { $seenN2++; continue; }        // already known to us
     try {
-      $ins->execute([$plantId, $coId, 'google', $c['place_id'] ?: null, $c['name'], $c['name_key'], $ind,
+      $ins->execute([$plantId, $coId, $src, $c['place_id'] ?: null, $c['name'], $c['name_key'], $ind,
         $c['address'] ?: null, $c['city'] ?: null, $c['phone'] ?: null, $c['website'] ?: null,
         $c['rating'], $c['lat'], $c['lng'], $c['status'], $c['dupe_of']]);
     } catch (Throwable $e) { $seenN2++; continue; }              // UNIQUE(place) — already stored
@@ -84,7 +96,13 @@ if ($action === 'search') {
     $c['id'] = (int)$db->lastInsertId();
     $out[] = $c;
   }
-  ql_out(['ok' => true, 'added' => $added, 'dupes' => $dupes, 'seen' => $seenN2, 'rows' => $out]);
+  ql_out(['ok' => true, 'source' => $src, 'added' => $added, 'dupes' => $dupes, 'seen' => $seenN2, 'rows' => $out]);
+}
+
+if ($action === 'sources') {
+  // OSM is always available; Google only with a key. The page asks, rather than
+  // guessing, so it never offers a source that cannot work.
+  ql_out(['ok' => true, 'osm' => true, 'google' => ql_has_places_key()]);
 }
 
 if ($action === 'list') {

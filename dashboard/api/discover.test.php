@@ -116,6 +116,56 @@ $PLACES_JSON = [
   eq(ql_places_request('', 'AAC', 'Jodhpur')['error'], 'not_configured', 'no key ⇒ "not_configured", never a silent zero');
 }
 
+/* ══════════ 4b. the FREE source (OpenStreetMap) ══════════
+   It must work with NO key at all — that is its entire reason for existing —
+   and it must obey the same failure contract as Google. */
+{
+  $OSM_JSON = ['elements' => [
+    ['type' => 'node', 'id' => 111, 'lat' => 26.2, 'lon' => 73.0,
+     'tags' => ['name' => 'Marudhar AAC Blocks', 'phone' => '+91 98290 22222', 'website' => 'https://marudhar.example',
+                'addr:street' => 'Boranada Industrial Area', 'addr:city' => 'Jodhpur']],
+    ['type' => 'way', 'id' => 222, 'center' => ['lat' => 26.3, 'lon' => 73.1],
+     'tags' => ['name' => 'Thar Cement Works', 'contact:phone' => '0291-2222222']],
+    ['type' => 'node', 'id' => 333, 'lat' => 1, 'lon' => 1, 'tags' => ['amenity' => 'bench']],   // no name
+  ]];
+  $rows = ql_osm_parse($OSM_JSON, 'Jodhpur');
+  eq(count($rows), 2, 'OSM: unnamed geometry (a bench) is dropped');
+  eq($rows[0]['name'], 'Marudhar AAC Blocks', 'OSM: the name is read');
+  eq($rows[0]['phone'], '+91 98290 22222', '  phone from the phone tag');
+  eq($rows[0]['address'], 'Boranada Industrial Area, Jodhpur', '  a readable address is built from addr:* tags');
+  eq($rows[0]['place_id'], 'osm:node/111', '  a stable id, namespaced so it can never collide with a Google place_id');
+  eq($rows[0]['rating'], null, '  OSM has no ratings — none is INVENTED');
+  eq($rows[1]['phone'], '0291-2222222', 'contact:phone is read when plain phone is absent');
+  ok($rows[1]['lat'] > 26 && $rows[1]['lng'] > 73, 'a way gets its coordinates from "out center"');
+  eq($rows[1]['website'], '', 'a missing website is empty, not garbage');
+  eq(ql_osm_parse(['elements' => 'nonsense'], 'X'), [], 'a malformed OSM reply yields no rows, never a crash');
+
+  // The whole point: NO KEY NEEDED.
+  $good = ql_osm_search('AAC', 'Jodhpur', [], function () use ($OSM_JSON) {
+    return ['code' => 200, 'body' => json_encode($OSM_JSON), 'err' => ''];
+  });
+  ok($good['ok'] && count($good['places']) === 2, 'OSM searches with NO key configured — it is the free path');
+
+  // Same honesty contract as Google.
+  $busy = ql_osm_search('AAC', 'Jodhpur', [], function () { return ['code' => 429, 'body' => '', 'err' => '']; });
+  ok(!$busy['ok'] && stripos($busy['error'], 'busy') !== false, 'a throttled Overpass says "busy, try again" — not "no businesses"');
+  $gw = ql_osm_search('AAC', 'Jodhpur', [], function () { return ['code' => 504, 'body' => '', 'err' => '']; });
+  ok(!$gw['ok'], 'a gateway timeout is a failure, not an empty market');
+  $dead = ql_osm_search('AAC', 'Jodhpur', [], function () { return ['code' => 0, 'body' => '', 'err' => 'dns']; });
+  ok(!$dead['ok'] && $dead['places'] === [], 'a network failure is reported');
+  $junk = ql_osm_search('AAC', 'Jodhpur', [], function () { return ['code' => 200, 'body' => 'not json', 'err' => '']; });
+  ok(!$junk['ok'], 'an unreadable 200 is a failure, not zero results');
+  ok(!ql_osm_search('', 'Jodhpur', [], function () { return ['code' => 200, 'body' => '{}', 'err' => '']; })['ok'], 'an empty query is refused');
+  ok(!ql_osm_search('AAC', '', [], function () { return ['code' => 200, 'body' => '{}', 'err' => '']; })['ok'], 'OSM needs a city (it searches inside an administrative area)');
+
+  // A quote in the search text must not be able to rewrite the Overpass query.
+  $sent = '';
+  ql_osm_search('AAC" ; out count; //', 'Jodhpur', [], function ($u, $payload) use (&$sent) {
+    $sent = $payload; return ['code' => 200, 'body' => '{"elements":[]}', 'err' => ''];
+  });
+  ok(strpos(urldecode($sent), '\\"') !== false, 'a quote in the search text is ESCAPED, not left to break out of the query');
+}
+
 /* ══════════ 5. the key never leaves the server ══════════ */
 {
   $src = file_get_contents(__DIR__ . '/discover.php');
@@ -125,6 +175,9 @@ $PLACES_JSON = [
   ok(strpos($src, 'ql_places_key(') === false, 'discover.php never reads the key value itself');
   ok(!preg_match('/\\$c\\s*\\[\\s*.GOOGLE_PLACES_KEY/', $src), '  and never pulls it out of config directly');
   ok(strpos($src, 'ql_places_search(') !== false, '  it calls the one door instead');
+  /* Asking "is Google set up?" must hand back a yes/no, never the secret — the
+     answer to this one is sent to the browser by the `sources` action. */
+  ok(is_bool(ql_has_places_key()), '  "is Google configured?" answers with a bool, never the key itself');
   $db = file_get_contents(__DIR__ . '/db.php');
   ok(strpos($db, "X-Goog-Api-Key: ' . \$key") !== false, 'the key is sent as a header from the SERVER, never to the browser');
   // The client must never receive it.
