@@ -94,6 +94,28 @@ console.log('\n═══ Lime market intelligence · demand × freight ═══
   ok(LM.stateByName('Jodhpur') === null, 'a city is not mistaken for a state');
 }
 
+/* ── profitability in rupees: freight vs your ex-works price ── */
+{
+  const near = LM.stateOpportunity(S('Gujarat'), 'quick', { exWorks: 8000 });
+  const far = LM.stateOpportunity(S('Odisha'), 'quick', { exWorks: 8000 });
+  ok(near.deliveredPerTonne === near.exWorks + near.freightPerTonne, 'delivered = ex-works + freight');
+  ok(near.freightSharePct < far.freightSharePct, 'freight is a smaller share of price for the nearer market');
+  ok(far.freightSharePct > 60, 'Odisha freight eats a large share of an ₹8000 ex-works price');
+  ok(near.profit.key === 'strong' || near.profit.key === 'workable', 'a near market is at least workable');
+  ok(far.profit.key === 'thin' || far.profit.key === 'unviable', 'a far market is thin/unviable on margin — the honest call');
+  // Price-aware scoring: raising the price makes far markets more reachable.
+  const farCheap = LM.stateOpportunity(S('Odisha'), 'quick', { exWorks: 5000 });
+  const farRich = LM.stateOpportunity(S('Odisha'), 'quick', { exWorks: 20000 });
+  ok(farRich.score > farCheap.score, 'the same distance is more viable when the product is worth more (freight share falls)');
+  // Tier thresholds.
+  ok(LM.profitTier(0.1).key === 'strong' && LM.profitTier(0.4).key === 'workable' && LM.profitTier(0.7).key === 'thin' && LM.profitTier(1.2).key === 'unviable', 'profit tiers map to freight share');
+
+  // Backward compatible: no price → no rupee fields, distance-only score (unchanged).
+  const noPrice = LM.stateOpportunity(S('Gujarat'), 'quick', {});
+  ok(noPrice.deliveredPerTonne === undefined && noPrice.profit === undefined, 'without a price, no rupee figures are invented');
+  ok(typeof noPrice.score === 'number', '  and the distance-only score still works');
+}
+
 /* ── honesty: cement is not sold a false story, and nothing is a per-company fact ── */
 {
   ok(!LM.industriesForProduct('quick').some(i => i.key === 'cement'), 'cement (rarely a buyer) is excluded, not padded in to look bigger');

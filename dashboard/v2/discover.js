@@ -89,11 +89,18 @@ const LIME_ORIGINS = [
   ['Borunda', 26.35, 73.55], ['Gotan', 26.87, 73.62], ['Jodhpur', 26.29, 73.02],
   ['Beawar', 26.10, 74.32], ['Bhilwara', 25.35, 74.64], ['Jaipur', 26.91, 75.79], ['Bikaner', 28.02, 73.31]
 ];
-const MI = { product: 'quick', origin: 'Borunda', rate: 4 };
+const MI = { product: 'quick', origin: 'Borunda', rate: 4, exWorks: {} };
 function miLoad() {
   try { const s = JSON.parse(localStorage.getItem('ql_lime_mi') || '{}'); Object.assign(MI, s); } catch (_) {}
   MI.rate = +MI.rate || 4;
+  // Ex-works price per product — seeded from the engine's editable estimates so
+  // the rupee figures work out of the box, then the user corrects to their real
+  // prices (persisted per product).
+  MI.exWorks = MI.exWorks || {};
+  const def = (LM && LM.DEFAULT_EXWORKS) || {};
+  ['quick', 'hydrated', 'powder'].forEach(k => { MI.exWorks[k] = +MI.exWorks[k] || def[k] || 0; });
 }
+function miEx() { return MI.exWorks[MI.product] || 0; }
 function miSave() { try { localStorage.setItem('ql_lime_mi', JSON.stringify(MI)); } catch (_) {} }
 function miOriginCoords() { const o = LIME_ORIGINS.find(x => x[0] === MI.origin) || LIME_ORIGINS[0]; return { name: o[0], lat: o[1], lon: o[2] }; }
 
@@ -316,24 +323,32 @@ function buildMarketPanel() {
   o.innerHTML = LIME_ORIGINS.map(x => `<option value="${esc(x[0])}">${esc(x[0])}</option>`).join('');
   o.value = MI.origin;
   document.getElementById('miRate').value = MI.rate;
-  p.onchange = () => { MI.product = p.value; miSave(); renderMarket(); };
+  const ex = document.getElementById('miEx'); if (ex) ex.value = miEx();
+  p.onchange = () => { MI.product = p.value; miSave(); if (ex) ex.value = miEx(); renderMarket(); };
   o.onchange = () => { MI.origin = o.value; miSave(); renderMarket(); };
   document.getElementById('miRate').onchange = e => { MI.rate = Math.min(20, Math.max(1, +e.target.value || 4)); e.target.value = MI.rate; miSave(); renderMarket(); };
+  if (ex) ex.onchange = e => { MI.exWorks[MI.product] = Math.max(0, +e.target.value || 0); e.target.value = miEx(); miSave(); renderMarket(); };
   renderMarket();
 }
 
 function renderMarket() {
-  const opts = { origin: miOriginCoords(), freightRate: MI.rate };
+  const opts = { origin: miOriginCoords(), freightRate: MI.rate, exWorks: miEx() };
   const plan = LM.plan(MI.product, opts);
   const stEl = document.getElementById('miStates');
   stEl.innerHTML = plan.map((r, i) => {
     const inds = r.industries.slice(0, 3).map(ind =>
       `<button class="dc-chip" style="padding:2px 8px;font-size:11px" data-find data-what="${esc(LM.osmTerm(ind.key))}" data-state="${esc(r.state)}">${esc(ind.label.replace(/ (Plants|Mills|Manufacturers|Industries|Companies|Refineries|Smelters|Units)$/, ''))}</button>`).join(' ');
+    // Rupee line only when a price is set (it always is, via defaults) — delivered
+    // cost + how much of the price freight eats + an honest margin verdict.
+    const money = r.deliveredPerTonne != null
+      ? `<div class="mi-money">₹<b>${r.deliveredPerTonne.toLocaleString('en-IN')}</b>/t delivered · freight ${r.freightSharePct}% of price <span class="mi-prof ${r.profit.key}">${r.profit.label}</span></div>`
+      : '';
     return `<div class="mi-s">
       <span class="mi-rank">${i + 1}</span>
       <div class="mi-si">
         <div class="mi-sn">${esc(r.state)}<span class="mi-tier ${r.tier.tier}">${r.tier.label} · ${r.km}km · ₹${r.freightPerTonne}/t</span></div>
         <div class="mi-sd">${inds}</div>
+        ${money}
       </div>
       <div class="mi-score"><span class="n">${r.score}</span><span class="b"><i style="width:${r.score}%"></i></span></div>
     </div>`;

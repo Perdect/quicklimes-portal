@@ -27,6 +27,10 @@
      from a setting without touching this file. */
   var DEFAULT_ORIGIN = { name: 'Borunda, Rajasthan', lat: 26.35, lon: 73.55 };
   var DEFAULT_FREIGHT = 4;      // ₹ per tonne per road-km — an estimate the user sets
+  /* Ex-works price per tonne — ESTIMATES the user must set to their real prices.
+     They drive the profitability figures; the relative ranking is robust to being
+     a bit off, but the rupee numbers are only as true as these. */
+  var DEFAULT_EXWORKS = { quick: 8000, hydrated: 9000, powder: 6000 };
   var ROAD_FACTOR = 1.3;        // straight-line → road distance, rough
   var VIABLE_KM = 1600;         // beyond this, freight on a commodity usually kills the margin
 
@@ -144,30 +148,59 @@
       .slice().sort(function (a, b) { return b.demand - a.demand; });
   }
 
-  /* Opportunity of one state for one product, from THIS origin at THIS rate. */
+  /* Profitability tier from how much of your ex-works PRICE the freight eats.
+     Lime is low-value/high-volume, so this ratio — not distance alone — is what
+     decides whether a market pays. Maps to the user's Hot/Warm/Cold idea. */
+  function profitTier(freightShare) {
+    if (freightShare <= 0.25) return { key: 'strong', label: 'Strong margin' };
+    if (freightShare <= 0.50) return { key: 'workable', label: 'Workable' };
+    if (freightShare <= 0.80) return { key: 'thin', label: 'Thin margin' };
+    return { key: 'unviable', label: 'Freight too high' };
+  }
+
+  /* Opportunity of one state for one product, from THIS origin at THIS rate.
+     If an ex-works price is given (opts.exWorks), the score becomes PRICE-AWARE:
+     reachability is driven by freight as a share of the price, and the rupee
+     figures (delivered cost, freight share, profit tier) come back too. Without a
+     price it falls back to the distance-only model (unchanged), so older callers
+     and tests behave exactly as before. */
   function stateOpportunity(state, product, opts) {
     opts = opts || {};
     var origin = opts.origin || DEFAULT_ORIGIN;
     var rate = opts.freightRate != null ? opts.freightRate : DEFAULT_FREIGHT;
+    var exWorks = +opts.exWorks || 0;
     var km = roadKm(origin, state);
-    var feas = feasibility(km);
+    var freight = Math.round(km * rate);
     // demand = the lime pull of the RELEVANT industries present, tempered by how
     // concentrated the state is (stars). Normalised to 0..1.
     var rel = state.industries.map(industry).filter(Boolean)
       .filter(function (i) { return !product || i.products.indexOf(product) >= 0; });
     var pull = rel.reduce(function (a, i) { return a + i.demand; }, 0);
     var demand = Math.min(1, (pull / 25) * 0.6 + (state.stars / 5) * 0.4);
-    // score = demand AND reachability. Both matter; a market you can't afford to
-    // reach is not an opportunity however much lime it burns.
+
+    // Reachability: freight-share when we know the price (more honest than a
+    // fixed km cutoff), else the distance heuristic.
+    var freightShare = exWorks > 0 ? freight / exWorks : null;
+    var feas = exWorks > 0 ? Math.max(0.05, Math.min(1, 1 - freightShare)) : feasibility(km);
+
+    // score = demand AND reachability. A market you can't afford to reach is not
+    // an opportunity however much lime it burns.
     var score = Math.round(demand * feas * 100);
-    return {
+    var out = {
       state: state.name, km: km, tier: transportTier(km),
-      freightPerTonne: Math.round(km * rate),
+      freightPerTonne: freight,
       feasibility: Math.round(feas * 100) / 100,
       demand: Math.round(demand * 100),
       score: score,
       industries: rel.map(function (i) { return { key: i.key, label: i.label, demand: i.demand }; })
     };
+    if (exWorks > 0) {
+      out.exWorks = exWorks;
+      out.deliveredPerTonne = exWorks + freight;
+      out.freightSharePct = Math.round(freightShare * 100);
+      out.profit = profitTier(freightShare);
+    }
+    return out;
   }
 
   /* The national targeting plan for a product: every state scored and ranked. */
@@ -179,8 +212,8 @@
 
   root.LimeMarket = {
     INDUSTRIES: INDUSTRIES, STATES: STATES, PRODUCTS: PRODUCTS,
-    DEFAULT_ORIGIN: DEFAULT_ORIGIN, DEFAULT_FREIGHT: DEFAULT_FREIGHT, VIABLE_KM: VIABLE_KM,
-    roadKm: roadKm, transportTier: transportTier, feasibility: feasibility, osmTerm: osmTerm,
+    DEFAULT_ORIGIN: DEFAULT_ORIGIN, DEFAULT_FREIGHT: DEFAULT_FREIGHT, DEFAULT_EXWORKS: DEFAULT_EXWORKS, VIABLE_KM: VIABLE_KM,
+    roadKm: roadKm, transportTier: transportTier, feasibility: feasibility, osmTerm: osmTerm, profitTier: profitTier,
     industry: industry, stateByName: stateByName, hubsFor: hubsFor,
     industriesForProduct: industriesForProduct,
     stateOpportunity: stateOpportunity, plan: plan

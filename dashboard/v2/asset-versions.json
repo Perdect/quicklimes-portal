@@ -104,16 +104,16 @@
     "sha": "68f6c216ed67"
   },
   "lime-market.js": {
-    "v": "lm2",
-    "sha": "5b602c33404f"
+    "v": "lm3",
+    "sha": "bb572eb2b5e1"
   },
   "osm-query.js": {
     "v": "oq1",
     "sha": "2119b61da12a"
   },
   "discover.js": {
-    "v": "d9",
-    "sha": "ae1b49971c6a"
+    "v": "d10",
+    "sha": "0edf2c845360"
   },
   "health-findings.js": {
     "v": "h1",

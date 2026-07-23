@@ -96,6 +96,13 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .mi-score .n { font: 800 16px var(--ql-font-sans); color: var(--ql-text); font-variant-numeric: tabular-nums; line-height: 1; }
   .mi-score .b { display: block; width: 40px; height: 4px; border-radius: 9px; background: var(--ql-neutral-200, #e2e8f0); margin-top: 5px; overflow: hidden; }
   .mi-score .b i { display: block; height: 100%; background: var(--ql-brand-600, #2563eb); }
+  .mi-money { font: 500 11px var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 3px; }
+  .mi-money b { color: var(--ql-text); font-weight: 700; }
+  .mi-prof { font: 700 9.5px var(--ql-font-sans); text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 5px; white-space: nowrap; }
+  .mi-prof.strong { background: #dcfce7; color: #15803d; } .mi-prof.workable { background: #e0f2fe; color: #0369a1; }
+  .mi-prof.thin { background: #fff7ed; color: #b45309; } .mi-prof.unviable { background: #fef2f2; color: #dc2626; }
+  :root[data-theme="dark"] .mi-prof.strong { background: rgba(22,163,74,.2); color: #4ade80; } :root[data-theme="dark"] .mi-prof.workable { background: rgba(3,105,161,.25); color: #7dd3fc; }
+  :root[data-theme="dark"] .mi-prof.thin { background: rgba(180,83,9,.22); color: #fdba74; } :root[data-theme="dark"] .mi-prof.unviable { background: rgba(220,38,38,.2); color: #fca5a5; }
   .mi-find { flex: none; font: 600 11px var(--ql-font-sans); color: var(--ql-brand-700, #1d4ed8); background: var(--ql-brand-50, #eff6ff); border: 1px solid var(--ql-brand-100, #dbeafe); border-radius: 7px; padding: 5px 9px; cursor: pointer; white-space: nowrap; }
   .mi-find:hover { background: var(--ql-brand-100, #dbeafe); }
   :root[data-theme="dark"] .mi-find { color: #bfdbfe; background: rgba(37,99,235,.16); border-color: rgba(37,99,235,.34); }
@@ -203,6 +210,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
         <label>I sell <select id="miProduct"></select></label>
         <label>from <select id="miOrigin"></select></label>
         <label>freight ₹<input id="miRate" type="number" min="1" max="20" step="0.5" style="width:56px"> /tonne/km</label>
+        <label>ex-works ₹<input id="miEx" type="number" min="0" max="100000" step="100" style="width:78px"> /tonne</label>
       </div>
       <div class="mi-grid">
         <div class="mi-col">
@@ -272,7 +280,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./icp-core.js?v=i1"></script>
 <script src="./lead-import.js?v=l1"></script>
 <script src="./lead-parse.js?v=lp1"></script>
-<script src="./lime-market.js?v=lm2"></script>
+<script src="./lime-market.js?v=lm3"></script>
 <script src="./osm-query.js?v=oq1"></script>
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
@@ -282,6 +290,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./shell.js?v=m61"></script>
 <script src="./mobile.js?v=m16"></script>
 <script src="./qlx.js?v=m17"></script>
-<script src="./discover.js?v=d9"></script>
+<script src="./discover.js?v=d10"></script>
 </body>
 </html>
