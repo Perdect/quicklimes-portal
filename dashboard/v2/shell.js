@@ -194,6 +194,7 @@
     { type: 'solo', id: 'dashboard', label: 'Dashboard', href: 'dashboard.html', icon: I.grid, feat: 'dashboard' },
     { type: 'solo', id: 'command', label: 'Command Center', href: 'command.html', icon: I.pulse, feat: 'command' },
     { type: 'solo', id: 'discover', label: 'Lead Discovery', href: 'discover.html', icon: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>', feat: 'sales' },
+    { type: 'solo', id: 'freight', label: 'Freight Calculator', href: 'freight.html', icon: '<path d="M1 3h15v13H1zM16 8h4l3 3v5h-7"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/>', feat: 'sales' },
     { type: 'group', label: 'Sales', feat: 'sales', items: [
       { id: 'invoice',     label: 'GST Invoice',     href: 'invoice.html', icon: I.invoice },
       { id: 'sales',       label: 'Sales Register',  href: 'sales.html', icon: I.sales },

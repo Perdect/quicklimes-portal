@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — runs before the first paint so a Light user on a dark OS never
+   sees a flash. Must stay above every stylesheet. */
+(function(){try{var t=localStorage.getItem('ql_theme')||'system';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Freight Calculator — QuickLimes</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="manifest" href="/v2/app.webmanifest">
+<link rel="apple-touch-icon" href="/v2/pwa-apple.png?v=g1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r9"><link rel="stylesheet" href="./pages.css?v=m16">
+<link rel="stylesheet" href="./qlx.css?v=m10">
+<link rel="stylesheet" href="./mobile.css?v=m14">
+<style>
+  /* ═══ Freight Calculator ═══ Glass, two-column: inputs left, live delivered
+     price right. All colour via tokens so light + dark both work. */
+  .fr-hero { position: relative; overflow: hidden; border-radius: var(--ql-radius-2xl, 20px); padding: 22px 24px; margin-bottom: var(--ql-space-4);
+    background: linear-gradient(135deg, rgba(37,99,235,.14), rgba(139,92,246,.10) 60%, transparent);
+    border: 1px solid var(--ql-border); }
+  .fr-hero h1 { font: 800 23px/1.15 var(--ql-font-sans); letter-spacing: -.03em; color: var(--ql-text); margin: 0; }
+  .fr-hero p { font: 500 13px/1.55 var(--ql-font-sans); color: var(--ql-text-secondary); margin: 5px 0 0; max-width: 64ch; }
+  .fr-hero .fr-plant-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 5px 12px; border-radius: 999px;
+    background: var(--ql-card); border: 1px solid var(--ql-border); font: 600 12px var(--ql-font-sans); color: var(--ql-text); }
+
+  .fr-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .fr-grid { grid-template-columns: 1fr; } }
+
+  .fr-card { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-xl); padding: 18px 20px; margin-bottom: 16px; }
+  .fr-sec-t { font: 700 11px var(--ql-font-sans); letter-spacing: .07em; text-transform: uppercase; color: var(--ql-text-secondary); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  .fr-sec-t svg { width: 15px; height: 15px; color: var(--ql-brand-600, #2563eb); }
+
+  .fr-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .fr-f { display: flex; flex-direction: column; gap: 5px; }
+  .fr-f label { font: 600 11.5px var(--ql-font-sans); color: var(--ql-text-secondary); }
+  .fr-f input, .fr-f select, .fr-f textarea { font: 500 13.5px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-bg-elevated); border: 1px solid var(--ql-border); border-radius: 9px; padding: 9px 11px; width: 100%; box-sizing: border-box; }
+  .fr-f input:focus, .fr-f select:focus, .fr-f textarea:focus { outline: none; border-color: var(--ql-brand-500, #3b82f6); box-shadow: 0 0 0 3px rgba(37,99,235,.14); }
+  .fr-f textarea { resize: vertical; min-height: 52px; }
+  .fr-hint { font: 500 11px var(--ql-font-sans); color: var(--ql-text-muted); }
+
+  /* Plant + method choice pills */
+  .fr-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fr-pill { display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; border-radius: 11px; border: 1.5px solid var(--ql-border); background: var(--ql-bg-elevated); cursor: pointer; font: 600 12.5px var(--ql-font-sans); color: var(--ql-text); transition: border-color .12s, background .12s; }
+  .fr-pill:hover { border-color: var(--ql-brand-400, #60a5fa); }
+  .fr-pill.on { border-color: var(--ql-brand-600, #2563eb); background: var(--ql-brand-50, #eff6ff); color: var(--ql-brand-700, #1d4ed8); }
+  [data-theme="dark"] .fr-pill.on { background: rgba(37,99,235,.18); color: #93c5fd; }
+  .fr-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: .5; }
+  .fr-pill.on .dot { opacity: 1; }
+
+  .fr-locate { display: flex; gap: 8px; align-items: flex-end; }
+  .fr-locate .ql-btn { white-space: nowrap; }
+  .fr-detect { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--ql-bg-subtle, #f8fafc); border: 1px solid var(--ql-border); font: 500 12px var(--ql-font-sans); color: var(--ql-text-secondary); display: none; }
+  [data-theme="dark"] .fr-detect { background: rgba(255,255,255,.03); }
+  .fr-detect.show { display: block; }
+  .fr-detect b { color: var(--ql-text); }
+  .fr-src { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font: 700 9.5px var(--ql-font-sans); text-transform: uppercase; letter-spacing: .04em; }
+  .fr-src.google { background: #dcfce7; color: #15803d; } .fr-src.est { background: #fef3c7; color: #b45309; }
+  [data-theme="dark"] .fr-src.google { background: rgba(22,163,74,.2); color: #4ade80; } [data-theme="dark"] .fr-src.est { background: rgba(180,83,9,.22); color: #fbbf24; }
+
+  .fr-collapse-h { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+  .fr-collapse-h .chev { transition: transform .18s; color: var(--ql-text-muted); }
+  .fr-collapse.open .chev { transform: rotate(180deg); }
+  .fr-collapse-body { display: none; margin-top: 12px; }
+  .fr-collapse.open .fr-collapse-body { display: block; }
+
+  .fr-charges { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+
+  /* ── RESULT PANEL ── */
+  .fr-result { position: sticky; top: 14px; }
+  .fr-result-card { background: linear-gradient(160deg, var(--ql-card), var(--ql-card)); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-2xl, 20px); overflow: hidden; }
+  .fr-res-top { padding: 18px 20px; background: linear-gradient(135deg, rgba(37,99,235,.10), transparent); border-bottom: 1px solid var(--ql-border); }
+  .fr-res-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .fr-metric .l { font: 700 10px var(--ql-font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ql-text-muted); }
+  .fr-metric .v { font: 800 20px/1.1 var(--ql-font-sans); color: var(--ql-text); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .fr-metric .s { font: 500 10.5px var(--ql-font-sans); color: var(--ql-text-secondary); }
+
+  .fr-deliver { padding: 4px 20px 14px; }
+  .fr-line { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px dashed var(--ql-divider, var(--ql-border)); font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); }
+  .fr-line .amt { font: 600 13px var(--ql-font-sans); color: var(--ql-text); font-variant-numeric: tabular-nums; }
+  .fr-line.big { border-bottom: none; padding-top: 12px; }
+  .fr-line.big .lbl { font: 800 14px var(--ql-font-sans); color: var(--ql-text); }
+  .fr-line.big .amt { font: 800 22px var(--ql-font-sans); color: var(--ql-brand-700, #1d4ed8); }
+  [data-theme="dark"] .fr-line.big .amt { color: #93c5fd; }
+  .fr-grand { text-align: center; padding: 10px 20px 2px; font: 600 12px var(--ql-font-sans); color: var(--ql-text-secondary); }
+  .fr-grand b { color: var(--ql-text); font-weight: 800; }
+
+  .fr-verdict { margin: 10px 20px; padding: 10px 14px; border-radius: 12px; font: 600 12.5px var(--ql-font-sans); display: flex; align-items: center; gap: 8px; }
+  .fr-verdict.strong { background: #dcfce7; color: #15803d; } .fr-verdict.workable { background: #e0f2fe; color: #0369a1; }
+  .fr-verdict.thin { background: #fff7ed; color: #b45309; } .fr-verdict.unviable { background: #fef2f2; color: #dc2626; }
+  [data-theme="dark"] .fr-verdict.strong { background: rgba(22,163,74,.18); color: #4ade80; } [data-theme="dark"] .fr-verdict.workable { background: rgba(3,105,161,.24); color: #7dd3fc; }
+  [data-theme="dark"] .fr-verdict.thin { background: rgba(180,83,9,.2); color: #fdba74; } [data-theme="dark"] .fr-verdict.unviable { background: rgba(220,38,38,.2); color: #fca5a5; }
+
+  .fr-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 6px 20px 18px; }
+  .fr-actions .ql-btn { justify-content: center; }
+  .fr-actions .full { grid-column: 1 / -1; }
+
+  .fr-empty { padding: 40px 20px; text-align: center; color: var(--ql-text-muted); font: 500 13px var(--ql-font-sans); }
+
+  /* Best-plant compare */
+  .fr-plants { padding: 0 20px 16px; }
+  .fr-plant-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--ql-border); margin-top: 8px; font: 600 12px var(--ql-font-sans); }
+  .fr-plant-row.best { border-color: #16a34a; background: rgba(22,163,74,.06); }
+  .fr-plant-row .pn { color: var(--ql-text); } .fr-plant-row .pd { color: var(--ql-text-secondary); font-weight: 500; font-size: 11px; }
+  .fr-plant-row .pv { color: var(--ql-text); font-weight: 800; font-variant-numeric: tabular-nums; }
+  .fr-save-note { margin: 4px 20px 14px; font: 600 12px var(--ql-font-sans); color: #15803d; }
+  [data-theme="dark"] .fr-save-note { color: #4ade80; }
+
+  /* History */
+  .fr-hist { display: flex; flex-direction: column; gap: 8px; }
+  .fr-hist-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 13px; border: 1px solid var(--ql-border); border-radius: 11px; cursor: pointer; transition: border-color .12s; }
+  .fr-hist-row:hover { border-color: var(--ql-brand-400, #60a5fa); }
+  .fr-hist-row .hn { font: 700 13px var(--ql-font-sans); color: var(--ql-text); }
+  .fr-hist-row .hm { font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 2px; }
+  .fr-hist-row .hp { font: 800 14px var(--ql-font-sans); color: var(--ql-text); font-variant-numeric: tabular-nums; text-align: right; }
+  .fr-hist-row .hp small { display: block; font: 500 10px var(--ql-font-sans); color: var(--ql-text-muted); }
+  .fr-hist-del { background: none; border: 0; color: var(--ql-text-muted); cursor: pointer; padding: 4px; font-size: 16px; line-height: 1; }
+  .fr-hist-empty { color: var(--ql-text-muted); font: 500 12.5px var(--ql-font-sans); padding: 8px 2px; }
+  .fr-predict { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--ql-brand-50, #eff6ff); border: 1px solid var(--ql-brand-100, #dbeafe); font: 500 12px var(--ql-font-sans); color: var(--ql-brand-800, #1e40af); display: none; }
+  [data-theme="dark"] .fr-predict { background: rgba(37,99,235,.14); border-color: rgba(37,99,235,.3); color: #bfdbfe; }
+  .fr-predict.show { display: block; }
+</style>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="fr-hero">
+      <h1>Freight &amp; Delivered-Price Calculator</h1>
+      <p>Customer wants lime? Enter where they are — get the road distance, freight, transit time and the <b>delivered ₹/MT</b> in seconds, ready to quote on WhatsApp.</p>
+      <span class="fr-plant-badge" id="frPlantBadge">▲ Loading plant…</span>
+    </div>
+
+    <div class="fr-grid">
+      <!-- ════ LEFT: inputs ════ -->
+      <div>
+        <!-- Plant -->
+        <div class="fr-card">
+          <div class="fr-sec-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M6 21V7l6-4 6 4v14M10 21v-5h4v5"/></svg>Ship from</div>
+          <div class="fr-pills" id="frPlants"></div>
+          <div class="fr-hint" id="frPlantHint" style="margin-top:8px"></div>
+        </div>
+
+        <!-- Product -->
+        <div class="fr-card">
+          <div class="fr-sec-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>Product &amp; quantity</div>
+          <div class="fr-row">
+            <div class="fr-f"><label for="frProduct">Product</label><select id="frProduct"></select></div>
+            <div class="fr-f"><label for="frQty">Quantity (MT)</label><input id="frQty" type="number" min="0" step="1" value="25"></div>
+            <div class="fr-f"><label for="frPack">Packaging</label><select id="frPack"></select></div>
+            <div class="fr-f"><label for="frExworks">Ex-works ₹/MT</label><input id="frExworks" type="number" min="0" step="100"></div>
+          </div>
+        </div>
+
+        <!-- Destination -->
+        <div class="fr-card">
+          <div class="fr-sec-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.3-7-11a7 7 0 0 1 14 0c0 4.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>Deliver to (customer)</div>
+          <div class="fr-row">
+            <div class="fr-f"><label for="frCustName">Customer name</label><input id="frCustName" placeholder="Contact person" autocomplete="off"></div>
+            <div class="fr-f"><label for="frCompany">Company</label><input id="frCompany" placeholder="Firm name" autocomplete="off"></div>
+          </div>
+          <div class="fr-f" style="margin-top:12px"><label for="frAddr">Full address / area to locate</label>
+            <div class="fr-locate">
+              <textarea id="frAddr" placeholder="e.g. Kalinga Nagar Industrial Complex, Jajpur, Odisha 755026"></textarea>
+              <button class="ql-btn ql-btn-primary" id="frLocate" type="button">Locate</button>
+            </div>
+          </div>
+          <div class="fr-row" style="margin-top:12px">
+            <div class="fr-f"><label for="frCity">City</label><input id="frCity" autocomplete="off"></div>
+            <div class="fr-f"><label for="frState">State</label><input id="frState" autocomplete="off"></div>
+            <div class="fr-f"><label for="frPin">PIN code</label><input id="frPin" inputmode="numeric" autocomplete="off"></div>
+          </div>
+          <div class="fr-detect" id="frDetect"></div>
+        </div>
+
+        <!-- Vehicle -->
+        <div class="fr-card">
+          <div class="fr-sec-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>Vehicle</div>
+          <div class="fr-row">
+            <div class="fr-f"><label for="frVehicle">Vehicle type</label><select id="frVehicle"></select></div>
+            <div class="fr-f"><label>Recommended</label><div class="fr-hint" id="frVehRec" style="padding-top:9px"></div></div>
+          </div>
+        </div>
+
+        <!-- Freight method -->
+        <div class="fr-card">
+          <div class="fr-sec-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Freight rate</div>
+          <div class="fr-row">
+            <div class="fr-f"><label for="frMethod">Pricing method</label><select id="frMethod"></select></div>
+            <div class="fr-f"><label id="frRateLabel" for="frRate">Rate</label><input id="frRate" type="number" min="0" step="1" value="4"></div>
+          </div>
+          <div class="fr-hint" id="frMethodHint" style="margin-top:8px"></div>
+
+          <!-- Additional charges -->
+          <div class="fr-collapse" id="frChargesWrap" style="margin-top:14px">
+            <div class="fr-collapse-h" id="frChargesToggle"><span class="fr-sec-t" style="margin:0">Additional charges <span id="frChargesSum" style="color:var(--ql-text-muted);font-weight:600"></span></span>
+              <svg class="chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+            <div class="fr-collapse-body"><div class="fr-charges" id="frCharges"></div></div>
+          </div>
+
+          <!-- Manual override -->
+          <div class="fr-collapse" id="frManualWrap" style="margin-top:14px">
+            <div class="fr-collapse-h" id="frManualToggle"><span class="fr-sec-t" style="margin:0">Manual override / transporter quote</span>
+              <svg class="chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+            <div class="fr-collapse-body">
+              <div class="fr-hint" style="margin-bottom:10px">Enter a negotiated freight — it <b>overrides</b> the calculation above.</div>
+              <div class="fr-row">
+                <div class="fr-f"><label for="frManFreight">Freight (₹ total)</label><input id="frManFreight" type="number" min="0" step="100" placeholder="—"></div>
+                <div class="fr-f"><label for="frManDays">Transit days</label><input id="frManDays" type="number" min="0" step="1" placeholder="auto"></div>
+                <div class="fr-f"><label for="frTransporter">Transporter</label><input id="frTransporter" autocomplete="off"></div>
+                <div class="fr-f"><label for="frVehNo">Vehicle no.</label><input id="frVehNo" autocomplete="off"></div>
+                <div class="fr-f"><label for="frDriver">Driver</label><input id="frDriver" autocomplete="off"></div>
+                <div class="fr-f"><label for="frRemarks">Remarks</label><input id="frRemarks" autocomplete="off"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ RIGHT: live result ════ -->
+      <div class="fr-result">
+        <div class="fr-result-card">
+          <div class="fr-res-top">
+            <div class="fr-res-metrics">
+              <div class="fr-metric"><div class="l">Distance</div><div class="v" id="frKm">—</div><div class="s" id="frKmSrc"></div></div>
+              <div class="fr-metric"><div class="l">Transit time</div><div class="v" id="frDays">—</div><div class="s">estimate · editable</div></div>
+              <div class="fr-metric"><div class="l">Freight / MT</div><div class="v" id="frFreightMt">—</div><div class="s" id="frTrucks"></div></div>
+              <div class="fr-metric"><div class="l">Total freight</div><div class="v" id="frFreightTotal">—</div><div class="s" id="frFreightNote"></div></div>
+            </div>
+          </div>
+          <div id="frResultBody">
+            <div class="fr-empty" id="frEmpty">Enter a destination and press <b>Locate</b> to get the delivered price.</div>
+            <div id="frBreakdown" style="display:none">
+              <div class="fr-deliver">
+                <div class="fr-line"><span class="lbl">Material (ex-works + packaging)</span><span class="amt" id="frBdMaterial">—</span></div>
+                <div class="fr-line"><span class="lbl">Freight</span><span class="amt" id="frBdFreight">—</span></div>
+                <div class="fr-line" id="frBdAddLine"><span class="lbl">Additional charges</span><span class="amt" id="frBdAdd">—</span></div>
+                <div class="fr-line"><span class="lbl" id="frBdGstLbl">GST</span><span class="amt" id="frBdGst">—</span></div>
+                <div class="fr-line big"><span class="lbl">Delivered price / MT</span><span class="amt" id="frBdDelivered">—</span></div>
+              </div>
+              <div class="fr-grand" id="frGrand"></div>
+              <div class="fr-verdict" id="frVerdict" style="display:none"></div>
+              <div class="fr-plants" id="frPlantsCompare"></div>
+              <div class="fr-save-note" id="frSaveNote" style="display:none"></div>
+              <div class="fr-actions">
+                <button class="ql-btn ql-btn-secondary" id="frSave" type="button">Save</button>
+                <button class="ql-btn ql-btn-secondary" id="frCopy" type="button">Copy quote</button>
+                <button class="ql-btn ql-btn-primary full" id="frWa" type="button">Send quotation on WhatsApp</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- History -->
+        <div class="fr-card" style="margin-top:16px">
+          <div class="fr-sec-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>Recent freight</div>
+          <div class="fr-predict" id="frPredict"></div>
+          <div class="fr-hist" id="frHist"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="ql-api.js?v=a4"></script>
+<script src="./party-identity.js?v=m27"></script>
+<script src="./import-guard.js?v=m28"></script>
+<script src="./data.js?v=m44"></script>
+<script src="./i18n.js?v=h8"></script>
+<script src="./wa-core.js?v=w2"></script>
+<script src="./shell.js?v=m63"></script>
+<script src="./mobile.js?v=m16"></script>
+<script src="./qlx.js?v=m17"></script>
+<script src="./lime-market.js?v=lm3"></script>
+<script src="./freight-core.js?v=f1"></script>
+<script src="./freight.js?v=f1"></script>
+</body>
+</html>
