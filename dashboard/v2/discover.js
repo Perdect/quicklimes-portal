@@ -513,13 +513,24 @@ async function runSearch() {
        "there are no such businesses here". */
     RECENT.unshift({ label: tag, ok: false });
     paintRecent();
+    /* OSM is a free, shared, often-overloaded service with thin coverage of
+       Indian industry — a failure here is EXPECTED, not a broken app. Say so, and
+       point at the paths that always work rather than leaving the user retrying. */
+    const freeNudge = SRC === 'osm'
+      ? ' <br><span style="font-weight:500">The free OpenStreetMap service is often slow or sparse for Indian firms. For dependable prospecting, use <b>Paste / import a list</b>, or the <b>Market Intelligence</b> targets above.</span>'
+      : '';
     notice('Search failed: <b>' + esc(lastErr) + '</b>'
-      + (lastRetry ? ' <button class="dc-retry" id="dcRetry">Retry</button>' : ''), true);
+      + (lastRetry ? ' <button class="dc-retry" id="dcRetry">Retry</button>' : '') + freeNudge, true);
     const rb = document.getElementById('dcRetry'); if (rb) rb.onclick = runSearch;
     toast(lastErr, 'err');
     return;
   }
   if (radius && fellBack) notice('Couldn’t pin the centre of <b>' + esc(city) + '</b>, so this searched the whole area instead of a ' + radius + ' km circle.', true);
+  else if (added === 0 && dupes === 0) {
+    /* Reached the source fine but it had nothing — with OSM that is coverage, not
+       "no such businesses". Be honest and redirect to what works. */
+    notice('No matches in OpenStreetMap for <b>' + esc(tag) + '</b> — its coverage of Indian industry is thin, so this rarely means the businesses don’t exist. Try <b>Paste / import a list</b>, or aim with <b>Market Intelligence</b> above.', true);
+  }
   else if (stateLabel) notice(`Searched <b>${esc(stateLabel)}</b> across ${targets.join(', ')}. Want more towns there? Tell me and I’ll widen the hub list.`);
   else notice('');
   RECENT.unshift({ label: tag, ok: true, added, dupes });
