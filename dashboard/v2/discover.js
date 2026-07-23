@@ -894,6 +894,92 @@ function openPaste() {
   if (window.location) window.location.href = 'crm.html';
 }
 
+/* ═══ PIPELINE tab — the full Sales Pipeline board, embedded in Lead Discovery.
+   Reuses crm-core.js (the tested pipeline rules + forecast) and /api/crm, so the
+   money maths match the standalone CRM exactly. View + add + stage-move here;
+   deep multi-field edits still open cleanly through the same form. ═══ */
+let PIPE = { companies: [], contacts: [], leads: [] }, PIPE_LOADED = false;
+function pipeApi(body) {
+  const p = JSON.parse(localStorage.getItem('ql_plant') || '{}');
+  return fetch('/api/crm', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ plant_id: p.id, company_id: Q ? Q.activeCo : undefined, token: p.token }, body)) })
+    .then(r => r.json()).catch(() => ({ ok: false, error: 'Network error' }));
+}
+function pipeCoOf(id) { return PIPE.companies.find(c => +c.id === +id) || {}; }
+function pipeFmt(n) { return n == null || !isFinite(n) ? '—' : '₹' + Math.round(n).toLocaleString('en-IN'); }
+async function renderPipeline(force) {
+  const root = document.getElementById('pipeRoot'); const CC = window.CRMCore;
+  if (!root || !CC) { if (root) root.innerHTML = '<div class="pl-empty">Pipeline unavailable.</div>'; return; }
+  if (!PIPE_LOADED || force) {
+    root.innerHTML = '<div class="pl-empty">Loading pipeline…</div>';
+    const r = await pipeApi({ action: 'list' });
+    if (r && r.ok) { PIPE = { companies: r.companies || [], contacts: r.contacts || [], leads: r.leads || [] }; PIPE_LOADED = true; }
+    else { root.innerHTML = '<div class="pl-empty">Could not load the pipeline. ' + esc((r && r.error) || '') + '</div>'; return; }
+  }
+  const f = CC.forecast(PIPE.leads), wr = CC.winRates(PIPE.leads);
+  const head = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">'
+    + '<div class="mi-sub">Your live sales pipeline — the same deals, stages and forecast as the CRM, right here.</div>'
+    + '<button class="ql-btn ql-btn-primary" id="plAdd" type="button">+ Add lead</button></div>';
+  if (!PIPE.leads.length) { root.innerHTML = head + '<div class="pl-empty">No leads yet. Promote a discovered company from the Leads tab, or add one.</div>'; wirePipe(); return; }
+  const band = '<div class="pl-fc">'
+    + '<div class="pl-fc-n"><b>' + pipeFmt(f.gross) + '</b><span>Pipeline (gross)</span></div>'
+    + '<div class="pl-fc-n"><b style="color:var(--ql-success-600,#15803d)">' + pipeFmt(f.weighted) + '</b><span>Weighted — plan against this</span></div>'
+    + '<div class="pl-fc-n"><b>' + f.open + '</b><span>Open leads</span></div>'
+    + (f.unvalued ? '<div class="pl-fc-n"><b style="color:#c2410c">' + f.unvalued + '</b><span>No price yet — go get it</span></div>' : '')
+    + '<div class="pl-fc-n"><b>' + (wr.rate != null ? Math.round(wr.rate * 100) + '%' : '—') + '</b><span>' + (wr.rate != null ? 'Win rate (' + wr.closed + ' closed)' : esc(wr.why || 'Win rate')) + '</span></div></div>';
+  const cols = CC.STAGES.filter(s => s.open).map(s => {
+    const leads = PIPE.leads.filter(l => l.stage === s.key);
+    const cards = leads.map(l => {
+      const co = pipeCoOf(l.crm_company), v = CC.leadValue(l);
+      return '<div class="pl-card" data-lead="' + l.id + '"><div class="n">' + esc(co.name || '—') + '</div><div class="m">' + esc(co.industry || '') + (co.city ? ' · ' + esc(co.city) : '') + '</div><div class="v">' + pipeFmt(v) + '</div></div>';
+    }).join('') || '<div style="font:500 11.5px var(--ql-font-sans);color:var(--ql-text-muted);padding:6px 2px">—</div>';
+    return '<div class="pl-col"><div class="pl-col-h"><span>' + esc(s.label) + '</span><span>' + leads.length + '</span></div>' + cards + '</div>';
+  }).join('');
+  root.innerHTML = head + band + '<div class="pl-cols">' + cols + '</div>';
+  wirePipe();
+}
+function wirePipe() {
+  const add = document.getElementById('plAdd'); if (add) add.addEventListener('click', pipeAddLead);
+  document.querySelectorAll('#pipeRoot .pl-card').forEach(c => c.addEventListener('click', () => pipeOpenLead(+c.dataset.lead)));
+}
+function pipeAddLead() {
+  QLShell.openForm({
+    title: 'Add lead', saveLabel: 'Add', initial: { stage: 'new' },
+    specs: [
+      { k: 'name', label: 'Company', req: true, full: true },
+      { k: 'industry', label: 'Industry' },
+      { k: 'city', label: 'City' },
+      { k: 'tonnes', label: 'Tonnes (MT)', type: 'number' },
+      { k: 'price_per_tonne', label: 'Price ₹/MT', type: 'number' },
+      { k: 'stage', label: 'Stage', type: 'select', opts: CRMCore.STAGES.map(s => [s.key, s.label]) }
+    ],
+    async onSave(v) {
+      const c = await pipeApi({ action: 'upsertCompany', company: { name: v.name, industry: v.industry || '', city: v.city || '' } });
+      if (!c || !c.ok) return alert('Could not save company: ' + ((c && c.error) || ''));
+      const cid = c.id || (c.company && c.company.id);
+      const l = await pipeApi({ action: 'upsertLead', lead: { id: 0, crm_company: cid, tonnes: +v.tonnes || null, price_per_tonne: +v.price_per_tonne || null, stage: v.stage || 'new' } });
+      if (!l || !l.ok) return alert('Could not save lead: ' + ((l && l.error) || ''));
+      renderPipeline(true);
+    }
+  });
+}
+function pipeOpenLead(id) {
+  const l = PIPE.leads.find(x => +x.id === +id); if (!l) return;
+  const CC = window.CRMCore, co = pipeCoOf(l.crm_company);
+  const moves = CC.STAGES.map(s =>
+    '<button class="ql-btn ' + (s.key === l.stage ? 'ql-btn-primary' : 'ql-btn-secondary') + '" style="margin:3px" data-stage="' + s.key + '">' + esc(s.label) + '</button>').join('');
+  const body = '<div style="font:600 13px var(--ql-font-sans);color:var(--ql-text)">' + esc(co.name || '—') + '</div>'
+    + '<div class="mi-sub" style="margin:4px 0 12px">' + esc(co.industry || '') + (co.city ? ' · ' + esc(co.city) : '') + ' · ' + pipeFmt(CC.leadValue(l)) + (CC.leadValue(l) == null ? ' (no price yet)' : '') + '</div>'
+    + '<div style="font:700 11px var(--ql-font-sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ql-text-secondary);margin-bottom:6px">Move to stage</div><div>' + moves + '</div>';
+  const panel = QLShell.panel({ title: 'Lead · ' + (co.name || ''), body: body });
+  document.querySelectorAll('#qlModalBack [data-stage]').forEach(b => b.addEventListener('click', async () => {
+    const to = b.dataset.stage;
+    const chk = CC.canMove(l.stage, to, l); if (chk && chk.ok === false) return alert(chk.why);
+    const r = await pipeApi({ action: 'upsertLead', lead: { id: l.id, crm_company: l.crm_company, tonnes: l.tonnes, price_per_tonne: l.price_per_tonne != null ? l.price_per_tonne : l.pricePerTonne, stage: to } });
+    if (r && r.ok) { QLShell.closeModal(); renderPipeline(true); } else alert('Could not move: ' + ((r && r.error) || ''));
+  }));
+}
+
 QLShell.mount({ active: 'discover', title: 'Lead Discovery' });
 buildIcp();
 buildFilters(); setupVoice(); buildMarketPanel();

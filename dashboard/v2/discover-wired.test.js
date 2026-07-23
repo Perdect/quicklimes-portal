@@ -225,5 +225,18 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(!/places\.googleapis\.com/.test(js), '  and never calls Google directly — only our own server does');
 }
 
+/* ── Freight + Pipeline folded in as tabs (no separate pages) ── */
+{
+  ok(/data-sec="freight"/.test(html) && /data-sec="pipeline"/.test(html), 'Lead Discovery has Freight + Pipeline section tabs');
+  ok(/id="secFreight"/.test(html) && /id="secPipeline"/.test(html), '  and their section containers');
+  ok(/id="frPlants"/.test(html) && /id="frProduct"/.test(html), '  the Freight tab embeds the calculator markup');
+  ok(/freight-core\.js/.test(html) && /freight\.js/.test(html), '  loads the freight engine + UI');
+  ok(/FreightUI\.init\(\)/.test(bare), '  inits the freight calculator when its tab opens');
+  ok(/crm-core\.js/.test(html), '  loads crm-core for the pipeline');
+  ok(/function renderPipeline\(/.test(bare) && /\.forecast\(/.test(bare) && /window\.CRMCore/.test(bare), '  the Pipeline tab renders a real board from crm-core forecast');
+  ok(/action: 'list'/.test(bare) && /\/api\/crm/.test(bare), '  reads live pipeline data from /api/crm');
+  ok(/CC\.canMove\(/.test(bare), '  stage moves are validated by crm-core (no dishonest wins)');
+}
+
 console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');
 process.exit(fail ? 1 : 0);

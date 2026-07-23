@@ -68,8 +68,8 @@
     var host = $('frPlants'); host.innerHTML = '';
     PLANTS.forEach(function (p) { host.appendChild(pill(p.key, p.short, state.plant === p.key)); });
     if (PLANTS.length > 1) host.appendChild(pill('auto', '✦ Auto — best plant', state.plant === 'auto'));
-    $('frPlantBadge').textContent = '▲ ' + activePlant().name;
-    $('frPlantHint').textContent = PLANTS.length > 1
+    var pb = $('frPlantBadge'); if (pb) pb.textContent = '▲ ' + activePlant().name;   // hero badge — absent when embedded in Lead Discovery
+    var ph = $('frPlantHint'); if (ph) ph.textContent = PLANTS.length > 1
       ? 'Auto compares every plant and picks the cheapest delivered.'
       : 'Freight is measured from your Borunda plant. Add more plants later to compare.';
   }
@@ -359,11 +359,26 @@
     });
   }
 
-  /* ── Boot ── */
-  QLShell.mount({ active: 'freight', title: 'Freight Calculator' });
-  buildPlants(); buildSelects(); buildCharges(); syncMethod(); wire(); renderHist();
-  api({ action: 'config' }).then(function (r) { state.google = !!(r && r.google); if (state.google) $('frKmSrc').textContent = 'Google ready'; });
-  var boot = function () { renderHist(); buildPlants(); };
-  if (Q && Q.init) Q.init(function () {}).then(boot).catch(boot);
-  window.__qlOnSwitchCompany = function () { renderHist(); };
+  /* ── Boot — idempotent init so BOTH the standalone page and the Lead Discovery
+     "Freight" tab can mount the same calculator. Does NOT touch the shell (the
+     host page owns QLShell.mount). ── */
+  var _inited = false;
+  function init() {
+    if (_inited) return;
+    if (!document.getElementById('frPlants')) return;   // freight markup not on this page
+    _inited = true;
+    buildPlants(); buildSelects(); buildCharges(); syncMethod(); wire(); renderHist();
+    api({ action: 'config' }).then(function (r) { state.google = !!(r && r.google); if (state.google) { var e = $('frKmSrc'); if (e) e.textContent = 'Google ready'; } });
+    var boot = function () { renderHist(); buildPlants(); };
+    if (Q && Q.init) Q.init(function () {}).then(boot).catch(boot);
+    var prev = window.__qlOnSwitchCompany;
+    window.__qlOnSwitchCompany = function () { if (typeof prev === 'function') prev(); renderHist(); };
+  }
+  window.FreightUI = { init: init };
+  // Standalone freight.html carries #frCalcRoot → it mounts the shell then inits.
+  // Inside Lead Discovery there is no #frCalcRoot; the host calls FreightUI.init().
+  if (document.getElementById('frCalcRoot') && window.QLShell) {
+    QLShell.mount({ active: 'freight', title: 'Freight Calculator' });
+    init();
+  }
 })();
