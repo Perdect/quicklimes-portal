@@ -1,7 +1,7 @@
 /* QuickLimes v2 — service worker (installable PWA + offline shell).
    Local-first app: data lives in localStorage, so once the CSS/JS shell is cached
    the app opens offline. Never caches the /api backend or cross-origin requests. */
-const CACHE = 'ql-v2-cache-185';   // bumped: Freight Calculator (freight.html/js/core + freight.php) — delivered-price engine, Google-ready distance
+const CACHE = 'ql-v2-cache-186';   // bumped: India demand map is now a REAL interactive Leaflet map (OSM/CARTO tiles, pan/zoom)
 
 self.addEventListener('install', () => self.skipWaiting());
 

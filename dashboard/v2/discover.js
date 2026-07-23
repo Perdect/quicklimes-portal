@@ -809,89 +809,84 @@ function hmTierColor(r) {
   const k = r.profit ? r.profit.key : (r.score >= 45 ? 'strong' : r.score >= 30 ? 'workable' : r.score >= 15 ? 'thin' : 'unviable');
   return ({ strong: ['#16a34a', '#dcfce7'], workable: ['#0369a1', '#e0f2fe'], thin: ['#b45309', '#fff7ed'], unviable: ['#dc2626', '#fef2f2'] })[k] || ['#64748b', '#f1f5f9'];
 }
-/* Build the projection from the real India geometry: aspect-corrected (cos-lat)
-   equirectangular, letterboxed into the viewbox. Cached — geometry never changes. */
-let HM_PROJ = null;
-function hmProjection(W, H, pad) {
-  if (HM_PROJ) return HM_PROJ;
-  const geo = window.INDIA_GEO; if (!geo) return null;
-  let lo0 = 1e9, lo1 = -1e9, la0 = 1e9, la1 = -1e9;
-  for (const nm in geo) for (const fl of geo[nm].r) for (let i = 0; i < fl.length; i += 2) {
-    const x = fl[i], y = fl[i + 1];
-    if (x < lo0) lo0 = x; if (x > lo1) lo1 = x; if (y < la0) la0 = y; if (y > la1) la1 = y;
-  }
-  const kx = Math.cos(((la0 + la1) / 2) * Math.PI / 180);
-  const gw = (lo1 - lo0) * kx, gh = (la1 - la0);
-  const sc = Math.min((W - 2 * pad) / gw, (H - 2 * pad) / gh);
-  const ox = (W - gw * sc) / 2, oy = (H - gh * sc) / 2;
-  HM_PROJ = {
-    X: lon => ox + (lon - lo0) * kx * sc,
-    Y: lat => oy + (la1 - lat) * sc
-  };
-  return HM_PROJ;
+/* India demand map — a REAL interactive map (Leaflet + OpenStreetMap/CARTO
+   tiles): pan / zoom / scroll like Google Maps, with each demand state shaded by
+   its live profit tier on top and the plant marked. Click a state → discover
+   buyers there. Falls back to a message if Leaflet can't load (offline). */
+let HM_MAP = null, HM_LAYER = null, HM_FITTED = false, HM_BOUNDS = null;
+function hmTiles() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return dark
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 }
-/* India demand map — a REAL choropleth: the actual India silhouette (census
-   districts grouped by state), each demand state filled by its live profit tier,
-   the rest a muted backdrop. Same demand×freight score as the rest of the page.
-   Click a state → discover buyers there. */
+function ringsToLatLng(rings) {
+  return rings.map(fl => { const a = []; for (let i = 0; i < fl.length; i += 2) a.push([fl[i + 1], fl[i]]); return a; });
+}
 function renderHeatMap() {
   const host = document.getElementById('dcMap'); if (!host || !LM) return;
   const geo = window.INDIA_GEO;
+  if (!window.L || !geo) { host.innerHTML = '<div class="mi-sub" style="padding:24px">Interactive map unavailable — check your connection.</div>'; return; }
   const opts = { origin: miOriginCoords(), freightRate: MI.rate, exWorks: miEx() };
   const origin = miOriginCoords();
   const byState = {}; LM.plan(MI.product, opts).forEach(r => { byState[r.state] = r; });
-  const W = 560, H = 620, pad = 16;
-  const proj = hmProjection(W, H, pad);
-  if (!geo || !proj) { host.innerHTML = '<div class="mi-sub" style="padding:20px 0">Map data unavailable.</div>'; return; }
-  const { X, Y } = proj;
-  const dPath = rings => rings.map(fl => {
-    let s = 'M';
-    for (let i = 0; i < fl.length; i += 2) s += (i ? 'L' : '') + X(fl[i]).toFixed(1) + ' ' + Y(fl[i + 1]).toFixed(1);
-    return s + 'Z';
-  }).join('');
-  // 1) Backdrop: every state not in the demand model, muted.
-  let bg = '', regions = '', labels = '';
+
+  if (!HM_MAP) {
+    HM_MAP = L.map(host, { zoomControl: true, scrollWheelZoom: true, attributionControl: true, minZoom: 4, maxZoom: 11 }).setView([22.8, 80.5], 5);
+    L.tileLayer(hmTiles(), { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(HM_MAP);
+    HM_LAYER = L.layerGroup().addTo(HM_MAP);
+  }
+  HM_LAYER.clearLayers();
   for (const nm in geo) {
     const g = geo[nm]; const r = byState[nm];
-    if (!r) { bg += `<path class="hm-bg" d="${dPath(g.r)}"/>`; continue; }
+    const latlngs = ringsToLatLng(g.r);
+    // No stroke → the state's district rings tile into one clean filled region
+    // (adjacent same-colour districts show no seam); colour change marks the border.
+    if (!r) { L.polygon(latlngs, { stroke: false, fillColor: '#94a3b8', fillOpacity: .10, interactive: false }).addTo(HM_LAYER); continue; }
     const [stroke, fill] = hmTierColor(r);
-    const ab = g.a || STATE_ABBR[nm] || nm.slice(0, 2).toUpperCase();
-    const tip = nm + ' · score ' + r.score + ' · ₹' + (r.deliveredPerTonne || 0).toLocaleString('en-IN') + '/t · ' + r.tier.label;
-    regions += `<g class="hm-st" data-state="${esc(nm)}" data-what="${esc(LM.osmTerm((r.industries[0] || {}).key))}" data-tip="${esc(tip)}" tabindex="0" role="button" aria-label="${esc(tip)}">`
-      + `<path class="hm-region" d="${dPath(g.r)}" fill="${fill}" fill-opacity="0.96" stroke="${stroke}" stroke-width="1.1"/></g>`;
-    // Label at the state's real centroid (from LM.STATES), so it lands inside the shape.
+    const poly = L.polygon(latlngs, { stroke: false, fillColor: stroke, fillOpacity: .5 }).addTo(HM_LAYER);
+    const tip = '<b>' + esc(nm) + '</b> · score ' + r.score + '<br>₹' + (r.deliveredPerTonne || 0).toLocaleString('en-IN') + '/t delivered · ' + esc(r.tier.label);
+    poly.bindTooltip(tip, { className: 'hm-tt', sticky: true });
+    const what = LM.osmTerm((r.industries[0] || {}).key);
+    poly.on('click', () => findInMarket(what, nm));
+    poly.on('mouseover', () => poly.setStyle({ fillOpacity: .72 }));
+    poly.on('mouseout', () => poly.setStyle({ fillOpacity: .5 }));
     const c = LM.STATES.find(s => s.name === nm);
     if (c) {
-      const lx = X(c.lon), ly = Y(c.lat);
-      labels += `<text x="${lx.toFixed(1)}" y="${(ly - 1).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" class="hm-ab">${ab}</text>`
-        + `<text x="${lx.toFixed(1)}" y="${(ly + 10).toFixed(1)}" text-anchor="middle" class="hm-sc">${r.score}</text>`;
+      const ab = g.a || STATE_ABBR[nm] || nm.slice(0, 2).toUpperCase();
+      L.marker([c.lat, c.lon], { interactive: false, keyboard: false, icon: L.divIcon({ className: 'hm-lbl', html: '<b>' + ab + '</b><i>' + r.score + '</i>', iconSize: [30, 26] }) }).addTo(HM_LAYER);
     }
   }
-  const px = X(origin.lon), py = Y(origin.lat);
-  const plant = `<g class="hm-plant"><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4.5"/><text x="${(px - 9).toFixed(1)}" y="${(py + 3.5).toFixed(1)}" text-anchor="end">▲ ${esc(origin.name.split(',')[0])}</text></g>`;
-  host.innerHTML =
-    `<div class="hm-legend"><span><i style="background:#16a34a"></i>Strong</span><span><i style="background:#0369a1"></i>Workable</span><span><i style="background:#b45309"></i>Thin</span><span><i style="background:#dc2626"></i>Freight too high</span></div>` +
-    `<svg viewBox="0 0 ${W} ${H}" class="hm-svg" role="img" aria-label="India lime-demand map, by state">${bg}${regions}${labels}${plant}</svg>` +
-    `<div class="hm-tip" id="hmTip" hidden></div>`;
-  const tipEl = document.getElementById('hmTip');
-  host.querySelectorAll('.hm-st').forEach(g => {
-    const go = () => findInMarket(g.dataset.what, g.dataset.state);
-    g.addEventListener('click', go);
-    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
-    g.addEventListener('mouseenter', () => { tipEl.textContent = g.dataset.tip; tipEl.hidden = false; });
-    g.addEventListener('mousemove', e => { const rect = host.getBoundingClientRect(); tipEl.style.left = (e.clientX - rect.left + 14) + 'px'; tipEl.style.top = (e.clientY - rect.top + 14) + 'px'; });
-    g.addEventListener('mouseleave', () => { tipEl.hidden = true; });
-  });
+  // Plant marker — always on top.
+  L.circleMarker([origin.lat, origin.lon], { radius: 6, color: '#fff', weight: 2, fillColor: '#0f172a', fillOpacity: 1 })
+    .addTo(HM_LAYER).bindTooltip('▲ ' + esc(origin.name.split(',')[0]) + ' — your plant', { className: 'hm-tt', direction: 'top' });
+  // Fit to a fixed India view once the container is actually visible + sized.
+  if (!HM_FITTED && host.offsetParent) { HM_MAP.invalidateSize(); HM_MAP.fitBounds(INDIA_BBOX); HM_FITTED = true; }
+}
+const INDIA_BBOX = [[6.7, 68.0], [35.6, 97.4]];
+/* Leaflet needs a size recalc + first fit once its container becomes visible (it
+   was hidden under another section tab when the map was created at 0×0). */
+function hmOnShow() {
+  if (!HM_MAP) return;
+  setTimeout(() => {
+    try {
+      HM_MAP.invalidateSize();
+      if (!HM_FITTED) { HM_MAP.fitBounds(INDIA_BBOX); HM_FITTED = true; }
+    } catch (_) {}
+  }, 80);
 }
 
 /* Progressive disclosure: exactly one section visible at a time. */
 function switchSection(name) {
-  ['copilot', 'markets', 'leads'].forEach(s => {
+  ['copilot', 'markets', 'leads', 'freight', 'pipeline'].forEach(s => {
     const el = document.getElementById('sec' + s.charAt(0).toUpperCase() + s.slice(1));
     if (el) el.hidden = (s !== name);
   });
   document.querySelectorAll('#dcSecTabs .dc-sectab').forEach(b => b.classList.toggle('active', b.dataset.sec === name));
   try { localStorage.setItem('ql_dc_sec', name); } catch (_) {}
+  if (name === 'markets') hmOnShow();
+  if (name === 'freight' && window.FreightUI) FreightUI.init();
+  if (name === 'pipeline' && typeof renderPipeline === 'function') renderPipeline();
 }
 
 /* Pasting a list is the no-key path — the same ranked import the pipeline uses. */

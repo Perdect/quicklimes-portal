@@ -24,6 +24,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r9"><link rel="stylesheet" href="./pages.css?v=m16">
 <link rel="stylesheet" href="./qlx.css?v=m10">
 <link rel="stylesheet" href="./mobile.css?v=m14">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
@@ -251,7 +252,18 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 
   /* ═══════════ Phase 2 — India demand map ═══════════ */
   .hm-card { margin-bottom: var(--ql-space-4); }
-  .hm-wrap { position: relative; margin-top: 12px; }
+  .hm-wrap { position: relative; margin-top: 12px; height: 540px; border-radius: 14px; overflow: hidden; border: 1px solid var(--ql-border); background: var(--ql-bg-subtle, #f1f5f9); }
+  #dcMap.leaflet-container { font: inherit; background: var(--ql-bg-subtle, #eef2f7); }
+  [data-theme="dark"] #dcMap.leaflet-container { background: #0b0f16; }
+  .hm-lbl { background: none; border: 0; }
+  .hm-lbl b { font: 800 11px var(--ql-font-sans); color: #0f172a; -webkit-text-stroke: 3px rgba(255,255,255,.85); paint-order: stroke; }
+  .hm-lbl b span { -webkit-text-stroke: 0; }
+  .hm-lbl i { display: block; font: 700 9px var(--ql-font-sans); font-style: normal; color: #1e293b; text-align: center; text-shadow: 0 0 3px #fff, 0 0 3px #fff; }
+  .leaflet-tooltip.hm-tt { font: 600 11.5px var(--ql-font-sans); }
+  /* Map source toggle chip row above the map */
+  .hm-legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 8px 0 2px; font: 600 11px var(--ql-font-sans); color: var(--ql-text-secondary); }
+  .hm-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .hm-legend i { width: 10px; height: 10px; border-radius: 3px; }
   .hm-svg { display: block; width: 100%; max-width: 560px; height: auto; margin: 0 auto; }
   /* Backdrop states (no lime demand modelled) — a muted real India silhouette. */
   .hm-bg { fill: #e7ebf1; stroke: var(--ql-card); stroke-width: .5; }
@@ -387,14 +399,15 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 
     <!-- MARKETS SECTION -->
     <div class="dc-sec" id="secMarkets" hidden>
-      <!-- India demand map — states plotted at their real coordinates, shaded by
-           your demand×freight score. Schematic (positioned by centroid, not exact
-           borders); click a state to discover buyers there. -->
+      <!-- India demand map — a REAL interactive map (Leaflet + OpenStreetMap):
+           pan/zoom like Google Maps, demand states shaded by demand×freight,
+           click a state to discover buyers there. -->
       <div class="card hm-card">
         <div class="mi-head"><div>
           <div class="mi-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.3-7-11a7 7 0 0 1 14 0c0 4.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>India demand map</div>
-          <div class="mi-sub">Every state shaded by <b>demand × freight-reach</b> from your plant — real state boundaries. Click a state to find buyers there.</div>
+          <div class="mi-sub">Pan and zoom the live map. Every state shaded by <b>demand × freight-reach</b> from your plant — click a state to find buyers there.</div>
         </div></div>
+        <div class="hm-legend"><span><i style="background:#16a34a"></i>Strong</span><span><i style="background:#0369a1"></i>Workable</span><span><i style="background:#b45309"></i>Thin</span><span><i style="background:#dc2626"></i>Freight too high</span></div>
         <div id="dcMap" class="hm-wrap"></div>
       </div>
       <div class="card mi-card" id="miCard">
@@ -464,7 +477,8 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./shell.js?v=m63"></script>
 <script src="./mobile.js?v=m16"></script>
 <script src="./qlx.js?v=m17"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d16"></script>
+<script src="./discover.js?v=d17"></script>
 </body>
 </html>
