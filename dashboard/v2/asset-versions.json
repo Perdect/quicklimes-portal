@@ -107,9 +107,13 @@
     "v": "lm2",
     "sha": "5b602c33404f"
   },
+  "osm-query.js": {
+    "v": "oq1",
+    "sha": "2119b61da12a"
+  },
   "discover.js": {
-    "v": "d7",
-    "sha": "d458526c5304"
+    "v": "d8",
+    "sha": "c7648b1b2587"
   },
   "health-findings.js": {
     "v": "h1",

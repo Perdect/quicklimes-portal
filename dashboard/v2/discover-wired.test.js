@@ -63,7 +63,7 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
 
 /* ── the half-wired trap: the page must load what it uses ── */
 {
-  ['icp-core.js', 'lead-import.js', 'lead-parse.js', 'lime-market.js', 'data.js', 'shell.js', 'discover.js'].forEach(f =>
+  ['icp-core.js', 'lead-import.js', 'lead-parse.js', 'lime-market.js', 'osm-query.js', 'data.js', 'shell.js', 'discover.js'].forEach(f =>
     ok(new RegExp('src="\\./?' + f.replace('.', '\\.')).test(html), 'discover.html loads ' + f));
   ok(html.indexOf('icp-core.js') < html.indexOf('discover.js'), '  icp-core loads before discover.js uses it');
   ok(html.indexOf('lead-import.js') < html.indexOf('discover.js'), '  lead-import too');
@@ -85,7 +85,7 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   const rs = i > 0 ? bare.slice(i, bare.indexOf('async function loadSources', i)) : '';
   ok(/getElementById\('dcIndSel'\)/.test(rs), '  runSearch reads the industry dropdown');
   ok(/getElementById\('dcRadius'\)/.test(rs), '  and the radius dropdown');
-  ok(/radius\s*[,}]/.test(rs) && /action: 'search'/.test(rs), '  and sends radius to the search action');
+  ok(/discoverOne\(what, targets\[i\], radius/.test(rs), '  and passes what/city/radius into each discovery');
   // Re-parse only when the bar changed, so dropdown edits are not clobbered.
   ok(/bar !== LAST_PARSED/.test(rs), '  the bar is re-parsed only when it changed (edits to dropdowns survive)');
   // Voice is offered only when the browser supports it (never a dead button).
@@ -110,6 +110,23 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(!/within 100km of Jodhpur/.test(html), '  the search placeholder no longer pushes a local Jodhpur example');
 }
 
+/* ── OSM is fetched by the BROWSER, then ingested (server curl was too slow) ── */
+{
+  ok(/OSMQ\s*=\s*window\.OSMQuery/.test(bare), 'discover.js binds the OSM query builder');
+  ok(/async function osmClientFetch\(/.test(bare) && /OVERPASS_EPS/.test(bare), '  it fetches Overpass from the browser (residential IP, no PHP 30s cap)');
+  ok(/action: 'ingest'/.test(bare), '  and posts the raw elements to the server to store');
+  ok(/function discoverOne\(/.test(bare), '  one path per (industry × city)');
+  // Google still goes server-side (its key must never reach the browser).
+  const doFn = bare.slice(bare.indexOf('async function discoverOne'), bare.indexOf('async function runSearch'));
+  ok(/SRC === 'osm'/.test(doFn) && /action: 'ingest'/.test(doFn), '  OSM → browser-fetch + ingest');
+  ok(/source: SRC/.test(doFn), '  non-OSM (Google) → still the server search action');
+  ok(!/GOOGLE_PLACES_KEY/.test(js), '  the Google key is never named client-side');
+  // The server must accept the ingested results.
+  const php = R('../api/discover.php');
+  ok(/\$action === 'ingest'/.test(php) && /ql_osm_parse/.test(php), 'discover.php has an ingest action that parses the posted elements');
+  ok(/function ql_discover_store/.test(php), '  store/classify/dedupe is shared by search and ingest (one judgment)');
+}
+
 /* ── a STATE target fans out across hub cities (whole-state times out) ── */
 {
   const i = bare.indexOf('async function runSearch');
@@ -117,7 +134,7 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/LM\.stateByName\(city\)/.test(rs), 'runSearch detects when the target is a whole state');
   ok(/LM\.hubsFor\(/.test(rs), '  and expands it to industrial hub cities');
   ok(/for \(let i = 0; i < targets\.length/.test(rs), '  searching each target (a loop, not one whole-state query)');
-  ok(/city: targets\[i\]/.test(rs), '  each request goes to a hub CITY, not the state');
+  ok(/discoverOne\(what, targets\[i\]/.test(rs), '  each request goes to a hub CITY, not the state');
   ok(/added \+= r\.added/.test(rs), '  results are aggregated across the hubs');
 }
 

@@ -39,6 +39,42 @@ function ql_known_keys($db, $plantId, $coId) {
   return [$crm, $party];
 }
 
+/* Shared pipeline: given already-fetched candidate places (from Google on the
+   server, OR from OpenStreetMap fetched by the BROWSER and posted here), classify
+   against what we already know, dedupe, store, and return the rows. Both the
+   'search' (Google) and 'ingest' (browser-fetched OSM) actions end here, so the
+   two can never disagree about how a candidate is judged or saved. */
+function ql_discover_store($db, $plantId, $coId, $src, $places, $ind) {
+  list($crmKeys, $partyKeys) = ql_known_keys($db, $plantId, $coId);
+  $seenP = []; $seenN = [];
+  try {
+    $st = $db->prepare('SELECT place_id, name_key FROM discovered WHERE plant_id = ? AND company_id = ?');
+    $st->execute([$plantId, $coId]);
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $row) {
+      if ($row['place_id']) $seenP[$row['place_id']] = 1;
+      if ($row['name_key']) $seenN[$row['name_key']] = 1;
+    }
+  } catch (Throwable $e) {}
+
+  $rows = ql_discover_classify($places, $crmKeys, $partyKeys, $seenP, $seenN);
+  $ins = $db->prepare('INSERT INTO discovered
+      (plant_id, company_id, source, place_id, name, name_key, industry, address, city, phone, website, rating, lat, lng, status, dupe_of, query)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+  $added = 0; $dupes = 0; $seenN2 = 0; $out = [];
+  foreach ($rows as $c) {
+    if ($c['status'] === 'seen') { $seenN2++; continue; }
+    try {
+      $ins->execute([$plantId, $coId, $src, $c['place_id'] ?: null, $c['name'], $c['name_key'], $ind,
+        $c['address'] ?: null, $c['city'] ?: null, $c['phone'] ?: null, $c['website'] ?: null,
+        $c['rating'], $c['lat'], $c['lng'], $c['status'], $c['dupe_of']]);
+    } catch (Throwable $e) { $seenN2++; continue; }
+    if ($c['status'] === 'duplicate') $dupes++; else $added++;
+    $c['id'] = (int)$db->lastInsertId();
+    $out[] = $c;
+  }
+  return ['added' => $added, 'dupes' => $dupes, 'seen' => $seenN2, 'rows' => $out];
+}
+
 if ($action === 'search') {
   $what = trim((string)($b['what'] ?? ''));
   $city = trim((string)($b['city'] ?? ''));
@@ -70,38 +106,26 @@ if ($action === 'search') {
     ql_out(['ok' => false, 'source' => $src, 'error' => $e]);
   }
 
-  list($crmKeys, $partyKeys) = ql_known_keys($db, $plantId, $coId);
-  // What this account has already discovered — so a repeat search does not
-  // re-offer rows you dismissed last week.
-  $seenP = []; $seenN = [];
-  try {
-    $st = $db->prepare('SELECT place_id, name_key FROM discovered WHERE plant_id = ? AND company_id = ?');
-    $st->execute([$plantId, $coId]);
-    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $row) {
-      if ($row['place_id']) $seenP[$row['place_id']] = 1;
-      if ($row['name_key']) $seenN[$row['name_key']] = 1;
-    }
-  } catch (Throwable $e) {}
+  $s = ql_discover_store($db, $plantId, $coId, $src, $r['places'], $ind);
+  ql_out(['ok' => true, 'source' => $src, 'added' => $s['added'], 'dupes' => $s['dupes'], 'seen' => $s['seen'],
+    'radius_fell_back' => !empty($r['radius_fell_back']), 'rows' => $s['rows']]);
+}
 
-  $rows = ql_discover_classify($r['places'], $crmKeys, $partyKeys, $seenP, $seenN);
-
-  $ins = $db->prepare('INSERT INTO discovered
-      (plant_id, company_id, source, place_id, name, name_key, industry, address, city, phone, website, rating, lat, lng, status, dupe_of, query)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-  $added = 0; $dupes = 0; $seenN2 = 0; $out = [];
-  foreach ($rows as $c) {
-    if ($c['status'] === 'seen') { $seenN2++; continue; }        // already known to us
-    try {
-      $ins->execute([$plantId, $coId, $src, $c['place_id'] ?: null, $c['name'], $c['name_key'], $ind,
-        $c['address'] ?: null, $c['city'] ?: null, $c['phone'] ?: null, $c['website'] ?: null,
-        $c['rating'], $c['lat'], $c['lng'], $c['status'], $c['dupe_of']]);
-    } catch (Throwable $e) { $seenN2++; continue; }              // UNIQUE(place) — already stored
-    if ($c['status'] === 'duplicate') $dupes++; else $added++;
-    $c['id'] = (int)$db->lastInsertId();
-    $out[] = $c;
-  }
-  ql_out(['ok' => true, 'source' => $src, 'added' => $added, 'dupes' => $dupes, 'seen' => $seenN2,
-    'radius_fell_back' => !empty($r['radius_fell_back']), 'rows' => $out]);
+/* INGEST — OpenStreetMap results fetched by the BROWSER, posted here to store.
+   Why the browser fetches OSM instead of this server: the free Overpass service
+   is slow (30s+ when busy) and throttles datacenter IPs, so a server curl bounded
+   under PHP's 30s limit reports "could not reach" while a browser (residential
+   IP, no hard time limit, CORS allowed) succeeds. The server still owns parsing,
+   classification and dedupe — the browser only carries the raw elements across. */
+if ($action === 'ingest') {
+  $city = trim((string)($b['city'] ?? ''));
+  $ind  = trim((string)($b['industry'] ?? ''));
+  $elements = $b['elements'] ?? null;
+  if (!is_array($elements)) ql_out(['ok' => false, 'error' => 'No results to ingest']);
+  if (count($elements) > 200) $elements = array_slice($elements, 0, 200);   // sanity cap
+  $places = ql_osm_parse(['elements' => $elements], $city);
+  $s = ql_discover_store($db, $plantId, $coId, 'osm', $places, $ind);
+  ql_out(['ok' => true, 'source' => 'osm', 'added' => $s['added'], 'dupes' => $s['dupes'], 'seen' => $s['seen'], 'rows' => $s['rows']]);
 }
 
 if ($action === 'sources') {

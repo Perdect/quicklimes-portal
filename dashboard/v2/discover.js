@@ -17,7 +17,71 @@
    we have.
    ═══════════════════════════════════════════════════════════════════════ */
 'use strict';
-const Q = window.QLD, IC2 = window.ICPCore, LI = window.LeadImport, LP = window.LeadParse, LM = window.LimeMarket;
+const Q = window.QLD, IC2 = window.ICPCore, LI = window.LeadImport, LP = window.LeadParse, LM = window.LimeMarket, OSMQ = window.OSMQuery;
+
+/* OpenStreetMap is fetched by the BROWSER, not our server: the free Overpass
+   service is slow (30s+) and throttles datacenter IPs, so a PHP curl under the
+   30s limit reports "could not reach" while the browser (residential IP, no hard
+   limit, CORS allowed) gets through. The server still parses/dedupes/stores via
+   the `ingest` action — the browser only carries the raw elements across. */
+const OVERPASS_EPS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+
+async function osmGeocode(place) {
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(place), { headers: { Accept: 'application/json' } });
+    const j = await r.json();
+    if (j && j[0] && j[0].lat) return { lat: +j[0].lat, lon: +j[0].lon };
+  } catch (_) {}
+  return null;
+}
+
+/* Fetch candidates from Overpass, in the browser. Returns
+   { ok, elements, fellBack } or { ok:false, error, retry, hard }. `hard` marks a
+   network/CORS failure (worth a server fallback); a timeout/busy is NOT hard —
+   the server (slower) would only fail too, so we just ask the user to retry. */
+async function osmClientFetch(what, city, radius) {
+  let center = null, fellBack = false;
+  if (radius > 0) { center = await osmGeocode(city); if (!center) fellBack = true; }
+  const q = OSMQ.build(what, city, { max: 40, radiusKm: radius, center });
+  let sawBusy = false, sawNet = false;
+  for (const ep of OVERPASS_EPS) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 38000);   // the browser can wait; Overpass ran ~32s when busy
+    try {
+      const res = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(q), signal: ctrl.signal });
+      clearTimeout(timer);
+      if (res.status === 429 || res.status === 504) { sawBusy = true; continue; }   // try the mirror
+      if (!res.ok) return { ok: false, retry: true, error: 'OpenStreetMap error (HTTP ' + res.status + ')' };
+      const j = await res.json();
+      return { ok: true, elements: (j && j.elements) || [], fellBack };
+    } catch (e) {
+      clearTimeout(timer);
+      if (e && e.name === 'AbortError') return { ok: false, retry: true, error: 'OpenStreetMap is slow right now — please try again in a moment' };
+      sawNet = true;   // network/CORS — a mirror (or the server) might still work
+    }
+  }
+  return { ok: false, retry: true, hard: sawNet && !sawBusy,
+    error: sawBusy ? 'OpenStreetMap is busy (free shared service) — wait a minute and try again'
+                   : 'Could not reach OpenStreetMap — check your connection and try again' };
+}
+
+/* One (industry × city) discovery. OSM: fetch in the browser, then post the raw
+   elements to the server to store. Google: the server does it (the key must stay
+   server-side). Normalised to one result shape so the caller can aggregate. */
+async function discoverOne(what, city, radius, indLabel) {
+  if (SRC === 'osm') {
+    const cf = await osmClientFetch(what, city, radius);
+    if (cf.ok) {
+      const r = await api({ action: 'ingest', city, industry: indLabel, elements: cf.elements });
+      if (r && r.ok) r.radius_fell_back = cf.fellBack;
+      return r;
+    }
+    // Hard network/CORS failure only: fall back to the server's own OSM fetch.
+    if (cf.hard) return api({ action: 'search', what, city, industry: indLabel, radius, source: 'osm' });
+    return { ok: false, error: cf.error, retry: cf.retry };
+  }
+  return api({ action: 'search', what, city, industry: indLabel, radius, source: SRC });
+}
 
 /* Known Rajasthan lime-belt origins with coordinates, so the freight origin can
    be changed without geocoding. Borunda (the user's plant) is the default. */
@@ -437,7 +501,7 @@ async function runSearch() {
   for (let i = 0; i < targets.length; i++) {
     btn.textContent = targets.length > 1 ? `Searching ${targets[i]}… (${i + 1}/${targets.length})` : 'Searching…';
     if (stateLabel) notice(`Searching <b>${esc(stateLabel)}</b> across its industrial hubs: ${targets.map((t, j) => j <= i ? '<b>' + esc(t) + '</b>' : esc(t)).join(' · ')}`);
-    const r = await api({ action: 'search', what, city: targets[i], industry: indLabel, radius, source: SRC });
+    const r = await discoverOne(what, targets[i], radius, indLabel);
     if (r.ok) { okAny = true; added += r.added || 0; dupes += r.dupes || 0; seen += r.seen || 0; if (r.radius_fell_back) fellBack = true; }
     else { lastErr = r.error || 'unknown error'; lastRetry = !!r.retry; if (r.not_configured) { lastErr = r.error; lastRetry = false; okAny = false; break; } }
   }
