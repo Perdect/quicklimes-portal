@@ -138,6 +138,18 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/renderHeatMap\(\)/.test(bare.slice(bare.indexOf('function renderMarket'))), '  it re-renders when product/freight/price change');
 }
 
+/* ── Phase 3: lead cards + Company 360° drawer ── */
+{
+  ok(/lc-grid/.test(bare) && /class="lc"/.test(bare) && /data-open=/.test(bare), 'results render as clickable lead cards (not a table)');
+  ok(/function leadEconomics\(/.test(bare) && /r\.lat == null \|\| r\.lng == null/.test(bare), 'per-lead freight is computed ONLY when the lead has coordinates (never invented)');
+  ok(/function openLeadDrawer\(/.test(bare) && /id="lcDrawer"/.test(html), 'a Company 360° side-drawer exists');
+  const od = bare.slice(bare.indexOf('function openLeadDrawer'), bare.indexOf('function closeLeadDrawer') > 0 ? bare.length : bare.length);
+  ok(/Delivery economics/.test(bare) && /Lime playbook/.test(bare) && /Fit for your lime/.test(bare), '  drawer shows fit, delivery economics, and the lime playbook');
+  ok(/Not on file/.test(bare) && /paid data provider/.test(bare), '  and is HONEST about the firmographics it does not have (no fabrication)');
+  ok(/function closeLeadDrawer\(/.test(bare) && /Escape/.test(bare), '  the drawer closes (X / backdrop / Escape)');
+  ok(/openAssess\(r\)/.test(bare) && /openMessage\(r\)/.test(bare) && /WA\.waLink/.test(bare), '  drawer actions reuse Assess / Message / WhatsApp');
+}
+
 /* ── Assess + Message: the lead-working actions (local, key-free) ── */
 {
   ok(/LA\s*=\s*window\.LeadActions/.test(bare), 'discover.js binds LeadActions');

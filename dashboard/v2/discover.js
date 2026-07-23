@@ -429,6 +429,20 @@ function paintKpis() {
   document.getElementById('kAll').textContent = ROWS.length;
 }
 
+/* Per-lead economics — real, only when we have the lead's coordinates (OSM rows
+   carry lat/lng). Freight from the plant to the lead, delivered cost, margin
+   verdict. No coords (e.g. a pasted CSV) → null, and the card just omits it. */
+function leadEconomics(r) {
+  if (!LM || r == null || r.lat == null || r.lng == null) return null;
+  const km = LM.roadKm(miOriginCoords(), { lat: +r.lat, lon: +r.lng });
+  const freight = Math.round(km * MI.rate);
+  const ex = miEx();
+  return { km, freight, delivered: ex ? ex + freight : null, share: ex ? Math.round(freight / ex * 100) : null, tier: ex ? LM.profitTier(freight / ex) : null };
+}
+const IC_PHONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
+const IC_WEB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+const IC_WA = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.5A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-2.9.9.9-2.8-.2-.3A8 8 0 1 1 12 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5.1a6.5 6.5 0 0 1-3.2-2.8c-.2-.4.2-.4.6-1.2.1-.1 0-.3 0-.4l-.7-1.7c-.2-.5-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3A2.8 2.8 0 0 0 6 8.9c0 1.7 1.2 3.3 1.4 3.5s2.4 3.7 5.8 5c2.2.8 2.2.5 2.6.5s1.4-.6 1.6-1.1.2-1 .1-1.1z"/></svg>';
+
 function paintTable() {
   const host = document.getElementById('dcBody'); if (!host) return;
   const rows = ROWS.filter(r => r.status === TAB);
@@ -443,35 +457,94 @@ function paintTable() {
   const scored = rows.map(r => ({ r, f: fitOf(r) }))
     .sort((a, b) => (b.f.score - a.f.score) || String(a.r.name).localeCompare(String(b.r.name)));
 
-  host.innerHTML = `<div class="sr-table-wrap"><table class="sr"><thead><tr>
-      <th>Company</th><th>Industry · Location</th><th>Contact</th><th>Fit</th><th class="r">Actions</th>
-    </tr></thead><tbody>` +
-    scored.map(({ r, f }) => {
-      const tier = f.tier || 'unknown';
-      const pct = Math.max(0, Math.min(100, f.score || 0));
-      const dupNote = r.status === 'duplicate'
-        ? `<span class="qx-pill" style="background:var(--ql-danger-50);color:var(--ql-danger-700)">${r.dupe_of === 'customer' ? 'Already your customer' : 'Already in pipeline'}</span>` : '';
-      return `<tr>
-        <td><div class="dc-name">${esc(r.name)}${r.rating ? ' <span style="color:#d97706;font-size:12px">★ ' + esc(r.rating) + '</span>' : ''}</div>
-            <div class="dc-sub">${esc(r.website || '')}</div></td>
-        <td><div class="dc-sub" style="color:var(--ql-text)">${esc(r.industry || '—')}</div><div class="dc-sub">${esc(r.address || r.city || '')}</div>${dupNote}</td>
-        <td>${r.phone ? `<a class="dc-ico" href="tel:${esc(r.phone)}" title="${esc(r.phone)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>` : ''}
-            ${r.website ? `<a class="dc-ico" href="${esc(r.website)}" target="_blank" rel="noopener noreferrer" title="Website"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></a>` : ''}</td>
-        <td><span class="dc-fit" title="${esc((f.why || []).join(' · '))}"><span class="dc-bar ${tier}"><i style="width:${pct}%"></i></span>
-            <span class="dc-score${tier === 'unknown' ? ' unknown' : ''}">${tier === 'unknown' ? '—' : Math.round(f.score)}</span></span></td>
-        <td class="r"><span style="display:inline-flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
-          ${LA ? `<button class="ql-btn ql-btn-secondary" data-assess="${r.id}" title="Why they fit + how to approach">Assess</button>
-           <button class="ql-btn ql-btn-secondary" data-msg="${r.id}" title="Draft an outreach message">Message</button>` : ''}
-          ${r.status === 'promoted' ? '<span class="qx-pill" style="background:#dcfce7;color:#15803d">In pipeline</span>' :
-          `<button class="ql-btn ql-btn-primary" data-promote="${r.id}">Promote</button>
-           <button class="ql-btn ql-btn-secondary" data-dismiss="${r.id}" title="Not a fit">✕</button>`}</span></td>
-      </tr>`;
-    }).join('') + '</tbody></table></div>';
+  host.innerHTML = '<div class="lc-grid">' + scored.map(({ r, f }) => {
+    const tier = f.tier || 'unknown';
+    const e = leadEconomics(r);
+    const dup = r.status === 'duplicate' ? `<span class="lc-dup">${r.dupe_of === 'customer' ? 'Already your customer' : 'Already in pipeline'}</span>` : '';
+    const econ = e ? `<div class="lc-econ"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.3-7-11a7 7 0 0 1 14 0c0 4.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>${e.km} km · freight ₹${e.freight.toLocaleString('en-IN')}/t${e.tier ? ` <span class="pt ${e.tier.key}">${esc(e.tier.label)}</span>` : ''}</div>` : '';
+    const cts = (r.phone ? `<a class="lc-mini" href="tel:${esc(r.phone)}" title="Call" data-stop>${IC_PHONE}</a>` : '') +
+      (r.website ? `<a class="lc-mini" href="${esc(r.website)}" target="_blank" rel="noopener noreferrer" title="Website" data-stop>${IC_WEB}</a>` : '');
+    const acts = LA ? `<button class="lc-mini" data-assess="${r.id}" title="Assess">✦</button><button class="lc-mini" data-msg="${r.id}" title="Message">✉</button>` : '';
+    const promo = r.status === 'promoted'
+      ? '<span class="lc-dup" style="color:#15803d;background:#dcfce7">In pipeline</span>'
+      : `<button class="lc-mini pri" data-promote="${r.id}" title="Promote to pipeline">+</button>`;
+    return `<div class="lc" data-open="${r.id}" tabindex="0" role="button">
+      <div class="lc-h">
+        <div class="lc-fit ${tier}">${tier === 'unknown' ? '—' : Math.round(f.score)}</div>
+        <div class="lc-id"><div class="lc-name">${esc(r.name)}</div><div class="lc-sub2">${esc(r.industry || '—')}${r.city ? ' · ' + esc(r.city) : ''}</div></div>
+      </div>
+      ${econ}${dup}
+      <div class="lc-foot"><div class="lc-cts">${cts || '<span style="font:500 11px var(--ql-font-sans);color:var(--ql-text-muted)">no contact yet</span>'}</div>
+        <div class="lc-btns">${acts}${promo}</div></div>
+    </div>`;
+  }).join('') + '</div>';
 
-  host.querySelectorAll('[data-promote]').forEach(b => b.onclick = () => promote(+b.dataset.promote));
-  host.querySelectorAll('[data-dismiss]').forEach(b => b.onclick = () => dismiss(+b.dataset.dismiss));
-  host.querySelectorAll('[data-assess]').forEach(b => b.onclick = () => openAssess(ROWS.find(x => x.id === +b.dataset.assess)));
-  host.querySelectorAll('[data-msg]').forEach(b => b.onclick = () => openMessage(ROWS.find(x => x.id === +b.dataset.msg)));
+  const find = id => ROWS.find(x => x.id === +id);
+  host.querySelectorAll('[data-stop]').forEach(a => a.addEventListener('click', e => e.stopPropagation()));
+  host.querySelectorAll('[data-promote]').forEach(b => b.onclick = e => { e.stopPropagation(); promote(+b.dataset.promote); });
+  host.querySelectorAll('[data-assess]').forEach(b => b.onclick = e => { e.stopPropagation(); openAssess(find(b.dataset.assess)); });
+  host.querySelectorAll('[data-msg]').forEach(b => b.onclick = e => { e.stopPropagation(); openMessage(find(b.dataset.msg)); });
+  host.querySelectorAll('.lc[data-open]').forEach(c => {
+    c.onclick = () => openLeadDrawer(find(c.dataset.open));
+    c.onkeydown = ev => { if (ev.key === 'Enter') openLeadDrawer(find(c.dataset.open)); };
+  });
+}
+
+/* Company 360° — a slide-in drawer with the REAL profile: fit + why, per-lead
+   freight economics, the lime playbook for their industry, contacts, and every
+   action. Honest about what it does NOT have (firmographics need a paid source),
+   so a blank field never reads as fabricated. */
+function closeLeadDrawer() { const b = document.getElementById('lcBack'); if (b) { b.classList.remove('open'); setTimeout(() => { b.hidden = true; }, 220); } }
+function openLeadDrawer(r) {
+  if (!r) return;
+  const back = document.getElementById('lcBack'), d = document.getElementById('lcDrawer'); if (!d) return;
+  const f = fitOf(r), tier = f.tier || 'unknown', e = leadEconomics(r);
+  const ind = (LA && LM) ? LA.matchIndustry(r.industry, LM.INDUSTRIES) : null;
+  const WA = window.WACore;
+  const waOk = r.phone && WA && WA.normalizePhone && WA.normalizePhone(r.phone) !== '';
+  const row = (k, v) => `<div class="cd-row"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  const econSec = e ? `<div class="cd-sec"><div class="cd-sec-t">Delivery economics · estimate</div>
+      ${row('Distance from your plant', e.km + ' km')}
+      ${row('Freight', '₹' + e.freight.toLocaleString('en-IN') + '/t')}
+      ${e.delivered != null ? row('Delivered cost', '₹' + e.delivered.toLocaleString('en-IN') + '/t') : ''}
+      ${e.tier ? row('Margin', '<span class="lc-econ"><span class="pt ' + e.tier.key + '">' + esc(e.tier.label) + '</span></span>' + (e.share != null ? ' · freight ' + e.share + '% of price' : '')) : ''}</div>` : '';
+  const playSec = ind ? `<div class="cd-sec"><div class="cd-sec-t">Lime playbook · ${esc(ind.label)}</div>
+      <div class="cd-why"><b>Uses lime for:</b> ${esc(ind.use)}<br><b>Typical consumption:</b> ${esc(ind.consumption)}<br><b>Buying:</b> ${esc(ind.frequency)}<br><b>Ask for:</b> ${esc(ind.roles.join(', '))}</div></div>` : '';
+  d.innerHTML = `
+    <div class="cd-head">
+      <div class="lc-fit ${tier}">${tier === 'unknown' ? '—' : Math.round(f.score)}</div>
+      <div class="cd-h-id"><div class="cd-name">${esc(r.name)}</div><div class="cd-sub">${esc(r.industry || 'Industry not confirmed')}${r.city ? ' · ' + esc(r.city) : ''}</div></div>
+      <button class="cd-x" id="cdX" aria-label="Close">✕</button>
+    </div>
+    <div class="cd-body">
+      <div class="cd-sec"><div class="cd-sec-t">Fit for your lime</div>
+        <div class="cd-why">${f.why && f.why.length ? esc(f.why.join('. ')) + '.' : 'Scored against your own sales history (ICP).'}</div></div>
+      ${econSec}${playSec}
+      <div class="cd-sec"><div class="cd-sec-t">Contact</div>
+        ${r.phone ? row('Phone', esc(r.phone)) : ''}
+        ${r.email ? row('Email', esc(r.email)) : ''}
+        ${r.website ? row('Website', `<a href="${esc(r.website)}" target="_blank" rel="noopener noreferrer">${esc(r.website.replace(/^https?:\/\//, ''))}</a>`) : ''}
+        ${r.address ? row('Address', esc(r.address)) : ''}
+        ${(!r.phone && !r.email && !r.website) ? '<div class="cd-why">No contact details on this listing yet — a website search or a call to the switchboard is the next step.</div>' : ''}
+      </div>
+      <div class="cd-sec"><div class="cd-sec-t">Actions</div>
+        <div class="cd-cta">
+          ${LA ? '<button class="ql-btn ql-btn-secondary" id="cdAssess">✦ Assess</button><button class="ql-btn ql-btn-secondary" id="cdMsg">✉ Message</button>' : ''}
+          ${waOk ? '<button class="ql-btn ql-btn-secondary" id="cdWa">WhatsApp</button>' : ''}
+          ${r.phone ? `<a class="ql-btn ql-btn-secondary" href="tel:${esc(r.phone)}" style="justify-content:center">Call</a>` : ''}
+          ${r.status !== 'promoted' ? '<button class="ql-btn ql-btn-primary" id="cdPromote">Promote to pipeline</button>' : '<div class="lc-dup" style="color:#15803d;background:#dcfce7;align-self:center">In your pipeline</div>'}
+        </div>
+      </div>
+      <div class="cd-missing"><b>Not on file:</b> revenue, employee count, GST number, decision-maker names, credit history. Firmographics like these need a paid data provider — this page never invents them.</div>
+    </div>`;
+  back.hidden = false; requestAnimationFrame(() => back.classList.add('open'));
+  document.getElementById('cdX').onclick = closeLeadDrawer;
+  back.onclick = ev => { if (ev.target === back) closeLeadDrawer(); };
+  const wire = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  wire('cdAssess', () => openAssess(r));
+  wire('cdMsg', () => openMessage(r));
+  wire('cdWa', () => window.open(WA.waLink(r.phone, ''), '_blank', 'noopener'));
+  wire('cdPromote', () => { promote(r.id); closeLeadDrawer(); });
 }
 
 /* Seller identity for the outreach draft — the active company profile. */
@@ -814,6 +887,7 @@ document.getElementById('dcHeroDiscover').addEventListener('click', () => {
 });
 document.getElementById('dcHeroAsk').addEventListener('click', () => { document.getElementById('dcAi').focus(); document.getElementById('dcAi').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
 document.getElementById('dcHeroReview').addEventListener('click', () => switchSection('leads'));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { const b = document.getElementById('lcBack'); if (b && !b.hidden) closeLeadDrawer(); } });
 document.getElementById('dcGo').addEventListener('click', runSearch);
 // Enter in the AI bar or the city field searches; typing in the bar re-parses.
 document.getElementById('dcAi').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
