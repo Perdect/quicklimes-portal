@@ -62,22 +62,28 @@
   /* ── States, with a rough centroid and which target industries cluster there.
      `stars` (1–5) is the concentration of lime-buying industry, from general
      industrial geography. Centroids drive the freight model. ── */
+  /* `hubs` = the industrial cities where a state's plants actually cluster. This
+     is not decoration: a whole-STATE search on the free Overpass service is the
+     heaviest possible query and times out, whereas a CITY search returns in
+     under a second. So discovery fans out across a state's hubs instead of
+     hitting the state area — faster, and better targeted (a rep works clusters,
+     not "the whole state"). Ordered most-industrial first. */
   var STATES = [
-    { name: 'Gujarat',        lat: 22.66, lon: 71.19, stars: 5, industries: ['chemical', 'paper', 'water', 'etp', 'aluminium', 'textile', 'zinc'] },
-    { name: 'Maharashtra',    lat: 19.75, lon: 75.71, stars: 5, industries: ['sugar', 'paper', 'chemical', 'steel', 'textile'] },
-    { name: 'Chhattisgarh',   lat: 21.28, lon: 81.87, stars: 5, industries: ['steel', 'sponge', 'ferro', 'aluminium', 'mining'] },
-    { name: 'Odisha',         lat: 20.95, lon: 85.10, stars: 5, industries: ['steel', 'sponge', 'aluminium', 'ferro', 'mining'] },
-    { name: 'Tamil Nadu',     lat: 11.13, lon: 78.66, stars: 5, industries: ['paper', 'sugar', 'textile', 'chemical', 'steel'] },
-    { name: 'Karnataka',      lat: 15.32, lon: 75.71, stars: 4, industries: ['steel', 'sugar', 'aac', 'chemical'] },
-    { name: 'Uttar Pradesh',  lat: 26.85, lon: 80.95, stars: 4, industries: ['sugar', 'paper', 'chemical'] },
-    { name: 'Andhra Pradesh', lat: 15.91, lon: 79.74, stars: 4, industries: ['steel', 'sugar', 'chemical', 'aac'] },
-    { name: 'Telangana',      lat: 17.85, lon: 79.11, stars: 4, industries: ['steel', 'chemical', 'aac'] },
-    { name: 'Jharkhand',      lat: 23.61, lon: 85.28, stars: 4, industries: ['steel', 'sponge', 'mining', 'ferro'] },
-    { name: 'West Bengal',    lat: 22.99, lon: 87.86, stars: 3, industries: ['steel', 'sponge', 'paper'] },
-    { name: 'Madhya Pradesh', lat: 23.47, lon: 77.95, stars: 3, industries: ['sponge', 'chemical', 'paper'] },
-    { name: 'Punjab',         lat: 31.15, lon: 75.34, stars: 3, industries: ['paper', 'sugar', 'textile'] },
-    { name: 'Haryana',        lat: 29.06, lon: 76.09, stars: 3, industries: ['paper', 'steel', 'textile'] },
-    { name: 'Rajasthan',      lat: 27.02, lon: 74.22, stars: 4, industries: ['zinc', 'chemical', 'textile', 'aac'] }
+    { name: 'Gujarat',        lat: 22.66, lon: 71.19, stars: 5, industries: ['chemical', 'paper', 'water', 'etp', 'aluminium', 'textile', 'zinc'], hubs: ['Ankleshwar', 'Vadodara', 'Ahmedabad', 'Surat'] },
+    { name: 'Maharashtra',    lat: 19.75, lon: 75.71, stars: 5, industries: ['sugar', 'paper', 'chemical', 'steel', 'textile'], hubs: ['Pune', 'Nagpur', 'Kolhapur', 'Aurangabad'] },
+    { name: 'Chhattisgarh',   lat: 21.28, lon: 81.87, stars: 5, industries: ['steel', 'sponge', 'ferro', 'aluminium', 'mining'], hubs: ['Raipur', 'Bhilai', 'Raigarh', 'Korba'] },
+    { name: 'Odisha',         lat: 20.95, lon: 85.10, stars: 5, industries: ['steel', 'sponge', 'aluminium', 'ferro', 'mining'], hubs: ['Rourkela', 'Angul', 'Jharsuguda', 'Cuttack'] },
+    { name: 'Tamil Nadu',     lat: 11.13, lon: 78.66, stars: 5, industries: ['paper', 'sugar', 'textile', 'chemical', 'steel'], hubs: ['Coimbatore', 'Chennai', 'Karur', 'Salem'] },
+    { name: 'Karnataka',      lat: 15.32, lon: 75.71, stars: 4, industries: ['steel', 'sugar', 'aac', 'chemical'], hubs: ['Ballari', 'Hospet', 'Bengaluru', 'Belgaum'] },
+    { name: 'Uttar Pradesh',  lat: 26.85, lon: 80.95, stars: 4, industries: ['sugar', 'paper', 'chemical'], hubs: ['Kanpur', 'Muzaffarnagar', 'Meerut', 'Moradabad'] },
+    { name: 'Andhra Pradesh', lat: 15.91, lon: 79.74, stars: 4, industries: ['steel', 'sugar', 'chemical', 'aac'], hubs: ['Visakhapatnam', 'Vijayawada', 'Nellore'] },
+    { name: 'Telangana',      lat: 17.85, lon: 79.11, stars: 4, industries: ['steel', 'chemical', 'aac'], hubs: ['Hyderabad', 'Sangareddy', 'Bodhan'] },
+    { name: 'Jharkhand',      lat: 23.61, lon: 85.28, stars: 4, industries: ['steel', 'sponge', 'mining', 'ferro'], hubs: ['Jamshedpur', 'Bokaro', 'Ranchi', 'Dhanbad'] },
+    { name: 'West Bengal',    lat: 22.99, lon: 87.86, stars: 3, industries: ['steel', 'sponge', 'paper'], hubs: ['Durgapur', 'Asansol', 'Kolkata', 'Haldia'] },
+    { name: 'Madhya Pradesh', lat: 23.47, lon: 77.95, stars: 3, industries: ['sponge', 'chemical', 'paper'], hubs: ['Indore', 'Pithampur', 'Jabalpur', 'Bhopal'] },
+    { name: 'Punjab',         lat: 31.15, lon: 75.34, stars: 3, industries: ['paper', 'sugar', 'textile'], hubs: ['Ludhiana', 'Rajpura', 'Amritsar', 'Jalandhar'] },
+    { name: 'Haryana',        lat: 29.06, lon: 76.09, stars: 3, industries: ['paper', 'steel', 'textile'], hubs: ['Hisar', 'Yamunanagar', 'Faridabad', 'Panipat'] },
+    { name: 'Rajasthan',      lat: 27.02, lon: 74.22, stars: 4, industries: ['zinc', 'chemical', 'textile', 'aac'], hubs: ['Bhilwara', 'Kota', 'Bhiwadi', 'Udaipur'] }
   ];
 
   var PRODUCTS = [
@@ -118,6 +124,19 @@
   function osmTerm(key) { return OSM_TERM[key] || key; }
 
   function industry(key) { for (var i = 0; i < INDUSTRIES.length; i++) if (INDUSTRIES[i].key === key) return INDUSTRIES[i]; return null; }
+
+  /* Is this place-name one of our known states? (case-insensitive) */
+  function stateByName(name) {
+    var n = String(name || '').trim().toLowerCase();
+    for (var i = 0; i < STATES.length; i++) if (STATES[i].name.toLowerCase() === n) return STATES[i];
+    return null;
+  }
+  /* The industrial hub cities to actually search for a state (max n). Whole-state
+     Overpass queries time out; these do not. */
+  function hubsFor(name, n) {
+    var s = stateByName(name);
+    return s && s.hubs ? s.hubs.slice(0, n || 3) : [];
+  }
 
   /* Industries relevant to a product, best-demand first. */
   function industriesForProduct(product) {
@@ -162,7 +181,8 @@
     INDUSTRIES: INDUSTRIES, STATES: STATES, PRODUCTS: PRODUCTS,
     DEFAULT_ORIGIN: DEFAULT_ORIGIN, DEFAULT_FREIGHT: DEFAULT_FREIGHT, VIABLE_KM: VIABLE_KM,
     roadKm: roadKm, transportTier: transportTier, feasibility: feasibility, osmTerm: osmTerm,
-    industry: industry, industriesForProduct: industriesForProduct,
+    industry: industry, stateByName: stateByName, hubsFor: hubsFor,
+    industriesForProduct: industriesForProduct,
     stateOpportunity: stateOpportunity, plan: plan
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.LimeMarket;

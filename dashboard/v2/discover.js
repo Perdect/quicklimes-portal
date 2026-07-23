@@ -422,30 +422,45 @@ async function runSearch() {
   document.getElementById('dcWhat').value = what;
   if (!what) { toast('Type what to look for, or pick an industry', 'err'); return; }
 
+  /* A whole STATE is too heavy for the free Overpass service (it times out), so
+     when the target is a state we fan the search across its industrial HUB
+     CITIES instead — fast, and where the plants actually are. A plain city is
+     searched directly. */
+  const st = LM && LM.stateByName(city);
+  const targets = st ? LM.hubsFor(city, 3) : [city];
+  const stateLabel = st ? city : '';
+
   const btn = document.getElementById('dcGo'); const label = btn.textContent;
-  btn.disabled = true; btn.textContent = 'Searching…';
-  const r = await api({ action: 'search', what, city, industry: indLabel, radius, source: SRC });
+  btn.disabled = true;
+
+  let added = 0, dupes = 0, seen = 0, okAny = false, lastErr = '', lastRetry = false, fellBack = false;
+  for (let i = 0; i < targets.length; i++) {
+    btn.textContent = targets.length > 1 ? `Searching ${targets[i]}… (${i + 1}/${targets.length})` : 'Searching…';
+    if (stateLabel) notice(`Searching <b>${esc(stateLabel)}</b> across its industrial hubs: ${targets.map((t, j) => j <= i ? '<b>' + esc(t) + '</b>' : esc(t)).join(' · ')}`);
+    const r = await api({ action: 'search', what, city: targets[i], industry: indLabel, radius, source: SRC });
+    if (r.ok) { okAny = true; added += r.added || 0; dupes += r.dupes || 0; seen += r.seen || 0; if (r.radius_fell_back) fellBack = true; }
+    else { lastErr = r.error || 'unknown error'; lastRetry = !!r.retry; if (r.not_configured) { lastErr = r.error; lastRetry = false; okAny = false; break; } }
+  }
   btn.disabled = false; btn.textContent = label;
 
   const tag = what + (city ? ' · ' + city : '') + (radius ? ' · ' + radius + 'km' : '');
-  if (!r.ok) {
-    /* A failure is SHOWN. The whole point: a dead key must never read as "there
-       are no such businesses here". */
+  if (!okAny) {
+    /* A failure is SHOWN. The whole point: a dead source must never read as
+       "there are no such businesses here". */
     RECENT.unshift({ label: tag, ok: false });
     paintRecent();
-    if (r.not_configured) notice(r.error + ' Until then, use <b>Paste / import a list</b> — it needs no key.', true);
-    else notice('Search failed: <b>' + esc(r.error || 'unknown error') + '</b>'
-      + (r.retry ? ' <button class="dc-retry" id="dcRetry">Retry</button>' : ''), true);
+    notice('Search failed: <b>' + esc(lastErr) + '</b>'
+      + (lastRetry ? ' <button class="dc-retry" id="dcRetry">Retry</button>' : ''), true);
     const rb = document.getElementById('dcRetry'); if (rb) rb.onclick = runSearch;
-    toast(r.error || 'Search failed', 'err');
+    toast(lastErr, 'err');
     return;
   }
-  // Honest about a radius that could not be applied (place would not geocode).
-  if (radius && r.radius_fell_back) notice('Couldn’t pin the centre of <b>' + esc(city) + '</b>, so this searched the whole area instead of a ' + radius + ' km circle.', true);
+  if (radius && fellBack) notice('Couldn’t pin the centre of <b>' + esc(city) + '</b>, so this searched the whole area instead of a ' + radius + ' km circle.', true);
+  else if (stateLabel) notice(`Searched <b>${esc(stateLabel)}</b> across ${targets.join(', ')}. Want more towns there? Tell me and I’ll widen the hub list.`);
   else notice('');
-  RECENT.unshift({ label: tag, ok: true, added: r.added || 0, dupes: r.dupes || 0 });
+  RECENT.unshift({ label: tag, ok: true, added, dupes });
   paintRecent();
-  toast((r.added || 0) + ' new · ' + (r.dupes || 0) + ' already known' + (r.seen ? ' · ' + r.seen + ' seen before' : ''));
+  toast(added + ' new · ' + dupes + ' already known' + (seen ? ' · ' + seen + ' seen before' : ''));
   TAB = 'new'; await load();
 }
 

@@ -81,6 +81,19 @@ console.log('\n═══ Lime market intelligence · demand × freight ═══
   ok(dear.freightPerTonne > cheap.freightPerTonne, 'the freight rate is applied (₹8 costs more than ₹2)');
 }
 
+/* ── industrial hubs: a state search must become CITY searches ──
+   A whole-state Overpass query times out; hub cities do not. This is the fix for
+   "steel · Jharkhand — failed", so it is pinned. */
+{
+  ok(LM.STATES.every(s => Array.isArray(s.hubs) && s.hubs.length >= 3), 'every state lists at least 3 industrial hub cities');
+  const jh = LM.hubsFor('Jharkhand', 3);
+  ok(jh.includes('Jamshedpur') && jh.includes('Bokaro'), 'Jharkhand fans out to Jamshedpur/Bokaro (the steel hubs)');
+  ok(!jh.includes('Jharkhand'), '  the hubs are CITIES, never the whole state (which times out)');
+  eq(LM.hubsFor('Jharkhand', 3).length, 3, 'hubsFor respects the cap');
+  ok(!!LM.stateByName('jharkhand') && !!LM.stateByName('  GUJARAT '), 'stateByName is case/space-insensitive');
+  ok(LM.stateByName('Jodhpur') === null, 'a city is not mistaken for a state');
+}
+
 /* ── honesty: cement is not sold a false story, and nothing is a per-company fact ── */
 {
   ok(!LM.industriesForProduct('quick').some(i => i.key === 'cement'), 'cement (rarely a buyer) is excluded, not padded in to look bigger');

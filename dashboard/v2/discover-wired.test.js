@@ -46,12 +46,12 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   const i = bare.indexOf('async function runSearch');
   const block = i > 0 ? bare.slice(i, bare.indexOf('async function load', i)) : '';
   ok(i > 0, 'runSearch exists');
-  ok(/if \(!r\.ok\)/.test(block), '  it branches on failure');
+  ok(/if \(!okAny\)/.test(block), '  it branches on failure (no hub succeeded)');
   ok(/notice\(/.test(block) && /warn|true/.test(block), '  and SHOWS the failure as a notice');
   ok(/ok: false/.test(block), '  the recent-search chip records it as failed');
   ok(/not_configured/.test(block), '  a missing key gets its own explicit message');
   // The failure branch must return BEFORE anything that reads as success.
-  const failIdx = block.indexOf('if (!r.ok)'), okIdx = block.indexOf("RECENT.unshift({ label: tag, ok: true");
+  const failIdx = block.indexOf('if (!okAny)'), okIdx = block.indexOf("RECENT.unshift({ label: tag, ok: true");
   ok(failIdx > 0 && okIdx > failIdx, '  and it returns before the success path can run');
 }
 
@@ -108,6 +108,17 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/state !== 'Rajasthan'/.test(bare), '  and skip the home state (the point is to look beyond Rajasthan)');
   ok(!/\['[^']*', 'Jodhpur'\]/.test(bare) && !/, 'Nagaur'\]/.test(bare), '  no hardcoded local-only Rajasthan suggestions remain');
   ok(!/within 100km of Jodhpur/.test(html), '  the search placeholder no longer pushes a local Jodhpur example');
+}
+
+/* ── a STATE target fans out across hub cities (whole-state times out) ── */
+{
+  const i = bare.indexOf('async function runSearch');
+  const rs = i > 0 ? bare.slice(i, bare.indexOf('async function loadSources', i)) : '';
+  ok(/LM\.stateByName\(city\)/.test(rs), 'runSearch detects when the target is a whole state');
+  ok(/LM\.hubsFor\(/.test(rs), '  and expands it to industrial hub cities');
+  ok(/for \(let i = 0; i < targets\.length/.test(rs), '  searching each target (a loop, not one whole-state query)');
+  ok(/city: targets\[i\]/.test(rs), '  each request goes to a hub CITY, not the state');
+  ok(/added \+= r\.added/.test(rs), '  results are aggregated across the hubs');
 }
 
 /* ── radius is honest when it cannot be applied ── */
