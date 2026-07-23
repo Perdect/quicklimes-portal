@@ -192,6 +192,49 @@ $PLACES_JSON = [
   ok($hits === 1, 'a non-retryable HTTP error stops at the first endpoint (no pointless mirror hammering)');
 }
 
+/* ══════════ 4c. radius search (geocode → around) ══════════ */
+{
+  $OSM_JSON = ['elements' => [
+    ['type' => 'node', 'id' => 1, 'lat' => 26.3, 'lon' => 73.0, 'tags' => ['name' => 'Marudhar AAC', 'phone' => '946']],
+  ]];
+  // A radius + a geocodable place → an "around" query centred on that point.
+  $sentQ = '';
+  $geo = function ($p) { return ['lat' => 26.29, 'lon' => 73.02]; };
+  $r = ql_osm_search('AAC', 'Jodhpur', [
+    'radiusKm' => 100, 'geocode' => $geo
+  ], function ($u, $payload) use (&$sentQ, $OSM_JSON) {
+    $sentQ = urldecode($payload);
+    return ['code' => 200, 'body' => json_encode($OSM_JSON), 'err' => ''];
+  });
+  ok($r['ok'] && count($r['places']) === 1, 'radius: a geocodable place returns results');
+  ok(strpos($sentQ, 'around:100000,26.29,73.02') !== false, '  the query is an around-search: 100km → 100000m, centred on the geocoded point');
+  ok(strpos($sentQ, 'boundary') === false, '  and NOT an area search (no admin-boundary lookup)');
+  ok(empty($r['radius_fell_back']), '  radius honoured → no fall-back flag');
+
+  // Radius clamps to a sane metre range.
+  $sentBig = '';
+  ql_osm_search('AAC', 'Jodhpur', ['radiusKm' => 99999, 'geocode' => $geo], function ($u, $payload) use (&$sentBig) {
+    $sentBig = urldecode($payload); return ['code' => 200, 'body' => '{"elements":[]}', 'err' => ''];
+  });
+  ok(strpos($sentBig, 'around:500000,') !== false, 'radius: clamped to 500km (500000m) — never an unbounded planet-wide scan');
+
+  // Geocode FAILS → fall back to an area search, honestly flagged, not an error.
+  $sentFb = '';
+  $geoDead = function ($p) { return null; };
+  $fb = ql_osm_search('AAC', 'Jodhpur', ['radiusKm' => 100, 'geocode' => $geoDead], function ($u, $payload) use (&$sentFb, $OSM_JSON) {
+    $sentFb = urldecode($payload); return ['code' => 200, 'body' => json_encode($OSM_JSON), 'err' => ''];
+  });
+  ok($fb['ok'] && !empty($fb['radius_fell_back']), 'radius: a place that will not geocode falls back to area search AND says so');
+  ok(strpos($sentFb, 'boundary') !== false, '  the fall-back really is the area query');
+
+  // Radius mode spends its budget on geocode, so it must try only ONE Overpass endpoint.
+  $tries = 0;
+  ql_osm_search('AAC', 'Jodhpur', ['radiusKm' => 100, 'geocode' => $geo], function () use (&$tries) {
+    $tries++; return ['code' => 504, 'body' => '', 'err' => ''];
+  });
+  ok($tries === 1, 'radius: only ONE Overpass endpoint is tried (geocode already spent part of the 30s budget)');
+}
+
 /* ══════════ 5. the key never leaves the server ══════════ */
 {
   $src = file_get_contents(__DIR__ . '/discover.php');

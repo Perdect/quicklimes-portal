@@ -17,7 +17,34 @@
    we have.
    ═══════════════════════════════════════════════════════════════════════ */
 'use strict';
-const Q = window.QLD, IC2 = window.ICPCore, LI = window.LeadImport;
+const Q = window.QLD, IC2 = window.ICPCore, LI = window.LeadImport, LP = window.LeadParse;
+
+/* The findable-industry taxonomy for the dropdown. Each entry carries what to
+   SEARCH on the map (osm) and which ICP key it SCORES as (icp) — so a picked
+   industry maps straight to a real fit score (icp-core.js owns those keys). An
+   empty icp means "we can find it but have no margin history to score it", which
+   is shown honestly as an unknown tier rather than a faked number. */
+const DISCOVER_INDUSTRIES = [
+  ['Manufacturing', [
+    ['AAC Block', 'AAC', 'aac'], ['Cement / RMC', 'cement', 'cement'], ['Steel', 'steel', 'steel'],
+    ['Foundry', 'foundry', 'foundry'], ['Glass', 'glass', 'glass'], ['Chemicals', 'chemical', 'chemical'],
+    ['Ceramics', 'ceramic', ''], ['Mining', 'mining', 'mining']
+  ]],
+  ['Agriculture', [
+    ['Sugar Mills', 'sugar mill', 'sugar'], ['Fertilizer', 'fertilizer', 'chemical'], ['Feed Mills', 'feed mill', '']
+  ]],
+  ['Paper & Packaging', [
+    ['Paper Mills', 'paper mill', 'paper'], ['Packaging', 'packaging', '']
+  ]],
+  ['Construction & Water', [
+    ['Builders / Developers', 'builder', 'construction'], ['Water Treatment', 'water treatment', 'water']
+  ]]
+];
+const BIZ_TYPES = ['manufacturer', 'factory', 'supplier', 'dealer', 'distributor', 'trader', 'wholesaler', 'exporter', 'importer'];
+const RADII = [[0, 'Whole area'], [50, 'Within 50 km'], [100, 'Within 100 km'], [250, 'Within 250 km'], [500, 'Within 500 km']];
+/* When the industry dropdown is on "Any", the search term comes from whatever the
+   AI bar last parsed (or the raw bar text) — kept here so both paths agree. */
+let PARSED_WHAT = '';
 const esc = (window.QLX && QLX.esc) || (s => (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])));
 
 let ROWS = [], COUNTS = { new: 0, duplicate: 0, promoted: 0, dismissed: 0 }, TAB = 'new', RECENT = [], ICP = [];
@@ -119,13 +146,88 @@ function paintSources() {
   if (at) at.style.display = SRC === 'osm' ? '' : 'none';
 }
 
+/* Populate the structured filters once. Native <select>s are used on purpose:
+   they are type-ahead searchable, keyboard- and screen-reader-friendly, perfect
+   on mobile, and cannot drift out of sync the way a hand-rolled combobox can. */
+function buildFilters() {
+  const ind = document.getElementById('dcIndSel');
+  if (ind) {
+    ind.innerHTML = '<option value="">Any industry</option>' + DISCOVER_INDUSTRIES.map(([grp, items]) =>
+      `<optgroup label="${esc(grp)}">` + items.map(([label, osm, icp]) =>
+        `<option value="${esc(osm)}" data-icp="${esc(icp)}">${esc(label)}</option>`).join('') + '</optgroup>').join('');
+  }
+  const biz = document.getElementById('dcBiz');
+  if (biz) biz.innerHTML = '<option value="">Any type</option>' +
+    BIZ_TYPES.map(t => `<option value="${t}">${t.charAt(0).toUpperCase() + t.slice(1)}</option>`).join('');
+  const rad = document.getElementById('dcRadius');
+  if (rad) rad.innerHTML = RADII.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('');
+}
+
+/* Parse the AI bar into the structured filters and show, in plain words, what
+   was understood. Nothing is hidden: if a field could not be read it simply is
+   not set, and the chip for it does not appear. */
+function applyParse(text) {
+  if (!LP) return;
+  const p = LP.parse(text, IC2 ? IC2.INDUSTRIES : []);
+  PARSED_WHAT = p.what || '';
+  // Industry: match the parsed ICP key to a dropdown option (by its data-icp).
+  const ind = document.getElementById('dcIndSel');
+  if (ind) {
+    ind.value = '';
+    if (p.industry) {
+      const opt = [...ind.options].find(o => o.getAttribute('data-icp') === p.industry.key);
+      if (opt) ind.value = opt.value;
+    }
+  }
+  const biz = document.getElementById('dcBiz'); if (biz) biz.value = p.businessType || '';
+  const city = document.getElementById('dcCity'); if (city && p.place) city.value = p.place;
+  const rad = document.getElementById('dcRadius');
+  if (rad) rad.value = p.radiusKm ? String([50, 100, 250, 500].reduce((a, b) => Math.abs(b - p.radiusKm) < Math.abs(a - p.radiusKm) ? b : a)) : '0';
+  paintUnderstood(p);
+}
+
+function paintUnderstood(p) {
+  const el = document.getElementById('dcUnderstood'); if (!el) return;
+  const chips = [];
+  if (p.industry) chips.push(['Industry', p.industry.label]);
+  else if (p.what) chips.push(['Looking for', p.what]);
+  if (p.businessType) chips.push(['Type', p.businessType]);
+  if (p.place) chips.push(['Area', p.place]);
+  if (p.radiusKm) chips.push(['Radius', p.radiusKm + ' km']);
+  el.innerHTML = chips.length
+    ? '<span class="lbl">Understood:</span>' + chips.map(([k, v]) => `<span class="dc-u">${esc(k)}: ${esc(v)}</span>`).join('')
+    : '';
+}
+
+/* Voice search — browser-native Web Speech API, no data cost. Only shown when
+   the browser supports it, so it never sits there dead. It fills the AI bar and
+   runs the same parse+search path a typed query does. */
+function setupVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const mic = document.getElementById('dcMic'); if (!mic || !SR) return;
+  mic.hidden = false;
+  let rec = null, on = false;
+  mic.onclick = () => {
+    if (on && rec) { rec.stop(); return; }
+    rec = new SR(); rec.lang = 'en-IN'; rec.interimResults = false; rec.maxAlternatives = 1;
+    rec.onstart = () => { on = true; mic.classList.add('rec'); };
+    rec.onend = () => { on = false; mic.classList.remove('rec'); };
+    rec.onerror = () => { on = false; mic.classList.remove('rec'); toast('Could not hear that — try again', 'err'); };
+    rec.onresult = e => {
+      const said = (e.results[0] && e.results[0][0] && e.results[0][0].transcript || '').trim();
+      if (said) { document.getElementById('dcAi').value = said; runSearch(); }
+    };
+    try { rec.start(); } catch (_) {}
+  };
+}
+
 function paintChips() {
   const el = document.getElementById('dcChips'); if (!el) return;
   el.innerHTML = '<span style="font-size:11.5px;color:var(--ql-text-secondary)">Try:</span>' +
     SUGGEST.map(([w, c]) => `<button class="dc-chip" data-w="${esc(w)}" data-c="${esc(c)}">${esc(w)} · ${esc(c)}</button>`).join('');
   el.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
-    document.getElementById('dcWhat').value = b.dataset.w;
-    document.getElementById('dcCity').value = b.dataset.c;
+    const bar = document.getElementById('dcAi');
+    bar.value = 'Find ' + b.dataset.w + ' in ' + b.dataset.c;
     runSearch();
   });
 }
@@ -205,17 +307,31 @@ function notice(html, warn) {
   el.innerHTML = html ? `<div class="dc-note${warn ? ' warn' : ''}">${html}</div>` : '';
 }
 
+let LAST_PARSED = null;   // the bar text last turned into filters (avoids re-parsing over a user's dropdown edits)
+
 async function runSearch() {
-  const what = (document.getElementById('dcWhat').value || '').trim();
+  // Re-parse the bar only when it CHANGED — so editing a dropdown after parsing,
+  // then hitting Search, respects the edit instead of being overwritten.
+  const bar = (document.getElementById('dcAi').value || '').trim();
+  if (bar && bar !== LAST_PARSED) { applyParse(bar); LAST_PARSED = bar; }
+
+  const indSel = document.getElementById('dcIndSel');
+  const indTerm = (indSel.value || '').trim();                       // the OSM search term for the picked industry
+  const indLabel = indSel.value ? indSel.options[indSel.selectedIndex].text : '';
   const city = (document.getElementById('dcCity').value || '').trim();
-  const ind = (document.getElementById('dcInd').value || '').trim();
-  if (!what) { toast('Say what to look for', 'err'); return; }
+  const radius = parseInt(document.getElementById('dcRadius').value || '0', 10) || 0;
+  // What to actually search: the industry's trade word, else whatever the bar
+  // parsed to, else the raw bar text. The hidden field keeps them in one place.
+  const what = indTerm || PARSED_WHAT || bar;
+  document.getElementById('dcWhat').value = what;
+  if (!what) { toast('Type what to look for, or pick an industry', 'err'); return; }
+
   const btn = document.getElementById('dcGo'); const label = btn.textContent;
   btn.disabled = true; btn.textContent = 'Searching…';
-  const r = await api({ action: 'search', what, city, industry: ind, source: SRC });
+  const r = await api({ action: 'search', what, city, industry: indLabel, radius, source: SRC });
   btn.disabled = false; btn.textContent = label;
 
-  const tag = what + (city ? ' · ' + city : '');
+  const tag = what + (city ? ' · ' + city : '') + (radius ? ' · ' + radius + 'km' : '');
   if (!r.ok) {
     /* A failure is SHOWN. The whole point: a dead key must never read as "there
        are no such businesses here". */
@@ -228,7 +344,9 @@ async function runSearch() {
     toast(r.error || 'Search failed', 'err');
     return;
   }
-  notice('');
+  // Honest about a radius that could not be applied (place would not geocode).
+  if (radius && r.radius_fell_back) notice('Couldn’t pin the centre of <b>' + esc(city) + '</b>, so this searched the whole area instead of a ' + radius + ' km circle.', true);
+  else notice('');
   RECENT.unshift({ label: tag, ok: true, added: r.added || 0, dupes: r.dupes || 0 });
   paintRecent();
   toast((r.added || 0) + ' new · ' + (r.dupes || 0) + ' already known' + (r.seen ? ' · ' + r.seen + ' seen before' : ''));
@@ -262,9 +380,23 @@ function openPaste() {
 
 QLShell.mount({ active: 'discover', title: 'Lead Discovery' });
 buildIcp();
+buildFilters(); setupVoice();
 paintSources(); paintChips(); paintTabs(); paintTable();
 document.getElementById('dcGo').addEventListener('click', runSearch);
-['dcWhat', 'dcCity', 'dcInd'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); }));
+// Enter in the AI bar or the city field searches; typing in the bar re-parses.
+document.getElementById('dcAi').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
+document.getElementById('dcCity').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
+// Picking an industry live-previews what will be searched (the understood row).
+document.getElementById('dcIndSel').addEventListener('change', () => {
+  const s = document.getElementById('dcIndSel');
+  paintUnderstood({
+    industry: s.value ? { label: s.options[s.selectedIndex].text } : null,
+    businessType: document.getElementById('dcBiz').value || null,
+    place: (document.getElementById('dcCity').value || '').trim() || null,
+    radiusKm: parseInt(document.getElementById('dcRadius').value || '0', 10) || null,
+    what: s.value || PARSED_WHAT
+  });
+});
 document.getElementById('dcImport').addEventListener('click', openPaste);
 window.__qlOnSwitchCompany = () => { buildIcp(); load(); };
 Q.init(() => {}).then(() => { buildIcp(); loadSources(); load(); }).catch(() => { loadSources(); load(); });

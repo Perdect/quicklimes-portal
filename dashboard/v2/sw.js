@@ -1,7 +1,7 @@
 /* QuickLimes v2 — service worker (installable PWA + offline shell).
    Local-first app: data lives in localStorage, so once the CSS/JS shell is cached
    the app opens offline. Never caches the /api backend or cross-origin requests. */
-const CACHE = 'ql-v2-cache-170';   // bumped: Lead Discovery — honest search errors + retry + timeouts (no more blanket "Network error"); Overpass mirror fallback
+const CACHE = 'ql-v2-cache-171';   // bumped: Lead Discovery Phase 1 — AI search bar (phrase parser), smart industry/type/radius filters, voice search
 
 self.addEventListener('install', () => self.skipWaiting());
 

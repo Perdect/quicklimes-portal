@@ -1200,31 +1200,80 @@ function ql_osm_parse($json, $city) {
 
 /* Search OSM. Same return shape as ql_places_request, so the endpoint and the
    page treat both sources identically. $http is injectable for tests. */
+/* Geocode a place name to a centre point via Nominatim (OSM's free geocoder),
+   used only for radius search. Returns ['lat'=>.., 'lon'=>..] or null. Kept
+   small and fast (6s cap): in radius mode it runs BEFORE the Overpass call, so
+   geocode + one Overpass query must still fit under PHP's 30s. $http is injected
+   for tests, same contract as ql_osm_search. */
+function ql_osm_geocode($place, $http = null) {
+  $place = trim((string)$place);
+  if ($place === '') return null;
+  if ($http === null) {
+    $http = function ($url) {
+      $ch = curl_init($url);
+      curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 4, CURLOPT_TIMEOUT => 6,
+        CURLOPT_USERAGENT => 'QuickLimes/1.0 (ERP lead discovery; app.quicklimes.com)',
+      ]);
+      $res = curl_exec($ch);
+      $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+      $err = curl_error($ch);
+      curl_close($ch);
+      return ['code' => $code, 'body' => $res, 'err' => $err];
+    };
+  }
+  $url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' . rawurlencode($place);
+  $r = $http($url);
+  if (!empty($r['err']) || (int)$r['code'] !== 200) return null;
+  $j = json_decode((string)$r['body'], true);
+  if (!is_array($j) || !isset($j[0]['lat'], $j[0]['lon'])) return null;
+  return ['lat' => (float)$j[0]['lat'], 'lon' => (float)$j[0]['lon']];
+}
+
 function ql_osm_search($what, $city, $opts = [], $http = null) {
   $what = trim((string)$what); $city = trim((string)$city);
   if ($what === '') return ['ok' => false, 'places' => [], 'error' => 'Say what to look for'];
   if ($city === '') return ['ok' => false, 'places' => [], 'error' => 'OpenStreetMap needs a city to search inside'];
   $max = max(1, min(60, (int)($opts['max'] ?? 40)));
+  $radiusKm = (int)($opts['radiusKm'] ?? 0);
+  /* geocoder is injected separately in tests; falls back to the default above. */
+  $geo = $opts['geocode'] ?? null;
 
   /* Overpass QL. Quotes and backslashes are escaped because the query is a
      STRING the server parses: an unescaped quote in "what" would break out of
      the regex and could rewrite the whole query. */
   $esc = function ($v) { return str_replace(['\\', '"'], ['\\\\', '\\"'], (string)$v); };
-  /* The Overpass server-side timeout MUST stay under PHP's max_execution_time
-     (30s on our host). It used to be [timeout:25] with a 40s curl cap — so on a
-     heavy query (a name-regex across a whole metro) PHP was killed mid-call and
-     the browser got an HTML error page, which the client could only report as
-     the meaningless "Network error". 18s leaves headroom for PHP to always
-     return real JSON, even a real failure. */
+
+  /* RADIUS MODE. If the caller asked for "within N km of <place>", geocode the
+     place to a centre and search a circle around it instead of a whole admin
+     area. Geocoding is a SEPARATE free service (Nominatim) and can fail; if it
+     does, we fall back to the area search rather than error out, and tell the
+     caller (radius_fell_back) so the UI can say the circle was ignored. The time
+     budget: geocode (6s) + ONE Overpass try (12s) = 18s, so radius mode does NOT
+     also try the mirror — that would risk PHP's 30s limit. */
+  $radiusFellBack = false;
+  $centre = null;
+  if ($radiusKm > 0) {
+    $centre = $geo ? $geo($city) : ql_osm_geocode($city);
+    if (!$centre) $radiusFellBack = true;   // couldn't pin a centre → area search
+  }
+
   /* We may try TWO endpoints in one request, so the budget is per-endpoint and
      both must fit under PHP's 30s: query [timeout:10] + a 12s curl cap → at most
      ~24s for two attempts, leaving PHP room to always return real JSON. A larger
      value here is not "more results", it is "the second attempt pushes us past
      PHP's limit and the browser gets an HTML error page again". */
-  $q = "[out:json][timeout:10];\n"
-     . 'area["name"~"^' . $esc($city) . '$",i]["boundary"="administrative"]->.a;' . "\n"
-     . '( nwr["name"~"' . $esc($what) . '",i](area.a); );' . "\n"
-     . 'out center ' . $max . ';';
+  if ($centre) {
+    $metres = min(500000, max(1000, $radiusKm * 1000));
+    $q = "[out:json][timeout:10];\n"
+       . '( nwr["name"~"' . $esc($what) . '",i](around:' . $metres . ',' . $centre['lat'] . ',' . $centre['lon'] . '); );' . "\n"
+       . 'out center ' . $max . ';';
+  } else {
+    $q = "[out:json][timeout:10];\n"
+       . 'area["name"~"^' . $esc($city) . '$",i]["boundary"="administrative"]->.a;' . "\n"
+       . '( nwr["name"~"' . $esc($what) . '",i](area.a); );' . "\n"
+       . 'out center ' . $max . ';';
+  }
 
   if ($http === null) {
     $http = function ($url, $payload, $headers) {
@@ -1247,8 +1296,12 @@ function ql_osm_search($what, $city, $opts = [], $http = null) {
   /* The main Overpass endpoint 504s often on big cities (it is donated infra).
      Try a mirror before giving up — a 504/429/transport-error on the first is
      worth one more attempt elsewhere; a clean non-200 (e.g. 400 bad query) is
-     not, so we stop rather than hammer every mirror with the same broken query. */
-  $endpoints = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+     not, so we stop rather than hammer every mirror with the same broken query.
+     In RADIUS mode we already spent ~6s geocoding, so we allow only ONE endpoint
+     to stay under PHP's 30s (6 + 12 = 18s; a second 12s try would risk 30s). */
+  $endpoints = $centre
+    ? ['https://overpass-api.de/api/interpreter']
+    : ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
   $r = ['code' => 0, 'body' => '', 'err' => 'no endpoint tried'];
   foreach ($endpoints as $ep) {
     $r = $http($ep, 'data=' . urlencode($q), ['Content-Type: application/x-www-form-urlencoded']);
@@ -1268,7 +1321,10 @@ function ql_osm_search($what, $city, $opts = [], $http = null) {
   if ($code !== 200) return ['ok' => false, 'places' => [], 'error' => 'OpenStreetMap error (HTTP ' . $code . ')'];
   $j = json_decode((string)$r['body'], true);
   if (!is_array($j)) return ['ok' => false, 'places' => [], 'error' => 'OpenStreetMap sent an unreadable reply'];
-  return ['ok' => true, 'places' => ql_osm_parse($j, $city), 'error' => ''];
+  /* radius_fell_back: a radius was asked for but the place could not be geocoded,
+     so this is an area search. The UI says so rather than pretending the circle
+     was honoured. */
+  return ['ok' => true, 'places' => ql_osm_parse($j, $city), 'error' => '', 'radius_fell_back' => $radiusFellBack];
 }
 
 /* The one door the app uses: reads the key from config, then delegates. */

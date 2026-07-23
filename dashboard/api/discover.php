@@ -43,6 +43,7 @@ if ($action === 'search') {
   $what = trim((string)($b['what'] ?? ''));
   $city = trim((string)($b['city'] ?? ''));
   $ind  = trim((string)($b['industry'] ?? ''));
+  $radiusKm = (int)($b['radius'] ?? 0);   // 0 = search the whole named area (no circle)
 
   /* TWO SOURCES, one shape. OpenStreetMap is the free one (no key, no billing)
      and is therefore the DEFAULT: a user who never sets up Google still gets a
@@ -52,8 +53,11 @@ if ($action === 'search') {
   $src = (string)($b['source'] ?? '');
   if ($src !== 'google' && $src !== 'osm') $src = ql_has_places_key() ? 'google' : 'osm';
 
+  /* Radius is an OSM-only refinement (it needs a geocoded centre + Overpass
+     around-search). Google's own text search already scopes by place, so the
+     radius is simply not passed there. */
   $r = ($src === 'osm')
-    ? ql_osm_search($what, $city, ['max' => 40])
+    ? ql_osm_search($what, $city, ['max' => 40, 'radiusKm' => $radiusKm])
     : ql_places_search($what, $city, ['max' => 20]);
 
   if (!$r['ok']) {
@@ -96,7 +100,8 @@ if ($action === 'search') {
     $c['id'] = (int)$db->lastInsertId();
     $out[] = $c;
   }
-  ql_out(['ok' => true, 'source' => $src, 'added' => $added, 'dupes' => $dupes, 'seen' => $seenN2, 'rows' => $out]);
+  ql_out(['ok' => true, 'source' => $src, 'added' => $added, 'dupes' => $dupes, 'seen' => $seenN2,
+    'radius_fell_back' => !empty($r['radius_fell_back']), 'rows' => $out]);
 }
 
 if ($action === 'sources') {

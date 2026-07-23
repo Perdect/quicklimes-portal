@@ -99,9 +99,13 @@
     "v": "m22",
     "sha": "cc08f47c4316"
   },
+  "lead-parse.js": {
+    "v": "lp1",
+    "sha": "68f6c216ed67"
+  },
   "discover.js": {
-    "v": "d3",
-    "sha": "a5e690a12563"
+    "v": "d4",
+    "sha": "ce7ea28ef926"
   },
   "health-findings.js": {
     "v": "h1",

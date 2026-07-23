@@ -63,10 +63,40 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
 
 /* ── the half-wired trap: the page must load what it uses ── */
 {
-  ['icp-core.js', 'lead-import.js', 'data.js', 'shell.js', 'discover.js'].forEach(f =>
+  ['icp-core.js', 'lead-import.js', 'lead-parse.js', 'data.js', 'shell.js', 'discover.js'].forEach(f =>
     ok(new RegExp('src="\\./?' + f.replace('.', '\\.')).test(html), 'discover.html loads ' + f));
   ok(html.indexOf('icp-core.js') < html.indexOf('discover.js'), '  icp-core loads before discover.js uses it');
   ok(html.indexOf('lead-import.js') < html.indexOf('discover.js'), '  lead-import too');
+  ok(html.indexOf('lead-parse.js') < html.indexOf('discover.js'), '  lead-parse (the AI bar brain) before discover.js');
+}
+
+/* ── Phase 1: the AI search bar → structured filters, wired end to end ── */
+{
+  // The controls exist in the page…
+  ['dcAi', 'dcIndSel', 'dcBiz', 'dcCity', 'dcRadius', 'dcUnderstood'].forEach(id =>
+    ok(new RegExp('id="' + id + '"').test(html), '  the page has #' + id));
+  // …and discover.js actually drives them (not a decorative bar).
+  ok(/LP\s*=\s*window\.LeadParse/.test(bare), 'discover.js binds the LeadParse parser');
+  ok(/function applyParse\(/.test(bare) && /LP\.parse\(/.test(bare), '  applyParse() runs the parser on the bar text');
+  ok(/function buildFilters\(/.test(bare) && /buildFilters\(\)/.test(bare), '  the industry/type/radius dropdowns are populated at init (not empty)');
+  ok(/data-icp=/.test(bare), '  each industry option carries its ICP key, so a pick maps to a real score');
+  // runSearch must READ the structured filters and SEND the radius — the new capability.
+  const i = bare.indexOf('async function runSearch');
+  const rs = i > 0 ? bare.slice(i, bare.indexOf('async function loadSources', i)) : '';
+  ok(/getElementById\('dcIndSel'\)/.test(rs), '  runSearch reads the industry dropdown');
+  ok(/getElementById\('dcRadius'\)/.test(rs), '  and the radius dropdown');
+  ok(/radius\s*[,}]/.test(rs) && /action: 'search'/.test(rs), '  and sends radius to the search action');
+  // Re-parse only when the bar changed, so dropdown edits are not clobbered.
+  ok(/bar !== LAST_PARSED/.test(rs), '  the bar is re-parsed only when it changed (edits to dropdowns survive)');
+  // Voice is offered only when the browser supports it (never a dead button).
+  ok(/SpeechRecognition/.test(bare) && /mic\.hidden = false/.test(bare), '  voice search reveals itself only where supported');
+}
+
+/* ── radius is honest when it cannot be applied ── */
+{
+  const i = bare.indexOf('async function runSearch');
+  const rs = i > 0 ? bare.slice(i, bare.indexOf('async function loadSources', i)) : '';
+  ok(/radius_fell_back/.test(rs), 'a radius that could not be geocoded is reported (not silently dropped)');
 }
 
 /* ── the key never reaches the browser ── */
