@@ -248,6 +248,22 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .cp-li .mkt { flex: 1; } .cp-li .pl { font: 600 11px var(--ql-font-sans); color: var(--ql-text-secondary); }
   .cp-li .go { font: 700 11px var(--ql-font-sans); color: var(--ql-brand-700, #1d4ed8); background: var(--ql-brand-50, #eff6ff); border: 1px solid var(--ql-brand-100, #dbeafe); border-radius: 7px; padding: 4px 9px; cursor: pointer; }
   :root[data-theme="dark"] .cp-li .go { color: #bfdbfe; background: rgba(37,99,235,.16); border-color: rgba(37,99,235,.34); }
+
+  /* ═══════════ Phase 2 — India demand map ═══════════ */
+  .hm-card { margin-bottom: var(--ql-space-4); }
+  .hm-wrap { position: relative; margin-top: 12px; }
+  .hm-svg { display: block; width: 100%; max-width: 520px; height: auto; margin: 0 auto; }
+  .hm-st { cursor: pointer; }
+  .hm-st circle { transition: stroke-width .12s, filter .12s; }
+  .hm-st:hover circle { stroke-width: 3.5; filter: brightness(1.06); }
+  .hm-ab { font: 800 10px var(--ql-font-sans); fill: #0f172a; pointer-events: none; }
+  .hm-sc { font: 700 8.5px var(--ql-font-sans); fill: var(--ql-text-secondary); pointer-events: none; }
+  .hm-plant text { font: 700 9px var(--ql-font-sans); fill: var(--ql-text); }
+  .hm-plant circle { stroke: var(--ql-bg-elevated); stroke-width: 2; }
+  .hm-legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 6px; font: 600 11px var(--ql-font-sans); color: var(--ql-text-secondary); }
+  .hm-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .hm-legend i { width: 10px; height: 10px; border-radius: 3px; }
+  .hm-tip { position: absolute; z-index: 5; pointer-events: none; padding: 6px 10px; border-radius: 8px; background: var(--ql-text); color: var(--ql-bg-elevated); font: 600 11.5px var(--ql-font-sans); white-space: nowrap; box-shadow: 0 6px 20px rgba(16,24,40,.18); }
   /* Assess / Message panels */
   .la-row { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--ql-border); }
   .la-k { flex: none; width: 130px; font: 700 11px var(--ql-font-sans); text-transform: uppercase; letter-spacing: .04em; color: var(--ql-text-secondary); padding-top: 1px; }
@@ -318,6 +334,16 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 
     <!-- MARKETS SECTION -->
     <div class="dc-sec" id="secMarkets" hidden>
+      <!-- India demand map — states plotted at their real coordinates, shaded by
+           your demand×freight score. Schematic (positioned by centroid, not exact
+           borders); click a state to discover buyers there. -->
+      <div class="card hm-card">
+        <div class="mi-head"><div>
+          <div class="mi-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.3-7-11a7 7 0 0 1 14 0c0 4.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>India demand map</div>
+          <div class="mi-sub">Every state shaded by <b>demand × freight-reach</b> from your plant. Positioned by coordinates — a schematic, not exact borders. Click a state to find buyers there.</div>
+        </div></div>
+        <div id="dcMap" class="hm-wrap"></div>
+      </div>
       <div class="card mi-card" id="miCard">
         <div class="mi-head">
           <div>
@@ -382,6 +408,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./shell.js?v=m61"></script>
 <script src="./mobile.js?v=m16"></script>
 <script src="./qlx.js?v=m17"></script>
-<script src="./discover.js?v=d13"></script>
+<script src="./discover.js?v=d14"></script>
 </body>
 </html>

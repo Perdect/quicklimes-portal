@@ -356,6 +356,7 @@ function renderMarket() {
   stEl.querySelectorAll('[data-find]').forEach(b => b.onclick = () => findInMarket(b.dataset.what, b.dataset.state));
   paintChips();   // keep the "Try:" examples in step with the selected product/origin
   if (typeof renderCopilot === 'function') renderCopilot();   // the top pick may have changed
+  if (typeof renderHeatMap === 'function') renderHeatMap();
   if (typeof renderHero === 'function') renderHero();
 
   const indEl = document.getElementById('miInds');
@@ -727,6 +728,55 @@ function renderCopilot() {
   const l = document.getElementById('cpLeads'); if (l) l.onclick = () => switchSection('leads');
 }
 
+/* India demand map — states plotted at their real centroids, coloured by the
+   same demand×freight score the rest of the page uses. A schematic (positioned
+   by coordinate, not exact borders), honest and computed. Click → discover. */
+const STATE_ABBR = { Gujarat: 'GJ', Maharashtra: 'MH', Chhattisgarh: 'CG', Odisha: 'OD', 'Tamil Nadu': 'TN', Karnataka: 'KA', 'Uttar Pradesh': 'UP', 'Andhra Pradesh': 'AP', Telangana: 'TG', Jharkhand: 'JH', 'West Bengal': 'WB', 'Madhya Pradesh': 'MP', Punjab: 'PB', Haryana: 'HR', Rajasthan: 'RJ' };
+function hmTierColor(r) {
+  const k = r.profit ? r.profit.key : (r.score >= 45 ? 'strong' : r.score >= 30 ? 'workable' : r.score >= 15 ? 'thin' : 'unviable');
+  return ({ strong: ['#16a34a', '#dcfce7'], workable: ['#0369a1', '#e0f2fe'], thin: ['#b45309', '#fff7ed'], unviable: ['#dc2626', '#fef2f2'] })[k] || ['#64748b', '#f1f5f9'];
+}
+function renderHeatMap() {
+  const host = document.getElementById('dcMap'); if (!host || !LM) return;
+  const opts = { origin: miOriginCoords(), freightRate: MI.rate, exWorks: miEx() };
+  const origin = miOriginCoords();
+  const byState = {}; LM.plan(MI.product, opts).forEach(r => { byState[r.state] = r; });
+  const pts = LM.STATES.map(s => ({ lat: s.lat, lon: s.lon })).concat([origin]);
+  const lons = pts.map(p => p.lon), lats = pts.map(p => p.lat);
+  const lonMin = Math.min(...lons) - 1.5, lonMax = Math.max(...lons) + 1.5, latMin = Math.min(...lats) - 1.5, latMax = Math.max(...lats) + 1.5;
+  const W = 520, H = 600, pad = 34;
+  const X = lon => pad + (lon - lonMin) / (lonMax - lonMin) * (W - 2 * pad);
+  const Y = lat => pad + (latMax - lat) / (latMax - latMin) * (H - 2 * pad);
+  const cells = LM.STATES.map(s => {
+    const r = byState[s.name]; if (!r) return '';   // product has no relevant buyers here
+    const [stroke, fill] = hmTierColor(r);
+    const cx = X(s.lon), cy = Y(s.lat), rad = 11 + (r.score / 100) * 13;
+    const ab = STATE_ABBR[s.name] || s.name.slice(0, 2).toUpperCase();
+    const tip = s.name + ' · score ' + r.score + ' · ₹' + (r.deliveredPerTonne || 0).toLocaleString('en-IN') + '/t · ' + r.tier.label;
+    return `<g class="hm-st" data-state="${esc(s.name)}" data-what="${esc(LM.osmTerm((r.industries[0] || {}).key))}" data-tip="${esc(tip)}" tabindex="0" role="button" aria-label="${esc(tip)}">
+      <circle cx="${cx}" cy="${cy}" r="${rad.toFixed(1)}" fill="${fill}" fill-opacity="0.92" stroke="${stroke}" stroke-width="2"/>
+      <text x="${cx}" y="${(cy + 0.5).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" class="hm-ab">${ab}</text>
+      <text x="${cx}" y="${(cy + rad + 10).toFixed(1)}" text-anchor="middle" class="hm-sc">${r.score}</text>
+    </g>`;
+  }).join('');
+  const px = X(origin.lon), py = Y(origin.lat);
+  // Plant label sits to the LEFT so it never collides with the home-state circle.
+  const plant = `<g class="hm-plant"><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4.5"/><text x="${(px - 9).toFixed(1)}" y="${(py + 3.5).toFixed(1)}" text-anchor="end">▲ ${esc(origin.name.split(',')[0])}</text></g>`;
+  host.innerHTML =
+    `<div class="hm-legend"><span><i style="background:#16a34a"></i>Strong</span><span><i style="background:#0369a1"></i>Workable</span><span><i style="background:#b45309"></i>Thin</span><span><i style="background:#dc2626"></i>Freight too high</span></div>` +
+    `<svg viewBox="0 0 ${W} ${H}" class="hm-svg" role="img" aria-label="India lime-demand map, by state">${cells}${plant}</svg>` +
+    `<div class="hm-tip" id="hmTip" hidden></div>`;
+  const tipEl = document.getElementById('hmTip');
+  host.querySelectorAll('.hm-st').forEach(g => {
+    const go = () => findInMarket(g.dataset.what, g.dataset.state);
+    g.addEventListener('click', go);
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    g.addEventListener('mouseenter', () => { tipEl.textContent = g.dataset.tip; tipEl.hidden = false; });
+    g.addEventListener('mousemove', e => { const rect = host.getBoundingClientRect(); tipEl.style.left = (e.clientX - rect.left + 14) + 'px'; tipEl.style.top = (e.clientY - rect.top + 14) + 'px'; });
+    g.addEventListener('mouseleave', () => { tipEl.hidden = true; });
+  });
+}
+
 /* Progressive disclosure: exactly one section visible at a time. */
 function switchSection(name) {
   ['copilot', 'markets', 'leads'].forEach(s => {
@@ -746,7 +796,7 @@ QLShell.mount({ active: 'discover', title: 'Lead Discovery' });
 buildIcp();
 buildFilters(); setupVoice(); buildMarketPanel();
 paintSources(); paintChips(); paintTabs(); paintTable();
-renderHero(); renderCopilot();
+renderHero(); renderCopilot(); renderHeatMap();
 try { switchSection(localStorage.getItem('ql_dc_sec') || 'copilot'); } catch (_) { switchSection('copilot'); }
 
 /* Section tabs (Copilot / Markets / Leads) — progressive disclosure. */

@@ -127,6 +127,17 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/switchSection\('leads'\)/.test(rs2), '  running a search lands the user on the Leads section');
 }
 
+/* ── Phase 2: India demand map (schematic, computed, click-to-discover) ── */
+{
+  ok(/id="dcMap"/.test(html) && /India demand map/.test(html), 'the Markets section has an India demand map');
+  ok(/function renderHeatMap\(/.test(bare), 'discover.js renders the map');
+  const hm = bare.slice(bare.indexOf('function renderHeatMap'), bare.indexOf('function switchSection'));
+  ok(/LM\.plan\(/.test(hm) && /LM\.STATES/.test(hm), '  states are plotted from the market plan + real centroids');
+  ok(/findInMarket\(/.test(hm), '  clicking a state runs discovery there');
+  ok(/schematic/i.test(html), '  labelled a schematic (positioned by coordinate, not exact borders — honest)');
+  ok(/renderHeatMap\(\)/.test(bare.slice(bare.indexOf('function renderMarket'))), '  it re-renders when product/freight/price change');
+}
+
 /* ── Assess + Message: the lead-working actions (local, key-free) ── */
 {
   ok(/LA\s*=\s*window\.LeadActions/.test(bare), 'discover.js binds LeadActions');
