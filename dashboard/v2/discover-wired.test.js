@@ -63,7 +63,7 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
 
 /* ── the half-wired trap: the page must load what it uses ── */
 {
-  ['icp-core.js', 'lead-import.js', 'lead-parse.js', 'lime-market.js', 'osm-query.js', 'data.js', 'shell.js', 'discover.js'].forEach(f =>
+  ['icp-core.js', 'lead-import.js', 'lead-parse.js', 'lime-market.js', 'osm-query.js', 'lead-actions.js', 'data.js', 'shell.js', 'discover.js'].forEach(f =>
     ok(new RegExp('src="\\./?' + f.replace('.', '\\.')).test(html), 'discover.html loads ' + f));
   ok(html.indexOf('icp-core.js') < html.indexOf('discover.js'), '  icp-core loads before discover.js uses it');
   ok(html.indexOf('lead-import.js') < html.indexOf('discover.js'), '  lead-import too');
@@ -108,6 +108,20 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/state !== 'Rajasthan'/.test(bare), '  and skip the home state (the point is to look beyond Rajasthan)');
   ok(!/\['[^']*', 'Jodhpur'\]/.test(bare) && !/, 'Nagaur'\]/.test(bare), '  no hardcoded local-only Rajasthan suggestions remain');
   ok(!/within 100km of Jodhpur/.test(html), '  the search placeholder no longer pushes a local Jodhpur example');
+}
+
+/* ── Assess + Message: the lead-working actions (local, key-free) ── */
+{
+  ok(/LA\s*=\s*window\.LeadActions/.test(bare), 'discover.js binds LeadActions');
+  ok(/data-assess=/.test(bare) && /data-msg=/.test(bare), 'each candidate row offers Assess and Message');
+  ok(/function openAssess\(/.test(bare) && /LA\.assess\(/.test(bare), 'Assess opens a briefing from LA.assess (local rules)');
+  ok(/function openMessage\(/.test(bare) && /LA\.draft\(/.test(bare), 'Message opens a draft from LA.draft');
+  // We never auto-send — the draft opens WhatsApp/email for the user to send,
+  // and the WhatsApp recipient goes through wa-core (never a hand-rolled wa.me).
+  ok(/WA\.waLink\(/.test(bare) && /mailto:/.test(bare), '  it hands off to WhatsApp (via wa-core) / email; the user sends');
+  ok(/normalizePhone\(/.test(bare), '  a landline/junk number is not treated as a WhatsApp target');
+  ok(/no contact on file/i.test(bare), '  and is honest when there is no phone/email to send to');
+  ok(/Anthropic key/i.test(bare) && /local rules/i.test(bare), '  the panel says it is the local fallback, upgradable to live Claude');
 }
 
 /* ── OSM is fetched by the BROWSER, then ingested (server curl was too slow) ── */

@@ -111,9 +111,13 @@
     "v": "oq1",
     "sha": "2119b61da12a"
   },
+  "lead-actions.js": {
+    "v": "la1",
+    "sha": "d31e2fd6f013"
+  },
   "discover.js": {
-    "v": "d10",
-    "sha": "0edf2c845360"
+    "v": "d11",
+    "sha": "31f510109e53"
   },
   "health-findings.js": {
     "v": "h1",

@@ -17,7 +17,7 @@
    we have.
    ═══════════════════════════════════════════════════════════════════════ */
 'use strict';
-const Q = window.QLD, IC2 = window.ICPCore, LI = window.LeadImport, LP = window.LeadParse, LM = window.LimeMarket, OSMQ = window.OSMQuery;
+const Q = window.QLD, IC2 = window.ICPCore, LI = window.LeadImport, LP = window.LeadParse, LM = window.LimeMarket, OSMQ = window.OSMQuery, LA = window.LeadActions;
 
 /* OpenStreetMap is fetched by the BROWSER, not our server: the free Overpass
    service is slow (30s+) and throttles datacenter IPs, so a PHP curl under the
@@ -456,14 +456,59 @@ function paintTable() {
             ${r.website ? `<a class="dc-ico" href="${esc(r.website)}" target="_blank" rel="noopener noreferrer" title="Website"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></a>` : ''}</td>
         <td><span class="dc-fit" title="${esc((f.why || []).join(' · '))}"><span class="dc-bar ${tier}"><i style="width:${pct}%"></i></span>
             <span class="dc-score${tier === 'unknown' ? ' unknown' : ''}">${tier === 'unknown' ? '—' : Math.round(f.score)}</span></span></td>
-        <td class="r">${r.status === 'promoted' ? '<span class="qx-pill" style="background:#dcfce7;color:#15803d">In pipeline</span>' :
-          `<button class="ql-btn ql-btn-secondary" data-promote="${r.id}">Promote</button>
-           <button class="ql-btn ql-btn-secondary" data-dismiss="${r.id}" title="Not a fit">✕</button>`}</td>
+        <td class="r"><span style="display:inline-flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
+          ${LA ? `<button class="ql-btn ql-btn-secondary" data-assess="${r.id}" title="Why they fit + how to approach">Assess</button>
+           <button class="ql-btn ql-btn-secondary" data-msg="${r.id}" title="Draft an outreach message">Message</button>` : ''}
+          ${r.status === 'promoted' ? '<span class="qx-pill" style="background:#dcfce7;color:#15803d">In pipeline</span>' :
+          `<button class="ql-btn ql-btn-primary" data-promote="${r.id}">Promote</button>
+           <button class="ql-btn ql-btn-secondary" data-dismiss="${r.id}" title="Not a fit">✕</button>`}</span></td>
       </tr>`;
     }).join('') + '</tbody></table></div>';
 
   host.querySelectorAll('[data-promote]').forEach(b => b.onclick = () => promote(+b.dataset.promote));
   host.querySelectorAll('[data-dismiss]').forEach(b => b.onclick = () => dismiss(+b.dataset.dismiss));
+  host.querySelectorAll('[data-assess]').forEach(b => b.onclick = () => openAssess(ROWS.find(x => x.id === +b.dataset.assess)));
+  host.querySelectorAll('[data-msg]').forEach(b => b.onclick = () => openMessage(ROWS.find(x => x.id === +b.dataset.msg)));
+}
+
+/* Seller identity for the outreach draft — the active company profile. */
+function sellerInfo() { const c = (Q && Q.co) || {}; return { name: c.short || c.name || 'Gotan Lime Industries', city: c.city || 'Gotan, Rajasthan', phone: c.phone || '' }; }
+
+/* Assess — a local briefing (no API key): fit, the lime playbook for their
+   industry, who to ask for, and how to approach. Live Claude can replace this
+   text later via llm.php; the button calls the fallback today. */
+function openAssess(r) {
+  if (!r || !LA) return;
+  const a = LA.assess(r, LM ? LM.INDUSTRIES : [], fitOf(r));
+  const body = `<div class="la-assess">
+    <div class="la-row"><span class="la-k">Industry</span><span class="la-v">${esc(a.industry)}${a.matched ? '' : ' <span style="color:var(--ql-text-muted)">(unconfirmed)</span>'}</span></div>
+    ${a.points.map(p => `<div class="la-row"><span class="la-k">${esc(p.k)}</span><span class="la-v">${esc(p.v)}</span></div>`).join('')}
+    <div class="la-approach"><b>How to approach:</b> ${esc(a.approach)}</div>
+    <div class="la-note">Built from your Market Intelligence playbook — local rules, no AI key needed. Add an Anthropic key in Settings to upgrade this to live Claude analysis.</div>
+  </div>`;
+  QLShell.panel({ title: 'Assess — ' + r.name, sub: r.city || r.address || '', body,
+    actions: [{ label: 'Draft a message', primary: true, onClick: () => { QLShell.closeModal(); openMessage(r); } }] });
+}
+
+/* Message — a ready outreach draft the user reviews, then sends themselves via
+   WhatsApp or email (we never auto-send). Falls back to copy when there is no
+   contact on file. */
+function openMessage(r) {
+  if (!r || !LA) return;
+  const d = LA.draft(r, sellerInfo(), LM ? LM.INDUSTRIES : []);
+  // wa-core owns the recipient: a landline or junk number normalises to '' and
+  // is NOT a WhatsApp target. That decides the channel, not "has a phone field".
+  const WA = window.WACore;
+  const waOk = d.hasPhone && WA && WA.normalizePhone && WA.normalizePhone(r.phone) !== '';
+  const channel = waOk ? 'whatsapp' : d.hasEmail ? 'email' : 'none';
+  const body = `<div class="la-msg">
+    <div class="la-note">${channel === 'whatsapp' ? 'Opens WhatsApp with this text — you review and send.' : channel === 'email' ? 'Opens your email with this drafted — you review and send.' : 'No messageable phone or email on file — copy the text and send it however you reach them.'}</div>
+    <textarea id="laText" class="la-text" rows="9">${esc(d.text)}</textarea>
+  </div>`;
+  const actions = [{ label: 'Copy text', onClick: (bodyEl) => { const t = bodyEl.querySelector('#laText'); t.select(); try { navigator.clipboard.writeText(t.value); } catch (_) { document.execCommand('copy'); } toast('Copied'); } }];
+  if (channel === 'whatsapp') actions.unshift({ label: 'Open in WhatsApp', primary: true, onClick: (bodyEl) => { const t = bodyEl.querySelector('#laText').value; window.open(WA.waLink(r.phone, t), '_blank', 'noopener'); } });
+  else if (channel === 'email') actions.unshift({ label: 'Open email', primary: true, onClick: (bodyEl) => { const t = bodyEl.querySelector('#laText').value; window.location.href = 'mailto:' + encodeURIComponent(r.email) + '?subject=' + encodeURIComponent(d.subject) + '&body=' + encodeURIComponent(t); } });
+  QLShell.panel({ title: 'Message — ' + r.name, sub: (waOk ? r.phone : r.email) || 'no contact on file', body, actions });
 }
 
 async function promote(id) {

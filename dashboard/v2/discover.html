@@ -179,6 +179,15 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .dc-attrib { font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-muted); margin-top: 10px; }
   .dc-attrib a { color: var(--ql-text-secondary); }
   @media (max-width: 760px) { .dc-row { grid-template-columns: 1fr; } }
+  /* Assess / Message panels */
+  .la-row { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--ql-border); }
+  .la-k { flex: none; width: 130px; font: 700 11px var(--ql-font-sans); text-transform: uppercase; letter-spacing: .04em; color: var(--ql-text-secondary); padding-top: 1px; }
+  .la-v { font: 500 13px/1.5 var(--ql-font-sans); color: var(--ql-text); }
+  .la-approach { margin-top: 12px; padding: 11px 13px; background: var(--ql-brand-50, #eff6ff); border: 1px solid var(--ql-brand-100, #dbeafe); border-radius: var(--ql-radius-lg); font: 500 13px/1.55 var(--ql-font-sans); color: var(--ql-text); }
+  :root[data-theme="dark"] .la-approach { background: rgba(37,99,235,.12); border-color: rgba(37,99,235,.3); }
+  .la-approach b { font-weight: 700; }
+  .la-note { margin-top: 10px; font: 500 11.5px/1.5 var(--ql-font-sans); color: var(--ql-text-muted); }
+  .la-text { width: 100%; box-sizing: border-box; font: 500 13px/1.55 var(--ql-font-sans); color: var(--ql-text); background: var(--ql-bg-elevated); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); padding: 10px 12px; resize: vertical; margin-top: 8px; }
 </style>
 </head>
 <body class="ql-v2">
@@ -282,6 +291,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./lead-parse.js?v=lp1"></script>
 <script src="./lime-market.js?v=lm3"></script>
 <script src="./osm-query.js?v=oq1"></script>
+<script src="./lead-actions.js?v=la1"></script>
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./data.js?v=m44"></script>
@@ -290,6 +300,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./shell.js?v=m61"></script>
 <script src="./mobile.js?v=m16"></script>
 <script src="./qlx.js?v=m17"></script>
-<script src="./discover.js?v=d10"></script>
+<script src="./discover.js?v=d11"></script>
 </body>
 </html>
