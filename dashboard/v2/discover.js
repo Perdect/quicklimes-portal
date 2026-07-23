@@ -809,35 +809,69 @@ function hmTierColor(r) {
   const k = r.profit ? r.profit.key : (r.score >= 45 ? 'strong' : r.score >= 30 ? 'workable' : r.score >= 15 ? 'thin' : 'unviable');
   return ({ strong: ['#16a34a', '#dcfce7'], workable: ['#0369a1', '#e0f2fe'], thin: ['#b45309', '#fff7ed'], unviable: ['#dc2626', '#fef2f2'] })[k] || ['#64748b', '#f1f5f9'];
 }
+/* Build the projection from the real India geometry: aspect-corrected (cos-lat)
+   equirectangular, letterboxed into the viewbox. Cached — geometry never changes. */
+let HM_PROJ = null;
+function hmProjection(W, H, pad) {
+  if (HM_PROJ) return HM_PROJ;
+  const geo = window.INDIA_GEO; if (!geo) return null;
+  let lo0 = 1e9, lo1 = -1e9, la0 = 1e9, la1 = -1e9;
+  for (const nm in geo) for (const fl of geo[nm].r) for (let i = 0; i < fl.length; i += 2) {
+    const x = fl[i], y = fl[i + 1];
+    if (x < lo0) lo0 = x; if (x > lo1) lo1 = x; if (y < la0) la0 = y; if (y > la1) la1 = y;
+  }
+  const kx = Math.cos(((la0 + la1) / 2) * Math.PI / 180);
+  const gw = (lo1 - lo0) * kx, gh = (la1 - la0);
+  const sc = Math.min((W - 2 * pad) / gw, (H - 2 * pad) / gh);
+  const ox = (W - gw * sc) / 2, oy = (H - gh * sc) / 2;
+  HM_PROJ = {
+    X: lon => ox + (lon - lo0) * kx * sc,
+    Y: lat => oy + (la1 - lat) * sc
+  };
+  return HM_PROJ;
+}
+/* India demand map — a REAL choropleth: the actual India silhouette (census
+   districts grouped by state), each demand state filled by its live profit tier,
+   the rest a muted backdrop. Same demand×freight score as the rest of the page.
+   Click a state → discover buyers there. */
 function renderHeatMap() {
   const host = document.getElementById('dcMap'); if (!host || !LM) return;
+  const geo = window.INDIA_GEO;
   const opts = { origin: miOriginCoords(), freightRate: MI.rate, exWorks: miEx() };
   const origin = miOriginCoords();
   const byState = {}; LM.plan(MI.product, opts).forEach(r => { byState[r.state] = r; });
-  const pts = LM.STATES.map(s => ({ lat: s.lat, lon: s.lon })).concat([origin]);
-  const lons = pts.map(p => p.lon), lats = pts.map(p => p.lat);
-  const lonMin = Math.min(...lons) - 1.5, lonMax = Math.max(...lons) + 1.5, latMin = Math.min(...lats) - 1.5, latMax = Math.max(...lats) + 1.5;
-  const W = 520, H = 600, pad = 34;
-  const X = lon => pad + (lon - lonMin) / (lonMax - lonMin) * (W - 2 * pad);
-  const Y = lat => pad + (latMax - lat) / (latMax - latMin) * (H - 2 * pad);
-  const cells = LM.STATES.map(s => {
-    const r = byState[s.name]; if (!r) return '';   // product has no relevant buyers here
-    const [stroke, fill] = hmTierColor(r);
-    const cx = X(s.lon), cy = Y(s.lat), rad = 11 + (r.score / 100) * 13;
-    const ab = STATE_ABBR[s.name] || s.name.slice(0, 2).toUpperCase();
-    const tip = s.name + ' · score ' + r.score + ' · ₹' + (r.deliveredPerTonne || 0).toLocaleString('en-IN') + '/t · ' + r.tier.label;
-    return `<g class="hm-st" data-state="${esc(s.name)}" data-what="${esc(LM.osmTerm((r.industries[0] || {}).key))}" data-tip="${esc(tip)}" tabindex="0" role="button" aria-label="${esc(tip)}">
-      <circle cx="${cx}" cy="${cy}" r="${rad.toFixed(1)}" fill="${fill}" fill-opacity="0.92" stroke="${stroke}" stroke-width="2"/>
-      <text x="${cx}" y="${(cy + 0.5).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" class="hm-ab">${ab}</text>
-      <text x="${cx}" y="${(cy + rad + 10).toFixed(1)}" text-anchor="middle" class="hm-sc">${r.score}</text>
-    </g>`;
+  const W = 560, H = 620, pad = 16;
+  const proj = hmProjection(W, H, pad);
+  if (!geo || !proj) { host.innerHTML = '<div class="mi-sub" style="padding:20px 0">Map data unavailable.</div>'; return; }
+  const { X, Y } = proj;
+  const dPath = rings => rings.map(fl => {
+    let s = 'M';
+    for (let i = 0; i < fl.length; i += 2) s += (i ? 'L' : '') + X(fl[i]).toFixed(1) + ' ' + Y(fl[i + 1]).toFixed(1);
+    return s + 'Z';
   }).join('');
+  // 1) Backdrop: every state not in the demand model, muted.
+  let bg = '', regions = '', labels = '';
+  for (const nm in geo) {
+    const g = geo[nm]; const r = byState[nm];
+    if (!r) { bg += `<path class="hm-bg" d="${dPath(g.r)}"/>`; continue; }
+    const [stroke, fill] = hmTierColor(r);
+    const ab = g.a || STATE_ABBR[nm] || nm.slice(0, 2).toUpperCase();
+    const tip = nm + ' · score ' + r.score + ' · ₹' + (r.deliveredPerTonne || 0).toLocaleString('en-IN') + '/t · ' + r.tier.label;
+    regions += `<g class="hm-st" data-state="${esc(nm)}" data-what="${esc(LM.osmTerm((r.industries[0] || {}).key))}" data-tip="${esc(tip)}" tabindex="0" role="button" aria-label="${esc(tip)}">`
+      + `<path class="hm-region" d="${dPath(g.r)}" fill="${fill}" fill-opacity="0.96" stroke="${stroke}" stroke-width="1.1"/></g>`;
+    // Label at the state's real centroid (from LM.STATES), so it lands inside the shape.
+    const c = LM.STATES.find(s => s.name === nm);
+    if (c) {
+      const lx = X(c.lon), ly = Y(c.lat);
+      labels += `<text x="${lx.toFixed(1)}" y="${(ly - 1).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" class="hm-ab">${ab}</text>`
+        + `<text x="${lx.toFixed(1)}" y="${(ly + 10).toFixed(1)}" text-anchor="middle" class="hm-sc">${r.score}</text>`;
+    }
+  }
   const px = X(origin.lon), py = Y(origin.lat);
-  // Plant label sits to the LEFT so it never collides with the home-state circle.
   const plant = `<g class="hm-plant"><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4.5"/><text x="${(px - 9).toFixed(1)}" y="${(py + 3.5).toFixed(1)}" text-anchor="end">▲ ${esc(origin.name.split(',')[0])}</text></g>`;
   host.innerHTML =
     `<div class="hm-legend"><span><i style="background:#16a34a"></i>Strong</span><span><i style="background:#0369a1"></i>Workable</span><span><i style="background:#b45309"></i>Thin</span><span><i style="background:#dc2626"></i>Freight too high</span></div>` +
-    `<svg viewBox="0 0 ${W} ${H}" class="hm-svg" role="img" aria-label="India lime-demand map, by state">${cells}${plant}</svg>` +
+    `<svg viewBox="0 0 ${W} ${H}" class="hm-svg" role="img" aria-label="India lime-demand map, by state">${bg}${regions}${labels}${plant}</svg>` +
     `<div class="hm-tip" id="hmTip" hidden></div>`;
   const tipEl = document.getElementById('hmTip');
   host.querySelectorAll('.hm-st').forEach(g => {
