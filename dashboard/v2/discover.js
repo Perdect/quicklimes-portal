@@ -474,36 +474,76 @@ function paintTable() {
 /* Seller identity for the outreach draft — the active company profile. */
 function sellerInfo() { const c = (Q && Q.co) || {}; return { name: c.short || c.name || 'Gotan Lime Industries', city: c.city || 'Gotan, Rajasthan', phone: c.phone || '' }; }
 
-/* Assess — a local briefing (no API key): fit, the lime playbook for their
-   industry, who to ask for, and how to approach. Live Claude can replace this
-   text later via llm.php; the button calls the fallback today. */
-function openAssess(r) {
-  if (!r || !LA) return;
-  const a = LA.assess(r, LM ? LM.INDUSTRIES : [], fitOf(r));
-  const body = `<div class="la-assess">
-    <div class="la-row"><span class="la-k">Industry</span><span class="la-v">${esc(a.industry)}${a.matched ? '' : ' <span style="color:var(--ql-text-muted)">(unconfirmed)</span>'}</span></div>
-    ${a.points.map(p => `<div class="la-row"><span class="la-k">${esc(p.k)}</span><span class="la-v">${esc(p.v)}</span></div>`).join('')}
-    <div class="la-approach"><b>How to approach:</b> ${esc(a.approach)}</div>
-    <div class="la-note">Built from your Market Intelligence playbook — local rules, no AI key needed. Add an Anthropic key in Settings to upgrade this to live Claude analysis.</div>
+/* The lead fields we send to the server AI (never any invented data). */
+function leadPayload(r) { return { name: r.name, industry: r.industry || '', city: r.city || '', phone: r.phone || '', email: r.email || '', website: r.website || '' }; }
+
+function assessBody(points, approach, note) {
+  return `<div class="la-assess">
+    ${points.map(p => `<div class="la-row"><span class="la-k">${esc(p.k)}</span><span class="la-v">${esc(p.v)}</span></div>`).join('')}
+    <div class="la-approach"><b>How to approach:</b> ${esc(approach)}</div>
+    <div class="la-note">${note}</div>
   </div>`;
-  QLShell.panel({ title: 'Assess — ' + r.name, sub: r.city || r.address || '', body,
+}
+
+/* Assess — LIVE Claude when a provider key is set on the server, else the local
+   rule-based briefing (lead-actions.js). The server answers instantly with a
+   fallback flag when there's no key, so the "Thinking…" state only shows when
+   Claude is genuinely running. */
+async function openAssess(r) {
+  if (!r || !LA) return;
+  const sub = r.city || r.address || '';
+  QLShell.panel({ title: 'Assess — ' + r.name, sub, body: '<div class="la-note">Analysing this lead…</div>' });
+  const resp = await api({ action: 'assess', lead: leadPayload(r), product: (typeof MI !== 'undefined' && MI.product) || 'quick', seller: sellerInfo() }, { timeout: 60000 });
+
+  let points, approach, note;
+  if (resp && resp.ok && resp.data) {
+    const d = resp.data;
+    points = (d.points || []).map(p => ({ k: p.label || p.k || '', v: p.value || p.v || '' }));
+    if (d.summary) points.unshift({ k: 'Verdict', v: d.summary });
+    approach = d.approach || '';
+    note = 'Live analysis by Claude (' + esc(resp.model || resp.provider || 'AI') + ').';
+  } else {
+    const a = LA.assess(r, LM ? LM.INDUSTRIES : [], fitOf(r));
+    points = [{ k: 'Industry', v: a.industry + (a.matched ? '' : ' (unconfirmed)') }].concat(a.points);
+    approach = a.approach;
+    note = (resp && resp.error && resp.error !== 'llm_not_configured')
+      ? 'Live AI was unavailable, so this is the built-in rule-based read.'
+      : 'Built from your Market Intelligence playbook — local rules, no AI key needed. Add an Anthropic key in Settings to upgrade this to live Claude analysis.';
+  }
+  QLShell.panel({ title: 'Assess — ' + r.name, sub, body: assessBody(points, approach, note),
     actions: [{ label: 'Draft a message', primary: true, onClick: () => { QLShell.closeModal(); openMessage(r); } }] });
 }
 
 /* Message — a ready outreach draft the user reviews, then sends themselves via
    WhatsApp or email (we never auto-send). Falls back to copy when there is no
    contact on file. */
-function openMessage(r) {
+async function openMessage(r) {
   if (!r || !LA) return;
-  const d = LA.draft(r, sellerInfo(), LM ? LM.INDUSTRIES : []);
+  const d = LA.draft(r, sellerInfo(), LM ? LM.INDUSTRIES : []);   // local draft = the guaranteed fallback text
+  QLShell.panel({ title: 'Message — ' + r.name, sub: r.phone || r.email || '', body: '<div class="la-note">Drafting an outreach message…</div>' });
+  const resp = await api({ action: 'message', lead: leadPayload(r), product: (typeof MI !== 'undefined' && MI.product) || 'quick', seller: sellerInfo() }, { timeout: 60000 });
+
+  let text = d.text, note;
+  if (resp && resp.ok && resp.data && resp.data.message) {
+    text = resp.data.message;
+    note = 'Live draft by Claude (' + esc(resp.model || resp.provider || 'AI') + ') — review and edit before you send.';
+  } else {
+    note = (resp && resp.error && resp.error !== 'llm_not_configured')
+      ? 'Live AI was unavailable — this is the built-in draft.'
+      : 'Built-in draft (local, no AI key). Add an Anthropic key in Settings for live Claude drafting.';
+  }
+
   // wa-core owns the recipient: a landline or junk number normalises to '' and
   // is NOT a WhatsApp target. That decides the channel, not "has a phone field".
   const WA = window.WACore;
   const waOk = d.hasPhone && WA && WA.normalizePhone && WA.normalizePhone(r.phone) !== '';
   const channel = waOk ? 'whatsapp' : d.hasEmail ? 'email' : 'none';
+  const chanNote = channel === 'whatsapp' ? 'Opens WhatsApp with this text — you review and send.'
+    : channel === 'email' ? 'Opens your email with this drafted — you review and send.'
+    : 'No messageable phone or email on file — copy the text and send it however you reach them.';
   const body = `<div class="la-msg">
-    <div class="la-note">${channel === 'whatsapp' ? 'Opens WhatsApp with this text — you review and send.' : channel === 'email' ? 'Opens your email with this drafted — you review and send.' : 'No messageable phone or email on file — copy the text and send it however you reach them.'}</div>
-    <textarea id="laText" class="la-text" rows="9">${esc(d.text)}</textarea>
+    <div class="la-note">${note} ${chanNote}</div>
+    <textarea id="laText" class="la-text" rows="9">${esc(text)}</textarea>
   </div>`;
   const actions = [{ label: 'Copy text', onClick: (bodyEl) => { const t = bodyEl.querySelector('#laText'); t.select(); try { navigator.clipboard.writeText(t.value); } catch (_) { document.execCommand('copy'); } toast('Copied'); } }];
   if (channel === 'whatsapp') actions.unshift({ label: 'Open in WhatsApp', primary: true, onClick: (bodyEl) => { const t = bodyEl.querySelector('#laText').value; window.open(WA.waLink(r.phone, t), '_blank', 'noopener'); } });

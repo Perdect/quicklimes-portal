@@ -14,6 +14,7 @@
    reported with the provider's own words — a search that quietly returns zero
    is how you conclude a market is empty when really your key expired. */
 require __DIR__ . '/db.php';
+require __DIR__ . '/llm.php';   // Assess / Message use it; WHICH provider is llm.php's business, never named here
 ql_cors();
 
 $b      = ql_body();
@@ -132,6 +133,75 @@ if ($action === 'sources') {
   // OSM is always available; Google only with a key. The page asks, rather than
   // guessing, so it never offers a source that cannot work.
   ql_out(['ok' => true, 'osm' => true, 'google' => ql_has_places_key()]);
+}
+
+/* ASSESS / MESSAGE — the live-Claude path for the lead-working actions. The
+   browser has a local rule-based version (lead-actions.js) that always works
+   with no key; this upgrades it to live analysis WHEN a provider key is set.
+   No key, or the provider errored → { ok:false, fallback:true } and the client
+   silently uses its local rules. The key never leaves the server; WHICH model
+   answers is llm.php's business (same contract as extract.php). */
+if ($action === 'assess' || $action === 'message') {
+  $llm = ql_llm();
+  if ($llm['key'] === '') ql_out(['ok' => false, 'fallback' => true, 'error' => 'llm_not_configured']);
+
+  // Untrusted input, capped for cost/abuse — this is the boundary.
+  $lead = is_array($b['lead'] ?? null) ? $b['lead'] : [];
+  $cap = function ($v, $n = 160) { return substr(trim((string)$v), 0, $n); };
+  $name = $cap($lead['name'] ?? '', 200);
+  if ($name === '') ql_out(['ok' => false, 'fallback' => true, 'error' => 'no_lead']);
+  $industry = $cap($lead['industry'] ?? '');
+  $city     = $cap($lead['city'] ?? '');
+  $has = [];
+  if (!empty($lead['phone']))   $has[] = 'a phone number';
+  if (!empty($lead['email']))   $has[] = 'an email';
+  if (!empty($lead['website'])) $has[] = 'a website';
+  $contact = $has ? implode(', ', $has) : 'no contact details';
+
+  $products = ['quick' => 'Quick Lime (CaO)', 'hydrated' => 'Hydrated Lime (Ca(OH)₂)', 'powder' => 'Lime Powder'];
+  $product = $products[(string)($b['product'] ?? 'quick')] ?? 'lime';
+  $seller = is_array($b['seller'] ?? null) ? $b['seller'] : [];
+  $sellerName = $cap($seller['name'] ?? 'Gotan Lime Industries', 120);
+  $sellerCity = $cap($seller['city'] ?? 'Gotan, Rajasthan', 120);
+
+  $ctxLine = "$sellerName is a lime manufacturer in $sellerCity, India, selling $product. "
+    . "A discovered potential buyer: \"$name\"" . ($industry !== '' ? ", industry: $industry" : ", industry not stated")
+    . ($city !== '' ? ", location: $city" : '') . ". Contact on file: $contact.";
+
+  $honesty = "Be honest: use real industrial knowledge of where lime is actually consumed. If this industry does "
+    . "not use lime, or the industry is unknown, say so plainly. NEVER invent a contact person's name, a phone "
+    . "number, an email, or a price — you were given none.";
+
+  if ($action === 'assess') {
+    $prompt = "You are a B2B sales advisor for an Indian lime manufacturer.\n$ctxLine\n\n"
+      . "Assess this lead as a lime buyer. Give a one-line verdict, then 3 to 5 short points covering: whether and "
+      . "why they use lime (for what process), a realistic buying pattern, and the ROLE/title to ask for (never a "
+      . "person's name). Then one line on how to approach them.\n$honesty";
+    $schema = ['type' => 'object', 'properties' => [
+      'summary'  => ['type' => 'string'],
+      'points'   => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => [
+        'label' => ['type' => 'string'], 'value' => ['type' => 'string']],
+        'required' => ['label', 'value'], 'additionalProperties' => false]],
+      'approach' => ['type' => 'string'],
+    ], 'required' => ['summary', 'points', 'approach'], 'additionalProperties' => false];
+    $tool = 'lead_assess';
+  } else {
+    $prompt = "Write a short first-contact outreach message for an Indian lime manufacturer.\n$ctxLine\n\n"
+      . "From $sellerName to this lead. 4 to 6 lines, warm but businesslike (Indian B2B tone). Introduce that we "
+      . "manufacture and supply $product in bulk, say specifically how lime fits their industry, and ask to share "
+      . "grades and landed rates / reach the right buyer. End with the sender name \"$sellerName\".\n$honesty "
+      . "Return ONLY the message text, no subject line, no placeholders like [Name].";
+    $schema = ['type' => 'object', 'properties' => ['message' => ['type' => 'string']],
+      'required' => ['message'], 'additionalProperties' => false];
+    $tool = 'lead_message';
+  }
+
+  $r = ql_llm_extract($llm, $prompt, [], $schema, $tool);
+  if (!$r['ok'] || $r['data'] === null) {
+    error_log('[discover:' . $action . '] ' . $r['provider'] . '/' . $r['model'] . ' failed: ' . $r['error'] . ' (http ' . $r['http'] . ')');
+    ql_out(['ok' => false, 'fallback' => true, 'error' => $r['error'] ?: 'ai_unavailable']);
+  }
+  ql_out(['ok' => true, 'data' => $r['data'], 'provider' => $r['provider'], 'model' => $r['model']]);
 }
 
 if ($action === 'list') {

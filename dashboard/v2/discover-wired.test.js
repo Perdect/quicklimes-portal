@@ -122,6 +122,21 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/normalizePhone\(/.test(bare), '  a landline/junk number is not treated as a WhatsApp target');
   ok(/no contact on file/i.test(bare), '  and is honest when there is no phone/email to send to');
   ok(/Anthropic key/i.test(bare) && /local rules/i.test(bare), '  the panel says it is the local fallback, upgradable to live Claude');
+
+  // Live path: try the server AI first, fall back to LA.* when it isn't ok.
+  ok(/action: 'assess'/.test(bare) && /action: 'message'/.test(bare), 'Assess/Message try the live server AI first');
+  ok(/resp && resp\.ok && resp\.data/.test(bare), '  and use the live result only when the server says ok');
+  const oa = bare.slice(bare.indexOf('async function openAssess'), bare.indexOf('async function openMessage'));
+  ok(/resp\.ok/.test(oa) && /LA\.assess\(/.test(oa) && oa.indexOf('resp.ok') < oa.indexOf('LA.assess('), '  live is tried BEFORE the local fallback (never instead of it)');
+  ok(/leadPayload\(/.test(bare) && !/price|gstin|revenue/.test(bare.match(/function leadPayload[^}]+}/)[0]), '  only real lead fields are sent to the AI (no invented data)');
+
+  // Server: the AI door is key-gated, falls back cleanly, and names no provider.
+  const php = R('../api/discover.php');
+  ok(/\$action === 'assess' \|\| \$action === 'message'/.test(php), 'discover.php has the assess/message actions');
+  ok(/ql_llm\(\)/.test(php) && /'fallback' => true/.test(php) && /llm_not_configured/.test(php), '  no key → { fallback:true } so the client uses local rules');
+  ok(/ql_llm_extract\(/.test(php), '  the model call goes through llm.php (the one door)');
+  ok(!/anthropic\.com/.test(php) && !/googleapis\.com/.test(php), '  discover.php names NO provider URL (llm.php owns that; the key never leaks)');
+  ok(/NEVER invent|never invent/i.test(php), '  the prompt forbids inventing contacts/prices');
 }
 
 /* ── OSM is fetched by the BROWSER, then ingested (server curl was too slow) ── */
