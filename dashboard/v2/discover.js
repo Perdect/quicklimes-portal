@@ -137,9 +137,12 @@ function fitOf(r) {
   catch (_) { return { score: 0, tier: 'unknown', why: [] }; }
 }
 
+/* Fallback suggestions ONLY if the market brain is unavailable. National, not
+   local — the earlier all-Jodhpur/Jaipur list is exactly what this feature is
+   meant to move the user away from. */
 const SUGGEST = [
-  ['AAC block manufacturers', 'Jodhpur'], ['Cement dealers', 'Jodhpur'], ['Construction chemical makers', 'Jaipur'],
-  ['Steel plants', 'Jodhpur'], ['Sugar mills', 'Nagaur'], ['Paper mills', 'Jaipur']
+  ['sugar mill', 'Maharashtra'], ['steel', 'Chhattisgarh'], ['paper mill', 'Tamil Nadu'],
+  ['chemical', 'Gujarat'], ['aluminium', 'Odisha'], ['AAC', 'Karnataka']
 ];
 
 function paintSources() {
@@ -272,6 +275,7 @@ function renderMarket() {
     </div>`;
   }).join('');
   stEl.querySelectorAll('[data-find]').forEach(b => b.onclick = () => findInMarket(b.dataset.what, b.dataset.state));
+  paintChips();   // keep the "Try:" examples in step with the selected product/origin
 
   const indEl = document.getElementById('miInds');
   indEl.innerHTML = LM.industriesForProduct(MI.product).slice(0, 10).map(ind => {
@@ -302,15 +306,26 @@ function findInMarket(what, state) {
   runSearch();
 }
 
+/* "Try:" suggestions come from the MARKET BRAIN, not a fixed local list — the
+   top margin-ranked (industry × state) targets for the product you sell, so the
+   examples themselves point across India rather than back at Jodhpur. Falls back
+   to a national static list only if the engine is missing. */
+function marketSuggestions() {
+  if (!LM) return SUGGEST.map(([w, c]) => ({ what: w, state: c, label: w }));
+  const plan = LM.plan((typeof MI !== 'undefined' && MI.product) || 'quick', { origin: miOriginCoords(), freightRate: (typeof MI !== 'undefined' && MI.rate) || 4 });
+  // Skip Rajasthan (home) — the whole point is to look beyond it — and take the
+  // best non-home markets, each with its top relevant industry.
+  return plan.filter(r => r.state !== 'Rajasthan').slice(0, 6).map(r => {
+    const top = r.industries[0];
+    return { what: LM.osmTerm(top.key), state: r.state, label: top.label.replace(/ (Plants|Mills|Manufacturers|Industries|Companies|Refineries|Smelters|Units)$/, '') };
+  });
+}
 function paintChips() {
   const el = document.getElementById('dcChips'); if (!el) return;
+  const sug = marketSuggestions();
   el.innerHTML = '<span style="font-size:11.5px;color:var(--ql-text-secondary)">Try:</span>' +
-    SUGGEST.map(([w, c]) => `<button class="dc-chip" data-w="${esc(w)}" data-c="${esc(c)}">${esc(w)} · ${esc(c)}</button>`).join('');
-  el.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
-    const bar = document.getElementById('dcAi');
-    bar.value = 'Find ' + b.dataset.w + ' in ' + b.dataset.c;
-    runSearch();
-  });
+    sug.map(s => `<button class="dc-chip" data-w="${esc(s.what)}" data-c="${esc(s.state)}">${esc(s.label)} · ${esc(s.state)}</button>`).join('');
+  el.querySelectorAll('[data-w]').forEach(b => b.onclick = () => findInMarket(b.dataset.w, b.dataset.c));
 }
 function paintRecent() {
   const el = document.getElementById('dcRecent'); if (!el) return;

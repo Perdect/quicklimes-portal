@@ -102,6 +102,12 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/data-find/.test(bare) && /data-state/.test(bare), '  each (industry × state) is a launchable target');
   // The whole point of this request: NOT limited to Rajasthan.
   ok(/dcCity'\)\.value = state/.test(bare), '  findInMarket searches the TARGET STATE, not the home city');
+  // The "Try:" suggestions must come from the market brain and aim nationally —
+  // the old hardcoded Jodhpur/Jaipur/Nagaur list is what this feature replaces.
+  ok(/function marketSuggestions\(/.test(bare) && /LM\.plan\(/.test(bare.slice(bare.indexOf('function marketSuggestions'))), 'the "Try:" chips are derived from the market plan');
+  ok(/state !== 'Rajasthan'/.test(bare), '  and skip the home state (the point is to look beyond Rajasthan)');
+  ok(!/\['[^']*', 'Jodhpur'\]/.test(bare) && !/, 'Nagaur'\]/.test(bare), '  no hardcoded local-only Rajasthan suggestions remain');
+  ok(!/within 100km of Jodhpur/.test(html), '  the search placeholder no longer pushes a local Jodhpur example');
 }
 
 /* ── radius is honest when it cannot be applied ── */
