@@ -164,6 +164,32 @@ $PLACES_JSON = [
     $sent = $payload; return ['code' => 200, 'body' => '{"elements":[]}', 'err' => ''];
   });
   ok(strpos(urldecode($sent), '\\"') !== false, 'a quote in the search text is ESCAPED, not left to break out of the query');
+
+  /* The server-side Overpass timeout must stay UNDER PHP's execution limit — a
+     [timeout:25] with a 40s curl cap was killed by PHP mid-call, and the browser
+     could only call the debris "Network error". This pins the headroom. */
+  $capturedQ = '';
+  ql_osm_search('AAC', 'Jodhpur', [], function ($u, $payload) use (&$capturedQ) {
+    $capturedQ = urldecode($payload); return ['code' => 200, 'body' => '{"elements":[]}', 'err' => ''];
+  });
+  ok(preg_match('/\[timeout:(\d+)\]/', $capturedQ, $m) && (int)$m[1] <= 12,
+    'the Overpass query timeout is tight enough that TWO endpoint tries still fit under PHP\'s 30s (so the server always returns JSON, never an HTML error page)');
+
+  /* overpass-api.de 504s often on big cities; a mirror is tried before giving up. */
+  $urls = [];
+  $twoTries = ql_osm_search('AAC', 'Jodhpur', [], function ($u, $payload) use (&$urls, $OSM_JSON) {
+    $urls[] = $u;
+    // first endpoint 504s, the mirror answers
+    return count($urls) === 1 ? ['code' => 504, 'body' => '', 'err' => '']
+                              : ['code' => 200, 'body' => json_encode($OSM_JSON), 'err' => ''];
+  });
+  ok(count($urls) === 2 && $urls[0] !== $urls[1], 'a 504 on the primary Overpass endpoint retries a different mirror');
+  ok($twoTries['ok'] && count($twoTries['places']) === 2, '  and the mirror\'s result is used — one slow endpoint no longer fails the search');
+
+  // A clean non-retryable HTTP error (e.g. 400 bad query) must NOT hammer every mirror.
+  $hits = 0;
+  ql_osm_search('AAC', 'Jodhpur', [], function () use (&$hits) { $hits++; return ['code' => 400, 'body' => '', 'err' => '']; });
+  ok($hits === 1, 'a non-retryable HTTP error stops at the first endpoint (no pointless mirror hammering)');
 }
 
 /* ══════════ 5. the key never leaves the server ══════════ */

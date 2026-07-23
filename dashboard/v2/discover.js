@@ -32,12 +32,52 @@ function toast(msg, tone) {
   clearTimeout(_tt); _tt = setTimeout(() => { el.hidden = true; }, 3200);
 }
 
-function api(body) {
+/* A search reaches a free, shared, sometimes-slow map service (Overpass) THROUGH
+   our PHP, so "it failed" has several shapes and they need different words:
+     • the server timed out on a slow Overpass call and returned an HTML error
+       page → r.json() throws (this was the real "Network error" the user saw);
+     • the browser is offline / the box is unreachable → fetch rejects;
+     • the request ran past our own limit → AbortController fires;
+     • the server answered honestly with { ok:false, error } → pass it through.
+   The old code collapsed ALL of these into "Network error", which read like the
+   feature was broken even when the truth was "the free service is busy, retry".
+   Each branch below returns the real reason and marks whether a retry makes
+   sense, so the UI can offer one. */
+async function api(body, opts) {
+  opts = opts || {};
   const p = JSON.parse(localStorage.getItem('ql_plant') || '{}');
-  return fetch('/api/discover', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(Object.assign({ plant_id: p.id, company_id: Q.activeCo, token: p.token }, body))
-  }).then(r => r.json()).catch(() => ({ ok: false, error: 'Network error' }));
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), opts.timeout || 35000);
+  let res;
+  try {
+    res = await fetch('/api/discover', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
+      body: JSON.stringify(Object.assign({ plant_id: p.id, company_id: Q.activeCo, token: p.token }, body))
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    if (e && e.name === 'AbortError') {
+      console.warn('[discover] request aborted after timeout', body && body.action);
+      return { ok: false, error: 'The search took too long and was stopped — the free map service is slow right now. Try again, or search a smaller area.', retry: true };
+    }
+    console.warn('[discover] fetch failed', e);
+    return { ok: false, error: 'Could not reach the server — check your internet connection.', retry: true };
+  }
+  clearTimeout(timer);
+  const text = await res.text().catch(() => '');
+  let j = null; try { j = JSON.parse(text); } catch (_) {}
+  if (!j) {
+    // Non-JSON means the server died mid-request — almost always a PHP timeout
+    // while Overpass was still thinking — and returned an error page.
+    console.warn('[discover] non-JSON reply', res.status, text.slice(0, 200));
+    return {
+      ok: false, retry: true, httpStatus: res.status,
+      error: res.ok
+        ? 'The server sent an unreadable reply — please try again.'
+        : 'Server error (HTTP ' + res.status + ') — the search likely timed out. Try again, or search a smaller area.'
+    };
+  }
+  return j;
 }
 
 /* The ICP is rebuilt from your sales each load, so the ranking reflects today's
@@ -182,7 +222,9 @@ async function runSearch() {
     RECENT.unshift({ label: tag, ok: false });
     paintRecent();
     if (r.not_configured) notice(r.error + ' Until then, use <b>Paste / import a list</b> — it needs no key.', true);
-    else notice('Search failed: <b>' + esc(r.error || 'unknown error') + '</b>', true);
+    else notice('Search failed: <b>' + esc(r.error || 'unknown error') + '</b>'
+      + (r.retry ? ' <button class="dc-retry" id="dcRetry">Retry</button>' : ''), true);
+    const rb = document.getElementById('dcRetry'); if (rb) rb.onclick = runSearch;
     toast(r.error || 'Search failed', 'err');
     return;
   }

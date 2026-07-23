@@ -1210,7 +1210,18 @@ function ql_osm_search($what, $city, $opts = [], $http = null) {
      STRING the server parses: an unescaped quote in "what" would break out of
      the regex and could rewrite the whole query. */
   $esc = function ($v) { return str_replace(['\\', '"'], ['\\\\', '\\"'], (string)$v); };
-  $q = "[out:json][timeout:25];\n"
+  /* The Overpass server-side timeout MUST stay under PHP's max_execution_time
+     (30s on our host). It used to be [timeout:25] with a 40s curl cap — so on a
+     heavy query (a name-regex across a whole metro) PHP was killed mid-call and
+     the browser got an HTML error page, which the client could only report as
+     the meaningless "Network error". 18s leaves headroom for PHP to always
+     return real JSON, even a real failure. */
+  /* We may try TWO endpoints in one request, so the budget is per-endpoint and
+     both must fit under PHP's 30s: query [timeout:10] + a 12s curl cap → at most
+     ~24s for two attempts, leaving PHP room to always return real JSON. A larger
+     value here is not "more results", it is "the second attempt pushes us past
+     PHP's limit and the browser gets an HTML error page again". */
+  $q = "[out:json][timeout:10];\n"
      . 'area["name"~"^' . $esc($city) . '$",i]["boundary"="administrative"]->.a;' . "\n"
      . '( nwr["name"~"' . $esc($what) . '",i](area.a); );' . "\n"
      . 'out center ' . $max . ';';
@@ -1221,7 +1232,8 @@ function ql_osm_search($what, $city, $opts = [], $http = null) {
       curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_TIMEOUT => 40,
+        CURLOPT_CONNECTTIMEOUT => 6,
+        CURLOPT_TIMEOUT => 12,        // two of these (24s) still fit under PHP's 30s
         CURLOPT_USERAGENT => 'QuickLimes/1.0 (ERP lead discovery; app.quicklimes.com)',
       ]);
       $res = curl_exec($ch);
@@ -1231,15 +1243,27 @@ function ql_osm_search($what, $city, $opts = [], $http = null) {
       return ['code' => $code, 'body' => $res, 'err' => $err];
     };
   }
-  $r = $http('https://overpass-api.de/api/interpreter', 'data=' . urlencode($q),
-    ['Content-Type: application/x-www-form-urlencoded']);
 
-  if (!empty($r['err'])) return ['ok' => false, 'places' => [], 'error' => 'Could not reach OpenStreetMap'];
+  /* The main Overpass endpoint 504s often on big cities (it is donated infra).
+     Try a mirror before giving up — a 504/429/transport-error on the first is
+     worth one more attempt elsewhere; a clean non-200 (e.g. 400 bad query) is
+     not, so we stop rather than hammer every mirror with the same broken query. */
+  $endpoints = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+  $r = ['code' => 0, 'body' => '', 'err' => 'no endpoint tried'];
+  foreach ($endpoints as $ep) {
+    $r = $http($ep, 'data=' . urlencode($q), ['Content-Type: application/x-www-form-urlencoded']);
+    $code = (int)$r['code'];
+    if (empty($r['err']) && $code === 200) break;                 // success
+    if (empty($r['err']) && $code !== 429 && $code !== 504) break; // real HTTP error — a mirror won't help
+    // otherwise (transport error, 429, or 504) fall through and try the mirror
+  }
+
+  if (!empty($r['err'])) return ['ok' => false, 'places' => [], 'error' => 'Could not reach OpenStreetMap — please try again in a moment'];
   $code = (int)$r['code'];
   if ($code === 429 || $code === 504) {
     /* Overpass is a donated free service and throttles. Say so plainly: this is
        "try again in a minute", NOT "there are no such businesses here". */
-    return ['ok' => false, 'places' => [], 'error' => 'OpenStreetMap is busy (it is a free shared service) — wait a minute and try again'];
+    return ['ok' => false, 'places' => [], 'error' => 'OpenStreetMap is busy (it is a free shared service) — wait a minute and try again, or search a smaller area'];
   }
   if ($code !== 200) return ['ok' => false, 'places' => [], 'error' => 'OpenStreetMap error (HTTP ' . $code . ')'];
   $j = json_decode((string)$r['body'], true);
