@@ -355,6 +355,8 @@ function renderMarket() {
   }).join('');
   stEl.querySelectorAll('[data-find]').forEach(b => b.onclick = () => findInMarket(b.dataset.what, b.dataset.state));
   paintChips();   // keep the "Try:" examples in step with the selected product/origin
+  if (typeof renderCopilot === 'function') renderCopilot();   // the top pick may have changed
+  if (typeof renderHero === 'function') renderHero();
 
   const indEl = document.getElementById('miInds');
   indEl.innerHTML = LM.industriesForProduct(MI.product).slice(0, 10).map(ind => {
@@ -585,6 +587,7 @@ async function runSearch() {
   const what = indTerm || PARSED_WHAT || bar;
   document.getElementById('dcWhat').value = what;
   if (!what) { toast('Type what to look for, or pick an industry', 'err'); return; }
+  if (typeof switchSection === 'function') switchSection('leads');   // a search always lands on results
 
   /* A whole STATE is too heavy for the free Overpass service (it times out), so
      when the target is a state we fan the search across its industrial HUB
@@ -657,6 +660,81 @@ async function load() {
   }
   ROWS = r.rows || []; COUNTS = r.counts || COUNTS;
   paintKpis(); paintTabs(); paintTable();
+  renderHero(); renderCopilot();   // real counts + the recommendation reflect the loaded data
+}
+
+/* ═══ Phase 1 — AI-first hero, Copilot, and progressive-disclosure sections ═══ */
+function greetName() {
+  try { const p = JSON.parse(localStorage.getItem('ql_plant') || '{}'); if (p.user && p.user.name) return p.user.name; } catch (_) {}
+  const c = (Q && Q.co) || {}; return c.ownerName || (c.short || '').split(' ')[0] || '';
+}
+function timeGreeting() { const h = new Date().getHours(); return h < 5 ? 'Assalamu Alaikum' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; }
+function baseIndustry(label) { return String(label || '').replace(/ (Plants|Mills|Manufacturers|Industries|Companies|Refineries|Smelters|Units)$/, ''); }
+/* The best non-home market for the current product, at the current freight/price. */
+function topMarket() {
+  if (!LM) return null;
+  const plan = LM.plan(MI.product, { origin: miOriginCoords(), freightRate: MI.rate, exWorks: miEx() });
+  return plan.find(r => r.state !== 'Rajasthan') || plan[0] || null;
+}
+
+/* Hero — greeting by name + REAL pipeline counts + one labelled market estimate. */
+function renderHero() {
+  const g = document.getElementById('dcHeroGreet'); if (!g) return;
+  const nm = greetName();
+  g.innerHTML = (nm ? esc(timeGreeting() + ', ' + nm) : 'Lead Discovery') + ' <span style="font-weight:400">👋</span>';
+  const hot = ROWS.filter(r => r.status === 'new' && (fitOf(r).score || 0) >= 75).length;
+  const tm = topMarket();
+  const stats = [[(COUNTS.new || 0), 'new candidates', ''], [hot, 'hot · fit ≥ 75', 'hot'], [(COUNTS.promoted || 0), 'promoted', '']];
+  let html = stats.map(([n, l, c]) => `<span class="dc-stat ${c}"><b>${n}</b><span>${l}</span></span>`).join('');
+  if (tm) html += `<span class="dc-stat est" title="Industry estimate, not a quote"><b>${esc(tm.state)}</b><span>top market · est. ₹${(tm.deliveredPerTonne || 0).toLocaleString('en-IN')}/t delivered</span></span>`;
+  const stEl = document.getElementById('dcHeroStats'); if (stEl) stEl.innerHTML = html;
+  const n = document.getElementById('dcSecLeadsN'); if (n) n.textContent = COUNTS.new || '';
+}
+
+/* AI Copilot — a live recommendation off the market brain. Real computed rupees,
+   never a fabricated confidence %; every figure is a labelled estimate. */
+function renderCopilot() {
+  const host = document.getElementById('dcCopilot'); if (!host || !LM) return;
+  const opts = { origin: miOriginCoords(), freightRate: MI.rate, exWorks: miEx() };
+  const plan = LM.plan(MI.product, opts).filter(r => r.state !== 'Rajasthan');
+  const tm = plan[0]; if (!tm) { host.innerHTML = ''; return; }
+  const prod = (LM.PRODUCTS.find(p => p.key === MI.product) || {}).label || 'lime';
+  const topInd = tm.industries[0] || {};
+  const profit = tm.profit ? tm.profit.label : '';
+  host.innerHTML = `<div class="cp">
+    <div class="cp-top">
+      <div class="cp-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/></svg>AI Sales Copilot</div>
+      <div class="cp-head">${esc(timeGreeting())}. Your best-margin market for ${esc(prod)} right now is <b>${esc(tm.state)}</b>.</div>
+      <div class="cp-why">${esc(tm.tier.label)} · ${tm.km} km · freight ${tm.freightSharePct != null ? tm.freightSharePct + '% of your price' : '₹' + tm.freightPerTonne + '/t'}${profit ? ' · ' + esc(profit) : ''}. Ranked on demand balanced against freight from ${esc(miOriginCoords().name)}.</div>
+    </div>
+    <div class="cp-metrics">
+      <div class="cp-metric"><div class="l">Delivered cost</div><div class="v">₹${(tm.deliveredPerTonne || 0).toLocaleString('en-IN')}</div><div class="s">per tonne · est.</div></div>
+      <div class="cp-metric"><div class="l">Freight share</div><div class="v ${tm.freightSharePct != null && tm.freightSharePct <= 40 ? 'good' : ''}">${tm.freightSharePct != null ? tm.freightSharePct + '%' : '—'}</div><div class="s">of ex-works price</div></div>
+      <div class="cp-metric"><div class="l">Top buyers</div><div class="v" style="font-size:14px">${esc(baseIndustry(topInd.label || '—'))}</div><div class="s">demand-ranked</div></div>
+      <div class="cp-metric"><div class="l">Opportunity</div><div class="v">${tm.score}<span style="font-size:12px;color:var(--ql-text-muted)">/100</span></div><div class="s">demand × reach</div></div>
+    </div>
+    <div class="cp-list">${plan.slice(0, 4).map((r, i) => `<div class="cp-li"><span class="rk">${i + 1}</span><span class="mkt">${esc(r.state)}</span><span class="pl">${esc(r.tier.label)} · ₹${(r.deliveredPerTonne || 0).toLocaleString('en-IN')}/t</span><button class="go" data-cp-find data-what="${esc(LM.osmTerm((r.industries[0] || {}).key))}" data-state="${esc(r.state)}">Find buyers</button></div>`).join('')}</div>
+    <div class="cp-actions">
+      <button class="ql-btn ql-btn-primary" id="cpFind">Find ${esc(baseIndustry(topInd.label || 'buyers'))} in ${esc(tm.state)}</button>
+      <button class="ql-btn ql-btn-secondary" id="cpMarkets">See all markets</button>
+      <button class="ql-btn ql-btn-secondary" id="cpLeads">Review leads</button>
+    </div>
+    <div class="cp-note">Figures are industry estimates that sharpen as you log real sales — never a fabricated confidence score, and it never invents a company or a price.</div>
+  </div>`;
+  host.querySelectorAll('[data-cp-find]').forEach(b => b.onclick = () => findInMarket(b.dataset.what, b.dataset.state));
+  const f = document.getElementById('cpFind'); if (f) f.onclick = () => findInMarket(LM.osmTerm(topInd.key), tm.state);
+  const m = document.getElementById('cpMarkets'); if (m) m.onclick = () => switchSection('markets');
+  const l = document.getElementById('cpLeads'); if (l) l.onclick = () => switchSection('leads');
+}
+
+/* Progressive disclosure: exactly one section visible at a time. */
+function switchSection(name) {
+  ['copilot', 'markets', 'leads'].forEach(s => {
+    const el = document.getElementById('sec' + s.charAt(0).toUpperCase() + s.slice(1));
+    if (el) el.hidden = (s !== name);
+  });
+  document.querySelectorAll('#dcSecTabs .dc-sectab').forEach(b => b.classList.toggle('active', b.dataset.sec === name));
+  try { localStorage.setItem('ql_dc_sec', name); } catch (_) {}
 }
 
 /* Pasting a list is the no-key path — the same ranked import the pipeline uses. */
@@ -668,6 +746,24 @@ QLShell.mount({ active: 'discover', title: 'Lead Discovery' });
 buildIcp();
 buildFilters(); setupVoice(); buildMarketPanel();
 paintSources(); paintChips(); paintTabs(); paintTable();
+renderHero(); renderCopilot();
+try { switchSection(localStorage.getItem('ql_dc_sec') || 'copilot'); } catch (_) { switchSection('copilot'); }
+
+/* Section tabs (Copilot / Markets / Leads) — progressive disclosure. */
+document.querySelectorAll('#dcSecTabs .dc-sectab').forEach(b => b.addEventListener('click', () => switchSection(b.dataset.sec)));
+/* Advanced filters collapse by default — one intelligent search is the primary. */
+document.getElementById('dcFiltToggle').addEventListener('click', e => {
+  const f = document.getElementById('dcFilters'); const open = f.hidden;
+  f.hidden = !open; e.currentTarget.setAttribute('aria-expanded', String(open));
+});
+/* Hero actions. */
+document.getElementById('dcHeroDiscover').addEventListener('click', () => {
+  const tm = topMarket();
+  if (tm && LM) findInMarket(LM.osmTerm((tm.industries[0] || {}).key), tm.state);
+  else { switchSection('leads'); document.getElementById('dcAi').focus(); }
+});
+document.getElementById('dcHeroAsk').addEventListener('click', () => { document.getElementById('dcAi').focus(); document.getElementById('dcAi').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+document.getElementById('dcHeroReview').addEventListener('click', () => switchSection('leads'));
 document.getElementById('dcGo').addEventListener('click', runSearch);
 // Enter in the AI bar or the city field searches; typing in the bar re-parses.
 document.getElementById('dcAi').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });

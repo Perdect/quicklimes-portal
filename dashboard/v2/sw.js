@@ -1,7 +1,7 @@
 /* QuickLimes v2 — service worker (installable PWA + offline shell).
    Local-first app: data lives in localStorage, so once the CSS/JS shell is cached
    the app opens offline. Never caches the /api backend or cross-origin requests. */
-const CACHE = 'ql-v2-cache-179';   // bumped: Lead Discovery — Assess/Message use live Claude when a key is set (server llm.php), else local rules
+const CACHE = 'ql-v2-cache-180';   // bumped: Lead Discovery redesign Phase 1 — AI-first hero + Copilot + progressive-disclosure sections (Copilot/Markets/Leads)
 
 self.addEventListener('install', () => self.skipWaiting());
 

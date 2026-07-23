@@ -110,6 +110,23 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(!/within 100km of Jodhpur/.test(html), '  the search placeholder no longer pushes a local Jodhpur example');
 }
 
+/* ── Phase 1: AI-first compact layout (hero · sections · copilot) ── */
+{
+  ok(/id="dcHero"/.test(html) && /id="dcHeroStats"/.test(html), 'the page has an AI hero with a stats slot');
+  ok(/id="dcSecTabs"/.test(html) && /data-sec="copilot"/.test(html) && /data-sec="markets"/.test(html) && /data-sec="leads"/.test(html), 'three progressive-disclosure sections (Copilot / Markets / Leads)');
+  ok(/id="secMarkets" hidden/.test(html) && /id="secLeads" hidden/.test(html), '  Markets & Leads start hidden — one section visible at a time');
+  ok(/id="dcFilters" hidden/.test(html) && /dc-row\[hidden\] \{ display: none/.test(html), '  advanced filters collapse by default (and the [hidden] grid rule is restored)');
+  ok(/function renderHero\(/.test(bare) && /function switchSection\(/.test(bare) && /function renderCopilot\(/.test(bare), 'discover.js has the hero / copilot / section-switch logic');
+  // Honesty: real counts, labelled estimates, NO fabricated confidence %.
+  const rh = bare.slice(bare.indexOf('function renderHero'), bare.indexOf('function renderCopilot'));
+  ok(/COUNTS\.new/.test(rh) && /COUNTS\.promoted/.test(rh), '  hero stats are REAL pipeline counts');
+  ok(/est\.|estimate/i.test(rh), '  and the market figure is labelled an estimate');
+  ok(!/confidence/i.test(bare) || /never a fabricated confidence/i.test(bare), '  no fabricated AI-confidence score is invented');
+  // A search jumps to the Leads section so results are seen.
+  const rs2 = bare.slice(bare.indexOf('async function runSearch'), bare.indexOf('async function loadSources'));
+  ok(/switchSection\('leads'\)/.test(rs2), '  running a search lands the user on the Leads section');
+}
+
 /* ── Assess + Message: the lead-working actions (local, key-free) ── */
 {
   ok(/LA\s*=\s*window\.LeadActions/.test(bare), 'discover.js binds LeadActions');
