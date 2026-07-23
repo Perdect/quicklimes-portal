@@ -63,7 +63,7 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
 
 /* ── the half-wired trap: the page must load what it uses ── */
 {
-  ['icp-core.js', 'lead-import.js', 'lead-parse.js', 'data.js', 'shell.js', 'discover.js'].forEach(f =>
+  ['icp-core.js', 'lead-import.js', 'lead-parse.js', 'lime-market.js', 'data.js', 'shell.js', 'discover.js'].forEach(f =>
     ok(new RegExp('src="\\./?' + f.replace('.', '\\.')).test(html), 'discover.html loads ' + f));
   ok(html.indexOf('icp-core.js') < html.indexOf('discover.js'), '  icp-core loads before discover.js uses it');
   ok(html.indexOf('lead-import.js') < html.indexOf('discover.js'), '  lead-import too');
@@ -90,6 +90,18 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/bar !== LAST_PARSED/.test(rs), '  the bar is re-parsed only when it changed (edits to dropdowns survive)');
   // Voice is offered only when the browser supports it (never a dead button).
   ok(/SpeechRecognition/.test(bare) && /mic\.hidden = false/.test(bare), '  voice search reveals itself only where supported');
+}
+
+/* ── Market Intelligence panel: the brain is on the page and drives discovery ── */
+{
+  ok(/id="miCard"/.test(html) && /id="miStates"/.test(html) && /id="miInds"/.test(html), 'the page has the Market Intelligence panel');
+  ok(/LM\s*=\s*window\.LimeMarket/.test(bare), 'discover.js binds the LimeMarket engine');
+  ok(/function buildMarketPanel\(/.test(bare) && /buildMarketPanel\(\)/.test(bare), '  the panel is built at init (not dead markup)');
+  ok(/LM\.plan\(/.test(bare), '  it renders the ranked national plan (LM.plan)');
+  ok(/function findInMarket\(/.test(bare) && /runSearch\(\)/.test(bare), '  and a market row can launch real discovery (findInMarket → runSearch)');
+  ok(/data-find/.test(bare) && /data-state/.test(bare), '  each (industry × state) is a launchable target');
+  // The whole point of this request: NOT limited to Rajasthan.
+  ok(/dcCity'\)\.value = state/.test(bare), '  findInMarket searches the TARGET STATE, not the home city');
 }
 
 /* ── radius is honest when it cannot be applied ── */

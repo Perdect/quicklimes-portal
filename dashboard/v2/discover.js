@@ -17,7 +17,21 @@
    we have.
    ═══════════════════════════════════════════════════════════════════════ */
 'use strict';
-const Q = window.QLD, IC2 = window.ICPCore, LI = window.LeadImport, LP = window.LeadParse;
+const Q = window.QLD, IC2 = window.ICPCore, LI = window.LeadImport, LP = window.LeadParse, LM = window.LimeMarket;
+
+/* Known Rajasthan lime-belt origins with coordinates, so the freight origin can
+   be changed without geocoding. Borunda (the user's plant) is the default. */
+const LIME_ORIGINS = [
+  ['Borunda', 26.35, 73.55], ['Gotan', 26.87, 73.62], ['Jodhpur', 26.29, 73.02],
+  ['Beawar', 26.10, 74.32], ['Bhilwara', 25.35, 74.64], ['Jaipur', 26.91, 75.79], ['Bikaner', 28.02, 73.31]
+];
+const MI = { product: 'quick', origin: 'Borunda', rate: 4 };
+function miLoad() {
+  try { const s = JSON.parse(localStorage.getItem('ql_lime_mi') || '{}'); Object.assign(MI, s); } catch (_) {}
+  MI.rate = +MI.rate || 4;
+}
+function miSave() { try { localStorage.setItem('ql_lime_mi', JSON.stringify(MI)); } catch (_) {} }
+function miOriginCoords() { const o = LIME_ORIGINS.find(x => x[0] === MI.origin) || LIME_ORIGINS[0]; return { name: o[0], lat: o[1], lon: o[2] }; }
 
 /* The findable-industry taxonomy for the dropdown. Each entry carries what to
    SEARCH on the map (osm) and which ICP key it SCORES as (icp) — so a picked
@@ -221,6 +235,73 @@ function setupVoice() {
   };
 }
 
+/* ── Market Intelligence panel: the sales-manager layer ──
+   Renders the national targeting plan for the chosen product from the chosen
+   origin/freight, and lets a click on any (industry × state) launch the real
+   company discovery below. This is what stops the tool being "search Jodhpur". */
+function buildMarketPanel() {
+  if (!LM) { const c = document.getElementById('miCard'); if (c) c.style.display = 'none'; return; }
+  miLoad();
+  const p = document.getElementById('miProduct');
+  p.innerHTML = LM.PRODUCTS.map(x => `<option value="${x.key}">${esc(x.label)}</option>`).join('');
+  p.value = MI.product;
+  const o = document.getElementById('miOrigin');
+  o.innerHTML = LIME_ORIGINS.map(x => `<option value="${esc(x[0])}">${esc(x[0])}</option>`).join('');
+  o.value = MI.origin;
+  document.getElementById('miRate').value = MI.rate;
+  p.onchange = () => { MI.product = p.value; miSave(); renderMarket(); };
+  o.onchange = () => { MI.origin = o.value; miSave(); renderMarket(); };
+  document.getElementById('miRate').onchange = e => { MI.rate = Math.min(20, Math.max(1, +e.target.value || 4)); e.target.value = MI.rate; miSave(); renderMarket(); };
+  renderMarket();
+}
+
+function renderMarket() {
+  const opts = { origin: miOriginCoords(), freightRate: MI.rate };
+  const plan = LM.plan(MI.product, opts);
+  const stEl = document.getElementById('miStates');
+  stEl.innerHTML = plan.map((r, i) => {
+    const inds = r.industries.slice(0, 3).map(ind =>
+      `<button class="dc-chip" style="padding:2px 8px;font-size:11px" data-find data-what="${esc(LM.osmTerm(ind.key))}" data-state="${esc(r.state)}">${esc(ind.label.replace(/ (Plants|Mills|Manufacturers|Industries|Companies|Refineries|Smelters|Units)$/, ''))}</button>`).join(' ');
+    return `<div class="mi-s">
+      <span class="mi-rank">${i + 1}</span>
+      <div class="mi-si">
+        <div class="mi-sn">${esc(r.state)}<span class="mi-tier ${r.tier.tier}">${r.tier.label} · ${r.km}km · ₹${r.freightPerTonne}/t</span></div>
+        <div class="mi-sd">${inds}</div>
+      </div>
+      <div class="mi-score"><span class="n">${r.score}</span><span class="b"><i style="width:${r.score}%"></i></span></div>
+    </div>`;
+  }).join('');
+  stEl.querySelectorAll('[data-find]').forEach(b => b.onclick = () => findInMarket(b.dataset.what, b.dataset.state));
+
+  const indEl = document.getElementById('miInds');
+  indEl.innerHTML = LM.industriesForProduct(MI.product).slice(0, 10).map(ind => {
+    const dots = [1, 2, 3, 4, 5].map(n => `<i class="${n <= ind.demand ? 'on' : ''}"></i>`).join('');
+    return `<details class="mi-i">
+      <summary><span class="mi-dem">${dots}</span>${esc(ind.label)}<span class="mi-imeta">${esc(ind.consumption)}</span></summary>
+      <div class="mi-ibody">
+        <p><b>Lime is used for:</b> ${esc(ind.use)}</p>
+        <p><b>Buying:</b> ${esc(ind.frequency)} · <b>Ask for:</b> ${esc(ind.roles.join(', '))}</p>
+      </div>
+    </details>`;
+  }).join('');
+}
+
+/* Bridge intelligence → discovery: fill the search with an (industry, state) and
+   run it. State names work as OSM areas, so this searches the whole state. */
+function findInMarket(what, state) {
+  document.getElementById('dcAi').value = '';        // structured path, not the bar
+  LAST_PARSED = null;
+  const ind = document.getElementById('dcIndSel');
+  const opt = [...ind.options].find(o => o.value.toLowerCase() === (what || '').toLowerCase());
+  ind.value = opt ? opt.value : '';
+  PARSED_WHAT = what;
+  document.getElementById('dcCity').value = state;
+  document.getElementById('dcRadius').value = '0';   // whole state, no circle
+  paintUnderstood({ industry: opt ? { label: opt.text } : null, what: what, place: state, businessType: null, radiusKm: null });
+  document.getElementById('dcAi').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  runSearch();
+}
+
 function paintChips() {
   const el = document.getElementById('dcChips'); if (!el) return;
   el.innerHTML = '<span style="font-size:11.5px;color:var(--ql-text-secondary)">Try:</span>' +
@@ -380,7 +461,7 @@ function openPaste() {
 
 QLShell.mount({ active: 'discover', title: 'Lead Discovery' });
 buildIcp();
-buildFilters(); setupVoice();
+buildFilters(); setupVoice(); buildMarketPanel();
 paintSources(); paintChips(); paintTabs(); paintTable();
 document.getElementById('dcGo').addEventListener('click', runSearch);
 // Enter in the AI bar or the city field searches; typing in the bar re-parses.
