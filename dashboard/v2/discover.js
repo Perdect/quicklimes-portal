@@ -898,7 +898,7 @@ function openPaste() {
    Reuses crm-core.js (the tested pipeline rules + forecast) and /api/crm, so the
    money maths match the standalone CRM exactly. View + add + stage-move here;
    deep multi-field edits still open cleanly through the same form. ═══ */
-let PIPE = { companies: [], contacts: [], leads: [] }, PIPE_LOADED = false;
+let PIPE = { companies: [], contacts: [], leads: [] }, PIPE_LOADED = false, PIPE_SEARCH = '', PIPE_TEMP = 'all';
 function pipeApi(body) {
   const p = JSON.parse(localStorage.getItem('ql_plant') || '{}');
   return fetch('/api/crm', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -907,6 +907,19 @@ function pipeApi(body) {
 }
 function pipeCoOf(id) { return PIPE.companies.find(c => +c.id === +id) || {}; }
 function pipeFmt(n) { return n == null || !isFinite(n) ? '—' : '₹' + Math.round(n).toLocaleString('en-IN'); }
+/* Temperature from the lead's ICP fit score (margin-based). Unscored stays
+   honest — no fake heat. Hot/Warm/Cold thresholds mirror the discovery fit tiers. */
+function pipeTemp(l) {
+  const s = (l && l.score != null && isFinite(l.score)) ? +l.score : null;
+  if (s == null) return { key: 'none', label: 'Unscored', c: '#94a3b8', bg: '#f1f5f9' };
+  if (s >= 67) return { key: 'hot', label: 'Hot', c: '#dc2626', bg: '#fef2f2' };
+  if (s >= 34) return { key: 'warm', label: 'Warm', c: '#b45309', bg: '#fff7ed' };
+  return { key: 'cold', label: 'Cold', c: '#0284c7', bg: '#eff6ff' };
+}
+function pipeKpi(icon, label, value, tone) {
+  return '<div class="pk-card"><div class="pk-ic" style="background:' + (tone ? tone[1] : 'var(--ql-brand-50,#eff6ff)') + ';color:' + (tone ? tone[0] : 'var(--ql-brand-600,#2563eb)') + '">' + icon + '</div>'
+    + '<div class="pk-l">' + label + '</div><div class="pk-v">' + value + '</div></div>';
+}
 async function renderPipeline(force) {
   const root = document.getElementById('pipeRoot'); const CC = window.CRMCore;
   if (!root || !CC) { if (root) root.innerHTML = '<div class="pl-empty">Pipeline unavailable.</div>'; return; }
@@ -916,31 +929,69 @@ async function renderPipeline(force) {
     if (r && r.ok) { PIPE = { companies: r.companies || [], contacts: r.contacts || [], leads: r.leads || [] }; PIPE_LOADED = true; }
     else { root.innerHTML = '<div class="pl-empty">Could not load the pipeline. ' + esc((r && r.error) || '') + '</div>'; return; }
   }
-  const f = CC.forecast(PIPE.leads), wr = CC.winRates(PIPE.leads);
-  const head = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">'
-    + '<div class="mi-sub">Your live sales pipeline — the same deals, stages and forecast as the CRM, right here.</div>'
+  const all = PIPE.leads;
+  // ── KPI band (all real, derived from the leads) ──
+  const temps = all.map(pipeTemp);
+  const hot = temps.filter(t => t.key === 'hot').length, warm = temps.filter(t => t.key === 'warm').length, cold = temps.filter(t => t.key === 'cold').length;
+  const open = all.filter(l => CC.isOpen(l.stage)).length;
+  const won = all.filter(l => l.stage === 'won').length, lost = all.filter(l => l.stage === 'lost').length;
+  const f = CC.forecast(all);
+  const conv = (won + lost) > 0 ? Math.round(won / (won + lost) * 100) : (won > 0 ? 100 : 0);
+  const band = '<div class="pk-band">'
+    + pipeKpi('◆', 'Total leads', all.length, ['#2563eb', '#eff6ff'])
+    + pipeKpi('🔥', 'Hot', hot, ['#dc2626', '#fef2f2'])
+    + pipeKpi('☀', 'Warm', warm, ['#b45309', '#fff7ed'])
+    + pipeKpi('❄', 'Cold', cold, ['#0284c7', '#eff6ff'])
+    + pipeKpi('▤', 'Open', open, ['#7c3aed', '#f5f3ff'])
+    + pipeKpi('★', 'Onboarded', won, ['#15803d', '#dcfce7'])
+    + pipeKpi('₹', 'Pipeline value', pipeFmt(f.gross), ['#0f766e', '#ccfbf1'])
+    + pipeKpi('◎', 'Conversion', conv + '%', ['#15803d', '#dcfce7'])
+    + '</div>';
+  // ── controls ──
+  const controls = '<div class="pk-controls">'
+    + '<input id="plSearch" class="pk-search" placeholder="Search hotels, contacts, cities…" value="' + esc(PIPE_SEARCH) + '">'
+    + '<select id="plTemp" class="pk-sel"><option value="all">All temps</option><option value="hot"' + (PIPE_TEMP === 'hot' ? ' selected' : '') + '>Hot</option><option value="warm"' + (PIPE_TEMP === 'warm' ? ' selected' : '') + '>Warm</option><option value="cold"' + (PIPE_TEMP === 'cold' ? ' selected' : '') + '>Cold</option></select>'
+    + '<button class="ql-btn ql-btn-secondary" id="plImport" type="button">Import</button>'
     + '<button class="ql-btn ql-btn-primary" id="plAdd" type="button">+ Add lead</button></div>';
-  if (!PIPE.leads.length) { root.innerHTML = head + '<div class="pl-empty">No leads yet. Promote a discovered company from the Leads tab, or add one.</div>'; wirePipe(); return; }
-  const band = '<div class="pl-fc">'
-    + '<div class="pl-fc-n"><b>' + pipeFmt(f.gross) + '</b><span>Pipeline (gross)</span></div>'
-    + '<div class="pl-fc-n"><b style="color:var(--ql-success-600,#15803d)">' + pipeFmt(f.weighted) + '</b><span>Weighted — plan against this</span></div>'
-    + '<div class="pl-fc-n"><b>' + f.open + '</b><span>Open leads</span></div>'
-    + (f.unvalued ? '<div class="pl-fc-n"><b style="color:#c2410c">' + f.unvalued + '</b><span>No price yet — go get it</span></div>' : '')
-    + '<div class="pl-fc-n"><b>' + (wr.rate != null ? Math.round(wr.rate * 100) + '%' : '—') + '</b><span>' + (wr.rate != null ? 'Win rate (' + wr.closed + ' closed)' : esc(wr.why || 'Win rate')) + '</span></div></div>';
-  const cols = CC.STAGES.filter(s => s.open).map(s => {
-    const leads = PIPE.leads.filter(l => l.stage === s.key);
-    const cards = leads.map(l => {
-      const co = pipeCoOf(l.crm_company), v = CC.leadValue(l);
-      return '<div class="pl-card" data-lead="' + l.id + '"><div class="n">' + esc(co.name || '—') + '</div><div class="m">' + esc(co.industry || '') + (co.city ? ' · ' + esc(co.city) : '') + '</div><div class="v">' + pipeFmt(v) + '</div></div>';
-    }).join('') || '<div style="font:500 11.5px var(--ql-font-sans);color:var(--ql-text-muted);padding:6px 2px">—</div>';
-    return '<div class="pl-col"><div class="pl-col-h"><span>' + esc(s.label) + '</span><span>' + leads.length + '</span></div>' + cards + '</div>';
+  if (!all.length) { root.innerHTML = band + controls + '<div class="pl-empty">No leads yet. Promote a discovered company from the Leads tab, or add one.</div>'; wirePipe(); return; }
+  // ── filtered leads for the board ──
+  const q = PIPE_SEARCH.toLowerCase().trim();
+  let leads = all.filter(l => {
+    if (PIPE_TEMP !== 'all' && pipeTemp(l).key !== PIPE_TEMP) return false;
+    if (!q) return true;
+    const co = pipeCoOf(l.crm_company);
+    return (co.name || '').toLowerCase().indexOf(q) >= 0 || (co.city || '').toLowerCase().indexOf(q) >= 0 || (co.industry || '').toLowerCase().indexOf(q) >= 0;
+  });
+  // ── temperature kanban: every stage a column, value per lead + per-column total ──
+  const cols = CC.STAGES.map((s, si) => {
+    const ls = leads.filter(l => l.stage === s.key);
+    const total = ls.reduce((a, l) => a + (CC.leadValue(l) || 0), 0);
+    const next = CC.STAGES[si + 1];
+    const cards = ls.map(l => {
+      const co = pipeCoOf(l.crm_company), v = CC.leadValue(l), t = pipeTemp(l);
+      const moveBtn = (s.open && next) ? '<button class="pl-move" data-lead="' + l.id + '" data-to="' + next.key + '">Move to ' + esc(next.label) + ' ›</button>' : '';
+      return '<div class="pl-card" data-lead="' + l.id + '"><div class="pl-card-top"><div class="n">' + esc(co.name || '—') + '</div><span class="pl-temp" style="color:' + t.c + ';background:' + t.bg + '">' + t.label + '</span></div>'
+        + '<div class="m">' + esc(co.industry || '') + (co.city ? ' · ' + esc(co.city) : '') + '</div>'
+        + '<div class="pl-card-foot"><span class="v">' + pipeFmt(v) + '</span></div>' + moveBtn + '</div>';
+    }).join('') || '<div class="pl-col-empty">Empty</div>';
+    return '<div class="pl-col"><div class="pl-col-h"><span class="pl-col-dot" style="background:' + (s.key === 'won' ? '#16a34a' : s.key === 'lost' ? '#dc2626' : '#94a3b8') + '"></span><span>' + esc(s.label) + '</span><span class="pl-col-n">' + ls.length + ' · ' + pipeFmt(total) + '</span></div>' + cards + '</div>';
   }).join('');
-  root.innerHTML = head + band + '<div class="pl-cols">' + cols + '</div>';
+  root.innerHTML = band + controls + '<div class="pl-board"><div class="pl-cols">' + cols + '</div></div>';
   wirePipe();
 }
 function wirePipe() {
   const add = document.getElementById('plAdd'); if (add) add.addEventListener('click', pipeAddLead);
-  document.querySelectorAll('#pipeRoot .pl-card').forEach(c => c.addEventListener('click', () => pipeOpenLead(+c.dataset.lead)));
+  const imp = document.getElementById('plImport'); if (imp) imp.addEventListener('click', () => { switchSection('leads'); const b = document.getElementById('dcImport'); if (b) b.click(); });
+  const srch = document.getElementById('plSearch'); if (srch) { srch.addEventListener('input', () => { PIPE_SEARCH = srch.value; renderPipeline(); srch.focus(); srch.setSelectionRange(srch.value.length, srch.value.length); }); }
+  const temp = document.getElementById('plTemp'); if (temp) temp.addEventListener('change', () => { PIPE_TEMP = temp.value; renderPipeline(); });
+  document.querySelectorAll('#pipeRoot .pl-card').forEach(c => c.addEventListener('click', e => { if (e.target.closest('.pl-move')) return; pipeOpenLead(+c.dataset.lead); }));
+  document.querySelectorAll('#pipeRoot .pl-move').forEach(b => b.addEventListener('click', async e => {
+    e.stopPropagation();
+    const l = PIPE.leads.find(x => +x.id === +b.dataset.lead); if (!l) return;
+    const chk = window.CRMCore.canMove(l.stage, b.dataset.to, l); if (chk && chk.ok === false) return alert(chk.why);
+    const r = await pipeApi({ action: 'upsertLead', lead: { id: l.id, crm_company: l.crm_company, tonnes: l.tonnes, price_per_tonne: l.price_per_tonne != null ? l.price_per_tonne : l.pricePerTonne, stage: b.dataset.to } });
+    if (r && r.ok) renderPipeline(true); else alert('Could not move: ' + ((r && r.error) || ''));
+  }));
 }
 function pipeAddLead() {
   QLShell.openForm({

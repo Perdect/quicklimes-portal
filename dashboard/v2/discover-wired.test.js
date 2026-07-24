@@ -235,7 +235,18 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/crm-core\.js/.test(html), '  loads crm-core for the pipeline');
   ok(/function renderPipeline\(/.test(bare) && /\.forecast\(/.test(bare) && /window\.CRMCore/.test(bare), '  the Pipeline tab renders a real board from crm-core forecast');
   ok(/action: 'list'/.test(bare) && /\/api\/crm/.test(bare), '  reads live pipeline data from /api/crm');
-  ok(/CC\.canMove\(/.test(bare), '  stage moves are validated by crm-core (no dishonest wins)');
+  ok(/canMove\(/.test(bare), '  stage moves are validated by crm-core (no dishonest wins)');
+}
+
+/* ── Acquisition dashboard (ZOG-style): KPI band + temperature kanban ── */
+{
+  ok(/function pipeTemp\(/.test(bare), 'temperature is derived from the ICP fit score (pipeTemp)');
+  ok(/l\.score/.test(bare) && /Unscored/.test(bare), '  temperature reads lead.score and stays honest when unscored');
+  ok(/pk-band/.test(html) && /class="pk-card"/.test(bare), '  renders a KPI band (Total/Hot/Warm/Cold/Open/Onboarded/value/conversion)');
+  ok(/Pipeline value/.test(bare) && /Conversion/.test(bare) && /Onboarded/.test(bare), '  the KPI band has the acquisition metrics');
+  ok(/pl-temp/.test(bare) && /pl-move/.test(bare), '  cards show a temperature badge + a Move-to-next-stage button');
+  ok(/pk-search/.test(html) && /PIPE_SEARCH/.test(bare) && /PIPE_TEMP/.test(bare), '  the board has search + temperature filter');
+  ok(/pl-board/.test(html), '  the kanban scrolls horizontally (all stages as columns)');
 }
 
 console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');

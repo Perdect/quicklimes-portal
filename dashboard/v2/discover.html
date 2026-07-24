@@ -458,9 +458,32 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .pl-card:hover { border-color: var(--ql-brand-400,#60a5fa); }
   .pl-card .n { font: 700 13px var(--ql-font-sans); color: var(--ql-text); }
   .pl-card .m { font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 2px; }
-  .pl-card .v { font: 800 13px var(--ql-font-sans); color: var(--ql-brand-700,#1d4ed8); margin-top: 4px; }
+  .pl-card .v { font: 800 13px var(--ql-font-sans); color: var(--ql-brand-700,#1d4ed8); }
   [data-theme="dark"] .pl-card .v { color:#93c5fd; }
   .pl-empty { padding: 30px; text-align: center; color: var(--ql-text-muted); font: 500 13px var(--ql-font-sans); }
+  /* ── Acquisition dashboard (ZOG-style) — KPI band + temperature kanban ── */
+  .pk-band { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; margin-bottom: 16px; }
+  .pk-card { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 16px; padding: 14px 16px; }
+  .pk-ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font: 700 15px var(--ql-font-sans); }
+  .pk-l { font: 700 10.5px var(--ql-font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ql-text-secondary); margin-top: 10px; }
+  .pk-v { font: 800 24px/1.1 var(--ql-font-sans); color: var(--ql-text); letter-spacing: -.02em; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .pk-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .pk-search { flex: 1; min-width: 180px; font: 500 13.5px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 11px; padding: 10px 14px; }
+  .pk-search:focus { outline: none; border-color: var(--ql-brand-500,#3b82f6); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+  .pk-sel { font: 600 13px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 11px; padding: 10px 12px; }
+  /* horizontal kanban like ZOG */
+  .pl-board { overflow-x: auto; padding-bottom: 6px; }
+  .pl-cols { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: 12px; min-width: min-content; }
+  .pl-col-h { align-items: center; gap: 6px; }
+  .pl-col-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .pl-col-n { margin-left: auto; font-variant-numeric: tabular-nums; text-transform: none; letter-spacing: 0; font-weight: 600; }
+  .pl-col-empty { font: 500 12px var(--ql-font-sans); color: var(--ql-text-muted); padding: 14px 4px; text-align: center; border: 1px dashed var(--ql-border); border-radius: 10px; }
+  .pl-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .pl-temp { font: 700 9.5px var(--ql-font-sans); text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; flex: none; }
+  .pl-card-foot { margin-top: 6px; }
+  .pl-move { margin-top: 8px; width: 100%; font: 600 11.5px var(--ql-font-sans); color: var(--ql-success-700,#15803d); background: var(--ql-success-50,#f0fdf4); border: 1px solid var(--ql-success-100,#dcfce7); border-radius: 8px; padding: 6px; cursor: pointer; }
+  .pl-move:hover { background: var(--ql-success-100,#dcfce7); }
+  [data-theme="dark"] .pl-move { background: rgba(22,163,74,.14); color: #4ade80; border-color: rgba(22,163,74,.3); }
 
 </style>
 </head>
@@ -740,6 +763,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./freight-core.js?v=f1"></script>
 <script src="./freight.js?v=f2"></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d18"></script>
+<script src="./discover.js?v=d19"></script>
 </body>
 </html>
