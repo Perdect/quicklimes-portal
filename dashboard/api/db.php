@@ -14,6 +14,12 @@ function ql_config() {
   if (!is_file($f)) {
     ql_out(['error' => 'Backend not configured yet — create api/config.php from config.example.php'], 503);
   }
+  /* Drop any OPcache-cached copy of config.php before reading it. Without this,
+     a shared host with opcache.validate_timestamps off keeps serving the OLD
+     config after you edit it — so a freshly-added key (e.g. MAPBOX_TOKEN) never
+     takes effect until PHP restarts. Invalidating here makes config edits live
+     on the very next request, no restart needed. Config is tiny — the cost is nil. */
+  if (function_exists('opcache_invalidate')) { @opcache_invalidate($f, true); }
   $c = require $f;
   return $c;
 }
@@ -1057,7 +1063,7 @@ function ql_has_places_key() { return ql_places_key() !== ''; }
    token lives ONLY in config.php (MAPBOX_TOKEN), never in a response. */
 function ql_mapbox_key() {
   if (!is_file(__DIR__ . '/config.php')) return '';
-  $c = require __DIR__ . '/config.php';
+  $c = ql_config();   // central loader: statically cached + OPcache-invalidated so a fresh token is read live
   return trim((string)($c['MAPBOX_TOKEN'] ?? ''));
 }
 function ql_has_mapbox_key() { return ql_mapbox_key() !== ''; }
