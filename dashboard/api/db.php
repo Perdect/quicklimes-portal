@@ -1051,6 +1051,84 @@ function ql_places_key() {
    returning it in a response body. */
 function ql_has_places_key() { return ql_places_key() !== ''; }
 
+/* ── Mapbox (a FREE-tier alternative source) ─────────────────────────────
+   Mapbox's Search Box API has a generous free tier and far more reliable infra
+   than the free Overpass service (which times out / has thin Indian data). The
+   token lives ONLY in config.php (MAPBOX_TOKEN), never in a response. */
+function ql_mapbox_key() {
+  if (!is_file(__DIR__ . '/config.php')) return '';
+  $c = require __DIR__ . '/config.php';
+  return trim((string)($c['MAPBOX_TOKEN'] ?? ''));
+}
+function ql_has_mapbox_key() { return ql_mapbox_key() !== ''; }
+
+/* Parse a Mapbox Search Box FeatureCollection into the same place shape the
+   rest of discovery consumes (identical keys to ql_places_parse). */
+function ql_mapbox_parse($json, $city) {
+  $out = [];
+  $feats = (is_array($json) && isset($json['features']) && is_array($json['features'])) ? $json['features'] : [];
+  foreach ($feats as $f) {
+    $p = is_array($f['properties'] ?? null) ? $f['properties'] : [];
+    $name = trim((string)($p['name'] ?? ($p['name_preferred'] ?? '')));
+    if ($name === '') continue;
+    $lng = null; $lat = null;
+    $coords = $f['geometry']['coordinates'] ?? null;
+    if (is_array($coords) && count($coords) >= 2) { $lng = (float)$coords[0]; $lat = (float)$coords[1]; }
+    elseif (isset($p['coordinates']['longitude'])) { $lng = (float)$p['coordinates']['longitude']; $lat = (float)$p['coordinates']['latitude']; }
+    $meta = is_array($p['metadata'] ?? null) ? $p['metadata'] : [];
+    $out[] = [
+      'place_id' => (string)($p['mapbox_id'] ?? ''),
+      'name'     => $name,
+      'name_key' => ql_norm_name($name),
+      'address'  => (string)($p['full_address'] ?? ($p['place_formatted'] ?? '')),
+      'city'     => (string)$city,
+      'phone'    => (string)($meta['phone'] ?? ''),
+      'website'  => (string)($meta['website'] ?? ''),
+      'rating'   => null,
+      'lat'      => $lat,
+      'lng'      => $lng,
+    ];
+  }
+  return $out;
+}
+
+/* Search Mapbox for businesses: geocode the city to a proximity centre, then a
+   Search Box forward query for the trade. Same {ok,places,error} contract as
+   ql_places_search, so discover.php treats every source identically. */
+function ql_mapbox_search($what, $city, $opts = [], $http = null) {
+  $token = ql_mapbox_key();
+  if ($token === '') return ['ok' => false, 'places' => [], 'error' => 'not_configured'];
+  $what = trim((string)$what); $city = trim((string)$city);
+  if ($what === '') return ['ok' => false, 'places' => [], 'error' => 'Say what to look for'];
+  $max = max(1, min(25, (int)($opts['max'] ?? 25)));
+  $get = $http ?: function ($url) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15, CURLOPT_CONNECTTIMEOUT => 6]);
+    $r = curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch); curl_close($ch);
+    return ['code' => $code, 'body' => $r, 'err' => $err];
+  };
+  // 1) geocode the city → proximity centre (better POI ranking)
+  $prox = '';
+  if ($city !== '') {
+    $g = $get('https://api.mapbox.com/search/geocode/v6/forward?country=in&limit=1&q=' . rawurlencode($city) . '&access_token=' . rawurlencode($token));
+    $gj = json_decode((string)($g['body'] ?? ''), true);
+    $c0 = $gj['features'][0]['geometry']['coordinates'] ?? null;
+    if (is_array($c0) && count($c0) === 2) $prox = $c0[0] . ',' . $c0[1];
+  }
+  // 2) Search Box forward for the businesses
+  $url = 'https://api.mapbox.com/search/searchbox/v1/forward?country=in&limit=' . $max
+       . '&q=' . rawurlencode($what) . ($prox !== '' ? '&proximity=' . rawurlencode($prox) : '')
+       . '&access_token=' . rawurlencode($token);
+  $r = $get($url);
+  if (!empty($r['err'])) return ['ok' => false, 'places' => [], 'error' => 'Network error contacting Mapbox'];
+  $j = json_decode((string)$r['body'], true);
+  if ((int)$r['code'] !== 200) {
+    $msg = (string)($j['message'] ?? ($j['error'] ?? ('HTTP ' . $r['code'])));
+    return ['ok' => false, 'places' => [], 'error' => 'Mapbox: ' . $msg];
+  }
+  return ['ok' => true, 'places' => ql_mapbox_parse($j, $city), 'error' => ''];
+}
+
 /* Normalised company name — the dedupe spine. MUST match CRMCore.normName and
    LeadImport.normName in the browser, or the server and the UI will disagree
    about what "the same company" is. */

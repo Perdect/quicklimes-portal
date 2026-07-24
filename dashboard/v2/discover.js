@@ -146,7 +146,7 @@ let ROWS = [], COUNTS = { new: 0, duplicate: 0, promoted: 0, dismissed: 0 }, TAB
 /* OpenStreetMap is the DEFAULT because it is free and needs no key — a user who
    never touches Google Cloud still has a working feature. Google is offered
    only when the server says a key exists, so we never present a dead option. */
-let SRC = 'osm', SOURCES = { osm: true, google: false };
+let SRC = 'osm', SOURCES = { osm: true, google: false, mapbox: false };
 let _tt;
 function toast(msg, tone) {
   const el = document.getElementById('dcToast'); if (!el) return;
@@ -229,12 +229,13 @@ const SUGGEST = [
 function paintSources() {
   const el = document.getElementById('dcSrc'); if (!el) return;
   const S = [
-    ['osm', 'OpenStreetMap', true],
-    ['google', 'Google Maps', SOURCES.google]
+    ['osm', 'OpenStreetMap', true, 'free'],
+    ['mapbox', 'Mapbox', SOURCES.mapbox, 'free tier'],
+    ['google', 'Google Maps', SOURCES.google, '']
   ];
-  el.innerHTML = S.map(([k, label, avail]) =>
-    `<button class="dc-s${SRC === k ? ' on' : ''}" data-s="${k}"${avail ? '' : ' disabled title="Not connected yet — the account owner can switch Google Maps on in Settings"'}>
-      <span class="dot${avail ? '' : ' off'}"></span>${label}${k === 'osm' ? ' <span class="free">free</span>' : ''}
+  el.innerHTML = S.map(([k, label, avail, tag]) =>
+    `<button class="dc-s${SRC === k ? ' on' : ''}" data-s="${k}"${avail ? '' : ' disabled title="Not connected yet — the owner enables ' + (k === 'mapbox' ? 'Mapbox (free tier)' : 'Google Maps') + ' in the backend config"'}>
+      <span class="dot${avail ? '' : ' off'}"></span>${label}${tag ? ' <span class="free">' + tag + '</span>' : ''}
     </button>`).join('');
   el.querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
     if (b.disabled) return;
@@ -834,8 +835,8 @@ async function runSearch() {
 async function loadSources() {
   const r = await api({ action: 'sources' });
   if (r && r.ok) {
-    SOURCES = { osm: !!r.osm, google: !!r.google };
-    if (!SOURCES.google && SRC === 'google') SRC = 'osm';   // never sit on a dead source
+    SOURCES = { osm: !!r.osm, google: !!r.google, mapbox: !!r.mapbox };
+    if ((SRC === 'google' && !SOURCES.google) || (SRC === 'mapbox' && !SOURCES.mapbox)) SRC = 'osm';   // never sit on a dead source
     paintSources();
   }
 }

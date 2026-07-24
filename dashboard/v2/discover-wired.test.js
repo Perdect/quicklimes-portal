@@ -258,6 +258,19 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/no-login|no login/i.test(oh), '  and tells the buyer it is a no-login form');
 }
 
+/* ── Mapbox source (free-tier alternative to OSM) ── */
+{
+  ok(/mapbox: false/.test(bare) && /SOURCES\.mapbox/.test(bare), 'discover.js knows the Mapbox source');
+  ok(/'mapbox', 'Mapbox'/.test(bare), '  and offers it in the source toggle');
+  const dp = R('../api/discover.php');
+  ok(/ql_mapbox_search\(/.test(dp) && /'mapbox'/.test(dp), 'discover.php dispatches the mapbox source');
+  ok(/'mapbox' => ql_has_mapbox_key\(\)/.test(dp), '  and reports mapbox availability to the page');
+  const db = R('../api/db.php');
+  ok(/function ql_mapbox_search\(/.test(db) && /function ql_mapbox_parse\(/.test(db), 'db.php has ql_mapbox_search + parse');
+  ok(/MAPBOX_TOKEN/.test(db) && /ql_norm_name\(/.test(db.slice(db.indexOf('function ql_mapbox_parse'))), '  token stays server-side; parse uses the shared name-key (same dedupe spine)');
+  ok(/searchbox\/v1\/forward/.test(db) && /country=in/.test(db), '  calls the Mapbox Search Box API, scoped to India');
+}
+
 /* ── the key never reaches the browser ── */
 {
   ok(!/GOOGLE_PLACES_KEY/.test(js), 'discover.js never names the API key');

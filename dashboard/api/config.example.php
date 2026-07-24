@@ -63,6 +63,12 @@ return [
      businesses. Check Google's current pricing and set a budget alert. */
   'GOOGLE_PLACES_KEY' => '',
 
+  /* Mapbox — a FREE-tier lead source (more reliable than the free OpenStreetMap /
+     Overpass service). Create a free account at mapbox.com, copy your default
+     PUBLIC token (starts "pk."), paste it here. Free tier covers ~100k requests/
+     month. Used server-side for Lead Discovery's "Mapbox" source. */
+  'MAPBOX_TOKEN' => '',
+
   'WHAPI_TOKEN'  => '',                          // from your Whapi channel page
   'WHAPI_SENDER' => '',                          // the sending number, e.g. 919460034743 (display only)
 

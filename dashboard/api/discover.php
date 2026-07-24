@@ -88,21 +88,22 @@ if ($action === 'search') {
      present. Whichever is used, the rows and the failure contract are identical
      so nothing downstream has to care. */
   $src = (string)($b['source'] ?? '');
-  if ($src !== 'google' && $src !== 'osm') $src = ql_has_places_key() ? 'google' : 'osm';
+  if (!in_array($src, ['google', 'osm', 'mapbox'], true)) $src = ql_has_places_key() ? 'google' : (ql_has_mapbox_key() ? 'mapbox' : 'osm');
 
   /* Radius is an OSM-only refinement (it needs a geocoded centre + Overpass
-     around-search). Google's own text search already scopes by place, so the
+     around-search). Google/Mapbox scope by place/proximity themselves, so the
      radius is simply not passed there. */
-  $r = ($src === 'osm')
-    ? ql_osm_search($what, $city, ['max' => 40, 'radiusKm' => $radiusKm])
-    : ql_places_search($what, $city, ['max' => 20]);
+  if ($src === 'osm')         $r = ql_osm_search($what, $city, ['max' => 40, 'radiusKm' => $radiusKm]);
+  elseif ($src === 'mapbox')  $r = ql_mapbox_search($what, $city, ['max' => 25]);
+  else                        $r = ql_places_search($what, $city, ['max' => 20]);
 
   if (!$r['ok']) {
     $e = $r['error'];
     if ($e === 'not_configured') {
       // Never a dead end: the free source needs nothing at all.
+      $needs = $src === 'mapbox' ? 'Mapbox needs a token (MAPBOX_TOKEN in api/config.php — free tier).' : 'Google search needs a key (GOOGLE_PLACES_KEY in api/config.php).';
       ql_out(['ok' => false, 'not_configured' => true, 'source' => $src,
-        'error' => 'Google search needs a key (GOOGLE_PLACES_KEY in api/config.php). OpenStreetMap is free and needs no key — switch the source above.']);
+        'error' => $needs . ' OpenStreetMap is free and needs no key — switch the source above.']);
     }
     ql_out(['ok' => false, 'source' => $src, 'error' => $e]);
   }
@@ -132,7 +133,7 @@ if ($action === 'ingest') {
 if ($action === 'sources') {
   // OSM is always available; Google only with a key. The page asks, rather than
   // guessing, so it never offers a source that cannot work.
-  ql_out(['ok' => true, 'osm' => true, 'google' => ql_has_places_key()]);
+  ql_out(['ok' => true, 'osm' => true, 'google' => ql_has_places_key(), 'mapbox' => ql_has_mapbox_key()]);
 }
 
 /* ASSESS / MESSAGE — the live-Claude path for the lead-working actions. The
