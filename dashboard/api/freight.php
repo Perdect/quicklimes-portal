@@ -21,7 +21,7 @@ $action = (string)($b['action'] ?? '');
 
 /* config is public-ish (just says whether a key exists — never the key). */
 if ($action === 'config') {
-  ql_out(['ok' => true, 'google' => ql_has_places_key()]);
+  ql_out(['ok' => true, 'google' => ql_has_places_key(), 'mapbox' => ql_has_mapbox_key()]);
 }
 
 /* Everything else needs a valid session (per-plant token). */
