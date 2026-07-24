@@ -24,7 +24,10 @@ const Q = window.QLD, IC2 = window.ICPCore, LI = window.LeadImport, LP = window.
    30s limit reports "could not reach" while the browser (residential IP, no hard
    limit, CORS allowed) gets through. The server still parses/dedupes/stores via
    the `ingest` action — the browser only carries the raw elements across. */
-const OVERPASS_EPS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+/* Full-planet Overpass mirrors that actually carry India (regional mirrors like
+   overpass.osm.ch are Europe-only and return nothing for Indian coordinates).
+   Tried in order until one answers; the two we shipped before were both down. */
+const OVERPASS_EPS = ['https://overpass-api.de/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
 
 async function osmGeocode(place) {
   try {
@@ -41,8 +44,15 @@ async function osmGeocode(place) {
    the server (slower) would only fail too, so we just ask the user to retry. */
 async function osmClientFetch(what, city, radius) {
   let center = null, fellBack = false;
-  if (radius > 0) { center = await osmGeocode(city); if (!center) fellBack = true; }
-  const q = OSMQ.build(what, city, { max: 40, radiusKm: radius, center });
+  /* Prefer an AROUND (radius) search. The admin-AREA query — resolve the city's
+     boundary, then scan inside it — is far heavier on the free Overpass service
+     and frequently returns 504. Geocoding the city and searching a radius around
+     it is the query Overpass can actually serve. We only fall back to the area
+     query if geocoding the city fails. */
+  center = await osmGeocode(city);
+  const effRadius = radius > 0 ? radius : (center ? 40 : 0);   // default 40 km around a city when no radius was set
+  if (radius > 0 && !center) fellBack = true;
+  const q = OSMQ.build(what, city, { max: 40, radiusKm: effRadius, center: (effRadius > 0 && center) ? center : null });
   let sawBusy = false, sawNet = false;
   for (const ep of OVERPASS_EPS) {
     const ctrl = new AbortController();
