@@ -226,18 +226,47 @@ const SUGGEST = [
   ['chemical', 'Gujarat'], ['aluminium', 'Odisha'], ['AAC', 'Karnataka']
 ];
 
+/* Self-serve Mapbox connect — the owner pastes a free Mapbox public token; it is
+   stored server-side against the account (no config-file editing needed). */
+function connectMapbox() {
+  QLShell.panel({ title: 'Connect Mapbox', body:
+    '<div class="mi-sub" style="margin-bottom:10px">Paste your free Mapbox <b>public</b> token (starts with <b>pk.</b>). Get one free at <b>account.mapbox.com/access-tokens</b>. Stored securely on your account — never shown in the browser.</div>'
+    + '<input id="mbTok" class="os-input" placeholder="pk...." autocomplete="off" spellcheck="false" style="width:100%;margin-bottom:10px">'
+    + '<div id="mbErr" style="color:var(--ql-danger-600,#dc2626);font:600 12px var(--ql-font-sans);margin-bottom:10px;min-height:14px"></div>'
+    + '<div style="display:flex;gap:8px"><button class="ql-btn ql-btn-primary" id="mbSave" type="button">Connect</button><button class="ql-btn ql-btn-secondary" id="mbClear" type="button">Remove</button></div>' });
+  const inp = document.getElementById('mbTok'), errEl = document.getElementById('mbErr'), save = document.getElementById('mbSave');
+  if (inp) inp.focus();
+  async function send(token) {
+    save.disabled = true; save.textContent = 'Connecting…';
+    const r = await api({ action: 'save_mapbox', token });
+    if (r && r.ok) { QLShell.closeModal(); toast(token ? 'Mapbox connected' : 'Mapbox removed'); await loadSources(); if (token) { SRC = 'mapbox'; } paintSources(); }
+    else { save.disabled = false; save.textContent = 'Connect'; if (errEl) errEl.textContent = (r && r.error) || 'Could not save — try again.'; }
+  }
+  if (save) save.addEventListener('click', () => {
+    const tok = (inp.value || '').trim();
+    if (!/^pk\./.test(tok)) { if (errEl) errEl.textContent = 'That should start with "pk." — copy the DEFAULT public token from Mapbox.'; return; }
+    send(tok);
+  });
+  const clr = document.getElementById('mbClear'); if (clr) clr.addEventListener('click', () => send(''));
+}
 function paintSources() {
   const el = document.getElementById('dcSrc'); if (!el) return;
   const S = [
     ['osm', 'OpenStreetMap', true, 'free'],
-    ['mapbox', 'Mapbox', SOURCES.mapbox, 'free tier'],
+    ['mapbox', 'Mapbox', SOURCES.mapbox, SOURCES.mapbox ? 'free tier' : 'connect'],
     ['google', 'Google Maps', SOURCES.google, '']
   ];
-  el.innerHTML = S.map(([k, label, avail, tag]) =>
-    `<button class="dc-s${SRC === k ? ' on' : ''}" data-s="${k}"${avail ? '' : ' disabled title="Not connected yet — the owner enables ' + (k === 'mapbox' ? 'Mapbox (free tier)' : 'Google Maps') + ' in the backend config"'}>
+  el.innerHTML = S.map(([k, label, avail, tag]) => {
+    // Mapbox is self-serve: if not connected, the pill opens a paste-token flow
+    // (no dead end). Google still needs a backend key the owner sets.
+    const connectable = k === 'mapbox' && !avail;
+    const disabled = !avail && !connectable;
+    return `<button class="dc-s${SRC === k ? ' on' : ''}" data-s="${k}"${connectable ? ' data-connect="1"' : ''}${disabled ? ' disabled title="Not connected — the owner adds a Google key in the backend config"' : ''}>
       <span class="dot${avail ? '' : ' off'}"></span>${label}${tag ? ' <span class="free">' + tag + '</span>' : ''}
-    </button>`).join('');
+    </button>`;
+  }).join('');
   el.querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
+    if (b.dataset.connect) { connectMapbox(); return; }
     if (b.disabled) return;
     SRC = b.dataset.s; paintSources();
   });

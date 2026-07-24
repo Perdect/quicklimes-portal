@@ -29,6 +29,33 @@ if (!ql_role_can($ctx['role'], '*')) ql_out(['ok' => false, 'error' => 'Forbidde
 ql_ensure_tables();
 $db = ql_db();
 
+/* Per-plant integration tokens live in the DB (app_data, data_id='ql_integrations')
+   so the owner can paste a Mapbox token IN THE APP — no server-file editing, no
+   OPcache. The global config.php MAPBOX_TOKEN still works and takes precedence. */
+function ql_plant_mapbox_token($db, $plantId) {
+  $q = $db->prepare('SELECT data FROM app_data WHERE plant_id = ? AND data_id = ? LIMIT 1');
+  $q->execute([$plantId, 'ql_integrations']);
+  $row = $q->fetch(PDO::FETCH_ASSOC);
+  if (!$row) return '';
+  $d = json_decode((string)($row['data'] ?? '{}'), true);
+  return trim((string)($d['mapbox_token'] ?? ''));
+}
+function ql_effective_mapbox_token($db, $plantId) {
+  $g = ql_mapbox_key(); if ($g !== '') return $g;      // global config.php wins
+  return ql_plant_mapbox_token($db, $plantId);
+}
+
+/* Owner pastes / clears their Mapbox token from the app. */
+if ($action === 'save_mapbox') {
+  $token = trim((string)($b['token'] ?? ''));
+  if ($token !== '' && !preg_match('/^pk\.[A-Za-z0-9._-]{20,}$/', $token)) {
+    ql_out(['ok' => false, 'error' => 'That does not look like a Mapbox public token — it should start with "pk."']);
+  }
+  $db->prepare('INSERT INTO app_data (plant_id, data_id, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE data = VALUES(data)')
+     ->execute([$plantId, 'ql_integrations', json_encode(['mapbox_token' => $token])]);
+  ql_out(['ok' => true, 'mapbox' => $token !== '']);
+}
+
 /* Everything you already know, as normalised-name sets. */
 function ql_known_keys($db, $plantId, $coId) {
   $crm = []; $party = [];
@@ -94,7 +121,7 @@ if ($action === 'search') {
      around-search). Google/Mapbox scope by place/proximity themselves, so the
      radius is simply not passed there. */
   if ($src === 'osm')         $r = ql_osm_search($what, $city, ['max' => 40, 'radiusKm' => $radiusKm]);
-  elseif ($src === 'mapbox')  $r = ql_mapbox_search($what, $city, ['max' => 25]);
+  elseif ($src === 'mapbox')  $r = ql_mapbox_search($what, $city, ['max' => 25, 'token' => ql_effective_mapbox_token($db, $plantId)]);
   else                        $r = ql_places_search($what, $city, ['max' => 20]);
 
   if (!$r['ok']) {
@@ -133,7 +160,7 @@ if ($action === 'ingest') {
 if ($action === 'sources') {
   // OSM is always available; Google only with a key. The page asks, rather than
   // guessing, so it never offers a source that cannot work.
-  ql_out(['ok' => true, 'osm' => true, 'google' => ql_has_places_key(), 'mapbox' => ql_has_mapbox_key()]);
+  ql_out(['ok' => true, 'osm' => true, 'google' => ql_has_places_key(), 'mapbox' => ql_effective_mapbox_token($db, $plantId) !== '']);
 }
 
 /* ASSESS / MESSAGE — the live-Claude path for the lead-working actions. The

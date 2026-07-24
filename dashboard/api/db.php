@@ -1102,7 +1102,9 @@ function ql_mapbox_parse($json, $city) {
    Search Box forward query for the trade. Same {ok,places,error} contract as
    ql_places_search, so discover.php treats every source identically. */
 function ql_mapbox_search($what, $city, $opts = [], $http = null) {
-  $token = ql_mapbox_key();
+  // token can be passed in (per-plant, stored in the DB via the app) or fall
+  // back to the global config.php token.
+  $token = trim((string)($opts['token'] ?? '')); if ($token === '') $token = ql_mapbox_key();
   if ($token === '') return ['ok' => false, 'places' => [], 'error' => 'not_configured'];
   $what = trim((string)$what); $city = trim((string)$city);
   if ($what === '') return ['ok' => false, 'places' => [], 'error' => 'Say what to look for'];
