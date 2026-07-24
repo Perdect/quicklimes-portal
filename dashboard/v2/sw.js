@@ -1,7 +1,7 @@
 /* QuickLimes v2 — service worker (installable PWA + offline shell).
    Local-first app: data lives in localStorage, so once the CSS/JS shell is cached
    the app opens offline. Never caches the /api backend or cross-origin requests. */
-const CACHE = 'ql-v2-cache-190';   // bumped: Proposal generator (branded Gotan Lime supply proposal, freight-priced, print/PDF)
+const CACHE = 'ql-v2-cache-191';   // bumped: Lead Discovery polish — ZOG-style score circle on candidate cards
 
 self.addEventListener('install', () => self.skipWaiting());
 

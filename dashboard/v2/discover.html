@@ -287,9 +287,13 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .lc:hover { border-color: var(--ql-border-strong); box-shadow: 0 4px 16px rgba(16,24,40,.07); }
   .lc:active { transform: translateY(1px); }
   .lc-h { display: flex; align-items: flex-start; gap: 11px; }
-  .lc-fit { flex: none; width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; font: 800 14px var(--ql-font-sans); font-variant-numeric: tabular-nums; }
-  .lc-fit.high { background: #dcfce7; color: #15803d; } .lc-fit.medium { background: #fff7ed; color: #b45309; } .lc-fit.low { background: #fef2f2; color: #dc2626; } .lc-fit.unknown { background: var(--ql-bg); color: var(--ql-text-muted); }
-  :root[data-theme="dark"] .lc-fit.high { background: rgba(22,163,74,.2); color: #4ade80; } :root[data-theme="dark"] .lc-fit.medium { background: rgba(180,83,9,.22); color: #fdba74; } :root[data-theme="dark"] .lc-fit.low { background: rgba(220,38,38,.2); color: #fca5a5; }
+  /* ZOG-style score circle — a coloured ring with the fit score inside. */
+  .lc-fit { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font: 800 15px var(--ql-font-sans); font-variant-numeric: tabular-nums; border: 2.5px solid var(--ql-border); background: transparent; }
+  .lc-fit.high { color: #15803d; border-color: #16a34a; background: rgba(22,163,74,.06); }
+  .lc-fit.medium { color: #b45309; border-color: #f59e0b; background: rgba(245,158,11,.06); }
+  .lc-fit.low { color: #dc2626; border-color: #ef4444; background: rgba(239,68,68,.06); }
+  .lc-fit.unknown { color: var(--ql-text-muted); border-color: var(--ql-border); }
+  :root[data-theme="dark"] .lc-fit.high { color: #4ade80; } :root[data-theme="dark"] .lc-fit.medium { color: #fdba74; } :root[data-theme="dark"] .lc-fit.low { color: #fca5a5; }
   .lc-id { min-width: 0; flex: 1; }
   .lc-name { font: 700 14px var(--ql-font-sans); color: var(--ql-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lc-sub2 { font: 500 12px var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
