@@ -241,6 +241,23 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/cdProposal/.test(bare) && /plProposal/.test(bare), '  reachable from the Company 360 drawer + the pipeline lead panel');
 }
 
+/* ── No-login onboarding portal ── */
+{
+  ok(/function openOnboardLink\(/.test(bare), 'discover.js generates a no-login onboarding link');
+  ok(/\/api\/onboard/.test(bare) && /action: 'create'/.test(bare), '  via /api/onboard create');
+  ok(/cdOnboard/.test(bare) && /plOnboard/.test(bare), '  reachable from the drawer + pipeline lead panel');
+  const ob = R('../api/onboard.php');
+  ok(/action === 'create'/.test(ob) && /action === 'get'/.test(ob) && /action === 'submit'/.test(ob), 'onboard.php has create (owner) + get/submit (public)');
+  ok(/random_bytes\(24\)/.test(ob), '  the token is high-entropy (unguessable)');
+  ok(/ql_token_ctx/.test(ob), '  owner actions (create/list/view/doc) require a session');
+  ok(/ALLOW_EXT|ALLOW_MIME/.test(ob) && /is_uploaded_file\(/.test(ob) && /finfo/.test(ob), '  uploads are extension+MIME allow-listed');
+  ok(/base64_encode\(/.test(ob) && !/move_uploaded_file/.test(ob), '  documents are stored base64 in the DB (deploy-safe, no filesystem/traversal risk)');
+  ok(!/\$_(GET|POST|REQUEST)\[[^\]]+\]\s*\)?\s*;?\s*\$db->(query|exec)\(/.test(ob), '  no raw request value concatenated into SQL');
+  const oh = R('onboard.html');
+  ok(/action.*get|append\('action','get'\)/.test(oh) && /docs\[\]/.test(oh), 'onboard.html (public page) submits fields + documents');
+  ok(/no-login|no login/i.test(oh), '  and tells the buyer it is a no-login form');
+}
+
 /* ── the key never reaches the browser ── */
 {
   ok(!/GOOGLE_PLACES_KEY/.test(js), 'discover.js never names the API key');

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — set data-theme before first paint (light-first public form,
+   but a dark-OS visitor still gets a matching dark treatment). */
+(function(){try{var t=localStorage.getItem('ql_theme')||'system';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Partner Onboarding — QuickLimes</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#16a34a">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --g:#16a34a; --gd:#15803d; --ink:#0f172a; --sub:#475569; --mut:#94a3b8; --bd:#e2e8f0; --bg:#f6faf7; --card:#fff; --font:'Geist',system-ui,sans-serif; }
+  :root[data-theme="dark"] { --ink:#e6eaf0; --sub:#9aa7b6; --mut:#64748b; --bd:#26303c; --bg:#0b0f16; --card:#141a22; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 28px 18px 64px; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+  .brand-ic { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg,#16a34a,#22c55e); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 18px; flex: none; }
+  .brand-n { font: 800 18px var(--font); }
+  .brand-s { font: 500 12.5px var(--font); color: var(--sub); }
+  .card { background: var(--card); border: 1px solid var(--bd); border-radius: 18px; padding: 26px 24px; box-shadow: 0 6px 24px rgba(16,24,40,.05); }
+  h1 { font: 800 23px/1.25 var(--font); margin: 0 0 8px; letter-spacing: -.02em; }
+  .lede { font: 400 14px/1.65 var(--font); color: var(--sub); margin: 0 0 22px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+  .f { display: flex; flex-direction: column; gap: 6px; }
+  .f.full { grid-column: 1 / -1; }
+  label { font: 600 12px var(--font); color: var(--sub); }
+  label .req { color: var(--g); }
+  input, textarea { font: 500 14px var(--font); color: var(--ink); background: var(--card); border: 1px solid var(--bd); border-radius: 10px; padding: 11px 13px; width: 100%; }
+  input:focus, textarea:focus { outline: none; border-color: var(--g); box-shadow: 0 0 0 3px rgba(22,163,74,.14); }
+  textarea { resize: vertical; min-height: 64px; }
+  .sec { font: 700 11px var(--font); letter-spacing: .07em; text-transform: uppercase; color: var(--mut); margin: 26px 0 12px; }
+  .drop { border: 1.5px dashed var(--bd); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+  .drop:hover { border-color: var(--g); background: #f0fdf4; }
+  .drop-t { font: 600 13.5px var(--font); color: var(--ink); }
+  .drop-s { font: 500 12px var(--font); color: var(--mut); margin-top: 4px; }
+  .files { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .file { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--bd); border-radius: 10px; font: 500 13px var(--font); }
+  .file .fn { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file .fx { color: var(--mut); cursor: pointer; border: 0; background: none; font-size: 16px; }
+  .btn { width: 100%; margin-top: 24px; font: 700 15px var(--font); color: #fff; background: var(--g); border: 0; border-radius: 12px; padding: 14px; cursor: pointer; }
+  .btn:hover { background: var(--gd); }
+  .btn:disabled { opacity: .6; cursor: default; }
+  .note { font: 400 12px/1.55 var(--font); color: var(--mut); margin-top: 14px; text-align: center; }
+  .msg { padding: 12px 14px; border-radius: 10px; font: 600 13px var(--font); margin-bottom: 16px; display: none; }
+  .msg.err { background: #fef2f2; color: #b91c1c; display: block; }
+  .state { text-align: center; padding: 40px 10px; }
+  .state .big { font-size: 48px; }
+  .state h2 { font: 800 22px var(--font); margin: 14px 0 8px; }
+  .state p { font: 400 14px/1.6 var(--font); color: var(--sub); margin: 0; }
+  .center { text-align: center; padding: 60px 10px; color: var(--mut); font: 500 14px var(--font); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="brand-ic" id="obIc">GL</div>
+    <div><div class="brand-n" id="obBrand">QuickLimes</div><div class="brand-s">Partner Onboarding</div></div>
+  </div>
+  <div id="obRoot"><div class="center">Loading…</div></div>
+  <div class="note">🔒 This is a secure, no-login form. Your details go straight to your supplier and are not shared publicly.</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var root = document.getElementById('obRoot');
+  var token = new URLSearchParams(location.search).get('t') || '';
+  var picked = [];   // File[]
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function api(fd){ return fetch('/api/onboard', { method:'POST', body: fd }).then(function(r){return r.json();}).catch(function(){return {ok:false,error:'Network error — please try again.'};}); }
+
+  if (!token) { root.innerHTML = '<div class="card"><div class="state"><div class="big">🔗</div><h2>Missing link</h2><p>This onboarding link is incomplete. Please use the exact link your supplier sent you.</p></div></div>'; return; }
+
+  // Load the link context (seller + who this is for).
+  var g = new FormData(); g.append('action','get'); g.append('token', token);
+  api(g).then(function (r) {
+    if (!r || !r.ok) { root.innerHTML = '<div class="card"><div class="state"><div class="big">⚠️</div><h2>Link not found</h2><p>'+esc((r&&r.error)||'This onboarding link is invalid or has expired.')+'</p></div></div>'; return; }
+    var seller = (r.seller && r.seller.name) || 'your supplier';
+    document.getElementById('obBrand').textContent = seller;
+    document.getElementById('obIc').textContent = seller.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase() || 'GL';
+    if (r.status === 'submitted') { root.innerHTML = '<div class="card"><div class="state"><div class="big">✅</div><h2>Already received</h2><p>Thanks! Your details have already been submitted to '+esc(seller)+'. They will be in touch shortly.</p></div></div>'; return; }
+    render(seller, r.lead_name || '');
+  });
+
+  function render(seller, leadName) {
+    root.innerHTML = ''
+      + '<div class="card">'
+      +   '<h1>Onboarding with ' + esc(seller) + '</h1>'
+      +   '<p class="lede">' + (leadName ? 'Welcome, <b>'+esc(leadName)+'</b>. ' : '') + 'Please share your firm’s details and documents below so we can set up your account. It takes 2 minutes — no login needed.</p>'
+      +   '<div class="msg" id="obErr"></div>'
+      +   '<div class="sec">Company</div>'
+      +   '<div class="grid">'
+      +     field('legal_name','Legal / registered name', true, 'full')
+      +     field('gstin','GSTIN')
+      +     field('pan','PAN')
+      +     field('address','Full billing address', false, 'full', true)
+      +     field('contact_person','Contact person')
+      +     field('phone','Phone')
+      +     field('email','Email', false, 'full')
+      +   '</div>'
+      +   '<div class="sec">Bank details</div>'
+      +   '<div class="grid">'
+      +     field('bank_name','Bank name')
+      +     field('account_no','Account number')
+      +     field('ifsc','IFSC code')
+      +     field('notes','Anything else we should know?', false, 'full', true)
+      +   '</div>'
+      +   '<div class="sec">Documents</div>'
+      +   '<div class="drop" id="obDrop"><div class="drop-t">📎 Tap to attach documents</div><div class="drop-s">GST certificate · trade license · cancelled cheque / bank proof — PDF or image, up to 6 MB each</div>'
+      +     '<input type="file" id="obFiles" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none"></div>'
+      +   '<div class="files" id="obFileList"></div>'
+      +   '<button class="btn" id="obSubmit">Submit to ' + esc(seller) + '</button>'
+      + '</div>';
+
+    var drop = document.getElementById('obDrop'), fileInput = document.getElementById('obFiles');
+    drop.addEventListener('click', function(){ fileInput.click(); });
+    fileInput.addEventListener('change', function(){ for (var i=0;i<fileInput.files.length;i++){ if (picked.length<8) picked.push(fileInput.files[i]); } fileInput.value=''; paintFiles(); });
+    document.getElementById('obSubmit').addEventListener('click', submit);
+  }
+
+  function field(name, label, req, cls, area) {
+    return '<div class="f ' + (cls==='full'?'full':'') + '"><label for="ob_'+name+'">'+esc(label)+(req?' <span class="req">*</span>':'')+'</label>'
+      + (area ? '<textarea id="ob_'+name+'"></textarea>' : '<input id="ob_'+name+'" type="text">') + '</div>';
+  }
+  function paintFiles() {
+    document.getElementById('obFileList').innerHTML = picked.map(function(f,i){
+      return '<div class="file"><span>📄</span><span class="fn">'+esc(f.name)+'</span><span style="color:var(--mut);font-size:12px">'+Math.round(f.size/1024)+' KB</span><button class="fx" data-i="'+i+'">×</button></div>';
+    }).join('');
+    Array.prototype.forEach.call(document.querySelectorAll('#obFileList .fx'), function(b){ b.addEventListener('click', function(){ picked.splice(+b.dataset.i,1); paintFiles(); }); });
+  }
+  function submit() {
+    var err = document.getElementById('obErr'); err.className='msg';
+    var legal = (document.getElementById('ob_legal_name').value||'').trim();
+    if (!legal) { err.textContent = 'Please enter your legal / registered name.'; err.className='msg err'; window.scrollTo({top:0,behavior:'smooth'}); return; }
+    var btn = document.getElementById('obSubmit'); btn.disabled = true; var old = btn.textContent; btn.textContent = 'Submitting…';
+    var fd = new FormData(); fd.append('action','submit'); fd.append('token', token);
+    ['legal_name','gstin','pan','address','contact_person','phone','email','bank_name','account_no','ifsc','notes'].forEach(function(k){ var el=document.getElementById('ob_'+k); if (el) fd.append(k, el.value||''); });
+    picked.forEach(function(f){ fd.append('docs[]', f, f.name); });
+    api(fd).then(function(r){
+      if (r && r.ok) { root.innerHTML = '<div class="card"><div class="state"><div class="big">🎉</div><h2>Thank you!</h2><p>Your details have been sent securely. Your supplier will review and get back to you shortly.</p></div></div>'; }
+      else { btn.disabled=false; btn.textContent=old; err.textContent = (r&&r.error)||'Could not submit — please try again.'; err.className='msg err'; }
+    });
+  }
+})();
+</script>
+</body>
+</html>

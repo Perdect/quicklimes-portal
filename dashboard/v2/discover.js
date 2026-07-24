@@ -529,7 +529,7 @@ function openLeadDrawer(r) {
       </div>
       <div class="cd-sec"><div class="cd-sec-t">Actions</div>
         <div class="cd-cta">
-          ${LA ? '<button class="ql-btn ql-btn-secondary" id="cdAssess">✦ Assess</button><button class="ql-btn ql-btn-secondary" id="cdMsg">✉ Message</button><button class="ql-btn ql-btn-secondary" id="cdProposal">📄 Proposal</button>' : ''}
+          ${LA ? '<button class="ql-btn ql-btn-secondary" id="cdAssess">✦ Assess</button><button class="ql-btn ql-btn-secondary" id="cdMsg">✉ Message</button><button class="ql-btn ql-btn-secondary" id="cdProposal">📄 Proposal</button><button class="ql-btn ql-btn-secondary" id="cdOnboard">🔗 Onboarding link</button>' : ''}
           ${waOk ? '<button class="ql-btn ql-btn-secondary" id="cdWa">WhatsApp</button>' : ''}
           ${r.phone ? `<a class="ql-btn ql-btn-secondary" href="tel:${esc(r.phone)}" style="justify-content:center">Call</a>` : ''}
           ${r.status !== 'promoted' ? '<button class="ql-btn ql-btn-primary" id="cdPromote">Promote to pipeline</button>' : '<div class="lc-dup" style="color:#15803d;background:#dcfce7;align-self:center">In your pipeline</div>'}
@@ -544,6 +544,7 @@ function openLeadDrawer(r) {
   wire('cdAssess', () => openAssess(r));
   wire('cdMsg', () => openMessage(r));
   wire('cdProposal', () => openProposal(r));
+  wire('cdOnboard', () => openOnboardLink(r));
   wire('cdWa', () => window.open(WA.waLink(r.phone, ''), '_blank', 'noopener'));
   wire('cdPromote', () => { promote(r.id); closeLeadDrawer(); });
 }
@@ -611,6 +612,25 @@ function openProposal(r) {
   document.getElementById('prPrint').addEventListener('click', () => window.print());
   const onKey = e => { if (e.key === 'Escape') { back.remove(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
+}
+
+/* ═══ ONBOARDING LINK — generate a no-login link the buyer uses to submit its
+   GST/license/bank details + documents directly (server: /api/onboard). ═══ */
+async function openOnboardLink(r) {
+  r = r || {};
+  const p = JSON.parse(localStorage.getItem('ql_plant') || '{}');
+  const res = await fetch('/api/onboard', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'create', plant_id: p.id, company_id: Q ? Q.activeCo : '', token: p.token, lead_name: r.name || '', crm_lead_id: r.id || '' }) })
+    .then(x => x.json()).catch(() => ({ ok: false, error: 'Network error' }));
+  if (!res || !res.ok) { toast((res && res.error) || 'Could not create link', 'err'); return; }
+  const url = res.url;
+  QLShell.panel({ title: 'Onboarding link — ' + (r.name || ''), body:
+    '<div class="mi-sub" style="margin-bottom:10px">Share this no-login link so ' + esc(r.name || 'the buyer') + ' uploads its GST, license, bank details &amp; documents directly.</div>'
+    + '<input id="obUrl" class="os-input" readonly value="' + esc(url) + '" style="width:100%;margin-bottom:12px">'
+    + '<div style="display:flex;gap:8px"><button class="ql-btn ql-btn-primary" id="obCopyLink" type="button">Copy link</button><button class="ql-btn ql-btn-secondary" id="obWaLink" type="button">Share on WhatsApp</button></div>' });
+  const u = document.getElementById('obUrl');
+  const c = document.getElementById('obCopyLink'); if (c) c.addEventListener('click', () => { if (u) u.select(); (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => toast('Link copied')).catch(() => { try { document.execCommand('copy'); } catch (_) {} toast('Link copied'); }); });
+  const w = document.getElementById('obWaLink'); if (w) w.addEventListener('click', () => { const msg = 'Please complete your onboarding with us here: ' + url; const WA = window.WACore; const link = (WA && WA.waLink) ? WA.waLink(r.phone || '', msg) : 'https://wa.me/?text=' + encodeURIComponent(msg); window.open(link, '_blank', 'noopener'); });
 }
 
 function assessBody(points, approach, note) {
@@ -1106,12 +1126,13 @@ function pipeOpenLead(id) {
     '<button class="ql-btn ' + (s.key === l.stage ? 'ql-btn-primary' : 'ql-btn-secondary') + '" style="margin:3px" data-stage="' + s.key + '">' + esc(s.label) + '</button>').join('');
   const body = '<div style="font:600 13px var(--ql-font-sans);color:var(--ql-text)">' + esc(co.name || '—') + '</div>'
     + '<div class="mi-sub" style="margin:4px 0 12px">' + esc(co.industry || '') + (co.city ? ' · ' + esc(co.city) : '') + ' · ' + pipeFmt(CC.leadValue(l)) + (CC.leadValue(l) == null ? ' (no price yet)' : '') + '</div>'
-    + '<div style="display:flex;gap:8px;margin-bottom:14px"><button class="ql-btn ql-btn-secondary" id="plStudio" type="button">✦ Outreach Studio</button><button class="ql-btn ql-btn-secondary" id="plProposal" type="button">📄 Generate proposal</button></div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><button class="ql-btn ql-btn-secondary" id="plStudio" type="button">✦ Outreach Studio</button><button class="ql-btn ql-btn-secondary" id="plProposal" type="button">📄 Generate proposal</button><button class="ql-btn ql-btn-secondary" id="plOnboard" type="button">🔗 Onboarding link</button></div>'
     + '<div style="font:700 11px var(--ql-font-sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ql-text-secondary);margin-bottom:6px">Move to stage</div><div>' + moves + '</div>';
   const panel = QLShell.panel({ title: 'Lead · ' + (co.name || ''), body: body });
   const leadR = { name: co.name, industry: co.industry, city: co.city, tonnes: l.tonnes, phone: co.phone || l.phone, email: co.email || l.email };
   const ps = document.getElementById('plStudio'); if (ps) ps.addEventListener('click', () => { QLShell.closeModal(); openStudio(leadR); });
   const pp = document.getElementById('plProposal'); if (pp) pp.addEventListener('click', () => { QLShell.closeModal(); openProposal(leadR); });
+  const pob = document.getElementById('plOnboard'); if (pob) pob.addEventListener('click', () => { QLShell.closeModal(); openOnboardLink(leadR); });
   document.querySelectorAll('#qlModalBack [data-stage]').forEach(b => b.addEventListener('click', async () => {
     const to = b.dataset.stage;
     const chk = CC.canMove(l.stage, to, l); if (chk && chk.ok === false) return alert(chk.why);
