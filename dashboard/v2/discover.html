@@ -484,6 +484,34 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .pl-move { margin-top: 8px; width: 100%; font: 600 11.5px var(--ql-font-sans); color: var(--ql-success-700,#15803d); background: var(--ql-success-50,#f0fdf4); border: 1px solid var(--ql-success-100,#dcfce7); border-radius: 8px; padding: 6px; cursor: pointer; }
   .pl-move:hover { background: var(--ql-success-100,#dcfce7); }
   [data-theme="dark"] .pl-move { background: rgba(22,163,74,.14); color: #4ade80; border-color: rgba(22,163,74,.3); }
+  /* ── Outreach Studio (ZOG-style composer modal) ── */
+  .os-back { position: fixed; inset: 0; z-index: 120; background: rgba(16,24,40,.45); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .os-modal { width: min(560px, 96vw); max-height: 92vh; overflow-y: auto; background: var(--ql-bg-elevated); border: 1px solid var(--ql-border); border-radius: 20px; box-shadow: 0 24px 60px rgba(16,24,40,.28); padding: 20px 22px; }
+  .os-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+  .os-head-ic { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff; display: grid; place-items: center; font-size: 18px; flex: none; }
+  .os-head-t { flex: 1; }
+  .os-title { font: 800 17px var(--ql-font-sans); color: var(--ql-text); }
+  .os-sub { font: 500 12px var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 2px; }
+  .os-x { background: none; border: 0; font-size: 24px; line-height: 1; color: var(--ql-text-muted); cursor: pointer; padding: 0 4px; }
+  .os-chan { display: flex; gap: 8px; border-bottom: 1px solid var(--ql-border); padding-bottom: 14px; margin-bottom: 14px; }
+  .os-chan-b { font: 700 13px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-card); border: 1.5px solid var(--ql-border); border-radius: 11px; padding: 9px 16px; cursor: pointer; }
+  .os-chan-b.on { border-color: var(--ql-brand-600,#2563eb); color: var(--ql-brand-700,#1d4ed8); background: var(--ql-brand-50,#eff6ff); }
+  [data-theme="dark"] .os-chan-b.on { background: rgba(37,99,235,.18); color: #93c5fd; }
+  .os-types { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .os-type { font: 600 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+  .os-type.on { background: #f5f3ff; color: #7c3aed; border-color: #ddd6fe; }
+  [data-theme="dark"] .os-type.on { background: rgba(124,58,237,.2); color: #c4b5fd; border-color: rgba(124,58,237,.4); }
+  .os-field { margin-bottom: 12px; }
+  .os-field label { display: block; font: 700 10.5px var(--ql-font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ql-text-secondary); margin-bottom: 6px; }
+  .os-input, .os-textarea { width: 100%; box-sizing: border-box; font: 500 13.5px/1.55 var(--ql-font-sans); color: var(--ql-text); background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 11px; padding: 11px 13px; }
+  .os-input:focus, .os-textarea:focus { outline: none; border-color: var(--ql-brand-500,#3b82f6); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+  .os-textarea { resize: vertical; min-height: 150px; }
+  .os-refiners { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 16px; }
+  .os-ref { font: 600 12px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 999px; padding: 6px 13px; cursor: pointer; }
+  .os-ref:hover { border-color: var(--ql-brand-400,#60a5fa); color: var(--ql-text); }
+  .os-foot { display: flex; justify-content: space-between; gap: 10px; }
+  .os-foot .ql-btn { flex: 1; justify-content: center; }
+  #osOpen.os-wa { background: #16a34a; border-color: #16a34a; }
 
 </style>
 </head>
@@ -750,7 +778,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./lead-parse.js?v=lp1"></script>
 <script src="./lime-market.js?v=lm3"></script>
 <script src="./osm-query.js?v=oq1"></script>
-<script src="./lead-actions.js?v=la1"></script>
+<script src="./lead-actions.js?v=la2"></script>
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./data.js?v=m44"></script>
@@ -763,6 +791,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./freight-core.js?v=f1"></script>
 <script src="./freight.js?v=f2"></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d19"></script>
+<script src="./discover.js?v=d20"></script>
 </body>
 </html>

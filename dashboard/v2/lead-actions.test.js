@@ -54,5 +54,27 @@ console.log('\n═══ Lead actions · assess + message ═══\n');
   ok(!/document\.|fetch\(|localStorage/.test(src), 'pure module — no DOM/network/storage');
 }
 
+/* ── Outreach Studio composer (compose + refine) ── */
+{
+  const lead = { name: 'Marudhar Steel Works', industry: 'Steel', city: 'Raipur', phone: '9460034743', email: 'x@y.com' };
+  const seller = { name: 'Gotan Lime Industries', city: 'Gotan, Rajasthan', phone: '9460034743' };
+  ['intro', 'followup', 'proposal', 'meeting'].forEach(t => {
+    const e = LA.compose(lead, seller, LM.INDUSTRIES, { channel: 'email', type: t });
+    const w = LA.compose(lead, seller, LM.INDUSTRIES, { channel: 'whatsapp', type: t });
+    ok(e.subject && e.text && e.text.length > 40, `compose email/${t} has subject + body`);
+    ok(w.text && w.text.length > 20, `compose whatsapp/${t} has body`);
+    ok(e.text.indexOf('Gotan Lime Industries') >= 0, `compose ${t} is Gotan-Lime framed (not a stray brand)`);
+  });
+  const wa = LA.compose(lead, seller, LM.INDUSTRIES, { channel: 'whatsapp', type: 'intro' });
+  ok(/👋|✅/.test(wa.text), 'whatsapp intro carries a friendly emoji/ticks');
+  const em = LA.compose(lead, seller, LM.INDUSTRIES, { channel: 'email', type: 'intro' });
+  ok(!/👋|✅/.test(em.text), 'email stays clean (no emoji)');
+  ok(LA.refine(em.text, 'shorten', lead).length < em.text.length, 'refine shorten shortens');
+  ok(!/👋|✅/.test(LA.refine(wa.text, 'professional', lead)), 'refine professional strips emoji');
+  ok(LA.refine(em.text, 'personalize', lead).indexOf('Raipur') >= 0, 'refine personalize adds the city');
+  ok(LA.refine(em.text, 'improve', lead).indexOf('trusted by plants') >= 0, 'refine improve adds a benefit line');
+  ok(!/document\.|fetch\(|localStorage/.test(LA.compose.toString() + LA.refine.toString()), 'compose/refine are pure');
+}
+
 console.log(fail ? `\n❌ FAILED — Passed: ${pass} · Failed: ${fail}\n` : `\n✅ PASSED — Passed: ${pass} · Failed: ${fail}\n`);
 process.exit(fail ? 1 : 0);

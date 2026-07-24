@@ -593,39 +593,64 @@ async function openAssess(r) {
 /* Message — a ready outreach draft the user reviews, then sends themselves via
    WhatsApp or email (we never auto-send). Falls back to copy when there is no
    contact on file. */
-async function openMessage(r) {
-  if (!r || !LA) return;
-  const d = LA.draft(r, sellerInfo(), LM ? LM.INDUSTRIES : []);   // local draft = the guaranteed fallback text
-  QLShell.panel({ title: 'Message — ' + r.name, sub: r.phone || r.email || '', body: '<div class="la-note">Drafting an outreach message…</div>' });
-  const resp = await api({ action: 'message', lead: leadPayload(r), product: (typeof MI !== 'undefined' && MI.product) || 'quick', seller: sellerInfo() }, { timeout: 60000 });
-
-  let text = d.text, note;
-  if (resp && resp.ok && resp.data && resp.data.message) {
-    text = resp.data.message;
-    note = 'Live draft by Claude (' + esc(resp.model || resp.provider || 'AI') + ') — review and edit before you send.';
-  } else {
-    note = (resp && resp.error && resp.error !== 'llm_not_configured')
-      ? 'Live AI was unavailable — this is the built-in draft.'
-      : 'Built-in draft (local, no AI key). Add an Anthropic key in Settings for live Claude drafting.';
-  }
-
-  // wa-core owns the recipient: a landline or junk number normalises to '' and
-  // is NOT a WhatsApp target. That decides the channel, not "has a phone field".
+/* ═══ OUTREACH STUDIO — the ZOG-style composer. Channel (Email/WhatsApp) ×
+   type (Intro/Follow-up/Proposal/Meeting), editable, with local refiner chips
+   (Improve/Shorten/Personalize/Professional). All lime-framed via LA.compose.
+   Copy / Open-in-email / Open-in-WhatsApp; wa-core owns the recipient. ═══ */
+function openStudio(r) {
+  if (!r || !LA || !LA.compose) return;
+  const seller = sellerInfo();
+  const inds = LM ? LM.INDUSTRIES : [];
   const WA = window.WACore;
-  const waOk = d.hasPhone && WA && WA.normalizePhone && WA.normalizePhone(r.phone) !== '';
-  const channel = waOk ? 'whatsapp' : d.hasEmail ? 'email' : 'none';
-  const chanNote = channel === 'whatsapp' ? 'Opens WhatsApp with this text — you review and send.'
-    : channel === 'email' ? 'Opens your email with this drafted — you review and send.'
-    : 'No messageable phone or email on file — copy the text and send it however you reach them.';
-  const body = `<div class="la-msg">
-    <div class="la-note">${note} ${chanNote}</div>
-    <textarea id="laText" class="la-text" rows="9">${esc(text)}</textarea>
-  </div>`;
-  const actions = [{ label: 'Copy text', onClick: (bodyEl) => { const t = bodyEl.querySelector('#laText'); t.select(); try { navigator.clipboard.writeText(t.value); } catch (_) { document.execCommand('copy'); } toast('Copied'); } }];
-  if (channel === 'whatsapp') actions.unshift({ label: 'Open in WhatsApp', primary: true, onClick: (bodyEl) => { const t = bodyEl.querySelector('#laText').value; window.open(WA.waLink(r.phone, t), '_blank', 'noopener'); } });
-  else if (channel === 'email') actions.unshift({ label: 'Open email', primary: true, onClick: (bodyEl) => { const t = bodyEl.querySelector('#laText').value; window.location.href = 'mailto:' + encodeURIComponent(r.email) + '?subject=' + encodeURIComponent(d.subject) + '&body=' + encodeURIComponent(t); } });
-  QLShell.panel({ title: 'Message — ' + r.name, sub: (waOk ? r.phone : r.email) || 'no contact on file', body, actions });
+  const waOk = r.phone && WA && WA.normalizePhone && WA.normalizePhone(r.phone) !== '';
+  let ch = waOk ? 'whatsapp' : (r.email ? 'email' : 'whatsapp');
+  let type = 'intro';
+  const TYPES = [['intro', 'Intro'], ['followup', 'Follow-up'], ['proposal', 'Proposal'], ['meeting', 'Meeting']];
+  const REFS = [['improve', 'Improve'], ['shorten', 'Shorten'], ['personalize', 'Personalize'], ['professional', 'Professional tone']];
+  const back = document.createElement('div');
+  back.className = 'os-back'; back.id = 'osBack';
+  back.innerHTML = `<div class="os-modal" role="dialog" aria-modal="true" aria-label="Outreach Studio">
+    <div class="os-head"><div class="os-head-ic">✦</div>
+      <div class="os-head-t"><div class="os-title">Outreach Studio</div><div class="os-sub">AI-personalised for ${esc(r.name || '')} · smart template</div></div>
+      <button class="os-x" id="osX" aria-label="Close">×</button></div>
+    <div class="os-chan">
+      <button class="os-chan-b" data-ch="email">✉ Email</button>
+      <button class="os-chan-b" data-ch="whatsapp">✆ WhatsApp</button></div>
+    <div class="os-types">${TYPES.map(t => `<button class="os-type" data-type="${t[0]}">✦ ${t[1]}</button>`).join('')}</div>
+    <div class="os-field os-subj-wrap"><label>Subject</label><input id="osSubj" class="os-input"></div>
+    <div class="os-field"><label>Message</label><textarea id="osMsg" class="os-textarea" rows="9"></textarea></div>
+    <div class="os-refiners">${REFS.map(x => `<button class="os-ref" data-ref="${x[0]}">✧ ${x[1]}</button>`).join('')}</div>
+    <div class="os-foot"><button class="ql-btn ql-btn-secondary" id="osCopy" type="button">Copy</button>
+      <button class="ql-btn ql-btn-primary" id="osOpen" type="button"></button></div></div>`;
+  document.body.appendChild(back);
+  const $$ = s => back.querySelector(s);
+  const subj = $$('#osSubj'), msg = $$('#osMsg');
+  const close = () => { back.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  back.addEventListener('click', e => { if (e.target === back) close(); });
+  $$('#osX').addEventListener('click', close);
+  function paint() {
+    back.querySelectorAll('.os-chan-b').forEach(b => b.classList.toggle('on', b.dataset.ch === ch));
+    back.querySelectorAll('.os-type').forEach(b => b.classList.toggle('on', b.dataset.type === type));
+    $$('.os-subj-wrap').style.display = ch === 'email' ? 'block' : 'none';
+    const ob = $$('#osOpen'); ob.textContent = ch === 'email' ? 'Open in email' : 'Open WhatsApp'; ob.classList.toggle('os-wa', ch === 'whatsapp');
+  }
+  function regen() { const c = LA.compose(r, seller, inds, { channel: ch, type }); subj.value = c.subject; msg.value = c.text; paint(); }
+  back.querySelectorAll('.os-chan-b').forEach(b => b.addEventListener('click', () => { ch = b.dataset.ch; regen(); }));
+  back.querySelectorAll('.os-type').forEach(b => b.addEventListener('click', () => { type = b.dataset.type; regen(); }));
+  back.querySelectorAll('.os-ref').forEach(b => b.addEventListener('click', () => { msg.value = LA.refine(msg.value, b.dataset.ref, r); }));
+  $$('#osCopy').addEventListener('click', () => {
+    const t = (ch === 'email' && subj.value ? subj.value + '\n\n' : '') + msg.value;
+    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied')).catch(() => { msg.select(); document.execCommand('copy'); toast('Copied'); });
+  });
+  $$('#osOpen').addEventListener('click', () => {
+    if (ch === 'whatsapp') { const url = (WA && WA.waLink) ? WA.waLink(r.phone || '', msg.value) : 'https://wa.me/?text=' + encodeURIComponent(msg.value); window.open(url, '_blank', 'noopener'); }
+    else { window.location.href = 'mailto:' + encodeURIComponent(r.email || '') + '?subject=' + encodeURIComponent(subj.value) + '&body=' + encodeURIComponent(msg.value); }
+  });
+  regen();
 }
+function openMessage(r) { openStudio(r); }
 
 async function promote(id) {
   const r = await api({ action: 'promote', id });

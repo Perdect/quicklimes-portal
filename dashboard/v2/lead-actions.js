@@ -80,6 +80,86 @@
     return { text: text, hasPhone: !!lead.phone, hasEmail: !!lead.email, subject: 'Lime supply — ' + sellerName };
   }
 
-  root.LeadActions = { assess: assess, draft: draft, matchIndustry: matchIndustry };
+  /* ── Outreach Studio composer (pure) ──────────────────────────────────
+     compose(lead, seller, industries, {channel,type}) -> { subject, text }
+     channel: 'email' | 'whatsapp'   type: 'intro'|'followup'|'proposal'|'meeting'
+     Lime-framed for Gotan Lime. Email is formal + has a subject; WhatsApp is
+     shorter with tick bullets. Recipient/link is still wa-core's job. */
+  function compose(lead, seller, industries, opts) {
+    lead = lead || {}; seller = seller || {}; opts = opts || {};
+    var wa = opts.channel === 'whatsapp';
+    var type = opts.type || 'intro';
+    var ind = matchIndustry(lead.industry, industries);
+    var who = lead.name || (wa ? 'there' : 'Sir/Madam');
+    var sellerName = seller.name || 'Gotan Lime Industries';
+    var sellerCity = seller.city || 'Gotan, Rajasthan';
+    var sellerPhone = seller.phone || '';
+    var city = lead.city || 'your site';
+    var useLine = ind ? ('Lime is essential in the ' + baseLabel(ind.label) + ' process — ' + norm(ind.use) + '.') : '';
+    var role = ind ? (ind.roles[0] || 'purchase team') : 'purchase team';
+    var benefits = wa
+      ? '✅ Consistent CaO %, tested every batch\n✅ Bulk dispatch across India\n✅ Delivered ₹/MT quoted upfront\n✅ GST-compliant billing'
+      : '• Consistent CaO %, tested every batch\n• Reliable bulk dispatch across India\n• A delivered ₹/MT quoted upfront (freight included)\n• GST-compliant billing & documentation';
+    var subject = '', text = '';
+    if (type === 'followup') {
+      subject = 'Following up — lime supply for ' + (lead.name || 'your plant');
+      text = wa
+        ? 'Hi ' + who + ' 👋 Just following up on my note about lime supply from ' + sellerName + '. Happy to share a delivered ₹/MT to ' + city + ' whenever you have a minute. Thanks!'
+        : 'Dear ' + who + ',\n\nI wanted to gently follow up on my earlier note about supplying lime to ' + (lead.name || 'your plant') + '. We can quote a delivered ₹/MT to ' + city + ' and share our grades at your convenience.\n\nWould later this week suit a quick call?\n\nThank you,\n' + sellerName + (sellerPhone ? '\n' + sellerPhone : '');
+    } else if (type === 'proposal') {
+      subject = 'Lime supply proposal — ' + sellerName + ' → ' + (lead.name || 'your plant');
+      text = wa
+        ? 'Hi ' + who + ' 👋 Here’s what we can offer ' + (lead.name || 'you') + ':\n\n' + benefits + '\n\nShare your monthly tonnage and delivery point and I’ll send an exact delivered ₹/MT + terms. — ' + sellerName
+        : 'Dear ' + who + ',\n\nThank you for considering ' + sellerName + '. Here is what we propose for ' + (lead.name || 'your plant') + ':\n\n' + benefits + '\n\nShare your indicative monthly tonnage and delivery location and we will send an exact delivered ₹/MT, minimum order, dispatch schedule and payment terms.\n\nWe look forward to supplying you.\n\nThank you,\n' + sellerName + (sellerPhone ? '\n' + sellerPhone : '');
+    } else if (type === 'meeting') {
+      subject = 'A quick call about your lime supply — ' + sellerName;
+      text = wa
+        ? 'Hi ' + who + ' 👋 Could we do a quick 10-min call this week about your lime requirement? I can bring a delivered ₹/MT for ' + city + '. — ' + sellerName
+        : 'Dear ' + who + ',\n\nCould we schedule a brief call this week to discuss ' + (lead.name || 'your plant') + '’s lime requirement? I will come prepared with a delivered ₹/MT for ' + city + ' and our current grades.\n\nWhat day and time works for you?\n\nThank you,\n' + sellerName + (sellerPhone ? '\n' + sellerPhone : '');
+    } else { // intro
+      subject = 'Lime supply for ' + (lead.name || 'your plant') + ' — ' + sellerName;
+      text = wa
+        ? 'Hi ' + who + ' 👋 I’m from ' + sellerName + ' — we manufacture Quick Lime, Hydrated Lime & Limestone in ' + sellerCity + '.' + (useLine ? '\n\n' + useLine : '') + '\n\n' + benefits + '\n\nCan I share our grades and a delivered ₹/MT to ' + city + '? — ' + sellerName
+        : 'Dear ' + who + ',\n\nWe are ' + sellerName + ' from ' + sellerCity + ', manufacturers of Quick Lime, Hydrated Lime and Limestone.' + (useLine ? ' ' + useLine : '') + '\n\nWe supply consistent-quality lime in bulk with reliable dispatch across India:\n\n' + benefits + '\n\nMay I share our current grades and a delivered ₹/MT to ' + city + '? Could you connect me with your ' + role.toLowerCase() + '?\n\nThank you,\n' + sellerName + (sellerPhone ? '\n' + sellerPhone : '');
+    }
+    return { subject: subject, text: text };
+  }
+
+  /* refine(text, kind, lead) — local, deterministic transforms so the refiner
+     chips work even without a live LLM (Claude replaces these when a key is set). */
+  function refine(text, kind, lead) {
+    text = String(text || ''); lead = lead || {};
+    if (kind === 'shorten') {
+      var paras = text.split(/\n\n+/).filter(Boolean);
+      if (paras.length <= 3) return text;
+      // keep the opener, the call-to-action (2nd-last), and the sign-off — drop the middle.
+      return [paras[0], paras[paras.length - 2], paras[paras.length - 1]].join('\n\n');
+    }
+    if (kind === 'professional') {
+      return text
+        .replace(/\bHi\b/g, 'Dear').replace(/\bCan I\b/g, 'May I').replace(/\bwe help\b/gi, 'we supply')
+        .replace(/[\u{1F300}-\u{1FAFF}✅✔️☀-➿]/gu, '').replace(/[ \t]{2,}/g, ' ').replace(/ \n/g, '\n').trim();
+    }
+    if (kind === 'personalize') {
+      var tag = [lead.name, lead.industry, lead.city].filter(Boolean).join(', ');
+      if (!tag) return text;
+      var lead1 = 'I looked up ' + (lead.name || 'your firm') + (lead.city ? ' in ' + lead.city : '') + (lead.industry ? ' — a ' + String(lead.industry).toLowerCase() + ' operation' : '') + ', which is exactly who we supply.';
+      if (text.indexOf(lead1) >= 0) return text;
+      var lines = text.split('\n');
+      lines.splice(text.indexOf('Dear') === 0 || text.indexOf('Hi') === 0 ? 2 : 0, 0, lead1, '');
+      return lines.join('\n');
+    }
+    if (kind === 'improve') {
+      var add = '\n\nWe are already trusted by plants across the region for on-time, spec-consistent lime — and there is no cost to get a delivered quote.';
+      if (text.indexOf('trusted by plants') >= 0) return text;
+      // insert before the sign-off (last paragraph)
+      var p = text.split(/\n\n+/);
+      if (p.length >= 2) { p.splice(p.length - 1, 0, add.trim()); return p.join('\n\n'); }
+      return text + add;
+    }
+    return text;
+  }
+
+  root.LeadActions = { assess: assess, draft: draft, compose: compose, refine: refine, matchIndustry: matchIndustry };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.LeadActions;
 })(typeof window !== 'undefined' ? window : globalThis);

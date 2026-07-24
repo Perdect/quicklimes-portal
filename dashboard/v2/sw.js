@@ -1,7 +1,7 @@
 /* QuickLimes v2 — service worker (installable PWA + offline shell).
    Local-first app: data lives in localStorage, so once the CSS/JS shell is cached
    the app opens offline. Never caches the /api backend or cross-origin requests. */
-const CACHE = 'ql-v2-cache-188';   // bumped: Pipeline tab upgraded to a ZOG-style acquisition board (KPI band + temperature kanban)
+const CACHE = 'ql-v2-cache-189';   // bumped: Outreach Studio composer (Email/WhatsApp x Intro/Follow-up/Proposal/Meeting + refiners)
 
 self.addEventListener('install', () => self.skipWaiting());
 

@@ -160,18 +160,18 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/LA\s*=\s*window\.LeadActions/.test(bare), 'discover.js binds LeadActions');
   ok(/data-assess=/.test(bare) && /data-msg=/.test(bare), 'each candidate row offers Assess and Message');
   ok(/function openAssess\(/.test(bare) && /LA\.assess\(/.test(bare), 'Assess opens a briefing from LA.assess (local rules)');
-  ok(/function openMessage\(/.test(bare) && /LA\.draft\(/.test(bare), 'Message opens a draft from LA.draft');
-  // We never auto-send — the draft opens WhatsApp/email for the user to send,
+  ok(/function openMessage\(r\) \{ openStudio/.test(bare), 'Message opens the Outreach Studio composer');
+  // We never auto-send — the Studio opens WhatsApp/email for the user to send,
   // and the WhatsApp recipient goes through wa-core (never a hand-rolled wa.me).
   ok(/WA\.waLink\(/.test(bare) && /mailto:/.test(bare), '  it hands off to WhatsApp (via wa-core) / email; the user sends');
   ok(/normalizePhone\(/.test(bare), '  a landline/junk number is not treated as a WhatsApp target');
-  ok(/no contact on file/i.test(bare), '  and is honest when there is no phone/email to send to');
-  ok(/Anthropic key/i.test(bare) && /local rules/i.test(bare), '  the panel says it is the local fallback, upgradable to live Claude');
+  ok(/waLink\(r\.phone \|\| ''/.test(bare), '  the Studio still routes WhatsApp through wa-core even with no phone on file');
+  ok(/Anthropic key/i.test(bare) && /local rules/i.test(bare), '  Assess says it is the local fallback, upgradable to live Claude');
 
-  // Live path: try the server AI first, fall back to LA.* when it isn't ok.
-  ok(/action: 'assess'/.test(bare) && /action: 'message'/.test(bare), 'Assess/Message try the live server AI first');
+  // Live path (Assess): try the server AI first, fall back to LA.* when it isn't ok.
+  ok(/action: 'assess'/.test(bare), 'Assess tries the live server AI first (Message uses smart templates)');
   ok(/resp && resp\.ok && resp\.data/.test(bare), '  and use the live result only when the server says ok');
-  const oa = bare.slice(bare.indexOf('async function openAssess'), bare.indexOf('async function openMessage'));
+  const oa = bare.slice(bare.indexOf('async function openAssess'), bare.indexOf('function openStudio'));
   ok(/resp\.ok/.test(oa) && /LA\.assess\(/.test(oa) && oa.indexOf('resp.ok') < oa.indexOf('LA.assess('), '  live is tried BEFORE the local fallback (never instead of it)');
   ok(/leadPayload\(/.test(bare) && !/price|gstin|revenue/.test(bare.match(/function leadPayload[^}]+}/)[0]), '  only real lead fields are sent to the AI (no invented data)');
 
@@ -217,6 +217,18 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   const i = bare.indexOf('async function runSearch');
   const rs = i > 0 ? bare.slice(i, bare.indexOf('async function loadSources', i)) : '';
   ok(/radius_fell_back/.test(rs), 'a radius that could not be geocoded is reported (not silently dropped)');
+}
+
+/* ── Outreach Studio composer ── */
+{
+  ok(/function openStudio\(/.test(bare), 'discover.js has the Outreach Studio composer');
+  ok(/LA\.compose\(/.test(bare) && /LA\.refine\(/.test(bare), '  it composes + refines via lead-actions (tested pure engine)');
+  ok(/data-ch="email"/.test(bare) && /data-ch="whatsapp"/.test(bare), '  Email + WhatsApp channels');
+  ok(/'intro'.*'followup'.*'proposal'.*'meeting'/.test(bare.replace(/\n/g, ' ')) || (/intro/.test(bare) && /followup/.test(bare) && /proposal/.test(bare) && /meeting/.test(bare)), '  Intro/Follow-up/Proposal/Meeting types');
+  ok(/'improve'.*'shorten'.*'personalize'.*'professional'/.test(bare.replace(/\n/g, ' ')) || (/improve/.test(bare) && /shorten/.test(bare) && /professional/.test(bare)), '  Improve/Shorten/Personalize/Professional refiners');
+  ok(/os-back/.test(html) && /os-modal/.test(html), '  the Outreach Studio modal is styled');
+  ok(/WA\.waLink\(/.test(bare), '  WhatsApp send goes through wa-core (owns the recipient)');
+  ok(/function openMessage\(r\) \{ openStudio\(r\)/.test(bare), '  the Message action opens the Studio');
 }
 
 /* ── the key never reaches the browser ── */
