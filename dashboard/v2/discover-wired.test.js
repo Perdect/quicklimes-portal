@@ -231,6 +231,16 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/function openMessage\(r\) \{ openStudio\(r\)/.test(bare), '  the Message action opens the Studio');
 }
 
+/* ── Proposal generator (branded, print/PDF) ── */
+{
+  ok(/function openProposal\(/.test(bare), 'discover.js has the proposal generator');
+  ok(/Lime Supply Proposal/.test(bare), '  it is a Gotan-Lime supply proposal (not a stray brand)');
+  ok(/LM\.roadKm\(/.test(bare.slice(bare.indexOf('function openProposal'))) && /DEFAULT_FREIGHT/.test(bare), '  delivered price comes from the real freight engine (road-km × rate)');
+  ok(/on address confirmation/.test(bare), '  and stays honest when there are no coordinates (no invented freight)');
+  ok(/window\.print\(\)/.test(bare) && /@media print/.test(html) && /pr-doc/.test(html), '  Print/Save PDF prints just the branded document');
+  ok(/cdProposal/.test(bare) && /plProposal/.test(bare), '  reachable from the Company 360 drawer + the pipeline lead panel');
+}
+
 /* ── the key never reaches the browser ── */
 {
   ok(!/GOOGLE_PLACES_KEY/.test(js), 'discover.js never names the API key');

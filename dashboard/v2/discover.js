@@ -529,7 +529,7 @@ function openLeadDrawer(r) {
       </div>
       <div class="cd-sec"><div class="cd-sec-t">Actions</div>
         <div class="cd-cta">
-          ${LA ? '<button class="ql-btn ql-btn-secondary" id="cdAssess">✦ Assess</button><button class="ql-btn ql-btn-secondary" id="cdMsg">✉ Message</button>' : ''}
+          ${LA ? '<button class="ql-btn ql-btn-secondary" id="cdAssess">✦ Assess</button><button class="ql-btn ql-btn-secondary" id="cdMsg">✉ Message</button><button class="ql-btn ql-btn-secondary" id="cdProposal">📄 Proposal</button>' : ''}
           ${waOk ? '<button class="ql-btn ql-btn-secondary" id="cdWa">WhatsApp</button>' : ''}
           ${r.phone ? `<a class="ql-btn ql-btn-secondary" href="tel:${esc(r.phone)}" style="justify-content:center">Call</a>` : ''}
           ${r.status !== 'promoted' ? '<button class="ql-btn ql-btn-primary" id="cdPromote">Promote to pipeline</button>' : '<div class="lc-dup" style="color:#15803d;background:#dcfce7;align-self:center">In your pipeline</div>'}
@@ -543,6 +543,7 @@ function openLeadDrawer(r) {
   const wire = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
   wire('cdAssess', () => openAssess(r));
   wire('cdMsg', () => openMessage(r));
+  wire('cdProposal', () => openProposal(r));
   wire('cdWa', () => window.open(WA.waLink(r.phone, ''), '_blank', 'noopener'));
   wire('cdPromote', () => { promote(r.id); closeLeadDrawer(); });
 }
@@ -552,6 +553,65 @@ function sellerInfo() { const c = (Q && Q.co) || {}; return { name: c.short || c
 
 /* The lead fields we send to the server AI (never any invented data). */
 function leadPayload(r) { return { name: r.name, industry: r.industry || '', city: r.city || '', phone: r.phone || '', email: r.email || '', website: r.website || '' }; }
+
+/* ═══ PROPOSAL GENERATOR — a branded Gotan Lime supply proposal, print/PDF-ready
+   (like ZOG's). Delivered ₹/MT comes from the real freight engine when the lead
+   has coordinates; otherwise it is honestly quoted "on address confirmation".
+   Numbers are labelled estimates — never invented certainties. ═══ */
+function openProposal(r) {
+  r = r || {};
+  const co = (Q && Q.co) || {};
+  const seller = co.short || 'Gotan Lime Industries';
+  const FC = window.FreightCore;
+  const origin = LM ? LM.DEFAULT_ORIGIN : { lat: 26.35, lon: 73.55, name: 'Borunda, Rajasthan' };
+  const prod = (FC && FC.PRODUCTS[0]) || { label: 'Quick Lime (CaO)', exworks: 8000, gst: 0.05 };
+  const exworks = prod.exworks;
+  const rate = LM ? LM.DEFAULT_FREIGHT : 4;
+  const hasGeo = (r.lat != null && r.lng != null) || (r.lat != null && r.lon != null);
+  const lon = r.lng != null ? r.lng : r.lon;
+  let km = null, freight = null, delivered = null;
+  if (hasGeo && LM) { km = LM.roadKm({ lat: origin.lat, lon: origin.lon }, { lat: +r.lat, lon: +lon }); freight = Math.round(km * rate); delivered = exworks + freight; }
+  const tpm = +r.tonnes || +r.est_tpm || 0;
+  const fmt = n => '₹' + Math.round(+n || 0).toLocaleString('en-IN');
+  const city = r.city || 'your site';
+  const priceBlock = hasGeo
+    ? `<table class="pr-tbl"><tr><th>Item</th><th>Rate</th></tr>
+        <tr><td>Ex-works (${esc(prod.label)})</td><td>${fmt(exworks)}/MT</td></tr>
+        <tr><td>Freight — ${esc(origin.name.split(',')[0])} → ${esc(city)} (~${km.toLocaleString('en-IN')} km, est.)</td><td>${fmt(freight)}/MT</td></tr>
+        <tr class="pr-tot"><td>Delivered price</td><td>${fmt(delivered)}/MT + GST</td></tr></table>
+        <p class="pr-fine">Freight is a road-distance estimate; the exact figure is confirmed against your delivery point and load size.</p>`
+    : `<table class="pr-tbl"><tr><th>Item</th><th>Rate</th></tr>
+        <tr><td>Ex-works (${esc(prod.label)})</td><td>${fmt(exworks)}/MT</td></tr>
+        <tr><td>Freight to ${esc(city)}</td><td>quoted on address confirmation</td></tr>
+        <tr class="pr-tot"><td>Delivered price</td><td>ex-works + freight + GST</td></tr></table>
+        <p class="pr-fine">Share your exact delivery point and we will confirm a delivered ₹/MT within the day.</p>`;
+  const volBlock = (tpm > 0 && delivered)
+    ? `<div class="pr-earn"><div><div class="pr-earn-l">Estimated monthly supply value at ${tpm} MT/month</div><div class="pr-earn-s">Delivered ${fmt(delivered)}/MT × ${tpm} MT (indicative)</div></div><div class="pr-earn-v">${fmt(delivered * tpm)}</div></div>`
+    : '';
+  const back = document.createElement('div');
+  back.className = 'pr-back'; back.id = 'prBack';
+  back.innerHTML = `<div class="pr-bar"><button class="pr-close" id="prClose">← Back to lead</button><button class="ql-btn ql-btn-primary" id="prPrint">🖶 Print / Save PDF</button></div>
+    <div class="pr-doc" id="prDoc">
+      <div class="pr-head"><div><div class="pr-brand">${esc(seller)}</div><div class="pr-brand-s">Quick Lime · Hydrated Lime · Limestone — ${esc(co.city || 'Gotan, Rajasthan')}</div></div>
+        <div class="pr-meta">Lime Supply Proposal</div></div>
+      <hr class="pr-hr">
+      <h1 class="pr-h1">Lime Supply Proposal for ${esc(r.name || 'your plant')}</h1>
+      <p class="pr-lede">Dear Partner, thank you for considering ${esc(seller)}. This proposal outlines how we can supply consistent-quality lime to ${esc(r.name || 'your plant')}${r.city ? ' (' + esc(r.city) + ')' : ''} with reliable dispatch and a delivered price quoted upfront — freight included.</p>
+      <h2 class="pr-h2">Delivered pricing</h2>
+      ${priceBlock}
+      ${volBlock}
+      <h2 class="pr-h2">What you get</h2>
+      <ul class="pr-ul"><li>Consistent CaO %, tested every batch, with a test certificate per dispatch</li><li>Reliable bulk dispatch across India (loose / jumbo / small bags)</li><li>A delivered ₹/MT quoted upfront — no surprise freight</li><li>GST-compliant billing & documentation</li></ul>
+      <h2 class="pr-h2">Terms</h2>
+      <ul class="pr-ul"><li>Grades & quantities per your requirement; minimum order by vehicle load</li><li>Dispatch schedule agreed on confirmation</li><li>Payment terms as mutually agreed</li></ul>
+      <p class="pr-sign">We look forward to supplying you.<br><b>${esc(seller)}</b>${co.phone ? ' · ' + esc(co.phone) : ''}</p>
+    </div>`;
+  document.body.appendChild(back);
+  document.getElementById('prClose').addEventListener('click', () => back.remove());
+  document.getElementById('prPrint').addEventListener('click', () => window.print());
+  const onKey = e => { if (e.key === 'Escape') { back.remove(); document.removeEventListener('keydown', onKey); } };
+  document.addEventListener('keydown', onKey);
+}
 
 function assessBody(points, approach, note) {
   return `<div class="la-assess">
@@ -1046,8 +1106,12 @@ function pipeOpenLead(id) {
     '<button class="ql-btn ' + (s.key === l.stage ? 'ql-btn-primary' : 'ql-btn-secondary') + '" style="margin:3px" data-stage="' + s.key + '">' + esc(s.label) + '</button>').join('');
   const body = '<div style="font:600 13px var(--ql-font-sans);color:var(--ql-text)">' + esc(co.name || '—') + '</div>'
     + '<div class="mi-sub" style="margin:4px 0 12px">' + esc(co.industry || '') + (co.city ? ' · ' + esc(co.city) : '') + ' · ' + pipeFmt(CC.leadValue(l)) + (CC.leadValue(l) == null ? ' (no price yet)' : '') + '</div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:14px"><button class="ql-btn ql-btn-secondary" id="plStudio" type="button">✦ Outreach Studio</button><button class="ql-btn ql-btn-secondary" id="plProposal" type="button">📄 Generate proposal</button></div>'
     + '<div style="font:700 11px var(--ql-font-sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ql-text-secondary);margin-bottom:6px">Move to stage</div><div>' + moves + '</div>';
   const panel = QLShell.panel({ title: 'Lead · ' + (co.name || ''), body: body });
+  const leadR = { name: co.name, industry: co.industry, city: co.city, tonnes: l.tonnes, phone: co.phone || l.phone, email: co.email || l.email };
+  const ps = document.getElementById('plStudio'); if (ps) ps.addEventListener('click', () => { QLShell.closeModal(); openStudio(leadR); });
+  const pp = document.getElementById('plProposal'); if (pp) pp.addEventListener('click', () => { QLShell.closeModal(); openProposal(leadR); });
   document.querySelectorAll('#qlModalBack [data-stage]').forEach(b => b.addEventListener('click', async () => {
     const to = b.dataset.stage;
     const chk = CC.canMove(l.stage, to, l); if (chk && chk.ok === false) return alert(chk.why);

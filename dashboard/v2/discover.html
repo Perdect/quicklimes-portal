@@ -512,6 +512,39 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .os-foot { display: flex; justify-content: space-between; gap: 10px; }
   .os-foot .ql-btn { flex: 1; justify-content: center; }
   #osOpen.os-wa { background: #16a34a; border-color: #16a34a; }
+  /* ── Proposal generator (branded, print/PDF) ── */
+  .pr-back { position: fixed; inset: 0; z-index: 130; background: var(--ql-bg, #f1f5f9); overflow-y: auto; }
+  .pr-bar { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: var(--ql-bg-elevated); border-bottom: 1px solid var(--ql-border); }
+  .pr-close { background: none; border: 0; font: 600 14px var(--ql-font-sans); color: var(--ql-text-secondary); cursor: pointer; }
+  .pr-doc { max-width: 760px; margin: 24px auto 60px; background: #fff; color: #0f172a; border: 1px solid var(--ql-border); border-radius: 16px; padding: 44px 48px; }
+  .pr-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .pr-brand { font: 800 20px var(--ql-font-sans); color: #0f172a; }
+  .pr-brand-s { font: 500 12.5px var(--ql-font-sans); color: #64748b; margin-top: 3px; }
+  .pr-meta { font: 600 12.5px var(--ql-font-sans); color: #64748b; text-align: right; }
+  .pr-hr { border: none; border-top: 1px solid #e2e8f0; margin: 20px 0 24px; }
+  .pr-h1 { font: 800 26px/1.2 var(--ql-font-sans); color: #0f172a; margin: 0 0 14px; letter-spacing: -.02em; }
+  .pr-lede { font: 400 14.5px/1.7 var(--ql-font-sans); color: #334155; margin: 0 0 26px; }
+  .pr-h2 { font: 800 15px var(--ql-font-sans); color: #0f172a; margin: 26px 0 12px; }
+  .pr-tbl { width: 100%; border-collapse: collapse; font: 500 13.5px var(--ql-font-sans); }
+  .pr-tbl th { text-align: left; color: #64748b; font: 700 11px var(--ql-font-sans); text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px; border-bottom: 2px solid #e2e8f0; }
+  .pr-tbl td { padding: 11px 10px; border-bottom: 1px solid #eef2f7; color: #334155; }
+  .pr-tbl td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  .pr-tbl .pr-tot td { font: 800 15px var(--ql-font-sans); color: #0f172a; border-bottom: none; }
+  .pr-tbl .pr-tot td:last-child { color: #15803d; }
+  .pr-fine { font: 400 11.5px/1.5 var(--ql-font-sans); color: #94a3b8; margin: 8px 2px 0; }
+  .pr-earn { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin: 18px 0 4px; padding: 16px 20px; border-radius: 14px; background: #f0fdf4; border: 1px solid #dcfce7; }
+  .pr-earn-l { font: 700 14px var(--ql-font-sans); color: #0f172a; }
+  .pr-earn-s { font: 500 12px var(--ql-font-sans); color: #64748b; margin-top: 3px; }
+  .pr-earn-v { font: 800 26px var(--ql-font-sans); color: #15803d; white-space: nowrap; }
+  .pr-ul { margin: 0; padding-left: 20px; font: 400 14px/1.9 var(--ql-font-sans); color: #334155; }
+  .pr-sign { font: 400 14px/1.7 var(--ql-font-sans); color: #334155; margin-top: 26px; }
+  @media print {
+    body * { visibility: hidden !important; }
+    .pr-back, .pr-back * { visibility: visible !important; }
+    .pr-back { position: absolute; inset: 0; background: #fff; }
+    .pr-bar { display: none !important; }
+    .pr-doc { margin: 0; border: none; border-radius: 0; max-width: none; box-shadow: none; }
+  }
 
 </style>
 </head>
@@ -791,6 +824,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./freight-core.js?v=f1"></script>
 <script src="./freight.js?v=f2"></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d20"></script>
+<script src="./discover.js?v=d21"></script>
 </body>
 </html>
