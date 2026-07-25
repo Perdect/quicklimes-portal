@@ -267,6 +267,10 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/ql_effective_mapbox_token\(/.test(dp) && /'mapbox' =>/.test(dp), '  reports mapbox availability (config OR the DB-stored per-plant token)');
   ok(/action === 'save_mapbox'/.test(dp) && /app_data/.test(dp) && /pk\\\.\[A-Za-z0-9/.test(dp), '  owner can save a Mapbox token IN THE APP (validated pk., stored in app_data)');
   ok(/function connectMapbox\(/.test(bare) && /'save_mapbox'/.test(bare), '  discover.js has the self-serve Mapbox connect flow');
+  // REGRESSION GUARD: api() injects the session under `token`; the Mapbox token
+  // must ride a DIFFERENT field or it overwrites the session → Unauthorized.
+  ok(/save_mapbox', mapbox_token:/.test(bare) && !/save_mapbox', token/.test(bare), '  the Mapbox token is sent as mapbox_token (never `token`, which is the session)');
+  ok(/\$b\['mapbox_token'\]/.test(dp), '  and discover.php reads mapbox_token');
   const db = R('../api/db.php');
   ok(/function ql_mapbox_search\(/.test(db) && /function ql_mapbox_parse\(/.test(db), 'db.php has ql_mapbox_search + parse');
   ok(/MAPBOX_TOKEN/.test(db) && /ql_norm_name\(/.test(db.slice(db.indexOf('function ql_mapbox_parse'))), '  token stays server-side; parse uses the shared name-key (same dedupe spine)');

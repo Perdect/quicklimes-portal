@@ -47,7 +47,8 @@ function ql_effective_mapbox_token($db, $plantId) {
 
 /* Owner pastes / clears their Mapbox token from the app. */
 if ($action === 'save_mapbox') {
-  $token = trim((string)($b['token'] ?? ''));
+  // read 'mapbox_token' — NOT 'token' (that field carries the session auth token).
+  $token = trim((string)($b['mapbox_token'] ?? ''));
   if ($token !== '' && !preg_match('/^pk\.[A-Za-z0-9._-]{20,}$/', $token)) {
     ql_out(['ok' => false, 'error' => 'That does not look like a Mapbox public token — it should start with "pk."']);
   }

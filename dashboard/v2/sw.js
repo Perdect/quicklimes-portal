@@ -1,7 +1,7 @@
 /* QuickLimes v2 — service worker (installable PWA + offline shell).
    Local-first app: data lives in localStorage, so once the CSS/JS shell is cached
    the app opens offline. Never caches the /api backend or cross-origin requests. */
-const CACHE = 'ql-v2-cache-195';   // bumped: self-serve Mapbox connect (paste token in-app, DB-stored) + config OPcache-invalidate
+const CACHE = 'ql-v2-cache-196';   // bumped: fix Mapbox connect Unauthorized (mapbox_token field no longer clobbers session token)
 
 self.addEventListener('install', () => self.skipWaiting());
 

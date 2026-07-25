@@ -238,7 +238,10 @@ function connectMapbox() {
   if (inp) inp.focus();
   async function send(token) {
     save.disabled = true; save.textContent = 'Connecting…';
-    const r = await api({ action: 'save_mapbox', token });
+    // NB: the field MUST NOT be named `token` — api() injects the session token
+    // under `token`, and the body key would overwrite it → the server would see
+    // the Mapbox token as the session and reject the call as Unauthorized.
+    const r = await api({ action: 'save_mapbox', mapbox_token: token });
     if (r && r.ok) { QLShell.closeModal(); toast(token ? 'Mapbox connected' : 'Mapbox removed'); await loadSources(); if (token) { SRC = 'mapbox'; } paintSources(); }
     else { save.disabled = false; save.textContent = 'Connect'; if (errEl) errEl.textContent = (r && r.error) || 'Could not save — try again.'; }
   }
