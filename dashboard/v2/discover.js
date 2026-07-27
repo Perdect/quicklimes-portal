@@ -533,25 +533,41 @@ function paintTable() {
   const scored = rows.map(r => ({ r, f: fitOf(r) }))
     .sort((a, b) => (b.f.score - a.f.score) || String(a.r.name).localeCompare(String(b.r.name)));
 
-  host.innerHTML = '<div class="lc-grid">' + scored.map(({ r, f }) => {
+  /* SALES ROWS, NOT FREIGHT CARDS. These rows exist so a salesperson can CALL a
+     company — so the row leads with who they are and how to reach them. Distance
+     and freight were the old lead: a red "Freight too high" badge on every row
+     discouraged calling companies that should be called, and freight is a
+     question for the Freight tab, not for prospecting. */
+  host.innerHTML = '<div class="lc-list">' + scored.map(({ r, f }) => {
     const tier = f.tier || 'unknown';
-    const e = leadEconomics(r);
     const dup = r.status === 'duplicate' ? `<span class="lc-dup">${r.dupe_of === 'customer' ? 'Already your customer' : 'Already in pipeline'}</span>` : '';
-    const econ = e ? `<div class="lc-econ"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.3-7-11a7 7 0 0 1 14 0c0 4.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>${e.km} km · freight ₹${e.freight.toLocaleString('en-IN')}/t${e.tier ? ` <span class="pt ${e.tier.key}">${esc(e.tier.label)}</span>` : ''}</div>` : '';
-    const cts = (r.phone ? `<a class="lc-mini" href="tel:${esc(r.phone)}" title="Call" data-stop>${IC_PHONE}</a>` : '') +
-      (r.website ? `<a class="lc-mini" href="${esc(r.website)}" target="_blank" rel="noopener noreferrer" title="Website" data-stop>${IC_WEB}</a>` : '');
-    const acts = LA ? `<button class="lc-mini" data-assess="${r.id}" title="Assess">✦</button><button class="lc-mini" data-msg="${r.id}" title="Message">✉</button>` : '';
+    const rating = (r.rating != null && r.rating !== '') ? `<span class="lr-rate" title="Google rating">★ ${(+r.rating).toFixed(1)}</span>` : '';
+    const src = r.source ? `<span class="lr-src">${esc(r.source === 'osm' ? 'OpenStreetMap' : r.source === 'mapbox' ? 'Mapbox' : 'Google Places')}</span>` : '';
+    const addr = esc(r.address || [r.city, r.state].filter(Boolean).join(', ') || '');
+    const maps = (r.lat != null && r.lng != null)
+      ? 'https://www.google.com/maps/search/?api=1&query=' + r.lat + ',' + r.lng
+      : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((r.name || '') + ' ' + (r.address || r.city || ''));
+    const line = [];
+    if (r.phone)   line.push(`<a class="lr-c" href="tel:${esc(r.phone)}" data-stop title="Call">${IC_PHONE}${esc(r.phone)}</a>`);
+    if (r.website) line.push(`<a class="lr-c" href="${esc(r.website)}" target="_blank" rel="noopener noreferrer" data-stop title="Open website">${IC_WEB}${esc(String(r.website).replace(/^https?:\/\/(www\.)?/, '').slice(0, 46))}</a>`);
+    if (r.email)   line.push(`<a class="lr-c" href="mailto:${esc(r.email)}" data-stop title="Email">✉ ${esc(r.email)}</a>`);
+    const contacts = line.length ? line.join('') : '<span class="lr-nocontact">No phone or website on file</span>';
+    const wa = (r.phone && window.WACore && WACore.normalizePhone && WACore.normalizePhone(r.phone))
+      ? `<a class="lr-b wa" href="${esc(WACore.waLink(r.phone, ''))}" target="_blank" rel="noopener noreferrer" data-stop title="WhatsApp">WhatsApp</a>` : '';
+    const acts = (LA ? `<button class="lr-b" data-assess="${r.id}" title="Why they buy lime">Assess</button><button class="lr-b" data-msg="${r.id}" title="Draft outreach">Message</button>` : '')
+      + `<a class="lr-b" href="${esc(maps)}" target="_blank" rel="noopener noreferrer" data-stop title="Open in Google Maps">Maps</a>`;
     const promo = r.status === 'promoted'
       ? '<span class="lc-dup" style="color:#15803d;background:#dcfce7">In pipeline</span>'
-      : `<button class="lc-mini pri" data-promote="${r.id}" title="Promote to pipeline">+</button>`;
-    return `<div class="lc" data-open="${r.id}" tabindex="0" role="button">
-      <div class="lc-h">
-        <div class="lc-fit ${tier}">${tier === 'unknown' ? '—' : Math.round(f.score)}</div>
-        <div class="lc-id"><div class="lc-name">${esc(r.name)}</div><div class="lc-sub2">${esc(r.industry || '—')}${r.city ? ' · ' + esc(r.city) : ''}</div></div>
+      : `<button class="lr-b pri" data-promote="${r.id}" title="Promote to pipeline">Promote</button>`;
+    return `<div class="lr" data-open="${r.id}" tabindex="0" role="button">
+      <div class="lr-fit ${tier}" title="Buyer fit score">${tier === 'unknown' ? '—' : Math.round(f.score)}</div>
+      <div class="lr-main">
+        <div class="lr-top"><span class="lr-name">${esc(r.name)}</span>${rating}${dup}</div>
+        <div class="lr-meta">${esc(r.industry || '—')}${src}</div>
+        ${addr ? `<div class="lr-addr">${addr}</div>` : ''}
+        <div class="lr-cts">${contacts}</div>
       </div>
-      ${econ}${dup}
-      <div class="lc-foot"><div class="lc-cts">${cts || '<span style="font:500 11px var(--ql-font-sans);color:var(--ql-text-muted)">no contact yet</span>'}</div>
-        <div class="lc-btns">${acts}${promo}</div></div>
+      <div class="lr-acts">${wa}${acts}${promo}</div>
     </div>`;
   }).join('') + '</div>';
 
@@ -560,7 +576,7 @@ function paintTable() {
   host.querySelectorAll('[data-promote]').forEach(b => b.onclick = e => { e.stopPropagation(); promote(+b.dataset.promote); });
   host.querySelectorAll('[data-assess]').forEach(b => b.onclick = e => { e.stopPropagation(); openAssess(find(b.dataset.assess)); });
   host.querySelectorAll('[data-msg]').forEach(b => b.onclick = e => { e.stopPropagation(); openMessage(find(b.dataset.msg)); });
-  host.querySelectorAll('.lc[data-open]').forEach(c => {
+  host.querySelectorAll('.lr[data-open]').forEach(c => {
     c.onclick = () => openLeadDrawer(find(c.dataset.open));
     c.onkeydown = ev => { if (ev.key === 'Enter') openLeadDrawer(find(c.dataset.open)); };
   });

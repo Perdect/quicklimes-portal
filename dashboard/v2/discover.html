@@ -556,6 +556,48 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   @keyframes dc-spin { to { transform: rotate(360deg); } }
   #dcGo.is-busy { opacity: .92; cursor: progress; }
 
+  /* ── SALES ROWS (Apollo/ZoomInfo style) — contact-first, dense ────────────
+     Replaces the freight cards. Many leads per screen, and every way to reach
+     the company is one click away without opening anything. */
+  .lc-list { display: flex; flex-direction: column; }
+  .lr { display: flex; align-items: flex-start; gap: 14px; padding: 13px 16px; border-bottom: 1px solid var(--ql-divider);
+    cursor: pointer; transition: background .12s; }
+  .lr:hover { background: var(--ql-bg-subtle, #f8fafc); }
+  [data-theme="dark"] .lr:hover { background: rgba(255,255,255,.03); }
+  .lr:last-child { border-bottom: none; }
+  .lr-fit { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; margin-top: 2px;
+    font: 800 14px var(--ql-font-sans); font-variant-numeric: tabular-nums; border: 2.5px solid var(--ql-border); }
+  .lr-fit.high { color: #15803d; border-color: #16a34a; background: rgba(22,163,74,.06); }
+  .lr-fit.medium { color: #b45309; border-color: #f59e0b; background: rgba(245,158,11,.06); }
+  .lr-fit.low { color: #dc2626; border-color: #ef4444; background: rgba(239,68,68,.06); }
+  .lr-fit.unknown { color: var(--ql-text-muted); }
+  .lr-main { flex: 1; min-width: 0; }
+  .lr-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .lr-name { font: 700 15px var(--ql-font-sans); color: var(--ql-text); letter-spacing: -.01em; }
+  .lr-rate { font: 700 12px var(--ql-font-sans); color: #b45309; background: #fffbeb; border-radius: 999px; padding: 1px 8px; }
+  [data-theme="dark"] .lr-rate { background: rgba(245,158,11,.16); color: #fbbf24; }
+  .lr-meta { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 2px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .lr-src { font: 600 10.5px var(--ql-font-sans); color: var(--ql-text-muted); background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: 999px; padding: 1px 7px; }
+  /* FULL address, wrapped — never truncated to a fixed character count. */
+  .lr-addr { font: 400 12.5px/1.5 var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 3px; overflow-wrap: anywhere; }
+  .lr-cts { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
+  .lr-c { display: inline-flex; align-items: center; gap: 5px; font: 600 12.5px var(--ql-font-sans); color: var(--ql-brand-600, #2563eb); text-decoration: none; }
+  .lr-c:hover { text-decoration: underline; }
+  .lr-c svg { width: 13px; height: 13px; }
+  .lr-nocontact { font: 500 12px var(--ql-font-sans); color: var(--ql-text-muted); }
+  .lr-acts { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; flex: none; max-width: 340px; }
+  .lr-b { font: 600 12px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-card); border: 1px solid var(--ql-border);
+    border-radius: 8px; padding: 6px 11px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .lr-b:hover { border-color: var(--ql-brand-400, #60a5fa); color: var(--ql-brand-700, #1d4ed8); }
+  .lr-b.pri { background: var(--ql-brand-600, #2563eb); border-color: transparent; color: #fff; }
+  .lr-b.pri:hover { filter: brightness(1.07); color: #fff; }
+  .lr-b.wa { color: #15803d; border-color: #bbf7d0; background: #f0fdf4; }
+  [data-theme="dark"] .lr-b.wa { background: rgba(22,163,74,.14); border-color: rgba(22,163,74,.3); color: #4ade80; }
+  @media (max-width: 760px) {
+    .lr { flex-wrap: wrap; }
+    .lr-acts { max-width: none; width: 100%; justify-content: flex-start; margin-top: 8px; }
+  }
+
 </style>
 </head>
 <body class="ql-v2">
@@ -834,6 +876,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./freight-core.js?v=f1"></script>
 <script src="./freight.js?v=f2"></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d32"></script>
+<script src="./discover.js?v=d33"></script>
 </body>
 </html>

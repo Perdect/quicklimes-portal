@@ -145,7 +145,19 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
 
 /* ── Phase 3: lead cards + Company 360° drawer ── */
 {
-  ok(/lc-grid/.test(bare) && /class="lc"/.test(bare) && /data-open=/.test(bare), 'results render as clickable lead cards (not a table)');
+  /* v4: contact-first SALES ROWS, not freight cards. A lead row exists so a
+     salesperson can call the company — freight belongs in the Freight tab. */
+  ok(/lc-list/.test(bare) && /class="lr"/.test(bare) && /data-open=/.test(bare), 'results render as clickable sales rows');
+  /* `bare` already has comments stripped, so this checks CODE — a comment that
+     merely explains the removal must not fail the test. */
+  const pt = bare.slice(bare.indexOf('function paintTable'));
+  const ptBody = pt.slice(0, pt.indexOf('\n}\n'));
+  ok(!/leadEconomics/.test(ptBody), '  no freight/distance computed for the row');
+  ok(!/freight/i.test(ptBody), '  no freight text rendered on the row');
+  ok(/href="tel:/.test(bare) && /mailto:/.test(bare) && /google\.com\/maps\/search/.test(bare), '  phone dials, email composes, Maps opens navigation');
+  ok(/lr-addr/.test(bare) && /r\.address/.test(bare), '  the FULL Google address is shown, not a truncated city');
+  ok(/lr-rate/.test(bare) && /r\.rating/.test(bare), '  the Google rating is shown');
+  ok(/data-promote=/.test(bare) && /data-assess=/.test(bare) && /data-msg=/.test(bare), '  Promote / Assess / Message stay wired');
   ok(/function leadEconomics\(/.test(bare) && /r\.lat == null \|\| r\.lng == null/.test(bare), 'per-lead freight is computed ONLY when the lead has coordinates (never invented)');
   ok(/function openLeadDrawer\(/.test(bare) && /id="lcDrawer"/.test(html), 'a Company 360° side-drawer exists');
   const od = bare.slice(bare.indexOf('function openLeadDrawer'), bare.indexOf('function closeLeadDrawer') > 0 ? bare.length : bare.length);
