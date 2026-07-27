@@ -146,6 +146,10 @@ let PARSED_WHAT = '';
 const esc = (window.QLX && QLX.esc) || (s => (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])));
 
 let ROWS = [], COUNTS = { new: 0, duplicate: 0, promoted: 0, dismissed: 0 }, TAB = 'new', RECENT = [], ICP = [];
+/* LEVEL 2 — which rows are expanded inline. A click opens the detail UNDER the
+   row instead of throwing a drawer over the list, so the salesperson keeps
+   their place in the results while reading. View state only. */
+const EXPANDED = new Set();
 /* OpenStreetMap is the DEFAULT because it is free and needs no key — a user who
    never touches Google Cloud still has a working feature. Google is offered
    only when the server says a key exists, so we never present a dead option. */
@@ -519,6 +523,41 @@ const IC_PHONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const IC_WEB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
 const IC_WA = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.5A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-2.9.9.9-2.8-.2-.3A8 8 0 1 1 12 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5.1a6.5 6.5 0 0 1-3.2-2.8c-.2-.4.2-.4.6-1.2.1-.1 0-.3 0-.4l-.7-1.7c-.2-.5-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3A2.8 2.8 0 0 0 6 8.9c0 1.7 1.2 3.3 1.4 3.5s2.4 3.7 5.8 5c2.2.8 2.2.5 2.6.5s1.4-.6 1.6-1.1.2-1 .1-1.1z"/></svg>';
 
+/* ── LEVEL 2: the inline expansion ──────────────────────────────────────
+   What a salesperson wants BEFORE deciding to call, and nothing more. The
+   why-they-buy line comes from the tested lead-actions/lime-market rules — it
+   is never an invented claim. Freight, market analysis and timeline are Level 3
+   (the profile), deliberately not here. */
+function leadExpandHTML(r, f) {
+  const ind = (LA && LA.matchIndustry) ? LA.matchIndustry(r.industry, LM ? LM.INDUSTRIES : []) : null;
+  const kv = (k, v) => v ? `<div class="lx-kv"><span>${k}</span><b>${v}</b></div>` : '';
+  const miss = t => `<span class="lx-miss">${t}</span>`;
+  return `<div class="lx">
+    <div class="lx-cols">
+      <div class="lx-col">
+        <div class="lx-h">Company</div>
+        ${kv('Address', esc(r.address || [r.city, r.state].filter(Boolean).join(', ')) || miss('not on file'))}
+        ${kv('GST', r.gstin ? esc(r.gstin) : miss('not on file — needs a paid source'))}
+        ${kv('Source', esc(r.source === 'osm' ? 'OpenStreetMap' : r.source === 'mapbox' ? 'Mapbox' : 'Google Places'))}
+      </div>
+      <div class="lx-col">
+        <div class="lx-h">Why they buy lime</div>
+        ${ind ? `<div class="lx-why">${esc(ind.use)}</div>` : `<div class="lx-miss">No lime use-case matched for this industry.</div>`}
+        ${ind ? kv('Typical consumption', esc(ind.consumption || '')) : ''}
+        ${ind && ind.roles ? kv('Ask for', esc(ind.roles.slice(0, 2).join(' · '))) : ''}
+        ${kv('Fit score', (f && f.tier !== 'unknown') ? Math.round(f.score) + ' / 100' : miss('not scored yet'))}
+      </div>
+    </div>
+    <input class="lx-in" data-note="${r.id}" placeholder="Add a note…" value="${esc(noteFor(r.id))}">
+    <div class="lx-acts"><button class="lr-b" data-profile="${r.id}">Open full profile</button></div>
+  </div>`;
+}
+/* Notes stay on this device until the profile page owns them server-side. */
+function noteKey() { return 'ql_dc_notes_' + (Q && Q.activeCo != null ? Q.activeCo : '0'); }
+function allNotes() { try { return JSON.parse(localStorage.getItem(noteKey()) || '{}'); } catch (_) { return {}; } }
+function noteFor(id) { return allNotes()[String(id)] || ''; }
+function saveNote(id, v) { const n = allNotes(); n[String(id)] = v; try { localStorage.setItem(noteKey(), JSON.stringify(n)); } catch (_) {} }
+
 function paintTable() {
   const host = document.getElementById('dcBody'); if (!host) return;
   const rows = ROWS.filter(r => r.status === TAB);
@@ -568,7 +607,7 @@ function paintTable() {
         <div class="lr-cts">${contacts}</div>
       </div>
       <div class="lr-acts">${wa}${acts}${promo}</div>
-    </div>`;
+    </div>${EXPANDED.has(String(r.id)) ? leadExpandHTML(r, f) : ''}`;
   }).join('') + '</div>';
 
   const find = id => ROWS.find(x => x.id === +id);
@@ -576,10 +615,13 @@ function paintTable() {
   host.querySelectorAll('[data-promote]').forEach(b => b.onclick = e => { e.stopPropagation(); promote(+b.dataset.promote); });
   host.querySelectorAll('[data-assess]').forEach(b => b.onclick = e => { e.stopPropagation(); openAssess(find(b.dataset.assess)); });
   host.querySelectorAll('[data-msg]').forEach(b => b.onclick = e => { e.stopPropagation(); openMessage(find(b.dataset.msg)); });
+  const toggle = id => { const k = String(id); EXPANDED.has(k) ? EXPANDED.delete(k) : EXPANDED.add(k); paintTable(); };
   host.querySelectorAll('.lr[data-open]').forEach(c => {
-    c.onclick = () => openLeadDrawer(find(c.dataset.open));
-    c.onkeydown = ev => { if (ev.key === 'Enter') openLeadDrawer(find(c.dataset.open)); };
+    c.onclick = e => { if (e.target.closest('a,button,input')) return; toggle(c.dataset.open); };
+    c.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); toggle(c.dataset.open); } };
   });
+  host.querySelectorAll('[data-profile]').forEach(b => b.onclick = e => { e.stopPropagation(); openLeadDrawer(find(b.dataset.profile)); });
+  host.querySelectorAll('[data-note]').forEach(i => { i.onclick = e => e.stopPropagation(); i.onchange = () => saveNote(i.dataset.note, i.value); });
 }
 
 /* Company 360° — a slide-in drawer with the REAL profile: fit + why, per-lead

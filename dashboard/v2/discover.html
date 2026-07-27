@@ -590,6 +590,23 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     .lr-acts { max-width: none; width: 100%; justify-content: flex-start; margin-top: 8px; }
   }
 
+  /* ── LEVEL 2: inline expansion under a lead row ── */
+  .lx { padding: 4px 16px 16px 70px; border-bottom: 1px solid var(--ql-divider); background: var(--ql-bg-subtle, #f8fafc); }
+  [data-theme="dark"] .lx { background: rgba(255,255,255,.02); }
+  .lx-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  @media (max-width: 760px) { .lx { padding-left: 16px; } .lx-cols { grid-template-columns: 1fr; gap: 14px; } }
+  .lx-h { font: 700 10.5px var(--ql-font-sans); letter-spacing: .07em; text-transform: uppercase; color: var(--ql-text-muted); margin-bottom: 7px; }
+  .lx-kv { display: flex; gap: 8px; font: 500 12.5px/1.6 var(--ql-font-sans); color: var(--ql-text-secondary); }
+  .lx-kv span { flex: none; min-width: 118px; }
+  .lx-kv b { color: var(--ql-text); font-weight: 600; overflow-wrap: anywhere; }
+  .lx-why { font: 400 12.5px/1.6 var(--ql-font-sans); color: var(--ql-text); margin-bottom: 6px; }
+  .lx-miss { color: var(--ql-text-muted); font-weight: 500; }
+  .lx-in { width: 100%; margin-top: 12px; font: 500 13px var(--ql-font-sans); color: var(--ql-text);
+    background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 9px; padding: 9px 12px; box-sizing: border-box; }
+  .lx-in:focus { outline: none; border-color: var(--ql-brand-500, #3b82f6); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+  .lx-acts { margin-top: 10px; }
+  .lr.is-open { background: var(--ql-bg-subtle, #f8fafc); }
+
 </style>
 </head>
 <body class="ql-v2">
@@ -853,6 +870,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./freight-core.js?v=f1"></script>
 <script src="./freight.js?v=f2"></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d35"></script>
+<script src="./discover.js?v=d36"></script>
 </body>
 </html>
