@@ -100,7 +100,7 @@ function ql_known_keys($db, $plantId, $coId) {
    against what we already know, dedupe, store, and return the rows. Both the
    'search' (Google) and 'ingest' (browser-fetched OSM) actions end here, so the
    two can never disagree about how a candidate is judged or saved. */
-function ql_discover_store($db, $plantId, $coId, $src, $places, $ind) {
+function ql_discover_store($db, $plantId, $coId, $src, $places, $ind, $q = '') {
   list($crmKeys, $partyKeys) = ql_known_keys($db, $plantId, $coId);
   $seenP = []; $seenN = [];
   try {
@@ -116,19 +116,29 @@ function ql_discover_store($db, $plantId, $coId, $src, $places, $ind) {
   $ins = $db->prepare('INSERT INTO discovered
       (plant_id, company_id, source, place_id, name, name_key, industry, address, city, phone, website, rating, lat, lng, status, dupe_of, query)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-  $added = 0; $dupes = 0; $seenN2 = 0; $out = [];
+  $added = 0; $dupes = 0; $seenN2 = 0; $failed = 0; $firstErr = ''; $out = [];
   foreach ($rows as $c) {
     if ($c['status'] === 'seen') { $seenN2++; continue; }
     try {
+      /* 17 columns, 17 placeholders, 17 VALUES. The `query` column had a
+         placeholder but NO value, so every execute() threw "Invalid parameter
+         number" — and the catch below counted each failure as "seen before".
+         Result: nothing was ever saved, while the UI reported dozens of
+         already-known companies. A save that fails must never be reported as a
+         save that was skipped. */
       $ins->execute([$plantId, $coId, $src, $c['place_id'] ?: null, $c['name'], $c['name_key'], $ind,
         $c['address'] ?: null, $c['city'] ?: null, $c['phone'] ?: null, $c['website'] ?: null,
-        $c['rating'], $c['lat'], $c['lng'], $c['status'], $c['dupe_of']]);
-    } catch (Throwable $e) { $seenN2++; continue; }
+        $c['rating'], $c['lat'], $c['lng'], $c['status'], $c['dupe_of'], $q]);
+    } catch (Throwable $e) {
+      $failed++; if ($firstErr === '') $firstErr = $e->getMessage();
+      continue;
+    }
     if ($c['status'] === 'duplicate') $dupes++; else $added++;
     $c['id'] = (int)$db->lastInsertId();
     $out[] = $c;
   }
-  return ['added' => $added, 'dupes' => $dupes, 'seen' => $seenN2, 'rows' => $out];
+  return ['added' => $added, 'dupes' => $dupes, 'seen' => $seenN2, 'rows' => $out,
+          'failed' => $failed, 'save_error' => $firstErr];
 }
 
 if ($action === 'search') {
@@ -163,7 +173,13 @@ if ($action === 'search') {
     ql_out(['ok' => false, 'source' => $src, 'error' => $e]);
   }
 
-  $s = ql_discover_store($db, $plantId, $coId, $src, $r['places'], $ind);
+  $s = ql_discover_store($db, $plantId, $coId, $src, $r['places'], $ind, $what);
+  /* A SAVE THAT FAILED IS NOT A SUCCESS. Reporting failures here is what turns a
+     silent data-loss bug into something the user can see immediately. */
+  if (!empty($s['failed'])) {
+    ql_out(['ok' => false, 'source' => $src,
+      'error' => 'Found ' . $s['failed'] . ' businesses but could not save them: ' . $s['save_error']]);
+  }
   ql_out(['ok' => true, 'source' => $src, 'added' => $s['added'], 'dupes' => $s['dupes'], 'seen' => $s['seen'],
     'radius_fell_back' => !empty($r['radius_fell_back']), 'rows' => $s['rows']]);
 }
@@ -181,7 +197,11 @@ if ($action === 'ingest') {
   if (!is_array($elements)) ql_out(['ok' => false, 'error' => 'No results to ingest']);
   if (count($elements) > 200) $elements = array_slice($elements, 0, 200);   // sanity cap
   $places = ql_osm_parse(['elements' => $elements], $city);
-  $s = ql_discover_store($db, $plantId, $coId, 'osm', $places, $ind);
+  $s = ql_discover_store($db, $plantId, $coId, 'osm', $places, $ind, $city);
+  if (!empty($s['failed'])) {
+    ql_out(['ok' => false, 'source' => 'osm',
+      'error' => 'Found ' . $s['failed'] . ' businesses but could not save them: ' . $s['save_error']]);
+  }
   ql_out(['ok' => true, 'source' => 'osm', 'added' => $s['added'], 'dupes' => $s['dupes'], 'seen' => $s['seen'], 'rows' => $s['rows']]);
 }
 
