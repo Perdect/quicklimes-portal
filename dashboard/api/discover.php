@@ -122,7 +122,7 @@ if ($action === 'search') {
      around-search). Google/Mapbox scope by place/proximity themselves, so the
      radius is simply not passed there. */
   if ($src === 'osm')         $r = ql_osm_search($what, $city, ['max' => 40, 'radiusKm' => $radiusKm]);
-  elseif ($src === 'mapbox')  $r = ql_mapbox_search($what, $city, ['max' => 25, 'token' => ql_effective_mapbox_token($db, $plantId)]);
+  elseif ($src === 'mapbox')  $r = ql_mapbox_search($what, $city, ['max' => 10, 'token' => ql_effective_mapbox_token($db, $plantId)]);
   else                        $r = ql_places_search($what, $city, ['max' => 20]);
 
   if (!$r['ok']) {

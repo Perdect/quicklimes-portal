@@ -1108,7 +1108,9 @@ function ql_mapbox_search($what, $city, $opts = [], $http = null) {
   if ($token === '') return ['ok' => false, 'places' => [], 'error' => 'not_configured'];
   $what = trim((string)$what); $city = trim((string)$city);
   if ($what === '') return ['ok' => false, 'places' => [], 'error' => 'Say what to look for'];
-  $max = max(1, min(25, (int)($opts['max'] ?? 25)));
+  /* Mapbox Search Box /forward caps limit at 10 — sending 25 returns a hard
+     HTTP 400 ("Limit must be in range [1,10]"), i.e. every search fails. */
+  $max = max(1, min(10, (int)($opts['max'] ?? 10)));
   $get = $http ?: function ($url) {
     $ch = curl_init($url);
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15, CURLOPT_CONNECTTIMEOUT => 6]);
@@ -1131,7 +1133,13 @@ function ql_mapbox_search($what, $city, $opts = [], $http = null) {
   if (!empty($r['err'])) return ['ok' => false, 'places' => [], 'error' => 'Network error contacting Mapbox'];
   $j = json_decode((string)$r['body'], true);
   if ((int)$r['code'] !== 200) {
-    $msg = (string)($j['message'] ?? ($j['error'] ?? ('HTTP ' . $r['code'])));
+    /* Mapbox nests the reason: {"message":{"status_code":400,"error":"Limit must
+       be in range [1,10]"}}. Casting that to a string prints the literal word
+       "Array" — which is what the user saw, and it says nothing. Dig out the
+       human sentence, whatever shape it arrives in. */
+    $m = $j['message'] ?? ($j['error'] ?? null);
+    if (is_array($m)) $m = $m['error'] ?? ($m['message'] ?? json_encode($m));
+    $msg = trim((string)($m ?? '')) !== '' ? (string)$m : ('HTTP ' . $r['code']);
     return ['ok' => false, 'places' => [], 'error' => 'Mapbox: ' . $msg];
   }
   return ['ok' => true, 'places' => ql_mapbox_parse($j, $city), 'error' => ''];
