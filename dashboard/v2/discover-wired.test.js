@@ -277,6 +277,17 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/searchbox\/v1\/forward/.test(db) && /country=in/.test(db), '  calls the Mapbox Search Box API, scoped to India');
 }
 
+/* ── Google self-serve connect (same pattern as Mapbox) ── */
+{
+  ok(/function connectGoogle\(/.test(bare) && /'save_google'/.test(bare), 'discover.js has the self-serve Google connect flow');
+  ok(/save_google', google_key:/.test(bare) && !/save_google', token/.test(bare), '  the key rides `google_key`, never `token` (which is the session)');
+  const dp2 = R('../api/discover.php');
+  ok(/action === 'save_google'/.test(dp2) && /AIza/.test(dp2), '  discover.php validates + stores an AIza key');
+  ok(/ql_effective_google_key\(/.test(dp2), '  search + sources use config OR the DB-stored key');
+  /* Saving one provider must never wipe the other out of the shared row. */
+  ok(/ql_plant_google_key\(\$db, \$plantId\)[\s\S]{0,200}mapbox_token/.test(dp2) || /'google_key' => ql_plant_google_key/.test(dp2), '  saving Mapbox preserves the Google key (shared row)');
+}
+
 /* ── the key never reaches the browser ── */
 {
   ok(!/GOOGLE_PLACES_KEY/.test(js), 'discover.js never names the API key');

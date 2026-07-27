@@ -237,6 +237,28 @@ const SUGGEST = [
 
 /* Self-serve Mapbox connect — the owner pastes a free Mapbox public token; it is
    stored server-side against the account (no config-file editing needed). */
+function connectGoogle() {
+  QLShell.panel({ title: 'Connect Google Places', body:
+    '<div class="mi-sub" style="margin-bottom:10px">Paste your Google Maps Platform API key (starts with <b>AIza</b>) with <b>Places API (New)</b> enabled. Stored securely on your account — never shown in the browser. Set a budget cap in Google Cloud Billing; Places text search is billed per request.</div>'
+    + '<input id="ggKey" class="os-input" placeholder="AIza..." autocomplete="off" spellcheck="false" style="width:100%;margin-bottom:10px">'
+    + '<div id="ggErr" style="color:var(--ql-danger-600,#dc2626);font:600 12px var(--ql-font-sans);margin-bottom:10px;min-height:14px"></div>'
+    + '<div style="display:flex;gap:8px"><button class="ql-btn ql-btn-primary" id="ggSave" type="button">Connect</button><button class="ql-btn ql-btn-secondary" id="ggClear" type="button">Remove</button></div>' });
+  const inp = document.getElementById('ggKey'), errEl = document.getElementById('ggErr'), save = document.getElementById('ggSave');
+  if (inp) inp.focus();
+  async function send(key) {
+    save.disabled = true; save.textContent = 'Connecting…';
+    // field is google_key — NOT `token`, which carries the session (see save_mapbox)
+    const r = await api({ action: 'save_google', google_key: key });
+    if (r && r.ok) { QLShell.closeModal(); toast(key ? 'Google Places connected' : 'Google removed'); await loadSources(); if (key) { SRC = 'google'; SRC_PINNED = true; try { localStorage.setItem('ql_dc_src', SRC); } catch (_) {} } paintSources(); }
+    else { save.disabled = false; save.textContent = 'Connect'; if (errEl) errEl.textContent = (r && r.error) || 'Could not save — try again.'; }
+  }
+  if (save) save.addEventListener('click', () => {
+    const k = (inp.value || '').trim();
+    if (!/^AIza/.test(k)) { if (errEl) errEl.textContent = 'That should start with "AIza" — copy the API key from Google Cloud credentials.'; return; }
+    send(k);
+  });
+  const clr = document.getElementById('ggClear'); if (clr) clr.addEventListener('click', () => send(''));
+}
 function connectMapbox() {
   QLShell.panel({ title: 'Connect Mapbox', body:
     '<div class="mi-sub" style="margin-bottom:10px">Paste your free Mapbox <b>public</b> token (starts with <b>pk.</b>). Get one free at <b>account.mapbox.com/access-tokens</b>. Stored securely on your account — never shown in the browser.</div>'
@@ -266,19 +288,19 @@ function paintSources() {
   const S = [
     ['osm', 'OpenStreetMap', true, 'free'],
     ['mapbox', 'Mapbox', SOURCES.mapbox, SOURCES.mapbox ? 'free tier' : 'connect'],
-    ['google', 'Google Maps', SOURCES.google, '']
+    ['google', 'Google Maps', SOURCES.google, SOURCES.google ? 'richest' : 'connect']
   ];
   el.innerHTML = S.map(([k, label, avail, tag]) => {
     // Mapbox is self-serve: if not connected, the pill opens a paste-token flow
     // (no dead end). Google still needs a backend key the owner sets.
-    const connectable = k === 'mapbox' && !avail;
+    const connectable = (k === 'mapbox' || k === 'google') && !avail;
     const disabled = !avail && !connectable;
     return `<button class="dc-s${SRC === k ? ' on' : ''}" data-s="${k}"${connectable ? ' data-connect="1"' : ''}${disabled ? ' disabled title="Not connected — the owner adds a Google key in the backend config"' : ''}>
       <span class="dot${avail ? '' : ' off'}"></span>${label}${tag ? ' <span class="free">' + tag + '</span>' : ''}
     </button>`;
   }).join('');
   el.querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
-    if (b.dataset.connect) { connectMapbox(); return; }
+    if (b.dataset.connect) { (b.dataset.s === 'google' ? connectGoogle : connectMapbox)(); return; }
     if (b.disabled) return;
     SRC = b.dataset.s; SRC_PINNED = true;
     try { localStorage.setItem('ql_dc_src', SRC); } catch (_) {}

@@ -1423,6 +1423,10 @@ function ql_osm_search($what, $city, $opts = [], $http = null) {
 
 /* The one door the app uses: reads the key from config, then delegates. */
 function ql_places_search($what, $city, $opts = [], $http = null) {
-  return ql_places_request(ql_places_key(), $what, $city, $opts, $http);
+  /* The key may be passed in (per-plant, saved from inside the app) or come from
+     config.php. Same precedence rule as Mapbox: an explicit key wins. */
+  $key = trim((string)($opts['key'] ?? ''));
+  if ($key === '') $key = ql_places_key();
+  return ql_places_request($key, $what, $city, $opts, $http);
 }
 

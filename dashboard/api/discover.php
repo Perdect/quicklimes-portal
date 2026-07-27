@@ -40,9 +40,35 @@ function ql_plant_mapbox_token($db, $plantId) {
   $d = json_decode((string)($row['data'] ?? '{}'), true);
   return trim((string)($d['mapbox_token'] ?? ''));
 }
+function ql_plant_google_key($db, $plantId) {
+  $q = $db->prepare('SELECT data FROM app_data WHERE plant_id = ? AND data_id = ? LIMIT 1');
+  $q->execute([$plantId, 'ql_integrations']);
+  $row = $q->fetch(PDO::FETCH_ASSOC);
+  if (!$row) return '';
+  $d = json_decode((string)($row['data'] ?? '{}'), true);
+  return trim((string)($d['google_key'] ?? ''));
+}
+function ql_effective_google_key($db, $plantId) {
+  $g = ql_places_key(); if ($g !== '') return $g;      // global config.php wins
+  return ql_plant_google_key($db, $plantId);
+}
 function ql_effective_mapbox_token($db, $plantId) {
   $g = ql_mapbox_key(); if ($g !== '') return $g;      // global config.php wins
   return ql_plant_mapbox_token($db, $plantId);
+}
+
+/* Owner pastes / clears their Google Places key from the app. Stored beside the
+   Mapbox token in the SAME row, so saving one must never wipe the other. */
+if ($action === 'save_google') {
+  $key = trim((string)($b['google_key'] ?? ''));   // never 'token' — that is the session
+  if ($key !== '' && !preg_match('/^AIza[0-9A-Za-z_\-]{20,}$/', $key)) {
+    ql_out(['ok' => false, 'error' => 'That does not look like a Google API key — it should start with "AIza".']);
+  }
+  $cur = ['mapbox_token' => ql_plant_mapbox_token($db, $plantId)];
+  $cur['google_key'] = $key;
+  $db->prepare('INSERT INTO app_data (plant_id, data_id, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE data = VALUES(data)')
+     ->execute([$plantId, 'ql_integrations', json_encode($cur)]);
+  ql_out(['ok' => true, 'google' => $key !== '']);
 }
 
 /* Owner pastes / clears their Mapbox token from the app. */
@@ -52,8 +78,9 @@ if ($action === 'save_mapbox') {
   if ($token !== '' && !preg_match('/^pk\.[A-Za-z0-9._-]{20,}$/', $token)) {
     ql_out(['ok' => false, 'error' => 'That does not look like a Mapbox public token — it should start with "pk."']);
   }
+  $keep = ['google_key' => ql_plant_google_key($db, $plantId), 'mapbox_token' => $token];
   $db->prepare('INSERT INTO app_data (plant_id, data_id, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE data = VALUES(data)')
-     ->execute([$plantId, 'ql_integrations', json_encode(['mapbox_token' => $token])]);
+     ->execute([$plantId, 'ql_integrations', json_encode($keep)]);
   ql_out(['ok' => true, 'mapbox' => $token !== '']);
 }
 
@@ -116,14 +143,14 @@ if ($action === 'search') {
      present. Whichever is used, the rows and the failure contract are identical
      so nothing downstream has to care. */
   $src = (string)($b['source'] ?? '');
-  if (!in_array($src, ['google', 'osm', 'mapbox'], true)) $src = ql_has_places_key() ? 'google' : (ql_has_mapbox_key() ? 'mapbox' : 'osm');
+  if (!in_array($src, ['google', 'osm', 'mapbox'], true)) $src = ql_effective_google_key($db, $plantId) !== '' ? 'google' : (ql_effective_mapbox_token($db, $plantId) !== '' ? 'mapbox' : 'osm');
 
   /* Radius is an OSM-only refinement (it needs a geocoded centre + Overpass
      around-search). Google/Mapbox scope by place/proximity themselves, so the
      radius is simply not passed there. */
   if ($src === 'osm')         $r = ql_osm_search($what, $city, ['max' => 40, 'radiusKm' => $radiusKm]);
   elseif ($src === 'mapbox')  $r = ql_mapbox_search($what, $city, ['max' => 10, 'token' => ql_effective_mapbox_token($db, $plantId)]);
-  else                        $r = ql_places_search($what, $city, ['max' => 20]);
+  else                        $r = ql_places_search($what, $city, ['max' => 20, 'key' => ql_effective_google_key($db, $plantId)]);
 
   if (!$r['ok']) {
     $e = $r['error'];
@@ -161,7 +188,9 @@ if ($action === 'ingest') {
 if ($action === 'sources') {
   // OSM is always available; Google only with a key. The page asks, rather than
   // guessing, so it never offers a source that cannot work.
-  ql_out(['ok' => true, 'osm' => true, 'google' => ql_has_places_key(), 'mapbox' => ql_effective_mapbox_token($db, $plantId) !== '']);
+  ql_out(['ok' => true, 'osm' => true,
+    'google' => ql_effective_google_key($db, $plantId) !== '',
+    'mapbox' => ql_effective_mapbox_token($db, $plantId) !== '']);
 }
 
 /* ASSESS / MESSAGE — the live-Claude path for the lead-working actions. The
