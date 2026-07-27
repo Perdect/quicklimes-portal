@@ -408,6 +408,14 @@ function ql_ensure_tables() {
     UNIQUE KEY uq_place (plant_id, company_id, place_id),
     KEY idx_namekey (plant_id, company_id, name_key)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  /* CREATE TABLE IF NOT EXISTS leaves an EXISTING table untouched, so a table
+     created before these columns existed never gains them — and the list query,
+     which ORDERs BY fit_score, then throws while the dedupe query (which does
+     not touch it) keeps working. Symptom: "30 seen before" but zero rows in
+     every tab. Add the columns if they are missing; ignore duplicate errors. */
+  foreach (['fit_score INT DEFAULT NULL', 'fit_tier VARCHAR(12) DEFAULT NULL'] as $col) {
+    try { $db->exec("ALTER TABLE discovered ADD COLUMN $col"); } catch (Throwable $e) { /* already there */ }
+  }
 
   $db->exec("CREATE TABLE IF NOT EXISTS crm_companies (
     id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,

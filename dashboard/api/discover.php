@@ -269,9 +269,19 @@ if ($action === 'assess' || $action === 'message') {
 }
 
 if ($action === 'list') {
-  $st = $db->prepare('SELECT * FROM discovered WHERE plant_id = ? AND company_id = ? ORDER BY (fit_score IS NULL), fit_score DESC, id DESC LIMIT 500');
-  $st->execute([$plantId, $coId]);
-  $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+  /* NEVER let a sort column blank the whole list. If `discovered` predates
+     fit_score the ORDER BY throws, the user sees zero rows in every tab while
+     the dedupe still reports "30 seen before", and the app looks broken while
+     holding their data. Try the ranked order, fall back to plain recency. */
+  try {
+    $st = $db->prepare('SELECT * FROM discovered WHERE plant_id = ? AND company_id = ? ORDER BY (fit_score IS NULL), fit_score DESC, id DESC LIMIT 500');
+    $st->execute([$plantId, $coId]);
+    $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+  } catch (Throwable $e) {
+    $st = $db->prepare('SELECT * FROM discovered WHERE plant_id = ? AND company_id = ? ORDER BY id DESC LIMIT 500');
+    $st->execute([$plantId, $coId]);
+    $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+  }
   $counts = ['new' => 0, 'duplicate' => 0, 'promoted' => 0, 'dismissed' => 0];
   foreach ($rows as $r) { $s = $r['status']; if (isset($counts[$s])) $counts[$s]++; }
   ql_out(['ok' => true, 'rows' => $rows, 'counts' => $counts]);
