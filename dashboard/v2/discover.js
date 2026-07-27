@@ -150,6 +150,43 @@ let ROWS = [], COUNTS = { new: 0, duplicate: 0, promoted: 0, dismissed: 0 }, TAB
    row instead of throwing a drawer over the list, so the salesperson keeps
    their place in the results while reading. View state only. */
 const EXPANDED = new Set();
+/* LEVEL-1 FILTERS. India hierarchy: State -> City. There is no state column on
+   a discovered row, so state is DERIVED from the full Google address against
+   the known state list — real data, not a guess. District/PIN are deliberately
+   absent: nothing in the row carries them, and a filter that silently matches
+   nothing is worse than no filter. */
+const FLT = { state: '', city: '', phone: false, email: false, web: false, minRating: 0 };
+function rowState(r) {
+  const hay = ((r.address || '') + ' ' + (r.state || '')).toLowerCase();
+  const list = (LM && LM.STATES) ? LM.STATES : [];
+  for (let i = 0; i < list.length; i++) if (hay.indexOf(list[i].name.toLowerCase()) >= 0) return list[i].name;
+  return '';
+}
+function passesFilters(r) {
+  if (FLT.state && rowState(r) !== FLT.state) return false;
+  if (FLT.city && String(r.city || '').toLowerCase() !== FLT.city.toLowerCase()) return false;
+  if (FLT.phone && !r.phone) return false;
+  if (FLT.email && !r.email) return false;
+  if (FLT.web && !r.website) return false;
+  if (FLT.minRating && !(+r.rating >= FLT.minRating)) return false;
+  return true;
+}
+function filterBarHTML(all, shown) {
+  const states = [...new Set(all.map(rowState).filter(Boolean))].sort();
+  const cities = [...new Set(all.filter(r => !FLT.state || rowState(r) === FLT.state)
+    .map(r => r.city).filter(Boolean))].sort();
+  const opt = (v, cur) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(v)}</option>`;
+  const chip = (k, label) => `<button class="lf-chip${FLT[k] ? ' on' : ''}" data-flt="${k}">${label}</button>`;
+  const active = FLT.state || FLT.city || FLT.phone || FLT.email || FLT.web || FLT.minRating;
+  return `<div class="lf">
+    <select class="lf-sel" data-flt-state><option value="">All states</option>${states.map(v => opt(v, FLT.state)).join('')}</select>
+    <select class="lf-sel" data-flt-city><option value="">All cities</option>${cities.map(v => opt(v, FLT.city)).join('')}</select>
+    ${chip('phone', 'Has phone')}${chip('email', 'Has email')}${chip('web', 'Has website')}
+    <select class="lf-sel" data-flt-rating><option value="0">Any rating</option>${[4.5, 4, 3.5, 3].map(v => `<option value="${v}"${+FLT.minRating === v ? ' selected' : ''}>★ ${v}+</option>`).join('')}</select>
+    <span class="lf-count">${shown} of ${all.length}</span>
+    ${active ? '<button class="lf-clear" data-flt-clear>Clear</button>' : ''}
+  </div>`;
+}
 /* OpenStreetMap is the DEFAULT because it is free and needs no key — a user who
    never touches Google Cloud still has a working feature. Google is offered
    only when the server says a key exists, so we never present a dead option. */
@@ -560,9 +597,10 @@ function saveNote(id, v) { const n = allNotes(); n[String(id)] = v; try { localS
 
 function paintTable() {
   const host = document.getElementById('dcBody'); if (!host) return;
-  const rows = ROWS.filter(r => r.status === TAB);
+  const inTab = ROWS.filter(r => r.status === TAB);
+  const rows = inTab.filter(passesFilters);
   if (!rows.length) {
-    host.innerHTML = `<div class="dc-empty">
+    host.innerHTML = (inTab.length ? filterBarHTML(inTab, 0) : '') + `<div class="dc-empty">
       <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <div><b>${TAB === 'new' ? 'Nothing found yet' : 'Nothing here'}</b></div>
       <div style="font-size:12.5px">${TAB === 'new' ? 'Search a trade and a city above — every result is checked against your customers and pipeline first.' : ''}</div>
@@ -577,7 +615,7 @@ function paintTable() {
      and freight were the old lead: a red "Freight too high" badge on every row
      discouraged calling companies that should be called, and freight is a
      question for the Freight tab, not for prospecting. */
-  host.innerHTML = '<div class="lc-list">' + scored.map(({ r, f }) => {
+  host.innerHTML = filterBarHTML(inTab, rows.length) + '<div class="lc-list">' + scored.map(({ r, f }) => {
     const tier = f.tier || 'unknown';
     const dup = r.status === 'duplicate' ? `<span class="lc-dup">${r.dupe_of === 'customer' ? 'Already your customer' : 'Already in pipeline'}</span>` : '';
     const rating = (r.rating != null && r.rating !== '') ? `<span class="lr-rate" title="Google rating">★ ${(+r.rating).toFixed(1)}</span>` : '';
@@ -610,6 +648,12 @@ function paintTable() {
     </div>${EXPANDED.has(String(r.id)) ? leadExpandHTML(r, f) : ''}`;
   }).join('') + '</div>';
 
+  const q = sel => host.querySelector(sel);
+  const st = q('[data-flt-state]'); if (st) st.onchange = () => { FLT.state = st.value; FLT.city = ''; paintTable(); };
+  const ct = q('[data-flt-city]');  if (ct) ct.onchange = () => { FLT.city = ct.value; paintTable(); };
+  const rt = q('[data-flt-rating]'); if (rt) rt.onchange = () => { FLT.minRating = +rt.value || 0; paintTable(); };
+  host.querySelectorAll('[data-flt]').forEach(b => b.onclick = () => { FLT[b.dataset.flt] = !FLT[b.dataset.flt]; paintTable(); });
+  const cl = q('[data-flt-clear]'); if (cl) cl.onclick = () => { FLT.state = FLT.city = ''; FLT.phone = FLT.email = FLT.web = false; FLT.minRating = 0; paintTable(); };
   const find = id => ROWS.find(x => x.id === +id);
   host.querySelectorAll('[data-stop]').forEach(a => a.addEventListener('click', e => e.stopPropagation()));
   host.querySelectorAll('[data-promote]').forEach(b => b.onclick = e => { e.stopPropagation(); promote(+b.dataset.promote); });

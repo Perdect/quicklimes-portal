@@ -607,6 +607,20 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .lx-acts { margin-top: 10px; }
   .lr.is-open { background: var(--ql-bg-subtle, #f8fafc); }
 
+  /* ── LEVEL-1 sticky filter bar (India: State -> City + contact quality) ── */
+  .lf { position: sticky; top: 0; z-index: 8; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 11px 16px; background: var(--ql-card); border-bottom: 1px solid var(--ql-border); }
+  .lf-sel { font: 600 12.5px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-bg-elevated);
+    border: 1px solid var(--ql-border); border-radius: 9px; padding: 7px 10px; cursor: pointer; }
+  .lf-sel:focus { outline: none; border-color: var(--ql-brand-500, #3b82f6); }
+  .lf-chip { font: 600 12px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-bg-elevated);
+    border: 1px solid var(--ql-border); border-radius: 999px; padding: 7px 13px; cursor: pointer; }
+  .lf-chip:hover { border-color: var(--ql-brand-400, #60a5fa); }
+  .lf-chip.on { background: var(--ql-brand-600, #2563eb); border-color: transparent; color: #fff; }
+  .lf-count { margin-left: auto; font: 600 12px var(--ql-font-sans); color: var(--ql-text-muted); }
+  .lf-clear { font: 600 12px var(--ql-font-sans); color: var(--ql-brand-600, #2563eb); background: none; border: 0; cursor: pointer; padding: 6px 4px; }
+  @media (max-width: 760px) { .lf-count { margin-left: 0; } }
+
 </style>
 </head>
 <body class="ql-v2">
@@ -870,6 +884,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./freight-core.js?v=f1"></script>
 <script src="./freight.js?v=f2"></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d36"></script>
+<script src="./discover.js?v=d37"></script>
 </body>
 </html>
