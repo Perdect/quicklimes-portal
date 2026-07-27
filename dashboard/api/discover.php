@@ -284,7 +284,21 @@ if ($action === 'list') {
   }
   $counts = ['new' => 0, 'duplicate' => 0, 'promoted' => 0, 'dismissed' => 0];
   foreach ($rows as $r) { $s = $r['status']; if (isset($counts[$s])) $counts[$s]++; }
-  ql_out(['ok' => true, 'rows' => $rows, 'counts' => $counts]);
+  /* DIAGNOSTIC: if this plant HAS discovered rows but none under the company_id
+     the page is asking for, the list looks empty while dedupe says "seen before".
+     Reporting both numbers turns that silent mismatch into something visible. */
+  $diag = ['scope' => 0, 'plant' => 0, 'company_id' => (string)$coId, 'other_ids' => []];
+  try {
+    $d1 = $db->prepare('SELECT COUNT(*) FROM discovered WHERE plant_id = ?');
+    $d1->execute([$plantId]); $diag['plant'] = (int)$d1->fetchColumn();
+    $diag['scope'] = count($rows);
+    if ($diag['plant'] > 0 && $diag['scope'] === 0) {
+      $d2 = $db->prepare('SELECT company_id, COUNT(*) c FROM discovered WHERE plant_id = ? GROUP BY company_id LIMIT 5');
+      $d2->execute([$plantId]);
+      $diag['other_ids'] = $d2->fetchAll(PDO::FETCH_ASSOC);
+    }
+  } catch (Throwable $e) { $diag['err'] = $e->getMessage(); }
+  ql_out(['ok' => true, 'rows' => $rows, 'counts' => $counts, 'diag' => $diag]);
 }
 
 if ($action === 'promote') {

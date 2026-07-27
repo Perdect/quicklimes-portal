@@ -936,6 +936,16 @@ async function load() {
     return;
   }
   ROWS = r.rows || []; COUNTS = r.counts || COUNTS;
+  /* SHOW THE MISMATCH instead of an empty page. If the plant HAS discovered rows
+     but none under the company this page is asking for, the list is empty for a
+     reason the user can act on — say it, with the numbers. */
+  const dg = r.diag;
+  if (dg && dg.plant > 0 && dg.scope === 0) {
+    const ids = (dg.other_ids || []).map(o => (o.company_id === '' ? '(blank)' : o.company_id) + ' → ' + o.c + ' rows').join(' · ');
+    notice('You have <b>' + dg.plant + '</b> discovered businesses saved, but none under the company this page is asking for (<b>' + esc(dg.company_id || '(blank)') + '</b>).'
+      + (ids ? ' They are stored under: <b>' + esc(ids) + '</b>.' : '')
+      + ' Switch company from the header, or tell me and I will move them.', true);
+  }
   paintKpis(); paintTabs(); paintTable();
   renderHero(); renderCopilot();   // real counts + the recommendation reflect the loaded data
 }
