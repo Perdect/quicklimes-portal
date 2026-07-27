@@ -290,10 +290,16 @@
    and table rows scroll through that strip, appearing ABOVE the toolbar. The
    horizontal negative margins are safe (full-bleed background); the vertical one
    is not. */
+/* --rc-gutter MUST equal the page's own horizontal padding, or the full-bleed
+   negative margin overshoots and the bar becomes the one element wider than the
+   viewport (measured: -10px / +400px on a 390px screen). One variable, matched
+   per breakpoint, so the bar bleeds edge-to-edge without ever causing overflow. */
+.rc { --rc-gutter: var(--ql-space-6, 24px); }
 .rc-toolbar2 { position: sticky; top: calc(-1 * var(--rc-tb-lift, 32px)); z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  margin: 0 calc(var(--ql-space-6, 24px) * -1) 8px;
-  padding: calc(10px + var(--rc-tb-lift, 32px)) var(--ql-space-6, 24px) 10px;
+  margin: 0 calc(var(--rc-gutter) * -1) 8px;
+  padding: calc(10px + var(--rc-tb-lift, 32px)) var(--rc-gutter) 10px;
   background: var(--ql-bg); border-bottom: 1px solid var(--ql-border); }
+@media (max-width: 768px) { .rc { --rc-gutter: 14px; --rc-tb-lift: 14px; } }
 .rc-ftabs { display: flex; gap: 4px; flex-wrap: wrap; }
 /* Account chips (multi-bank): which bank account the whole screen is scoped to */
 .rc-accbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin: 2px 0 12px; }
@@ -404,15 +410,30 @@
    the other half and the table looked ragged. Every row is now name + reference,
    full stop. Recognition is a tick, not a sentence; Identify rides the reference
    line. Nothing here can add height. */
-.rc-party { min-width: 200px; }
-.rc-party-n { display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: 13px; color: var(--ql-text); }
-.rc-party-nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* THE TRANSACTION COLUMN TAKES THE SLACK. `width: 100%` on one cell of a table
+   makes it absorb every pixel the fixed columns (date, amount, status, action)
+   do not need — which is why the name had room to spare while being truncated. */
+/* `width:100%` + `max-width:0` is the table idiom for "take every spare pixel,
+   but never let your content widen the table". Without max-width:0 an unbroken
+   150-character narration sets a huge min-content width and the table grows past
+   its container (columns then get clipped). With it, the cell is bounded by the
+   available space and the clamp inside does the rest. */
+.rc-party { min-width: 220px; width: 100%; max-width: 0; white-space: normal; }
+.rc-party-n { display: flex; align-items: flex-start; gap: 5px; font-weight: 700; font-size: 13px; color: var(--ql-text); }
+/* TWO LINES, THEN ellipsis — the banking-app rule (GPay / PhonePe / CRED). The
+   row height follows the content instead of the text being cut to fit a fixed
+   height, and `anywhere` stops an unbroken 200-character narration from forcing
+   a horizontal scrollbar. */
+.rc-party-nm { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-clamp: 2;
+  overflow: hidden; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.35; }
 /* The tick that replaced "✓ Recognized as <name>" — the name is right beside it. */
 .rc-ok { display: inline-flex; flex: none; color: #16a34a; }
 .rc-ok svg { width: 13px; height: 13px; stroke-width: 2.6; }
+/* Secondary line: rail + reference. No max-width cap any more (that cap was the
+   other half of the wasted-space problem); it simply uses the column. */
 .rc-party-nar { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--ql-text-secondary);
-  max-width: 260px; margin-top: 1px; }
-.rc-nar-t { font-family: var(--ql-font-mono, ui-monospace), monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  margin-top: 1px; min-width: 0; }
+.rc-nar-t { font-family: var(--ql-font-mono, ui-monospace), monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .rc-idbtn { font: inherit; font-size: 11.5px; font-weight: 600; color: var(--ql-brand-600); background: none;
   border: none; cursor: pointer; padding: 0; text-decoration: underline; white-space: nowrap; flex: none; }
 .rc-idbtn:hover { color: var(--ql-brand-700); }
@@ -617,3 +638,15 @@
    resolves against .main. */
 @media (min-width: 769px) { .rc-panel { overflow: clip; } }
 
+
+/* Keep the fixed columns on one line so the flexible Transaction column gets the
+   remaining width, and the amount stays hard right-aligned however tall the row
+   grows. Date stays left. Rows are dynamic-height: no fixed row height anywhere. */
+.rc-v3 td.rc-mut, .rc-v3 td.r, .rc-v3 .rc-actcell { white-space: nowrap; }
+.rc-v3 td.r { text-align: right; vertical-align: middle; }
+.rc-v3 td { vertical-align: middle; }
+.rc-v3 .rc-party { vertical-align: middle; }
+/* Long narrations must never break the table out horizontally. */
+.rc-table { table-layout: auto; }
+.rc-v3 .rc-party-n, .rc-v3 .rc-party-nar { min-width: 0; }
+@media (max-width: 900px) { .rc-party { min-width: 160px; } }

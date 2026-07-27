@@ -960,10 +960,19 @@ function partyCell(t) {
   // Primary line: the resolved PARTY (or the category for non-bill entries) —
   // never the raw bank blob. Secondary: normalized "mode · ref", not narration.
   const isOther = m.status === 'other';
-  const name = known || (isOther ? m.cat : '') || titleCase(t.clean) || (t.raw || t.desc || '—').slice(0, 36);
+  /* NO FIXED CHARACTER LIMIT. This used to slice(0,36) — a hard cut that mangled
+     long party names while half the row sat empty. The name is now given the
+     room it needs and the CSS clamps it to two lines, so a 200-character
+     narration degrades gracefully instead of being chopped mid-word. */
+  const name = known || (isOther ? m.cat : '') || titleCase(t.clean) || (t.raw || t.desc || '—');
   const mode = t.mode || (t.cheque ? 'CHQ' : '');
   const shortRef = t.utr ? String(t.utr).slice(-10) : (t.cheque || '');
-  const norm2 = [mode, shortRef].filter(Boolean).join(' · ') || (t.raw || t.desc || '').slice(0, 38);
+  /* The secondary line is the PAYMENT RAIL + reference (NEFT · 6161997932) —
+     short, structured, and the thing an accountant actually cross-checks. It
+     only falls back to the raw narration when the bank gave us no rail/ref, and
+     even then the CSS keeps it to one line: the FULL narration always lives in
+     the expandable detail row, never truncated there. */
+  const norm2 = [mode, shortRef].filter(Boolean).join(' · ') || (t.raw || t.desc || '');
   /* TWO LINES, ALWAYS. This cell used to grow a conditional THIRD line
      ("✓ Recognized as X" / "Unknown party · Identify"), so rows that had one stood
      taller than rows that did not — that is the ragged spacing he reported.

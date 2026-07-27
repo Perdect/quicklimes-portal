@@ -268,6 +268,21 @@ if (loaded) {
   /* Rows must never scroll through the page-padding strip above the bar: the bar
      is LIFTED by exactly that strip (CSS only — no observers), and the header is
      offset by the same lift so the two stay flush. */
+  /* ── the transaction row: no fixed character limit, two lines, dynamic height ──
+     partyCell used to slice(0,36) the name and slice(0,38) the reference, which
+     chopped long party names while half the row sat unused. The name must now be
+     handed over WHOLE and clamped by CSS instead. */
+  const partyFn = src.slice(src.indexOf('function partyCell'), src.indexOf('function typeCell'));
+  const partyCode = partyFn.replace(/\/\*[\s\S]*?\*\//g, '');   // strip comments: they QUOTE the old cut
+  ok('the party name is never truncated by character count', !/\.slice\(\s*0\s*,/.test(partyCode));
+  ok('the title clamps to TWO lines instead (banking-app rule)', /-webkit-line-clamp:\s*2/.test(css) && /\.rc-party-nm/.test(css));
+  ok('  and a long unbroken narration can break rather than overflow', /overflow-wrap:\s*anywhere/.test(css));
+  ok('the transaction column takes the spare width but cannot widen the table', /\.rc-party \{[^}]*width:\s*100%[^}]*max-width:\s*0/.test(css));
+  ok('the full narration still lives in the expandable detail row', /rc-x-nar/.test(src) && /Narration/.test(src));
+  ok('date stays left / amount stays right, on one line', /\.rc-v3 td\.rc-mut, \.rc-v3 td\.r[^{]*\{[^}]*white-space:\s*nowrap/.test(css) && /\.rc-v3 td\.r \{[^}]*text-align:\s*right/.test(css));
+  /* The full-bleed bar must never be the element that overflows a phone. */
+  ok('the sticky bar bleeds by the REAL page gutter (no mobile overflow)', /--rc-gutter/.test(css) && /margin:\s*0 calc\(var\(--rc-gutter\) \* -1\)/.test(css));
+
   ok('the bar is lifted to cancel the page-padding strip', /--rc-tb-lift/.test(css) && /top:\s*calc\(-1 \* var\(--rc-tb-lift/.test(css));
   ok('  and the header subtracts that same lift', /top:\s*calc\(var\(--rc-tb-h[^)]*\) - var\(--rc-tb-lift/.test(css));
 }

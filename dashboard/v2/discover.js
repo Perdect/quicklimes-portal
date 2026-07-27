@@ -56,7 +56,10 @@ async function osmClientFetch(what, city, radius) {
   let sawBusy = false, sawNet = false;
   for (const ep of OVERPASS_EPS) {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 38000);   // the browser can wait; Overpass ran ~32s when busy
+    /* 18s, not 38s. Three mirrors x 38s meant a failing OSM search could hold the
+       user for nearly two minutes before saying so. A mirror that has not
+       answered in 18s is not about to. */
+    const timer = setTimeout(() => ctrl.abort(), 18000);
     try {
       const res = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(q), signal: ctrl.signal });
       clearTimeout(timer);
@@ -146,7 +149,13 @@ let ROWS = [], COUNTS = { new: 0, duplicate: 0, promoted: 0, dismissed: 0 }, TAB
 /* OpenStreetMap is the DEFAULT because it is free and needs no key — a user who
    never touches Google Cloud still has a working feature. Google is offered
    only when the server says a key exists, so we never present a dead option. */
+/* The user's EXPLICIT source choice is remembered; until they make one we pick
+   the best AVAILABLE source ourselves (see loadSources). OSM stays the fallback
+   because it needs no key — but it must never be the default when a fast,
+   connected source exists. */
 let SRC = 'osm', SOURCES = { osm: true, google: false, mapbox: false };
+let SRC_PINNED = false;
+try { const p = localStorage.getItem('ql_dc_src'); if (p) { SRC = p; SRC_PINNED = true; } } catch (_) {}
 let _tt;
 function toast(msg, tone) {
   const el = document.getElementById('dcToast'); if (!el) return;
@@ -271,7 +280,9 @@ function paintSources() {
   el.querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
     if (b.dataset.connect) { connectMapbox(); return; }
     if (b.disabled) return;
-    SRC = b.dataset.s; paintSources();
+    SRC = b.dataset.s; SRC_PINNED = true;
+    try { localStorage.setItem('ql_dc_src', SRC); } catch (_) {}
+    paintSources();
   });
   const at = document.getElementById('dcAttrib');
   if (at) at.style.display = SRC === 'osm' ? '' : 'none';
@@ -820,17 +831,21 @@ async function runSearch() {
   const stateLabel = st ? city : '';
 
   const btn = document.getElementById('dcGo'); const label = btn.textContent;
-  btn.disabled = true;
+  btn.disabled = true; btn.classList.add('is-busy');
 
   let added = 0, dupes = 0, seen = 0, okAny = false, lastErr = '', lastRetry = false, fellBack = false;
   for (let i = 0; i < targets.length; i++) {
-    btn.textContent = targets.length > 1 ? `Searching ${targets[i]}… (${i + 1}/${targets.length})` : 'Searching…';
+    /* A SPINNER, not just a word. "Searching…" alone reads as frozen on a slow
+       source; a moving indicator is the difference between "it is working" and
+       "it has hung". The label still says WHERE, so multi-hub runs show progress. */
+    btn.innerHTML = '<span class="dc-spin" aria-hidden="true"></span>' +
+      esc(targets.length > 1 ? `Searching ${targets[i]}… (${i + 1}/${targets.length})` : 'Searching…');
     if (stateLabel) notice(`Searching <b>${esc(stateLabel)}</b> across its industrial hubs: ${targets.map((t, j) => j <= i ? '<b>' + esc(t) + '</b>' : esc(t)).join(' · ')}`);
     const r = await discoverOne(what, targets[i], radius, indLabel);
     if (r.ok) { okAny = true; added += r.added || 0; dupes += r.dupes || 0; seen += r.seen || 0; if (r.radius_fell_back) fellBack = true; }
     else { lastErr = r.error || 'unknown error'; lastRetry = !!r.retry; if (r.not_configured) { lastErr = r.error; lastRetry = false; okAny = false; break; } }
   }
-  btn.disabled = false; btn.textContent = label;
+  btn.disabled = false; btn.classList.remove('is-busy'); btn.textContent = label;
 
   const tag = what + (city ? ' · ' + city : '') + (radius ? ' · ' + radius + 'km' : '');
   if (!okAny) {
@@ -868,6 +883,12 @@ async function loadSources() {
   const r = await api({ action: 'sources' });
   if (r && r.ok) {
     SOURCES = { osm: !!r.osm, google: !!r.google, mapbox: !!r.mapbox };
+    /* AUTO-PICK THE FAST SOURCE. The free Overpass service waits ~20s per mirror
+       and frequently fails — landing on it by default made every first search
+       feel broken while a connected, 1-3s source sat one click away. Google is
+       richest, Mapbox next, OSM last. Only when the user has PINNED a source
+       (by clicking one) do we leave their choice alone. */
+    if (!SRC_PINNED) SRC = SOURCES.google ? 'google' : (SOURCES.mapbox ? 'mapbox' : 'osm');
     if ((SRC === 'google' && !SOURCES.google) || (SRC === 'mapbox' && !SOURCES.mapbox)) SRC = 'osm';   // never sit on a dead source
     paintSources();
   }
