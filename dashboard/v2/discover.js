@@ -940,6 +940,11 @@ async function load() {
      but none under the company this page is asking for, the list is empty for a
      reason the user can act on — say it, with the numbers. */
   const dg = r.diag;
+  /* ALWAYS report when the list is empty — whatever the reason. An empty page
+     that explains nothing is what wasted the user's day. */
+  if (dg && ROWS.length === 0 && !(dg.plant > 0)) {
+    notice('The list is empty and your account has <b>0</b> saved businesses under company <b>' + esc(dg.company_id || '(blank)') + '</b>. If a search just said “already in your list”, those rows were stored under a different company — tell me and I will move them.', true);
+  }
   if (dg && dg.plant > 0 && dg.scope === 0) {
     const ids = (dg.other_ids || []).map(o => (o.company_id === '' ? '(blank)' : o.company_id) + ' → ' + o.c + ' rows').join(' · ');
     notice('You have <b>' + dg.plant + '</b> discovered businesses saved, but none under the company this page is asking for (<b>' + esc(dg.company_id || '(blank)') + '</b>).'
