@@ -188,9 +188,15 @@ if ($action === 'ingest') {
 if ($action === 'sources') {
   // OSM is always available; Google only with a key. The page asks, rather than
   // guessing, so it never offers a source that cannot work.
+  /* mapbox_public: the pk. token is a PUBLIC token — Mapbox designs it to be used
+     from the browser for map tiles, unlike the Google key (server-only, never
+     leaves this box). Returning it lets the demand map render real Mapbox
+     streets instead of a washed-out fallback basemap. */
+  $mb = ql_effective_mapbox_token($db, $plantId);
   ql_out(['ok' => true, 'osm' => true,
     'google' => ql_effective_google_key($db, $plantId) !== '',
-    'mapbox' => ql_effective_mapbox_token($db, $plantId) !== '']);
+    'mapbox' => $mb !== '',
+    'mapbox_public' => (strpos($mb, 'pk.') === 0 ? $mb : '')]);
 }
 
 /* ASSESS / MESSAGE — the live-Claude path for the lead-working actions. The

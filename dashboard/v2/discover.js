@@ -888,10 +888,21 @@ async function runSearch() {
     return;
   }
   if (radius && fellBack) notice('Couldn’t pin the centre of <b>' + esc(city) + '</b>, so this searched the whole area instead of a ' + radius + ' km circle.', true);
+  else if (added === 0 && dupes === 0 && seen > 0) {
+    /* THE SOURCE FOUND BUSINESSES — every one of them is already in your list from
+       an earlier search. Calling that "no matches" was flatly wrong and made a
+       working source look broken. Say what actually happened, and point at them. */
+    notice('Found <b>' + seen + '</b> business' + (seen === 1 ? '' : 'es') + ' for <b>' + esc(tag) + '</b> — all of them are <b>already in your list</b> from an earlier search, so nothing new was added. They are in the tabs below. Search a different city to find more.');
+  }
   else if (added === 0 && dupes === 0) {
-    /* Reached the source fine but it had nothing — with OSM that is coverage, not
-       "no such businesses". Be honest and redirect to what works. */
-    notice('No matches in OpenStreetMap for <b>' + esc(tag) + '</b> — its coverage of Indian industry is thin, so this rarely means the businesses don’t exist. Try <b>Paste / import a list</b>, or aim with <b>Market Intelligence</b> above.', true);
+    /* Reached the source fine but it genuinely returned nothing. Name the source
+       that was ACTUALLY used — this said "OpenStreetMap" even when the search ran
+       on Mapbox, which reads as a broken app. */
+    const srcName = SRC === 'mapbox' ? 'Mapbox' : SRC === 'google' ? 'Google Maps' : 'OpenStreetMap';
+    const thin = SRC === 'osm' ? ' — its coverage of Indian industry is thin, so this rarely means the businesses don’t exist' : '';
+    const nextTry = SRC === 'osm' && SOURCES.mapbox ? ' Try the <b>Mapbox</b> source above — it has better Indian coverage.'
+      : ' Try a nearby city or a broader trade word (e.g. “paper” instead of “paper mill”).';
+    notice('No matches in ' + srcName + ' for <b>' + esc(tag) + '</b>' + thin + '.' + nextTry, true);
   }
   else if (stateLabel) notice(`Searched <b>${esc(stateLabel)}</b> across ${targets.join(', ')}. Want more towns there? Tell me and I’ll widen the hub list.`);
   else notice('');
@@ -905,6 +916,7 @@ async function loadSources() {
   const r = await api({ action: 'sources' });
   if (r && r.ok) {
     SOURCES = { osm: !!r.osm, google: !!r.google, mapbox: !!r.mapbox };
+    if (r.mapbox_public && r.mapbox_public !== HM_MB_TOKEN) { HM_MB_TOKEN = r.mapbox_public; hmApplyTiles(); }
     /* AUTO-PICK THE FAST SOURCE. The free Overpass service waits ~20s per mirror
        and frequently fails — landing on it by default made every first search
        feel broken while a connected, 1-3s source sat one click away. Google is
@@ -1004,12 +1016,35 @@ function hmTierColor(r) {
    tiles): pan / zoom / scroll like Google Maps, with each demand state shaded by
    its live profit tier on top and the plant marked. Click a state → discover
    buyers there. Falls back to a message if Leaflet can't load (offline). */
-let HM_MAP = null, HM_LAYER = null, HM_FITTED = false, HM_BOUNDS = null;
+let HM_MAP = null, HM_LAYER = null, HM_FITTED = false, HM_BOUNDS = null, HM_TILE = null;
+/* REAL MAPBOX STREETS when a public token is present — roads, place names and
+   colour, the map people actually recognise. The pk. token is public by design
+   (Mapbox issues it FOR browser use); the Google key never leaves the server.
+   Falls back to the free CARTO basemap when no token is connected. */
+let HM_MB_TOKEN = '';
 function hmTiles() {
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  if (HM_MB_TOKEN) {
+    const style = dark ? 'dark-v11' : 'streets-v12';
+    return 'https://api.mapbox.com/styles/v1/mapbox/' + style + '/tiles/512/{z}/{x}/{y}@2x?access_token=' + HM_MB_TOKEN;
+  }
   return dark
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
     : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+}
+/* Swap the basemap in place once the token arrives (the map is built before
+   loadSources resolves, so without this the first paint keeps the fallback). */
+function hmApplyTiles() {
+  if (!HM_MAP || !window.L) return;
+  if (HM_TILE) { try { HM_MAP.removeLayer(HM_TILE); } catch (_) {} }
+  HM_TILE = hmTileLayer().addTo(HM_MAP);
+  HM_TILE.bringToBack();
+}
+function hmTileLayer() {
+  const mb = !!HM_MB_TOKEN;
+  return L.tileLayer(hmTiles(), mb
+    ? { tileSize: 512, zoomOffset: -1, maxZoom: 19, attribution: '&copy; Mapbox &copy; OpenStreetMap' }
+    : { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' });
 }
 function ringsToLatLng(rings) {
   return rings.map(fl => { const a = []; for (let i = 0; i < fl.length; i += 2) a.push([fl[i + 1], fl[i]]); return a; });
@@ -1024,7 +1059,7 @@ function renderHeatMap() {
 
   if (!HM_MAP) {
     HM_MAP = L.map(host, { zoomControl: true, scrollWheelZoom: true, attributionControl: true, minZoom: 4, maxZoom: 11 }).setView([22.8, 80.5], 5);
-    L.tileLayer(hmTiles(), { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(HM_MAP);
+    HM_TILE = hmTileLayer().addTo(HM_MAP);
     HM_LAYER = L.layerGroup().addTo(HM_MAP);
   }
   HM_LAYER.clearLayers();

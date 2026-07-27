@@ -288,6 +288,14 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/ql_plant_google_key\(\$db, \$plantId\)[\s\S]{0,200}mapbox_token/.test(dp2) || /'google_key' => ql_plant_google_key/.test(dp2), '  saving Mapbox preserves the Google key (shared row)');
 }
 
+/* ── the empty/seen notice must tell the TRUTH (2026-07-28 regression) ── */
+{
+  ok(!/No matches in OpenStreetMap for/.test(bare) || /srcName/.test(bare), 'the empty notice names the source that ACTUALLY ran (not hardcoded OpenStreetMap)');
+  ok(/SRC === 'mapbox' \? 'Mapbox'/.test(bare) && /'Google Maps'/.test(bare), '  Mapbox / Google / OSM each named correctly');
+  ok(/added === 0 && dupes === 0 && seen > 0/.test(bare), '  results that are ALL already-known are reported as found, never as "no matches"');
+  ok(/already in your list/.test(bare), '  and the user is told where they are');
+}
+
 /* ── the key never reaches the browser ── */
 {
   ok(!/GOOGLE_PLACES_KEY/.test(js), 'discover.js never names the API key');
