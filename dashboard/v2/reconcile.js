@@ -61,7 +61,13 @@ let ST = {
   advOpen: false,
   /* Which month groups are folded shut. A Set of 'YYYY-MM', same as QLX's
      S.collapsed — collapsing is a VIEW preference, never saved to the blob. */
-  collapsed: new Set()
+  collapsed: new Set(),
+  /* Inline-expanded rows (click a row → details unfold under it; Review still
+     opens the full drawer). View state only. */
+  expanded: new Set(),
+  /* Render cap: with 1,000+ lines the DOM is the bottleneck, not the data.
+     Render the first N and offer "Show more" — honest, and never laggy. */
+  cap: 300
 };
 /* How many filters are actually narrowing the list — drives the button's badge.
    Counted from the SAME object the predicate reads, so the badge can never claim
@@ -526,6 +532,7 @@ function render() {
   try {
     root.innerHTML = heroHTML() + (txns().length ? accBarHTML() + summaryHTML() + finOverviewHTML() + aiHTML() + toolbarHTML() + filtersPanelHTML() + `<div class="rc-panel">${viewHTML()}</div>` + bulkBarHTML() : emptyHTML());
     wire();
+    syncStickyOffset();   // the toolbar wraps — the header must pin below its REAL height
   } catch (e) { console.warn('recon render deferred:', e); }
   QLShell.paintWorkspace && QLShell.paintWorkspace();
 }
@@ -579,18 +586,23 @@ function needsReview(t) { return statusKey(t) !== 'matched'; }
 
 /* ── ONE compact summary strip (4 segments) — replaces the 9-card dashboard ── */
 function summaryHTML() {
-  const c = cards(), tt = monthTxns();
+  /* v3: the cards total WHAT IS ON SCREEN — filteredTxns(), not the whole month —
+     so search/status/advanced filters update them instantly and the cards can
+     never disagree with the list below them. */
+  const tt = filteredTxns();
+  const cr = tt.reduce((a, t) => a + (t.credit || 0), 0), dr = tt.reduce((a, t) => a + (t.debit || 0), 0);
   const credN = tt.filter(t => (t.credit || 0) > 0).length, debN = tt.filter(t => (t.debit || 0) > 0).length;
   const matchedRows = tt.filter(t => statusKey(t) === 'matched');
-  const matchN = matchedRows.length;
-  c.matched = matchedRows.reduce((a, t) => a + (t.credit || 0) + (t.debit || 0), 0);   // same definition as the count
+  const dup = tt.filter(t => statusKey(t) === 'duplicate').length;
   const rev = tt.filter(needsReview); const revAmt = rev.reduce((a, t) => a + (t.credit || 0) + (t.debit || 0), 0);
+  const decided = tt.filter(t => t.m && t.m.confidence != null).length;
+  const acc = decided ? Math.round(matchedRows.length / decided * 100) : null;
   const seg = (cls, ic, label, val, sub) => `<div class="rc-sum-seg"><span class="rc-sum-ic ${cls}">${ic}</span><div class="rc-sum-x"><span class="rc-sum-l">${label}</span><span class="rc-sum-v">${val}</span><span class="rc-sum-sub">${sub}</span></div></div>`;
   return `<div class="rc-summary">
-    ${seg('g', svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>'), 'Money In', fC(c.credits), credN + ' credit' + (credN === 1 ? '' : 's'))}
-    ${seg('r', svg('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>'), 'Money Out', fC(c.debits), debN + ' debit' + (debN === 1 ? '' : 's'))}
-    ${seg('b', svg(IC.ck), 'Matched', fC(c.matched), matchN + ' linked')}
-    ${seg('p', svg('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'), 'Needs Review', fC(revAmt), rev.length + ' transaction' + (rev.length === 1 ? '' : 's'))}
+    ${seg('g', svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>'), 'Money In', fC(cr), credN + ' credit' + (credN === 1 ? '' : 's'))}
+    ${seg('r', svg('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>'), 'Money Out', fC(dr), debN + ' debit' + (debN === 1 ? '' : 's'))}
+    ${seg('b', svg(IC.ck), 'Matched', matchedRows.length + ' of ' + tt.length, acc != null ? 'auto-match rate ' + acc + '%' : '—')}
+    ${seg('p', svg('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'), 'Needs Review', fC(revAmt), rev.length + ' transaction' + (rev.length === 1 ? '' : 's') + (dup ? ' · ' + dup + ' duplicate' + (dup === 1 ? '' : 's') : ''))}
   </div>`;
 }
 /* Secondary metrics live in a collapsed accordion, out of the primary flow. */
@@ -813,9 +825,11 @@ function badge(t) {
      column showed "80%", this badge showed "Partial · 80%", and the suggestion cell
      drew a progress bar of the same 80% — one fact, rendered three times, in three
      columns, on every row. That is what "too much data" meant. */
-  const showConf = m.confidence != null && ['matched', 'partial', 'review', 'overpayment', 'amountdiff', 'datemismatch', 'other'].indexOf(m.status) >= 0;
-  const dot = m.tier ? `<span class="rc-dot ${m.tier}"></span>` : '';
-  return `<span class="rc-badge" style="background:${s[1]};color:${s[2]}">${dot}${s[0]}${m.manual ? ' ✓' : ''}${showConf ? ' · ' + m.confidence + '%' : ''}</span>`;
+  /* v3: the chip is COMPACT — status only, coloured dot, hover explains the
+     reason. The % moved to its own Confidence column (confCell) — one fact,
+     one place, still true, just each fact in ITS place now. */
+  const why = (m.reasons || []).filter(Boolean).slice(0, 3).join(' · ') || s[0];
+  return `<span class="rc-badge rc-schip" style="background:${s[1]};color:${s[2]}" title="${esc(why)}"><i class="rc-schip-d" style="background:${s[2]}"></i>${s[0]}${m.manual ? ' ✓' : ''}</span>`;
 }
 function matchCell(t) {
   if (isSplit(t)) { const bl = billsFor(t); const names = bl.map(x => x.kind === 'sale' ? x.bill.party : x.bill.sup).filter(Boolean); const uniq = [...new Set(names)]; return `<div class="rc-match"><b>${bl.length} bills · ${fC(bl.reduce((a, x) => a + x.amount, 0))}</b><span>${esc(uniq.slice(0, 2).join(', '))}${uniq.length > 2 ? ' +' + (uniq.length - 2) : ''}</span></div>`; }
@@ -856,7 +870,7 @@ function monthGroupBar(g, first) {
   const dr = g.rows.reduce((a, t) => a + (t.debit || 0), 0);
   const todo = g.rows.filter(needsReview).length;
   const collapsed = ST.collapsed.has(g.key);
-  return `<tr class="qx-grp ${collapsed ? 'collapsed' : ''}" data-grp="${esc(g.key)}"><td colspan="8">
+  return `<tr class="qx-grp ${collapsed ? 'collapsed' : ''}" data-grp="${esc(g.key)}"><td colspan="7">
     <div class="qx-grp-bar ${first ? 'first' : ''}">
       <svg class="qx-grp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       <b>${esc(g.label)}</b>
@@ -873,31 +887,70 @@ function viewHTML() {
   const rows = filteredTxns();
   if (!rows.length) return `<div class="rc-none">${ST.month && ST.month !== 'all' ? 'No matching transactions for ' + esc(monthLabel()) : 'No transactions match these filters'}.</div>`;
   /* ONE row template — the grouped and ungrouped paths must render the same row.
-     Two copies would drift the moment a column is added to only one of them. */
+     Two copies would drift the moment a column is added to only one of them.
+
+     v3 LAYOUT (information priority): Date · Transaction (name + mode·ref) ·
+     Amount · Status chip · Confidence bar · Review. Type + suggested-match moved
+     into the EXPANDABLE detail row — scan first, detail on demand. */
   const rowHTML = t => {
     const sel = ST.sel && ST.sel.has(t.id);
-    return `<tr data-open="${t.id}" class="rc-clk${sel ? ' rc-selrow' : ''}">
+    const open = ST.expanded.has(t.id);
+    return `<tr data-open="${t.id}" class="rc-clk${sel ? ' rc-selrow' : ''}${open ? ' rc-xopen' : ''}">
     <td class="rc-cbx"><button class="rc-cb${sel ? ' on' : ''}" data-sel="${t.id}" title="Select">${sel ? svg(IC.ck) : ''}</button></td>
     <td class="rc-mut rc-nowrap">${fDS(t.date)}</td>
     <td class="rc-party">${partyCell(t)}</td>
-    <td>${typeCell(t)}</td>
     <td class="r">${amountCell(t)}</td>
-    <td>${suggestCell(t)}</td>
     <td>${badge(t)}</td>
+    <td>${confCell(t)}</td>
     <td class="rc-actcell">${actionCell(t)}</td>
-  </tr>`; };
+  </tr>${open ? `<tr class="rc-xrow"><td colspan="7">${expandHTML(t)}</td></tr>` : ''}`; };
 
   /* Group only when there is more than one month to separate. */
-  const groups = groupByMonth(rows);
+  const capped = rows.slice(0, ST.cap);
+  const more = rows.length - capped.length;
+  const groups = groupByMonth(capped);
   const body = groups.length < 2
-    ? rows.map(rowHTML).join('')
+    ? capped.map(rowHTML).join('')
     : groups.map((g, i) =>
         monthGroupBar(g, i === 0) +
         (ST.collapsed.has(g.key) ? '' : g.rows.map(rowHTML).join(''))
       ).join('');
-  return `<div class="rc-tablewrap"><table class="rc-table rc-table2">
-    <thead><tr><th class="rc-cbx"></th><th>Date</th><th>Party / Description</th><th>Type</th><th class="r">Amount</th><th>Suggested match</th><th>Status</th><th></th></tr></thead>
-    <tbody>${body}</tbody></table></div>`;
+  const moreBar = more > 0 ? `<tr><td colspan="7" class="rc-morebar"><button class="ql-btn ql-btn-secondary" data-showmore>Show ${Math.min(300, more)} more (${more.toLocaleString('en-IN')} remaining)</button></td></tr>` : '';
+  return `<div class="rc-tablewrap"><table class="rc-table rc-table2 rc-v3">
+    <thead><tr><th class="rc-cbx"></th><th>Date</th><th>Transaction</th><th class="r">Amount</th><th>Status</th><th>AI confidence</th><th></th></tr></thead>
+    <tbody>${body}${moreBar}</tbody></table></div>`;
+}
+/* ── v3: confidence indicator (bar + %) — the ONE place the number is drawn ── */
+function confCell(t) {
+  const m = t.m || {};
+  const c = m.confidence;
+  if (c == null || ['matched', 'partial', 'review', 'overpayment', 'amountdiff', 'datemismatch', 'other'].indexOf(m.status) < 0) return '<span class="rc-mut">—</span>';
+  const col = c >= 95 ? '#16a34a' : c >= 75 ? '#f59e0b' : '#ef4444';
+  return `<div class="rc-cf" title="AI confidence ${c}%${m.tier ? ' · ' + m.tier + ' tier' : ''}"><span class="rc-cf-n">${c}%</span><div class="rc-cf-bar"><i style="width:${Math.max(4, Math.min(100, c))}%;background:${col}"></i></div></div>`;
+}
+/* ── v3: the expandable detail row — everything the lean row hides ── */
+function expandHTML(t) {
+  const m = t.m || {};
+  const reasons = (m.reasons || []).filter(Boolean);
+  const ids = [t.utr ? 'UTR ' + t.utr : '', t.cheque ? 'CHQ ' + t.cheque : '', t.ref ? 'Ref ' + t.ref : ''].filter(Boolean).join(' · ');
+  return `<div class="rc-x">
+    <div class="rc-x-col">
+      <div class="rc-x-h">Narration</div>
+      <div class="rc-x-nar">${esc(t.raw || t.desc || '—')}</div>
+      ${ids ? `<div class="rc-x-ids">${esc(ids)}</div>` : ''}
+      <div class="rc-x-type">${typeCell(t)}</div>
+    </div>
+    <div class="rc-x-col">
+      <div class="rc-x-h">Suggested match</div>
+      ${suggestCell(t)}
+      ${reasons.length ? `<div class="rc-x-h" style="margin-top:10px">Why the AI thinks so</div><ul class="rc-x-why">${reasons.slice(0, 4).map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : ''}
+    </div>
+    <div class="rc-x-acts">
+      <button class="ql-btn ql-btn-primary rc-review" data-open="${t.id}">Open review</button>
+      <button class="ql-btn ql-btn-secondary" data-link="${t.id}">Identify party</button>
+      <button class="ql-btn ql-btn-secondary" data-mark="${t.id}">Mark as…</button>
+    </div>
+  </div>`;
 }
 /* ── table cells ── */
 function titleCase(s) { return (s || '').toString().toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()); }
@@ -1667,13 +1720,21 @@ function wire() {
   if ($('rcLgSort')) { const sel = $('rcLgSort'); sel.onchange = () => { ST.lsort = sel.value; lgRepaint(); }; }
   document.querySelectorAll('[data-lfilter]').forEach(b => { b.onclick = () => { ST.lfilter = b.dataset.lfilter; lgRepaint(); }; });
   if ($('rcLgClear')) $('rcLgClear').onclick = () => { ST.lq = ''; ST.lfilter = 'all'; lgRepaint(); };
-  if ($('rcSearch')) { const s = $('rcSearch'); s.oninput = () => { ST.q = s.value; const p = document.querySelector('.rc-panel'); if (p) { p.innerHTML = viewHTML(); wire(); s2focus(); } }; }
+  if ($('rcSearch')) { const s = $('rcSearch'); s.oninput = () => { ST.q = s.value; ST.cap = 300; repaintList(); s2focus(); }; }
   root.querySelectorAll('[data-link]').forEach(b => b.onclick = () => openLink(b.dataset.link));
   root.querySelectorAll('[data-unlink]').forEach(b => b.onclick = () => { const t = txns().find(x => x.id === b.dataset.unlink); if (t) { t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched' }; Q.saveRecon(); render(); } });
   root.querySelectorAll('[data-mark]').forEach(b => b.onclick = e => openMark(b.dataset.mark, e.currentTarget));
   root.querySelectorAll('.rc-review').forEach(b => b.onclick = e => { e.stopPropagation(); openDetail(b.dataset.open); });
   root.querySelectorAll('[data-more]').forEach(b => b.onclick = e => { e.stopPropagation(); openKebab(b.dataset.more, e.currentTarget); });
-  root.querySelectorAll('.rc-clk[data-open]').forEach(tr => tr.addEventListener('click', e => { if (e.target.closest('button,a,input,select')) return; openDetail(tr.dataset.open); }));
+  /* v3: clicking a row EXPANDS it inline (details unfold under the row, no
+     navigation); the Review button is the path to the full side drawer. */
+  root.querySelectorAll('.rc-clk[data-open]').forEach(tr => tr.addEventListener('click', e => {
+    if (e.target.closest('button,a,input,select')) return;
+    const id = tr.dataset.open;
+    ST.expanded.has(id) ? ST.expanded.delete(id) : ST.expanded.add(id);
+    repaintList();
+  }));
+  root.querySelectorAll('[data-showmore]').forEach(b => b.onclick = () => { ST.cap += 300; repaintList(); });
   // selection + bulk bar
   root.querySelectorAll('[data-sel]').forEach(b => b.onclick = e => { e.stopPropagation(); const id = b.dataset.sel; ST.sel.has(id) ? ST.sel.delete(id) : ST.sel.add(id); render(); });
   root.querySelectorAll('[data-bulk]').forEach(b => b.onclick = () => bulkAction(b.dataset.bulk));
@@ -1681,6 +1742,50 @@ function wire() {
   const fo = root.querySelector('.rc-fo'); if (fo) fo.addEventListener('toggle', () => { ST.foOpen = fo.open; });
 }
 function s2focus() { const s = document.getElementById('rcSearch'); if (s) { s.focus(); const v = s.value; s.value = ''; s.value = v; } }
+/* THE STICKY OFFSET, measured — not guessed.
+   The toolbar WRAPS (status pills + Filters + search + Ledger): one line on a
+   wide screen, three on a narrow one, so its height is 56px…200px. A hard-coded
+   `top` for the table header is therefore wrong at most widths — too small and
+   the header slides under the toolbar, too large and a white band opens between
+   them. That band is the "header / sub-header gap". Measure the real element and
+   publish it as --rc-tb-h; re-measure on resize. */
+function syncStickyOffset() {
+  const tb = document.querySelector('.rc-toolbar2');
+  if (!tb) return;
+  const h = Math.round(tb.getBoundingClientRect().height);
+  if (h > 0) document.documentElement.style.setProperty('--rc-tb-h', h + 'px');
+  /* Watch the toolbar itself. A window-resize listener alone is not enough: the
+     toolbar also rewraps when its own content changes (a filter chip appears, the
+     count text grows) with no window resize at all — and a measurement taken
+     while the pane is still laying out would stick forever. ResizeObserver
+     re-measures on every real height change, so the header always pins flush. */
+  if (!window.__rcRO && typeof ResizeObserver === 'function') {
+    window.__rcRO = new ResizeObserver(() => {
+      const el = document.querySelector('.rc-toolbar2'); if (!el) return;
+      const hh = Math.round(el.getBoundingClientRect().height);
+      if (hh > 0) document.documentElement.style.setProperty('--rc-tb-h', hh + 'px');
+    });
+  }
+  if (window.__rcRO) { try { window.__rcRO.disconnect(); window.__rcRO.observe(tb); } catch (_) {} }
+}
+/* Guarded: this file is also loaded head-less by the recon test suites, whose
+   stubbed `window` has no addEventListener — an unguarded call here would throw
+   at PARSE time and take the whole page (and every test) down with it. */
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('resize', () => { clearTimeout(window.__rcSyncT); window.__rcSyncT = setTimeout(syncStickyOffset, 120); });
+}
+/* Repaint the list AND the summary cards together. The cards now total the
+   FILTERED set, so refreshing only the panel (the old behaviour) would leave
+   them describing a list that is no longer on screen. */
+function repaintList() {
+  const p = document.querySelector('.rc-panel');
+  if (!p) { render(); return; }
+  p.innerHTML = viewHTML();
+  const s = document.querySelector('.rc-summary');
+  if (s) s.outerHTML = summaryHTML();
+  wire();
+  syncStickyOffset();
+}
 
 /* ── Copilot: reconciliation Q&A (registered into the shared assistant) ── */
 if (QLShell.registerAssistIntent) QLShell.registerAssistIntent((q, t) => {

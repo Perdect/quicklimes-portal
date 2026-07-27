@@ -1,7 +1,7 @@
 /* QuickLimes v2 — service worker (installable PWA + offline shell).
    Local-first app: data lives in localStorage, so once the CSS/JS shell is cached
    the app opens offline. Never caches the /api backend or cross-origin requests. */
-const CACHE = 'ql-v2-cache-196';   // bumped: fix Mapbox connect Unauthorized (mapbox_token field no longer clobbers session token)
+const CACHE = 'ql-v2-cache-197';   // bumped: Bank Reconciliation v3 — lean AI-first rows, expandable detail, measured sticky header (gap fix)
 
 self.addEventListener('install', () => self.skipWaiting());
 

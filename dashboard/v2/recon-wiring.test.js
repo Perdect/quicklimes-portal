@@ -234,6 +234,34 @@ if (loaded) {
   eq('  and Clear resets it', RST.ftype, 'all');
 }
 
+/* ── v3 list: the redesign's own wiring ──────────────────────────────────
+   The lean row hides detail behind an expandable row and a Review drawer; the
+   summary cards total the FILTERED set. These pin the pieces that, if silently
+   dropped, would leave a page that renders but no longer works. */
+{
+  const src = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, 'reconcile.css'), 'utf8');
+  ok('rows expand inline (ST.expanded drives an .rc-xrow detail row)', /ST\.expanded/.test(src) && /rc-xrow/.test(src));
+  ok('the expanded row carries narration + the AI reasons', /function expandHTML/.test(src) && /rc-x-why/.test(src));
+  ok('confidence is drawn ONCE, as its own indicator', /function confCell/.test(src) && /rc-cf-bar/.test(src));
+  ok('  and the status chip no longer repeats the %', !/showConf \? ' · ' \+ m\.confidence/.test(src));
+  ok('summary cards total the FILTERED set, so filters update them', /function summaryHTML[\s\S]{0,240}filteredTxns\(\)/.test(src));
+  ok('  and a filter repaint refreshes the cards too', /function repaintList[\s\S]{0,300}summaryHTML\(\)/.test(src));
+  ok('very large statements are capped, with an honest "show more"', /ST\.cap/.test(src) && /data-showmore/.test(src));
+  /* THE STICKY GAP: the toolbar wraps, so the header offset must be MEASURED.
+     A hard-coded top is what left the white band between header and sub-header. */
+  ok('the sticky offset is measured from the real toolbar', /function syncStickyOffset/.test(src) && /--rc-tb-h/.test(src));
+  ok('  and re-measured when the toolbar rewraps (ResizeObserver)', /ResizeObserver/.test(src));
+  /* THE PARSE-TIME TRAP: reconcile.js is loaded head-less by these suites, whose
+     stubbed window has no addEventListener. An unguarded top-level listener threw
+     and took every recon suite down at once. */
+  ok('top-level window listeners are guarded (loads head-less)', /typeof window\.addEventListener === 'function'/.test(src));
+  /* A <td> with display:flex leaves the table's column model — the row divider
+     stops short and the action column floats free of the grid. */
+  ok('the actions cell stays a table-cell (never display:flex)', !/\.rc-actcell \{[^}]*display:\s*flex/.test(css));
+  ok('the table wrap scrolls vertically so the header can actually pin', /\.rc-tablewrap[\s\S]{0,400}max-height/.test(css));
+}
+
 console.log('\n════ does the PAGE use the engine? ════\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' WIRING TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');

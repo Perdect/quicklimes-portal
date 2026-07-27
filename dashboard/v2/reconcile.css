@@ -73,9 +73,20 @@
 
 /* panel + table */
 .rc-panel { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 16px; box-shadow: var(--ql-shadow-xs); overflow: hidden; }
+/* THE SCROLL CONTAINER — same fix qlx.css documents for its grid.
+   `overflow-x: auto` alone silently makes this a scroll ancestor whose vertical
+   axis never scrolls, so the sticky thead inside it stuck to a box that never
+   moved: the header simply scrolled away with the page. Giving the wrap the
+   VERTICAL scroll (viewport-bounded) makes the header pin while rows scroll
+   under it, and keeps horizontal panning. Desktop only — mobile is cards. */
 .rc-tablewrap { overflow-x: auto; }
+@media (min-width: 769px) {
+  .rc-tablewrap { max-height: calc(100vh - var(--rc-tb-h, 56px) - 150px); overflow: auto; overscroll-behavior: contain; }
+}
 .rc-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; min-width: 780px; }
-.rc-table th { text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ql-text-muted); padding: 13px 12px; background: var(--ql-neutral-50); position: sticky; top: 0; }
+/* thead pins to the TOP OF ITS OWN SCROLL WRAP (see .rc-tablewrap above), so it
+   sits flush under the sticky toolbar with no white band between them. */
+.rc-table th { text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ql-text-muted); padding: 13px 12px; background: var(--ql-neutral-50); position: sticky; top: 0; z-index: 4; box-shadow: 0 1px 0 var(--ql-border); }
 .rc-table th.r, .rc-table td.r { text-align: right; }
 .rc-table td { padding: 12px; border-top: 1px solid var(--ql-divider); vertical-align: middle; }
 .rc-table tbody tr:hover td { background: var(--ql-neutral-50); }
@@ -84,7 +95,12 @@
 .rc-mut { color: var(--ql-text-muted); } .rc-cr { color: var(--ql-success-600); font-weight: 700; } .rc-dr { color: var(--ql-danger-600); font-weight: 700; }
 .rc-match b { color: var(--ql-brand-600); font-weight: 700; } .rc-match span { display: block; font-size: 11px; color: var(--ql-text-muted); }
 .rc-badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 700; white-space: nowrap; }
-.rc-actcell { display: flex; gap: 4px; justify-content: flex-end; }
+/* A <td> must NOT be display:flex — that pulls the cell out of the table column
+   model, so the row divider stops short and the action column floats free of the
+   grid. Keep it a table-cell; align the buttons inline instead. */
+.rc-actcell { text-align: right; white-space: nowrap; }
+.rc-actcell > * { vertical-align: middle; }
+.rc-actcell > * + * { margin-left: 4px; }
 .rc-ib { width: 30px; height: 30px; border: 1px solid var(--ql-border); border-radius: 8px; background: var(--ql-card); color: var(--ql-text-secondary); cursor: pointer; display: grid; place-items: center; transition: all .13s; }
 .rc-ib svg { width: 15px; height: 15px; }
 .rc-ib:hover { border-color: var(--ql-brand-500); color: var(--ql-brand-600); background: var(--ql-brand-50, #eff4ff); }
@@ -256,8 +272,17 @@
 .rc-fo-kv span { display: block; font-size: 11px; color: var(--ql-text-secondary); font-weight: 600; }
 .rc-fo-kv b { display: block; font-size: 15px; font-weight: 800; margin-top: 3px; }
 
-/* 4) single filter toolbar (sticky) */
-.rc-toolbar2 { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 0; margin-bottom: 8px; background: var(--ql-bg); }
+/* 4) single filter toolbar (sticky)
+   THE GAP: the toolbar pins at top:0 and the table's own thead ALSO pinned at
+   top:0, so as you scrolled the header slid under the toolbar and left a white
+   band between them (the "header / sub-header gap"). Fixes, together:
+     • the toolbar's negative top margin + padding swallow .main's own padding,
+       so it sits flush against the top-bar instead of leaving a strip;
+     • the thead pins BELOW the toolbar (--rc-tb-h), not under it. */
+:root { --rc-tb-h: 56px; }
+.rc-toolbar2 { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: calc(var(--ql-space-6, 24px) * -1) calc(var(--ql-space-6, 24px) * -1) 8px; padding: 10px var(--ql-space-6, 24px);
+  background: var(--ql-bg); border-bottom: 1px solid var(--ql-border); }
 .rc-ftabs { display: flex; gap: 4px; flex-wrap: wrap; }
 /* Account chips (multi-bank): which bank account the whole screen is scoped to */
 .rc-accbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin: 2px 0 12px; }
@@ -522,3 +547,54 @@
 
 /* Ledger sort select — matches the filter chrome next to it. */
 .rc-lg-sort { height: 32px; font-size: 12.5px; border-radius: 9px; padding: 0 8px; border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-text); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   v3 — AI-first reconciliation list.
+   Fewer columns (Date · Transaction · Amount · Status · Confidence · Review),
+   everything else in an expandable row. Scan first, detail on demand.
+   ═══════════════════════════════════════════════════════════════════════ */
+/* readable rhythm: bigger name, bigger amount, quieter reference */
+.rc-v3 td { padding: 14px 12px; }
+.rc-v3 .rc-party-nm { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }
+.rc-v3 .rc-party-nar { font-size: 12px; color: var(--ql-text-muted); margin-top: 2px; }
+.rc-v3 .rc-amt { font-size: 15.5px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.rc-v3 tbody tr.rc-clk { transition: background .12s; }
+.rc-v3 tbody tr.rc-clk:hover td { background: var(--ql-neutral-50); }
+.rc-v3 tr.rc-xopen td { background: var(--ql-brand-50, #eff6ff) !important; }
+[data-theme="dark"] .rc-v3 tr.rc-xopen td { background: rgba(37,99,235,.12) !important; }
+
+/* compact status chip — dot + word; the reason lives in the tooltip */
+.rc-schip { gap: 6px; padding: 4px 10px; font-size: 11.5px; }
+.rc-schip-d { width: 6px; height: 6px; border-radius: 50%; flex: none; opacity: .9; }
+
+/* confidence: number + bar (the ONE place the % is drawn) */
+.rc-cf { display: flex; flex-direction: column; gap: 4px; width: 78px; }
+.rc-cf-n { font-size: 12px; font-weight: 700; color: var(--ql-text); font-variant-numeric: tabular-nums; }
+.rc-cf-bar { width: 78px; height: 5px; border-radius: 99px; background: var(--ql-neutral-150, #e2e8f0); overflow: hidden; }
+.rc-cf-bar i { display: block; height: 100%; border-radius: 99px; transition: width .3s var(--ql-ease-out, ease); }
+[data-theme="dark"] .rc-cf-bar { background: rgba(255,255,255,.10); }
+
+/* expandable detail row */
+.rc-xrow > td { padding: 0 !important; background: var(--ql-neutral-50) !important; border-bottom: 1px solid var(--ql-border); }
+[data-theme="dark"] .rc-xrow > td { background: rgba(255,255,255,.03) !important; }
+.rc-x { display: grid; grid-template-columns: 1.2fr 1.2fr auto; gap: 22px; padding: 16px 18px; animation: rcXin .18s var(--ql-ease-out, ease); }
+@keyframes rcXin { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.rc-x-h { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ql-text-muted); margin-bottom: 6px; }
+.rc-x-nar { font-size: 12.5px; line-height: 1.55; color: var(--ql-text); word-break: break-word; }
+.rc-x-ids { font-size: 11.5px; color: var(--ql-text-secondary); margin-top: 6px; font-variant-numeric: tabular-nums; }
+.rc-x-type { margin-top: 9px; }
+.rc-x-why { margin: 6px 0 0; padding-left: 16px; font-size: 12px; line-height: 1.6; color: var(--ql-text-secondary); }
+.rc-x-acts { display: flex; flex-direction: column; gap: 8px; align-items: stretch; min-width: 150px; }
+.rc-x-acts .ql-btn { justify-content: center; white-space: nowrap; }
+@media (max-width: 860px) { .rc-x { grid-template-columns: 1fr; gap: 14px; } .rc-x-acts { flex-direction: row; flex-wrap: wrap; } }
+
+/* render cap — honest paging for very large statements */
+.rc-morebar { text-align: center; padding: 14px !important; background: var(--ql-neutral-50); }
+[data-theme="dark"] .rc-morebar { background: rgba(255,255,255,.03); }
+
+/* Dark mode: the Review button used --ql-card on --ql-brand-600 text, which on a
+   dark surface is dark-on-dark and effectively unreadable. Give it a legible
+   tinted surface and a light brand ink. */
+[data-theme="dark"] .rc-review { background: rgba(37,99,235,.18); border-color: rgba(37,99,235,.42); color: #bfdbfe; }
+[data-theme="dark"] .rc-review:hover { background: var(--ql-brand-600, #2563eb); border-color: var(--ql-brand-600, #2563eb); color: #fff; }
+[data-theme="dark"] .rc-kebab { color: var(--ql-text-secondary); }
