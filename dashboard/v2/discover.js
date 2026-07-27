@@ -1308,13 +1308,18 @@ document.getElementById('dcFiltToggle').addEventListener('click', e => {
   f.hidden = !open; e.currentTarget.setAttribute('aria-expanded', String(open));
 });
 /* Hero actions. */
-document.getElementById('dcHeroDiscover').addEventListener('click', () => {
+/* The hero is gone — these buttons lived in it. Guarded so their absence can
+   never throw and take the rest of the page's wiring down with it. */
+const _heroDisc = document.getElementById('dcHeroDiscover');
+if (_heroDisc) _heroDisc.addEventListener('click', () => {
   const tm = topMarket();
   if (tm && LM) findInMarket(LM.osmTerm((tm.industries[0] || {}).key), tm.state);
   else { switchSection('leads'); document.getElementById('dcAi').focus(); }
 });
-document.getElementById('dcHeroAsk').addEventListener('click', () => { document.getElementById('dcAi').focus(); document.getElementById('dcAi').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
-document.getElementById('dcHeroReview').addEventListener('click', () => switchSection('leads'));
+const _heroAsk = document.getElementById('dcHeroAsk');
+if (_heroAsk) _heroAsk.addEventListener('click', () => { document.getElementById('dcAi').focus(); document.getElementById('dcAi').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+const _heroRev = document.getElementById('dcHeroReview');
+if (_heroRev) _heroRev.addEventListener('click', () => switchSection('leads'));
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { const b = document.getElementById('lcBack'); if (b && !b.hidden) closeLeadDrawer(); } });
 document.getElementById('dcGo').addEventListener('click', runSearch);
 // Enter in the AI bar or the city field searches; typing in the bar re-parses.
@@ -1331,6 +1336,7 @@ document.getElementById('dcIndSel').addEventListener('change', () => {
     what: s.value || PARSED_WHAT
   });
 });
-document.getElementById('dcImport').addEventListener('click', openPaste);
+const _imp = document.getElementById('dcImport');
+if (_imp) _imp.addEventListener('click', openPaste);
 window.__qlOnSwitchCompany = () => { buildIcp(); load(); };
 Q.init(() => {}).then(() => { buildIcp(); loadSources(); load(); }).catch(() => { loadSources(); load(); });

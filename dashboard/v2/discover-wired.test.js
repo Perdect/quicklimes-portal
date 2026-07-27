@@ -57,8 +57,11 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
 
 /* ── a no-key user still has a way through ── */
 {
-  ok(/Paste \/ import/.test(html), 'the page offers the no-key path (paste / import a list)');
-  ok(/dcImport/.test(bare) && /crm\.html/.test(bare), '  wired to the ranked importer');
+  /* The hero (greeting + stat pills + Run discovery / Ask AI / Review leads /
+     Paste-import) was REMOVED at the user's request — it pushed the search and
+     the leads below the fold. The import path still exists inside the Pipeline
+     tab, so the no-key route is not lost. */
+  ok(/plImport/.test(bare) && /crm\.html|dcImport/.test(bare), 'the no-key import path is still reachable (pipeline tab)');
 }
 
 /* ── the half-wired trap: the page must load what it uses ── */
@@ -112,7 +115,8 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
 
 /* ── Phase 1: AI-first compact layout (hero · sections · copilot) ── */
 {
-  ok(/id="dcHero"/.test(html) && /id="dcHeroStats"/.test(html), 'the page has an AI hero with a stats slot');
+  ok(!/id="dcHero"/.test(html) && !/dc-hero-actions/.test(html), 'the hero block is gone (removed on request) — search leads the page');
+  ok(html.split('<div class="dash"').length === 2 && (html.slice(html.indexOf('<div id="ql-page">'), html.indexOf('<script src=')).split('<div').length === html.slice(html.indexOf('<div id="ql-page">'), html.indexOf('<script src=')).split('</div>').length), '  and the markup is still balanced (no stray </div> closing .dash early)');
   ok(/id="dcSecTabs"/.test(html) && /data-sec="copilot"/.test(html) && /data-sec="markets"/.test(html) && /data-sec="leads"/.test(html), 'three progressive-disclosure sections (Copilot / Markets / Leads)');
   ok(/id="secMarkets" hidden/.test(html) && /id="secLeads" hidden/.test(html), '  Markets & Leads start hidden — one section visible at a time');
   ok(/id="dcFilters" hidden/.test(html) && /dc-row\[hidden\] \{ display: none/.test(html), '  advanced filters collapse by default (and the [hidden] grid rule is restored)');
