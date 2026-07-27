@@ -1217,10 +1217,16 @@ function ql_places_request($key, $what, $city, $opts = [], $http = null) {
   if ($key === '') return ['ok' => false, 'places' => [], 'error' => 'not_configured'];
   $what = trim((string)$what); $city = trim((string)$city);
   if ($what === '') return ['ok' => false, 'places' => [], 'error' => 'Say what to look for'];
+  /* INDIA-ONLY. Without a region bias Google happily returns "steel plants" in
+     China or Turkey — wasted requests, wasted screen, useless to an Indian lime
+     seller. regionCode biases the search and the appended country term anchors
+     the text query. Pass opts['region'] to override when Global Search ships. */
+  $region = strtoupper(trim((string)($opts['region'] ?? 'IN')));
   $q = $what . ($city !== '' ? ' in ' . $city : '');
+  if ($region === 'IN' && !preg_match('/\bindia\b/i', $q)) $q .= ' India';
 
   $body = ['textQuery' => $q, 'maxResultCount' => (int)($opts['max'] ?? 20)];
-  if (!empty($opts['region'])) $body['regionCode'] = $opts['region'];
+  if ($region !== '') $body['regionCode'] = $region;
   $fields = 'places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.rating,places.location';
 
   if ($http === null) {

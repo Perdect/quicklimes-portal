@@ -31,7 +31,7 @@ const OVERPASS_EPS = ['https://overpass-api.de/api/interpreter', 'https://maps.m
 
 async function osmGeocode(place) {
   try {
-    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(place), { headers: { Accept: 'application/json' } });
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&limit=1&q=' + encodeURIComponent(place), { headers: { Accept: 'application/json' } });
     const j = await r.json();
     if (j && j[0] && j[0].lat) return { lat: +j[0].lat, lon: +j[0].lon };
   } catch (_) {}
