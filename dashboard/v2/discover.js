@@ -1089,7 +1089,13 @@ function renderHeatMap() {
   const byState = {}; LM.plan(MI.product, opts).forEach(r => { byState[r.state] = r; });
 
   if (!HM_MAP) {
-    HM_MAP = L.map(host, { zoomControl: true, scrollWheelZoom: true, attributionControl: true, minZoom: 4, maxZoom: 11 }).setView([22.8, 80.5], 5);
+    /* INDIA ONLY. Fitting the India bbox into a very wide container letterboxes
+       horizontally and fills the spare width with Pakistan, China, the Gulf and
+       South-East Asia — a map of Asia with a few Indian labels on it. maxBounds
+       hard-clips the view to the subcontinent and stops the user panning away;
+       fitBounds then fills the SHORTER axis so India dominates the frame. */
+    HM_MAP = L.map(host, { zoomControl: true, scrollWheelZoom: true, attributionControl: true,
+      minZoom: 4, maxZoom: 11, maxBounds: INDIA_BBOX, maxBoundsViscosity: 1 }).setView([22.8, 80.5], 5);
     HM_TILE = hmTileLayer().addTo(HM_MAP);
     HM_LAYER = L.layerGroup().addTo(HM_MAP);
   }
@@ -1118,7 +1124,7 @@ function renderHeatMap() {
   L.circleMarker([origin.lat, origin.lon], { radius: 6, color: '#fff', weight: 2, fillColor: '#0f172a', fillOpacity: 1 })
     .addTo(HM_LAYER).bindTooltip('▲ ' + esc(origin.name.split(',')[0]) + ' — your plant', { className: 'hm-tt', direction: 'top' });
   // Fit to a fixed India view once the container is actually visible + sized.
-  if (!HM_FITTED && host.offsetParent) { HM_MAP.invalidateSize(); HM_MAP.fitBounds(INDIA_BBOX); HM_FITTED = true; }
+  if (!HM_FITTED && host.offsetParent) { HM_MAP.invalidateSize(); HM_MAP.fitBounds(INDIA_BBOX); HM_MAP.setMinZoom(HM_MAP.getZoom()); HM_FITTED = true; }
 }
 const INDIA_BBOX = [[6.7, 68.0], [35.6, 97.4]];
 /* Leaflet needs a size recalc + first fit once its container becomes visible (it
@@ -1128,7 +1134,7 @@ function hmOnShow() {
   setTimeout(() => {
     try {
       HM_MAP.invalidateSize();
-      if (!HM_FITTED) { HM_MAP.fitBounds(INDIA_BBOX); HM_FITTED = true; }
+      if (!HM_FITTED) { HM_MAP.fitBounds(INDIA_BBOX); HM_MAP.setMinZoom(HM_MAP.getZoom()); HM_FITTED = true; }
     } catch (_) {}
   }, 80);
 }
