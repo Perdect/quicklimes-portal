@@ -1,7 +1,7 @@
 /* QuickLimes v2 — service worker (installable PWA + offline shell).
    Local-first app: data lives in localStorage, so once the CSS/JS shell is cached
    the app opens offline. Never caches the /api backend or cross-origin requests. */
-const CACHE = 'ql-v2-cache-197';   // bumped: Bank Reconciliation v3 — lean AI-first rows, expandable detail, measured sticky header (gap fix)
+const CACHE = 'ql-v2-cache-198';   // bumped: universal sticky filter toolbar (qlx) + recon sticky-layer fixes
 
 self.addEventListener('install', () => self.skipWaiting());
 

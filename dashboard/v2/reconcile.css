@@ -79,14 +79,19 @@
    moved: the header simply scrolled away with the page. Giving the wrap the
    VERTICAL scroll (viewport-bounded) makes the header pin while rows scroll
    under it, and keeps horizontal panning. Desktop only — mobile is cards. */
+/* ONE SCROLL CONTAINER on desktop. Two nested scrollers is what made the toolbar
+   and the table header collide: the toolbar pinned to the PAGE while the header
+   pinned to the table's own inner scroller, so as the page scrolled the table
+   slid up behind the toolbar and the two overlapped. With the wrap set to
+   `overflow: visible`, both pin to the SAME scrollport (.main) — toolbar at 0,
+   header directly below it — and rows scroll under both.
+   Mobile keeps overflow-x for horizontal panning (it renders as cards anyway). */
 .rc-tablewrap { overflow-x: auto; }
-@media (min-width: 769px) {
-  .rc-tablewrap { max-height: calc(100vh - var(--rc-tb-h, 56px) - 150px); overflow: auto; overscroll-behavior: contain; }
-}
+@media (min-width: 769px) { .rc-tablewrap { overflow: visible; } }
 .rc-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; min-width: 780px; }
 /* thead pins to the TOP OF ITS OWN SCROLL WRAP (see .rc-tablewrap above), so it
    sits flush under the sticky toolbar with no white band between them. */
-.rc-table th { text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ql-text-muted); padding: 13px 12px; background: var(--ql-neutral-50); position: sticky; top: 0; z-index: 4; box-shadow: 0 1px 0 var(--ql-border); }
+.rc-table th { text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ql-text-muted); padding: 13px 12px; background: var(--ql-neutral-50); position: sticky; top: calc(var(--rc-tb-h, 88px) - var(--rc-tb-lift, 32px)); z-index: 4; box-shadow: 0 1px 0 var(--ql-border); }
 .rc-table th.r, .rc-table td.r { text-align: right; }
 .rc-table td { padding: 12px; border-top: 1px solid var(--ql-divider); vertical-align: middle; }
 .rc-table tbody tr:hover td { background: var(--ql-neutral-50); }
@@ -280,8 +285,14 @@
        so it sits flush against the top-bar instead of leaving a strip;
      • the thead pins BELOW the toolbar (--rc-tb-h), not under it. */
 :root { --rc-tb-h: 56px; }
-.rc-toolbar2 { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  margin: calc(var(--ql-space-6, 24px) * -1) calc(var(--ql-space-6, 24px) * -1) 8px; padding: 10px var(--ql-space-6, 24px);
+/* NO NEGATIVE TOP MARGIN on a sticky element. Sticky pins the MARGIN box, so a
+   -24px top margin parks the visible border box 24px BELOW the scrollport top —
+   and table rows scroll through that strip, appearing ABOVE the toolbar. The
+   horizontal negative margins are safe (full-bleed background); the vertical one
+   is not. */
+.rc-toolbar2 { position: sticky; top: calc(-1 * var(--rc-tb-lift, 32px)); z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 0 calc(var(--ql-space-6, 24px) * -1) 8px;
+  padding: calc(10px + var(--rc-tb-lift, 32px)) var(--ql-space-6, 24px) 10px;
   background: var(--ql-bg); border-bottom: 1px solid var(--ql-border); }
 .rc-ftabs { display: flex; gap: 4px; flex-wrap: wrap; }
 /* Account chips (multi-bank): which bank account the whole screen is scoped to */
@@ -598,3 +609,11 @@
 [data-theme="dark"] .rc-review { background: rgba(37,99,235,.18); border-color: rgba(37,99,235,.42); color: #bfdbfe; }
 [data-theme="dark"] .rc-review:hover { background: var(--ql-brand-600, #2563eb); border-color: var(--ql-brand-600, #2563eb); color: #fff; }
 [data-theme="dark"] .rc-kebab { color: var(--ql-text-secondary); }
+
+/* .rc-panel used overflow:hidden (for its rounded corners) — but overflow:hidden
+   ESTABLISHES A SCROLL CONTAINER, so the sticky header would pin to the panel
+   (which never scrolls) and slide away with the page again. `overflow: clip`
+   clips identically WITHOUT creating a scroll container, so sticky still
+   resolves against .main. */
+@media (min-width: 769px) { .rc-panel { overflow: clip; } }
+

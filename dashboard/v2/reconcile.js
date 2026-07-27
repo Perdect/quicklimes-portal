@@ -1767,7 +1767,9 @@ function syncStickyOffset() {
     });
   }
   if (window.__rcRO) { try { window.__rcRO.disconnect(); window.__rcRO.observe(tb); } catch (_) {} }
+
 }
+
 /* Guarded: this file is also loaded head-less by the recon test suites, whose
    stubbed `window` has no addEventListener — an unguarded call here would throw
    at PARSE time and take the whole page (and every test) down with it. */

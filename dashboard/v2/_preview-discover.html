@@ -808,26 +808,22 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <!-- Company 360° side-drawer (Phase 3) -->
 <div class="lc-back" id="lcBack" hidden><aside class="lc-drawer" id="lcDrawer" role="dialog" aria-modal="true" aria-label="Company details"></aside></div>
 
-<script src="ql-api.js?v=a4"></script>
-<script src="./crm-core.js?v=k1"></script>
-<script src="./icp-core.js?v=i1"></script>
-<script src="./lead-import.js?v=l1"></script>
-<script src="./lead-parse.js?v=lp1"></script>
-<script src="./lime-market.js?v=lm3"></script>
-<script src="./osm-query.js?v=oq1"></script>
-<script src="./lead-actions.js?v=la2"></script>
-<script src="./party-identity.js?v=m27"></script>
-<script src="./import-guard.js?v=m28"></script>
-<script src="./data.js?v=m44"></script>
-<script src="./i18n.js?v=h8"></script>
-<script src="./wa-core.js?v=w2"></script>
-<script src="./shell.js?v=m64"></script>
-<script src="./mobile.js?v=m16"></script>
-<script src="./qlx.js?v=m17"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="./freight-core.js?v=f1"></script>
-<script src="./freight.js?v=f2"></script>
-<script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d26"></script>
+<script>
+window.QLShell={mount:function(o){var p=document.getElementById("ql-page");if(!p)return;var c=p.innerHTML;p.remove();var s=document.createElement("div");s.className="shell";s.id="shell";s.setAttribute("data-collapsed","false");s.innerHTML="<aside class=\"sidebar\" id=\"sidebar\"><nav style=\"padding:10px\"><a class=\"sb-link active\" href=\"#\"><span class=\"sb-link-text\">Lead Discovery</span></a></nav></aside><header class=\"topbar\" style=\"grid-area:topbar\"></header><main class=\"main\" id=\"ql-main\"></main>";document.body.insertBefore(s,document.body.firstChild);document.getElementById("ql-main").innerHTML=c;},setBreadcrumb:function(){},closeModal:function(){var m=document.getElementById("qlModalBack");if(m)m.remove();},panel:function(c){var b=document.createElement("div");b.id="qlModalBack";b.style.cssText="position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center";var d=document.createElement("div");d.style.cssText="background:var(--ql-bg-elevated);padding:20px;border-radius:14px;max-width:440px;width:90%";d.innerHTML="<h3 style=\"margin:0 0 10px\">"+(c.title||"")+"</h3>"+(c.body||"");b.appendChild(d);document.body.appendChild(b);return d;},openForm:function(){}};
+window.QLD={init:function(cb){cb&&cb();return Promise.resolve();},salesRows:function(){return[]},partyRows:function(){return[]},getPL:function(){return null},activeCo:1,fmt:function(n){return n},co:{short:"Gotan Lime Industries",ownerName:"Haji Kayyum",city:"Gotan, Rajasthan",phone:"9460034743"}};
+var _mb=false;
+window.fetch=(function(orig){return function(url,opt){var b={};try{b=JSON.parse(opt.body)}catch(e){}function J(o){return Promise.resolve({ok:true,status:200,json:function(){return Promise.resolve(o)},text:function(){return Promise.resolve(JSON.stringify(o))}});}
+ // REALISTIC: every /api/discover call must carry the session token "x". If the body
+ // clobbered it (the old bug), reject as the real server would.
+ if(typeof url==="string"&&url.indexOf("/api/discover")>=0 && b.token!=="x") return J({ok:false,error:"Unauthorized"});
+ if(b&&b.action==="save_mapbox"){_mb=String(b.mapbox_token||"").indexOf("pk.")===0;return J({ok:true,mapbox:_mb});}
+ if(b&&b.action==="sources")return J({ok:true,osm:true,google:false,mapbox:_mb});
+ if(typeof url==="string"&&url.indexOf("/api/freight")>=0)return J({ok:true,google:false,mapbox:_mb});
+ if(typeof url==="string"&&url.indexOf("/api/crm")>=0)return J({ok:true,companies:[],contacts:[],leads:[]});
+ if(typeof url==="string"&&url.indexOf("/api/")>=0)return J({ok:true,rows:[],counts:{new:0,promoted:0,duplicate:0},osm:true,google:false,mapbox:_mb});
+ return orig.apply(this,arguments);};})(window.fetch);
+try{localStorage.setItem("ql_plant",JSON.stringify({id:"preview",token:"x"}))}catch(e){}
+</script>
+<script src="./icp-core.js"></script><script src="./lead-import.js"></script><script src="./lead-parse.js"></script><script src="./lime-market.js"></script><script src="./osm-query.js"></script><script src="./lead-actions.js"></script><script src="./crm-core.js"></script><script src="./wa-core.js"></script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="./india-geo.js"></script><script src="./freight-core.js"></script><script src="./freight.js"></script><script src="./discover.js"></script>
 </body>
 </html>

@@ -259,7 +259,17 @@ if (loaded) {
   /* A <td> with display:flex leaves the table's column model — the row divider
      stops short and the action column floats free of the grid. */
   ok('the actions cell stays a table-cell (never display:flex)', !/\.rc-actcell \{[^}]*display:\s*flex/.test(css));
-  ok('the table wrap scrolls vertically so the header can actually pin', /\.rc-tablewrap[\s\S]{0,400}max-height/.test(css));
+  /* ONE scrollport on desktop. Any ancestor of the sticky header that creates a
+     scroll container (overflow auto/hidden/scroll) captures the header and it
+     scrolls away — or collides with the toolbar, which pins to the page. So on
+     desktop the wrap must be `visible` and the panel must `clip`, never hidden. */
+  ok('desktop: the table wrap does NOT create a scroll container', /min-width:\s*769px\)\s*\{\s*\.rc-tablewrap\s*\{\s*overflow:\s*visible/.test(css));
+  ok('desktop: the panel clips (not hidden) so it is not a scrollport either', /min-width:\s*769px\)\s*\{\s*\.rc-panel\s*\{\s*overflow:\s*clip/.test(css));
+  /* Rows must never scroll through the page-padding strip above the bar: the bar
+     is LIFTED by exactly that strip (CSS only — no observers), and the header is
+     offset by the same lift so the two stay flush. */
+  ok('the bar is lifted to cancel the page-padding strip', /--rc-tb-lift/.test(css) && /top:\s*calc\(-1 \* var\(--rc-tb-lift/.test(css));
+  ok('  and the header subtracts that same lift', /top:\s*calc\(var\(--rc-tb-h[^)]*\) - var\(--rc-tb-lift/.test(css));
 }
 
 console.log('\n════ does the PAGE use the engine? ════\n  Passed: ' + pass + '   Failed: ' + fail);
