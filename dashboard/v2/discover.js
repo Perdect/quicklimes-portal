@@ -700,7 +700,7 @@ function paintTable() {
     const tier = f.tier || 'unknown';
     const dup = r.status === 'duplicate' ? `<span class="lc-dup">${r.dupe_of === 'customer' ? 'Already your customer' : 'Already in pipeline'}</span>` : '';
     const rating = (r.rating != null && r.rating !== '') ? `<span class="lr-rate" title="Google rating">★ ${(+r.rating).toFixed(1)}</span>` : '';
-    const src = r.source ? `<span class="lr-src">${esc(r.source === 'osm' ? 'OpenStreetMap' : r.source === 'mapbox' ? 'Mapbox' : 'Google Places')}</span>` : '';
+    const src = '';   /* provenance lives in the expanded pane, not on every row */
     const addr = esc(r.address || [r.city, r.state].filter(Boolean).join(', ') || '');
     const maps = (r.lat != null && r.lng != null)
       ? 'https://www.google.com/maps/search/?api=1&query=' + r.lat + ',' + r.lng
@@ -1178,10 +1178,26 @@ async function load() {
     notice('The list is empty and your account has <b>0</b> saved businesses under company <b>' + esc(dg.company_id || '(blank)') + '</b>. If a search just said “already in your list”, those rows were stored under a different company — tell me and I will move them.', true);
   }
   if (dg && dg.plant > 0 && dg.scope === 0) {
-    const ids = (dg.other_ids || []).map(o => (o.company_id === '' ? '(blank)' : o.company_id) + ' → ' + o.c + ' rows').join(' · ');
+    const others = dg.other_ids || [];
+    const ids = others.map(o => (o.company_id === '' ? '(blank)' : o.company_id) + ' → ' + o.c + ' rows').join(' · ');
+    /* "Tell me and I will move them" used to be a sentence with nothing behind
+       it. Now the biggest holding gets a button, because switching company in
+       the header is not what the user wants when THIS is their main company. */
+    const big = others.slice().sort((a, b) => (b.c || 0) - (a.c || 0))[0];
+    const btn = big ? ' <button class="dc-move" data-move-from="' + esc(big.company_id) + '" data-move-n="' + big.c + '">Move ' + big.c + ' businesses to this company</button>' : '';
     notice('You have <b>' + dg.plant + '</b> discovered businesses saved, but none under the company this page is asking for (<b>' + esc(dg.company_id || '(blank)') + '</b>).'
       + (ids ? ' They are stored under: <b>' + esc(ids) + '</b>.' : '')
-      + ' Switch company from the header, or tell me and I will move them.', true);
+      + ' Switch company from the header, or move them here.' + btn, true);
+    const mv = document.querySelector('[data-move-from]');
+    if (mv) mv.onclick = async () => {
+      const n = mv.dataset.moveN;
+      if (!confirm('Move ' + n + ' discovered businesses into this company?\n\nThey stay in your account either way — this only changes which company they are filed under.')) return;
+      mv.disabled = true; mv.textContent = 'Moving…';
+      const res = await api({ action: 'move', from: mv.dataset.moveFrom });
+      if (!res || !res.ok) { mv.disabled = false; mv.textContent = 'Move ' + n + ' businesses to this company'; toast((res && res.error) || 'Could not move them', 'err'); return; }
+      toast('Moved ' + res.moved + ' businesses here' + (res.skipped ? ' · ' + res.skipped + ' left behind as duplicates' : ''));
+      await load();
+    };
   }
   paintKpis(); paintTabs(); paintTable();
   renderHero(); renderCopilot();   // real counts + the recommendation reflect the loaded data
@@ -1470,13 +1486,25 @@ async function renderPipeline(force) {
     + pipeKpi(IC_CLOCK, 'Follow-ups due', due, due ? ['#dc2626', '#fef2f2'] : ['#64748b', '#f1f5f9'])
     + '</div>'
     + '<div class="pk-note">Counted when you open a draft or log a touch here. Delivery and replies are not counted — no email or WhatsApp channel is connected to this app, so nothing can observe them.</div>';
+  /* CRMCore.nextActions() has existed since the CRM was written with NOTHING
+     calling it, so "follow-ups due" was a number you could not act on. This is
+     its caller: the overdue-first call list, straight above the board. */
+  const dueList = CC.nextActions ? CC.nextActions(all, today) : [];
+  const dueStrip = dueList.length ? '<div class="pd-due"><div class="pd-due-t">' + IC_CLOCK
+    + '<span>Follow up now · ' + dueList.length + '</span></div><div class="pd-due-l">'
+    + dueList.slice(0, 8).map(x => {
+        const c = pipeCoOf(x.lead.crm_company);
+        return '<button class="pd-due-i' + (x.overdue ? ' od' : '') + '" data-due="' + x.lead.id + '">'
+          + '<b>' + esc(c.name || '—') + '</b><span>' + esc(x.lead.next_action || 'follow up') + '</span>'
+          + '<i>' + (x.overdue ? x.days + 'd overdue' : 'today') + '</i></button>';
+      }).join('') + '</div></div>' : '';
   // ── controls ──
   const controls = '<div class="pk-controls">'
     + '<input id="plSearch" class="pk-search" placeholder="Search companies, cities, industries…" value="' + esc(PIPE_SEARCH) + '">'
     + '<select id="plTemp" class="pk-sel"><option value="all">All temps</option><option value="hot"' + (PIPE_TEMP === 'hot' ? ' selected' : '') + '>Hot</option><option value="warm"' + (PIPE_TEMP === 'warm' ? ' selected' : '') + '>Warm</option><option value="cold"' + (PIPE_TEMP === 'cold' ? ' selected' : '') + '>Cold</option></select>'
     + '<button class="ql-btn ql-btn-secondary" id="plImport" type="button">Import</button>'
     + '<button class="ql-btn ql-btn-primary" id="plAdd" type="button">+ Add lead</button></div>';
-  if (!all.length) { root.innerHTML = band + band2 + controls + '<div class="pl-empty">No leads yet. Promote a discovered company from the Leads tab, or add one.</div>'; wirePipe(); return; }
+  if (!all.length) { root.innerHTML = band + band2 + dueStrip + controls + '<div class="pl-empty">No leads yet. Promote a discovered company from the Leads tab, or add one.</div>'; wirePipe(); return; }
   // ── filtered leads for the board ──
   const q = PIPE_SEARCH.toLowerCase().trim();
   let leads = all.filter(l => {
@@ -1499,7 +1527,7 @@ async function renderPipeline(force) {
     }).join('') || '<div class="pl-col-empty">Empty</div>';
     return '<div class="pl-col"><div class="pl-col-h"><span class="pl-col-dot" style="background:' + (s.key === 'won' ? '#16a34a' : s.key === 'lost' ? '#dc2626' : '#94a3b8') + '"></span><span>' + esc(s.label) + '</span><span class="pl-col-n">' + ls.length + ' · ' + pipeFmt(total) + '</span></div>' + cards + '</div>';
   }).join('');
-  root.innerHTML = band + band2 + controls + '<div class="pl-board"><div class="pl-cols">' + cols + '</div></div>';
+  root.innerHTML = band + band2 + dueStrip + controls + '<div class="pl-board"><div class="pl-cols">' + cols + '</div></div>';
   wirePipe();
 }
 /* upsertLead's UPDATE writes EVERY column it picks, so a partial payload is a
@@ -1513,6 +1541,7 @@ function wirePipe() {
   const imp = document.getElementById('plImport'); if (imp) imp.addEventListener('click', () => { switchSection('leads'); const b = document.getElementById('dcImport'); if (b) b.click(); });
   const srch = document.getElementById('plSearch'); if (srch) { srch.addEventListener('input', () => { PIPE_SEARCH = srch.value; renderPipeline(); srch.focus(); srch.setSelectionRange(srch.value.length, srch.value.length); }); }
   const temp = document.getElementById('plTemp'); if (temp) temp.addEventListener('change', () => { PIPE_TEMP = temp.value; renderPipeline(); });
+  document.querySelectorAll('#pipeRoot [data-due]').forEach(b => b.addEventListener('click', () => pipeOpenLead(+b.dataset.due)));
   document.querySelectorAll('#pipeRoot .pl-card').forEach(c => c.addEventListener('click', e => { if (e.target.closest('.pl-move')) return; pipeOpenLead(+c.dataset.lead); }));
   document.querySelectorAll('#pipeRoot .pl-move').forEach(b => b.addEventListener('click', async e => {
     e.stopPropagation();
@@ -1579,6 +1608,12 @@ function pipeOpenLead(id) {
         <button class="lr-b msg" id="plProposal" type="button">${IC_DOC}Generate proposal</button>
         <button class="lr-b" id="plOnboard" type="button">${IC_LINK}Onboarding link</button>
       </div></div>
+    <div class="pd-sec"><div class="pd-sec-t">Next step</div>
+      <div class="pd-next">
+        <input id="plNextAct" class="pd-in" placeholder="What is the next move? e.g. send a 1MT sample quote" value="${esc(l.next_action || '')}">
+        <input id="plNextAt" class="pd-in pd-in-d" type="date" value="${esc(nextDue)}">
+        <button class="lr-b pri" id="plNextSave" type="button">Save</button>
+      </div></div>
     <div class="pd-sec"><div class="pd-sec-t">Log a touch</div>
       <textarea id="plTouch" class="pd-note" rows="2" placeholder="What happened? A call summary, a note, a meeting…"></textarea>
       <div class="pd-btns" style="margin-top:8px">
@@ -1599,6 +1634,14 @@ function pipeOpenLead(id) {
   on('plStudio', () => { QLShell.closeModal(); openStudio(leadR); });
   on('plProposal', () => { QLShell.closeModal(); openProposal(leadR); logTouch({ kind: 'proposal', crm_company: l.crm_company, crm_lead: l.id, body: 'Proposal generated for ' + (co.name || '') }); });
   on('plOnboard', () => { QLShell.closeModal(); openOnboardLink(leadR); });
+  on('plNextSave', async () => {
+    const act = (pane.querySelector('#plNextAct') || {}).value || '';
+    const at = (pane.querySelector('#plNextAt') || {}).value || '';
+    if (!act.trim() && !at) { toast('Write the next step, or pick a date', 'err'); return; }
+    const r = await pipeApi({ action: 'upsertLead', lead: leadPatch(l, { next_action: act.trim(), next_action_at: at || null }) });
+    if (r && r.ok) { toast('Next step saved'); QLShell.closeModal(); renderPipeline(true); }
+    else toast((r && r.error) || 'Could not save the next step', 'err');
+  });
   pane.querySelectorAll('[data-touch]').forEach(b => b.addEventListener('click', async () => {
     const box = pane.querySelector('#plTouch'), txt = box ? box.value.trim() : '';
     if (!txt) { toast('Write what happened first', 'err'); return; }

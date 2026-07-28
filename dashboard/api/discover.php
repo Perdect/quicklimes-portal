@@ -365,6 +365,39 @@ if ($action === 'promote') {
   ql_out(['ok' => true, 'company_id' => $newId, 'lead_id' => $leadId]);
 }
 
+/* Move discovered rows between two of YOUR OWN companies.
+
+   Why this exists: a search saves rows against whichever company was active at
+   the time. Switch company and the list looks empty while dedupe still says
+   "already in your list" — the rows are simply filed under the other company.
+
+   Safety, because this rewrites real rows:
+     • plant_id is taken from the authenticated token context, never the body,
+       so this can only ever move data inside the caller's own plant;
+     • the endpoint already requires the '*' capability (owner/admin);
+     • 'from' must be sent explicitly — there is no "move everything" mode;
+     • UPDATE IGNORE, because uq_place (plant_id, company_id, place_id) can
+       collide when the target already holds the same business. A colliding row
+       is LEFT WHERE IT IS rather than deleted, and reported as skipped. */
+if ($action === 'move') {
+  if (!array_key_exists('from', $b)) ql_out(['ok' => false, 'error' => 'Nothing to move: no source company given']);
+  $from = (string)$b['from'];
+  if ($from === $coId) ql_out(['ok' => false, 'error' => 'Those rows are already under this company']);
+
+  $cq = $db->prepare('SELECT COUNT(*) FROM discovered WHERE plant_id = ? AND company_id = ?');
+  $cq->execute([$plantId, $from]);
+  $before = (int)$cq->fetchColumn();
+  if ($before === 0) ql_out(['ok' => false, 'error' => 'No saved businesses under that company']);
+
+  $up = $db->prepare('UPDATE IGNORE discovered SET company_id = ? WHERE plant_id = ? AND company_id = ?');
+  $up->execute([$coId, $plantId, $from]);
+  $moved = (int)$up->rowCount();
+
+  $cq->execute([$plantId, $from]);
+  $left = (int)$cq->fetchColumn();
+  ql_out(['ok' => true, 'moved' => $moved, 'skipped' => $left, 'from' => $from, 'to' => $coId]);
+}
+
 if ($action === 'dismiss' || $action === 'del') {
   $id = (int)($b['id'] ?? 0);
   if ($action === 'del') $db->prepare('DELETE FROM discovered WHERE id = ? AND plant_id = ? AND company_id = ?')->execute([$id, $plantId, $coId]);

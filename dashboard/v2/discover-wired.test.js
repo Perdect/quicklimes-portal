@@ -195,6 +195,13 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   /* upsertLead's UPDATE rewrites every column it picks, so a partial payload
      is a silent delete — a stage move that omits score/next_action wipes them.
      Every call must therefore layer the change onto the lead we already hold. */
+  /* CRMCore.nextActions() shipped with no caller — a "follow-ups due" count you
+     could not act on. Pin the caller AND the way to set a next step, or this
+     silently reverts to a decorative number. */
+  ok(/CC\.nextActions\(/.test(bare), 'the follow-up engine has a caller (nextActions)');
+  ok(/pd-due-i/.test(bare) && /data-due=/.test(bare), '  overdue leads render as a clickable call list');
+  ok(/plNextSave/.test(bare) && /next_action_at:/.test(bare), '  and a next step can actually be set from the lead panel');
+
   ok(/function leadPatch\(/.test(bare), 'stage moves send the whole lead, not a partial patch (leadPatch)');
   {
     const calls = bare.match(/action: 'upsertLead', lead: [^}]*\}/g) || [];

@@ -235,6 +235,34 @@ $PLACES_JSON = [
   ok($tries === 1, 'radius: only ONE Overpass endpoint is tried (geocode already spent part of the 30s budget)');
 }
 
+/* ══════════ 4b. moving rows between companies can only ever move YOUR own ══════════
+   The live SQL is exercised against a real MySQL in move.test.php. These are the
+   static invariants that must hold however that statement is rewritten. */
+{
+  $src = file_get_contents(__DIR__ . '/discover.php');
+  $i = strpos($src, "if (\$action === 'move')");
+  ok($i !== false, 'the move action exists (the banner offers it)');
+  /* Bound the slice at the NEXT action or it swallows the dismiss/del block
+     below and the "never deletes" check reads that block's DELETE. */
+  $j = $i === false ? false : strpos($src, "if (\$action ===", $i + 10);
+  $blk = $i === false ? '' : substr($src, $i, ($j === false ? 1800 : $j - $i));
+  /* Assert the UPDATE ITSELF is scoped. Checking the block as a whole is
+     decoration: the COUNT queries also mention plant_id, so deleting the scope
+     from the UPDATE still passed. (Caught by mutation-testing this very test.) */
+  preg_match('/UPDATE[^;]*?discovered[^;]*?WHERE[^\x27]*/i', $blk, $um);
+  $upd = $um[0] ?? '';
+  ok($upd !== '', '  the move runs an UPDATE on discovered');
+  ok(strpos($upd, 'plant_id = ?') !== false, '  …and THAT UPDATE is scoped to one plant (no cross-tenant move)');
+  ok(strpos($upd, 'company_id = ?') !== false, '  …and to the one named source company');
+  preg_match('/\$up->execute\(\[([^\]]*)\]\)/', $blk, $em);
+  ok(isset($em[1]) && strpos($em[1], '$plantId') !== false,
+    '  …and plant_id is bound from the token context, never the request body');
+  ok(strpos($blk, 'UPDATE IGNORE') !== false, '  a uq_place collision leaves the row behind instead of failing the batch');
+  ok(strpos($blk, 'DELETE') === false, '  the move never deletes anything');
+  ok(strpos($blk, "array_key_exists('from', \$b)") !== false, '  a source company must be named — there is no "move everything" mode');
+  ok(strpos($blk, "\$from === \$coId") !== false, '  and moving a company onto itself is refused');
+}
+
 /* ══════════ 5. the key never leaves the server ══════════ */
 {
   $src = file_get_contents(__DIR__ . '/discover.php');
