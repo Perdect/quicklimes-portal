@@ -962,7 +962,7 @@ function viewHTML() {
     <td class="rc-party">${partyCell(t)}</td>
     <td class="r">${amountCell(t)}</td>
     <td>${badge(t)}</td>
-    <td>${confCell(t)}</td>
+    <td>${matchedCell(t)}</td>
     <td class="rc-actcell">${actionCell(t)}</td>
   </tr>${open ? `<tr class="rc-xrow"><td colspan="7">${expandHTML(t)}</td></tr>` : ''}`; };
 
@@ -978,10 +978,32 @@ function viewHTML() {
       ).join('');
   const moreBar = more > 0 ? `<tr><td colspan="7" class="rc-morebar"><button class="ql-btn ql-btn-secondary" data-showmore>Show ${Math.min(300, more)} more (${more.toLocaleString('en-IN')} remaining)</button></td></tr>` : '';
   return `<div class="rc-tablewrap"><table class="rc-table rc-table2 rc-v3">
-    <thead><tr><th class="rc-cbx"></th><th>Date</th><th>Transaction</th><th class="r">Amount</th><th>Status</th><th>AI confidence</th><th></th></tr></thead>
+    <thead><tr><th class="rc-cbx"></th><th>Date</th><th>Transaction</th><th class="r">Amount</th><th>Status</th><th>Reconciled against</th><th></th></tr></thead>
     <tbody>${body}${moreBar}</tbody></table></div>`;
 }
 /* ── v3: confidence indicator (bar + %) — the ONE place the number is drawn ── */
+/* WHAT THIS LINE IS RECONCILED AGAINST — a fact, not a score.
+
+   The AI-confidence bar was a percentage on every row that nobody could act
+   on: it said how sure the matcher was, never WHAT it matched. This shows the
+   document the money is tied to (invoice / bill number and party), or the
+   category for a line that is not a bill (bank charges, EMI, internal
+   transfer). Unmatched lines say so plainly instead of showing a low bar.
+   The confidence is still available — it is in the expandable row, next to
+   the reasons the matcher gives. */
+function matchedCell(t) {
+  const m = t.m || {}, b = billFor(t);
+  if (b) {
+    const no = b.inv || b.bill || '';
+    const who = b.party || b.sup || '';
+    return `<div class="rc-mt"><span class="rc-mt-d">${esc(no || 'Matched')}</span>`
+      + (who ? `<span class="rc-mt-w">${esc(who)}</span>` : '') + `</div>`;
+  }
+  if (m.entryId) return `<div class="rc-mt"><span class="rc-mt-d">Cashbook entry</span>${m.cat ? `<span class="rc-mt-w">${esc(m.cat)}</span>` : ''}</div>`;
+  if (m.status === 'other' && m.cat) return `<div class="rc-mt"><span class="rc-mt-d">${esc(m.cat)}</span><span class="rc-mt-w">categorised</span></div>`;
+  if (m.status === 'duplicate') return `<div class="rc-mt"><span class="rc-mt-w">duplicate of an earlier line</span></div>`;
+  return `<div class="rc-mt"><span class="rc-mt-w">not matched yet</span></div>`;
+}
 function confCell(t) {
   const m = t.m || {};
   const c = m.confidence;
