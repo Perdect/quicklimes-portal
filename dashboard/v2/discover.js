@@ -694,10 +694,14 @@ function openLeadDrawer(r) {
       <div class="cd-h-id"><div class="cd-name">${esc(r.name)}</div><div class="cd-sub">${esc(r.industry || 'Industry not confirmed')}${r.city ? ' · ' + esc(r.city) : ''}</div></div>
       <button class="cd-x" id="cdX" aria-label="Close">✕</button>
     </div>
+    <div class="cd-tabs" id="cdTabs">
+      <button class="cd-tab active" data-tab="overview">Overview</button>
+      <button class="cd-tab" data-tab="fit">Lime fit</button>
+      <button class="cd-tab" data-tab="freight">Freight</button>
+      <button class="cd-tab" data-tab="notes">Notes</button>
+    </div>
     <div class="cd-body">
-      <div class="cd-sec"><div class="cd-sec-t">Fit for your lime</div>
-        <div class="cd-why">${f.why && f.why.length ? esc(f.why.join('. ')) + '.' : 'Scored against your own sales history (ICP).'}</div></div>
-      ${econSec}${playSec}
+      <div class="cd-pane" data-pane="overview">
       <div class="cd-sec"><div class="cd-sec-t">Contact</div>
         ${r.phone ? row('Phone', esc(r.phone)) : ''}
         ${r.email ? row('Email', esc(r.email)) : ''}
@@ -714,9 +718,32 @@ function openLeadDrawer(r) {
         </div>
       </div>
       <div class="cd-missing"><b>Not on file:</b> revenue, employee count, GST number, decision-maker names, credit history. Firmographics like these need a paid data provider — this page never invents them.</div>
+      </div>
+
+      <div class="cd-pane" data-pane="fit" hidden>
+        <div class="cd-sec"><div class="cd-sec-t">Fit for your lime</div>
+          <div class="cd-why">${f.why && f.why.length ? esc(f.why.join('. ')) + '.' : 'Scored against your own sales history (ICP).'}</div></div>
+        ${playSec || '<div class="cd-sec"><div class="cd-why">No lime use-case matched for this industry yet.</div></div>'}
+      </div>
+
+      <div class="cd-pane" data-pane="freight" hidden>
+        ${econSec || '<div class="cd-sec"><div class="cd-why">No coordinates on this listing, so freight cannot be estimated. Use the Freight tab to quote from a full address.</div></div>'}
+        <div class="cd-sec"><div class="cd-why">Freight lives here, not in the lead list — it decides the <b>quote</b>, not whether the company is worth calling.</div></div>
+      </div>
+
+      <div class="cd-pane" data-pane="notes" hidden>
+        <div class="cd-sec"><div class="cd-sec-t">Notes</div>
+          <textarea class="cd-note" id="cdNote" rows="6" placeholder="Call notes, who you spoke to, what they asked for…">${esc(noteFor(r.id))}</textarea>
+          <div class="cd-why" style="margin-top:8px">Saved on this device.</div></div>
+      </div>
     </div>`;
   back.hidden = false; requestAnimationFrame(() => back.classList.add('open'));
   document.getElementById('cdX').onclick = closeLeadDrawer;
+  d.querySelectorAll('.cd-tab').forEach(b => b.onclick = () => {
+    d.querySelectorAll('.cd-tab').forEach(x => x.classList.toggle('active', x === b));
+    d.querySelectorAll('.cd-pane').forEach(p => { p.hidden = p.dataset.pane !== b.dataset.tab; });
+  });
+  const nt = document.getElementById('cdNote'); if (nt) nt.onchange = () => saveNote(r.id, nt.value);
   back.onclick = ev => { if (ev.target === back) closeLeadDrawer(); };
   const wire = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
   wire('cdAssess', () => openAssess(r));

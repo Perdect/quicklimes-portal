@@ -621,6 +621,17 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .lf-clear { font: 600 12px var(--ql-font-sans); color: var(--ql-brand-600, #2563eb); background: none; border: 0; cursor: pointer; padding: 6px 4px; }
   @media (max-width: 760px) { .lf-count { margin-left: 0; } }
 
+  /* ── LEVEL 3: Company Profile tabs (inside the drawer) ── */
+  .cd-tabs { display: flex; gap: 2px; padding: 0 18px; border-bottom: 1px solid var(--ql-border); background: var(--ql-bg-elevated); position: sticky; top: 0; z-index: 3; }
+  .cd-tab { font: 600 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: none; border: 0;
+    border-bottom: 2px solid transparent; padding: 11px 12px; cursor: pointer; white-space: nowrap; }
+  .cd-tab:hover { color: var(--ql-text); }
+  .cd-tab.active { color: var(--ql-brand-700, #1d4ed8); border-bottom-color: var(--ql-brand-600, #2563eb); }
+  [data-theme="dark"] .cd-tab.active { color: #93c5fd; }
+  .cd-note { width: 100%; box-sizing: border-box; font: 500 13px/1.6 var(--ql-font-sans); color: var(--ql-text);
+    background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 10px; padding: 10px 12px; resize: vertical; }
+  .cd-note:focus { outline: none; border-color: var(--ql-brand-500, #3b82f6); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+
 </style>
 </head>
 <body class="ql-v2">
@@ -884,6 +895,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./freight-core.js?v=f1"></script>
 <script src="./freight.js?v=f2"></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d37"></script>
+<script src="./discover.js?v=d38"></script>
 </body>
 </html>
