@@ -602,12 +602,18 @@ function summaryHTML() {
   const rev = tt.filter(needsReview); const revAmt = rev.reduce((a, t) => a + (t.credit || 0) + (t.debit || 0), 0);
   const decided = tt.filter(t => t.m && t.m.confidence != null).length;
   const acc = decided ? Math.round(matchedRows.length / decided * 100) : null;
-  const seg = (cls, ic, label, val, sub) => `<div class="rc-sum-seg"><span class="rc-sum-ic ${cls}">${ic}</span><div class="rc-sum-x"><span class="rc-sum-l">${label}</span><span class="rc-sum-v">${val}</span><span class="rc-sum-sub">${sub}</span></div></div>`;
-  return `<div class="rc-summary">
-    ${seg('g', svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>'), 'Money In', fC(cr), credN + ' credit' + (credN === 1 ? '' : 's'))}
-    ${seg('r', svg('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>'), 'Money Out', fC(dr), debN + ' debit' + (debN === 1 ? '' : 's'))}
-    ${seg('b', svg(IC.ck), 'Matched', matchedRows.length + ' of ' + tt.length, acc != null ? 'auto-match rate ' + acc + '%' : '—')}
-    ${seg('p', svg('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'), 'Needs Review', fC(revAmt), rev.length + ' transaction' + (rev.length === 1 ? '' : 's') + (dup ? ' · ' + dup + ' duplicate' + (dup === 1 ? '' : 's') : ''))}
+  /* ONE DENSE STRIP, not four cards. The cards cost ~100px above the table and
+     carried four numbers a reconciler reads in a glance. This says the same in
+     a single row, so more transactions are on screen — the whole point of the
+     page. Every figure still totals WHAT IS ON SCREEN (filteredTxns), so it can
+     never disagree with the list below it. */
+  const chip = (cls, ic, val, sub, title) =>
+    `<span class="rc-s2 ${cls}" title="${esc(title || '')}">${ic}<b>${val}</b><i>${esc(sub)}</i></span>`;
+  return `<div class="rc-summary2">
+    ${chip('g', svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>'), fC(cr), 'in · ' + credN, 'Money in — ' + credN + ' credits')}
+    ${chip('r', svg('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>'), fC(dr), 'out · ' + debN, 'Money out — ' + debN + ' debits')}
+    ${chip('b', svg(IC.ck), matchedRows.length + '<small>/' + tt.length + '</small>', 'matched' + (acc != null ? ' · ' + acc + '%' : ''), 'Matched' + (acc != null ? ', auto-match rate ' + acc + '%' : ''))}
+    ${chip('p', svg('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'), rev.length, 'to review' + (dup ? ' · ' + dup + ' dup' : ''), fC(revAmt) + ' needs review' + (dup ? ', ' + dup + ' duplicates' : ''))}
   </div>`;
 }
 /* Secondary metrics live in a collapsed accordion, out of the primary flow. */
