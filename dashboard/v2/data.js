@@ -2679,7 +2679,7 @@
     productionDerived, derivedQtyGaps, tonnesOf, countOf,
     refundRows, refundSummary, addRefund, updateRefund, deleteRefund, refundJournal,
     // ── Soft-delete / Trash / Archive / Audit (recoverable deletion) ──
-    softDelete, restoreRecord, purgeRecord, voidRecord, archiveRecord, archiveRows, archiveCount, trashRows, trashCount, auditRows, backupJSON, trashModules: () => Object.keys(TRASHABLE),
+    softDelete, restoreRecord, purgeRecord, voidRecord, archiveRecord, archiveRows, archiveCount, trashRows, trashCount, auditRows, logAudit, backupJSON, trashModules: () => Object.keys(TRASHABLE),
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
     invoiceData, amountInWords,
     notifications, getRenewals, addRenewal, removeRenewal, recommendations,

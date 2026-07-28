@@ -1261,7 +1261,7 @@ function openMark(tid, anchor) {
   const cats = ['Advance payment', 'Self transfer', 'Inter-firm transfer', 'Partner transfer', 'Loan / EMI', 'Cash withdrawal', 'GST payment', 'Bank charges', 'Interest', 'Petcoke', 'Limestone', 'Plastic Bags', 'Royalty', 'Ignore', 'Other'];
   const m = document.createElement('div'); m.className = 'rc-menu';
   m.innerHTML = `<div class="rc-menu-h">Mark as</div>${cats.map(c => `<button class="rc-menu-i" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}`;
-  m.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { t.m = { kind: 'other', idx: null, status: 'other', cat: b.dataset.cat, manual: true, confidence: 100, matchedBy: 'manual', reasons: ['Categorized as ' + b.dataset.cat + ' by user'], at: new Date().toISOString() }; Q.saveRecon(); closeRcMenu(); render(); toast('Marked as ' + b.dataset.cat, 'ok'); });
+  m.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { const _wc = statusKey(t); t.m = { kind: 'other', idx: null, status: 'other', cat: b.dataset.cat, manual: true, confidence: 100, matchedBy: 'manual', reasons: ['Categorized as ' + b.dataset.cat + ' by user'], at: new Date().toISOString() }; auditRecon('categorise', t, _wc, 'other', b.dataset.cat); Q.saveRecon(); closeRcMenu(); render(); toast('Marked as ' + b.dataset.cat, 'ok'); });
   placeRcMenu(m, anchor);
 }
 /* Row 3-dot menu: one place for the secondary actions (keeps the row clean). */
@@ -1298,14 +1298,41 @@ function openKebab(tid, anchor) {
   if (isLinked(t)) m.appendChild(item('Undo match', () => { undoMatch(t); render(); }, 'del'));
   placeRcMenu(m, anchor);
 }
-function markDuplicate(t, on) { t.m = Object.assign({}, t.m || {}, { status: on ? 'duplicate' : (t.m && t.m.idx != null ? 'matched' : 'unmatched'), manual: true }); Q.saveRecon(); }
-function undoMatch(t) { if (t.m && t.m.kind === 'ledger' && t.m.ledgerEntryId && Q.reverseLedgerEntry) Q.reverseLedgerEntry(t.m.partyIdx, t.m.ledgerEntryId); t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched', confidence: 0, matchedBy: 'manual', reasons: ['Unlinked by user'], at: new Date().toISOString() }; Q.saveRecon(); }
+/* ── AUDIT: every reconciliation DECISION leaves a trace ────────────────────
+   reconcile.js wrote none. Confirming a match, unlinking one, marking a
+   duplicate or categorising a line all moved money-facing state with nothing
+   recorded — "who matched this, when, and was it the AI or a person" had no
+   answer. Q.auditRows() already reads the log (purchase.js does), so only the
+   write side was missing.
+
+   Kept cheap on purpose: one call per decision, the previous → new status in
+   `reason` so an override is legible without a schema change. */
+function auditRecon(action, t, was, now, extra) {
+  if (!Q.logAudit) return;                       // older data.js — never throw here
+  const b = billFor(t);
+  try {
+    Q.logAudit(action, 'recon', { id: t.id }, {
+      ref: t.utr || t.cheque || t.ref || '',
+      party: (b && (b.party || b.sup)) || (t.m && t.m.party) || t.clean || '',
+      amount: (t.credit || 0) + (t.debit || 0),
+      reason: (was && now ? was + ' → ' + now : (now || '')) + (extra ? ' · ' + extra : '')
+    });
+  } catch (_) { /* an audit failure must never block the user's action */ }
+}
+
+function markDuplicate(t, on) {
+  const was = statusKey(t);
+  t.m = Object.assign({}, t.m || {}, { status: on ? 'duplicate' : (t.m && t.m.idx != null ? 'matched' : 'unmatched'), manual: true });
+  auditRecon(on ? 'duplicate' : 'unduplicate', t, was, statusKey(t), 'by user');
+  Q.saveRecon();
+}
+function undoMatch(t) { const _was = statusKey(t); if (t.m && t.m.kind === 'ledger' && t.m.ledgerEntryId && Q.reverseLedgerEntry) Q.reverseLedgerEntry(t.m.partyIdx, t.m.ledgerEntryId); t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched', confidence: 0, matchedBy: 'manual', reasons: ['Unlinked by user'], at: new Date().toISOString() }; auditRecon('unlink', t, _was, 'unmatched', 'by user'); Q.saveRecon(); }
 function bulkAction(a) {
   const rows = txns().filter(t => ST.sel.has(t.id));
   if (a === 'clear') { ST.sel.clear(); render(); return; }
-  if (a === 'confirm') { rows.forEach(t => { if (t.m && t.m.idx != null) t.m = Object.assign({}, t.m, { status: (t.credit || t.debit) < ((billFor(t) || {}).outstanding != null ? billFor(t).outstanding : Infinity) - 1 ? 'partial' : 'matched', manual: true, confidence: 100 }); }); Q.saveRecon(); ST.sel.clear(); render(); toast('Confirmed ' + rows.length + ' match' + (rows.length === 1 ? '' : 'es'), 'ok'); return; }
+  if (a === 'confirm') { rows.forEach(t => { if (t.m && t.m.idx != null) { const _w = statusKey(t); t.m = Object.assign({}, t.m, { status: (t.credit || t.debit) < ((billFor(t) || {}).outstanding != null ? billFor(t).outstanding : Infinity) - 1 ? 'partial' : 'matched', manual: true, confidence: 100 }); auditRecon('confirm', t, _w, statusKey(t), 'bulk'); } }); Q.saveRecon(); ST.sel.clear(); render(); toast('Confirmed ' + rows.length + ' match' + (rows.length === 1 ? '' : 'es'), 'ok'); return; }
   if (a === 'dup') { rows.forEach(t => markDuplicate(t, true)); ST.sel.clear(); render(); toast('Marked ' + rows.length + ' as duplicate', 'ok'); return; }
-  if (a === 'ignore') { rows.forEach(t => { t.m = { kind: 'other', idx: null, status: 'other', cat: 'Ignored', manual: true, confidence: 100 }; }); Q.saveRecon(); ST.sel.clear(); render(); toast('Ignored ' + rows.length, 'ok'); return; }
+  if (a === 'ignore') { rows.forEach(t => { const _w = statusKey(t); t.m = { kind: 'other', idx: null, status: 'other', cat: 'Ignored', manual: true, confidence: 100 }; auditRecon('ignore', t, _w, 'other', 'bulk'); }); Q.saveRecon(); ST.sel.clear(); render(); toast('Ignored ' + rows.length, 'ok'); return; }
   if (a === 'export') { exportRecon(); ST.sel.clear(); render(); return; }
   // Reassign the selected txns to a bank account (or back to Unassigned).
   // Dedupe keys are account-scoped, so duplicates are re-evaluated after.

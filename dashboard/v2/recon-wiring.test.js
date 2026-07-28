@@ -361,5 +361,25 @@ fails.forEach(f => console.log('    ✗ ' + f));
     !/exFirst[^\n]*filter\(/.test(js));
 }
 
+/* ══════════ reconciliation decisions are audited ══════════
+   reconcile.js called logAudit ZERO times: confirming a match, unlinking one,
+   marking a duplicate or categorising a line changed money-facing state with
+   no trace of who did it or what it was before. Q.auditRows() already reads
+   the log; only the write side was missing. */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  const dj = fs.readFileSync(path.join(__dirname, 'data.js'), 'utf8');
+  ok('data.js exposes the audit writer', /auditRows, logAudit,/.test(dj));
+  ok('reconcile has one audit helper', /function auditRecon\(/.test(js));
+  ['unlink', 'confirm', 'ignore', 'categorise'].forEach(a =>
+    ok('  ' + a + ' is audited', new RegExp("auditRecon\\('" + a + "'").test(js)));
+  /* mark/unmark duplicate share one call site via a ternary */
+  ok('  marking and unmarking a duplicate are audited',
+    /auditRecon\(on \? 'duplicate' : 'unduplicate'/.test(js));
+  ok('  the previous status is recorded, not just the new one', /was \+ . → . \+ now/.test(js) || /was && now/.test(js));
+  ok('  and an audit failure never blocks the action', /catch \(_\) \{ \/\* an audit failure/.test(js));
+}
+
+if (fail) fails.slice(-12).forEach(f => console.log('    ✗ ' + f));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' WIRING TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');
 process.exit(fail === 0 ? 0 : 1);
