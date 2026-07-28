@@ -595,8 +595,15 @@ function summaryHTML() {
      so search/status/advanced filters update them instantly and the cards can
      never disagree with the list below them. */
   const tt = filteredTxns();
-  const cr = tt.reduce((a, t) => a + (t.credit || 0), 0), dr = tt.reduce((a, t) => a + (t.debit || 0), 0);
-  const credN = tt.filter(t => (t.credit || 0) > 0).length, debN = tt.filter(t => (t.debit || 0) > 0).length;
+  /* MONEY EXCLUDES DUPLICATES. A row flagged duplicate is the SAME bank line
+     imported twice — counting it again overstates what actually moved through
+     the account. The dedupe keeps the first copy and flags every later one, so
+     dropping the flagged rows leaves exactly one of each.
+     The duplicate COUNT is still shown, because the user has to know they are
+     there; it is only the money that must not double-count them. */
+  const real = tt.filter(t => statusKey(t) !== 'duplicate');
+  const cr = real.reduce((a, t) => a + (t.credit || 0), 0), dr = real.reduce((a, t) => a + (t.debit || 0), 0);
+  const credN = real.filter(t => (t.credit || 0) > 0).length, debN = real.filter(t => (t.debit || 0) > 0).length;
   const matchedRows = tt.filter(t => statusKey(t) === 'matched');
   const dup = tt.filter(t => statusKey(t) === 'duplicate').length;
   const rev = tt.filter(needsReview); const revAmt = rev.reduce((a, t) => a + (t.credit || 0) + (t.debit || 0), 0);
@@ -610,8 +617,8 @@ function summaryHTML() {
   const chip = (cls, ic, val, sub, title) =>
     `<span class="rc-s2 ${cls}" title="${esc(title || '')}">${ic}<b>${val}</b><i>${esc(sub)}</i></span>`;
   return `<div class="rc-summary2">
-    ${chip('g', svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>'), fC(cr), 'in · ' + credN, 'Money in — ' + credN + ' credits')}
-    ${chip('r', svg('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>'), fC(dr), 'out · ' + debN, 'Money out — ' + debN + ' debits')}
+    ${chip('g', svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>'), fC(cr), 'in · ' + credN, 'Money in from ' + credN + ' credits' + (dup ? ' — ' + dup + ' duplicate rows excluded' : ''))}
+    ${chip('r', svg('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>'), fC(dr), 'out · ' + debN, 'Money out from ' + debN + ' debits' + (dup ? ' — ' + dup + ' duplicate rows excluded' : ''))}
     ${chip('b', svg(IC.ck), matchedRows.length + '<small>/' + tt.length + '</small>', 'matched' + (acc != null ? ' · ' + acc + '%' : ''), 'Matched' + (acc != null ? ', auto-match rate ' + acc + '%' : ''))}
     ${chip('p', svg('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'), rev.length, 'to review' + (dup ? ' · ' + dup + ' dup' : ''), fC(revAmt) + ' needs review' + (dup ? ', ' + dup + ' duplicates' : ''))}
   </div>`;

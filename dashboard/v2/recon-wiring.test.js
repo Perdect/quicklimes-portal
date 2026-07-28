@@ -328,5 +328,21 @@ fails.forEach(f => console.log('    ✗ ' + f));
   ok('  and the old four-card container is gone', !/class="rc-summary"/.test(js));
 }
 
+/* ══════════ duplicates must not be counted as money ══════════
+   A row flagged duplicate is the same bank line imported twice. Counting it
+   again overstates what moved through the account - a wrong number on a money
+   screen. The COUNT stays visible; only the money excludes them. */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  const i = js.indexOf('function summaryHTML');
+  const blk = js.slice(i, js.indexOf('function finOverviewHTML', i));
+  ok('summaryHTML drops duplicate rows before summing money',
+    /const real = tt\.filter\(t => statusKey\(t\) !== 'duplicate'\)/.test(blk));
+  ok('  money in/out are summed from that set, not the raw list',
+    /const cr = real\.reduce/.test(blk) && /dr = real\.reduce/.test(blk));
+  ok('  credit/debit counts too', /credN = real\.filter/.test(blk) && /debN = real\.filter/.test(blk));
+  ok('  and the duplicate count is still shown', /const dup = tt\.filter\(t => statusKey\(t\) === 'duplicate'\)/.test(blk));
+}
+
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' WIRING TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');
 process.exit(fail === 0 ? 0 : 1);
