@@ -753,18 +753,8 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .ds-ch { display: inline-flex; align-items: center; gap: 4px; font: 600 12px var(--ql-font-sans);
     color: var(--ql-text-secondary); font-variant-numeric: tabular-nums; }
   .ds-ch svg { width: 12px; height: 12px; opacity: .7; }
-  /* ── suggestion cards (each is a ranked market, not a static example) ── */
-  #dcChips { display: flex; gap: 10px; flex-wrap: wrap; }
-  .dc-sug { display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer;
     background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px; padding: 9px 13px 9px 10px;
     transition: border-color .12s, transform .12s; }
-  .dc-sug:hover { border-color: var(--ql-brand-400,#60a5fa); transform: translateY(-1px); }
-  .dc-sug-ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: none;
-    font: 800 14px var(--ql-font-sans); }
-  .dc-sug-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-  .dc-sug-t b { font: 700 12.5px var(--ql-font-sans); color: var(--ql-text); }
-  .dc-sug-t i { font: 500 11.5px var(--ql-font-sans); font-style: normal; color: var(--ql-text-secondary); }
-  .dc-sug-t em { font: 500 10.5px var(--ql-font-sans); font-style: normal; color: var(--ql-text-muted); }
 
   /* ── AI summary panel rows ── */
   .in-row { display: flex; align-items: center; gap: 10px; margin: 7px 0; }
@@ -837,7 +827,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
         <button class="ql-btn ql-btn-primary" id="dcGo">Search</button>
       </div>
       <div class="dc-understood" id="dcUnderstood"></div>
-      <div class="dc-chips" id="dcChips"></div>
       <!-- Structured filters — collapsed by default (one intelligent search), always editable. -->
       <button class="dc-filt-toggle" id="dcFiltToggle" aria-expanded="false">Advanced filters</button>
       <div class="dc-row" id="dcFilters" hidden>

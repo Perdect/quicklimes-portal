@@ -476,7 +476,6 @@ function renderMarket() {
     </div>`;
   }).join('');
   stEl.querySelectorAll('[data-find]').forEach(b => b.onclick = () => findInMarket(b.dataset.what, b.dataset.state));
-  paintChips();   // keep the "Try:" examples in step with the selected product/origin
   if (typeof renderCopilot === 'function') renderCopilot();   // the top pick may have changed
   if (typeof renderHeatMap === 'function') renderHeatMap();
   if (typeof renderHero === 'function') renderHero();
@@ -514,54 +513,6 @@ function findInMarket(what, state) {
    top margin-ranked (industry × state) targets for the product you sell, so the
    examples themselves point across India rather than back at Jodhpur. Falls back
    to a national static list only if the engine is missing. */
-function marketSuggestions() {
-  if (!LM) return SUGGEST.map(([w, c]) => ({ what: w, state: c, label: w }));
-  const plan = LM.plan((typeof MI !== 'undefined' && MI.product) || 'quick', { origin: miOriginCoords(), freightRate: (typeof MI !== 'undefined' && MI.rate) || 4 });
-  // Skip Rajasthan (home) — the whole point is to look beyond it — and take the
-  // best non-home markets, each with its top relevant industry.
-  return plan.filter(r => r.state !== 'Rajasthan').slice(0, 6).map(r => {
-    const top = r.industries[0];
-    /* Carry the RANKING through. These are not decorative examples — each one
-       is the best remaining market for this product from this plant, and the
-       card can therefore say why it is being suggested. */
-    return { what: LM.osmTerm(top.key), state: r.state, key: top.key,
-      label: top.label.replace(/ (Plants|Mills|Manufacturers|Industries|Companies|Refineries|Smelters|Units)$/, ''),
-      demand: +top.demand || 0, freight: r.freightPerTonne || null, km: r.km || null, score: r.score || 0 };
-  });
-}
-/* A letter tile beats a stock emoji here: it needs no font support, it is
-   consistent across platforms, and the colour carries the market's tier. */
-function sugTone(score) {
-  if (score >= 60) return ['#15803d', '#dcfce7'];
-  if (score >= 40) return ['#2563eb', '#eff6ff'];
-  return ['#b45309', '#fff7ed'];
-}
-function demandWord(d) {
-  return d >= 5 ? 'Very high lime demand' : d >= 4 ? 'High lime demand'
-    : d >= 3 ? 'Steady lime demand' : d > 0 ? 'Light lime demand' : '';
-}
-function paintChips() {
-  const el = document.getElementById('dcChips'); if (!el) return;
-  const sug = marketSuggestions();
-  /* Suggestion CARDS, not bare chips. Each is the best remaining market for
-     this product from this plant, so it shows the reason it is being
-     suggested — the tier and the delivered rate the ranking used. Guessing is
-     what a static example list would be; this is the same engine the Markets
-     tab draws. */
-  el.innerHTML = sug.map(s => {
-    const tone = sugTone(s.score);
-    /* Say what the RANKING actually balances — the industry's lime demand
-       against the freight to get there. "Regional" was the distance band and
-       told a salesperson nothing about why to call. */
-    const parts = [demandWord(s.demand)];
-    if (s.freight) parts.push('₹' + Math.round(s.freight).toLocaleString('en-IN') + '/t freight');
-    const why = parts.filter(Boolean).join(' · ') || 'Suggested market';
-    return `<button class="dc-sug" data-w="${esc(s.what)}" data-c="${esc(s.state)}" title="Search ${esc(s.label)} in ${esc(s.state)}">
-      <span class="dc-sug-ic" style="color:${tone[0]};background:${tone[1]}">${esc(String(s.label).trim().charAt(0).toUpperCase())}</span>
-      <span class="dc-sug-t"><b>${esc(s.label)}</b><i>${esc(s.state)}</i><em>${why}</em></span></button>`;
-  }).join('');
-  el.querySelectorAll('[data-w]').forEach(b => b.onclick = () => findInMarket(b.dataset.w, b.dataset.c));
-}
 function paintRecent() {
   const el = document.getElementById('dcRecent'); if (!el) return;
   if (!RECENT.length) { el.innerHTML = ''; return; }
@@ -1880,7 +1831,7 @@ function pipeOpenLead(id) {
 QLShell.mount({ active: 'discover', title: 'Lead Discovery' });
 buildIcp();
 buildFilters(); setupVoice(); buildMarketPanel();
-paintSources(); paintChips(); paintTabs(); paintTable();
+paintSources(); paintTabs(); paintTable();
 renderHero(); renderCopilot(); renderHeatMap();
 /* LEADS is the default section. This page exists to hand a salesperson people
    to call; the Copilot is a place you choose to go, not the thing you want in
