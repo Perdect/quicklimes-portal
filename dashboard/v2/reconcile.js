@@ -46,6 +46,11 @@ const toast = (m, t) => (QLShell.toast ? QLShell.toast(m, t) : 0);
 
 let ST = {
   view: 'recon', month: 'all', monthInit: false, ftype: 'all', fstatus: 'all', q: '', sel: new Set(), foOpen: false, acc: '',
+  /* Date range, on the TABLE not the page header. The header's month picker
+     could only ever say "one month"; reconciling a quarter, a financial year
+     or "since the last statement" needed a range that lives beside the rows
+     being filtered. Empty string = open-ended on that side. */
+  dFrom: '', dTo: '', dOpen: false,
   /* The status dropdown ("too many options" — the six tabs became one select).
      View state only, like advOpen: closed on every pick and on click-away. */
   stOpen: false,
@@ -671,10 +676,56 @@ function toolbarHTML() {
   return `<div class="rc-toolbar2">
     <div class="rc-ftabs">${stSel}</div>
     <div class="rc-tb-r">
+      ${dateBtnHTML()}
       ${filtersBtnHTML()}
       <div class="rc-searchw">${svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')}<input class="rc-search2" id="rcSearch" placeholder="Search party, ref, amount…" value="${esc(ST.q)}"></div>
       <button class="rc-mini2" data-view="ledger" title="Party ledger">${svg('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>')}<span>Ledger</span></button>
     </div></div>`;
+}
+/* ── DATE RANGE, on the table ─────────────────────────────────────────────
+   Presets cover what a reconciler actually asks for; the two date inputs cover
+   everything else. Deliberately not tied to the header month picker — that one
+   scopes the whole page (KPIs, AI summary), this one narrows the rows you are
+   working through, and conflating them is why "filter any time" was awkward. */
+function fyStart(d) { const y = d.getFullYear(); return (d.getMonth() >= 3 ? y : y - 1) + '-04-01'; }
+function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function datePresets() {
+  const now = new Date();
+  const som = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const eolm = new Date(now.getFullYear(), now.getMonth(), 0);
+  const q = Math.floor(now.getMonth() / 3);
+  return [
+    ['All time', '', ''],
+    ['This month', iso(som), iso(now)],
+    ['Last month', iso(lom), iso(eolm)],
+    ['Last 90 days', iso(new Date(now.getTime() - 89 * 86400000)), iso(now)],
+    ['This quarter', iso(new Date(now.getFullYear(), q * 3, 1)), iso(now)],
+    ['This FY', fyStart(now), iso(now)]
+  ];
+}
+function dLabel() {
+  if (!ST.dFrom && !ST.dTo) return 'Any date';
+  const f = ST.dFrom ? fDS(ST.dFrom) : '…';
+  const t = ST.dTo ? fDS(ST.dTo) : '…';
+  const hit = datePresets().find(p => p[1] === ST.dFrom && p[2] === ST.dTo && p[1]);
+  return hit ? hit[0] : f + ' – ' + t;
+}
+function dateBtnHTML() {
+  const on = !!(ST.dFrom || ST.dTo);
+  return `<div class="rc-dwrap">
+    <button class="rc-dbtn ${on ? 'on' : ''}" id="rcDBtn" aria-haspopup="dialog" aria-expanded="${!!ST.dOpen}" title="Filter by date">
+      ${svg('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>')}
+      <span>${esc(dLabel())}</span>${svg('<polyline points="6 9 12 15 18 9"/>')}
+    </button>
+    ${ST.dOpen ? `<div class="rc-dmenu" role="dialog" aria-label="Date range">
+      <div class="rc-dpre">${datePresets().map(p =>
+        `<button class="rc-dpb ${(ST.dFrom === p[1] && ST.dTo === p[2]) ? 'on' : ''}" data-dpre="${esc(p[1])}|${esc(p[2])}">${esc(p[0])}</button>`).join('')}</div>
+      <div class="rc-drow"><label>From</label><input type="date" id="rcDFrom" value="${esc(ST.dFrom)}"></div>
+      <div class="rc-drow"><label>To</label><input type="date" id="rcDTo" value="${esc(ST.dTo)}"></div>
+      <div class="rc-dfoot"><button class="rc-dclr" id="rcDClear">Clear</button><span class="rc-dn" id="rcDN"></span></div>
+    </div>` : ''}
+  </div>`;
 }
 function bulkBarHTML() {
   if (!ST.sel || !ST.sel.size) return '';
@@ -814,6 +865,10 @@ function filteredTxns() {
   else if (ST.fstatus === 'unmatched') r = r.filter(t => statusKey(t) === 'unmatched');
   else if (ST.fstatus === 'partial') r = r.filter(t => statusKey(t) === 'partial');
   else if (ST.fstatus === 'duplicate') r = r.filter(t => statusKey(t) === 'duplicate');
+  /* Dates are ISO (YYYY-MM-DD) so a string compare IS a date compare — no
+     parsing, no timezone to get wrong. */
+  if (ST.dFrom) r = r.filter(t => String(t.date || '') >= ST.dFrom);
+  if (ST.dTo)   r = r.filter(t => String(t.date || '') <= ST.dTo);
   r = r.filter(advMatch);          // advanced filters (Filters panel)
   if (ST.q) { const q = ST.q.toLowerCase(); r = r.filter(t => { const b = billFor(t); return ((t.clean || '') + ' ' + (t.raw || t.desc || '') + ' ' +(t.utr || '') + ' ' + (t.ref || '') + ' ' + (t.credit || t.debit || '') + ' ' + (b ? (b.party || b.sup || '') + ' ' + (b.inv || b.bill || '') : '')).toLowerCase().includes(q); }); }
   return r.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -1719,6 +1774,8 @@ function wire() {
     window.__rcStAway = 1;   // bound once per page load — wire() runs on every render
     document.addEventListener('click', e => {
       if (ST.stOpen && !e.target.closest('.rc-stwrap')) { ST.stOpen = false; render(); }
+      /* The date popover needs the same closer, and for the same reason. */
+      if (ST.dOpen && !e.target.closest('.rc-dwrap')) { ST.dOpen = false; render(); }
     });
   }
   root.querySelectorAll('[data-facc]').forEach(b => b.onclick = () => { ST.acc = b.dataset.facc; ST.sel.clear(); render(); });
@@ -1730,6 +1787,25 @@ function wire() {
   document.querySelectorAll('[data-lfilter]').forEach(b => { b.onclick = () => { ST.lfilter = b.dataset.lfilter; lgRepaint(); }; });
   if ($('rcLgClear')) $('rcLgClear').onclick = () => { ST.lq = ''; ST.lfilter = 'all'; lgRepaint(); };
   if ($('rcSearch')) { const s = $('rcSearch'); s.oninput = () => { ST.q = s.value; ST.cap = 300; repaintList(); s2focus(); }; }
+  /* ── date range ── */
+  if ($('rcDBtn')) $('rcDBtn').onclick = e => { e.stopPropagation(); ST.dOpen = !ST.dOpen; ST.stOpen = false; render(); };
+  (document.querySelectorAll('[data-dpre]') || []).forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    const [f, t] = b.dataset.dpre.split('|');
+    ST.dFrom = f; ST.dTo = t; ST.dOpen = false; ST.cap = 300; render();
+  });
+  ['rcDFrom', 'rcDTo'].forEach(id => { const el = $(id); if (el) {
+    el.onclick = e => e.stopPropagation();
+    el.onchange = () => {
+      const f = ($('rcDFrom') || {}).value || '', t = ($('rcDTo') || {}).value || '';
+      /* A backwards range silently shows nothing, which reads as "no data".
+         Swap it instead — the user meant the span between the two dates. */
+      ST.dFrom = (f && t && f > t) ? t : f;
+      ST.dTo   = (f && t && f > t) ? f : t;
+      ST.cap = 300; render();
+    };
+  } });
+  if ($('rcDClear')) $('rcDClear').onclick = e => { e.stopPropagation(); ST.dFrom = ST.dTo = ''; ST.dOpen = false; render(); };
   root.querySelectorAll('[data-link]').forEach(b => b.onclick = () => openLink(b.dataset.link));
   root.querySelectorAll('[data-unlink]').forEach(b => b.onclick = () => { const t = txns().find(x => x.id === b.dataset.unlink); if (t) { t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched' }; Q.saveRecon(); render(); } });
   root.querySelectorAll('[data-mark]').forEach(b => b.onclick = e => openMark(b.dataset.mark, e.currentTarget));

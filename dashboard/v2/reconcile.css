@@ -665,3 +665,35 @@
 }
 .rc-v3 .rc-party-n, .rc-v3 .rc-party-nar { min-width: 0; }
 @media (max-width: 900px) { .rc-party { min-width: 160px; } }
+
+
+/* ── date range on the table toolbar ───────────────────────────────────────
+   Beside the rows it filters, not in the page header: the header month picker
+   scopes the whole page, this narrows what you are working through. */
+.rc-dwrap { position: relative; }
+.rc-dbtn { display: inline-flex; align-items: center; gap: 7px; font: 600 12.5px var(--ql-font-sans);
+  color: var(--ql-text-secondary); background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: 10px; padding: 8px 12px; cursor: pointer; white-space: nowrap; }
+.rc-dbtn:hover { color: var(--ql-text); border-color: var(--ql-brand-400, #60a5fa); }
+.rc-dbtn.on { color: var(--ql-brand-700, #1d4ed8); border-color: var(--ql-brand-400, #60a5fa); background: var(--ql-brand-50, #eff6ff); }
+[data-theme="dark"] .rc-dbtn.on { background: rgba(37,99,235,.16); color: #93c5fd; }
+.rc-dbtn svg { width: 14px; height: 14px; }
+.rc-dmenu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; width: 268px;
+  background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15,23,42,.14); padding: 10px; }
+[data-theme="dark"] .rc-dmenu { box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+.rc-dpre { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.rc-dpb { font: 600 11.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-bg-subtle, #f8fafc);
+  border: 1px solid transparent; border-radius: 8px; padding: 7px 9px; cursor: pointer; text-align: left; }
+.rc-dpb:hover { color: var(--ql-text); border-color: var(--ql-border); }
+.rc-dpb.on { background: var(--ql-brand-50, #eff6ff); color: var(--ql-brand-700, #1d4ed8); border-color: var(--ql-brand-400, #60a5fa); }
+[data-theme="dark"] .rc-dpb { background: rgba(255,255,255,.04); }
+[data-theme="dark"] .rc-dpb.on { background: rgba(37,99,235,.18); color: #93c5fd; }
+.rc-drow { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+.rc-drow label { font: 600 11px var(--ql-font-sans); color: var(--ql-text-muted); width: 34px; flex: none; }
+.rc-drow input { flex: 1; min-width: 0; font: 500 12.5px var(--ql-font-sans); color: var(--ql-text);
+  background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 8px; padding: 6px 8px; }
+.rc-dfoot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+.rc-dclr { font: 600 11.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: none; border: 0; cursor: pointer; padding: 4px 2px; }
+.rc-dclr:hover { color: #dc2626; }
+.rc-dn { font: 500 11px var(--ql-font-sans); color: var(--ql-text-muted); }

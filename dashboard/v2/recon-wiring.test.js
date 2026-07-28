@@ -289,5 +289,29 @@ if (loaded) {
 
 console.log('\n════ does the PAGE use the engine? ════\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));
+/* ══════════ date range lives on the TABLE, and actually filters ══════════
+   Asked for directly: "I want date filter on the above table so that I can
+   filter any time no need on the header". The header month picker scopes the
+   whole page; this narrows the rows being worked through. */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, 'reconcile.css'), 'utf8');
+  ok('the toolbar renders a date control', /dateBtnHTML\(\)/.test(js) && /id="rcDBtn"/.test(js));
+  ok('  it is in the table toolbar, not the page header',
+    js.indexOf('${dateBtnHTML()}') > js.indexOf('rc-toolbar2'));
+  ok('  the range is applied in the SAME chain as every other filter',
+    /if \(ST\.dFrom\)\s+r = r\.filter/.test(js) && /if \(ST\.dTo\)\s+r = r\.filter/.test(js));
+  ok('  both bounds are compared as ISO strings (no Date parsing, no timezone)',
+    /String\(t\.date \|\| ''\) >= ST\.dFrom/.test(js) && /String\(t\.date \|\| ''\) <= ST\.dTo/.test(js));
+  ok('  a backwards range is swapped, not silently empty',
+    /f > t\) \? t : f/.test(js) && /f > t\) \? f : t/.test(js));
+  ok('  the popover closes on click-away like the status menu',
+    /ST\.dOpen && !e\.target\.closest\('\.rc-dwrap'\)/.test(js));
+  /* .rc-dp was ALREADY the detail-panel drawer (absolute, right:0). Reusing it
+     stacked every preset at the menu's edge. Pin the distinct name. */
+  ok('  presets use a class no other rule owns', /class="rc-dpb /.test(js) && /\.rc-dpb \{/.test(css));
+  ok('  and .rc-dp is left to the detail panel', /\.rc-dp \{[^}]*position: absolute/.test(css));
+}
+
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' WIRING TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');
 process.exit(fail === 0 ? 0 : 1);
