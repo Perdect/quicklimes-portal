@@ -1014,7 +1014,7 @@ function openStudio(r) {
   back.className = 'os-back'; back.id = 'osBack';
   back.innerHTML = `<div class="os-modal" role="dialog" aria-modal="true" aria-label="Outreach Studio">
     <div class="os-head"><div class="os-head-ic">${IC_SPARK}</div>
-      <div class="os-head-t"><div class="os-title">Outreach Studio</div><div class="os-sub">AI-personalised for ${esc(r.name || '')} · smart template</div></div>
+      <div class="os-head-t"><div class="os-title">Outreach Studio</div><div class="os-sub" id="osEngine">Writing for ${esc(r.name || '')}…</div></div>
       <button class="os-x" id="osX" aria-label="Close">×</button></div>
     <div class="os-chan">
       <button class="os-chan-b" data-ch="email">${IC_MAIL}Email</button>
@@ -1039,10 +1039,48 @@ function openStudio(r) {
     $$('.os-subj-wrap').style.display = ch === 'email' ? 'block' : 'none';
     const ob = $$('#osOpen'); ob.textContent = ch === 'email' ? 'Open in email' : 'Open WhatsApp'; ob.classList.toggle('os-wa', ch === 'whatsapp');
   }
-  function regen() { const c = LA.compose(r, seller, inds, { channel: ch, type }); subj.value = c.subject; msg.value = c.text; paint(); }
+  /* THE MESSAGE ENGINE. /api/discover has had a real LLM writer behind
+     action:'message' since it was built and NOTHING ever called it — which is
+     why every draft came out of the local template and the refine chips only
+     ever swapped a few words. The server is tried first; the template is the
+     fallback, not the product.
+
+     The subtitle always says which one you are reading. A template presented
+     as "AI-personalised" is the kind of small lie that costs trust in front of
+     a customer. */
+  const engineEl = $$('#osEngine');
+  let busy = false;
+  function setEngine(txt, spin) { if (engineEl) engineEl.innerHTML = (spin ? '<span class="dc-spin"></span> ' : '') + esc(txt); }
+  function localDraft() { const c = LA.compose(r, seller, inds, { channel: ch, type }); subj.value = c.subject; msg.value = c.text; paint(); return c; }
+
+  async function serverDraft(refine) {
+    if (busy) return false;
+    busy = true; setEngine(refine ? 'Rewriting…' : 'Writing a fresh message…', true);
+    let ok = false;
+    try {
+      const resp = await api({ action: 'message', lead: leadPayload(r), seller: sellerInfo(),
+        product: (typeof MI !== 'undefined' && MI.product) || 'quick',
+        type, channel: ch, refine: refine || '', text: refine ? msg.value : '' }, { timeout: 60000 });
+      const t = resp && resp.ok && resp.data && String(resp.data.message || '').trim();
+      if (t) { msg.value = t; setEngine('Written by AI · ' + (resp.model || resp.provider || 'model')); ok = true; }
+      else if (resp && resp.error === 'llm_not_configured') setEngine('Smart template — no AI key set in Settings');
+      else setEngine('Smart template — AI unavailable' + (resp && resp.error ? ' (' + resp.error + ')' : ''));
+    } catch (_) { setEngine('Smart template — AI unavailable'); }
+    busy = false;
+    return ok;
+  }
+
+  async function regen() { localDraft(); await serverDraft(''); }
+
   back.querySelectorAll('.os-chan-b').forEach(b => b.addEventListener('click', () => { ch = b.dataset.ch; regen(); }));
   back.querySelectorAll('.os-type').forEach(b => b.addEventListener('click', () => { type = b.dataset.type; regen(); }));
-  back.querySelectorAll('.os-ref').forEach(b => b.addEventListener('click', () => { msg.value = LA.refine(msg.value, b.dataset.ref, r); }));
+  back.querySelectorAll('.os-ref').forEach(b => b.addEventListener('click', async () => {
+    const before = msg.value;
+    const done = await serverDraft(b.dataset.ref);
+    /* Without a key the chips still do something honest — the local transform,
+       labelled as one — instead of appearing broken. */
+    if (!done) { msg.value = LA.refine(before, b.dataset.ref, r); setEngine('Smart template — edited locally'); }
+  }));
   $$('#osCopy').addEventListener('click', () => {
     const t = (ch === 'email' && subj.value ? subj.value + '\n\n' : '') + msg.value;
     (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied')).catch(() => { msg.select(); document.execCommand('copy'); toast('Copied'); });

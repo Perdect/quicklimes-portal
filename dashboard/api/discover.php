@@ -270,11 +270,46 @@ if ($action === 'assess' || $action === 'message') {
     ], 'required' => ['summary', 'points', 'approach'], 'additionalProperties' => false];
     $tool = 'lead_assess';
   } else {
-    $prompt = "Write a short first-contact outreach message for an Indian lime manufacturer.\n$ctxLine\n\n"
-      . "From $sellerName to this lead. 4 to 6 lines, warm but businesslike (Indian B2B tone). Introduce that we "
-      . "manufacture and supply $product in bulk, say specifically how lime fits their industry, and ask to share "
-      . "grades and landed rates / reach the right buyer. End with the sender name \"$sellerName\".\n$honesty "
-      . "Return ONLY the message text, no subject line, no placeholders like [Name].";
+    /* The Outreach Studio drives this: a message TYPE, a channel, and
+       optionally a refine instruction applied to the text already on screen.
+       Everything is whitelisted — a refine instruction is never free text from
+       the browser, and the draft is capped like every other input here. */
+    $TYPES = ['intro' => 'first-contact introduction', 'followup' => 'polite follow-up to an earlier unanswered note',
+      'proposal' => 'supply proposal', 'meeting' => 'request for a short call'];
+    $type = (string)($b['type'] ?? 'intro');
+    if (!isset($TYPES[$type])) $type = 'intro';
+    $channel = ((string)($b['channel'] ?? 'email')) === 'whatsapp' ? 'whatsapp' : 'email';
+
+    $REFINE = [
+      'improve'      => 'Rewrite it to be sharper and more persuasive. Keep every fact; add nothing that was not already there.',
+      'shorten'      => 'Cut it to roughly half the length. Keep the opening, the specific reason they buy lime, and the ask.',
+      'personalize'  => 'Make it read as written for this specific buyer and their industry, not a template. Do not invent facts.',
+      'professional' => 'Raise the register to formal Indian business correspondence. No slang, no emoji.',
+    ];
+    $refine = (string)($b['refine'] ?? '');
+    $draft = $cap((string)($b['text'] ?? ''), 4000);
+
+    $sellerPhone = $cap($seller['phone'] ?? '', 40);
+    $sellerAddr  = $cap($seller['address'] ?? '', 200);
+    $signBlock = $sellerName . ($sellerPhone !== '' ? ", phone $sellerPhone" : '')
+      . ($sellerAddr !== '' ? ", address $sellerAddr" : '');
+
+    $shape = $channel === 'whatsapp'
+      ? 'A WhatsApp message: short, 4 to 8 lines, plain sentences, at most a few tick bullets. No subject line.'
+      : 'An email body: 5 to 9 lines, paragraphs, businesslike. No subject line.';
+
+    if ($refine !== '' && isset($REFINE[$refine]) && $draft !== '') {
+      $prompt = "You are rewriting a B2B outreach message for an Indian lime manufacturer.\n$ctxLine\n\n"
+        . "Here is the current draft:\n\n$draft\n\n" . $REFINE[$refine] . "\n$shape\n"
+        . "Keep the sign-off details exactly as they appear ($signBlock). $honesty "
+        . "Return ONLY the rewritten message text, no commentary, no placeholders like [Name].";
+    } else {
+      $prompt = "Write a " . $TYPES[$type] . " for an Indian lime manufacturer.\n$ctxLine\n\n"
+        . "From $sellerName to this lead. $shape Warm but businesslike Indian B2B tone. Say specifically how lime "
+        . "fits THEIR process rather than generic praise, and make one clear ask (share grades and a delivered "
+        . "rate, or reach the right buyer). End with the sender's details exactly: $signBlock.\n$honesty "
+        . "Return ONLY the message text, no subject line, no placeholders like [Name].";
+    }
     $schema = ['type' => 'object', 'properties' => ['message' => ['type' => 'string']],
       'required' => ['message'], 'additionalProperties' => false];
     $tool = 'lead_message';

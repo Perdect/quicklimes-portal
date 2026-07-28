@@ -195,6 +195,31 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   /* upsertLead's UPDATE rewrites every column it picks, so a partial payload
      is a silent delete — a stage move that omits score/next_action wipes them.
      Every call must therefore layer the change onto the lead we already hold. */
+  /* ── the message engine: real LLM first, template as fallback ──
+     /api/discover has had an LLM writer behind action:'message' since it was
+     built, with NOTHING calling it — so every draft came from the local
+     template and the refine chips only swapped words. */
+  ok(/action: 'message'/.test(bare), "the LLM message writer has a caller (action:'message')");
+  ok(/refine: refine/.test(bare) || /refine: refine \|\| ''/.test(bare), '  the refine chips go through it too');
+  ok(/type, channel: ch/.test(bare), '  and it is told which message type and channel to write');
+  ok(/function localDraft\(/.test(bare) && /LA\.refine\(before/.test(bare),
+    '  the local template still runs when the server cannot answer');
+
+  /* Honesty: a template must never be presented as AI. The user is showing
+     this to customers; "AI-personalised" over template text is a small lie
+     that costs trust. */
+  {
+    const i = bare.indexOf('async function serverDraft');
+    const blk = i > 0 ? bare.slice(i, bare.indexOf('async function regen', i)) : '';
+    ok(blk.length > 100, '  (the server-draft path is where it should be)');
+    ok(/setEngine\('Written by AI/.test(blk), '  it claims AI only on a successful model reply');
+    ok(/llm_not_configured/.test(blk) && /Smart template/.test(blk),
+      '  and says "smart template" plainly when there is no key or the model fails');
+    const claims = blk.split('\n').filter(l => /Written by AI/.test(l));
+    ok(claims.length === 1 && /resp\.model \|\| resp\.provider/.test(claims[0]),
+      '  the AI label is emitted once, next to the model that produced it');
+  }
+
   /* CRMCore.nextActions() shipped with no caller — a "follow-ups due" count you
      could not act on. Pin the caller AND the way to set a next step, or this
      silently reverts to a decorative number. */
