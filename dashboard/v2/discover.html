@@ -577,8 +577,11 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .lr-c:hover { text-decoration: underline; }
   .lr-c svg { width: 13px; height: 13px; }
   .lr-nocontact { font: 500 12px var(--ql-font-sans); color: var(--ql-text-muted); }
-  .lr-acts { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; flex: none; max-width: 340px; }
-  .lr-b { font: 600 12px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-card); border: 1px solid var(--ql-border);
+  .lr-acts { display: grid; grid-template-columns: 30px 68px 78px 30px 76px; gap: 6px; align-items: center; flex: none; }
+  .lr-b-slot { width: 30px; height: 30px; }
+  .lr-b.ico { padding: 0; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; }
+  .lr-b.ico svg { width: 15px; height: 15px; }
+  .lr-b { text-align: center; justify-content: center; font: 600 12px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-card); border: 1px solid var(--ql-border);
     border-radius: 8px; padding: 6px 11px; cursor: pointer; text-decoration: none; white-space: nowrap; }
   .lr-b:hover { border-color: var(--ql-brand-400, #60a5fa); color: var(--ql-brand-700, #1d4ed8); }
   .lr-b.pri { background: var(--ql-brand-600, #2563eb); border-color: transparent; color: #fff; }
@@ -587,7 +590,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   [data-theme="dark"] .lr-b.wa { background: rgba(22,163,74,.14); border-color: rgba(22,163,74,.3); color: #4ade80; }
   @media (max-width: 760px) {
     .lr { flex-wrap: wrap; }
-    .lr-acts { max-width: none; width: 100%; justify-content: flex-start; margin-top: 8px; }
+    .lr-acts { grid-template-columns: 30px 1fr 1fr 30px 1fr; width: 100%; margin-top: 8px; }
   }
 
   /* ── LEVEL 2: inline expansion under a lead row ── */
@@ -904,6 +907,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./freight-core.js?v=f1"></script>
 <script src="./freight.js?v=f2"></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d39"></script>
+<script src="./discover.js?v=d40"></script>
 </body>
 </html>

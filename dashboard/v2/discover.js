@@ -155,7 +155,7 @@ const EXPANDED = new Set();
    the known state list — real data, not a guess. District/PIN are deliberately
    absent: nothing in the row carries them, and a filter that silently matches
    nothing is worse than no filter. */
-const FLT = { state: '', city: '', phone: false, email: false, web: false, minRating: 0 };
+const FLT = { state: '', city: '', industry: '', phone: false, email: false, web: false, minRating: 0 };
 function rowState(r) {
   const hay = ((r.address || '') + ' ' + (r.state || '')).toLowerCase();
   const list = (LM && LM.STATES) ? LM.STATES : [];
@@ -165,6 +165,7 @@ function rowState(r) {
 function passesFilters(r) {
   if (FLT.state && rowState(r) !== FLT.state) return false;
   if (FLT.city && String(r.city || '').toLowerCase() !== FLT.city.toLowerCase()) return false;
+  if (FLT.industry && String(r.industry || '') !== FLT.industry) return false;
   if (FLT.phone && !r.phone) return false;
   if (FLT.email && !r.email) return false;
   if (FLT.web && !r.website) return false;
@@ -175,12 +176,17 @@ function filterBarHTML(all, shown) {
   const states = [...new Set(all.map(rowState).filter(Boolean))].sort();
   const cities = [...new Set(all.filter(r => !FLT.state || rowState(r) === FLT.state)
     .map(r => r.city).filter(Boolean))].sort();
+  /* The industry list is drawn from the rows themselves, and the control only
+     appears when there is an actual choice to make — a one-option dropdown is
+     furniture, not a filter. */
+  const inds = [...new Set(all.map(r => r.industry).filter(Boolean))].sort();
   const opt = (v, cur) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(v)}</option>`;
   const chip = (k, label) => `<button class="lf-chip${FLT[k] ? ' on' : ''}" data-flt="${k}">${label}</button>`;
-  const active = FLT.state || FLT.city || FLT.phone || FLT.email || FLT.web || FLT.minRating;
+  const active = FLT.state || FLT.city || FLT.industry || FLT.phone || FLT.email || FLT.web || FLT.minRating;
   return `<div class="lf">
     <select class="lf-sel" data-flt-state><option value="">All states</option>${states.map(v => opt(v, FLT.state)).join('')}</select>
     <select class="lf-sel" data-flt-city><option value="">All cities</option>${cities.map(v => opt(v, FLT.city)).join('')}</select>
+    ${inds.length > 1 ? `<select class="lf-sel" data-flt-ind><option value="">All industries</option>${inds.map(v => opt(v, FLT.industry)).join('')}</select>` : ''}
     ${chip('phone', 'Has phone')}${chip('email', 'Has email')}${chip('web', 'Has website')}
     <select class="lf-sel" data-flt-rating><option value="0">Any rating</option>${[4.5, 4, 3.5, 3].map(v => `<option value="${v}"${+FLT.minRating === v ? ' selected' : ''}>★ ${v}+</option>`).join('')}</select>
     <span class="lf-count">${shown} of ${all.length}</span>
@@ -558,6 +564,7 @@ function leadEconomics(r) {
 }
 const IC_PHONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
 const IC_WEB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+const IC_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
 const IC_WA = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.5A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-2.9.9.9-2.8-.2-.3A8 8 0 1 1 12 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5.1a6.5 6.5 0 0 1-3.2-2.8c-.2-.4.2-.4.6-1.2.1-.1 0-.3 0-.4l-.7-1.7c-.2-.5-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3A2.8 2.8 0 0 0 6 8.9c0 1.7 1.2 3.3 1.4 3.5s2.4 3.7 5.8 5c2.2.8 2.2.5 2.6.5s1.4-.6 1.6-1.1.2-1 .1-1.1z"/></svg>';
 
 /* ── LEVEL 2: the inline expansion ──────────────────────────────────────
@@ -684,10 +691,15 @@ function paintTable() {
     if (r.website) line.push(`<a class="lr-c" href="${esc(r.website)}" target="_blank" rel="noopener noreferrer" data-stop title="Open website">${IC_WEB}${esc(String(r.website).replace(/^https?:\/\/(www\.)?/, '').slice(0, 46))}</a>`);
     if (r.email)   line.push(`<a class="lr-c" href="mailto:${esc(r.email)}" data-stop title="Email">✉ ${esc(r.email)}</a>`);
     const contacts = line.length ? line.join('') : '<span class="lr-nocontact">No phone or website on file</span>';
+    /* Every row gets the SAME five action slots, in the same order and at the
+       same widths — a row without WhatsApp renders an empty slot rather than
+       shifting Promote left. Uneven wrapping is what made the list look
+       unaligned; identical geometry is what makes a list scannable. */
     const wa = (r.phone && window.WACore && WACore.normalizePhone && WACore.normalizePhone(r.phone))
-      ? `<a class="lr-b wa" href="${esc(WACore.waLink(r.phone, ''))}" target="_blank" rel="noopener noreferrer" data-stop title="WhatsApp">WhatsApp</a>` : '';
+      ? `<a class="lr-b ico wa" href="${esc(WACore.waLink(r.phone, ''))}" target="_blank" rel="noopener noreferrer" data-stop title="WhatsApp ${esc(r.phone)}" aria-label="WhatsApp">${IC_WA}</a>`
+      : '<span class="lr-b-slot" aria-hidden="true"></span>';
     const acts = (LA ? `<button class="lr-b" data-assess="${r.id}" title="Why they buy lime">Assess</button><button class="lr-b" data-msg="${r.id}" title="Draft outreach">Message</button>` : '')
-      + `<a class="lr-b" href="${esc(maps)}" target="_blank" rel="noopener noreferrer" data-stop title="Open in Google Maps">Maps</a>`;
+      + `<a class="lr-b ico" href="${esc(maps)}" target="_blank" rel="noopener noreferrer" data-stop title="Open in Google Maps" aria-label="Open in Google Maps">${IC_PIN}</a>`;
     const promo = r.status === 'promoted'
       ? '<span class="lc-dup" style="color:#15803d;background:#dcfce7">In pipeline</span>'
       : `<button class="lr-b pri" data-promote="${r.id}" title="Promote to pipeline">Promote</button>`;
@@ -706,9 +718,10 @@ function paintTable() {
   const q = sel => host.querySelector(sel);
   const st = q('[data-flt-state]'); if (st) st.onchange = () => { FLT.state = st.value; FLT.city = ''; paintTable(); };
   const ct = q('[data-flt-city]');  if (ct) ct.onchange = () => { FLT.city = ct.value; paintTable(); };
+  const iv = q('[data-flt-ind]'); if (iv) iv.onchange = () => { FLT.industry = iv.value; paintTable(); };
   const rt = q('[data-flt-rating]'); if (rt) rt.onchange = () => { FLT.minRating = +rt.value || 0; paintTable(); };
   host.querySelectorAll('[data-flt]').forEach(b => b.onclick = () => { FLT[b.dataset.flt] = !FLT[b.dataset.flt]; paintTable(); });
-  const cl = q('[data-flt-clear]'); if (cl) cl.onclick = () => { FLT.state = FLT.city = ''; FLT.phone = FLT.email = FLT.web = false; FLT.minRating = 0; paintTable(); };
+  const cl = q('[data-flt-clear]'); if (cl) cl.onclick = () => { FLT.state = FLT.city = FLT.industry = ''; FLT.phone = FLT.email = FLT.web = false; FLT.minRating = 0; paintTable(); };
   const find = id => ROWS.find(x => x.id === +id);
   host.querySelectorAll('[data-stop]').forEach(a => a.addEventListener('click', e => e.stopPropagation()));
   host.querySelectorAll('[data-promote]').forEach(b => b.onclick = e => { e.stopPropagation(); promote(+b.dataset.promote); });
