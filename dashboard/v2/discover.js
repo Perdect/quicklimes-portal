@@ -522,14 +522,45 @@ function marketSuggestions() {
   // best non-home markets, each with its top relevant industry.
   return plan.filter(r => r.state !== 'Rajasthan').slice(0, 6).map(r => {
     const top = r.industries[0];
-    return { what: LM.osmTerm(top.key), state: r.state, label: top.label.replace(/ (Plants|Mills|Manufacturers|Industries|Companies|Refineries|Smelters|Units)$/, '') };
+    /* Carry the RANKING through. These are not decorative examples — each one
+       is the best remaining market for this product from this plant, and the
+       card can therefore say why it is being suggested. */
+    return { what: LM.osmTerm(top.key), state: r.state, key: top.key,
+      label: top.label.replace(/ (Plants|Mills|Manufacturers|Industries|Companies|Refineries|Smelters|Units)$/, ''),
+      demand: +top.demand || 0, freight: r.freightPerTonne || null, km: r.km || null, score: r.score || 0 };
   });
+}
+/* A letter tile beats a stock emoji here: it needs no font support, it is
+   consistent across platforms, and the colour carries the market's tier. */
+function sugTone(score) {
+  if (score >= 60) return ['#15803d', '#dcfce7'];
+  if (score >= 40) return ['#2563eb', '#eff6ff'];
+  return ['#b45309', '#fff7ed'];
+}
+function demandWord(d) {
+  return d >= 5 ? 'Very high lime demand' : d >= 4 ? 'High lime demand'
+    : d >= 3 ? 'Steady lime demand' : d > 0 ? 'Light lime demand' : '';
 }
 function paintChips() {
   const el = document.getElementById('dcChips'); if (!el) return;
   const sug = marketSuggestions();
-  el.innerHTML = '<span style="font-size:11.5px;color:var(--ql-text-secondary)">Try:</span>' +
-    sug.map(s => `<button class="dc-chip" data-w="${esc(s.what)}" data-c="${esc(s.state)}">${esc(s.label)} · ${esc(s.state)}</button>`).join('');
+  /* Suggestion CARDS, not bare chips. Each is the best remaining market for
+     this product from this plant, so it shows the reason it is being
+     suggested — the tier and the delivered rate the ranking used. Guessing is
+     what a static example list would be; this is the same engine the Markets
+     tab draws. */
+  el.innerHTML = sug.map(s => {
+    const tone = sugTone(s.score);
+    /* Say what the RANKING actually balances — the industry's lime demand
+       against the freight to get there. "Regional" was the distance band and
+       told a salesperson nothing about why to call. */
+    const parts = [demandWord(s.demand)];
+    if (s.freight) parts.push('₹' + Math.round(s.freight).toLocaleString('en-IN') + '/t freight');
+    const why = parts.filter(Boolean).join(' · ') || 'Suggested market';
+    return `<button class="dc-sug" data-w="${esc(s.what)}" data-c="${esc(s.state)}" title="Search ${esc(s.label)} in ${esc(s.state)}">
+      <span class="dc-sug-ic" style="color:${tone[0]};background:${tone[1]}">${esc(String(s.label).trim().charAt(0).toUpperCase())}</span>
+      <span class="dc-sug-t"><b>${esc(s.label)}</b><i>${esc(s.state)}</i><em>${why}</em></span></button>`;
+  }).join('');
   el.querySelectorAll('[data-w]').forEach(b => b.onclick = () => findInMarket(b.dataset.w, b.dataset.c));
 }
 function paintRecent() {

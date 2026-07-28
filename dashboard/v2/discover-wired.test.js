@@ -214,6 +214,27 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
       '  and it invents no decision-maker / GST / verified figure');
   }
 
+  /* ── suggestion cards ──
+     Each is the best remaining market for this product from THIS plant, so the
+     card can state why. "Regional" (the distance band) told a salesperson
+     nothing; demand + freight is what the ranking actually balances. */
+  /* Scope to the two functions involved. Checking `bare` as a whole is
+     decoration: 'Rajasthan' appears elsewhere in this file, so deleting the
+     home-state filter still passed. (Caught by mutation-testing this test.) */
+  {
+    const ms = bare.slice(bare.indexOf('function marketSuggestions'), bare.indexOf('function paintChips'));
+    const pc = bare.slice(bare.indexOf('function paintChips'), bare.indexOf('function paintRecent'));
+    ok(ms.length > 100 && pc.length > 100, '  (the suggestion builder and painter are where they should be)');
+    ok(/class="dc-sug"/.test(pc), 'the Try chips are suggestion cards');
+    ok(/demandWord\(s\.demand\)/.test(pc) && /\/t freight/.test(pc),
+      '  each card says why it is suggested — lime demand AND freight');
+    ok(/LM\.plan\(/.test(ms) && /state !== 'Rajasthan'/.test(ms),
+      '  they come from the ranked market plan, skipping the home state');
+    ok(/demand: \+top\.demand/.test(ms) && /freight: r\.freightPerTonne/.test(ms),
+      '  and both figures are carried from the ranking, not written by hand');
+    ok(/findInMarket\(b\.dataset\.w, b\.dataset\.c\)/.test(pc), '  clicking one runs that search');
+  }
+
   /* ── the AI summary panel ──
      It must describe the rows ON SCREEN, and must not claim data this app has
      never held. */
