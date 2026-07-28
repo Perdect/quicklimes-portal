@@ -632,6 +632,15 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 10px; padding: 10px 12px; resize: vertical; }
   .cd-note:focus { outline: none; border-color: var(--ql-brand-500, #3b82f6); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
 
+  /* ── AI panel (profile tab) ── */
+  .ai-prob-n { font: 800 34px/1 var(--ql-font-sans); color: var(--ql-brand-700, #1d4ed8); letter-spacing: -.03em; }
+  [data-theme="dark"] .ai-prob-n { color: #93c5fd; }
+  .ai-prob-n small { font-size: 16px; font-weight: 700; margin-left: 2px; }
+  .ai-prob-b { height: 7px; border-radius: 999px; background: var(--ql-border); overflow: hidden; margin: 8px 0 8px; }
+  .ai-prob-b i { display: block; height: 100%; background: linear-gradient(90deg, #2563eb, #16a34a); }
+  .ai-prob-w { font: 500 12.5px/1.6 var(--ql-font-sans); color: var(--ql-text-secondary); }
+  .ai-list { margin: 0; padding-left: 18px; font: 500 13px/1.9 var(--ql-font-sans); color: var(--ql-text); }
+
 </style>
 </head>
 <body class="ql-v2">
@@ -895,6 +904,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./freight-core.js?v=f1"></script>
 <script src="./freight.js?v=f2"></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d38"></script>
+<script src="./discover.js?v=d39"></script>
 </body>
 </html>

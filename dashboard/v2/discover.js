@@ -565,6 +565,61 @@ const IC_WA = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10
    why-they-buy line comes from the tested lead-actions/lime-market rules — it
    is never an invented claim. Freight, market analysis and timeline are Level 3
    (the profile), deliberately not here. */
+/* ── BUYER PROBABILITY (an estimate, and labelled as one) ─────────────────
+   Built from signals we actually hold, never invented:
+     • industry demand 1-5  — lime-market's playbook (how much this sector
+       consumes), the single strongest predictor
+     • ICP fit              — icp-core, learned from YOUR OWN invoices
+     • contactability       — a buyer you cannot reach converts at zero
+   Deliberately NOT a fabricated "96%". When we have no industry match we say
+   so rather than printing a confident number over nothing. */
+function buyerProbability(r, f) {
+  const ind = (LA && LM) ? LA.matchIndustry(r.industry, LM.INDUSTRIES) : null;
+  if (!ind) return { pct: null, why: 'No lime use-case matched for this industry, so there is nothing honest to score.' };
+  const demand = Math.max(0, Math.min(5, +ind.demand || 0));        // 0..5
+  const fit = (f && f.tier !== 'unknown') ? Math.max(0, Math.min(100, f.score)) : null;
+  const reach = (r.phone ? 1 : 0) + (r.email ? 1 : 0) + (r.website ? 1 : 0);   // 0..3
+  /* demand carries most of the weight, fit adjusts it, reachability nudges. */
+  let pct = (demand / 5) * 70 + (fit != null ? (fit / 100) * 20 : 10) + (reach / 3) * 10;
+  pct = Math.round(Math.max(5, Math.min(97, pct)));
+  const why = [];
+  why.push(ind.label + ' consume lime ' + (demand >= 5 ? 'very heavily' : demand >= 4 ? 'heavily' : demand >= 3 ? 'moderately' : 'lightly'));
+  if (fit != null) why.push('fit ' + Math.round(fit) + '/100 against your own sales');
+  why.push(reach ? reach + ' way' + (reach > 1 ? 's' : '') + ' to reach them' : 'no contact details yet');
+  return { pct: pct, ind: ind, why: why.join(' · ') };
+}
+function recommendedProduct(ind) {
+  const map = { quick: 'Quick Lime (CaO)', hydrated: 'Hydrated Lime (Ca(OH)₂)', powder: 'Lime Powder' };
+  if (!ind || !ind.products || !ind.products.length) return '';
+  return ind.products.map(k => map[k] || k).join(' · ');
+}
+function aiPaneHTML(r, f) {
+  const bp = buyerProbability(r, f);
+  const ind = bp.ind;
+  const others = ROWS.filter(x => x.id !== r.id);
+  const similar = others.filter(x => (x.industry || '') === (r.industry || '')).slice(0, 4);
+  const nearby = others.filter(x => x.city && r.city && x.city.toLowerCase() === r.city.toLowerCase()).slice(0, 4);
+  const pitch = (LA && LA.compose)
+    ? LA.compose(r, sellerInfo(), LM ? LM.INDUSTRIES : [], { channel: 'whatsapp', type: 'intro' }).text.split('\n\n')[0]
+    : '';
+  const list = (arr, empty) => arr.length
+    ? '<ul class="ai-list">' + arr.map(x => `<li>${esc(x.name)}${x.city ? ' <span class="lx-miss">· ' + esc(x.city) + '</span>' : ''}</li>`).join('') + '</ul>'
+    : `<div class="lx-miss">${empty}</div>`;
+  const bar = bp.pct != null
+    ? `<div class="ai-prob"><div class="ai-prob-n">${bp.pct}<small>%</small></div>
+         <div class="ai-prob-b"><i style="width:${bp.pct}%"></i></div>
+         <div class="ai-prob-w">${esc(bp.why)}</div>
+         <div class="lx-miss" style="margin-top:6px">An estimate from industry demand, your ICP fit and contactability — not a measured conversion rate.</div></div>`
+    : `<div class="lx-miss">${esc(bp.why)}</div>`;
+  return `<div class="cd-sec"><div class="cd-sec-t">Buying probability</div>${bar}</div>
+    ${ind ? `<div class="cd-sec"><div class="cd-sec-t">Recommended product</div>
+      <div class="cd-why"><b>${esc(recommendedProduct(ind))}</b><br>${esc(ind.consumption || '')}</div></div>` : ''}
+    ${pitch ? `<div class="cd-sec"><div class="cd-sec-t">Suggested opening</div><div class="cd-why">${esc(pitch)}</div>
+      <button class="ql-btn ql-btn-secondary" id="cdPitch" style="margin-top:8px">Open Outreach Studio</button></div>` : ''}
+    <div class="cd-sec"><div class="cd-sec-t">Similar buyers you found</div>${list(similar, 'None in this list yet.')}</div>
+    <div class="cd-sec"><div class="cd-sec-t">Nearby buyers${r.city ? ' in ' + esc(r.city) : ''}</div>${list(nearby, 'None in this list yet.')}</div>`;
+}
+
 function leadExpandHTML(r, f) {
   const ind = (LA && LA.matchIndustry) ? LA.matchIndustry(r.industry, LM ? LM.INDUSTRIES : []) : null;
   const kv = (k, v) => v ? `<div class="lx-kv"><span>${k}</span><b>${v}</b></div>` : '';
@@ -698,6 +753,7 @@ function openLeadDrawer(r) {
       <button class="cd-tab active" data-tab="overview">Overview</button>
       <button class="cd-tab" data-tab="fit">Lime fit</button>
       <button class="cd-tab" data-tab="freight">Freight</button>
+      <button class="cd-tab" data-tab="ai">AI</button>
       <button class="cd-tab" data-tab="notes">Notes</button>
     </div>
     <div class="cd-body">
@@ -731,6 +787,8 @@ function openLeadDrawer(r) {
         <div class="cd-sec"><div class="cd-why">Freight lives here, not in the lead list — it decides the <b>quote</b>, not whether the company is worth calling.</div></div>
       </div>
 
+      <div class="cd-pane" data-pane="ai" hidden>${aiPaneHTML(r, f)}</div>
+
       <div class="cd-pane" data-pane="notes" hidden>
         <div class="cd-sec"><div class="cd-sec-t">Notes</div>
           <textarea class="cd-note" id="cdNote" rows="6" placeholder="Call notes, who you spoke to, what they asked for…">${esc(noteFor(r.id))}</textarea>
@@ -744,6 +802,7 @@ function openLeadDrawer(r) {
     d.querySelectorAll('.cd-pane').forEach(p => { p.hidden = p.dataset.pane !== b.dataset.tab; });
   });
   const nt = document.getElementById('cdNote'); if (nt) nt.onchange = () => saveNote(r.id, nt.value);
+  const pb = document.getElementById('cdPitch'); if (pb) pb.onclick = () => openStudio(r);
   back.onclick = ev => { if (ev.target === back) closeLeadDrawer(); };
   const wire = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
   wire('cdAssess', () => openAssess(r));

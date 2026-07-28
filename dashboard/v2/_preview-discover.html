@@ -183,24 +183,16 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 
   /* ═══════════ Phase 1 — AI-first compact layout ═══════════ */
   /* Hero */
-  .dc-hero { position: relative; overflow: hidden; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;
     padding: 22px 24px; margin-bottom: var(--ql-space-4); border-radius: var(--ql-radius-xl); border: 1px solid var(--ql-border);
     background:
       radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--ql-brand-500, #2563eb) 12%, transparent), transparent 55%),
       radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, #7c3aed 10%, transparent), transparent 55%),
       var(--ql-card); }
-  .dc-hero-greet { font: 800 24px/1.15 var(--ql-font-sans); letter-spacing: -.03em; color: var(--ql-text); text-wrap: balance; }
-  .dc-hero-sub { font: 500 13px/1.55 var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 5px; max-width: 62ch; }
-  .dc-hero-stats { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 15px; }
   .dc-stat { display: inline-flex; align-items: baseline; gap: 7px; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--ql-border); background: var(--ql-bg-elevated); }
   .dc-stat b { font: 800 15px var(--ql-font-sans); color: var(--ql-text); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
   .dc-stat span { font: 600 11.5px var(--ql-font-sans); color: var(--ql-text-secondary); }
   .dc-stat.hot b { color: #dc2626; } :root[data-theme="dark"] .dc-stat.hot b { color: #f87171; }
   .dc-stat.est { border-style: dashed; }
-  .dc-hero-actions { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 168px; }
-  .dc-hero-actions .ql-btn { justify-content: center; }
-  .dc-hero-import { font: 600 12px var(--ql-font-sans); color: var(--ql-text-secondary); background: none; border: 0; cursor: pointer; padding: 4px; text-decoration: underline; text-underline-offset: 3px; }
-  @media (max-width: 640px) { .dc-hero-actions { flex-direction: row; flex-wrap: wrap; min-width: 0; width: 100%; } .dc-hero-greet { font-size: 21px; } }
 
   /* Search hero — the one intelligent input, bigger and lifted */
   .dc-search-hero { padding: 16px 18px; box-shadow: var(--ql-shadow-sm, 0 1px 2px rgba(16,24,40,.06)); }
@@ -550,26 +542,110 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     .pr-doc { margin: 0; border: none; border-radius: 0; max-width: none; box-shadow: none; }
   }
 
+  /* Search-button spinner — see runSearch(). */
+  .dc-spin { display: inline-block; width: 13px; height: 13px; margin-right: 7px; vertical-align: -2px;
+    border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: dc-spin .7s linear infinite; }
+  @keyframes dc-spin { to { transform: rotate(360deg); } }
+  #dcGo.is-busy { opacity: .92; cursor: progress; }
+
+  /* ── SALES ROWS (Apollo/ZoomInfo style) — contact-first, dense ────────────
+     Replaces the freight cards. Many leads per screen, and every way to reach
+     the company is one click away without opening anything. */
+  .lc-list { display: flex; flex-direction: column; }
+  .lr { display: flex; align-items: flex-start; gap: 14px; padding: 13px 16px; border-bottom: 1px solid var(--ql-divider);
+    cursor: pointer; transition: background .12s; }
+  .lr:hover { background: var(--ql-bg-subtle, #f8fafc); }
+  [data-theme="dark"] .lr:hover { background: rgba(255,255,255,.03); }
+  .lr:last-child { border-bottom: none; }
+  .lr-fit { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; margin-top: 2px;
+    font: 800 14px var(--ql-font-sans); font-variant-numeric: tabular-nums; border: 2.5px solid var(--ql-border); }
+  .lr-fit.high { color: #15803d; border-color: #16a34a; background: rgba(22,163,74,.06); }
+  .lr-fit.medium { color: #b45309; border-color: #f59e0b; background: rgba(245,158,11,.06); }
+  .lr-fit.low { color: #dc2626; border-color: #ef4444; background: rgba(239,68,68,.06); }
+  .lr-fit.unknown { color: var(--ql-text-muted); }
+  .lr-main { flex: 1; min-width: 0; }
+  .lr-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .lr-name { font: 700 15px var(--ql-font-sans); color: var(--ql-text); letter-spacing: -.01em; }
+  .lr-rate { font: 700 12px var(--ql-font-sans); color: #b45309; background: #fffbeb; border-radius: 999px; padding: 1px 8px; }
+  [data-theme="dark"] .lr-rate { background: rgba(245,158,11,.16); color: #fbbf24; }
+  .lr-meta { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 2px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .lr-src { font: 600 10.5px var(--ql-font-sans); color: var(--ql-text-muted); background: var(--ql-bg); border: 1px solid var(--ql-border); border-radius: 999px; padding: 1px 7px; }
+  /* FULL address, wrapped — never truncated to a fixed character count. */
+  .lr-addr { font: 400 12.5px/1.5 var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 3px; overflow-wrap: anywhere; }
+  .lr-cts { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
+  .lr-c { display: inline-flex; align-items: center; gap: 5px; font: 600 12.5px var(--ql-font-sans); color: var(--ql-brand-600, #2563eb); text-decoration: none; }
+  .lr-c:hover { text-decoration: underline; }
+  .lr-c svg { width: 13px; height: 13px; }
+  .lr-nocontact { font: 500 12px var(--ql-font-sans); color: var(--ql-text-muted); }
+  .lr-acts { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; flex: none; max-width: 340px; }
+  .lr-b { font: 600 12px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-card); border: 1px solid var(--ql-border);
+    border-radius: 8px; padding: 6px 11px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .lr-b:hover { border-color: var(--ql-brand-400, #60a5fa); color: var(--ql-brand-700, #1d4ed8); }
+  .lr-b.pri { background: var(--ql-brand-600, #2563eb); border-color: transparent; color: #fff; }
+  .lr-b.pri:hover { filter: brightness(1.07); color: #fff; }
+  .lr-b.wa { color: #15803d; border-color: #bbf7d0; background: #f0fdf4; }
+  [data-theme="dark"] .lr-b.wa { background: rgba(22,163,74,.14); border-color: rgba(22,163,74,.3); color: #4ade80; }
+  @media (max-width: 760px) {
+    .lr { flex-wrap: wrap; }
+    .lr-acts { max-width: none; width: 100%; justify-content: flex-start; margin-top: 8px; }
+  }
+
+  /* ── LEVEL 2: inline expansion under a lead row ── */
+  .lx { padding: 4px 16px 16px 70px; border-bottom: 1px solid var(--ql-divider); background: var(--ql-bg-subtle, #f8fafc); }
+  [data-theme="dark"] .lx { background: rgba(255,255,255,.02); }
+  .lx-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  @media (max-width: 760px) { .lx { padding-left: 16px; } .lx-cols { grid-template-columns: 1fr; gap: 14px; } }
+  .lx-h { font: 700 10.5px var(--ql-font-sans); letter-spacing: .07em; text-transform: uppercase; color: var(--ql-text-muted); margin-bottom: 7px; }
+  .lx-kv { display: flex; gap: 8px; font: 500 12.5px/1.6 var(--ql-font-sans); color: var(--ql-text-secondary); }
+  .lx-kv span { flex: none; min-width: 118px; }
+  .lx-kv b { color: var(--ql-text); font-weight: 600; overflow-wrap: anywhere; }
+  .lx-why { font: 400 12.5px/1.6 var(--ql-font-sans); color: var(--ql-text); margin-bottom: 6px; }
+  .lx-miss { color: var(--ql-text-muted); font-weight: 500; }
+  .lx-in { width: 100%; margin-top: 12px; font: 500 13px var(--ql-font-sans); color: var(--ql-text);
+    background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 9px; padding: 9px 12px; box-sizing: border-box; }
+  .lx-in:focus { outline: none; border-color: var(--ql-brand-500, #3b82f6); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+  .lx-acts { margin-top: 10px; }
+  .lr.is-open { background: var(--ql-bg-subtle, #f8fafc); }
+
+  /* ── LEVEL-1 sticky filter bar (India: State -> City + contact quality) ── */
+  .lf { position: sticky; top: 0; z-index: 8; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 11px 16px; background: var(--ql-card); border-bottom: 1px solid var(--ql-border); }
+  .lf-sel { font: 600 12.5px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-bg-elevated);
+    border: 1px solid var(--ql-border); border-radius: 9px; padding: 7px 10px; cursor: pointer; }
+  .lf-sel:focus { outline: none; border-color: var(--ql-brand-500, #3b82f6); }
+  .lf-chip { font: 600 12px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-bg-elevated);
+    border: 1px solid var(--ql-border); border-radius: 999px; padding: 7px 13px; cursor: pointer; }
+  .lf-chip:hover { border-color: var(--ql-brand-400, #60a5fa); }
+  .lf-chip.on { background: var(--ql-brand-600, #2563eb); border-color: transparent; color: #fff; }
+  .lf-count { margin-left: auto; font: 600 12px var(--ql-font-sans); color: var(--ql-text-muted); }
+  .lf-clear { font: 600 12px var(--ql-font-sans); color: var(--ql-brand-600, #2563eb); background: none; border: 0; cursor: pointer; padding: 6px 4px; }
+  @media (max-width: 760px) { .lf-count { margin-left: 0; } }
+
+  /* ── LEVEL 3: Company Profile tabs (inside the drawer) ── */
+  .cd-tabs { display: flex; gap: 2px; padding: 0 18px; border-bottom: 1px solid var(--ql-border); background: var(--ql-bg-elevated); position: sticky; top: 0; z-index: 3; }
+  .cd-tab { font: 600 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: none; border: 0;
+    border-bottom: 2px solid transparent; padding: 11px 12px; cursor: pointer; white-space: nowrap; }
+  .cd-tab:hover { color: var(--ql-text); }
+  .cd-tab.active { color: var(--ql-brand-700, #1d4ed8); border-bottom-color: var(--ql-brand-600, #2563eb); }
+  [data-theme="dark"] .cd-tab.active { color: #93c5fd; }
+  .cd-note { width: 100%; box-sizing: border-box; font: 500 13px/1.6 var(--ql-font-sans); color: var(--ql-text);
+    background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 10px; padding: 10px 12px; resize: vertical; }
+  .cd-note:focus { outline: none; border-color: var(--ql-brand-500, #3b82f6); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+
+  /* ── AI panel (profile tab) ── */
+  .ai-prob-n { font: 800 34px/1 var(--ql-font-sans); color: var(--ql-brand-700, #1d4ed8); letter-spacing: -.03em; }
+  [data-theme="dark"] .ai-prob-n { color: #93c5fd; }
+  .ai-prob-n small { font-size: 16px; font-weight: 700; margin-left: 2px; }
+  .ai-prob-b { height: 7px; border-radius: 999px; background: var(--ql-border); overflow: hidden; margin: 8px 0 8px; }
+  .ai-prob-b i { display: block; height: 100%; background: linear-gradient(90deg, #2563eb, #16a34a); }
+  .ai-prob-w { font: 500 12.5px/1.6 var(--ql-font-sans); color: var(--ql-text-secondary); }
+  .ai-list { margin: 0; padding-left: 18px; font: 500 13px/1.9 var(--ql-font-sans); color: var(--ql-text); }
+
 </style>
 </head>
 <body class="ql-v2">
 <div id="ql-page">
   <div class="dash">
-    <!-- ═══ HERO — greeting + real pipeline stats + the market brain's top pick.
-         Numbers are real counts; the market figure is a labelled estimate. ═══ -->
-    <div class="dc-hero" id="dcHero">
-      <div class="dc-hero-main">
-        <div class="dc-hero-greet" id="dcHeroGreet">Lead Discovery</div>
-        <div class="dc-hero-sub" id="dcHeroSub">Your AI sales scout — finds buyers, ranks them by profit, and drafts the outreach.</div>
-        <div class="dc-hero-stats" id="dcHeroStats"></div>
-      </div>
-      <div class="dc-hero-actions">
-        <button class="ql-btn ql-btn-primary" id="dcHeroDiscover">Run discovery</button>
-        <button class="ql-btn ql-btn-secondary" id="dcHeroAsk">Ask AI</button>
-        <button class="ql-btn ql-btn-secondary" id="dcHeroReview">Review leads</button>
-        <button class="dc-hero-import" id="dcImport">Paste / import a list</button>
-      </div>
-    </div>
 
     <div id="dcNotice"></div>
 
@@ -809,20 +885,19 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <div class="lc-back" id="lcBack" hidden><aside class="lc-drawer" id="lcDrawer" role="dialog" aria-modal="true" aria-label="Company details"></aside></div>
 
 <script>
-window.QLShell={mount:function(o){var p=document.getElementById("ql-page");if(!p)return;var c=p.innerHTML;p.remove();var s=document.createElement("div");s.className="shell";s.id="shell";s.setAttribute("data-collapsed","false");s.innerHTML="<aside class=\"sidebar\" id=\"sidebar\"><nav style=\"padding:10px\"><a class=\"sb-link active\" href=\"#\"><span class=\"sb-link-text\">Lead Discovery</span></a></nav></aside><header class=\"topbar\" style=\"grid-area:topbar\"></header><main class=\"main\" id=\"ql-main\"></main>";document.body.insertBefore(s,document.body.firstChild);document.getElementById("ql-main").innerHTML=c;},setBreadcrumb:function(){},closeModal:function(){var m=document.getElementById("qlModalBack");if(m)m.remove();},panel:function(c){var b=document.createElement("div");b.id="qlModalBack";b.style.cssText="position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center";var d=document.createElement("div");d.style.cssText="background:var(--ql-bg-elevated);padding:20px;border-radius:14px;max-width:440px;width:90%";d.innerHTML="<h3 style=\"margin:0 0 10px\">"+(c.title||"")+"</h3>"+(c.body||"");b.appendChild(d);document.body.appendChild(b);return d;},openForm:function(){}};
+window.QLShell={mount:function(o){var p=document.getElementById("ql-page");if(!p)return;var c=p.innerHTML;p.remove();var s=document.createElement("div");s.className="shell";s.id="shell";s.setAttribute("data-collapsed","false");s.innerHTML='<aside class="sidebar" id="sidebar"><nav style="padding:10px"><a class="sb-link active" href="#"><span class="sb-link-text">Lead Discovery</span></a></nav></aside><header class="topbar" style="grid-area:topbar"></header><main class="main" id="ql-main"></main>';document.body.insertBefore(s,document.body.firstChild);document.getElementById("ql-main").innerHTML=c;},setBreadcrumb:function(){},closeModal:function(){},panel:function(c){var d=document.createElement("div");d.innerHTML=c.body||"";document.body.appendChild(d);return d;},openForm:function(){}};
 window.QLD={init:function(cb){cb&&cb();return Promise.resolve();},salesRows:function(){return[]},partyRows:function(){return[]},getPL:function(){return null},activeCo:1,fmt:function(n){return n},co:{short:"Gotan Lime Industries",ownerName:"Haji Kayyum",city:"Gotan, Rajasthan",phone:"9460034743"}};
-var _mb=false;
-window.fetch=(function(orig){return function(url,opt){var b={};try{b=JSON.parse(opt.body)}catch(e){}function J(o){return Promise.resolve({ok:true,status:200,json:function(){return Promise.resolve(o)},text:function(){return Promise.resolve(JSON.stringify(o))}});}
- // REALISTIC: every /api/discover call must carry the session token "x". If the body
- // clobbered it (the old bug), reject as the real server would.
- if(typeof url==="string"&&url.indexOf("/api/discover")>=0 && b.token!=="x") return J({ok:false,error:"Unauthorized"});
- if(b&&b.action==="save_mapbox"){_mb=String(b.mapbox_token||"").indexOf("pk.")===0;return J({ok:true,mapbox:_mb});}
- if(b&&b.action==="sources")return J({ok:true,osm:true,google:false,mapbox:_mb});
- if(typeof url==="string"&&url.indexOf("/api/freight")>=0)return J({ok:true,google:false,mapbox:_mb});
- if(typeof url==="string"&&url.indexOf("/api/crm")>=0)return J({ok:true,companies:[],contacts:[],leads:[]});
- if(typeof url==="string"&&url.indexOf("/api/")>=0)return J({ok:true,rows:[],counts:{new:0,promoted:0,duplicate:0},osm:true,google:false,mapbox:_mb});
- return orig.apply(this,arguments);};})(window.fetch);
-try{localStorage.setItem("ql_plant",JSON.stringify({id:"preview",token:"x"}))}catch(e){}
+var ROWSTUB=[
+ {id:1,name:"Ecorex Buildtech Pvt. Ltd.",industry:"AAC Block",city:"Ahmedabad",state:"Gujarat",address:"Plot No. 406, Phase 3, Udyog Vihar, Sector 20, Ahmedabad, Gujarat 382330, India",phone:"+91 124 494 2555",website:"https://ecorexbuildtech.com/products/aac-blocks",email:"sales@ecorex.example",rating:4.4,lat:23.02,lng:72.57,status:"new",source:"google"},
+ {id:2,name:"Shree Balaji Steel & Alloys Limited",industry:"Steel",city:"Raipur",state:"Chhattisgarh",address:"Industrial Growth Centre, Siltara, Raipur, Chhattisgarh 493111, India",phone:"+91 771 223 4455",website:"https://balajisteel.example",rating:4.1,lat:21.25,lng:81.63,status:"new",source:"google"},
+ {id:3,name:"Uttam Sugar Mills",industry:"Sugar",city:"Muzaffarnagar",state:"Uttar Pradesh",address:"Village Libberheri, Tehsil Roorkee, Muzaffarnagar, Uttar Pradesh 247667, India",status:"new",source:"mapbox"}
+];
+window.fetch=(function(o){return function(u,opt){var b={};try{b=JSON.parse(opt.body)}catch(e){}function J(x){return Promise.resolve({ok:true,status:200,json:function(){return Promise.resolve(x)},text:function(){return Promise.resolve(JSON.stringify(x))}});}
+ if(b&&b.action==="sources")return J({ok:true,osm:true,google:true,mapbox:true});
+ if(b&&b.action==="list")return J({ok:true,rows:ROWSTUB,counts:{new:3,duplicate:0,promoted:0,dismissed:0},diag:{scope:3,plant:3,company_id:"1",other_ids:[]}});
+ if(typeof u==="string"&&u.indexOf("/api/")>=0)return J({ok:true,rows:[],counts:{new:0,promoted:0,duplicate:0}});
+ return o.apply(this,arguments);};})(window.fetch);
+try{localStorage.setItem("ql_plant",JSON.stringify({id:"preview",token:"x"}));localStorage.setItem("ql_dc_sec","leads")}catch(e){}
 </script>
 <script src="./icp-core.js"></script><script src="./lead-import.js"></script><script src="./lead-parse.js"></script><script src="./lime-market.js"></script><script src="./osm-query.js"></script><script src="./lead-actions.js"></script><script src="./crm-core.js"></script><script src="./wa-core.js"></script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="./india-geo.js"></script><script src="./freight-core.js"></script><script src="./freight.js"></script><script src="./discover.js"></script>
 </body>
