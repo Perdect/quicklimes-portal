@@ -158,7 +158,10 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   const ptBody = pt.slice(0, pt.indexOf('\n}\n'));
   ok(!/leadEconomics/.test(ptBody), '  no freight/distance computed for the row');
   ok(!/freight/i.test(ptBody), '  no freight text rendered on the row');
-  ok(/href="tel:/.test(bare) && /mailto:/.test(bare) && /google\.com\/maps\/search/.test(bare), '  phone dials, email composes, Maps opens navigation');
+  ok(/href="tel:/.test(bare) && /mailto:/.test(bare), '  phone dials and email composes straight from the row');
+  /* The Maps circle was removed at the user's request. Pin its absence, or it
+     creeps back the next time someone "restores" a row action. */
+  ok(!/google\.com\/maps\/search/.test(bare), '  and no Maps link remains in the module');
   ok(/lr-addr/.test(bare) && /r\.address/.test(bare), '  the FULL Google address is shown, not a truncated city');
   ok(/lr-rate/.test(bare) && /r\.rating/.test(bare), '  the Google rating is shown');
   ok(/data-promote=/.test(bare) && /data-assess=/.test(bare) && /data-msg=/.test(bare), '  Promote / Assess / Message stay wired');

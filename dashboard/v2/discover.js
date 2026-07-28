@@ -155,7 +155,7 @@ const EXPANDED = new Set();
    the known state list — real data, not a guess. District/PIN are deliberately
    absent: nothing in the row carries them, and a filter that silently matches
    nothing is worse than no filter. */
-const FLT = { state: '', city: '', industry: '', phone: false, email: false, web: false, minRating: 0 };
+const FLT = { state: '', city: '', industry: '', phone: false, web: false, minRating: 0 };
 function rowState(r) {
   const hay = ((r.address || '') + ' ' + (r.state || '')).toLowerCase();
   const list = (LM && LM.STATES) ? LM.STATES : [];
@@ -167,7 +167,6 @@ function passesFilters(r) {
   if (FLT.city && String(r.city || '').toLowerCase() !== FLT.city.toLowerCase()) return false;
   if (FLT.industry && String(r.industry || '') !== FLT.industry) return false;
   if (FLT.phone && !r.phone) return false;
-  if (FLT.email && !r.email) return false;
   if (FLT.web && !r.website) return false;
   if (FLT.minRating && !(+r.rating >= FLT.minRating)) return false;
   return true;
@@ -182,12 +181,12 @@ function filterBarHTML(all, shown) {
   const inds = [...new Set(all.map(r => r.industry).filter(Boolean))].sort();
   const opt = (v, cur) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(v)}</option>`;
   const chip = (k, label) => `<button class="lf-chip${FLT[k] ? ' on' : ''}" data-flt="${k}">${label}</button>`;
-  const active = FLT.state || FLT.city || FLT.industry || FLT.phone || FLT.email || FLT.web || FLT.minRating;
+  const active = FLT.state || FLT.city || FLT.industry || FLT.phone || FLT.web || FLT.minRating;
   return `<div class="lf">
     <select class="lf-sel" data-flt-state><option value="">All states</option>${states.map(v => opt(v, FLT.state)).join('')}</select>
     <select class="lf-sel" data-flt-city><option value="">All cities</option>${cities.map(v => opt(v, FLT.city)).join('')}</select>
     ${inds.length > 1 ? `<select class="lf-sel" data-flt-ind><option value="">All industries</option>${inds.map(v => opt(v, FLT.industry)).join('')}</select>` : ''}
-    ${chip('phone', 'Has phone')}${chip('email', 'Has email')}${chip('web', 'Has website')}
+    ${chip('phone', 'Has phone')}${chip('web', 'Has website')}
     <select class="lf-sel" data-flt-rating><option value="0">Any rating</option>${[4.5, 4, 3.5, 3].map(v => `<option value="${v}"${+FLT.minRating === v ? ' selected' : ''}>★ ${v}+</option>`).join('')}</select>
     <span class="lf-count">${shown} of ${all.length}</span>
     ${active ? '<button class="lf-clear" data-flt-clear>Clear</button>' : ''}
@@ -891,9 +890,6 @@ function paintTable() {
     const rating = (r.rating != null && r.rating !== '') ? `<span class="lr-rate" title="Google rating">★ ${(+r.rating).toFixed(1)}</span>` : '';
     const src = '';   /* provenance lives in the expanded pane, not on every row */
     const addr = esc(r.address || [r.city, r.state].filter(Boolean).join(', ') || '');
-    const maps = (r.lat != null && r.lng != null)
-      ? 'https://www.google.com/maps/search/?api=1&query=' + r.lat + ',' + r.lng
-      : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((r.name || '') + ' ' + (r.address || r.city || ''));
     const line = [];
     if (r.phone)   line.push(`<a class="lr-c" href="tel:${esc(r.phone)}" data-stop title="Call">${IC_PHONE}${esc(r.phone)}</a>`);
     if (r.website) line.push(`<a class="lr-c" href="${esc(r.website)}" target="_blank" rel="noopener noreferrer" data-stop title="Open website">${IC_WEB}${esc(String(r.website).replace(/^https?:\/\/(www\.)?/, '').slice(0, 46))}</a>`);
@@ -906,8 +902,11 @@ function paintTable() {
     const wa = (r.phone && waReachable(r.phone))
       ? `<a class="lr-b ico wa" href="${esc(WACore.waLink(r.phone, ''))}" target="_blank" rel="noopener noreferrer" data-stop title="WhatsApp ${esc(r.phone)}" aria-label="WhatsApp">${IC_WA}</a>`
       : '<span class="lr-b-slot" aria-hidden="true"></span>';
-    const acts = (LA ? `<button class="lr-b assess" data-assess="${r.id}" title="Why they buy lime">${IC_SPARK}Assess</button><button class="lr-b msg" data-msg="${r.id}" title="Draft outreach">${IC_SEND}Message</button>` : '')
-      + `<a class="lr-b ico" href="${esc(maps)}" target="_blank" rel="noopener noreferrer" data-stop title="Open in Google Maps" aria-label="Open in Google Maps">${IC_PIN}</a>`;
+    /* No Maps button. Removed at the user's request — a circle that only ever
+       opened Google Maps was cost without a decision behind it. The full
+       address is still on the row, and "Open in Maps" is one copy away; there
+       is deliberately no map link left anywhere in this module. */
+    const acts = (LA ? `<button class="lr-b assess" data-assess="${r.id}" title="Why they buy lime">${IC_SPARK}Assess</button><button class="lr-b msg" data-msg="${r.id}" title="Draft outreach">${IC_SEND}Message</button>` : '');
     const promo = r.status === 'promoted'
       ? '<span class="lr-inpipe">In pipeline</span>'
       : `<button class="lr-b pri" data-promote="${r.id}" title="Promote to pipeline">${IC_USERPLUS}Promote</button>`;
@@ -937,7 +936,7 @@ function wireTable(host) {
   const iv = q('[data-flt-ind]'); if (iv) iv.onchange = () => { FLT.industry = iv.value; paintTable(); };
   const rt = q('[data-flt-rating]'); if (rt) rt.onchange = () => { FLT.minRating = +rt.value || 0; paintTable(); };
   host.querySelectorAll('[data-flt]').forEach(b => b.onclick = () => { FLT[b.dataset.flt] = !FLT[b.dataset.flt]; paintTable(); });
-  const cl = q('[data-flt-clear]'); if (cl) cl.onclick = () => { FLT.state = FLT.city = FLT.industry = ''; FLT.phone = FLT.email = FLT.web = false; FLT.minRating = 0; paintTable(); };
+  const cl = q('[data-flt-clear]'); if (cl) cl.onclick = () => { FLT.state = FLT.city = FLT.industry = ''; FLT.phone = FLT.web = false; FLT.minRating = 0; paintTable(); };
   const find = id => ROWS.find(x => x.id === +id);
   host.querySelectorAll('[data-stop]').forEach(a => a.addEventListener('click', e => e.stopPropagation()));
   host.querySelectorAll('[data-promote]').forEach(b => b.onclick = e => { e.stopPropagation(); promote(+b.dataset.promote); });
