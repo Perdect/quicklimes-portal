@@ -344,5 +344,22 @@ fails.forEach(f => console.log('    ✗ ' + f));
   ok('  and the duplicate count is still shown', /const dup = tt\.filter\(t => statusKey\(t\) === 'duplicate'\)/.test(blk));
 }
 
+/* ══════════ exception-first ordering ══════════
+   An accountant should not read 74 rows to find the 27 that need them. */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  ok('exception-first is the default', /exFirst: true/.test(js));
+  ok('  it is a TOGGLE, not a filter — plain date order is one click away',
+    /id="rcExFirst"/.test(js) && /ST\.exFirst = !ST\.exFirst/.test(js));
+  const i = js.indexOf('const rank = t =>');
+  const blk = i > 0 ? js.slice(i, i + 420) : '';
+  ok('  unmatched ranks above duplicate, partial, then settled',
+    /'unmatched'\) return 0/.test(blk) && /'duplicate'\) return 1/.test(blk) && /'partial'\) return 2/.test(blk));
+  ok('  and date remains the tie-break, so order is stable',
+    /\(rank\(a\) - rank\(b\)\) \|\| byDate\(a, b\)/.test(js));
+  ok('  nothing is hidden — it sorts, never filters',
+    !/exFirst[^\n]*filter\(/.test(js));
+}
+
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' WIRING TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');
 process.exit(fail === 0 ? 0 : 1);

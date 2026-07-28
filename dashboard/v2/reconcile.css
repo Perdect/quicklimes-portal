@@ -728,3 +728,12 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rc-mt-w { font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── exception-first toggle ── */
+.rc-exbtn { display: inline-flex; align-items: center; gap: 7px; font: 600 12.5px var(--ql-font-sans);
+  color: var(--ql-text-secondary); background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: 10px; padding: 8px 12px; cursor: pointer; white-space: nowrap; }
+.rc-exbtn:hover { color: var(--ql-text); border-color: var(--ql-brand-400, #60a5fa); }
+.rc-exbtn.on { color: #b45309; border-color: #fde68a; background: #fffbeb; }
+[data-theme="dark"] .rc-exbtn.on { background: rgba(245,158,11,.14); border-color: rgba(245,158,11,.3); color: #fbbf24; }
+.rc-exbtn svg { width: 14px; height: 14px; }

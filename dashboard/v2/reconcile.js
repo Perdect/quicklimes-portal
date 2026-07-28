@@ -51,6 +51,10 @@ let ST = {
      or "since the last statement" needed a range that lives beside the rows
      being filtered. Empty string = open-ended on that side. */
   dFrom: '', dTo: '', dOpen: false,
+  /* EXCEPTION-FIRST. An accountant should not read 74 rows to find the 27 that
+     need them. On by default; the toggle restores plain date order for anyone
+     reconciling a statement line by line. */
+  exFirst: true,
   /* The status dropdown ("too many options" — the six tabs became one select).
      View state only, like advOpen: closed on every pick and on click-away. */
   stOpen: false,
@@ -689,6 +693,8 @@ function toolbarHTML() {
   return `<div class="rc-toolbar2">
     <div class="rc-ftabs">${stSel}</div>
     <div class="rc-tb-r">
+      <button class="rc-exbtn ${ST.exFirst ? 'on' : ''}" id="rcExFirst" title="${ST.exFirst ? 'Showing what needs you first' : 'Showing newest first'}">
+        ${svg('<path d="M12 2v6M12 16v6M2 12h6M16 12h6"/><circle cx="12" cy="12" r="3"/>')}<span>${ST.exFirst ? 'Needs you first' : 'Newest first'}</span></button>
       ${dateBtnHTML()}
       ${filtersBtnHTML()}
       <div class="rc-searchw">${svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')}<input class="rc-search2" id="rcSearch" placeholder="Search party, ref, amount…" value="${esc(ST.q)}"></div>
@@ -884,7 +890,21 @@ function filteredTxns() {
   if (ST.dTo)   r = r.filter(t => String(t.date || '') <= ST.dTo);
   r = r.filter(advMatch);          // advanced filters (Filters panel)
   if (ST.q) { const q = ST.q.toLowerCase(); r = r.filter(t => { const b = billFor(t); return ((t.clean || '') + ' ' + (t.raw || t.desc || '') + ' ' +(t.utr || '') + ' ' + (t.ref || '') + ' ' + (t.credit || t.debit || '') + ' ' + (b ? (b.party || b.sup || '') + ' ' + (b.inv || b.bill || '') : '')).toLowerCase().includes(q); }); }
-  return r.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const byDate = (a, b) => (b.date || '').localeCompare(a.date || '');
+  if (!ST.exFirst) return r.slice().sort(byDate);
+  /* Order by what it costs to ignore: an unmatched line is money unaccounted
+     for, a duplicate is money counted twice, a partial is half-done. Matched
+     lines are already settled and sink to the bottom — still there, still
+     scrollable, just not in the way. */
+  const rank = t => {
+    const k = statusKey(t);
+    if (k === 'unmatched') return 0;
+    if (k === 'duplicate') return 1;
+    if (k === 'partial') return 2;
+    if (k === 'other') return 3;
+    return 4;                       // matched / everything settled
+  };
+  return r.slice().sort((a, b) => (rank(a) - rank(b)) || byDate(a, b));
 }
 function badge(t) {
   const m = t.m || {}, s = STAT[m.status] || STAT.unmatched;
@@ -1847,6 +1867,7 @@ function wire() {
   if ($('rcLgClear')) $('rcLgClear').onclick = () => { ST.lq = ''; ST.lfilter = 'all'; lgRepaint(); };
   if ($('rcSearch')) { const s = $('rcSearch'); s.oninput = () => { ST.q = s.value; ST.cap = 300; repaintList(); s2focus(); }; }
   /* ── date range ── */
+  if ($('rcExFirst')) $('rcExFirst').onclick = () => { ST.exFirst = !ST.exFirst; ST.cap = 300; render(); };
   if ($('rcDBtn')) $('rcDBtn').onclick = e => { e.stopPropagation(); ST.dOpen = !ST.dOpen; ST.stOpen = false; render(); };
   (document.querySelectorAll('[data-dpre]') || []).forEach(b => b.onclick = e => {
     e.stopPropagation();
