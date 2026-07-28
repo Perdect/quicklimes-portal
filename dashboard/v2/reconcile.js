@@ -1898,7 +1898,11 @@ function repaintList() {
   const p = document.querySelector('.rc-panel');
   if (!p) { render(); return; }
   p.innerHTML = viewHTML();
-  const s = document.querySelector('.rc-summary');
+  /* Must match the class summaryHTML() actually renders. When the strip was
+     renamed this selector was left behind: `s` came back null, the `if (s)`
+     guard swallowed it, and the totals silently stopped following the filters
+     while still looking authoritative. */
+  const s = document.querySelector('.rc-summary2');
   if (s) s.outerHTML = summaryHTML();
   wire();
   syncStickyOffset();

@@ -313,5 +313,20 @@ fails.forEach(f => console.log('    ✗ ' + f));
   ok('  and .rc-dp is left to the detail panel', /\.rc-dp \{[^}]*position: absolute/.test(css));
 }
 
+/* ══════════ the summary strip must FOLLOW the filters ══════════
+   repaintList() replaces the strip by class. When the strip was renamed the
+   selector was left behind: querySelector returned null, the `if (s)` guard
+   swallowed it, and the totals silently kept showing pre-filter numbers while
+   still looking authoritative. Pin the two to each other. */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  const m = js.match(/return `<div class="(rc-summary\d*)"/);
+  ok('summaryHTML renders a known summary container', !!m);
+  const cls = m ? m[1] : '';
+  ok('  repaintList() replaces THAT container, not a stale class name',
+    !!cls && js.includes("document.querySelector('." + cls + "')"));
+  ok('  and the old four-card container is gone', !/class="rc-summary"/.test(js));
+}
+
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' WIRING TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');
 process.exit(fail === 0 ? 0 : 1);
