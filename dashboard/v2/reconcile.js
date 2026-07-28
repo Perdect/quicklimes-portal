@@ -1009,6 +1009,25 @@ function expandHTML(t) {
 }
 /* ── table cells ── */
 function titleCase(s) { return (s || '').toString().toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()); }
+/* Rail/bank boilerplate that carries no information about WHO was paid. */
+const TITLE_NOISE = /^(sent|using|payt|paytm@|upi|neft|imps|rtgs|chg|chrg|txn|trf|transfer|to|from|via|ref|no|the|and|of|ltd|pvt)$/i;
+function shortTitle(s, max) {
+  const words = String(s || '').replace(/[_\-\/]+/g, ' ').split(/\s+/).filter(Boolean);
+  const out = [];
+  for (const w of words) {
+    if (out.length >= (max || 3)) break;
+    if (w.length === 1) continue;                       // stray initials: "M U"
+    if (TITLE_NOISE.test(w)) continue;
+    if (/^\d+$/.test(w)) continue;                      // refs and date fragments (12/12/25 -> 12 12 25)
+    const prev = out[out.length - 1] || '';
+    /* "Utility Utilitypaytm" and "Hdfcbank HdfcOmerupi" are the same token
+       twice with the rail glued on — keep the first, drop the echo. */
+    const a = w.toLowerCase(), b = prev.toLowerCase();
+    if (prev && (a.startsWith(b) || b.startsWith(a))) continue;
+    out.push(w);
+  }
+  return out.join(' ');
+}
 function partyCell(t) {
   const b = billFor(t), m = t.m || {}, alias = (aliases()[RC.normName(t.clean || '')] || '');
   const known = b ? (t.credit ? b.party : b.sup) : (m.party || alias || '');
@@ -1019,7 +1038,12 @@ function partyCell(t) {
      long party names while half the row sat empty. The name is now given the
      room it needs and the CSS clamps it to two lines, so a 200-character
      narration degrades gracefully instead of being chopped mid-word. */
-  const name = known || (isOther ? m.cat : '') || titleCase(t.clean) || (t.raw || t.desc || '—');
+  /* A RESOLVED party keeps its full name — never cut a real name. An
+     UNRESOLVED bank blob ("Paytm Utility Utilitypaytm Hdfcbank HdfcOmerupi
+     Sent Using Payt M U") is not a name at all: it is rail noise, and it wraps
+     to two lines saying almost nothing. Show the first few meaningful words;
+     the full narration is always in the expandable row below. */
+  const name = known || (isOther ? m.cat : '') || shortTitle(titleCase(t.clean)) || shortTitle(t.raw || t.desc || '') || '—';
   const mode = t.mode || (t.cheque ? 'CHQ' : '');
   const shortRef = t.utr ? String(t.utr).slice(-10) : (t.cheque || '');
   /* The secondary line is the PAYMENT RAIL + reference (NEFT · 6161997932) —
