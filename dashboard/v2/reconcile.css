@@ -737,3 +737,13 @@
 .rc-exbtn.on { color: #b45309; border-color: #fde68a; background: #fffbeb; }
 [data-theme="dark"] .rc-exbtn.on { background: rgba(245,158,11,.14); border-color: rgba(245,158,11,.3); color: #fbbf24; }
 .rc-exbtn svg { width: 14px; height: 14px; }
+
+/* ── audit trail view ─────────────────────────────────────────────────────
+   Read-only, and deliberately not month-scoped: a trail you can quietly
+   narrow is not a trail. */
+.rc-audit-t { font: 500 12px var(--ql-font-sans); color: var(--ql-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rc-audit-a { font: 700 12px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-bg-subtle, #f1f5f9); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+[data-theme="dark"] .rc-audit-a { background: rgba(255,255,255,.07); }
+.rc-audit-c { font: 500 12px var(--ql-font-sans); color: var(--ql-text-secondary); }
+.rc-audit-b { font: 600 12px var(--ql-font-sans); color: var(--ql-text-secondary); white-space: nowrap; }
+.rc-audit-n { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); margin-left: 10px; }

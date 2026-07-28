@@ -380,6 +380,20 @@ fails.forEach(f => console.log('    ✗ ' + f));
   ok('  and an audit failure never blocks the action', /catch \(_\) \{ \/\* an audit failure/.test(js));
 }
 
+/* ══════════ audit VIEWER reads the rows the module writes ══════════ */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  ok('there is an audit view', /function auditHTML\(/.test(js) && /ST\.view === 'audit'/.test(js));
+  ok('  reachable from the toolbar', /data-view="audit"/.test(js));
+  ok('  it reads the real log', /Q\.auditRows \? Q\.auditRows\(\)/.test(js));
+  /* Scope to the viewer. The same string appears in the toolbar count, so a
+     whole-file grep passed with the filter deleted — caught by mutation. */
+  const blk = js.slice(js.indexOf('function auditHTML'), js.indexOf('function viewHTML'));
+  ok('  scoped to this module only', /all\.filter\(a => a\.module === 'recon'\)/.test(blk));
+  /* Not month-scoped on purpose: a trail you can quietly narrow is not a trail. */
+  ok('  and NOT narrowed by the month filter', !/inMonth\(/.test(blk) && !/monthTxns\(/.test(blk));
+}
+
 if (fail) fails.slice(-12).forEach(f => console.log('    ✗ ' + f));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' WIRING TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');
 process.exit(fail === 0 ? 0 : 1);

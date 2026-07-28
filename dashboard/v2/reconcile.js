@@ -651,6 +651,13 @@ function aiHTML() {
 function toolbarHTML() {
   const tt = monthTxns();
   const cnt = k => k === 'all' ? tt.length : k === 'review' ? tt.filter(needsReview).length : tt.filter(t => statusKey(t) === k).length;
+  if (ST.view === 'audit') {
+    const n = ((Q.auditRows ? Q.auditRows() : []) || []).filter(a => a.module === 'recon').length;
+    return `<div class="rc-toolbar2">
+      <div class="rc-ftabs"><button class="rc-mini2" data-view="recon" title="Back to transactions">${svg('<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>')}<span>Transactions</span></button>
+        <span class="rc-audit-n">${n} recorded decision${n === 1 ? '' : 's'}</span></div>
+      <div class="rc-tb-r"><div class="rc-searchw">${svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')}<input class="rc-search2" id="rcAudSearch" placeholder="Search action, party, ref, user…" value="${esc(ST.aq || '')}"></div></div></div>`;
+  }
   if (ST.view === 'ledger') {
     /* Counts come from the SAME rows the list renders (ledgerRows), so a chip can
        never promise a number the list does not show. */
@@ -699,6 +706,7 @@ function toolbarHTML() {
       ${filtersBtnHTML()}
       <div class="rc-searchw">${svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')}<input class="rc-search2" id="rcSearch" placeholder="Search party, ref, amount…" value="${esc(ST.q)}"></div>
       <button class="rc-mini2" data-view="ledger" title="Party ledger">${svg('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>')}<span>Ledger</span></button>
+      <button class="rc-mini2" data-view="audit" title="Who decided what, and when">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}<span>Audit</span></button>
     </div></div>`;
 }
 /* ── DATE RANGE, on the table ─────────────────────────────────────────────
@@ -970,8 +978,33 @@ function monthGroupBar(g, first) {
     </div></td></tr>`;
 }
 
+/* ── AUDIT TRAIL: who decided what, and what it was before ─────────────────
+   Reads the rows reconcile.js now writes. Deliberately read-only and
+   unfiltered by month: an audit trail you can quietly narrow is not one.
+   Same shape as purchase.js tabAudit so the two read alike. */
+function auditHTML() {
+  const all = (Q.auditRows ? Q.auditRows() : []) || [];
+  const rows = all.filter(a => a.module === 'recon');
+  if (!rows.length) return `<div class="rc-none">Nothing recorded yet. Confirming, unlinking, ignoring, categorising or marking a duplicate writes a line here.</div>`;
+  const q = (ST.aq || '').toLowerCase().trim();
+  const shown = q ? rows.filter(a => ((a.action || '') + ' ' + (a.party || '') + ' ' + (a.ref || '') + ' ' + (a.by || '') + ' ' + (a.reason || '')).toLowerCase().includes(q)) : rows;
+  const LBL = { confirm: 'Confirmed match', unlink: 'Unlinked', duplicate: 'Marked duplicate',
+    unduplicate: 'Unmarked duplicate', ignore: 'Ignored', categorise: 'Categorised' };
+  return `<div class="rc-tablewrap"><table class="rc-table rc-table2 rc-v3">
+    <thead><tr><th>When</th><th>Action</th><th>Transaction</th><th class="r">Amount</th><th>Change</th><th>By</th></tr></thead>
+    <tbody>${shown.slice(0, 400).map(a => `<tr>
+      <td class="rc-audit-t">${esc(String(a.ts || '').slice(0, 16).replace('T', ' '))}</td>
+      <td><span class="rc-audit-a">${esc(LBL[a.action] || a.action || '')}</span></td>
+      <td><div class="rc-mt"><span class="rc-mt-d">${esc(a.party || '—')}</span>${a.ref ? `<span class="rc-mt-w">${esc(a.ref)}</span>` : ''}</div></td>
+      <td class="r">${a.amount ? fC(a.amount) : '—'}</td>
+      <td class="rc-audit-c">${esc(a.reason || '—')}</td>
+      <td class="rc-audit-b">${esc(a.by || '—')}${a.role ? ' · ' + esc(a.role) : ''}</td>
+    </tr>`).join('')}</tbody></table>
+    ${shown.length > 400 ? `<div class="rc-none">Showing the latest 400 of ${shown.length}.</div>` : ''}</div>`;
+}
 function viewHTML() {
   if (ST.view === 'ledger') return ledgerHTML();
+  if (ST.view === 'audit') return auditHTML();
   const rows = filteredTxns();
   if (!rows.length) return `<div class="rc-none">${ST.month && ST.month !== 'all' ? 'No matching transactions for ' + esc(monthLabel()) : 'No transactions match these filters'}.</div>`;
   /* ONE row template — the grouped and ungrouped paths must render the same row.
@@ -1853,6 +1886,7 @@ function wire() {
   });
   if ($('rcAiReview')) $('rcAiReview').onclick = () => { ST.fstatus = 'review'; render(); };
   root.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { ST.view = b.dataset.view; render(); });
+  if ($('rcAudSearch')) { const i = $('rcAudSearch'); i.oninput = () => { ST.aq = i.value; const p = document.querySelector('.rc-panel'); if (p) { p.innerHTML = viewHTML(); wire(); const j = $('rcAudSearch'); if (j) { j.focus(); j.setSelectionRange(j.value.length, j.value.length); } } }; }
   root.querySelectorAll('[data-ftype]').forEach(b => b.onclick = () => { ST.ftype = b.dataset.ftype; render(); });
   /* Filters. render() rebuilds the toolbar, so these rebind every paint — the
      same pattern the tab buttons above already use. */
