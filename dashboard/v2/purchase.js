@@ -252,8 +252,12 @@ async function openBillPdf(r) {
     try {
       const blob = await aOp('readonly', st => st.get(a.id));
       if (blob instanceof Blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
-      if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
-    } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the bill — ' + QLAttachWhy(e), 'err'); return; }
+      /* The scan lives in the uploading browser's IndexedDB; only its name and
+         size sync. Absent bytes here are not a dead end — the bill below is
+         rebuilt from the row's own details. */
+      if (w) w.close();
+      toast('The uploaded scan is on the device it was uploaded from — showing the recorded bill');
+    } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the scan (' + QLAttachWhy(e) + ') — showing the recorded bill', 'err'); }
   }
   pdfWindow(r);
 }
@@ -271,8 +275,12 @@ async function viewBill(r) {
     try {
       const blob = await aOp('readonly', st => st.get(a.id));
       if (blob instanceof Blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
-      if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
-    } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the bill — ' + QLAttachWhy(e), 'err'); return; }
+      /* The scan lives in the uploading browser's IndexedDB; only its name and
+         size sync. Absent bytes here are not a dead end — the bill below is
+         rebuilt from the row's own details. */
+      if (w) w.close();
+      toast('The uploaded scan is on the device it was uploaded from — showing the recorded bill');
+    } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the scan (' + QLAttachWhy(e) + ') — showing the recorded bill', 'err'); }
   }
   // no upload on this bill → the generated bill. On phones open it as a full-screen
   // PDF (like the sales invoice); on desktop keep the in-app preview drawer.

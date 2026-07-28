@@ -648,5 +648,20 @@
 .rc-v3 .rc-party { vertical-align: middle; }
 /* Long narrations must never break the table out horizontally. */
 .rc-table { table-layout: auto; }
+/* WHY THE GAP: every other column is nowrap, so Transaction is the only
+   flexible one and swallows all leftover width — on a wide monitor that reads
+   as a big empty band between the narration and the amount. Capping the
+   transaction column keeps the amounts right-aligned (as asked) while pulling
+   the money columns back toward the text instead of stranding them at the far
+   edge. It is a max, not a fixed width, so a long narration still uses the
+   room it needs. */
+@media (min-width: 1250px) {
+  /* max-width on a cell does nothing in table-layout:auto — the algorithm
+     hands leftover width to the flexible column regardless. Capping the TABLE
+     is what works: the slack becomes trailing space at the edge, which reads
+     as padding, instead of a hole between the narration and the amount. */
+  .rc-table { max-width: 1180px; }
+  .rc-table th:nth-child(3), .rc-table td:nth-child(3) { width: 44%; }
+}
 .rc-v3 .rc-party-n, .rc-v3 .rc-party-nar { min-width: 0; }
 @media (max-width: 900px) { .rc-party { min-width: 160px; } }

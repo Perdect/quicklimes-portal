@@ -46,8 +46,13 @@ async function openInvPdf(r) {
     try {
       const blob = await getAttachBlob(a.id);
       if (blob instanceof Blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
-      if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
-    } catch (_) { if (w) w.close(); toast('Could not open the uploaded invoice', 'err'); return; }
+      /* The SCAN lives in this browser's IndexedDB; only its name and size sync.
+         On another device the bytes are absent — but a sales invoice can always
+         be rebuilt from the row, so fall through to the generated one instead of
+         dead-ending on an error. The user still gets their invoice. */
+      if (w) w.close();
+      toast('The uploaded scan is on the device it was uploaded from — showing the generated invoice');
+    } catch (_) { if (w) w.close(); toast('Could not open the uploaded scan — showing the generated invoice', 'err'); }
   }
   printInv(r);
 }
@@ -83,8 +88,11 @@ async function viewBillSale(r) {
     try {
       const blob = await getAttachBlob(a.id);
       if (blob instanceof Blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
-      if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
-    } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the bill — ' + QLAttachWhy(e), 'err'); return; }
+      /* Same here: no bytes on this device is not a dead end for a sale — the
+         GST invoice below is reconstructed from the row itself. */
+      if (w) w.close();
+      toast('The uploaded scan is on the device it was uploaded from — showing the generated invoice');
+    } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the scan (' + QLAttachWhy(e) + ') — showing the generated invoice', 'err'); }
   }
   let html = ''; try { html = QLShell.getInvoiceHTML(r.idx); } catch (_) {}
   QLX.viewDoc({ eyebrow: 'GST Invoice', title: r.inv || '—', sub: r.party + ' · tax invoice', html: html || salesBillHTML(r), onPrint: () => printInv(r), onShare: () => shareInv(r) });
