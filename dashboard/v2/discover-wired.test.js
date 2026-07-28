@@ -195,6 +195,33 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   /* upsertLead's UPDATE rewrites every column it picks, so a partial payload
      is a silent delete — a stage move that omits score/next_action wipes them.
      Every call must therefore layer the change onto the lead we already hold. */
+  /* ── the four KPI cards became ONE compact strip ──
+     They cost ~140px above the leads and said very little. Pin the replacement
+     so nobody reinstates the cards, and pin what it may NOT claim: a directory
+     row carries no decision-maker, GST or "verified" data. */
+  ok(!/id="kNew"/.test(html) && !/class="dc-kpi"/.test(html), 'the four large stat cards are gone');
+  ok(/id="dcSum"/.test(html) && /function summaryStats\(/.test(bare), '  replaced by one compact summary strip');
+  /* Each coverage figure must be COUNTED. Checking that "some" count uses
+     ROWS.filter passes while another is hardcoded — caught by mutation. */
+  ['withPhone', 'withEmail', 'withWeb', 'reachable'].forEach(v =>
+    ok(new RegExp('const ' + v + ' *= *ROWS\\.filter\\(').test(bare),
+      '  ' + v + ' is counted from the rows, never a fixed number'));
+  {
+    const i = bare.indexOf('function paintKpis');
+    const blk = i > 0 ? bare.slice(i, i + 1600) : '';
+    ok(blk.length > 100, '  (the summary painter is where it should be)');
+    ok(!/decision|gst|verified|open now/i.test(blk),
+      '  and it invents no decision-maker / GST / verified figure');
+  }
+
+  /* ── the search must stay reachable once the hero scrolls away ── */
+  ok(/id="dcFloat"/.test(html) && /floatingSearch/.test(bare), 'a floating search takes over on scroll');
+  ok(/\.dc-float\[hidden\]/.test(html),
+    '  and [hidden] beats its display:flex, or it sits in the layout permanently');
+  ok(/ai\.value = inp\.value\.trim\(\); runSearch\(\)/.test(bare) || /runSearch\(\)/.test(bare.slice(bare.indexOf('floatingSearch'))),
+    '  it runs the SAME search path, not a second copy');
+  ok(/localStorage\.getItem\('ql_dc_sec'\) \|\| 'leads'/.test(bare), 'Leads is the default section');
+
   /* ── the message engine: real LLM first, template as fallback ──
      /api/discover has had an LLM writer behind action:'message' since it was
      built, with NOTHING calling it — so every draft came from the local

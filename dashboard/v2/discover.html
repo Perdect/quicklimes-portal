@@ -732,6 +732,55 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .pd-tl-d { font: 500 11px var(--ql-font-sans); color: var(--ql-text-muted); margin-left: 8px; font-variant-numeric: tabular-nums; }
   .pd-tl-b { font: 500 12.5px/1.6 var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
+  /* ── ONE compact summary, replacing four large cards ──────────────────
+     The cards pushed the leads below the fold; this says more in a quarter of
+     the height and sits inline between the search and the results. */
+  .dc-sum { display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 16px;
+    padding: 11px 16px; margin-bottom: var(--ql-space-4); }
+  .ds-counts { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .ds-n { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); display: inline-flex; align-items: baseline; gap: 5px; }
+  .ds-n b { font: 800 17px var(--ql-font-sans); color: var(--ql-text); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .ds-n.g b { color: #15803d; } .ds-n.a b { color: #b45309; } .ds-n.m b { color: #7c3aed; }
+  [data-theme="dark"] .ds-n.g b { color: #4ade80; }
+  [data-theme="dark"] .ds-n.a b { color: #fbbf24; }
+  [data-theme="dark"] .ds-n.m b { color: #c4b5fd; }
+  .ds-reach { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
+  .ds-bar { width: 84px; height: 6px; border-radius: 999px; background: var(--ql-border); overflow: hidden; flex: none; }
+  .ds-bar i { display: block; height: 100%; background: linear-gradient(90deg,#2563eb,#16a34a); }
+  .ds-reach-t { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); }
+  .ds-reach-t b { font-weight: 800; color: var(--ql-text); font-variant-numeric: tabular-nums; }
+  .ds-ch { display: inline-flex; align-items: center; gap: 4px; font: 600 12px var(--ql-font-sans);
+    color: var(--ql-text-secondary); font-variant-numeric: tabular-nums; }
+  .ds-ch svg { width: 12px; height: 12px; opacity: .7; }
+  .ds-ago { display: inline-flex; align-items: center; gap: 5px; font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-muted); }
+  .ds-ago svg { width: 12px; height: 12px; }
+  @media (max-width: 720px) {
+    .dc-sum { gap: 12px; }
+    .ds-reach { margin-left: 0; width: 100%; }
+  }
+
+  /* ── floating search (takes over when the hero scrolls out) ── */
+  /* `display:flex` on a class OUTRANKS the UA's `[hidden] { display:none }`,
+     so without this the bar sits in the layout permanently while its .hidden
+     property reads true — visible on screen, invisible to the code. */
+  .dc-float[hidden] { display: none; }
+  .dc-float { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 10px;
+    background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px;
+    padding: 9px 12px; margin-bottom: var(--ql-space-4);
+    box-shadow: 0 6px 20px rgba(15,23,42,.08); }
+  [data-theme="dark"] .dc-float { box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+  .dc-float-ic { display: inline-flex; color: var(--ql-text-muted); flex: none; }
+  .dc-float-ic svg { width: 16px; height: 16px; }
+  .dc-float-in { flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
+    font: 500 13.5px var(--ql-font-sans); color: var(--ql-text); }
+  .dc-float-n { font: 600 12px var(--ql-font-sans); color: var(--ql-text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .dc-float-b { font: 700 12.5px var(--ql-font-sans); color: #fff; background: var(--ql-brand-600,#2563eb);
+    border: 0; border-radius: 999px; padding: 7px 15px; cursor: pointer; white-space: nowrap; }
+  .dc-float-b.ghost { background: transparent; color: var(--ql-text-secondary); border: 1px solid var(--ql-border); }
+  .dc-float-b.ghost:hover { color: var(--ql-text); border-color: var(--ql-brand-400,#60a5fa); }
+  @media (max-width: 640px) { .dc-float-b.ghost { display: none; } }
+
 </style>
 </head>
 <body class="ql-v2">
@@ -741,6 +790,16 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     <div id="dcNotice"></div>
 
     <!-- ═══ AI SEARCH — the one intelligent input; filters auto-fill from it ═══ -->
+    <!-- Compact search that takes over once the hero scrolls away. Search is the
+         point of this page; making the user scroll back up to run another one
+         is the kind of friction that gets a tool abandoned. -->
+    <div class="dc-float" id="dcFloat" hidden>
+      <span class="dc-float-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+      <input id="dcFloatIn" class="dc-float-in" placeholder="Search businesses — industry and place" autocomplete="off">
+      <span class="dc-float-n" id="dcFloatN"></span>
+      <button class="dc-float-b" id="dcFloatGo" type="button">Search</button>
+      <button class="dc-float-b ghost" id="dcFloatTop" type="button">Back to top</button>
+    </div>
     <div class="dc-search dc-search-hero">
       <div class="dc-src" id="dcSrc"></div>
       <div class="dc-ai">
@@ -819,16 +878,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 
     <!-- LEADS SECTION -->
     <div class="dc-sec" id="secLeads" hidden>
-      <div class="dc-kpis">
-        <div class="dc-kpi"><div><div class="l">New candidates</div><div class="v" id="kNew">0</div></div>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span></div>
-        <div class="dc-kpi"><div><div class="l">Promoted to leads</div><div class="v" id="kProm">0</div></div>
-          <span class="ic g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></span></div>
-        <div class="dc-kpi"><div><div class="l">Duplicates caught</div><div class="v" id="kDup">0</div></div>
-          <span class="ic a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span></div>
-        <div class="dc-kpi"><div><div class="l">Total discovered</div><div class="v" id="kAll">0</div></div>
-          <span class="ic p"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span></div>
-      </div>
+      <div class="dc-sum" id="dcSum" hidden></div>
       <div class="dc-recent" id="dcRecent"></div>
       <div class="dc-tabs" id="dcTabs"></div>
       <div class="card" style="padding:0;overflow:hidden"><div id="dcBody"></div></div>
@@ -998,6 +1048,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./freight-core.js?v=f1"></script>
 <script src="./freight.js?v=f2"></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d46"></script>
+<script src="./discover.js?v=d47"></script>
 </body>
 </html>

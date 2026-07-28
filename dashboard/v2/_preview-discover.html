@@ -732,6 +732,55 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .pd-tl-d { font: 500 11px var(--ql-font-sans); color: var(--ql-text-muted); margin-left: 8px; font-variant-numeric: tabular-nums; }
   .pd-tl-b { font: 500 12.5px/1.6 var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
+  /* ── ONE compact summary, replacing four large cards ──────────────────
+     The cards pushed the leads below the fold; this says more in a quarter of
+     the height and sits inline between the search and the results. */
+  .dc-sum { display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 16px;
+    padding: 11px 16px; margin-bottom: var(--ql-space-4); }
+  .ds-counts { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .ds-n { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); display: inline-flex; align-items: baseline; gap: 5px; }
+  .ds-n b { font: 800 17px var(--ql-font-sans); color: var(--ql-text); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .ds-n.g b { color: #15803d; } .ds-n.a b { color: #b45309; } .ds-n.m b { color: #7c3aed; }
+  [data-theme="dark"] .ds-n.g b { color: #4ade80; }
+  [data-theme="dark"] .ds-n.a b { color: #fbbf24; }
+  [data-theme="dark"] .ds-n.m b { color: #c4b5fd; }
+  .ds-reach { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
+  .ds-bar { width: 84px; height: 6px; border-radius: 999px; background: var(--ql-border); overflow: hidden; flex: none; }
+  .ds-bar i { display: block; height: 100%; background: linear-gradient(90deg,#2563eb,#16a34a); }
+  .ds-reach-t { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); }
+  .ds-reach-t b { font-weight: 800; color: var(--ql-text); font-variant-numeric: tabular-nums; }
+  .ds-ch { display: inline-flex; align-items: center; gap: 4px; font: 600 12px var(--ql-font-sans);
+    color: var(--ql-text-secondary); font-variant-numeric: tabular-nums; }
+  .ds-ch svg { width: 12px; height: 12px; opacity: .7; }
+  .ds-ago { display: inline-flex; align-items: center; gap: 5px; font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-muted); }
+  .ds-ago svg { width: 12px; height: 12px; }
+  @media (max-width: 720px) {
+    .dc-sum { gap: 12px; }
+    .ds-reach { margin-left: 0; width: 100%; }
+  }
+
+  /* ── floating search (takes over when the hero scrolls out) ── */
+  /* `display:flex` on a class OUTRANKS the UA's `[hidden] { display:none }`,
+     so without this the bar sits in the layout permanently while its .hidden
+     property reads true — visible on screen, invisible to the code. */
+  .dc-float[hidden] { display: none; }
+  .dc-float { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 10px;
+    background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px;
+    padding: 9px 12px; margin-bottom: var(--ql-space-4);
+    box-shadow: 0 6px 20px rgba(15,23,42,.08); }
+  [data-theme="dark"] .dc-float { box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+  .dc-float-ic { display: inline-flex; color: var(--ql-text-muted); flex: none; }
+  .dc-float-ic svg { width: 16px; height: 16px; }
+  .dc-float-in { flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
+    font: 500 13.5px var(--ql-font-sans); color: var(--ql-text); }
+  .dc-float-n { font: 600 12px var(--ql-font-sans); color: var(--ql-text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .dc-float-b { font: 700 12.5px var(--ql-font-sans); color: #fff; background: var(--ql-brand-600,#2563eb);
+    border: 0; border-radius: 999px; padding: 7px 15px; cursor: pointer; white-space: nowrap; }
+  .dc-float-b.ghost { background: transparent; color: var(--ql-text-secondary); border: 1px solid var(--ql-border); }
+  .dc-float-b.ghost:hover { color: var(--ql-text); border-color: var(--ql-brand-400,#60a5fa); }
+  @media (max-width: 640px) { .dc-float-b.ghost { display: none; } }
+
 </style>
 </head>
 <body class="ql-v2">
@@ -741,6 +790,16 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     <div id="dcNotice"></div>
 
     <!-- ═══ AI SEARCH — the one intelligent input; filters auto-fill from it ═══ -->
+    <!-- Compact search that takes over once the hero scrolls away. Search is the
+         point of this page; making the user scroll back up to run another one
+         is the kind of friction that gets a tool abandoned. -->
+    <div class="dc-float" id="dcFloat" hidden>
+      <span class="dc-float-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+      <input id="dcFloatIn" class="dc-float-in" placeholder="Search businesses — industry and place" autocomplete="off">
+      <span class="dc-float-n" id="dcFloatN"></span>
+      <button class="dc-float-b" id="dcFloatGo" type="button">Search</button>
+      <button class="dc-float-b ghost" id="dcFloatTop" type="button">Back to top</button>
+    </div>
     <div class="dc-search dc-search-hero">
       <div class="dc-src" id="dcSrc"></div>
       <div class="dc-ai">
@@ -819,16 +878,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 
     <!-- LEADS SECTION -->
     <div class="dc-sec" id="secLeads" hidden>
-      <div class="dc-kpis">
-        <div class="dc-kpi"><div><div class="l">New candidates</div><div class="v" id="kNew">0</div></div>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span></div>
-        <div class="dc-kpi"><div><div class="l">Promoted to leads</div><div class="v" id="kProm">0</div></div>
-          <span class="ic g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></span></div>
-        <div class="dc-kpi"><div><div class="l">Duplicates caught</div><div class="v" id="kDup">0</div></div>
-          <span class="ic a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span></div>
-        <div class="dc-kpi"><div><div class="l">Total discovered</div><div class="v" id="kAll">0</div></div>
-          <span class="ic p"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span></div>
-      </div>
+      <div class="dc-sum" id="dcSum" hidden></div>
       <div class="dc-recent" id="dcRecent"></div>
       <div class="dc-tabs" id="dcTabs"></div>
       <div class="card" style="padding:0;overflow:hidden"><div id="dcBody"></div></div>
@@ -1001,11 +1051,30 @@ var CRMSTUB={
 <script>
 window.QLShell={mount:function(o){var p=document.getElementById("ql-page");if(!p)return;var c=p.innerHTML;p.remove();var s=document.createElement("div");s.className="shell";s.id="shell";s.setAttribute("data-collapsed","false");s.innerHTML='<aside class="sidebar" id="sidebar"><nav style="padding:10px"><a class="sb-link active" href="#"><span class="sb-link-text">Lead Discovery</span></a></nav></aside><header class="topbar" style="grid-area:topbar"></header><main class="main" id="ql-main"></main>';document.body.insertBefore(s,document.body.firstChild);document.getElementById("ql-main").innerHTML=c;},setBreadcrumb:function(){},closeModal:function(){var _b=document.getElementById("qlModalBack");if(_b){_b.classList.remove("open");_b.innerHTML="";}},panel:function(c){var bk=document.getElementById("qlModalBack");if(!bk){bk=document.createElement("div");bk.id="qlModalBack";document.body.appendChild(bk);}bk.innerHTML='<div class="ql-panel"><div class="ql-panel-body" id="qlPanelBody"></div></div>';var d=bk.querySelector("#qlPanelBody");d.innerHTML=c.body||"";bk.classList.add("open");return d;},openForm:function(){}};
 window.QLD={init:function(cb){cb&&cb();return Promise.resolve();},salesRows:function(){return[]},partyRows:function(){return[]},getPL:function(){return null},activeCo:1,fmt:function(n){return n},co:{short:"Gotan Lime Industries",ownerName:"Haji Kayyum",city:"Gotan, Rajasthan",phone:"9460034743"}};
-var ROWSTUB=[
- {id:1,name:"Ecorex Buildtech Pvt. Ltd.",industry:"AAC Block",city:"Ahmedabad",state:"Gujarat",address:"Plot No. 406, Phase 3, Udyog Vihar, Sector 20, Ahmedabad, Gujarat 382330, India",phone:"+91 124 494 2555",website:"https://ecorexbuildtech.com/products/aac-blocks",email:"sales@ecorex.example",rating:4.4,lat:23.02,lng:72.57,status:"new",source:"google"},
- {id:2,name:"Shree Balaji Steel & Alloys Limited",industry:"Steel",city:"Raipur",state:"Chhattisgarh",address:"Industrial Growth Centre, Siltara, Raipur, Chhattisgarh 493111, India",phone:"+91 771 223 4455",website:"https://balajisteel.example",rating:4.1,lat:21.25,lng:81.63,status:"new",source:"google"},
- {id:3,name:"Uttam Sugar Mills",industry:"Sugar",city:"Muzaffarnagar",state:"Uttar Pradesh",address:"Village Libberheri, Tehsil Roorkee, Muzaffarnagar, Uttar Pradesh 247667, India",status:"new",source:"mapbox"}
-];
+var ROWSTUB=(function(){
+ /* A 3-row fixture cannot exercise anything that depends on SCROLLING — the
+    floating search stayed hidden because the page never scrolled far enough to
+    push the hero away. The live page carries ~58 rows; the mock now does too. */
+ var base=[
+  {name:"Ecorex Buildtech Pvt. Ltd.",industry:"AAC Block",city:"Ahmedabad",state:"Gujarat",address:"Plot No. 406, Phase 3, Udyog Vihar, Sector 20, Ahmedabad, Gujarat 382330, India",phone:"+91 124 494 2555",website:"https://ecorexbuildtech.com/products/aac-blocks",email:"sales@ecorex.example",rating:4.4,lat:23.02,lng:72.57,source:"google"},
+  {name:"Shree Balaji Steel & Alloys Limited",industry:"Steel",city:"Raipur",state:"Chhattisgarh",address:"Industrial Growth Centre, Siltara, Raipur, Chhattisgarh 493111, India",phone:"+91 771 223 4455",website:"https://balajisteel.example",rating:4.1,lat:21.25,lng:81.63,source:"google"},
+  {name:"Uttam Sugar Mills",industry:"Sugar",city:"Muzaffarnagar",state:"Uttar Pradesh",address:"Village Libberheri, Tehsil Roorkee, Muzaffarnagar, Uttar Pradesh 247667, India",source:"mapbox"}];
+ var cities=[["Ahmedabad","Gujarat",23.02,72.57],["Raipur","Chhattisgarh",21.25,81.63],["Jodhpur","Rajasthan",26.24,73.02],["Pune","Maharashtra",18.52,73.85],["Kanpur","Uttar Pradesh",26.45,80.33],["Rourkela","Odisha",22.26,84.85]];
+ var inds=["Chemicals","Steel","Sugar","Paper & Pulp","AAC Block","Cement"];
+ var out=base.map(function(r,i){r.id=i+1;r.status="new";r.created_at="2026-07-28 09:1"+i+":00";return r;});
+ for(var k=0;k<21;k++){
+   var c=cities[k%cities.length], ind=inds[k%inds.length];
+   var mobile=(k%3===0), landline=(k%3===1);
+   out.push({id:100+k,name:ind+" Works "+(k+1)+" Pvt. Ltd.",industry:ind,city:c[0],state:c[1],
+     address:"Plot "+(20+k)+", Industrial Area Phase "+((k%3)+1)+", "+c[0]+", "+c[1]+" "+(300000+k*137)+", India",
+     phone:mobile?("+91 9"+(400000000+k*137)):(landline?("+91 "+(20+(k%7))+" "+(4000000+k*13)):""),
+     website:(k%2===0)?("https://"+ind.toLowerCase().replace(/[^a-z]/g,"")+k+".example"):"",
+     email:(k%4===0)?("sales"+k+"@example.com"):"",
+     rating:(k%5===0)?null:(3.4+(k%13)/10),lat:c[2],lng:c[3],status:"new",source:(k%2?"google":"mapbox"),
+     created_at:"2026-07-28 08:"+(10+(k%49))+":00"});
+ }
+ return out;
+})();
 window.fetch=(function(o){return function(u,opt){var b={};try{b=JSON.parse(opt.body)}catch(e){}function J(x){return Promise.resolve({ok:true,status:200,json:function(){return Promise.resolve(x)},text:function(){return Promise.resolve(JSON.stringify(x))}});}
  var URL_=typeof u==="string"?u:"";
  var isCRM=URL_.indexOf("/api/crm")>=0;
@@ -1024,10 +1093,10 @@ window.fetch=(function(o){return function(u,opt){var b={};try{b=JSON.parse(opt.b
    return J({ok:true,provider:"anthropic",model:"claude-opus-5",data:{message:lbl+"for "+(b.lead&&b.lead.name)+"\n\n\u2014 "+(b.seller&&b.seller.name)+"\n\ud83d\udcde "+(b.seller&&b.seller.phone)+"\n\ud83d\udccd "+(b.seller&&b.seller.address)}});
  }
  if(b&&b.action==="sources")return J({ok:true,osm:true,google:true,mapbox:true});
- if(b&&b.action==="list")return J({ok:true,rows:ROWSTUB,counts:{new:3,duplicate:0,promoted:0,dismissed:0},diag:{scope:3,plant:3,company_id:"1",other_ids:[]}});
+ if(b&&b.action==="list")return J({ok:true,rows:ROWSTUB,counts:{new:ROWSTUB.length,duplicate:0,promoted:0,dismissed:0},diag:{scope:ROWSTUB.length,plant:ROWSTUB.length,company_id:"1",other_ids:[]}});
  if(URL_.indexOf("/api/")>=0)return J({ok:true,rows:[],counts:{new:0,promoted:0,duplicate:0}});
  return o.apply(this,arguments);};})(window.fetch);
-try{localStorage.setItem("ql_plant",JSON.stringify({id:"preview",token:"x"}));localStorage.setItem("ql_dc_sec","leads")}catch(e){}
+try{localStorage.setItem("ql_plant",JSON.stringify({id:"preview",token:"x"}));localStorage.removeItem("ql_dc_sec")}catch(e){}
 </script>
 <script src="./icp-core.js"></script><script src="./lead-import.js"></script><script src="./lead-parse.js"></script><script src="./lime-market.js"></script><script src="./osm-query.js"></script><script src="./lead-actions.js"></script><script src="./crm-core.js"></script><script src="./wa-core.js"></script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="./india-geo.js"></script><script src="./freight-core.js"></script><script src="./freight.js"></script><script src="./discover.js"></script>
 </body>

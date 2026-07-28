@@ -545,11 +545,60 @@ function paintTabs() {
   el.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { TAB = b.dataset.t; paintTabs(); paintTable(); });
 }
 
+/* ONE compact summary strip, not four large cards.
+
+   The cards cost ~140px of vertical space above the leads and said very little:
+   four numbers a salesperson glances at once. This says more in ~40px, and
+   sits between the search and the results rather than pushing them down.
+
+   Every figure is counted from the rows on screen. Deliberately ABSENT:
+   decision-maker counts, GST status, "verified", "open now" — a directory
+   result carries none of that, and a confident number nobody can source is
+   worse in front of a customer than no number. */
+function summaryStats() {
+  const withPhone = ROWS.filter(r => r.phone).length;
+  const withEmail = ROWS.filter(r => r.email).length;
+  const withWeb   = ROWS.filter(r => r.website).length;
+  const reachable = ROWS.filter(r => r.phone || r.email || r.website).length;
+  const pct = ROWS.length ? Math.round(reachable / ROWS.length * 100) : 0;
+  let newest = '';
+  ROWS.forEach(r => { const t = String(r.created_at || ''); if (t > newest) newest = t; });
+  return { withPhone, withEmail, withWeb, reachable, pct, newest };
+}
+function agoText(ts) {
+  if (!ts) return '';
+  const t = Date.parse(String(ts).replace(' ', 'T') + (/[Z+]/.test(String(ts)) ? '' : 'Z'));
+  if (!isFinite(t)) return '';
+  const mins = Math.floor((Date.now() - t) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + ' min ago';
+  const h = Math.floor(mins / 60);
+  if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+  const d = Math.floor(h / 24);
+  return d + (d === 1 ? ' day ago' : ' days ago');
+}
 function paintKpis() {
-  document.getElementById('kNew').textContent = COUNTS.new || 0;
-  document.getElementById('kProm').textContent = COUNTS.promoted || 0;
-  document.getElementById('kDup').textContent = COUNTS.duplicate || 0;
-  document.getElementById('kAll').textContent = ROWS.length;
+  const host = document.getElementById('dcSum'); if (!host) return;
+  if (!ROWS.length) { host.hidden = true; host.innerHTML = ''; return; }
+  const st = summaryStats();
+  const n = (v, l, cls) => `<span class="ds-n ${cls || ''}"><b>${v}</b>${l}</span>`;
+  const ago = agoText(st.newest);
+  host.hidden = false;
+  host.innerHTML = `
+    <div class="ds-counts">
+      ${n(COUNTS.new || 0, 'new')}
+      ${n(COUNTS.promoted || 0, 'promoted', 'g')}
+      ${n(COUNTS.duplicate || 0, 'duplicate', 'a')}
+      ${n(ROWS.length, 'total', 'm')}
+    </div>
+    <div class="ds-reach" title="Counted from the rows on this page">
+      <span class="ds-bar"><i style="width:${st.pct}%"></i></span>
+      <span class="ds-reach-t"><b>${st.pct}%</b> reachable</span>
+      <span class="ds-ch">${IC_PHONE}${st.withPhone}</span>
+      <span class="ds-ch">${IC_MAIL}${st.withEmail}</span>
+      <span class="ds-ch">${IC_WEB}${st.withWeb}</span>
+    </div>
+    ${ago ? `<span class="ds-ago">${IC_CLOCK}updated ${esc(ago)}</span>` : ''}`;
 }
 
 /* Per-lead economics — real, only when we have the lead's coordinates (OSM rows
@@ -690,6 +739,7 @@ function paintTable() {
   const inTab = ROWS.filter(r => r.status === TAB);
   const rows = inTab.filter(passesFilters);
   if (!rows.length) {
+    paintFloatCount(0, inTab.length);
     host.innerHTML = (inTab.length ? filterBarHTML(inTab, 0) : '') + `<div class="dc-empty">
       <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <div><b>${TAB === 'new' ? 'Nothing found yet' : 'Nothing here'}</b></div>
@@ -707,6 +757,7 @@ function paintTable() {
      and freight were the old lead: a red "Freight too high" badge on every row
      discouraged calling companies that should be called, and freight is a
      question for the Freight tab, not for prospecting. */
+  paintFloatCount(rows.length, inTab.length);
   host.innerHTML = filterBarHTML(inTab, rows.length) + '<div class="lc-list">' + scored.map(({ r, f }) => {
     const tier = f.tier || 'unknown';
     const dup = r.status === 'duplicate' ? `<span class="lc-dup">${r.dupe_of === 'customer' ? 'Already your customer' : 'Already in pipeline'}</span>` : '';
@@ -1422,6 +1473,7 @@ function switchSection(name) {
   });
   document.querySelectorAll('#dcSecTabs .dc-sectab').forEach(b => b.classList.toggle('active', b.dataset.sec === name));
   try { localStorage.setItem('ql_dc_sec', name); } catch (_) {}
+  document.dispatchEvent(new CustomEvent('ql-section', { detail: name }));
   if (name === 'markets') hmOnShow();
   if (name === 'freight' && window.FreightUI) FreightUI.init();
   if (name === 'pipeline' && typeof renderPipeline === 'function') renderPipeline();
@@ -1704,7 +1756,10 @@ buildIcp();
 buildFilters(); setupVoice(); buildMarketPanel();
 paintSources(); paintChips(); paintTabs(); paintTable();
 renderHero(); renderCopilot(); renderHeatMap();
-try { switchSection(localStorage.getItem('ql_dc_sec') || 'copilot'); } catch (_) { switchSection('copilot'); }
+/* LEADS is the default section. This page exists to hand a salesperson people
+   to call; the Copilot is a place you choose to go, not the thing you want in
+   front of you when the page opens. A stored preference still wins. */
+try { switchSection(localStorage.getItem('ql_dc_sec') || 'leads'); } catch (_) { switchSection('leads'); }
 
 /* Section tabs (Copilot / Markets / Leads) — progressive disclosure. */
 document.querySelectorAll('#dcSecTabs .dc-sectab').forEach(b => b.addEventListener('click', () => switchSection(b.dataset.sec)));
@@ -1728,6 +1783,51 @@ const _heroRev = document.getElementById('dcHeroReview');
 if (_heroRev) _heroRev.addEventListener('click', () => switchSection('leads'));
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { const b = document.getElementById('lcBack'); if (b && !b.hidden) closeLeadDrawer(); } });
 document.getElementById('dcGo').addEventListener('click', runSearch);
+
+/* ── the floating search ──────────────────────────────────────────────────
+   Appears only once the hero has scrolled away, so it never competes with it.
+   Typing here fills the real AI input and runs the same runSearch() — one
+   search path, not a second implementation that drifts from the first. */
+(function floatingSearch() {
+  const hero = document.querySelector('.dc-search-hero');
+  const bar  = document.getElementById('dcFloat');
+  const inp  = document.getElementById('dcFloatIn');
+  const ai   = document.getElementById('dcAi');
+  if (!hero || !bar || !inp || !ai) return;
+
+  const go = () => { if (inp.value.trim()) ai.value = inp.value.trim(); runSearch(); };
+  document.getElementById('dcFloatGo').addEventListener('click', go);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+  document.getElementById('dcFloatTop').addEventListener('click', () => {
+    hero.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => ai.focus(), 300);
+  });
+
+  /* A plain scroll listener, not IntersectionObserver. The page scrolls inside
+     #ql-main rather than the document, and an observer's async delivery is
+     invisible to a headless check — this is measurable at any instant, which
+     means it can actually be tested. */
+  function sync() {
+    const gone = hero.getBoundingClientRect().bottom <= 8;
+    /* Only while looking at leads — over the Markets map or the Acquisition
+       board it would just be clutter. */
+    const leads = document.getElementById('secLeads');
+    const onLeads = leads && !leads.hidden;
+    bar.hidden = !(gone && onLeads);
+  }
+  const scroller = document.getElementById('ql-main') || window;
+  scroller.addEventListener('scroll', sync, { passive: true });
+  window.addEventListener('resize', sync);
+  document.addEventListener('ql-section', sync);
+  sync();
+  window.__dcFloatSync = sync;   // so a test can assert without racing a frame
+})();
+
+/* The count in the floating bar tracks what the table is actually showing. */
+function paintFloatCount(shown, total) {
+  const el = document.getElementById('dcFloatN'); if (!el) return;
+  el.textContent = total ? (shown === total ? total + ' results' : shown + ' of ' + total) : '';
+}
 // Enter in the AI bar or the city field searches; typing in the bar re-parses.
 document.getElementById('dcAi').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
 document.getElementById('dcCity').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
