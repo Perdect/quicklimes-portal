@@ -564,6 +564,16 @@ function leadEconomics(r) {
 }
 const IC_PHONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
 const IC_WEB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+const IC_BLDG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01"/></svg>';
+const IC_FLAME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s4 4 4 8a4 4 0 0 1-8 0c0-1.5.5-2.5 1-3 0 2 1 3 2 3 1.5 0 1-4 1-8z"/><path d="M6 14a6 6 0 0 0 12 0c0-2-1-3.5-2-5"/></svg>';
+const IC_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+const IC_SNOW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19"/></svg>';
+const IC_LAYERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></svg>';
+const IC_TROPHY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12v5a6 6 0 0 1-12 0z"/><path d="M6 6H3v1a4 4 0 0 0 3 3.9M18 6h3v1a4 4 0 0 1-3 3.9M9 20h6M12 15v5"/></svg>';
+const IC_RUPEE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12M6 9h12M15 4c0 4-3 5-6 5h-.5L15 20"/></svg>';
+const IC_TARGET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>';
+const IC_CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>';
+const IC_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
 const IC_SEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>';
 const IC_USERPLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>';
 const IC_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
@@ -1022,6 +1032,9 @@ function openStudio(r) {
   $$('#osOpen').addEventListener('click', () => {
     if (ch === 'whatsapp') { const url = (WA && WA.waLink) ? WA.waLink(r.phone || '', msg.value) : 'https://wa.me/?text=' + encodeURIComponent(msg.value); window.open(url, '_blank', 'noopener'); }
     else { window.location.href = 'mailto:' + encodeURIComponent(r.email || '') + '?subject=' + encodeURIComponent(subj.value) + '&body=' + encodeURIComponent(msg.value); }
+    /* An OPENED draft, not a delivered message — the board labels it that way. */
+    logTouch({ kind: ch === 'whatsapp' ? 'whatsapp' : 'email', crm_company: r.crm_company, crm_lead: r.crm_lead,
+      body: (ch === 'email' && subj.value ? subj.value + ' — ' : '') + msg.value });
   });
   regen();
 }
@@ -1364,7 +1377,7 @@ function openPaste() {
    Reuses crm-core.js (the tested pipeline rules + forecast) and /api/crm, so the
    money maths match the standalone CRM exactly. View + add + stage-move here;
    deep multi-field edits still open cleanly through the same form. ═══ */
-let PIPE = { companies: [], contacts: [], leads: [] }, PIPE_LOADED = false, PIPE_SEARCH = '', PIPE_TEMP = 'all';
+let PIPE = { companies: [], contacts: [], leads: [], activities: [] }, PIPE_LOADED = false, PIPE_SEARCH = '', PIPE_TEMP = 'all';
 function pipeApi(body) {
   const p = JSON.parse(localStorage.getItem('ql_plant') || '{}');
   return fetch('/api/crm', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1386,16 +1399,41 @@ function pipeKpi(icon, label, value, tone) {
   return '<div class="pk-card"><div class="pk-ic" style="background:' + (tone ? tone[1] : 'var(--ql-brand-50,#eff6ff)') + ';color:' + (tone ? tone[0] : 'var(--ql-brand-600,#2563eb)') + '">' + icon + '</div>'
     + '<div class="pk-l">' + label + '</div><div class="pk-v">' + value + '</div></div>';
 }
+/* ═══ TOUCH LOG ═══════════════════════════════════════════════════════════
+   crm_activities has existed (with a working /api/crm write endpoint) since
+   the CRM was built, and NOTHING ever wrote to it. Every outreach the user
+   opens from this app now lands there, so the acquisition board counts real
+   events instead of guesses.
+
+   What this can and cannot know: opening a WhatsApp draft or a mailto: is an
+   ATTEMPT. Delivery and replies are invisible to us — no connected channel
+   observes them — so nothing here is ever labelled "sent" or "replied". */
+async function logTouch(a) {
+  try {
+    const r = await pipeApi({ action: 'activity', activity: {
+      crm_company: a.crm_company || 0, crm_lead: a.crm_lead || null,
+      kind: a.kind || 'note', direction: a.direction || 'out', body: String(a.body || '').slice(0, 2000)
+    } });
+    if (r && r.ok) { PIPE_LOADED = false; return true; }
+    toast((r && r.error) || 'Could not log that touch', 'err');
+  } catch (_) { toast('Could not log that touch', 'err'); }
+  return false;
+}
+function actLabel(k) {
+  return k === 'whatsapp' ? 'WhatsApp draft' : k === 'email' ? 'Email draft' : k === 'proposal' ? 'Proposal'
+    : k === 'meeting' ? 'Meeting' : k === 'call' ? 'Call' : 'Note';
+}
 async function renderPipeline(force) {
   const root = document.getElementById('pipeRoot'); const CC = window.CRMCore;
   if (!root || !CC) { if (root) root.innerHTML = '<div class="pl-empty">Pipeline unavailable.</div>'; return; }
   if (!PIPE_LOADED || force) {
     root.innerHTML = '<div class="pl-empty">Loading pipeline…</div>';
     const r = await pipeApi({ action: 'list' });
-    if (r && r.ok) { PIPE = { companies: r.companies || [], contacts: r.contacts || [], leads: r.leads || [] }; PIPE_LOADED = true; }
+    if (r && r.ok) { PIPE = { companies: r.companies || [], contacts: r.contacts || [], leads: r.leads || [], activities: r.activities || [] }; PIPE_LOADED = true; }
     else { root.innerHTML = '<div class="pl-empty">Could not load the pipeline. ' + esc((r && r.error) || '') + '</div>'; return; }
   }
   const all = PIPE.leads;
+  const acts = PIPE.activities || [];
   // ── KPI band (all real, derived from the leads) ──
   const temps = all.map(pipeTemp);
   const hot = temps.filter(t => t.key === 'hot').length, warm = temps.filter(t => t.key === 'warm').length, cold = temps.filter(t => t.key === 'cold').length;
@@ -1404,22 +1442,41 @@ async function renderPipeline(force) {
   const f = CC.forecast(all);
   const conv = (won + lost) > 0 ? Math.round(won / (won + lost) * 100) : (won > 0 ? 100 : 0);
   const band = '<div class="pk-band">'
-    + pipeKpi('◆', 'Total leads', all.length, ['#2563eb', '#eff6ff'])
-    + pipeKpi('🔥', 'Hot', hot, ['#dc2626', '#fef2f2'])
-    + pipeKpi('☀', 'Warm', warm, ['#b45309', '#fff7ed'])
-    + pipeKpi('❄', 'Cold', cold, ['#0284c7', '#eff6ff'])
-    + pipeKpi('▤', 'Open', open, ['#7c3aed', '#f5f3ff'])
-    + pipeKpi('★', 'Onboarded', won, ['#15803d', '#dcfce7'])
-    + pipeKpi('₹', 'Pipeline value', pipeFmt(f.gross), ['#0f766e', '#ccfbf1'])
-    + pipeKpi('◎', 'Conversion', conv + '%', ['#15803d', '#dcfce7'])
+    + pipeKpi(IC_BLDG, 'Total leads', all.length, ['#2563eb', '#eff6ff'])
+    + pipeKpi(IC_FLAME, 'Hot', hot, ['#dc2626', '#fef2f2'])
+    + pipeKpi(IC_SUN, 'Warm', warm, ['#b45309', '#fff7ed'])
+    + pipeKpi(IC_SNOW, 'Cold', cold, ['#0284c7', '#eff6ff'])
+    + pipeKpi(IC_LAYERS, 'Open', open, ['#7c3aed', '#f5f3ff'])
+    + pipeKpi(IC_TROPHY, 'Won', won, ['#15803d', '#dcfce7'])
+    + pipeKpi(IC_RUPEE, 'Pipeline value', pipeFmt(f.gross), ['#0f766e', '#ccfbf1'])
+    + pipeKpi(IC_TARGET, 'Conversion', conv + '%', ['#15803d', '#dcfce7'])
     + '</div>';
+  /* ── OUTREACH BAND ──────────────────────────────────────────────────────
+     Every number here is a row in crm_activities that this app wrote when the
+     user did something. There is deliberately NO "emails sent", "delivered" or
+     "reply rate": no channel is connected, so nothing in this system can
+     observe a delivery or a reply, and a made-up figure in front of a customer
+     is worse than an absent one. The wording says "opened", and the footnote
+     says why. */
+  const nk = k => acts.filter(a => a.kind === k).length;
+  const today = new Date().toISOString().slice(0, 10);
+  const due = all.filter(l => CC.isOpen(l.stage) && l.next_action_at && String(l.next_action_at).slice(0, 10) <= today).length;
+  const band2 = '<div class="pk-band pk-band-2">'
+    + pipeKpi(IC_WA, 'WhatsApp drafts opened', nk('whatsapp'), ['#16a34a', '#f0fdf4'])
+    + pipeKpi(IC_MAIL, 'Email drafts opened', nk('email'), ['#2563eb', '#eff6ff'])
+    + pipeKpi(IC_DOC, 'Proposals generated', nk('proposal'), ['#7c3aed', '#f5f3ff'])
+    + pipeKpi(IC_CAL, 'Meetings logged', nk('meeting'), ['#b45309', '#fff7ed'])
+    + pipeKpi(IC_PHONE, 'Calls & notes logged', nk('call') + nk('note'), ['#0f766e', '#ccfbf1'])
+    + pipeKpi(IC_CLOCK, 'Follow-ups due', due, due ? ['#dc2626', '#fef2f2'] : ['#64748b', '#f1f5f9'])
+    + '</div>'
+    + '<div class="pk-note">Counted when you open a draft or log a touch here. Delivery and replies are not counted — no email or WhatsApp channel is connected to this app, so nothing can observe them.</div>';
   // ── controls ──
   const controls = '<div class="pk-controls">'
-    + '<input id="plSearch" class="pk-search" placeholder="Search hotels, contacts, cities…" value="' + esc(PIPE_SEARCH) + '">'
+    + '<input id="plSearch" class="pk-search" placeholder="Search companies, cities, industries…" value="' + esc(PIPE_SEARCH) + '">'
     + '<select id="plTemp" class="pk-sel"><option value="all">All temps</option><option value="hot"' + (PIPE_TEMP === 'hot' ? ' selected' : '') + '>Hot</option><option value="warm"' + (PIPE_TEMP === 'warm' ? ' selected' : '') + '>Warm</option><option value="cold"' + (PIPE_TEMP === 'cold' ? ' selected' : '') + '>Cold</option></select>'
     + '<button class="ql-btn ql-btn-secondary" id="plImport" type="button">Import</button>'
     + '<button class="ql-btn ql-btn-primary" id="plAdd" type="button">+ Add lead</button></div>';
-  if (!all.length) { root.innerHTML = band + controls + '<div class="pl-empty">No leads yet. Promote a discovered company from the Leads tab, or add one.</div>'; wirePipe(); return; }
+  if (!all.length) { root.innerHTML = band + band2 + controls + '<div class="pl-empty">No leads yet. Promote a discovered company from the Leads tab, or add one.</div>'; wirePipe(); return; }
   // ── filtered leads for the board ──
   const q = PIPE_SEARCH.toLowerCase().trim();
   let leads = all.filter(l => {
@@ -1442,9 +1499,15 @@ async function renderPipeline(force) {
     }).join('') || '<div class="pl-col-empty">Empty</div>';
     return '<div class="pl-col"><div class="pl-col-h"><span class="pl-col-dot" style="background:' + (s.key === 'won' ? '#16a34a' : s.key === 'lost' ? '#dc2626' : '#94a3b8') + '"></span><span>' + esc(s.label) + '</span><span class="pl-col-n">' + ls.length + ' · ' + pipeFmt(total) + '</span></div>' + cards + '</div>';
   }).join('');
-  root.innerHTML = band + controls + '<div class="pl-board"><div class="pl-cols">' + cols + '</div></div>';
+  root.innerHTML = band + band2 + controls + '<div class="pl-board"><div class="pl-cols">' + cols + '</div></div>';
   wirePipe();
 }
+/* upsertLead's UPDATE writes EVERY column it picks, so a partial payload is a
+   silent delete: sending only {id, stage} nulls the score, the next action and
+   the expected close date. Always send the lead we already hold, with the
+   change layered on top. */
+function leadPatch(l, changes) { return Object.assign({}, l, changes || {}); }
+
 function wirePipe() {
   const add = document.getElementById('plAdd'); if (add) add.addEventListener('click', pipeAddLead);
   const imp = document.getElementById('plImport'); if (imp) imp.addEventListener('click', () => { switchSection('leads'); const b = document.getElementById('dcImport'); if (b) b.click(); });
@@ -1455,7 +1518,7 @@ function wirePipe() {
     e.stopPropagation();
     const l = PIPE.leads.find(x => +x.id === +b.dataset.lead); if (!l) return;
     const chk = window.CRMCore.canMove(l.stage, b.dataset.to, l); if (chk && chk.ok === false) return alert(chk.why);
-    const r = await pipeApi({ action: 'upsertLead', lead: { id: l.id, crm_company: l.crm_company, tonnes: l.tonnes, price_per_tonne: l.price_per_tonne != null ? l.price_per_tonne : l.pricePerTonne, stage: b.dataset.to } });
+    const r = await pipeApi({ action: 'upsertLead', lead: leadPatch(l, { stage: b.dataset.to }) });
     if (r && r.ok) renderPipeline(true); else alert('Could not move: ' + ((r && r.error) || ''));
   }));
 }
@@ -1483,21 +1546,69 @@ function pipeAddLead() {
 function pipeOpenLead(id) {
   const l = PIPE.leads.find(x => +x.id === +id); if (!l) return;
   const CC = window.CRMCore, co = pipeCoOf(l.crm_company);
-  const moves = CC.STAGES.map(s =>
-    '<button class="ql-btn ' + (s.key === l.stage ? 'ql-btn-primary' : 'ql-btn-secondary') + '" style="margin:3px" data-stage="' + s.key + '">' + esc(s.label) + '</button>').join('');
-  const body = '<div style="font:600 13px var(--ql-font-sans);color:var(--ql-text)">' + esc(co.name || '—') + '</div>'
-    + '<div class="mi-sub" style="margin:4px 0 12px">' + esc(co.industry || '') + (co.city ? ' · ' + esc(co.city) : '') + ' · ' + pipeFmt(CC.leadValue(l)) + (CC.leadValue(l) == null ? ' (no price yet)' : '') + '</div>'
-    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><button class="ql-btn ql-btn-secondary" id="plStudio" type="button">' + IC_SPARK + 'Outreach Studio</button><button class="ql-btn ql-btn-secondary" id="plProposal" type="button">' + IC_DOC + 'Generate proposal</button><button class="ql-btn ql-btn-secondary" id="plOnboard" type="button">' + IC_LINK + 'Onboarding link</button></div>'
-    + '<div style="font:700 11px var(--ql-font-sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ql-text-secondary);margin-bottom:6px">Move to stage</div><div>' + moves + '</div>';
-  const panel = QLShell.panel({ title: 'Lead · ' + (co.name || ''), body: body });
-  const leadR = { name: co.name, industry: co.industry, city: co.city, tonnes: l.tonnes, phone: co.phone || l.phone, email: co.email || l.email };
-  const ps = document.getElementById('plStudio'); if (ps) ps.addEventListener('click', () => { QLShell.closeModal(); openStudio(leadR); });
-  const pp = document.getElementById('plProposal'); if (pp) pp.addEventListener('click', () => { QLShell.closeModal(); openProposal(leadR); });
-  const pob = document.getElementById('plOnboard'); if (pob) pob.addEventListener('click', () => { QLShell.closeModal(); openOnboardLink(leadR); });
-  document.querySelectorAll('#qlModalBack [data-stage]').forEach(b => b.addEventListener('click', async () => {
+  const t = pipeTemp(l), v = CC.leadValue(l);
+  const contact = (PIPE.contacts || []).find(c => +c.crm_company === +l.crm_company) || {};
+  const tl = (PIPE.activities || []).filter(a => +a.crm_company === +l.crm_company)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 12);
+  const stages = CC.STAGES.map(st =>
+    `<button class="pd-stage${st.key === l.stage ? ' on' : ''}" data-stage="${st.key}">${esc(st.label)}</button>`).join('');
+  const card = (ic, label, val) => `<div class="pd-kpi"><div class="pd-kpi-t">${ic}<span>${label}</span></div><div class="pd-kpi-v">${val}</div></div>`;
+  const nextDue = l.next_action_at ? String(l.next_action_at).slice(0, 10) : '';
+  const body = `
+    <div class="pd-head">
+      <div class="pd-head-ic">${IC_BLDG}</div>
+      <div class="pd-head-t">
+        <div class="pd-name">${esc(co.name || '—')}<span class="pd-chip">${esc((CC.STAGES.find(x => x.key === l.stage) || {}).label || l.stage)}</span><span class="pd-chip" style="color:${t.c};background:${t.bg}">${t.label}</span></div>
+        <div class="pd-sub">${esc(co.industry || '—')}${co.city ? ' · ' + esc(co.city) : ''}${co.source ? ' · via ' + esc(co.source) : ''}</div>
+      </div>
+      <div class="pd-head-a">
+        ${contact.phone ? `<a class="lr-b" href="tel:${esc(contact.phone)}">${IC_PHONE}Call</a>` : ''}
+        ${contact.phone ? `<a class="lr-b wa" href="${esc((window.WACore && WACore.waLink) ? WACore.waLink(contact.phone, '') : '#')}" target="_blank" rel="noopener noreferrer">${IC_WA}WhatsApp</a>` : ''}
+      </div>
+    </div>
+    <div class="pd-kpis">
+      ${card(IC_RUPEE, 'Est. value', v == null ? '<span class="pd-none">no price yet</span>' : pipeFmt(v))}
+      ${card(IC_TARGET, 'Fit score', l.score == null ? '<span class="pd-none">unscored</span>' : l.score + '<small>/100</small>')}
+      ${card(IC_USERPLUS, 'Owner', esc(l.owner || '') || '<span class="pd-none">unassigned</span>')}
+      ${card(IC_CLOCK, 'Next action', nextDue ? esc(nextDue) : '<span class="pd-none">none set</span>')}
+    </div>
+    <div class="pd-sec"><div class="pd-sec-t">Pipeline stage</div><div class="pd-stages">${stages}</div></div>
+    <div class="pd-sec"><div class="pd-sec-t">${IC_SPARK}Outreach</div>
+      <div class="pd-btns">
+        <button class="lr-b assess" id="plStudio" type="button">${IC_SEND}Draft message</button>
+        <button class="lr-b msg" id="plProposal" type="button">${IC_DOC}Generate proposal</button>
+        <button class="lr-b" id="plOnboard" type="button">${IC_LINK}Onboarding link</button>
+      </div></div>
+    <div class="pd-sec"><div class="pd-sec-t">Log a touch</div>
+      <textarea id="plTouch" class="pd-note" rows="2" placeholder="What happened? A call summary, a note, a meeting…"></textarea>
+      <div class="pd-btns" style="margin-top:8px">
+        <button class="lr-b" data-touch="call" type="button">${IC_PHONE}Log call</button>
+        <button class="lr-b" data-touch="meeting" type="button">${IC_CAL}Log meeting</button>
+        <button class="lr-b pri" data-touch="note" type="button">Save note</button>
+      </div></div>
+    <div class="pd-sec"><div class="pd-sec-t">History</div>
+      ${tl.length ? '<div class="pd-tl">' + tl.map(a => `<div class="pd-tl-i"><span class="pd-tl-k">${esc(actLabel(a.kind))}</span><span class="pd-tl-d">${esc(String(a.at || '').slice(0, 16).replace('T', ' '))}</span><div class="pd-tl-b">${esc(String(a.body || '').slice(0, 220))}</div></div>`).join('') + '</div>'
+        : '<div class="pd-none">Nothing logged yet. Every draft you open and every touch you log here shows up in this list.</div>'}
+    </div>`;
+  const pane = QLShell.panel({ title: co.name || 'Lead', body: body }) || document;
+  /* The composer needs the CRM ids so what it opens is logged against THIS lead. */
+  const leadR = { name: co.name, industry: co.industry, city: co.city, tonnes: l.tonnes,
+    phone: contact.phone || '', email: contact.email || '', website: co.website || '',
+    crm_company: l.crm_company, crm_lead: l.id };
+  const on = (id, fn) => { const b = pane.querySelector('#' + id) || document.getElementById(id); if (b) b.addEventListener('click', fn); };
+  on('plStudio', () => { QLShell.closeModal(); openStudio(leadR); });
+  on('plProposal', () => { QLShell.closeModal(); openProposal(leadR); logTouch({ kind: 'proposal', crm_company: l.crm_company, crm_lead: l.id, body: 'Proposal generated for ' + (co.name || '') }); });
+  on('plOnboard', () => { QLShell.closeModal(); openOnboardLink(leadR); });
+  pane.querySelectorAll('[data-touch]').forEach(b => b.addEventListener('click', async () => {
+    const box = pane.querySelector('#plTouch'), txt = box ? box.value.trim() : '';
+    if (!txt) { toast('Write what happened first', 'err'); return; }
+    const okd = await logTouch({ kind: b.dataset.touch, crm_company: l.crm_company, crm_lead: l.id, body: txt });
+    if (okd) { toast('Logged'); QLShell.closeModal(); renderPipeline(true); }
+  }));
+  pane.querySelectorAll('[data-stage]').forEach(b => b.addEventListener('click', async () => {
     const to = b.dataset.stage;
     const chk = CC.canMove(l.stage, to, l); if (chk && chk.ok === false) return alert(chk.why);
-    const r = await pipeApi({ action: 'upsertLead', lead: { id: l.id, crm_company: l.crm_company, tonnes: l.tonnes, price_per_tonne: l.price_per_tonne != null ? l.price_per_tonne : l.pricePerTonne, stage: to } });
+    const r = await pipeApi({ action: 'upsertLead', lead: leadPatch(l, { stage: to }) });
     if (r && r.ok) { QLShell.closeModal(); renderPipeline(true); } else alert('Could not move: ' + ((r && r.error) || ''));
   }));
 }

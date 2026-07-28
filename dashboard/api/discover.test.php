@@ -239,9 +239,38 @@ $PLACES_JSON = [
 {
   $src = file_get_contents(__DIR__ . '/discover.php');
   /* Naming the SETTING in a help message is good ("add GOOGLE_PLACES_KEY to
-     config.php"). Reading its VALUE in the endpoint is not — that is how a
-     secret ends up in a response body. Assert the latter, not the former. */
-  ok(strpos($src, 'ql_places_key(') === false, 'discover.php never reads the key value itself');
+     config.php"). Letting its VALUE reach a response body is not.
+
+     This used to assert the endpoint never READ the key at all. That stopped
+     being the right rule the moment self-serve keys arrived: a plant's key
+     lives in app_data, and the endpoint must read it to call Google server-
+     side. The rule that actually protects the secret is narrower and is the
+     one asserted here — no ql_out() payload may carry the key value. Every
+     answer about a key must be a boolean.
+
+     Kept honest by construction: this walks EVERY ql_out() in the file rather
+     than grepping for known-bad spellings. */
+  $SECRET = '/(\$key\b|\$token\b|ql_places_key\(|ql_mapbox_key\(|ql_effective_google_key\(|ql_effective_mapbox_token\(|ql_plant_google_key\(|ql_plant_mapbox_token\()/';
+  $leaks = [];
+  $off = 0;
+  while (($i = strpos($src, 'ql_out(', $off)) !== false) {
+    // walk to the matching close paren so nested calls stay inside the payload
+    $d = 0; $j = $i + 6; $n = strlen($src);
+    for (; $j < $n; $j++) {
+      if ($src[$j] === '(') $d++;
+      elseif ($src[$j] === ')') { $d--; if ($d === 0) break; }
+    }
+    $payload = substr($src, $i, $j - $i + 1);
+    $off = $j + 1;
+    if (!preg_match_all($SECRET, $payload, $m, PREG_OFFSET_CAPTURE)) continue;
+    foreach ($m[0] as $hit) {
+      // a secret is allowed inside a response ONLY as a boolean test
+      $after = substr($payload, $hit[1], 80);
+      if (!preg_match('/(!==|===)\s*\x27\x27/', $after)) $leaks[] = trim($payload);
+    }
+  }
+  ok($leaks === [], 'no ql_out() response in discover.php can carry a key value'
+    . ($leaks ? ' — leaked in: ' . substr($leaks[0], 0, 120) : ''));
   ok(!preg_match('/\\$c\\s*\\[\\s*.GOOGLE_PLACES_KEY/', $src), '  and never pulls it out of config directly');
   ok(strpos($src, 'ql_places_search(') !== false, '  it calls the one door instead');
   /* Asking "is Google set up?" must hand back a yes/no, never the secret — the

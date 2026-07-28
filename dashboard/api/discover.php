@@ -347,8 +347,22 @@ if ($action === 'promote') {
       $c->execute([$plantId, $coId, $newId, $d['name'], $d['phone'], 'purchased']);
     } catch (Throwable $e) { /* contact is a bonus, not the point */ }
   }
+  /* A promoted company must ENTER THE PIPELINE, not merely exist in the CRM.
+     Without this row the acquisition board stays empty no matter how many
+     leads you promote — the company was created, the lead never was. The fit
+     score travels with it so the board can sort hot/warm/cold on day one. */
+  $leadId = 0;
+  try {
+    $lq = $db->prepare('INSERT INTO crm_leads (plant_id, company_id, crm_company, stage, score, score_why)
+      VALUES (?,?,?,?,?,?)');
+    $lq->execute([$plantId, $coId, $newId, 'new',
+      ($d['fit_score'] === null || $d['fit_score'] === '') ? null : (int)$d['fit_score'],
+      'Fit score carried over from Lead Discovery']);
+    $leadId = (int)$db->lastInsertId();
+  } catch (Throwable $e) { /* the company is saved either way; report it below */ }
+
   $db->prepare('UPDATE discovered SET status = ? WHERE id = ?')->execute(['promoted', $id]);
-  ql_out(['ok' => true, 'company_id' => $newId]);
+  ql_out(['ok' => true, 'company_id' => $newId, 'lead_id' => $leadId]);
 }
 
 if ($action === 'dismiss' || $action === 'del') {

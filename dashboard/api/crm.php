@@ -52,7 +52,10 @@ function pick($src, $keys) {
 
 if ($action === 'list') {
   $out = [];
-  foreach ([['companies', 'crm_companies'], ['contacts', 'crm_contacts'], ['leads', 'crm_leads']] as $t) {
+  /* Activities ride along with the list so the acquisition board can count real
+     touches without one request per company. Same (plant_id, company_id) scope
+     as every other table here. */
+  foreach ([['companies', 'crm_companies'], ['contacts', 'crm_contacts'], ['leads', 'crm_leads'], ['activities', 'crm_activities']] as $t) {
     $st = $db->prepare("SELECT * FROM {$t[1]} WHERE plant_id = ? AND company_id = ? ORDER BY id DESC LIMIT 2000");
     $st->execute([$plantId, $coId]);
     $out[$t[0]] = $st->fetchAll(PDO::FETCH_ASSOC);

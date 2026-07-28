@@ -192,6 +192,17 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/leadPayload\(/.test(bare) && !/price|gstin|revenue/.test(bare.match(/function leadPayload[^}]+}/)[0]), '  only real lead fields are sent to the AI (no invented data)');
 
   // Server: the AI door is key-gated, falls back cleanly, and names no provider.
+  /* upsertLead's UPDATE rewrites every column it picks, so a partial payload
+     is a silent delete — a stage move that omits score/next_action wipes them.
+     Every call must therefore layer the change onto the lead we already hold. */
+  ok(/function leadPatch\(/.test(bare), 'stage moves send the whole lead, not a partial patch (leadPatch)');
+  {
+    const calls = bare.match(/action: 'upsertLead', lead: [^}]*\}/g) || [];
+    const partial = calls.filter(c => !/leadPatch\(/.test(c) && !/id: 0/.test(c));
+    ok(partial.length === 0, '  no upsertLead call builds a partial lead literal'
+      + (partial.length ? ' — found: ' + partial[0].slice(0, 90) : ''));
+  }
+
   const php = R('../api/discover.php');
   ok(/\$action === 'assess' \|\| \$action === 'message'/.test(php), 'discover.php has the assess/message actions');
   ok(/ql_llm\(\)/.test(php) && /'fallback' => true/.test(php) && /llm_not_configured/.test(php), '  no key → { fallback:true } so the client uses local rules');
@@ -336,7 +347,33 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/function pipeTemp\(/.test(bare), 'temperature is derived from the ICP fit score (pipeTemp)');
   ok(/l\.score/.test(bare) && /Unscored/.test(bare), '  temperature reads lead.score and stays honest when unscored');
   ok(/pk-band/.test(html) && /class="pk-card"/.test(bare), '  renders a KPI band (Total/Hot/Warm/Cold/Open/Onboarded/value/conversion)');
-  ok(/Pipeline value/.test(bare) && /Conversion/.test(bare) && /Onboarded/.test(bare), '  the KPI band has the acquisition metrics');
+  /* "Won" not "Onboarded" — the tile has to say the same word as the stage
+     chip it counts, or the board contradicts itself. */
+  ok(/Pipeline value/.test(bare) && /Conversion/.test(bare) && /'Won'/.test(bare), '  the KPI band has the acquisition metrics');
+
+  /* ── the outreach band may only count what actually happened ──
+     No channel is connected, so nothing in this app can observe a delivery or
+     a reply. The tiles say "opened"/"logged", and the words that would imply
+     observation we do not have must never appear as a metric label. */
+  ok(/WhatsApp drafts opened/.test(bare) && /Email drafts opened/.test(bare), '  outreach tiles say "opened", never "sent"');
+  /* Scoped to the outreach band itself — "Delivered cost ₹/MT" elsewhere in
+     this file is freight pricing and has nothing to do with message delivery. */
+  const band2 = bare.slice(bare.indexOf('const band2 ='), bare.indexOf('// ── controls'));
+  ok(band2.length > 100, '  (the outreach band is where it should be)');
+  ok(!/sent'/i.test(band2) && !/reply rate/i.test(band2) && !/delivered/i.test(band2) && !/opened rate/i.test(band2),
+    '  no "sent" / "reply rate" / "delivered" metric is invented');
+  ok(/pk-note/.test(bare) && /no email or WhatsApp channel is connected/.test(bare), '  and the band says why in plain words');
+
+  /* Counts come from crm_activities, which this app now actually writes to. */
+  ok(/action: 'activity'/.test(bare) && /function logTouch/.test(bare), '  touches are logged to the server (crm_activities)');
+  ok(/PIPE\.activities/.test(bare), '  and the tiles count those rows, not a guess');
+  ok(/kind: ch === 'whatsapp'/.test(bare), '  opening a draft in the Outreach Studio logs a touch');
+
+  /* A promoted company must ENTER the pipeline — without a crm_leads row the
+     board stays empty however many leads you promote. */
+  const php = R('../api/discover.php');
+  ok(/INSERT INTO crm_leads/.test(php), 'promoting a lead creates the pipeline row (not just the CRM company)');
+  ok(/'lead_id' => \$leadId/.test(php), '  and the response says which lead it made');
   ok(/pl-temp/.test(bare) && /pl-move/.test(bare), '  cards show a temperature badge + a Move-to-next-stage button');
   ok(/pk-search/.test(html) && /PIPE_SEARCH/.test(bare) && /PIPE_TEMP/.test(bare), '  the board has search + temperature filter');
   ok(/pl-board/.test(html), '  the kanban scrolls horizontally (all stages as columns)');

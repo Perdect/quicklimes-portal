@@ -666,6 +666,55 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   #plStudio, #plProposal, #plOnboard { display: inline-flex; align-items: center; gap: 7px; }
   #plStudio svg, #plProposal svg, #plOnboard svg { width: 15px; height: 15px; flex: none; }
 
+  /* ── Acquisition: KPI tiles carry real SVG icons, never dingbats ── */
+  .pk-ic svg { width: 17px; height: 17px; }
+  .pk-band-2 { grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); margin-bottom: 6px; }
+  .pk-title { font: 800 24px/1.2 var(--ql-font-sans); color: var(--ql-text); letter-spacing: -.025em; }
+  .pk-tsub { font: 500 13px var(--ql-font-sans); color: var(--ql-text-secondary); margin: 5px 0 20px; }
+  @media (min-width: 1180px) {
+    /* One clean row each, like the board they sit above — auto-fit leaves an
+       ugly 6+2 orphan at common desktop widths. */
+    .pk-band { grid-template-columns: repeat(8, 1fr); }
+    .pk-band-2 { grid-template-columns: repeat(6, 1fr); }
+  }
+  .pk-band .pk-v { font-size: 21px; }
+  .pk-note { font: 500 11.5px/1.6 var(--ql-font-sans); color: var(--ql-text-muted); margin: 0 2px 16px; max-width: 900px; }
+
+  /* ── Lead detail panel ── */
+  .pd-head { display: flex; align-items: flex-start; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--ql-border); }
+  .pd-head-ic { width: 46px; height: 46px; border-radius: 14px; background: #dcfce7; color: #15803d; display: grid; place-items: center; flex: none; }
+  .pd-head-ic svg { width: 22px; height: 22px; }
+  [data-theme="dark"] .pd-head-ic { background: rgba(22,163,74,.18); color: #4ade80; }
+  .pd-head-t { flex: 1; min-width: 0; }
+  .pd-name { font: 800 19px/1.25 var(--ql-font-sans); color: var(--ql-text); letter-spacing: -.02em; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pd-chip { font: 700 11px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-bg-subtle,#f1f5f9); border-radius: 999px; padding: 3px 10px; }
+  [data-theme="dark"] .pd-chip { background: rgba(255,255,255,.06); }
+  .pd-sub { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 4px; }
+  .pd-head-a { display: flex; gap: 8px; flex: none; }
+  .pd-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 10px; margin: 16px 0 4px; }
+  .pd-kpi { background: var(--ql-bg-subtle,#f8fafc); border: 1px solid var(--ql-border); border-radius: 14px; padding: 12px 14px; }
+  [data-theme="dark"] .pd-kpi { background: rgba(255,255,255,.02); }
+  .pd-kpi-t { display: flex; align-items: center; gap: 6px; font: 700 10.5px var(--ql-font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ql-text-secondary); }
+  .pd-kpi-t svg { width: 13px; height: 13px; }
+  .pd-kpi-v { font: 800 18px/1.2 var(--ql-font-sans); color: var(--ql-text); margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .pd-kpi-v small { font-size: 12px; font-weight: 700; color: var(--ql-text-muted); }
+  .pd-none { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-muted); }
+  .pd-sec { margin-top: 20px; }
+  .pd-sec-t { display: flex; align-items: center; gap: 6px; font: 700 11px var(--ql-font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ql-text-secondary); margin-bottom: 9px; }
+  .pd-sec-t svg { width: 13px; height: 13px; }
+  .pd-stages { display: flex; gap: 7px; flex-wrap: wrap; }
+  .pd-stage { font: 600 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+  .pd-stage:hover { border-color: var(--ql-brand-400,#60a5fa); color: var(--ql-text); }
+  .pd-stage.on { background: #dcfce7; border-color: #bbf7d0; color: #15803d; }
+  [data-theme="dark"] .pd-stage.on { background: rgba(22,163,74,.18); border-color: rgba(22,163,74,.34); color: #4ade80; }
+  .pd-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pd-note { width: 100%; font: 500 13px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 12px; padding: 10px 12px; resize: vertical; }
+  .pd-tl { display: flex; flex-direction: column; gap: 10px; }
+  .pd-tl-i { border-left: 2px solid var(--ql-border); padding: 0 0 0 12px; }
+  .pd-tl-k { font: 700 11.5px var(--ql-font-sans); color: var(--ql-text); }
+  .pd-tl-d { font: 500 11px var(--ql-font-sans); color: var(--ql-text-muted); margin-left: 8px; font-variant-numeric: tabular-nums; }
+  .pd-tl-b { font: 500 12.5px/1.6 var(--ql-font-sans); color: var(--ql-text-secondary); margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
 </style>
 </head>
 <body class="ql-v2">
@@ -706,7 +755,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
       <button class="dc-sectab" data-sec="markets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Markets</button>
       <button class="dc-sectab" data-sec="leads"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Leads <span class="dc-sectab-n" id="dcSecLeadsN"></span></button>
       <button class="dc-sectab" data-sec="freight"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>Freight</button>
-      <button class="dc-sectab" data-sec="pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Pipeline</button>
+      <button class="dc-sectab" data-sec="pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Acquisition</button>
     </div>
 
     <!-- COPILOT SECTION -->
@@ -900,7 +949,10 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     </div>
     </div>
     <!-- PIPELINE SECTION (embedded from crm-core) -->
-    <div class="dc-sec" id="secPipeline" hidden><div id="pipeRoot"><div class="pl-empty">Loading pipeline…</div></div></div>
+    <div class="dc-sec" id="secPipeline" hidden>
+      <div class="pk-title">Lead Acquisition</div>
+      <div class="pk-tsub">Qualify, reach out and win the buyers you discovered — every stage, value and touch in one board.</div>
+      <div id="pipeRoot"><div class="pl-empty">Loading pipeline…</div></div></div>
   </div>
 </div>
 
@@ -910,7 +962,27 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <div class="lc-back" id="lcBack" hidden><aside class="lc-drawer" id="lcDrawer" role="dialog" aria-modal="true" aria-label="Company details"></aside></div>
 
 <script>
-window.QLShell={mount:function(o){var p=document.getElementById("ql-page");if(!p)return;var c=p.innerHTML;p.remove();var s=document.createElement("div");s.className="shell";s.id="shell";s.setAttribute("data-collapsed","false");s.innerHTML='<aside class="sidebar" id="sidebar"><nav style="padding:10px"><a class="sb-link active" href="#"><span class="sb-link-text">Lead Discovery</span></a></nav></aside><header class="topbar" style="grid-area:topbar"></header><main class="main" id="ql-main"></main>';document.body.insertBefore(s,document.body.firstChild);document.getElementById("ql-main").innerHTML=c;},setBreadcrumb:function(){},closeModal:function(){},panel:function(c){var d=document.createElement("div");d.innerHTML=c.body||"";document.body.appendChild(d);return d;},openForm:function(){}};
+var CRMSTUB={
+ companies:[
+  {id:11,name:"Ecorex Buildtech Pvt. Ltd.",industry:"AAC Block",city:"Ahmedabad",website:"https://ecorexbuildtech.com",source:"discovery"},
+  {id:12,name:"Shree Balaji Steel & Alloys Limited",industry:"Steel",city:"Raipur",source:"discovery"},
+  {id:13,name:"Uttam Sugar Mills",industry:"Sugar",city:"Muzaffarnagar",source:"discovery"},
+  {id:14,name:"Rajasthan Paper Mills",industry:"Paper & Pulp",city:"Jodhpur",source:"manual"}],
+ contacts:[
+  {id:21,crm_company:11,name:"Purchase Manager",phone:"+919824012345",email:"sales@ecorex.example",consent_basis:"purchased"},
+  {id:22,crm_company:12,name:"Rakesh",phone:"+919826054321",consent_basis:"purchased"}],
+ leads:[
+  {id:31,crm_company:11,stage:"contacted",tonnes:120,price_per_tonne:6200,score:78,owner:"Kayyum",next_action:"Send sample",next_action_at:"2026-07-20"},
+  {id:32,crm_company:12,stage:"quoted",tonnes:400,price_per_tonne:5900,score:71,owner:"Kayyum"},
+  {id:33,crm_company:13,stage:"new",tonnes:null,price_per_tonne:null,score:41},
+  {id:34,crm_company:14,stage:"won",tonnes:60,price_per_tonne:6400,score:88,owner:"Kayyum"}],
+ activities:[
+  {id:41,crm_company:11,crm_lead:31,kind:"whatsapp",direction:"out",body:"Intro message about Quick Lime from Gotan",at:"2026-07-24 10:12:00"},
+  {id:42,crm_company:11,crm_lead:31,kind:"call",direction:"out",body:"Spoke to purchase manager, asked for a 1MT trial",at:"2026-07-25 15:40:00"},
+  {id:43,crm_company:12,crm_lead:32,kind:"proposal",direction:"out",body:"Proposal generated",at:"2026-07-26 09:05:00"}]};
+</script>
+<script>
+window.QLShell={mount:function(o){var p=document.getElementById("ql-page");if(!p)return;var c=p.innerHTML;p.remove();var s=document.createElement("div");s.className="shell";s.id="shell";s.setAttribute("data-collapsed","false");s.innerHTML='<aside class="sidebar" id="sidebar"><nav style="padding:10px"><a class="sb-link active" href="#"><span class="sb-link-text">Lead Discovery</span></a></nav></aside><header class="topbar" style="grid-area:topbar"></header><main class="main" id="ql-main"></main>';document.body.insertBefore(s,document.body.firstChild);document.getElementById("ql-main").innerHTML=c;},setBreadcrumb:function(){},closeModal:function(){var _b=document.getElementById("qlModalBack");if(_b){_b.classList.remove("open");_b.innerHTML="";}},panel:function(c){var bk=document.getElementById("qlModalBack");if(!bk){bk=document.createElement("div");bk.id="qlModalBack";document.body.appendChild(bk);}bk.innerHTML='<div class="ql-panel"><div class="ql-panel-body" id="qlPanelBody"></div></div>';var d=bk.querySelector("#qlPanelBody");d.innerHTML=c.body||"";bk.classList.add("open");return d;},openForm:function(){}};
 window.QLD={init:function(cb){cb&&cb();return Promise.resolve();},salesRows:function(){return[]},partyRows:function(){return[]},getPL:function(){return null},activeCo:1,fmt:function(n){return n},co:{short:"Gotan Lime Industries",ownerName:"Haji Kayyum",city:"Gotan, Rajasthan",phone:"9460034743"}};
 var ROWSTUB=[
  {id:1,name:"Ecorex Buildtech Pvt. Ltd.",industry:"AAC Block",city:"Ahmedabad",state:"Gujarat",address:"Plot No. 406, Phase 3, Udyog Vihar, Sector 20, Ahmedabad, Gujarat 382330, India",phone:"+91 124 494 2555",website:"https://ecorexbuildtech.com/products/aac-blocks",email:"sales@ecorex.example",rating:4.4,lat:23.02,lng:72.57,status:"new",source:"google"},
@@ -918,9 +990,20 @@ var ROWSTUB=[
  {id:3,name:"Uttam Sugar Mills",industry:"Sugar",city:"Muzaffarnagar",state:"Uttar Pradesh",address:"Village Libberheri, Tehsil Roorkee, Muzaffarnagar, Uttar Pradesh 247667, India",status:"new",source:"mapbox"}
 ];
 window.fetch=(function(o){return function(u,opt){var b={};try{b=JSON.parse(opt.body)}catch(e){}function J(x){return Promise.resolve({ok:true,status:200,json:function(){return Promise.resolve(x)},text:function(){return Promise.resolve(JSON.stringify(x))}});}
+ var URL_=typeof u==="string"?u:"";
+ var isCRM=URL_.indexOf("/api/crm")>=0;
+ if(isCRM){
+   if(b.action==="list")return J({ok:true,companies:CRMSTUB.companies,contacts:CRMSTUB.contacts,leads:CRMSTUB.leads,activities:CRMSTUB.activities});
+   if(b.action==="upsertLead"){var L=b.lead||{};var t=CRMSTUB.leads.filter(function(x){return +x.id===+L.id})[0];
+     if(t){for(var k in L)t[k]=L[k];}else{L.id=Math.max(0,...CRMSTUB.leads.map(function(x){return +x.id}))+1;CRMSTUB.leads.push(L);}
+     return J({ok:true,id:L.id});}
+   if(b.action==="activity"){var A=b.activity||{};A.id=CRMSTUB.activities.length+1;A.at=new Date().toISOString().slice(0,19).replace("T"," ");CRMSTUB.activities.unshift(A);return J({ok:true,id:A.id});}
+   if(b.action==="upsertCompany"){var C=b.company||{};C.id=Math.max(0,...CRMSTUB.companies.map(function(x){return +x.id}))+1;CRMSTUB.companies.push(C);return J({ok:true,id:C.id});}
+   return J({ok:true});
+ }
  if(b&&b.action==="sources")return J({ok:true,osm:true,google:true,mapbox:true});
  if(b&&b.action==="list")return J({ok:true,rows:ROWSTUB,counts:{new:3,duplicate:0,promoted:0,dismissed:0},diag:{scope:3,plant:3,company_id:"1",other_ids:[]}});
- if(typeof u==="string"&&u.indexOf("/api/")>=0)return J({ok:true,rows:[],counts:{new:0,promoted:0,duplicate:0}});
+ if(URL_.indexOf("/api/")>=0)return J({ok:true,rows:[],counts:{new:0,promoted:0,duplicate:0}});
  return o.apply(this,arguments);};})(window.fetch);
 try{localStorage.setItem("ql_plant",JSON.stringify({id:"preview",token:"x"}));localStorage.setItem("ql_dc_sec","leads")}catch(e){}
 </script>
