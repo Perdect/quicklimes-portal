@@ -577,20 +577,33 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .lr-c:hover { text-decoration: underline; }
   .lr-c svg { width: 13px; height: 13px; }
   .lr-nocontact { font: 500 12px var(--ql-font-sans); color: var(--ql-text-muted); }
-  .lr-acts { display: grid; grid-template-columns: 30px 68px 78px 30px 76px; gap: 6px; align-items: center; flex: none; }
-  .lr-b-slot { width: 30px; height: 30px; }
-  .lr-b.ico { padding: 0; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; }
-  .lr-b.ico svg { width: 15px; height: 15px; }
-  .lr-b { text-align: center; justify-content: center; font: 600 12px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-card); border: 1px solid var(--ql-border);
-    border-radius: 8px; padding: 6px 11px; cursor: pointer; text-decoration: none; white-space: nowrap; }
-  .lr-b:hover { border-color: var(--ql-brand-400, #60a5fa); color: var(--ql-brand-700, #1d4ed8); }
-  .lr-b.pri { background: var(--ql-brand-600, #2563eb); border-color: transparent; color: #fff; }
-  .lr-b.pri:hover { filter: brightness(1.07); color: #fff; }
-  .lr-b.wa { color: #15803d; border-color: #bbf7d0; background: #f0fdf4; }
-  [data-theme="dark"] .lr-b.wa { background: rgba(22,163,74,.14); border-color: rgba(22,163,74,.3); color: #4ade80; }
+  /* Action pills: tinted, rounded, icon + label — a colour per intent so the
+     eye finds Promote without reading. Fixed slot widths keep every row's
+     buttons in the same columns; an empty slot beats a shifted row. */
+  .lr-acts { display: grid; grid-template-columns: 32px 98px 110px 32px 112px 32px; gap: 7px; align-items: center; flex: none; }
+  .lr-b-slot { width: 32px; height: 32px; }
+  .lr-b { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; cursor: pointer;
+    font: 600 12.5px var(--ql-font-sans); border: 1px solid transparent; border-radius: 999px; padding: 8px 12px;
+    color: var(--ql-text); background: var(--ql-card); text-decoration: none; }
+  .lr-b svg { width: 14px; height: 14px; flex: none; }
+  .lr-b:hover { filter: brightness(.97); }
+  .lr-b.assess { background: #f5f3ff; color: #7c3aed; }
+  .lr-b.msg { background: #eff6ff; color: #2563eb; }
+  .lr-b.pri { background: #16a34a; color: #fff; }
+  .lr-b.pri:hover { background: #15803d; filter: none; }
+  .lr-b.wa { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+  .lr-b.ico { width: 32px; height: 32px; padding: 0; border-radius: 50%; }
+  .lr-b.ico:not(.wa) { background: transparent; border-color: var(--ql-border); color: var(--ql-text-muted); }
+  .lr-b.ico:not(.wa):hover { border-color: var(--ql-brand-400, #60a5fa); color: var(--ql-brand-600, #2563eb); filter: none; }
+  .lr-b.ico.ghost:hover { border-color: #fca5a5; color: #dc2626; }
+  .lr-inpipe { font: 600 12px var(--ql-font-sans); color: #15803d; background: #dcfce7; border-radius: 999px; padding: 7px 12px; text-align: center; white-space: nowrap; }
+  [data-theme="dark"] .lr-b.assess { background: rgba(124,58,237,.18); color: #c4b5fd; }
+  [data-theme="dark"] .lr-b.msg { background: rgba(37,99,235,.18); color: #93c5fd; }
+  [data-theme="dark"] .lr-b.wa { background: rgba(22,163,74,.16); border-color: rgba(22,163,74,.34); color: #4ade80; }
+  [data-theme="dark"] .lr-inpipe { background: rgba(22,163,74,.18); color: #4ade80; }
   @media (max-width: 760px) {
     .lr { flex-wrap: wrap; }
-    .lr-acts { grid-template-columns: 30px 1fr 1fr 30px 1fr; width: 100%; margin-top: 8px; }
+    .lr-acts { grid-template-columns: 32px 1fr 1fr 32px; grid-auto-rows: auto; row-gap: 7px; width: 100%; margin-top: 10px; }
   }
 
   /* ── LEVEL 2: inline expansion under a lead row ── */
@@ -643,6 +656,15 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .ai-prob-b i { display: block; height: 100%; background: linear-gradient(90deg, #2563eb, #16a34a); }
   .ai-prob-w { font: 500 12.5px/1.6 var(--ql-font-sans); color: var(--ql-text-secondary); }
   .ai-list { margin: 0; padding-left: 18px; font: 500 13px/1.9 var(--ql-font-sans); color: var(--ql-text); }
+
+  /* ── inline SVG icons inside buttons (never dingbat glyphs — they render
+        differently on every OS and look like mojibake on Windows) ── */
+  .cd-cta .ql-btn, .os-chan-b { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+  .cd-cta .ql-btn svg, .os-chan-b svg { width: 15px; height: 15px; flex: none; }
+  .os-head-ic svg { width: 20px; height: 20px; }
+  .lr-addr svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 5px; opacity: .75; }
+  #plStudio, #plProposal, #plOnboard { display: inline-flex; align-items: center; gap: 7px; }
+  #plStudio svg, #plProposal svg, #plOnboard svg { width: 15px; height: 15px; flex: none; }
 
 </style>
 </head>

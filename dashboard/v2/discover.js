@@ -564,6 +564,13 @@ function leadEconomics(r) {
 }
 const IC_PHONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
 const IC_WEB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+const IC_SEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>';
+const IC_USERPLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>';
+const IC_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+const IC_MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>';
+const IC_SPARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg>';
+const IC_DOC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>';
+const IC_LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
 const IC_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
 const IC_WA = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.5A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-2.9.9.9-2.8-.2-.3A8 8 0 1 1 12 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5.1a6.5 6.5 0 0 1-3.2-2.8c-.2-.4.2-.4.6-1.2.1-.1 0-.3 0-.4l-.7-1.7c-.2-.5-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3A2.8 2.8 0 0 0 6 8.9c0 1.7 1.2 3.3 1.4 3.5s2.4 3.7 5.8 5c2.2.8 2.2.5 2.6.5s1.4-.6 1.6-1.1.2-1 .1-1.1z"/></svg>';
 
@@ -667,6 +674,8 @@ function paintTable() {
       <div><b>${TAB === 'new' ? 'Nothing found yet' : 'Nothing here'}</b></div>
       <div style="font-size:12.5px">${TAB === 'new' ? 'Search a trade and a city above — every result is checked against your customers and pipeline first.' : ''}</div>
     </div>`;
+    wireTable(host);   /* the bar is DEAD without this — you could filter to zero
+                          rows and then never unselect the chip that did it. */
     return;
   }
   const scored = rows.map(r => ({ r, f: fitOf(r) }))
@@ -689,7 +698,7 @@ function paintTable() {
     const line = [];
     if (r.phone)   line.push(`<a class="lr-c" href="tel:${esc(r.phone)}" data-stop title="Call">${IC_PHONE}${esc(r.phone)}</a>`);
     if (r.website) line.push(`<a class="lr-c" href="${esc(r.website)}" target="_blank" rel="noopener noreferrer" data-stop title="Open website">${IC_WEB}${esc(String(r.website).replace(/^https?:\/\/(www\.)?/, '').slice(0, 46))}</a>`);
-    if (r.email)   line.push(`<a class="lr-c" href="mailto:${esc(r.email)}" data-stop title="Email">✉ ${esc(r.email)}</a>`);
+    if (r.email)   line.push(`<a class="lr-c" href="mailto:${esc(r.email)}" data-stop title="Email">${IC_MAIL}${esc(r.email)}</a>`);
     const contacts = line.length ? line.join('') : '<span class="lr-nocontact">No phone or website on file</span>';
     /* Every row gets the SAME five action slots, in the same order and at the
        same widths — a row without WhatsApp renders an empty slot rather than
@@ -698,23 +707,31 @@ function paintTable() {
     const wa = (r.phone && window.WACore && WACore.normalizePhone && WACore.normalizePhone(r.phone))
       ? `<a class="lr-b ico wa" href="${esc(WACore.waLink(r.phone, ''))}" target="_blank" rel="noopener noreferrer" data-stop title="WhatsApp ${esc(r.phone)}" aria-label="WhatsApp">${IC_WA}</a>`
       : '<span class="lr-b-slot" aria-hidden="true"></span>';
-    const acts = (LA ? `<button class="lr-b" data-assess="${r.id}" title="Why they buy lime">Assess</button><button class="lr-b" data-msg="${r.id}" title="Draft outreach">Message</button>` : '')
+    const acts = (LA ? `<button class="lr-b assess" data-assess="${r.id}" title="Why they buy lime">${IC_SPARK}Assess</button><button class="lr-b msg" data-msg="${r.id}" title="Draft outreach">${IC_SEND}Message</button>` : '')
       + `<a class="lr-b ico" href="${esc(maps)}" target="_blank" rel="noopener noreferrer" data-stop title="Open in Google Maps" aria-label="Open in Google Maps">${IC_PIN}</a>`;
     const promo = r.status === 'promoted'
-      ? '<span class="lc-dup" style="color:#15803d;background:#dcfce7">In pipeline</span>'
-      : `<button class="lr-b pri" data-promote="${r.id}" title="Promote to pipeline">Promote</button>`;
+      ? '<span class="lr-inpipe">In pipeline</span>'
+      : `<button class="lr-b pri" data-promote="${r.id}" title="Promote to pipeline">${IC_USERPLUS}Promote</button>`;
+    /* Dismiss lives on the row because the whole point of this list is triage:
+       the fastest judgement a salesperson makes is "not a buyer". */
+    const drop = r.status === 'dismissed' ? '<span class="lr-b-slot" aria-hidden="true"></span>'
+      : `<button class="lr-b ico ghost" data-dismiss="${r.id}" title="Not a buyer — dismiss" aria-label="Dismiss">${IC_X}</button>`;
     return `<div class="lr" data-open="${r.id}" tabindex="0" role="button">
       <div class="lr-fit ${tier}" title="Buyer fit score">${tier === 'unknown' ? '—' : Math.round(f.score)}</div>
       <div class="lr-main">
         <div class="lr-top"><span class="lr-name">${esc(r.name)}</span>${rating}${dup}</div>
         <div class="lr-meta">${esc(r.industry || '—')}${src}</div>
-        ${addr ? `<div class="lr-addr">${addr}</div>` : ''}
+        ${addr ? `<div class="lr-addr">${IC_PIN}${addr}</div>` : ''}
         <div class="lr-cts">${contacts}</div>
       </div>
-      <div class="lr-acts">${wa}${acts}${promo}</div>
+      <div class="lr-acts">${wa}${acts}${promo}${drop}</div>
     </div>${EXPANDED.has(String(r.id)) ? leadExpandHTML(r, f) : ''}`;
   }).join('') + '</div>';
 
+  wireTable(host);
+}
+
+function wireTable(host) {
   const q = sel => host.querySelector(sel);
   const st = q('[data-flt-state]'); if (st) st.onchange = () => { FLT.state = st.value; FLT.city = ''; paintTable(); };
   const ct = q('[data-flt-city]');  if (ct) ct.onchange = () => { FLT.city = ct.value; paintTable(); };
@@ -725,6 +742,7 @@ function paintTable() {
   const find = id => ROWS.find(x => x.id === +id);
   host.querySelectorAll('[data-stop]').forEach(a => a.addEventListener('click', e => e.stopPropagation()));
   host.querySelectorAll('[data-promote]').forEach(b => b.onclick = e => { e.stopPropagation(); promote(+b.dataset.promote); });
+  host.querySelectorAll('[data-dismiss]').forEach(b => b.onclick = e => { e.stopPropagation(); dismiss(+b.dataset.dismiss); });
   host.querySelectorAll('[data-assess]').forEach(b => b.onclick = e => { e.stopPropagation(); openAssess(find(b.dataset.assess)); });
   host.querySelectorAll('[data-msg]').forEach(b => b.onclick = e => { e.stopPropagation(); openMessage(find(b.dataset.msg)); });
   const toggle = id => { const k = String(id); EXPANDED.has(k) ? EXPANDED.delete(k) : EXPANDED.add(k); paintTable(); };
@@ -780,7 +798,7 @@ function openLeadDrawer(r) {
       </div>
       <div class="cd-sec"><div class="cd-sec-t">Actions</div>
         <div class="cd-cta">
-          ${LA ? '<button class="ql-btn ql-btn-secondary" id="cdAssess">✦ Assess</button><button class="ql-btn ql-btn-secondary" id="cdMsg">✉ Message</button><button class="ql-btn ql-btn-secondary" id="cdProposal">📄 Proposal</button><button class="ql-btn ql-btn-secondary" id="cdOnboard">🔗 Onboarding link</button>' : ''}
+          ${LA ? '<button class="ql-btn ql-btn-secondary" id="cdAssess">' + IC_SPARK + 'Assess</button><button class="ql-btn ql-btn-secondary" id="cdMsg">' + IC_MAIL + 'Message</button><button class="ql-btn ql-btn-secondary" id="cdProposal">' + IC_DOC + 'Proposal</button><button class="ql-btn ql-btn-secondary" id="cdOnboard">' + IC_LINK + 'Onboarding link</button>' : ''}
           ${waOk ? '<button class="ql-btn ql-btn-secondary" id="cdWa">WhatsApp</button>' : ''}
           ${r.phone ? `<a class="ql-btn ql-btn-secondary" href="tel:${esc(r.phone)}" style="justify-content:center">Call</a>` : ''}
           ${r.status !== 'promoted' ? '<button class="ql-btn ql-btn-primary" id="cdPromote">Promote to pipeline</button>' : '<div class="lc-dup" style="color:#15803d;background:#dcfce7;align-self:center">In your pipeline</div>'}
@@ -967,16 +985,16 @@ function openStudio(r) {
   const back = document.createElement('div');
   back.className = 'os-back'; back.id = 'osBack';
   back.innerHTML = `<div class="os-modal" role="dialog" aria-modal="true" aria-label="Outreach Studio">
-    <div class="os-head"><div class="os-head-ic">✦</div>
+    <div class="os-head"><div class="os-head-ic">${IC_SPARK}</div>
       <div class="os-head-t"><div class="os-title">Outreach Studio</div><div class="os-sub">AI-personalised for ${esc(r.name || '')} · smart template</div></div>
       <button class="os-x" id="osX" aria-label="Close">×</button></div>
     <div class="os-chan">
-      <button class="os-chan-b" data-ch="email">✉ Email</button>
-      <button class="os-chan-b" data-ch="whatsapp">✆ WhatsApp</button></div>
-    <div class="os-types">${TYPES.map(t => `<button class="os-type" data-type="${t[0]}">✦ ${t[1]}</button>`).join('')}</div>
+      <button class="os-chan-b" data-ch="email">${IC_MAIL}Email</button>
+      <button class="os-chan-b" data-ch="whatsapp">${IC_WA}WhatsApp</button></div>
+    <div class="os-types">${TYPES.map(t => `<button class="os-type" data-type="${t[0]}">${t[1]}</button>`).join('')}</div>
     <div class="os-field os-subj-wrap"><label>Subject</label><input id="osSubj" class="os-input"></div>
     <div class="os-field"><label>Message</label><textarea id="osMsg" class="os-textarea" rows="9"></textarea></div>
-    <div class="os-refiners">${REFS.map(x => `<button class="os-ref" data-ref="${x[0]}">✧ ${x[1]}</button>`).join('')}</div>
+    <div class="os-refiners">${REFS.map(x => `<button class="os-ref" data-ref="${x[0]}">${x[1]}</button>`).join('')}</div>
     <div class="os-foot"><button class="ql-btn ql-btn-secondary" id="osCopy" type="button">Copy</button>
       <button class="ql-btn ql-btn-primary" id="osOpen" type="button"></button></div></div>`;
   document.body.appendChild(back);
@@ -1469,7 +1487,7 @@ function pipeOpenLead(id) {
     '<button class="ql-btn ' + (s.key === l.stage ? 'ql-btn-primary' : 'ql-btn-secondary') + '" style="margin:3px" data-stage="' + s.key + '">' + esc(s.label) + '</button>').join('');
   const body = '<div style="font:600 13px var(--ql-font-sans);color:var(--ql-text)">' + esc(co.name || '—') + '</div>'
     + '<div class="mi-sub" style="margin:4px 0 12px">' + esc(co.industry || '') + (co.city ? ' · ' + esc(co.city) : '') + ' · ' + pipeFmt(CC.leadValue(l)) + (CC.leadValue(l) == null ? ' (no price yet)' : '') + '</div>'
-    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><button class="ql-btn ql-btn-secondary" id="plStudio" type="button">✦ Outreach Studio</button><button class="ql-btn ql-btn-secondary" id="plProposal" type="button">📄 Generate proposal</button><button class="ql-btn ql-btn-secondary" id="plOnboard" type="button">🔗 Onboarding link</button></div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><button class="ql-btn ql-btn-secondary" id="plStudio" type="button">' + IC_SPARK + 'Outreach Studio</button><button class="ql-btn ql-btn-secondary" id="plProposal" type="button">' + IC_DOC + 'Generate proposal</button><button class="ql-btn ql-btn-secondary" id="plOnboard" type="button">' + IC_LINK + 'Onboarding link</button></div>'
     + '<div style="font:700 11px var(--ql-font-sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ql-text-secondary);margin-bottom:6px">Move to stage</div><div>' + moves + '</div>';
   const panel = QLShell.panel({ title: 'Lead · ' + (co.name || ''), body: body });
   const leadR = { name: co.name, industry: co.industry, city: co.city, tonnes: l.tonnes, phone: co.phone || l.phone, email: co.email || l.email };
