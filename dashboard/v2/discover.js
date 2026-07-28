@@ -577,6 +577,96 @@ function agoText(ts) {
   const d = Math.floor(h / 24);
   return d + (d === 1 ? ' day ago' : ' days ago');
 }
+/* ── Export what is ON SCREEN ───────────────────────────────────────────────
+   Exports the CURRENT tab and filters, not everything ever discovered — if the
+   list says "12 of 58" the file has 12 rows. An export that silently disagrees
+   with the screen is how people end up working the wrong list. */
+function csvCell(v) {
+  const t = v == null ? '' : String(v);
+  return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+function exportRows(rows, label) {
+  if (!rows.length) { toast('Nothing to export in this view', 'err'); return; }
+  const cols = [['name', 'Company'], ['industry', 'Industry'], ['city', 'City'], ['state', 'State'],
+    ['address', 'Address'], ['phone', 'Phone'], ['email', 'Email'], ['website', 'Website'],
+    ['rating', 'Google rating'], ['source', 'Source'], ['status', 'Status']];
+  const head = cols.map(c => csvCell(c[1])).join(',');
+  const body = rows.map(r => cols.map(c => csvCell(c[0] === 'state' ? rowState(r) : r[c[0]])).join(',')).join('\n');
+  /* BOM so Excel opens Indian names and ₹ correctly instead of mojibake. */
+  const blob = new Blob(['\ufeff' + head + '\n' + body], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'leads-' + (label || 'discovered') + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 400);
+  toast('Exported ' + rows.length + ' ' + (rows.length === 1 ? 'business' : 'businesses'));
+}
+function visibleRows() { return ROWS.filter(r => r.status === TAB).filter(passesFilters); }
+
+/* ── AI summary of THIS result set ─────────────────────────────────────────
+   Opens beside the list and answers "what did I just find, and what is worth
+   doing next" — from the rows themselves. Four honest sections:
+     • where they are            (states, counted)
+     • what they are             (industries, counted, with the lime use-case)
+     • what we can reach them on (phone/email/website coverage)
+     • what is missing           (named plainly, with why we cannot fill it)
+   Nothing here is a model's opinion; it is arithmetic over the rows, which is
+   why it can be shown to a customer. */
+function insightData() {
+  const rows = visibleRows();
+  const tally = (key) => {
+    const m = {};
+    rows.forEach(r => { const k = (key === 'state' ? rowState(r) : r[key]) || ''; if (k) m[k] = (m[k] || 0) + 1; });
+    return Object.keys(m).map(k => ({ k, n: m[k] })).sort((a, b) => b.n - a.n);
+  };
+  const states = tally('state'), industries = tally('industry');
+  const noPhone = rows.filter(r => !r.phone).length;
+  const noEmail = rows.filter(r => !r.email).length;
+  const noWeb   = rows.filter(r => !r.website).length;
+  const noRate  = rows.filter(r => r.rating == null || r.rating === '').length;
+  const waAble  = rows.filter(r => waReachable(r.phone)).length;
+  /* Which of these actually consume lime — via the same industry engine the
+     rest of the page uses, not a guess. */
+  const limeFit = industries.map(x => {
+    const ind = (LA && LM) ? LA.matchIndustry(x.k, LM.INDUSTRIES) : null;
+    return { k: x.k, n: x.n, use: ind ? ind.use : '', demand: ind ? +ind.demand || 0 : null };
+  });
+  const matched = limeFit.filter(x => x.demand != null).reduce((a, x) => a + x.n, 0);
+  return { rows, states, industries: limeFit, noPhone, noEmail, noWeb, noRate, waAble, matched };
+}
+function insightHTML() {
+  const d = insightData();
+  if (!d.rows.length) return '<div class="pd-none">No rows in this view yet — run a search first.</div>';
+  const total = d.rows.length;
+  const bar = (n) => '<span class="in-bar"><i style="width:' + Math.round(n / total * 100) + '%"></i></span>';
+  const list = (arr, extra) => arr.slice(0, 6).map(x =>
+    '<div class="in-row"><span class="in-k">' + esc(x.k) + '</span>' + bar(x.n)
+    + '<span class="in-n">' + x.n + '</span></div>'
+    + (extra && x.use ? '<div class="in-sub">' + esc(x.use) + '</div>' : '')).join('');
+  const miss = [];
+  if (d.noPhone) miss.push(d.noPhone + ' with no phone');
+  if (d.noEmail) miss.push(d.noEmail + ' with no email');
+  if (d.noWeb)   miss.push(d.noWeb + ' with no website');
+  if (d.noRate)  miss.push(d.noRate + ' with no Google rating');
+  return `
+    <div class="pd-sec"><div class="pd-sec-t">Where they are</div>${list(d.states)}</div>
+    <div class="pd-sec"><div class="pd-sec-t">What they are · and why they buy lime</div>${list(d.industries, true)}
+      <div class="in-note">${d.matched} of ${total} match a known lime use-case. The rest are listed as found — the industry engine has no entry for them, so nothing is claimed.</div></div>
+    <div class="pd-sec"><div class="pd-sec-t">How you can reach them</div>
+      <div class="in-row"><span class="in-k">Phone</span>${bar(total - d.noPhone)}<span class="in-n">${total - d.noPhone}</span></div>
+      <div class="in-row"><span class="in-k">WhatsApp-able</span>${bar(d.waAble)}<span class="in-n">${d.waAble}</span></div>
+      <div class="in-row"><span class="in-k">Email</span>${bar(total - d.noEmail)}<span class="in-n">${total - d.noEmail}</span></div>
+      <div class="in-row"><span class="in-k">Website</span>${bar(total - d.noWeb)}<span class="in-n">${total - d.noWeb}</span></div>
+      <div class="in-note">WhatsApp-able counts mobiles only — a landline cannot receive a WhatsApp message.</div></div>
+    <div class="pd-sec"><div class="pd-sec-t">What is missing</div>
+      <div class="cd-why">${miss.length ? esc(miss.join(' · ')) : 'Every row has a phone, an email and a website.'}</div>
+      <div class="in-note">GST numbers, decision-maker names and company size are <b>not</b> in this data. Map and directory sources do not carry them, and this page will not invent them — they need a paid business-data provider.</div></div>`;
+}
+function openInsights() {
+  const pane = QLShell.panel({ title: 'What this search found', sub: TAB + ' · ' + visibleRows().length + ' businesses', body: insightHTML() });
+  return pane;
+}
+
 function paintKpis() {
   const host = document.getElementById('dcSum'); if (!host) return;
   if (!ROWS.length) { host.hidden = true; host.innerHTML = ''; return; }
@@ -598,7 +688,13 @@ function paintKpis() {
       <span class="ds-ch">${IC_MAIL}${st.withEmail}</span>
       <span class="ds-ch">${IC_WEB}${st.withWeb}</span>
     </div>
-    ${ago ? `<span class="ds-ago">${IC_CLOCK}updated ${esc(ago)}</span>` : ''}`;
+    ${ago ? `<span class="ds-ago">${IC_CLOCK}updated ${esc(ago)}</span>` : ''}
+    <button class="ds-act" id="dsInsight" type="button" title="What this search found">${IC_SPARK}AI summary</button>
+    <button class="ds-act" id="dsExport" type="button" title="Export the rows this view is showing">${IC_DOC}Export CSV</button>`;
+  const ex = document.getElementById('dsExport');
+  if (ex) ex.onclick = () => exportRows(visibleRows(), TAB);
+  const ins = document.getElementById('dsInsight');
+  if (ins) ins.onclick = () => openInsights();
 }
 
 /* Per-lead economics — real, only when we have the lead's coordinates (OSM rows

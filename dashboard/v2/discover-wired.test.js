@@ -214,6 +214,33 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
       '  and it invents no decision-maker / GST / verified figure');
   }
 
+  /* ── the AI summary panel ──
+     It must describe the rows ON SCREEN, and must not claim data this app has
+     never held. */
+  ok(/function insightData\(/.test(bare) && /function openInsights\(/.test(bare), 'the result set has an AI summary panel');
+  ok(/const rows = visibleRows\(\)/.test(bare.slice(bare.indexOf('function insightData'))),
+    '  built from the visible rows, so it tracks the tab and filters');
+  ok(/LA\.matchIndustry\(x\.k, LM\.INDUSTRIES\)/.test(bare),
+    '  the lime use-case comes from the industry engine, not prose');
+  {
+    const i = bare.indexOf('function insightHTML');
+    const blk = i > 0 ? bare.slice(i, bare.indexOf('function openInsights', i)) : '';
+    ok(blk.length > 200, '  (the panel body is where it should be)');
+    ok(/not.{0,20}in this data|will not invent/i.test(blk),
+      '  and it states plainly that GST / decision-makers / company size are absent');
+    ok(/waReachable/.test(bare.slice(bare.indexOf('function insightData'), bare.indexOf('function insightHTML'))),
+      '  WhatsApp reach counts mobiles only, matching the row buttons');
+  }
+
+  /* ── export must agree with the screen ──
+     Exporting "everything" while the screen shows a filtered 12 is how someone
+     ends up working the wrong list. */
+  ok(/function exportRows\(/.test(bare) && /function visibleRows\(/.test(bare), 'the visible rows can be exported');
+  ok(/ROWS\.filter\(r => r\.status === TAB\)\.filter\(passesFilters\)/.test(bare),
+    '  and the export takes the CURRENT tab and filters, not the whole store');
+  ok(/\\ufeff/.test(bare), '  with a BOM so Excel reads Indian names and the rupee sign');
+  ok(/replace\(\/"\/g, .""\.\)/.test(bare) || /csvCell/.test(bare), '  and cells with commas or quotes are escaped');
+
   /* ── the search must stay reachable once the hero scrolls away ── */
   ok(/id="dcFloat"/.test(html) && /floatingSearch/.test(bare), 'a floating search takes over on scroll');
   ok(/\.dc-float\[hidden\]/.test(html),
