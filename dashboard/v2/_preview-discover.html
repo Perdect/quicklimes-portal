@@ -708,6 +708,9 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   [data-theme="dark"] .pd-stage.on { background: rgba(22,163,74,.18); border-color: rgba(22,163,74,.34); color: #4ade80; }
   .pd-btns { display: flex; gap: 8px; flex-wrap: wrap; }
   .pd-note { width: 100%; font: 500 13px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 12px; padding: 10px 12px; resize: vertical; }
+  .dc-move { font: 700 12px var(--ql-font-sans); color: #fff; background: var(--ql-brand-600,#2563eb); border: 0; border-radius: 999px; padding: 7px 14px; margin-left: 6px; cursor: pointer; }
+  .dc-move:hover { filter: brightness(1.07); }
+  .dc-move:disabled { opacity: .6; cursor: default; }
   .pd-in { flex: 1; min-width: 0; font: 500 13px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 10px; padding: 9px 12px; }
   .pd-in-d { flex: none; width: 150px; }
   .pd-next { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }

@@ -674,6 +674,17 @@ function allNotes() { try { return JSON.parse(localStorage.getItem(noteKey()) ||
 function noteFor(id) { return allNotes()[String(id)] || ''; }
 function saveNote(id, v) { const n = allNotes(); n[String(id)] = v; try { localStorage.setItem(noteKey(), JSON.stringify(n)); } catch (_) {} }
 
+/* A WhatsApp button must only appear where a WhatsApp chat can actually open.
+   Directory results are full of landlines, and a landline that survives
+   normalizePhone (079 4023 5235 → 7940235235) sends the user to "this number
+   isn't on WhatsApp". Call stays available on every number either way. */
+function waReachable(phone) {
+  const W = window.WACore;
+  if (!phone || !W || !W.normalizePhone) return false;
+  if (W.isMobileNumber && !W.isMobileNumber(phone)) return false;
+  return W.normalizePhone(phone) !== '';
+}
+
 function paintTable() {
   const host = document.getElementById('dcBody'); if (!host) return;
   const inTab = ROWS.filter(r => r.status === TAB);
@@ -714,7 +725,7 @@ function paintTable() {
        same widths — a row without WhatsApp renders an empty slot rather than
        shifting Promote left. Uneven wrapping is what made the list look
        unaligned; identical geometry is what makes a list scannable. */
-    const wa = (r.phone && window.WACore && WACore.normalizePhone && WACore.normalizePhone(r.phone))
+    const wa = (r.phone && waReachable(r.phone))
       ? `<a class="lr-b ico wa" href="${esc(WACore.waLink(r.phone, ''))}" target="_blank" rel="noopener noreferrer" data-stop title="WhatsApp ${esc(r.phone)}" aria-label="WhatsApp">${IC_WA}</a>`
       : '<span class="lr-b-slot" aria-hidden="true"></span>';
     const acts = (LA ? `<button class="lr-b assess" data-assess="${r.id}" title="Why they buy lime">${IC_SPARK}Assess</button><button class="lr-b msg" data-msg="${r.id}" title="Draft outreach">${IC_SEND}Message</button>` : '')
@@ -775,7 +786,7 @@ function openLeadDrawer(r) {
   const f = fitOf(r), tier = f.tier || 'unknown', e = leadEconomics(r);
   const ind = (LA && LM) ? LA.matchIndustry(r.industry, LM.INDUSTRIES) : null;
   const WA = window.WACore;
-  const waOk = r.phone && WA && WA.normalizePhone && WA.normalizePhone(r.phone) !== '';
+  const waOk = waReachable(r.phone);
   const row = (k, v) => `<div class="cd-row"><span class="k">${k}</span><span class="v">${v}</span></div>`;
   const econSec = e ? `<div class="cd-sec"><div class="cd-sec-t">Delivery economics · estimate</div>
       ${row('Distance from your plant', e.km + ' km')}
@@ -855,7 +866,14 @@ function openLeadDrawer(r) {
 }
 
 /* Seller identity for the outreach draft — the active company profile. */
-function sellerInfo() { const c = (Q && Q.co) || {}; return { name: c.short || c.name || 'Gotan Lime Industries', city: c.city || 'Gotan, Rajasthan', phone: c.phone || '' }; }
+/* The signature is the company's OWN identity, from Settings → Company profile
+   — never a hardcoded number, because two companies use this app and each must
+   sign as itself. A missing field simply drops out of the sign-off. */
+function sellerInfo() {
+  const c = (Q && Q.co) || {};
+  return { name: c.short || c.name || 'Gotan Lime Industries', city: c.city || 'Gotan, Rajasthan',
+    phone: c.phone || '', address: c.address || '', owner: c.ownerName || '' };
+}
 
 /* The lead fields we send to the server AI (never any invented data). */
 function leadPayload(r) { return { name: r.name, industry: r.industry || '', city: r.city || '', phone: r.phone || '', email: r.email || '', website: r.website || '' }; }
@@ -987,7 +1005,7 @@ function openStudio(r) {
   const seller = sellerInfo();
   const inds = LM ? LM.INDUSTRIES : [];
   const WA = window.WACore;
-  const waOk = r.phone && WA && WA.normalizePhone && WA.normalizePhone(r.phone) !== '';
+  const waOk = waReachable(r.phone);
   let ch = waOk ? 'whatsapp' : (r.email ? 'email' : 'whatsapp');
   let type = 'intro';
   const TYPES = [['intro', 'Intro'], ['followup', 'Follow-up'], ['proposal', 'Proposal'], ['meeting', 'Meeting']];
@@ -1148,7 +1166,7 @@ async function loadSources() {
   const r = await api({ action: 'sources' });
   if (r && r.ok) {
     SOURCES = { osm: !!r.osm, google: !!r.google, mapbox: !!r.mapbox };
-    if (r.mapbox_public && r.mapbox_public !== HM_MB_TOKEN) { HM_MB_TOKEN = r.mapbox_public; hmApplyTiles(); }
+    /* No basemap to swap any more — the demand map draws India itself. */
     /* AUTO-PICK THE FAST SOURCE. The free Overpass service waits ~20s per mirror
        and frequently fails — landing on it by default made every first search
        feel broken while a connected, 1-3s source sat one click away. Google is
@@ -1279,36 +1297,7 @@ function hmTierColor(r) {
    tiles): pan / zoom / scroll like Google Maps, with each demand state shaded by
    its live profit tier on top and the plant marked. Click a state → discover
    buyers there. Falls back to a message if Leaflet can't load (offline). */
-let HM_MAP = null, HM_LAYER = null, HM_FITTED = false, HM_BOUNDS = null, HM_TILE = null;
-/* REAL MAPBOX STREETS when a public token is present — roads, place names and
-   colour, the map people actually recognise. The pk. token is public by design
-   (Mapbox issues it FOR browser use); the Google key never leaves the server.
-   Falls back to the free CARTO basemap when no token is connected. */
-let HM_MB_TOKEN = '';
-function hmTiles() {
-  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-  if (HM_MB_TOKEN) {
-    const style = dark ? 'dark-v11' : 'streets-v12';
-    return 'https://api.mapbox.com/styles/v1/mapbox/' + style + '/tiles/512/{z}/{x}/{y}@2x?access_token=' + HM_MB_TOKEN;
-  }
-  return dark
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-}
-/* Swap the basemap in place once the token arrives (the map is built before
-   loadSources resolves, so without this the first paint keeps the fallback). */
-function hmApplyTiles() {
-  if (!HM_MAP || !window.L) return;
-  if (HM_TILE) { try { HM_MAP.removeLayer(HM_TILE); } catch (_) {} }
-  HM_TILE = hmTileLayer().addTo(HM_MAP);
-  HM_TILE.bringToBack();
-}
-function hmTileLayer() {
-  const mb = !!HM_MB_TOKEN;
-  return L.tileLayer(hmTiles(), mb
-    ? { tileSize: 512, zoomOffset: -1, maxZoom: 19, attribution: '&copy; Mapbox &copy; OpenStreetMap' }
-    : { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' });
-}
+let HM_MAP = null, HM_LAYER = null, HM_FITTED = false, HM_BOUNDS = null;
 function ringsToLatLng(rings) {
   return rings.map(fl => { const a = []; for (let i = 0; i < fl.length; i += 2) a.push([fl[i + 1], fl[i]]); return a; });
 }
@@ -1321,14 +1310,23 @@ function renderHeatMap() {
   const byState = {}; LM.plan(MI.product, opts).forEach(r => { byState[r.state] = r; });
 
   if (!HM_MAP) {
-    /* INDIA ONLY. Fitting the India bbox into a very wide container letterboxes
+    /* NO BASEMAP, INDIA ONLY. A world raster under an India choropleth is why
+       this kept coming back as "still showing world map": the state polygons
+       only cover India and every pixel around them was Pakistan, China, the
+       Gulf and South-East Asia. No clamp fixes that — India's bbox is roughly
+       square and this card is wide, so fitting India's height always leaves
+       ~69° of longitude to fill with neighbours. Drawing the states from
+       INDIA_GEO on the card background is the only thing that actually answers
+       "only India"; it also drops a per-view tile bill and stops a third party
+       drawing this country's borders for us.
+
+       ORIGINAL NOTE, still true of the clamp: Fitting the India bbox into a very wide container letterboxes
        horizontally and fills the spare width with Pakistan, China, the Gulf and
        South-East Asia — a map of Asia with a few Indian labels on it. maxBounds
        hard-clips the view to the subcontinent and stops the user panning away;
        fitBounds then fills the SHORTER axis so India dominates the frame. */
-    HM_MAP = L.map(host, { zoomControl: true, scrollWheelZoom: true, attributionControl: true,
-      minZoom: 4, maxZoom: 11, maxBounds: INDIA_BBOX, maxBoundsViscosity: 1 }).setView([22.8, 80.5], 5);
-    HM_TILE = hmTileLayer().addTo(HM_MAP);
+    HM_MAP = L.map(host, { zoomControl: true, scrollWheelZoom: true, attributionControl: false,
+      minZoom: 3, maxZoom: 11, maxBounds: INDIA_BBOX, maxBoundsViscosity: 1 }).setView([22.8, 80.5], 5);
     HM_LAYER = L.layerGroup().addTo(HM_MAP);
   }
   HM_LAYER.clearLayers();
@@ -1337,15 +1335,22 @@ function renderHeatMap() {
     const latlngs = ringsToLatLng(g.r);
     // No stroke → the state's district rings tile into one clean filled region
     // (adjacent same-colour districts show no seam); colour change marks the border.
-    if (!r) { L.polygon(latlngs, { stroke: false, fillColor: '#94a3b8', fillOpacity: .10, interactive: false }).addTo(HM_LAYER); continue; }
+    /* ONE POLYGON PER RING, never one polygon holding every ring. g.r is a
+       state's DISTRICT rings; handing them to a single L.polygon makes Leaflet
+       treat all but the first as HOLES, so the fill cancels itself out and the
+       state renders as bare hairlines. The basemap used to hide that; without
+       it the map came out as an outline drawing. */
+    const drawRings = (style) => latlngs.map(ring => L.polygon(ring, style).addTo(HM_LAYER));
+    if (!r) { drawRings({ color: '#cbd5e1', weight: .5, fillColor: '#e2e8f0', fillOpacity: .95, interactive: false }); continue; }
     const [stroke, fill] = hmTierColor(r);
-    const poly = L.polygon(latlngs, { stroke: false, fillColor: stroke, fillOpacity: .5 }).addTo(HM_LAYER);
+    const parts = drawRings({ color: stroke, weight: .5, opacity: .35, fillColor: stroke, fillOpacity: .78 });
+    const poly = L.featureGroup(parts);
     const tip = '<b>' + esc(nm) + '</b> · score ' + r.score + '<br>₹' + (r.deliveredPerTonne || 0).toLocaleString('en-IN') + '/t delivered · ' + esc(r.tier.label);
     poly.bindTooltip(tip, { className: 'hm-tt', sticky: true });
     const what = LM.osmTerm((r.industries[0] || {}).key);
     poly.on('click', () => findInMarket(what, nm));
-    poly.on('mouseover', () => poly.setStyle({ fillOpacity: .72 }));
-    poly.on('mouseout', () => poly.setStyle({ fillOpacity: .5 }));
+    poly.on('mouseover', () => poly.setStyle({ fillOpacity: .95 }));
+    poly.on('mouseout', () => poly.setStyle({ fillOpacity: .78 }));
     const c = LM.STATES.find(s => s.name === nm);
     if (c) {
       const ab = g.a || STATE_ABBR[nm] || nm.slice(0, 2).toUpperCase();
@@ -1592,7 +1597,7 @@ function pipeOpenLead(id) {
       </div>
       <div class="pd-head-a">
         ${contact.phone ? `<a class="lr-b" href="tel:${esc(contact.phone)}">${IC_PHONE}Call</a>` : ''}
-        ${contact.phone ? `<a class="lr-b wa" href="${esc((window.WACore && WACore.waLink) ? WACore.waLink(contact.phone, '') : '#')}" target="_blank" rel="noopener noreferrer">${IC_WA}WhatsApp</a>` : ''}
+        ${waReachable(contact.phone) ? `<a class="lr-b wa" href="${esc((window.WACore && WACore.waLink) ? WACore.waLink(contact.phone, '') : '#')}" target="_blank" rel="noopener noreferrer">${IC_WA}WhatsApp</a>` : ''}
       </div>
     </div>
     <div class="pd-kpis">
@@ -1628,8 +1633,8 @@ function pipeOpenLead(id) {
   const pane = QLShell.panel({ title: co.name || 'Lead', body: body }) || document;
   /* The composer needs the CRM ids so what it opens is logged against THIS lead. */
   const leadR = { name: co.name, industry: co.industry, city: co.city, tonnes: l.tonnes,
-    phone: contact.phone || '', email: contact.email || '', website: co.website || '',
-    crm_company: l.crm_company, crm_lead: l.id };
+    contact: contact.name || '', phone: contact.phone || '', email: contact.email || '',
+    website: co.website || '', crm_company: l.crm_company, crm_lead: l.id };
   const on = (id, fn) => { const b = pane.querySelector('#' + id) || document.getElementById(id); if (b) b.addEventListener('click', fn); };
   on('plStudio', () => { QLShell.closeModal(); openStudio(leadR); });
   on('plProposal', () => { QLShell.closeModal(); openProposal(leadR); logTouch({ kind: 'proposal', crm_company: l.crm_company, crm_lead: l.id, body: 'Proposal generated for ' + (co.name || '') }); });

@@ -16,6 +16,18 @@
 
   function norm(s) { return String(s == null ? '' : s).toLowerCase().trim(); }
 
+  /* norm() lowercases for MATCHING. Prose that reaches a customer must keep the
+     industry's own capitalisation — "ph control" in a message to a chemicals
+     buyer reads as sloppy, and it is the sender who looks careless. */
+  var KEEP_CASE = ['pH', 'CaO', 'Ca(OH)2', 'GST', 'MT', 'AAC', 'DRI', 'PCC', 'BOD', 'COD', 'FGD', 'India'];
+  function prose(s) {
+    var t = String(s == null ? '' : s).trim();
+    KEEP_CASE.forEach(function (w) {
+      t = t.replace(new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi'), w);
+    });
+    return t;
+  }
+
   /* Map a lead's free-text industry ("Steel", "Chemicals", "sugar mill") to a
      Market Intelligence industry, so the playbook applies. Null if unknown. */
   function matchIndustry(industryStr, industries) {
@@ -69,7 +81,7 @@
     var sellerName = seller.name || 'Gotan Lime Industries';
     var sellerCity = seller.city || 'Gotan, Rajasthan';
     var sellerPhone = seller.phone ? ('\n' + seller.phone) : '';
-    var useLine = ind ? (' Lime is essential in the ' + baseLabel(ind.label) + ' process (' + norm(ind.use) + ').') : '';
+    var useLine = ind ? (' Lime is essential in the ' + baseLabel(ind.label) + ' process (' + prose(ind.use) + ').') : '';
     var askLine = ind ? (' Could you connect me with your ' + (ind.roles[0] || 'purchase team').toLowerCase() + '?') : '';
     var text = 'Dear ' + who + ',\n\n'
       + 'We are ' + sellerName + ' from ' + sellerCity + ', manufacturers of Quick Lime, Hydrated Lime and Lime Powder.'
@@ -90,12 +102,26 @@
     var wa = opts.channel === 'whatsapp';
     var type = opts.type || 'intro';
     var ind = matchIndustry(lead.industry, industries);
-    var who = lead.name || (wa ? 'there' : 'Sir/Madam');
+    /* Greet a PERSON when we know one. Addressing a firm by its registered
+       name ("Hi Alps Chemicals Pvt. Ltd. 👋") reads like a mail-merge, which
+       is exactly what a cold buyer discards. */
+    var contact = lead.contact || lead.contactName || '';
+    var who = contact || (wa ? 'there' : 'Sir/Madam');
     var sellerName = seller.name || 'Gotan Lime Industries';
     var sellerCity = seller.city || 'Gotan, Rajasthan';
     var sellerPhone = seller.phone || '';
+    var sellerAddr = seller.address || '';
+    /* A buyer cannot act on a message with no way back. The sign-off carries
+       the sender's name, phone and address whenever the company profile holds
+       them; anything missing is simply left out rather than faked. */
+    var sign = sellerName
+      + (sellerPhone ? '\n📞 ' + sellerPhone : '')
+      + (sellerAddr ? '\n📍 ' + sellerAddr : (sellerCity ? '\n📍 ' + sellerCity : ''));
+    var signPlain = sellerName
+      + (sellerPhone ? '\n' + sellerPhone : '')
+      + (sellerAddr ? '\n' + sellerAddr : (sellerCity ? '\n' + sellerCity : ''));
     var city = lead.city || 'your site';
-    var useLine = ind ? ('Lime is essential in the ' + baseLabel(ind.label) + ' process — ' + norm(ind.use) + '.') : '';
+    var useLine = ind ? ('Lime is essential in the ' + baseLabel(ind.label) + ' process — ' + prose(ind.use) + '.') : '';
     var role = ind ? (ind.roles[0] || 'purchase team') : 'purchase team';
     var benefits = wa
       ? '✅ Consistent CaO %, tested every batch\n✅ Bulk dispatch across India\n✅ Delivered ₹/MT quoted upfront\n✅ GST-compliant billing'
@@ -104,23 +130,23 @@
     if (type === 'followup') {
       subject = 'Following up — lime supply for ' + (lead.name || 'your plant');
       text = wa
-        ? 'Hi ' + who + ' 👋 Just following up on my note about lime supply from ' + sellerName + '. Happy to share a delivered ₹/MT to ' + city + ' whenever you have a minute. Thanks!'
-        : 'Dear ' + who + ',\n\nI wanted to gently follow up on my earlier note about supplying lime to ' + (lead.name || 'your plant') + '. We can quote a delivered ₹/MT to ' + city + ' and share our grades at your convenience.\n\nWould later this week suit a quick call?\n\nThank you,\n' + sellerName + (sellerPhone ? '\n' + sellerPhone : '');
+        ? 'Hi ' + who + ' 👋 Just following up on my note about lime supply from ' + sellerName + '. Happy to share a delivered ₹/MT to ' + city + ' whenever you have a minute.\n\n— ' + sign
+        : 'Dear ' + who + ',\n\nI wanted to gently follow up on my earlier note about supplying lime to ' + (lead.name || 'your plant') + '. We can quote a delivered ₹/MT to ' + city + ' and share our grades at your convenience.\n\nWould later this week suit a quick call?\n\nThank you,\n' + signPlain;
     } else if (type === 'proposal') {
       subject = 'Lime supply proposal — ' + sellerName + ' → ' + (lead.name || 'your plant');
       text = wa
-        ? 'Hi ' + who + ' 👋 Here’s what we can offer ' + (lead.name || 'you') + ':\n\n' + benefits + '\n\nShare your monthly tonnage and delivery point and I’ll send an exact delivered ₹/MT + terms. — ' + sellerName
-        : 'Dear ' + who + ',\n\nThank you for considering ' + sellerName + '. Here is what we propose for ' + (lead.name || 'your plant') + ':\n\n' + benefits + '\n\nShare your indicative monthly tonnage and delivery location and we will send an exact delivered ₹/MT, minimum order, dispatch schedule and payment terms.\n\nWe look forward to supplying you.\n\nThank you,\n' + sellerName + (sellerPhone ? '\n' + sellerPhone : '');
+        ? 'Hi ' + who + ' 👋 Here’s what we can offer ' + (lead.name || 'you') + ':\n\n' + benefits + '\n\nShare your monthly tonnage and delivery point and I’ll send an exact delivered ₹/MT + terms.\n\n— ' + sign
+        : 'Dear ' + who + ',\n\nThank you for considering ' + sellerName + '. Here is what we propose for ' + (lead.name || 'your plant') + ':\n\n' + benefits + '\n\nShare your indicative monthly tonnage and delivery location and we will send an exact delivered ₹/MT, minimum order, dispatch schedule and payment terms.\n\nWe look forward to supplying you.\n\nThank you,\n' + signPlain;
     } else if (type === 'meeting') {
       subject = 'A quick call about your lime supply — ' + sellerName;
       text = wa
-        ? 'Hi ' + who + ' 👋 Could we do a quick 10-min call this week about your lime requirement? I can bring a delivered ₹/MT for ' + city + '. — ' + sellerName
-        : 'Dear ' + who + ',\n\nCould we schedule a brief call this week to discuss ' + (lead.name || 'your plant') + '’s lime requirement? I will come prepared with a delivered ₹/MT for ' + city + ' and our current grades.\n\nWhat day and time works for you?\n\nThank you,\n' + sellerName + (sellerPhone ? '\n' + sellerPhone : '');
+        ? 'Hi ' + who + ' 👋 Could we do a quick 10-min call this week about your lime requirement? I can bring a delivered ₹/MT for ' + city + '.\n\n— ' + sign
+        : 'Dear ' + who + ',\n\nCould we schedule a brief call this week to discuss ' + (lead.name || 'your plant') + '’s lime requirement? I will come prepared with a delivered ₹/MT for ' + city + ' and our current grades.\n\nWhat day and time works for you?\n\nThank you,\n' + signPlain;
     } else { // intro
       subject = 'Lime supply for ' + (lead.name || 'your plant') + ' — ' + sellerName;
       text = wa
-        ? 'Hi ' + who + ' 👋 I’m from ' + sellerName + ' — we manufacture Quick Lime, Hydrated Lime & Limestone in ' + sellerCity + '.' + (useLine ? '\n\n' + useLine : '') + '\n\n' + benefits + '\n\nCan I share our grades and a delivered ₹/MT to ' + city + '? — ' + sellerName
-        : 'Dear ' + who + ',\n\nWe are ' + sellerName + ' from ' + sellerCity + ', manufacturers of Quick Lime, Hydrated Lime and Limestone.' + (useLine ? ' ' + useLine : '') + '\n\nWe supply consistent-quality lime in bulk with reliable dispatch across India:\n\n' + benefits + '\n\nMay I share our current grades and a delivered ₹/MT to ' + city + '? Could you connect me with your ' + role.toLowerCase() + '?\n\nThank you,\n' + sellerName + (sellerPhone ? '\n' + sellerPhone : '');
+        ? 'Hi ' + who + ' 👋 I’m from ' + sellerName + ' — we manufacture Quick Lime, Hydrated Lime & Limestone in ' + sellerCity + '.' + (useLine ? '\n\n' + useLine : '') + '\n\n' + benefits + '\n\nCan I share our grades and a delivered ₹/MT to ' + city + '?\n\n— ' + sign
+        : 'Dear ' + who + ',\n\nWe are ' + sellerName + ' from ' + sellerCity + ', manufacturers of Quick Lime, Hydrated Lime and Limestone.' + (useLine ? ' ' + useLine : '') + '\n\nWe supply consistent-quality lime in bulk with reliable dispatch across India:\n\n' + benefits + '\n\nMay I share our current grades and a delivered ₹/MT to ' + city + '? Could you connect me with your ' + role.toLowerCase() + '?\n\nThank you,\n' + signPlain;
     }
     return { subject: subject, text: text };
   }
