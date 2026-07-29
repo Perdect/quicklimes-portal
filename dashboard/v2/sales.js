@@ -24,8 +24,14 @@ function aOp(mode, fn) { return adb().then(d => new Promise((res, rej) => { cons
    id prefix and six field names, and the old body dereferenced the row after its
    await without checking it was still there. */
 function addAttach(idx, file, kind) { return Q.attachDoc('sales', idx, file, kind); }
-function getAttachBlob(id) { return aOp('readonly', st => st.get(id)); }
-async function openAttach(idx, id, dl) { const a = (Q.state.SALES[idx].attach || []).find(x => x.id === id); if (!a) return; const b = await getAttachBlob(a.id); if (!(b instanceof Blob)) { toast('File not found in this browser', 'err'); return; } const url = URL.createObjectURL(b); if (dl) { const x = document.createElement('a'); x.href = url; x.download = a.name; x.click(); } else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 4000); }
+async function getAttachBlob(id) {
+  const b = await aOp('readonly', st => st.get(id));
+  if (b instanceof Blob) return b;
+  /* Not in this browser — try the server copy (/api/files). fetchDocBlob also
+     re-seeds the local store, so the next open is instant. */
+  return (window.Q && Q.fetchDocBlob) ? Q.fetchDocBlob(id) : null;
+}
+async function openAttach(idx, id, dl) { const a = (Q.state.SALES[idx].attach || []).find(x => x.id === id); if (!a) return; const b = await getAttachBlob(a.id); if (!(b instanceof Blob)) { toast('File not on this device or the server — re-upload it once', 'err'); return; } const url = URL.createObjectURL(b); if (dl) { const x = document.createElement('a'); x.href = url; x.download = a.name; x.click(); } else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 4000); }
 async function delAttach(idx, id) { const s = Q.state.SALES[idx]; Q.updateSale(idx, { attach: (s.attach || []).filter(a => a.id !== id) }); try { await aOp('readwrite', st => st.delete(id)); } catch (_) {} QLX.refresh(); }
 
 /* ── cells ── */

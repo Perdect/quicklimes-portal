@@ -734,6 +734,7 @@
     if (!arr[idx]) throw new Error('the bill row is no longer there — scan not attached');
     const id = (DOC_PFX[kind] || 'da') + Date.now().toString(36) + Math.floor(Math.random() * 1e5).toString(36);
     await docOp(kind, 'readwrite', st => st.put(file, id));
+    docSync(id, { name: file.name, kind: label || 'Invoice', mime: file.type || '' }, file);
     // Re-read AFTER the await: the row is what we are about to write to, and the
     // store could have moved under us while IndexedDB was busy.
     const row = arr[idx];
@@ -743,6 +744,40 @@
     return id;
   }
   function getDoc(kind, id) { return docOp(kind, 'readonly', st => st.get(id)); }
+
+  /* ── SERVER COPY of every scan (/api/files) ──────────────────────────────
+     The browser store stays primary (fast, offline). The server is the shared
+     copy behind it, so the eye works on a device that never saw the upload.
+     Sync is fire-and-forget: an offline attach MUST still succeed, and a
+     failed upload surfaces the next time the other device misses. */
+  function docApi(body) {
+    let p = {}; try { p = JSON.parse(localStorage.getItem('ql_plant') || 'null') || {}; } catch (_) {}
+    if (!p.id || !p.token) return Promise.resolve(null);
+    return fetch('/api/files', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ plant_id: p.id, company_id: ACTIVE_CO || '', token: p.token }, body)) })
+      .then(r => r.json()).catch(() => null);
+  }
+  function docSync(id, meta, file) {
+    try {
+      const rd = new FileReader();
+      rd.onload = () => {
+        const b64 = String(rd.result || '').split(',')[1] || '';
+        if (b64) docApi({ action: 'put', id: String(id), name: meta.name || '', kind: meta.kind || '', mime: meta.mime || '', data: b64 });
+      };
+      rd.readAsDataURL(file);
+    } catch (_) { /* never block the attach */ }
+  }
+  async function fetchDocBlob(id) {
+    const kind = String(id).indexOf('pa') === 0 ? 'purchase' : String(id).indexOf('sa') === 0 ? 'sales' : '';
+    const r = await docApi({ action: 'get', id: String(id) });
+    if (!r || !r.ok || !r.data) return null;
+    const bin = atob(r.data); const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    const blob = new Blob([u8], { type: r.mime || 'application/octet-stream' });
+    /* re-seed the local store so the NEXT open is instant and offline-safe */
+    if (kind) { try { await docOp(kind, 'readwrite', st => st.put(blob, String(id))); } catch (_) {} }
+    return blob;
+  }
 
   function updatePurchase(i, e) { if (S.PURCHASES[i]) { S.PURCHASES[i] = { ...S.PURCHASES[i], ...e }; if (e.sup) upsertParty(e.sup, e.gstin, '', '', '', 'supplier'); commit(); } }
   function deletePurchase(i, reason) { return softDelete('purchase', i, reason); }
@@ -2641,6 +2676,7 @@
        made a stranger's payment look like an internal transfer. */
     ownFirmNames: plants.map(pl => (pl.plant_name || '').trim().toUpperCase()).filter(Boolean),
     get activeCo() { return ACTIVE_CO; },
+    fetchDocBlob,
     /* Shared, persisted UI period filter — ONE source of truth across every page
        that scopes numbers, scoped per company, kept in sessionStorage so a
        deliberate pick survives navigation + refresh (a multi-page app reloads on

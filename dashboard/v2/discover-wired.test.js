@@ -281,6 +281,12 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
       '  the AI label is emitted once, next to the model that produced it');
   }
 
+  /* ── promoted-before-the-board companies can be backfilled ── */
+  ok(/action: 'backfillLeads'/.test(bare), "the pipeline backfill has a caller (action:'backfillLeads')");
+  ok(/orphanCos/.test(bare) && /filter\(c => !\(PIPE\.leads \|\| \[\]\)\.some/.test(bare),
+    '  offered only when promoted companies actually lack a lead row');
+  ok(/bf\.disabled = true/.test(bare), '  the button disables while the call is in flight');
+
   /* CRMCore.nextActions() shipped with no caller — a "follow-ups due" count you
      could not act on. Pin the caller AND the way to set a next step, or this
      silently reverts to a decorative number. */

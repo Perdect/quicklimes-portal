@@ -171,6 +171,23 @@ if ($action === 'upsertLead') {
   ql_out(['ok' => true, 'id' => (int)$db->lastInsertId()]);
 }
 
+/* Promotes before 2026-07-28 (d9cb8af) created the company but never the
+   pipeline row, so the acquisition board looked empty however many leads were
+   promoted. One idempotent, tenant-scoped INSERT per orphan; a second call
+   creates nothing. Score stays NULL — unscored is honest, the discovery fit
+   score never reached crm_companies and inventing one here would be a lie. */
+if ($action === 'backfillLeads') {
+  $st = $db->prepare('SELECT c.id FROM crm_companies c
+    LEFT JOIN crm_leads l ON l.crm_company = c.id AND l.plant_id = c.plant_id AND l.company_id = c.company_id
+    WHERE c.plant_id = ? AND c.company_id = ? AND l.id IS NULL');
+  $st->execute([$plantId, $coId]);
+  $ids = $st->fetchAll(PDO::FETCH_COLUMN);
+  $ins = $db->prepare('INSERT INTO crm_leads (plant_id, company_id, crm_company, stage, score_why) VALUES (?,?,?,?,?)');
+  $n = 0;
+  foreach ($ids as $cid) { $ins->execute([$plantId, $coId, (int)$cid, 'new', 'Backfilled: promoted before pipeline rows existed']); $n++; }
+  ql_out(['ok' => true, 'created' => $n]);
+}
+
 if ($action === 'activity') {
   $a = is_array($b['activity'] ?? null) ? $b['activity'] : [];
   $cc = (int)($a['crm_company'] ?? 0);

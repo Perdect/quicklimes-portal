@@ -1676,7 +1676,13 @@ async function renderPipeline(force) {
     + '<select id="plTemp" class="pk-sel"><option value="all">All temps</option><option value="hot"' + (PIPE_TEMP === 'hot' ? ' selected' : '') + '>Hot</option><option value="warm"' + (PIPE_TEMP === 'warm' ? ' selected' : '') + '>Warm</option><option value="cold"' + (PIPE_TEMP === 'cold' ? ' selected' : '') + '>Cold</option></select>'
     + '<button class="ql-btn ql-btn-secondary" id="plImport" type="button">Import</button>'
     + '<button class="ql-btn ql-btn-primary" id="plAdd" type="button">+ Add lead</button></div>';
-  if (!all.length) { root.innerHTML = band + band2 + dueStrip + controls + '<div class="pl-empty">No leads yet. Promote a discovered company from the Leads tab, or add one.</div>'; wirePipe(); return; }
+  /* Companies promoted before pipeline rows existed have no lead — the board
+     cannot show them. Offer the one-tap backfill instead of a silent gap. */
+  const orphanCos = (PIPE.companies || []).filter(c => !(PIPE.leads || []).some(l => +l.crm_company === +c.id));
+  const orphanBar = orphanCos.length ? `<div class="pd-due" style="margin-bottom:14px"><div class="pd-due-t">${IC_USERPLUS}<span>${orphanCos.length} promoted compan${orphanCos.length === 1 ? 'y is' : 'ies are'} not on this board</span></div>
+    <div class="in-note" style="margin:0 0 8px">They were promoted before the board existed, so no pipeline row was created. Adding them starts each at the New stage, unscored.</div>
+    <button class="lr-b pri" id="plBackfill" type="button">${IC_USERPLUS}Add ${orphanCos.length} to the board</button></div>` : '';
+  if (!all.length) { root.innerHTML = band + band2 + dueStrip + orphanBar + controls + '<div class="pl-empty">No leads yet. Promote a discovered company from the Leads tab, or add one.</div>'; wirePipe(); return; }
   // ── filtered leads for the board ──
   const q = PIPE_SEARCH.toLowerCase().trim();
   let leads = all.filter(l => {
@@ -1699,7 +1705,7 @@ async function renderPipeline(force) {
     }).join('') || '<div class="pl-col-empty">Empty</div>';
     return '<div class="pl-col"><div class="pl-col-h"><span class="pl-col-dot" style="background:' + (s.key === 'won' ? '#16a34a' : s.key === 'lost' ? '#dc2626' : '#94a3b8') + '"></span><span>' + esc(s.label) + '</span><span class="pl-col-n">' + ls.length + ' · ' + pipeFmt(total) + '</span></div>' + cards + '</div>';
   }).join('');
-  root.innerHTML = band + band2 + dueStrip + controls + '<div class="pl-board"><div class="pl-cols">' + cols + '</div></div>';
+  root.innerHTML = band + band2 + dueStrip + orphanBar + controls + '<div class="pl-board"><div class="pl-cols">' + cols + '</div></div>';
   wirePipe();
 }
 /* upsertLead's UPDATE writes EVERY column it picks, so a partial payload is a
@@ -1709,6 +1715,13 @@ async function renderPipeline(force) {
 function leadPatch(l, changes) { return Object.assign({}, l, changes || {}); }
 
 function wirePipe() {
+  const bf = document.getElementById('plBackfill');
+  if (bf) bf.onclick = async () => {
+    bf.disabled = true; bf.textContent = 'Adding…';
+    const r = await pipeApi({ action: 'backfillLeads' });
+    if (r && r.ok) { toast('Added ' + r.created + ' to the board'); renderPipeline(true); }
+    else { bf.disabled = false; toast((r && r.error) || 'Could not backfill', 'err'); }
+  };
   const add = document.getElementById('plAdd'); if (add) add.addEventListener('click', pipeAddLead);
   const imp = document.getElementById('plImport'); if (imp) imp.addEventListener('click', () => { switchSection('leads'); const b = document.getElementById('dcImport'); if (b) b.click(); });
   const srch = document.getElementById('plSearch'); if (srch) { srch.addEventListener('input', () => { PIPE_SEARCH = srch.value; renderPipeline(); srch.focus(); srch.setSelectionRange(srch.value.length, srch.value.length); }); }
