@@ -234,7 +234,215 @@ if (loaded) {
   eq('  and Clear resets it', RST.ftype, 'all');
 }
 
+/* ── v3 list: the redesign's own wiring ──────────────────────────────────
+   The lean row hides detail behind an expandable row and a Review drawer; the
+   summary cards total the FILTERED set. These pin the pieces that, if silently
+   dropped, would leave a page that renders but no longer works. */
+{
+  const src = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, 'reconcile.css'), 'utf8');
+  ok('rows expand inline (ST.expanded drives an .rc-xrow detail row)', /ST\.expanded/.test(src) && /rc-xrow/.test(src));
+  ok('the expanded row carries narration + the AI reasons', /function expandHTML/.test(src) && /rc-x-why/.test(src));
+  ok('confidence is drawn ONCE, as its own indicator', /function confCell/.test(src) && /rc-cf-bar/.test(src));
+  ok('  and the status chip no longer repeats the %', !/showConf \? ' · ' \+ m\.confidence/.test(src));
+  ok('summary cards total the FILTERED set, so filters update them', /function summaryHTML[\s\S]{0,240}filteredTxns\(\)/.test(src));
+  ok('  and a filter repaint refreshes the cards too', /function repaintList[\s\S]{0,300}summaryHTML\(\)/.test(src));
+  ok('very large statements are capped, with an honest "show more"', /ST\.cap/.test(src) && /data-showmore/.test(src));
+  /* THE STICKY GAP: the toolbar wraps, so the header offset must be MEASURED.
+     A hard-coded top is what left the white band between header and sub-header. */
+  ok('the sticky offset is measured from the real toolbar', /function syncStickyOffset/.test(src) && /--rc-tb-h/.test(src));
+  ok('  and re-measured when the toolbar rewraps (ResizeObserver)', /ResizeObserver/.test(src));
+  /* THE PARSE-TIME TRAP: reconcile.js is loaded head-less by these suites, whose
+     stubbed window has no addEventListener. An unguarded top-level listener threw
+     and took every recon suite down at once. */
+  ok('top-level window listeners are guarded (loads head-less)', /typeof window\.addEventListener === 'function'/.test(src));
+  /* A <td> with display:flex leaves the table's column model — the row divider
+     stops short and the action column floats free of the grid. */
+  ok('the actions cell stays a table-cell (never display:flex)', !/\.rc-actcell \{[^}]*display:\s*flex/.test(css));
+  /* ONE scrollport on desktop. Any ancestor of the sticky header that creates a
+     scroll container (overflow auto/hidden/scroll) captures the header and it
+     scrolls away — or collides with the toolbar, which pins to the page. So on
+     desktop the wrap must be `visible` and the panel must `clip`, never hidden. */
+  ok('desktop: the table wrap does NOT create a scroll container', /min-width:\s*769px\)\s*\{\s*\.rc-tablewrap\s*\{\s*overflow:\s*visible/.test(css));
+  ok('desktop: the panel clips (not hidden) so it is not a scrollport either', /min-width:\s*769px\)\s*\{\s*\.rc-panel\s*\{\s*overflow:\s*clip/.test(css));
+  /* Rows must never scroll through the page-padding strip above the bar: the bar
+     is LIFTED by exactly that strip (CSS only — no observers), and the header is
+     offset by the same lift so the two stay flush. */
+  /* ── the transaction row: no fixed character limit, two lines, dynamic height ──
+     partyCell used to slice(0,36) the name and slice(0,38) the reference, which
+     chopped long party names while half the row sat unused. The name must now be
+     handed over WHOLE and clamped by CSS instead. */
+  const partyFn = src.slice(src.indexOf('function partyCell'), src.indexOf('function typeCell'));
+  const partyCode = partyFn.replace(/\/\*[\s\S]*?\*\//g, '');   // strip comments: they QUOTE the old cut
+  ok('the party name is never truncated by character count', !/\.slice\(\s*0\s*,/.test(partyCode));
+  ok('the title clamps to TWO lines instead (banking-app rule)', /-webkit-line-clamp:\s*2/.test(css) && /\.rc-party-nm/.test(css));
+  ok('  and a long unbroken narration can break rather than overflow', /overflow-wrap:\s*anywhere/.test(css));
+  ok('the transaction column takes the spare width but cannot widen the table', /\.rc-party \{[^}]*width:\s*100%[^}]*max-width:\s*0/.test(css));
+  ok('the full narration still lives in the expandable detail row', /rc-x-nar/.test(src) && /Narration/.test(src));
+  ok('date stays left / amount stays right, on one line', /\.rc-v3 td\.rc-mut, \.rc-v3 td\.r[^{]*\{[^}]*white-space:\s*nowrap/.test(css) && /\.rc-v3 td\.r \{[^}]*text-align:\s*right/.test(css));
+  /* The full-bleed bar must never be the element that overflows a phone. */
+  ok('the sticky bar bleeds by the REAL page gutter (no mobile overflow)', /--rc-gutter/.test(css) && /margin:\s*0 calc\(var\(--rc-gutter\) \* -1\)/.test(css));
+
+  ok('the bar is lifted to cancel the page-padding strip', /--rc-tb-lift/.test(css) && /top:\s*calc\(-1 \* var\(--rc-tb-lift/.test(css));
+  ok('  and the header subtracts that same lift', /top:\s*calc\(var\(--rc-tb-h[^)]*\) - var\(--rc-tb-lift/.test(css));
+}
+
 console.log('\n════ does the PAGE use the engine? ════\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));
+/* ══════════ date range lives on the TABLE, and actually filters ══════════
+   Asked for directly: "I want date filter on the above table so that I can
+   filter any time no need on the header". The header month picker scopes the
+   whole page; this narrows the rows being worked through. */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, 'reconcile.css'), 'utf8');
+  ok('the toolbar renders a date control', /dateBtnHTML\(\)/.test(js) && /id="rcDBtn"/.test(js));
+  ok('  it is in the table toolbar, not the page header',
+    js.indexOf('${dateBtnHTML()}') > js.indexOf('rc-toolbar2'));
+  ok('  the range is applied in the SAME chain as every other filter',
+    /if \(ST\.dFrom\)\s+r = r\.filter/.test(js) && /if \(ST\.dTo\)\s+r = r\.filter/.test(js));
+  ok('  both bounds are compared as ISO strings (no Date parsing, no timezone)',
+    /String\(t\.date \|\| ''\) >= ST\.dFrom/.test(js) && /String\(t\.date \|\| ''\) <= ST\.dTo/.test(js));
+  ok('  a backwards range is swapped, not silently empty',
+    /f > t\) \? t : f/.test(js) && /f > t\) \? f : t/.test(js));
+  ok('  the popover closes on click-away like the status menu',
+    /ST\.dOpen && !e\.target\.closest\('\.rc-dwrap'\)/.test(js));
+  /* .rc-dp was ALREADY the detail-panel drawer (absolute, right:0). Reusing it
+     stacked every preset at the menu's edge. Pin the distinct name. */
+  ok('  presets use a class no other rule owns', /class="rc-dpb /.test(js) && /\.rc-dpb \{/.test(css));
+  ok('  and .rc-dp is left to the detail panel', /\.rc-dp \{[^}]*position: absolute/.test(css));
+}
+
+/* ══════════ the summary strip must FOLLOW the filters ══════════
+   repaintList() replaces the strip by class. When the strip was renamed the
+   selector was left behind: querySelector returned null, the `if (s)` guard
+   swallowed it, and the totals silently kept showing pre-filter numbers while
+   still looking authoritative. Pin the two to each other. */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  const m = js.match(/return `<div class="(rc-summary\d*)"/);
+  ok('summaryHTML renders a known summary container', !!m);
+  const cls = m ? m[1] : '';
+  ok('  repaintList() replaces THAT container, not a stale class name',
+    !!cls && js.includes("document.querySelector('." + cls + "')"));
+  ok('  and the old four-card container is gone', !/class="rc-summary"/.test(js));
+}
+
+/* ══════════ duplicates must not be counted as money ══════════
+   A row flagged duplicate is the same bank line imported twice. Counting it
+   again overstates what moved through the account - a wrong number on a money
+   screen. The COUNT stays visible; only the money excludes them. */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  const i = js.indexOf('function summaryHTML');
+  const blk = js.slice(i, js.indexOf('function finOverviewHTML', i));
+  ok('summaryHTML drops duplicate rows before summing money',
+    /const real = tt\.filter\(t => statusKey\(t\) !== 'duplicate'\)/.test(blk));
+  ok('  money in/out are summed from that set, not the raw list',
+    /const cr = real\.reduce/.test(blk) && /dr = real\.reduce/.test(blk));
+  ok('  credit/debit counts too', /credN = real\.filter/.test(blk) && /debN = real\.filter/.test(blk));
+  ok('  and the duplicate count is still shown', /const dup = tt\.filter\(t => statusKey\(t\) === 'duplicate'\)/.test(blk));
+}
+
+/* ══════════ exception-first ordering ══════════
+   An accountant should not read 74 rows to find the 27 that need them. */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  ok('exception-first is the default', /exFirst: true/.test(js));
+  ok('  it is a TOGGLE, not a filter — plain date order is one click away',
+    /id="rcExFirst"/.test(js) && /ST\.exFirst = !ST\.exFirst/.test(js));
+  const i = js.indexOf('const rank = t =>');
+  const blk = i > 0 ? js.slice(i, i + 420) : '';
+  ok('  unmatched ranks above duplicate, partial, then settled',
+    /'unmatched'\) return 0/.test(blk) && /'duplicate'\) return 1/.test(blk) && /'partial'\) return 2/.test(blk));
+  ok('  and date remains the tie-break, so order is stable',
+    /\(rank\(a\) - rank\(b\)\) \|\| byDate\(a, b\)/.test(js));
+  ok('  nothing is hidden — it sorts, never filters',
+    !/exFirst[^\n]*filter\(/.test(js));
+}
+
+/* ══════════ reconciliation decisions are audited ══════════
+   reconcile.js called logAudit ZERO times: confirming a match, unlinking one,
+   marking a duplicate or categorising a line changed money-facing state with
+   no trace of who did it or what it was before. Q.auditRows() already reads
+   the log; only the write side was missing. */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  const dj = fs.readFileSync(path.join(__dirname, 'data.js'), 'utf8');
+  ok('data.js exposes the audit writer', /auditRows, logAudit,/.test(dj));
+  ok('reconcile has one audit helper', /function auditRecon\(/.test(js));
+  ['unlink', 'confirm', 'ignore', 'categorise'].forEach(a =>
+    ok('  ' + a + ' is audited', new RegExp("auditRecon\\('" + a + "'").test(js)));
+  /* mark/unmark duplicate share one call site via a ternary */
+  ok('  marking and unmarking a duplicate are audited',
+    /auditRecon\(on \? 'duplicate' : 'unduplicate'/.test(js));
+  ok('  the previous status is recorded, not just the new one', /was \+ . → . \+ now/.test(js) || /was && now/.test(js));
+  ok('  and an audit failure never blocks the action', /catch \(_\) \{ \/\* an audit failure/.test(js));
+}
+
+/* ══════════ audit VIEWER reads the rows the module writes ══════════ */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  ok('there is an audit view', /function auditHTML\(/.test(js) && /ST\.view === 'audit'/.test(js));
+  ok('  reachable from the toolbar', /data-view="audit"/.test(js));
+  ok('  it reads the real log', /Q\.auditRows \? Q\.auditRows\(\)/.test(js));
+  /* Scope to the viewer. The same string appears in the toolbar count, so a
+     whole-file grep passed with the filter deleted — caught by mutation. */
+  const blk = js.slice(js.indexOf('function auditHTML'), js.indexOf('function viewHTML'));
+  ok('  scoped to this module only', /all\.filter\(a => a\.module === 'recon'\)/.test(blk));
+  /* Not month-scoped on purpose: a trail you can quietly narrow is not a trail. */
+  ok('  and NOT narrowed by the month filter', !/inMonth\(/.test(blk) && !/monthTxns\(/.test(blk));
+}
+
+/* ══════════ removing duplicates: gated, audited, first copy kept ══════════ */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  const blk = js.slice(js.indexOf('function duplicateRows'), js.indexOf('function viewHTML'));
+  ok('duplicate removal exists and is wired', /function removeDuplicates\(/.test(js) && /\$\('rcRmDup'\)\.onclick = removeDuplicates/.test(js));
+  ok('  selection is the ENGINE flag, never same-amount-same-day', /statusKey\(t\) === 'duplicate'/.test(blk) && !/date.*amount|amount.*date/.test(blk.slice(0, blk.indexOf('function removeDuplicates'))));
+  ok('  a confirm() gates the destruction', /if \(!confirm\(/.test(blk));
+  ok('  every removal is audited', /auditRecon\('remove-duplicate'/.test(blk));
+  ok('  the array is spliced in place, not reassigned', /Q\.recon\.txns\.length = 0; Q\.recon\.txns\.push/.test(blk) && !/Q\.recon\.txns = /.test(blk));
+  ok('  the banner rides both list branches', (js.match(/return dupBar \+/g) || []).length === 2);
+}
+
+/* ══════════ statements: delete deep, or clear everything — gated + audited ══════════ */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  ok('imports stamp rows with their statement id', /t\.stmtId = _st\.id/.test(js));
+  const blk = js.slice(js.indexOf('function stmtTxnCount'), js.indexOf('function viewHTML'));
+  ok('a statement deletes together with ITS transactions', /t\.stmtId !== id/.test(blk));
+  ok('  clear-all empties txns AND the statement log', /sts\.forEach\(st => \{ if \(Q\.removeStatement\) Q\.removeStatement\(st\.id\); \}\);/.test(blk) && /Q\.recon\.txns\.length = 0;/.test(blk));
+  ok('  both destructions are confirm-gated', (blk.match(/if \(!confirm\(/g) || []).length >= 2);
+  ok('  and audited', (blk.match(/Q\.logAudit\('delete', 'recon'/g) || []).length >= 2);
+  ok('  reachable from the ⋯ menu', /id="rcStmts"/.test(js) && /\$\('rcStmts'\)\.onclick/.test(js));
+}
+
+/* ══════════ money posted BY a bank line dies WITH it ══════════
+   postOnAccount stores the only reversal handle on the txn (m.ledgerEntryId).
+   Deleting the txn without reversing strands the amount on a party's running
+   balance and in the cashbook with nothing left to reverse it by. Every
+   single-row unlink already reversed; the three BULK deletes did not. */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  ok('there is one reversal helper for bulk drops', /function reverseBeforeDrop\(/.test(js));
+  const blk = js.slice(js.indexOf('function reverseBeforeDrop'), js.indexOf('function viewHTML'));
+  ok('  it uses the index-safe reverser', /reverseLedgerSafe\(m\.partyIdx, m\.ledgerEntryId\)/.test(blk));
+  ['removeDuplicates', 'deleteStatement', 'clearBankData'].forEach(fn => {
+    const f = js.slice(js.indexOf('function ' + fn), js.indexOf('function ' + fn) + 1800);
+    ok('  ' + fn + ' reverses before dropping rows', /reverseBeforeDrop\(/.test(f));
+  });
+  ok('  and clear-all warns that on-account entries will be reversed', /will be REVERSED out of the party ledgers/.test(js));
+
+  /* ══════════ a row is only "duplicate" if a twin SURVIVES it ══════════
+     markDuplicate() flags any row the user picks, so selecting purely on the
+     status flag would delete a unique line — and the SHA-256 upload guard then
+     blocks re-importing the file to get it back. */
+  const dr = js.slice(js.indexOf('function duplicateRows'), js.indexOf('function removeDuplicates'));
+  ok('duplicate selection groups by the ENGINE key, not the flag alone', /RC\.dedupeKey\(npOf\(t\), t\)/.test(dr));
+  ok('  the first of each group is always kept', /if \(seen\[k\]\)/.test(dr) && /else seen\[k\] = 1/.test(dr));
+}
+
+if (fail) fails.slice(-12).forEach(f => console.log('    ✗ ' + f));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' WIRING TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');
 process.exit(fail === 0 ? 0 : 1);

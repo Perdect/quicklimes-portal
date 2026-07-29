@@ -73,9 +73,25 @@
 
 /* panel + table */
 .rc-panel { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 16px; box-shadow: var(--ql-shadow-xs); overflow: hidden; }
+/* THE SCROLL CONTAINER — same fix qlx.css documents for its grid.
+   `overflow-x: auto` alone silently makes this a scroll ancestor whose vertical
+   axis never scrolls, so the sticky thead inside it stuck to a box that never
+   moved: the header simply scrolled away with the page. Giving the wrap the
+   VERTICAL scroll (viewport-bounded) makes the header pin while rows scroll
+   under it, and keeps horizontal panning. Desktop only — mobile is cards. */
+/* ONE SCROLL CONTAINER on desktop. Two nested scrollers is what made the toolbar
+   and the table header collide: the toolbar pinned to the PAGE while the header
+   pinned to the table's own inner scroller, so as the page scrolled the table
+   slid up behind the toolbar and the two overlapped. With the wrap set to
+   `overflow: visible`, both pin to the SAME scrollport (.main) — toolbar at 0,
+   header directly below it — and rows scroll under both.
+   Mobile keeps overflow-x for horizontal panning (it renders as cards anyway). */
 .rc-tablewrap { overflow-x: auto; }
+@media (min-width: 769px) { .rc-tablewrap { overflow: visible; } }
 .rc-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; min-width: 780px; }
-.rc-table th { text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ql-text-muted); padding: 13px 12px; background: var(--ql-neutral-50); position: sticky; top: 0; }
+/* thead pins to the TOP OF ITS OWN SCROLL WRAP (see .rc-tablewrap above), so it
+   sits flush under the sticky toolbar with no white band between them. */
+.rc-table th { text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ql-text-muted); padding: 13px 12px; background: var(--ql-neutral-50); position: sticky; top: calc(var(--rc-tb-h, 88px) - var(--rc-tb-lift, 32px)); z-index: 4; box-shadow: 0 1px 0 var(--ql-border); }
 .rc-table th.r, .rc-table td.r { text-align: right; }
 .rc-table td { padding: 12px; border-top: 1px solid var(--ql-divider); vertical-align: middle; }
 .rc-table tbody tr:hover td { background: var(--ql-neutral-50); }
@@ -84,7 +100,12 @@
 .rc-mut { color: var(--ql-text-muted); } .rc-cr { color: var(--ql-success-600); font-weight: 700; } .rc-dr { color: var(--ql-danger-600); font-weight: 700; }
 .rc-match b { color: var(--ql-brand-600); font-weight: 700; } .rc-match span { display: block; font-size: 11px; color: var(--ql-text-muted); }
 .rc-badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 700; white-space: nowrap; }
-.rc-actcell { display: flex; gap: 4px; justify-content: flex-end; }
+/* A <td> must NOT be display:flex — that pulls the cell out of the table column
+   model, so the row divider stops short and the action column floats free of the
+   grid. Keep it a table-cell; align the buttons inline instead. */
+.rc-actcell { text-align: right; white-space: nowrap; }
+.rc-actcell > * { vertical-align: middle; }
+.rc-actcell > * + * { margin-left: 4px; }
 .rc-ib { width: 30px; height: 30px; border: 1px solid var(--ql-border); border-radius: 8px; background: var(--ql-card); color: var(--ql-text-secondary); cursor: pointer; display: grid; place-items: center; transition: all .13s; }
 .rc-ib svg { width: 15px; height: 15px; }
 .rc-ib:hover { border-color: var(--ql-brand-500); color: var(--ql-brand-600); background: var(--ql-brand-50, #eff4ff); }
@@ -151,6 +172,48 @@
 
 /* ══ split payment across bills ══ */
 .rc-modal-lg { max-width: 560px; }
+
+/* ── SIDE-BY-SIDE MATCH PICKER ────────────────────────────────────────────
+   Matching is a comparison, so the thing being compared has to stay on
+   screen. A centred modal covers the bank line you are matching; this docks
+   the picker to the right edge instead, leaving the statement table readable
+   on the left. The backdrop stays deliberately thin — it is there to catch
+   the click-away, not to hide the table behind it. */
+/* overflow:hidden clips the slide-in's start frame, which sits 26px past the
+   right edge — without it that frame can flash a horizontal scrollbar. */
+.rc-back.rc-side { align-items: stretch; justify-content: flex-end; padding: 0; background: rgba(15,23,42,.18); backdrop-filter: none; overflow: hidden; }
+.rc-back.rc-side .rc-modal { max-height: 100vh; height: 100vh; border-radius: 0; box-shadow: -20px 0 60px -22px rgba(15,23,42,.42); animation: rcSlideIn .18s cubic-bezier(.32,.72,0,1); }
+.rc-back.rc-side .rc-modal-lg { max-width: 880px; }
+@keyframes rcSlideIn { from { transform: translateX(26px); opacity: .4 } to { transform: none; opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .rc-back.rc-side .rc-modal { animation: none } }
+
+/* Two panes INSIDE the panel: what you have picked on the left, what you can
+   still pick on the right. Each scrolls on its own so a long candidate list
+   never pushes the running total out of view. */
+.rc-two { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 18px; align-items: start; }
+.rc-two-l, .rc-two-r { min-width: 0; display: flex; flex-direction: column; }
+.rc-two-r { border-left: 1px solid var(--ql-border); padding-left: 18px; }
+/* The panel owns the height, so the BODY must not be the scroller — if it is,
+   the running total scrolls away and the two panes stop being independent.
+   Every link in the chain needs min-height:0, and the grid row must stretch
+   (align-items:start would size each pane to its content and defeat all of
+   this — that was the first attempt, and the list grew to 2754px). */
+.rc-back.rc-side .rc-modal-b { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.rc-back.rc-side .rc-two { flex: 1; min-height: 0; align-items: stretch; grid-template-rows: minmax(0, 1fr); }
+.rc-back.rc-side .rc-two-l, .rc-back.rc-side .rc-two-r { min-height: 0; }
+.rc-back.rc-side .rc-al-list, .rc-back.rc-side .rc-picklist { flex: 1; overflow-y: auto; min-height: 0; }
+/* Panel mode gives us full height, so the modal-era vh caps must not apply. */
+.rc-back.rc-side .rc-picklist { max-height: none !important; }
+.rc-back.rc-side .rc-split-sum { grid-template-columns: 1fr; gap: 8px; }
+.rc-back.rc-side .rc-split-foot { margin-top: auto; padding-top: 14px; }
+/* Narrow screens have no room beside the table — fall back to a full-width
+   sheet with the panes stacked, which is the old behaviour plus height. */
+@media (max-width: 1180px) {
+  .rc-back.rc-side .rc-modal-lg { max-width: 560px; }
+  .rc-two { grid-template-columns: 1fr; gap: 14px; }
+  .rc-two-r { border-left: none; padding-left: 0; border-top: 1px solid var(--ql-border); padding-top: 14px; }
+  .rc-back.rc-side .rc-split-sum { grid-template-columns: repeat(3, 1fr); }
+}
 .rc-splitrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .rc-linkbtn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-brand-600, #2563eb); font: inherit; font-size: 12px; font-weight: 600; padding: 6px 11px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
 .rc-linkbtn:hover { background: var(--ql-brand-50, #eff4ff); border-color: var(--ql-brand-500); }
@@ -256,8 +319,29 @@
 .rc-fo-kv span { display: block; font-size: 11px; color: var(--ql-text-secondary); font-weight: 600; }
 .rc-fo-kv b { display: block; font-size: 15px; font-weight: 800; margin-top: 3px; }
 
-/* 4) single filter toolbar (sticky) */
-.rc-toolbar2 { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 0; margin-bottom: 8px; background: var(--ql-bg); }
+/* 4) single filter toolbar (sticky)
+   THE GAP: the toolbar pins at top:0 and the table's own thead ALSO pinned at
+   top:0, so as you scrolled the header slid under the toolbar and left a white
+   band between them (the "header / sub-header gap"). Fixes, together:
+     • the toolbar's negative top margin + padding swallow .main's own padding,
+       so it sits flush against the top-bar instead of leaving a strip;
+     • the thead pins BELOW the toolbar (--rc-tb-h), not under it. */
+:root { --rc-tb-h: 56px; }
+/* NO NEGATIVE TOP MARGIN on a sticky element. Sticky pins the MARGIN box, so a
+   -24px top margin parks the visible border box 24px BELOW the scrollport top —
+   and table rows scroll through that strip, appearing ABOVE the toolbar. The
+   horizontal negative margins are safe (full-bleed background); the vertical one
+   is not. */
+/* --rc-gutter MUST equal the page's own horizontal padding, or the full-bleed
+   negative margin overshoots and the bar becomes the one element wider than the
+   viewport (measured: -10px / +400px on a 390px screen). One variable, matched
+   per breakpoint, so the bar bleeds edge-to-edge without ever causing overflow. */
+.rc { --rc-gutter: var(--ql-space-6, 24px); }
+.rc-toolbar2 { position: sticky; top: calc(-1 * var(--rc-tb-lift, 32px)); z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 0 calc(var(--rc-gutter) * -1) 8px;
+  padding: calc(10px + var(--rc-tb-lift, 32px)) var(--rc-gutter) 10px;
+  background: var(--ql-bg); border-bottom: 1px solid var(--ql-border); }
+@media (max-width: 768px) { .rc { --rc-gutter: 14px; --rc-tb-lift: 14px; } }
 .rc-ftabs { display: flex; gap: 4px; flex-wrap: wrap; }
 /* Account chips (multi-bank): which bank account the whole screen is scoped to */
 .rc-accbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin: 2px 0 12px; }
@@ -368,15 +452,30 @@
    the other half and the table looked ragged. Every row is now name + reference,
    full stop. Recognition is a tick, not a sentence; Identify rides the reference
    line. Nothing here can add height. */
-.rc-party { min-width: 200px; }
-.rc-party-n { display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: 13px; color: var(--ql-text); }
-.rc-party-nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* THE TRANSACTION COLUMN TAKES THE SLACK. `width: 100%` on one cell of a table
+   makes it absorb every pixel the fixed columns (date, amount, status, action)
+   do not need — which is why the name had room to spare while being truncated. */
+/* `width:100%` + `max-width:0` is the table idiom for "take every spare pixel,
+   but never let your content widen the table". Without max-width:0 an unbroken
+   150-character narration sets a huge min-content width and the table grows past
+   its container (columns then get clipped). With it, the cell is bounded by the
+   available space and the clamp inside does the rest. */
+.rc-party { min-width: 220px; width: 100%; max-width: 0; white-space: normal; }
+.rc-party-n { display: flex; align-items: flex-start; gap: 5px; font-weight: 700; font-size: 13px; color: var(--ql-text); }
+/* TWO LINES, THEN ellipsis — the banking-app rule (GPay / PhonePe / CRED). The
+   row height follows the content instead of the text being cut to fit a fixed
+   height, and `anywhere` stops an unbroken 200-character narration from forcing
+   a horizontal scrollbar. */
+.rc-party-nm { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-clamp: 2;
+  overflow: hidden; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.35; }
 /* The tick that replaced "✓ Recognized as <name>" — the name is right beside it. */
 .rc-ok { display: inline-flex; flex: none; color: #16a34a; }
 .rc-ok svg { width: 13px; height: 13px; stroke-width: 2.6; }
+/* Secondary line: rail + reference. No max-width cap any more (that cap was the
+   other half of the wasted-space problem); it simply uses the column. */
 .rc-party-nar { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--ql-text-secondary);
-  max-width: 260px; margin-top: 1px; }
-.rc-nar-t { font-family: var(--ql-font-mono, ui-monospace), monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  margin-top: 1px; min-width: 0; }
+.rc-nar-t { font-family: var(--ql-font-mono, ui-monospace), monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .rc-idbtn { font: inherit; font-size: 11.5px; font-weight: 600; color: var(--ql-brand-600); background: none;
   border: none; cursor: pointer; padding: 0; text-decoration: underline; white-space: nowrap; flex: none; }
 .rc-idbtn:hover { color: var(--ql-brand-700); }
@@ -522,3 +621,227 @@
 
 /* Ledger sort select — matches the filter chrome next to it. */
 .rc-lg-sort { height: 32px; font-size: 12.5px; border-radius: 9px; padding: 0 8px; border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-text); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   v3 — AI-first reconciliation list.
+   Fewer columns (Date · Transaction · Amount · Status · Confidence · Review),
+   everything else in an expandable row. Scan first, detail on demand.
+   ═══════════════════════════════════════════════════════════════════════ */
+/* readable rhythm: bigger name, bigger amount, quieter reference */
+/* DENSITY: 7px vertical instead of 14 takes a row from 69px to ~53px — a
+   quarter more rows on screen with the same two-line content. */
+.rc-v3 td { padding: 7px 12px; }
+.rc-v3 .rc-party-nm { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }
+.rc-v3 .rc-party-nar { font-size: 12px; color: var(--ql-text-muted); margin-top: 2px; }
+.rc-v3 .rc-amt { font-size: 15.5px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.rc-v3 tbody tr.rc-clk { transition: background .12s; }
+.rc-v3 tbody tr.rc-clk:hover td { background: var(--ql-neutral-50); }
+.rc-v3 tr.rc-xopen td { background: var(--ql-brand-50, #eff6ff) !important; }
+[data-theme="dark"] .rc-v3 tr.rc-xopen td { background: rgba(37,99,235,.12) !important; }
+
+/* compact status chip — dot + word; the reason lives in the tooltip */
+.rc-schip { gap: 6px; padding: 4px 10px; font-size: 11.5px; }
+.rc-schip-d { width: 6px; height: 6px; border-radius: 50%; flex: none; opacity: .9; }
+
+/* confidence: number + bar (the ONE place the % is drawn) */
+.rc-cf { display: flex; flex-direction: column; gap: 4px; width: 78px; }
+.rc-cf-n { font-size: 12px; font-weight: 700; color: var(--ql-text); font-variant-numeric: tabular-nums; }
+.rc-cf-bar { width: 78px; height: 5px; border-radius: 99px; background: var(--ql-neutral-150, #e2e8f0); overflow: hidden; }
+.rc-cf-bar i { display: block; height: 100%; border-radius: 99px; transition: width .3s var(--ql-ease-out, ease); }
+[data-theme="dark"] .rc-cf-bar { background: rgba(255,255,255,.10); }
+
+/* expandable detail row */
+.rc-xrow > td { padding: 0 !important; background: var(--ql-neutral-50) !important; border-bottom: 1px solid var(--ql-border); }
+[data-theme="dark"] .rc-xrow > td { background: rgba(255,255,255,.03) !important; }
+.rc-x { display: grid; grid-template-columns: 1.2fr 1.2fr auto; gap: 22px; padding: 16px 18px; animation: rcXin .18s var(--ql-ease-out, ease); }
+@keyframes rcXin { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.rc-x-h { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ql-text-muted); margin-bottom: 6px; }
+.rc-x-nar { font-size: 12.5px; line-height: 1.55; color: var(--ql-text); word-break: break-word; }
+.rc-x-ids { font-size: 11.5px; color: var(--ql-text-secondary); margin-top: 6px; font-variant-numeric: tabular-nums; }
+.rc-x-type { margin-top: 9px; }
+.rc-x-why { margin: 6px 0 0; padding-left: 16px; font-size: 12px; line-height: 1.6; color: var(--ql-text-secondary); }
+.rc-x-acts { display: flex; flex-direction: column; gap: 8px; align-items: stretch; min-width: 150px; }
+.rc-x-acts .ql-btn { justify-content: center; white-space: nowrap; }
+@media (max-width: 860px) { .rc-x { grid-template-columns: 1fr; gap: 14px; } .rc-x-acts { flex-direction: row; flex-wrap: wrap; } }
+
+/* render cap — honest paging for very large statements */
+.rc-morebar { text-align: center; padding: 14px !important; background: var(--ql-neutral-50); }
+[data-theme="dark"] .rc-morebar { background: rgba(255,255,255,.03); }
+
+/* Dark mode: the Review button used --ql-card on --ql-brand-600 text, which on a
+   dark surface is dark-on-dark and effectively unreadable. Give it a legible
+   tinted surface and a light brand ink. */
+[data-theme="dark"] .rc-review { background: rgba(37,99,235,.18); border-color: rgba(37,99,235,.42); color: #bfdbfe; }
+[data-theme="dark"] .rc-review:hover { background: var(--ql-brand-600, #2563eb); border-color: var(--ql-brand-600, #2563eb); color: #fff; }
+[data-theme="dark"] .rc-kebab { color: var(--ql-text-secondary); }
+
+/* .rc-panel used overflow:hidden (for its rounded corners) — but overflow:hidden
+   ESTABLISHES A SCROLL CONTAINER, so the sticky header would pin to the panel
+   (which never scrolls) and slide away with the page again. `overflow: clip`
+   clips identically WITHOUT creating a scroll container, so sticky still
+   resolves against .main. */
+@media (min-width: 769px) { .rc-panel { overflow: clip; } }
+
+
+/* Keep the fixed columns on one line so the flexible Transaction column gets the
+   remaining width, and the amount stays hard right-aligned however tall the row
+   grows. Date stays left. Rows are dynamic-height: no fixed row height anywhere. */
+.rc-v3 td.rc-mut, .rc-v3 td.r, .rc-v3 .rc-actcell { white-space: nowrap; }
+.rc-v3 td.r { text-align: right; vertical-align: middle; }
+.rc-v3 td { vertical-align: middle; }
+.rc-v3 .rc-party { vertical-align: middle; }
+/* Long narrations must never break the table out horizontally. */
+.rc-table { table-layout: auto; }
+/* WHY THE GAP: every other column is nowrap, so Transaction is the only
+   flexible one and swallows all leftover width — on a wide monitor that reads
+   as a big empty band between the narration and the amount. Capping the
+   transaction column keeps the amounts right-aligned (as asked) while pulling
+   the money columns back toward the text instead of stranding them at the far
+   edge. It is a max, not a fixed width, so a long narration still uses the
+   room it needs. */
+@media (min-width: 1250px) {
+  /* max-width on a cell does nothing in table-layout:auto — the algorithm
+     hands leftover width to the flexible column regardless. Capping the TABLE
+     is what works: the slack becomes trailing space at the edge, which reads
+     as padding, instead of a hole between the narration and the amount. */
+  .rc-table { max-width: 1180px; }
+  .rc-table th:nth-child(3), .rc-table td:nth-child(3) { width: 44%; }
+}
+.rc-v3 .rc-party-n, .rc-v3 .rc-party-nar { min-width: 0; }
+@media (max-width: 900px) { .rc-party { min-width: 160px; } }
+
+
+/* ── date range on the table toolbar ───────────────────────────────────────
+   Beside the rows it filters, not in the page header: the header month picker
+   scopes the whole page, this narrows what you are working through. */
+.rc-dwrap { position: relative; }
+.rc-dbtn { display: inline-flex; align-items: center; gap: 7px; font: 600 12.5px var(--ql-font-sans);
+  color: var(--ql-text-secondary); background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: 10px; padding: 8px 12px; cursor: pointer; white-space: nowrap; }
+.rc-dbtn:hover { color: var(--ql-text); border-color: var(--ql-brand-400, #60a5fa); }
+.rc-dbtn.on { color: var(--ql-brand-700, #1d4ed8); border-color: var(--ql-brand-400, #60a5fa); background: var(--ql-brand-50, #eff6ff); }
+[data-theme="dark"] .rc-dbtn.on { background: rgba(37,99,235,.16); color: #93c5fd; }
+.rc-dbtn svg { width: 14px; height: 14px; }
+.rc-dmenu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; width: 268px;
+  background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15,23,42,.14); padding: 10px; }
+[data-theme="dark"] .rc-dmenu { box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+.rc-dpre { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.rc-dpb { font: 600 11.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-neutral-50);
+  border: 1px solid transparent; border-radius: 8px; padding: 7px 9px; cursor: pointer; text-align: left; }
+.rc-dpb:hover { color: var(--ql-text); border-color: var(--ql-border); }
+.rc-dpb.on { background: var(--ql-brand-50, #eff6ff); color: var(--ql-brand-700, #1d4ed8); border-color: var(--ql-brand-400, #60a5fa); }
+[data-theme="dark"] .rc-dpb { background: rgba(255,255,255,.04); }
+[data-theme="dark"] .rc-dpb.on { background: rgba(37,99,235,.18); color: #93c5fd; }
+.rc-drow { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+.rc-drow label { font: 600 11px var(--ql-font-sans); color: var(--ql-text-muted); width: 34px; flex: none; }
+.rc-drow input { flex: 1; min-width: 0; font: 500 12.5px var(--ql-font-sans); color: var(--ql-text);
+  background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 8px; padding: 6px 8px; }
+.rc-dfoot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+.rc-dclr { font: 600 11.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: none; border: 0; cursor: pointer; padding: 4px 2px; }
+.rc-dclr:hover { color: #dc2626; }
+.rc-dn { font: 500 11px var(--ql-font-sans); color: var(--ql-text-muted); }
+
+/* ── ONE dense summary strip (replaces the four KPI cards) ─────────────────
+   The cards cost ~100px above the table for four numbers read at a glance.
+   More transactions on screen is the point of this page. */
+.rc-summary2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px;
+  padding: 9px 12px; margin-bottom: var(--ql-space-4, 16px); }
+.rc-s2 { display: inline-flex; align-items: baseline; gap: 7px; padding: 4px 10px; border-radius: 999px;
+  font: 500 12px var(--ql-font-sans); color: var(--ql-text-secondary); white-space: nowrap; }
+.rc-s2 svg { width: 13px; height: 13px; align-self: center; flex: none; }
+.rc-s2 b { font: 800 15px var(--ql-font-sans); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ql-text); }
+.rc-s2 b small { font-size: 11.5px; font-weight: 700; color: var(--ql-text-muted); }
+.rc-s2 i { font-style: normal; }
+.rc-s2.g { background: #f0fdf4; color: #15803d; } .rc-s2.g b { color: #15803d; }
+.rc-s2.r { background: #fef2f2; color: #b91c1c; } .rc-s2.r b { color: #b91c1c; }
+.rc-s2.b { background: #eff6ff; color: #1d4ed8; } .rc-s2.b b { color: #1d4ed8; }
+.rc-s2.p { background: #fffbeb; color: #b45309; } .rc-s2.p b { color: #b45309; }
+[data-theme="dark"] .rc-s2.g { background: rgba(22,163,74,.15); color: #4ade80; } [data-theme="dark"] .rc-s2.g b { color: #4ade80; }
+[data-theme="dark"] .rc-s2.r { background: rgba(239,68,68,.15); color: #fca5a5; } [data-theme="dark"] .rc-s2.r b { color: #fca5a5; }
+[data-theme="dark"] .rc-s2.b { background: rgba(37,99,235,.18); color: #93c5fd; } [data-theme="dark"] .rc-s2.b b { color: #93c5fd; }
+[data-theme="dark"] .rc-s2.p { background: rgba(245,158,11,.15); color: #fbbf24; } [data-theme="dark"] .rc-s2.p b { color: #fbbf24; }
+@media (max-width: 640px) { .rc-s2 { font-size: 11.5px; } .rc-s2 b { font-size: 14px; } }
+
+/* ── "Reconciled against": a fact, not a score ─────────────────────────────
+   Replaces the AI-confidence bar, which showed how sure the matcher was but
+   never WHAT it matched. Confidence still lives in the expandable row. */
+.rc-mt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.rc-mt-d { font: 700 12.5px var(--ql-font-sans); color: var(--ql-text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-mt-w { font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── exception-first toggle ── */
+.rc-exbtn { display: inline-flex; align-items: center; gap: 7px; font: 600 12.5px var(--ql-font-sans);
+  color: var(--ql-text-secondary); background: var(--ql-card); border: 1px solid var(--ql-border);
+  border-radius: 10px; padding: 8px 12px; cursor: pointer; white-space: nowrap; }
+.rc-exbtn:hover { color: var(--ql-text); border-color: var(--ql-brand-400, #60a5fa); }
+.rc-exbtn.on { color: #b45309; border-color: #fde68a; background: #fffbeb; }
+[data-theme="dark"] .rc-exbtn.on { background: rgba(245,158,11,.14); border-color: rgba(245,158,11,.3); color: #fbbf24; }
+.rc-exbtn svg { width: 14px; height: 14px; }
+
+/* ── audit trail view ─────────────────────────────────────────────────────
+   Read-only, and deliberately not month-scoped: a trail you can quietly
+   narrow is not a trail. */
+.rc-audit-t { font: 500 12px var(--ql-font-sans); color: var(--ql-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rc-audit-a { font: 700 12px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-neutral-50); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+[data-theme="dark"] .rc-audit-a { background: rgba(255,255,255,.07); }
+.rc-audit-c { font: 500 12px var(--ql-font-sans); color: var(--ql-text-secondary); }
+.rc-audit-b { font: 600 12px var(--ql-font-sans); color: var(--ql-text-secondary); white-space: nowrap; }
+.rc-audit-n { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); margin-left: 10px; }
+
+/* Customer vs Supplier — the side of the trade, where the party name used to
+   be repeated from the Transaction column. */
+.rc-side { font-weight: 700; }
+.rc-side.cust { color: #15803d; }
+.rc-side.sup { color: #b45309; }
+[data-theme="dark"] .rc-side.cust { color: #4ade80; }
+[data-theme="dark"] .rc-side.sup { color: #fbbf24; }
+
+/* ── duplicate cleanup banner ── */
+.rc-dupbar { display: flex; align-items: center; gap: 10px; background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 12px; padding: 9px 14px; margin-bottom: 10px; font: 500 13px var(--ql-font-sans); color: #991b1b; }
+[data-theme="dark"] .rc-dupbar { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); color: #fca5a5; }
+.rc-dupbar svg { width: 15px; height: 15px; flex: none; }
+.rc-dupbar b { font-weight: 800; }
+.rc-dupbar-b { margin-left: auto; font: 700 12px var(--ql-font-sans); color: #fff; background: #dc2626; border: 0;
+  border-radius: 999px; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+.rc-dupbar-b:hover { background: #b91c1c; }
+
+/* ── one-block header: accounts under the title, overflow actions in ⋯ ── */
+.rc-hero-l { min-width: 0; }
+.rc-hero-l .rc-accbar { margin: 10px 0 0; padding: 0; border: 0; background: none; }
+.rc-hero { align-items: flex-start; }
+.rc-morew { position: relative; }
+.rc-btn-more { padding: 9px 10px; }
+.rc-btn-more.on { border-color: var(--ql-brand-400,#60a5fa); color: var(--ql-brand-700,#1d4ed8); }
+.rc-btn-more svg { width: 16px; height: 16px; }
+.rc-moremenu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 70; width: 280px;
+  background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15,23,42,.14); padding: 6px; }
+[data-theme="dark"] .rc-moremenu { box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+.rc-more-it { display: grid; grid-template-columns: 18px 1fr; grid-template-rows: auto auto; column-gap: 10px;
+  align-items: center; width: 100%; text-align: left; background: none; border: 0; border-radius: 10px;
+  padding: 9px 10px; cursor: pointer; }
+.rc-more-it:hover { background: var(--ql-neutral-50); }
+[data-theme="dark"] .rc-more-it:hover { background: rgba(255,255,255,.05); }
+.rc-more-it svg { width: 15px; height: 15px; grid-row: 1 / 3; color: var(--ql-text-secondary); }
+.rc-more-it span { font: 600 13px var(--ql-font-sans); color: var(--ql-text); }
+.rc-more-it em { font: 500 11px var(--ql-font-sans); font-style: normal; color: var(--ql-text-muted); }
+/* the merged insights card: AI digest as the summary row */
+.rc-fo-h .rc-aibar-ic { flex: none; }
+.rc-fo-h .rc-aibar-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.rc-fo-h .rc-aibar-btn { flex: none; }
+
+/* ── statements manager ── */
+.rc-stmts { display: flex; flex-direction: column; gap: 8px; }
+.rc-stmt { display: flex; align-items: center; gap: 12px; border: 1px solid var(--ql-border); border-radius: 12px; padding: 10px 12px; }
+.rc-stmt-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rc-stmt-t b { font: 700 13px var(--ql-font-sans); color: var(--ql-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-stmt-t span { font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-muted); }
+.rc-stmt-del { flex: none; font: 700 11.5px var(--ql-font-sans); color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.rc-stmt-del:hover { background: #fee2e2; }
+[data-theme="dark"] .rc-stmt-del { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); color: #fca5a5; }
+.rc-stmt-foot { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }

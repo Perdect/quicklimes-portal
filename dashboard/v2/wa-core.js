@@ -76,6 +76,38 @@
     return '';                                                        // landline / junk / truncated
   }
 
+  /* ── is this number reachable on WhatsApp at all? ──────────────────────
+     normalizePhone() sees digits only, and that is not enough: an Ahmedabad
+     landline (079 4023 5235) reduces to 7940235235 — ten digits starting 7,
+     identical in shape to a mobile. The user hit exactly this and got "The
+     phone number +917940235235 isn't on WhatsApp."
+
+     The RAW string still carries the answer in two places:
+       • a leading trunk 0 marks a landline;
+       • Indian landlines are written STD + subscriber (79 4023 5235 /
+         124 494 2555), while mobiles come as one 10-digit run or 5+5.
+     Directory sources (Google Places, OSM) preserve that grouping, so we read
+     it instead of discarding it.
+
+     Deliberately biased towards hiding: a hidden button on a real mobile costs
+     one tap on Call, while a shown button on a landline opens a dead chat. */
+  function isMobileNumber(raw, cc) {
+    cc = cc || '91';
+    var s = String(raw == null ? '' : raw).trim();
+    if (!s) return false;
+    var nat = s.replace(/^\+?(?:00)?/, '');
+    if (nat.indexOf(cc) === 0 && nat.replace(/\D/g, '').length > 10) nat = nat.slice(cc.length);
+    nat = nat.replace(/^[\s\-()]+/, '');
+    /* No explicit trunk-0 rule: every leading-0 form is already rejected by
+       the grouping rule (079 4023 5235) or by the length rule (07940235235 is
+       11 digits). A branch no test can fail is a branch that rots. */
+    var groups = nat.split(/[\s\-().]+/).filter(Boolean);
+    if (groups.length > 1 && /^\d{2,4}$/.test(groups[0])) return false;   // STD code + subscriber
+    var d = nat.replace(/\D/g, '');
+    if (d.length !== 10) return false;
+    return /^[6-9]/.test(d);                                  // Indian mobile series
+  }
+
   /* ── templates ────────────────────────────────────────────────────────
      Text is data, not code — these are defaults the user can override, and
      the same strings are what get submitted to Meta for template approval
@@ -295,7 +327,8 @@
   }
 
   return {
-    normalizePhone: normalizePhone, money: money, niceDate: niceDate,
+    normalizePhone: normalizePhone,
+    isMobileNumber: isMobileNumber, money: money, niceDate: niceDate,
     addDays: addDays, daysBetween: daysBetween, dueDateOf: dueDateOf,
     stepFor: stepFor, stepLabel: stepLabel, sendKey: sendKey, render: render,
     planReminders: planReminders, planStatements: planStatements, planDispatch: planDispatch,

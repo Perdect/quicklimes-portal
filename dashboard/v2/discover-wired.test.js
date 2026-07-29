@@ -57,8 +57,11 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
 
 /* ── a no-key user still has a way through ── */
 {
-  ok(/Paste \/ import/.test(html), 'the page offers the no-key path (paste / import a list)');
-  ok(/dcImport/.test(bare) && /crm\.html/.test(bare), '  wired to the ranked importer');
+  /* The hero (greeting + stat pills + Run discovery / Ask AI / Review leads /
+     Paste-import) was REMOVED at the user's request — it pushed the search and
+     the leads below the fold. The import path still exists inside the Pipeline
+     tab, so the no-key route is not lost. */
+  ok(/plImport/.test(bare) && /crm\.html|dcImport/.test(bare), 'the no-key import path is still reachable (pipeline tab)');
 }
 
 /* ── the half-wired trap: the page must load what it uses ── */
@@ -104,7 +107,10 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/dcCity'\)\.value = state/.test(bare), '  findInMarket searches the TARGET STATE, not the home city');
   // The "Try:" suggestions must come from the market brain and aim nationally —
   // the old hardcoded Jodhpur/Jaipur/Nagaur list is what this feature replaces.
-  ok(/function marketSuggestions\(/.test(bare) && /LM\.plan\(/.test(bare.slice(bare.indexOf('function marketSuggestions'))), 'the "Try:" chips are derived from the market plan');
+  /* The "Try:" suggestion cards were REMOVED at the user's request. Pin the
+     removal so they do not return with the next tidy-up. */
+  ok(!/function marketSuggestions\(/.test(bare) && !/id="dcChips"/.test(html),
+    'the suggestion cards are gone (removed on request)');
   ok(/state !== 'Rajasthan'/.test(bare), '  and skip the home state (the point is to look beyond Rajasthan)');
   ok(!/\['[^']*', 'Jodhpur'\]/.test(bare) && !/, 'Nagaur'\]/.test(bare), '  no hardcoded local-only Rajasthan suggestions remain');
   ok(!/within 100km of Jodhpur/.test(html), '  the search placeholder no longer pushes a local Jodhpur example');
@@ -112,7 +118,8 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
 
 /* ── Phase 1: AI-first compact layout (hero · sections · copilot) ── */
 {
-  ok(/id="dcHero"/.test(html) && /id="dcHeroStats"/.test(html), 'the page has an AI hero with a stats slot');
+  ok(!/id="dcHero"/.test(html) && !/dc-hero-actions/.test(html), 'the hero block is gone (removed on request) — search leads the page');
+  ok(html.split('<div class="dash"').length === 2 && (html.slice(html.indexOf('<div id="ql-page">'), html.indexOf('<script src=')).split('<div').length === html.slice(html.indexOf('<div id="ql-page">'), html.indexOf('<script src=')).split('</div>').length), '  and the markup is still balanced (no stray </div> closing .dash early)');
   ok(/id="dcSecTabs"/.test(html) && /data-sec="copilot"/.test(html) && /data-sec="markets"/.test(html) && /data-sec="leads"/.test(html), 'three progressive-disclosure sections (Copilot / Markets / Leads)');
   ok(/id="secMarkets" hidden/.test(html) && /id="secLeads" hidden/.test(html), '  Markets & Leads start hidden — one section visible at a time');
   ok(/id="dcFilters" hidden/.test(html) && /dc-row\[hidden\] \{ display: none/.test(html), '  advanced filters collapse by default (and the [hidden] grid rule is restored)');
@@ -145,7 +152,22 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
 
 /* ── Phase 3: lead cards + Company 360° drawer ── */
 {
-  ok(/lc-grid/.test(bare) && /class="lc"/.test(bare) && /data-open=/.test(bare), 'results render as clickable lead cards (not a table)');
+  /* v4: contact-first SALES ROWS, not freight cards. A lead row exists so a
+     salesperson can call the company — freight belongs in the Freight tab. */
+  ok(/lc-list/.test(bare) && /class="lr"/.test(bare) && /data-open=/.test(bare), 'results render as clickable sales rows');
+  /* `bare` already has comments stripped, so this checks CODE — a comment that
+     merely explains the removal must not fail the test. */
+  const pt = bare.slice(bare.indexOf('function paintTable'));
+  const ptBody = pt.slice(0, pt.indexOf('\n}\n'));
+  ok(!/leadEconomics/.test(ptBody), '  no freight/distance computed for the row');
+  ok(!/freight/i.test(ptBody), '  no freight text rendered on the row');
+  ok(/href="tel:/.test(bare) && /mailto:/.test(bare), '  phone dials and email composes straight from the row');
+  /* The Maps circle was removed at the user's request. Pin its absence, or it
+     creeps back the next time someone "restores" a row action. */
+  ok(!/google\.com\/maps\/search/.test(bare), '  and no Maps link remains in the module');
+  ok(/lr-addr/.test(bare) && /r\.address/.test(bare), '  the FULL Google address is shown, not a truncated city');
+  ok(/lr-rate/.test(bare) && /r\.rating/.test(bare), '  the Google rating is shown');
+  ok(/data-promote=/.test(bare) && /data-assess=/.test(bare) && /data-msg=/.test(bare), '  Promote / Assess / Message stay wired');
   ok(/function leadEconomics\(/.test(bare) && /r\.lat == null \|\| r\.lng == null/.test(bare), 'per-lead freight is computed ONLY when the lead has coordinates (never invented)');
   ok(/function openLeadDrawer\(/.test(bare) && /id="lcDrawer"/.test(html), 'a Company 360° side-drawer exists');
   const od = bare.slice(bare.indexOf('function openLeadDrawer'), bare.indexOf('function closeLeadDrawer') > 0 ? bare.length : bare.length);
@@ -176,6 +198,110 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/leadPayload\(/.test(bare) && !/price|gstin|revenue/.test(bare.match(/function leadPayload[^}]+}/)[0]), '  only real lead fields are sent to the AI (no invented data)');
 
   // Server: the AI door is key-gated, falls back cleanly, and names no provider.
+  /* upsertLead's UPDATE rewrites every column it picks, so a partial payload
+     is a silent delete — a stage move that omits score/next_action wipes them.
+     Every call must therefore layer the change onto the lead we already hold. */
+  /* ── the four KPI cards became ONE compact strip ──
+     They cost ~140px above the leads and said very little. Pin the replacement
+     so nobody reinstates the cards, and pin what it may NOT claim: a directory
+     row carries no decision-maker, GST or "verified" data. */
+  ok(!/id="kNew"/.test(html) && !/class="dc-kpi"/.test(html), 'the four large stat cards are gone');
+  ok(/id="dcSum"/.test(html) && /function summaryStats\(/.test(bare), '  replaced by one compact summary strip');
+  /* Each coverage figure must be COUNTED. Checking that "some" count uses
+     ROWS.filter passes while another is hardcoded — caught by mutation. */
+  ['withPhone', 'withEmail', 'withWeb', 'reachable'].forEach(v =>
+    ok(new RegExp('const ' + v + ' *= *ROWS\\.filter\\(').test(bare),
+      '  ' + v + ' is counted from the rows, never a fixed number'));
+  {
+    const i = bare.indexOf('function paintKpis');
+    const blk = i > 0 ? bare.slice(i, i + 1600) : '';
+    ok(blk.length > 100, '  (the summary painter is where it should be)');
+    ok(!/decision|gst|verified|open now/i.test(blk),
+      '  and it invents no decision-maker / GST / verified figure');
+  }
+
+
+  /* ── the AI summary panel ──
+     It must describe the rows ON SCREEN, and must not claim data this app has
+     never held. */
+  ok(/function insightData\(/.test(bare) && /function openInsights\(/.test(bare), 'the result set has an AI summary panel');
+  ok(/const rows = visibleRows\(\)/.test(bare.slice(bare.indexOf('function insightData'))),
+    '  built from the visible rows, so it tracks the tab and filters');
+  ok(/LA\.matchIndustry\(x\.k, LM\.INDUSTRIES\)/.test(bare),
+    '  the lime use-case comes from the industry engine, not prose');
+  {
+    const i = bare.indexOf('function insightHTML');
+    const blk = i > 0 ? bare.slice(i, bare.indexOf('function openInsights', i)) : '';
+    ok(blk.length > 200, '  (the panel body is where it should be)');
+    ok(/not.{0,20}in this data|will not invent/i.test(blk),
+      '  and it states plainly that GST / decision-makers / company size are absent');
+    ok(/waReachable/.test(bare.slice(bare.indexOf('function insightData'), bare.indexOf('function insightHTML'))),
+      '  WhatsApp reach counts mobiles only, matching the row buttons');
+  }
+
+  /* ── export must agree with the screen ──
+     Exporting "everything" while the screen shows a filtered 12 is how someone
+     ends up working the wrong list. */
+  ok(/function exportRows\(/.test(bare) && /function visibleRows\(/.test(bare), 'the visible rows can be exported');
+  ok(/ROWS\.filter\(r => r\.status === TAB\)\.filter\(passesFilters\)/.test(bare),
+    '  and the export takes the CURRENT tab and filters, not the whole store');
+  ok(/\\ufeff/.test(bare), '  with a BOM so Excel reads Indian names and the rupee sign');
+  ok(/replace\(\/"\/g, .""\.\)/.test(bare) || /csvCell/.test(bare), '  and cells with commas or quotes are escaped');
+
+  /* ── the search must stay reachable once the hero scrolls away ── */
+  ok(/id="dcFloat"/.test(html) && /floatingSearch/.test(bare), 'a floating search takes over on scroll');
+  ok(/\.dc-float\[hidden\]/.test(html),
+    '  and [hidden] beats its display:flex, or it sits in the layout permanently');
+  ok(/ai\.value = inp\.value\.trim\(\); runSearch\(\)/.test(bare) || /runSearch\(\)/.test(bare.slice(bare.indexOf('floatingSearch'))),
+    '  it runs the SAME search path, not a second copy');
+  ok(/localStorage\.getItem\('ql_dc_sec'\) \|\| 'leads'/.test(bare), 'Leads is the default section');
+
+  /* ── the message engine: real LLM first, template as fallback ──
+     /api/discover has had an LLM writer behind action:'message' since it was
+     built, with NOTHING calling it — so every draft came from the local
+     template and the refine chips only swapped words. */
+  ok(/action: 'message'/.test(bare), "the LLM message writer has a caller (action:'message')");
+  ok(/refine: refine/.test(bare) || /refine: refine \|\| ''/.test(bare), '  the refine chips go through it too');
+  ok(/type, channel: ch/.test(bare), '  and it is told which message type and channel to write');
+  ok(/function localDraft\(/.test(bare) && /LA\.refine\(before/.test(bare),
+    '  the local template still runs when the server cannot answer');
+
+  /* Honesty: a template must never be presented as AI. The user is showing
+     this to customers; "AI-personalised" over template text is a small lie
+     that costs trust. */
+  {
+    const i = bare.indexOf('async function serverDraft');
+    const blk = i > 0 ? bare.slice(i, bare.indexOf('async function regen', i)) : '';
+    ok(blk.length > 100, '  (the server-draft path is where it should be)');
+    ok(/setEngine\('Written by AI/.test(blk), '  it claims AI only on a successful model reply');
+    ok(/llm_not_configured/.test(blk) && /Smart template/.test(blk),
+      '  and says "smart template" plainly when there is no key or the model fails');
+    const claims = blk.split('\n').filter(l => /Written by AI/.test(l));
+    ok(claims.length === 1 && /resp\.model \|\| resp\.provider/.test(claims[0]),
+      '  the AI label is emitted once, next to the model that produced it');
+  }
+
+  /* ── promoted-before-the-board companies can be backfilled ── */
+  ok(/action: 'backfillLeads'/.test(bare), "the pipeline backfill has a caller (action:'backfillLeads')");
+  ok(/orphanCos/.test(bare) && /filter\(c => !\(PIPE\.leads \|\| \[\]\)\.some/.test(bare),
+    '  offered only when promoted companies actually lack a lead row');
+  ok(/bf\.disabled = true/.test(bare), '  the button disables while the call is in flight');
+
+  /* CRMCore.nextActions() shipped with no caller — a "follow-ups due" count you
+     could not act on. Pin the caller AND the way to set a next step, or this
+     silently reverts to a decorative number. */
+  ok(/CC\.nextActions\(/.test(bare), 'the follow-up engine has a caller (nextActions)');
+  ok(/pd-due-i/.test(bare) && /data-due=/.test(bare), '  overdue leads render as a clickable call list');
+  ok(/plNextSave/.test(bare) && /next_action_at:/.test(bare), '  and a next step can actually be set from the lead panel');
+
+  ok(/function leadPatch\(/.test(bare), 'stage moves send the whole lead, not a partial patch (leadPatch)');
+  {
+    const calls = bare.match(/action: 'upsertLead', lead: [^}]*\}/g) || [];
+    const partial = calls.filter(c => !/leadPatch\(/.test(c) && !/id: 0/.test(c));
+    ok(partial.length === 0, '  no upsertLead call builds a partial lead literal'
+      + (partial.length ? ' — found: ' + partial[0].slice(0, 90) : ''));
+  }
+
   const php = R('../api/discover.php');
   ok(/\$action === 'assess' \|\| \$action === 'message'/.test(php), 'discover.php has the assess/message actions');
   ok(/ql_llm\(\)/.test(php) && /'fallback' => true/.test(php) && /llm_not_configured/.test(php), '  no key → { fallback:true } so the client uses local rules');
@@ -267,10 +393,33 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/ql_effective_mapbox_token\(/.test(dp) && /'mapbox' =>/.test(dp), '  reports mapbox availability (config OR the DB-stored per-plant token)');
   ok(/action === 'save_mapbox'/.test(dp) && /app_data/.test(dp) && /pk\\\.\[A-Za-z0-9/.test(dp), '  owner can save a Mapbox token IN THE APP (validated pk., stored in app_data)');
   ok(/function connectMapbox\(/.test(bare) && /'save_mapbox'/.test(bare), '  discover.js has the self-serve Mapbox connect flow');
+  // REGRESSION GUARD: api() injects the session under `token`; the Mapbox token
+  // must ride a DIFFERENT field or it overwrites the session → Unauthorized.
+  ok(/save_mapbox', mapbox_token:/.test(bare) && !/save_mapbox', token/.test(bare), '  the Mapbox token is sent as mapbox_token (never `token`, which is the session)');
+  ok(/\$b\['mapbox_token'\]/.test(dp), '  and discover.php reads mapbox_token');
   const db = R('../api/db.php');
   ok(/function ql_mapbox_search\(/.test(db) && /function ql_mapbox_parse\(/.test(db), 'db.php has ql_mapbox_search + parse');
   ok(/MAPBOX_TOKEN/.test(db) && /ql_norm_name\(/.test(db.slice(db.indexOf('function ql_mapbox_parse'))), '  token stays server-side; parse uses the shared name-key (same dedupe spine)');
   ok(/searchbox\/v1\/forward/.test(db) && /country=in/.test(db), '  calls the Mapbox Search Box API, scoped to India');
+}
+
+/* ── Google self-serve connect (same pattern as Mapbox) ── */
+{
+  ok(/function connectGoogle\(/.test(bare) && /'save_google'/.test(bare), 'discover.js has the self-serve Google connect flow');
+  ok(/save_google', google_key:/.test(bare) && !/save_google', token/.test(bare), '  the key rides `google_key`, never `token` (which is the session)');
+  const dp2 = R('../api/discover.php');
+  ok(/action === 'save_google'/.test(dp2) && /AIza/.test(dp2), '  discover.php validates + stores an AIza key');
+  ok(/ql_effective_google_key\(/.test(dp2), '  search + sources use config OR the DB-stored key');
+  /* Saving one provider must never wipe the other out of the shared row. */
+  ok(/ql_plant_google_key\(\$db, \$plantId\)[\s\S]{0,200}mapbox_token/.test(dp2) || /'google_key' => ql_plant_google_key/.test(dp2), '  saving Mapbox preserves the Google key (shared row)');
+}
+
+/* ── the empty/seen notice must tell the TRUTH (2026-07-28 regression) ── */
+{
+  ok(!/No matches in OpenStreetMap for/.test(bare) || /srcName/.test(bare), 'the empty notice names the source that ACTUALLY ran (not hardcoded OpenStreetMap)');
+  ok(/SRC === 'mapbox' \? 'Mapbox'/.test(bare) && /'Google Maps'/.test(bare), '  Mapbox / Google / OSM each named correctly');
+  ok(/added === 0 && dupes === 0 && seen > 0/.test(bare), '  results that are ALL already-known are reported as found, never as "no matches"');
+  ok(/already in your list/.test(bare), '  and the user is told where they are');
 }
 
 /* ── the key never reaches the browser ── */
@@ -297,7 +446,33 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/function pipeTemp\(/.test(bare), 'temperature is derived from the ICP fit score (pipeTemp)');
   ok(/l\.score/.test(bare) && /Unscored/.test(bare), '  temperature reads lead.score and stays honest when unscored');
   ok(/pk-band/.test(html) && /class="pk-card"/.test(bare), '  renders a KPI band (Total/Hot/Warm/Cold/Open/Onboarded/value/conversion)');
-  ok(/Pipeline value/.test(bare) && /Conversion/.test(bare) && /Onboarded/.test(bare), '  the KPI band has the acquisition metrics');
+  /* "Won" not "Onboarded" — the tile has to say the same word as the stage
+     chip it counts, or the board contradicts itself. */
+  ok(/Pipeline value/.test(bare) && /Conversion/.test(bare) && /'Won'/.test(bare), '  the KPI band has the acquisition metrics');
+
+  /* ── the outreach band may only count what actually happened ──
+     No channel is connected, so nothing in this app can observe a delivery or
+     a reply. The tiles say "opened"/"logged", and the words that would imply
+     observation we do not have must never appear as a metric label. */
+  ok(/WhatsApp drafts opened/.test(bare) && /Email drafts opened/.test(bare), '  outreach tiles say "opened", never "sent"');
+  /* Scoped to the outreach band itself — "Delivered cost ₹/MT" elsewhere in
+     this file is freight pricing and has nothing to do with message delivery. */
+  const band2 = bare.slice(bare.indexOf('const band2 ='), bare.indexOf('// ── controls'));
+  ok(band2.length > 100, '  (the outreach band is where it should be)');
+  ok(!/sent'/i.test(band2) && !/reply rate/i.test(band2) && !/delivered/i.test(band2) && !/opened rate/i.test(band2),
+    '  no "sent" / "reply rate" / "delivered" metric is invented');
+  ok(/pk-note/.test(bare) && /no email or WhatsApp channel is connected/.test(bare), '  and the band says why in plain words');
+
+  /* Counts come from crm_activities, which this app now actually writes to. */
+  ok(/action: 'activity'/.test(bare) && /function logTouch/.test(bare), '  touches are logged to the server (crm_activities)');
+  ok(/PIPE\.activities/.test(bare), '  and the tiles count those rows, not a guess');
+  ok(/kind: ch === 'whatsapp'/.test(bare), '  opening a draft in the Outreach Studio logs a touch');
+
+  /* A promoted company must ENTER the pipeline — without a crm_leads row the
+     board stays empty however many leads you promote. */
+  const php = R('../api/discover.php');
+  ok(/INSERT INTO crm_leads/.test(php), 'promoting a lead creates the pipeline row (not just the CRM company)');
+  ok(/'lead_id' => \$leadId/.test(php), '  and the response says which lead it made');
   ok(/pl-temp/.test(bare) && /pl-move/.test(bare), '  cards show a temperature badge + a Move-to-next-stage button');
   ok(/pk-search/.test(html) && /PIPE_SEARCH/.test(bare) && /PIPE_TEMP/.test(bare), '  the board has search + temperature filter');
   ok(/pl-board/.test(html), '  the kanban scrolls horizontally (all stages as columns)');

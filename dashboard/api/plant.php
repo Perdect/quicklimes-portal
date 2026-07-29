@@ -9,6 +9,6 @@ require __DIR__ . '/db.php';
 ql_cors();
 
 $b   = ql_body();
-$ctx = ql_token_ctx('');                       // any valid token for this account
+$ctx = ql_token_ctx();                       // any valid token for this account
 $r   = ql_plant_update(ql_db(), $ctx, $b);
 ql_out($r['body'], $r['code']);

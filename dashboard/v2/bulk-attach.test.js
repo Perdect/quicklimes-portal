@@ -94,7 +94,24 @@ const D = {
   isFinite, parseFloat, isNaN, S,
   IDBRequest: FakeIDBRequest,          // the resolver does `o instanceof IDBRequest`
   indexedDB: makeIDB(),
-  dupCheck: () => null, upsertParty: () => {}, commit: () => {}, toISODate: d => d, fmtISO: () => '2026-07-17'
+  dupCheck: () => null, upsertParty: () => {}, commit: () => {}, toISODate: d => d, fmtISO: () => '2026-07-17',
+
+  /* attachDoc now also pushes a copy to the server (/api/files) via docSync,
+     so the sandbox has to satisfy that dependency. docApi is stubbed rather
+     than grabbed — this file is about where the ATTACHMENT lands, not about
+     HTTP — but docSync itself is the real thing, because the invariant we
+     care about lives in it: the server copy is fire-and-forget, and nothing
+     it does may cost you the local attachment. */
+  ACTIVE_CO: 'gotan',
+  SYNCED: [],
+  BREAK_READER: false,
+  docApi(body, co) { D.SYNCED.push({ id: body.id, name: body.name, co }); return Promise.resolve({ ok: true }); }
+};
+/* A FileReader that behaves — or, on demand, one that blows up the way a real
+   browser can (quota, revoked blob, detached ArrayBuffer). */
+D.FileReader = function () {
+  if (D.BREAK_READER) throw new Error('FileReader unavailable');
+  this.readAsDataURL = () => { this.result = 'data:application/pdf;base64,QUJD'; if (this.onload) this.onload(); };
 };
 vm.createContext(D);
 vm.runInContext([
@@ -103,6 +120,7 @@ vm.runInContext([
   grabLine(dsrc, "const _docDb = {};"),
   grabBlock(dsrc, 'function docDb(kind) {', '\n  }'),
   grabBlock(dsrc, 'function docOp(kind, mode, fn) {', '\n  }'),
+  grabBlock(dsrc, 'function docSync(id, meta, file) {', '\n  }'),
   grabBlock(dsrc, 'async function attachDoc(kind, idx, file, label) {', '\n  }'),
   grabLine(dsrc, 'function getDoc(kind, id)'),
   grabBlock(dsrc, 'function addSale(e) {', '\n  }'),
@@ -187,7 +205,7 @@ const salCfg = {
 };
 
 const mkFile = (name, type) => ({ name: name, type: type || 'application/pdf', size: 2048, _tag: name });
-const reset = () => { S.SALES.length = 0; S.PURCHASES.length = 0; Object.keys(DBS).forEach(k => delete DBS[k]); FAILDB = null; B.TOASTS.length = 0; };
+const reset = () => { S.SALES.length = 0; D.SYNCED.length = 0; S.PURCHASES.length = 0; Object.keys(DBS).forEach(k => delete DBS[k]); FAILDB = null; B.TOASTS.length = 0; };
 const keys = db => Object.keys(DBS[db] || {});
 
 (async () => {
@@ -209,10 +227,63 @@ const keys = db => Object.keys(DBS[db] || {});
     /* THE BLOB, in the RIGHT database — the assertion that catches mis-routing. */
     eq('  THE BLOB IS IN THE PURCHASE STORE', keys('ql_pur_docs').length, 1);
     eq('  and NOT in the sales store', keys('ql_sal_docs').length, 0);
-    const blob = await Q.getDoc('purchase', att[0].id);
-    ok(blob && blob._tag === 'acme-bill.pdf', '  and the id in the record fetches back the FILE THAT WAS UPLOADED');
+    const blob0 = await Q.getDoc('purchase', att[0].id);
+    ok(blob0 && blob0._tag === 'acme-bill.pdf', '  and the id in the record fetches back the FILE THAT WAS UPLOADED');
     ok(/^pa/.test(att[0].id), '  the id is prefixed pa — a purchase doc');
     ok(!bill.scanErr, '  no scan error reported');
+    /* The server copy went out too, tagged with the company that was active
+       when the file was attached — not whichever one is active later. */
+    eq('  a server copy was queued', D.SYNCED.length, 1);
+    eq('  …under the company active AT ATTACH TIME', D.SYNCED[0].co, 'gotan');
+  }
+
+  /* ══════════ 1b. THE SERVER COPY IS FIRE-AND-FORGET ══════════
+     attachDoc writes the blob locally, records row.attach, AND pushes a copy
+     to /api/files. Those are not equal in importance: the local attachment is
+     the user's document, the server copy is a convenience for their other
+     devices. If the sync path throws, the user must still have their file.
+
+     This is not hypothetical. docSync read ACTIVE_CO one line ABOVE its own
+     try/catch, so any failure to resolve it escaped into attachDoc and killed
+     the attachment before row.attach was ever written — you would upload a
+     bill, see no error, and find nothing behind the eye button. */
+  {
+    reset(); D.SYNCED.length = 0; D.BREAK_READER = true;
+    const bill = { id: 'b1x', kind: 'ocr', file: mkFile('offline-bill.pdf'), g: {},
+                   vals: { bill: 'INV-9', sup: 'Acme', taxable: '1000' }, status: 'ready' };
+    const okd = await B.postOne(bill, purCfg);
+    D.BREAK_READER = false;
+    ok(okd === true, 'the bill still saves when the server copy blows up');
+    const att = (S.PURCHASES[0] || {}).attach || [];
+    eq('  THE LOCAL ATTACHMENT SURVIVES A FAILED SYNC', att.length, 1);
+    eq('  …naming the real file', att[0] && att[0].name, 'offline-bill.pdf');
+    eq('  the blob is still in the local store', keys('ql_pur_docs').length, 1);
+    eq('  and nothing reached the server', D.SYNCED.length, 0);
+    const blob = await Q.getDoc('purchase', att[0].id);
+    ok(blob && blob._tag === 'offline-bill.pdf', '  and the eye button still finds the blob locally');
+    ok(/^pa/.test(att[0].id), '  the id is prefixed pa — a purchase doc');
+    ok(!bill.scanErr, '  no scan error reported');
+  }
+
+  /* ══════════ 1c. …INCLUDING THE COMPANY LOOKUP ITSELF ══════════
+     1b breaks the FileReader, which is inside docSync's try — so it passes
+     even with the guard drawn too small. THIS case is the one that reproduces
+     the original defect exactly: make the company context unresolvable, the
+     way a TDZ or a refactor that moves the declaration would, and watch where
+     the ReferenceError lands. With `const co = ACTIVE_CO` sitting above the
+     try, it lands in attachDoc and the user's document is gone. */
+  {
+    reset();
+    const savedCo = D.ACTIVE_CO;
+    delete D.ACTIVE_CO;                  // ACTIVE_CO is now an unresolved identifier
+    const bill = { id: 'b1y', kind: 'ocr', file: mkFile('no-company.pdf'), g: {},
+                   vals: { bill: 'INV-8', sup: 'Acme', taxable: '1000' }, status: 'ready' };
+    const okd = await B.postOne(bill, purCfg);
+    D.ACTIVE_CO = savedCo;
+    ok(okd === true, 'the bill saves even when the company context is unresolvable');
+    const att = (S.PURCHASES[0] || {}).attach || [];
+    eq('  THE ATTACHMENT SURVIVES — the guard covers the company lookup too', att.length, 1);
+    eq('  the blob is in the local store', keys('ql_pur_docs').length, 1);
   }
   {
     reset();

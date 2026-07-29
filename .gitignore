@@ -22,3 +22,7 @@ IMZA_iMatch_n8n_Workflow.json
 
 # QuickLimes backend secrets — lives only on the Hostinger server, never committed
 dashboard/api/config.php
+dashboard/api/files/
+
+# scratch MySQL datadir used by the PHP test suites — never committed
+.scratch/
