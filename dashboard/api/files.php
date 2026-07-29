@@ -63,10 +63,13 @@ ql_cors();
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') ql_out(['ok' => false, 'error' => 'POST only'], 405);
 
 $b       = ql_body();
-$plantId = (string)($b['plant_id'] ?? '');
 $coId    = (string)($b['company_id'] ?? '');
-$ctx     = ql_token_ctx($plantId);
+$ctx     = ql_token_ctx((string)($b['plant_id'] ?? ''));
 if (!$ctx) ql_out(['ok' => false, 'error' => 'Unauthorized'], 401);
+/* Defence in depth: the tenant key for every row AND every file path comes
+   from the TOKEN, never from the body. Even if the body check above were ever
+   relaxed, bytes could not be written into another firm's namespace. */
+$plantId = (string)$ctx['plant'];
 if (!ql_role_can($ctx['role'], 'sales') && !ql_role_can($ctx['role'], 'purchase')) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
 
 ql_ensure_tables();
@@ -85,13 +88,23 @@ if ($action === 'put') {
   if ($raw === false) ql_out(['ok' => false, 'error' => 'Broken upload — not valid base64']);
 
   $path = ql_doc_path($plantId, $coId, $id);
+  $existed = is_file($path);
   if (@file_put_contents($path, $raw) === false) ql_out(['ok' => false, 'error' => 'Could not store the file'], 500);
 
-  $st = $db->prepare('INSERT INTO doc_files (plant_id, company_id, doc_id, name, kind, mime, size)
-    VALUES (?,?,?,?,?,?,?)
-    ON DUPLICATE KEY UPDATE name = VALUES(name), kind = VALUES(kind), mime = VALUES(mime), size = VALUES(size)');
-  $st->execute([$plantId, $coId, $id,
-    mb_substr((string)($b['name'] ?? ''), 0, 190), mb_substr((string)($b['kind'] ?? ''), 0, 40), $mime, strlen($raw)]);
+  /* The row is what `get` looks up, so bytes with no row are invisible AND
+     unreclaimable. If the insert throws, put the file back the way it was —
+     a failed upload must leave nothing behind. */
+  try {
+    $st = $db->prepare('INSERT INTO doc_files (plant_id, company_id, doc_id, name, kind, mime, size)
+      VALUES (?,?,?,?,?,?,?)
+      ON DUPLICATE KEY UPDATE name = VALUES(name), kind = VALUES(kind), mime = VALUES(mime), size = VALUES(size)');
+    $st->execute([$plantId, $coId, $id,
+      mb_substr((string)($b['name'] ?? ''), 0, 190), mb_substr((string)($b['kind'] ?? ''), 0, 40), $mime, strlen($raw)]);
+  } catch (Throwable $e) {
+    if (!$existed) @unlink($path);
+    error_log('[files:put] ' . $e->getMessage());
+    ql_out(['ok' => false, 'error' => 'Could not record the file'], 500);
+  }
   ql_out(['ok' => true, 'size' => strlen($raw)]);
 }
 

@@ -172,6 +172,15 @@ function ql_plant_exists($plantId) {
    One lookup here closes it for data.php, recon, wa, chat, crm, users, jobs,
    extract, plant and company alike. Pinned by auth-live.test.php. */
 function ql_token_ctx($plantId = '') {
+  /* An EXPLICIT empty plant id is a request that forgot to say which firm it
+     meant — and every caller then uses that '' as the scope key for its rows
+     AND its file paths, so one omitted field silently opens a bucket shared by
+     every tenant on the server. Reject it.
+
+     ql_token_ctx() with NO argument still means "any valid token for this
+     account" — company.php and plant.php need that, and they now call it
+     without an argument so the two cases cannot be confused. */
+  if (func_num_args() > 0 && $plantId === '') return null;
   $ctx = ql_parse_token(ql_token());
   if (!$ctx) return null;
   if ($plantId !== '' && $ctx['plant'] !== $plantId) return null;

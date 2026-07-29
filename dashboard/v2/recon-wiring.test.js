@@ -418,6 +418,31 @@ fails.forEach(f => console.log('    ✗ ' + f));
   ok('  reachable from the ⋯ menu', /id="rcStmts"/.test(js) && /\$\('rcStmts'\)\.onclick/.test(js));
 }
 
+/* ══════════ money posted BY a bank line dies WITH it ══════════
+   postOnAccount stores the only reversal handle on the txn (m.ledgerEntryId).
+   Deleting the txn without reversing strands the amount on a party's running
+   balance and in the cashbook with nothing left to reverse it by. Every
+   single-row unlink already reversed; the three BULK deletes did not. */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  ok('there is one reversal helper for bulk drops', /function reverseBeforeDrop\(/.test(js));
+  const blk = js.slice(js.indexOf('function reverseBeforeDrop'), js.indexOf('function viewHTML'));
+  ok('  it uses the index-safe reverser', /reverseLedgerSafe\(m\.partyIdx, m\.ledgerEntryId\)/.test(blk));
+  ['removeDuplicates', 'deleteStatement', 'clearBankData'].forEach(fn => {
+    const f = js.slice(js.indexOf('function ' + fn), js.indexOf('function ' + fn) + 1800);
+    ok('  ' + fn + ' reverses before dropping rows', /reverseBeforeDrop\(/.test(f));
+  });
+  ok('  and clear-all warns that on-account entries will be reversed', /will be REVERSED out of the party ledgers/.test(js));
+
+  /* ══════════ a row is only "duplicate" if a twin SURVIVES it ══════════
+     markDuplicate() flags any row the user picks, so selecting purely on the
+     status flag would delete a unique line — and the SHA-256 upload guard then
+     blocks re-importing the file to get it back. */
+  const dr = js.slice(js.indexOf('function duplicateRows'), js.indexOf('function removeDuplicates'));
+  ok('duplicate selection groups by the ENGINE key, not the flag alone', /RC\.dedupeKey\(npOf\(t\), t\)/.test(dr));
+  ok('  the first of each group is always kept', /if \(seen\[k\]\)/.test(dr) && /else seen\[k\] = 1/.test(dr));
+}
+
 if (fail) fails.slice(-12).forEach(f => console.log('    ✗ ' + f));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' WIRING TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');
 process.exit(fail === 0 ? 0 : 1);

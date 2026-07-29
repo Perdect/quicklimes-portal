@@ -750,19 +750,24 @@
      copy behind it, so the eye works on a device that never saw the upload.
      Sync is fire-and-forget: an offline attach MUST still succeed, and a
      failed upload surfaces the next time the other device misses. */
-  function docApi(body) {
+  /* `co` is passed in, never read from ACTIVE_CO at call time: an upload fires
+     asynchronously (FileReader → fetch) and the user can switch company in
+     between, which would file the scan — and its party names, GSTINs and
+     amounts — under the WRONG firm, readable by that firm's users. */
+  function docApi(body, co) {
     let p = {}; try { p = JSON.parse(localStorage.getItem('ql_plant') || 'null') || {}; } catch (_) {}
     if (!p.id || !p.token) return Promise.resolve(null);
     return fetch('/api/files', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(Object.assign({ plant_id: p.id, company_id: ACTIVE_CO || '', token: p.token }, body)) })
+      body: JSON.stringify(Object.assign({ plant_id: p.id, company_id: co != null ? co : (ACTIVE_CO || ''), token: p.token }, body)) })
       .then(r => r.json()).catch(() => null);
   }
   function docSync(id, meta, file) {
+    const co = ACTIVE_CO || '';          // pinned NOW, before any async hop
     try {
       const rd = new FileReader();
       rd.onload = () => {
         const b64 = String(rd.result || '').split(',')[1] || '';
-        if (b64) docApi({ action: 'put', id: String(id), name: meta.name || '', kind: meta.kind || '', mime: meta.mime || '', data: b64 });
+        if (b64) docApi({ action: 'put', id: String(id), name: meta.name || '', kind: meta.kind || '', mime: meta.mime || '', data: b64 }, co);
       };
       rd.readAsDataURL(file);
     } catch (_) { /* never block the attach */ }

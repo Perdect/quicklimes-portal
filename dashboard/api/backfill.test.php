@@ -47,15 +47,13 @@ function ok($c, $m) { global $fail; if ($c) echo "  ok  $m\n"; else { $fail++; e
 
 /* ── the statements crm.php runs, verbatim ── */
 function runBackfill($pdo, $plantId, $coId) {
-  $st = $pdo->prepare('SELECT c.id FROM crm_companies c
-    LEFT JOIN crm_leads l ON l.crm_company = c.id AND l.plant_id = c.plant_id AND l.company_id = c.company_id
-    WHERE c.plant_id = ? AND c.company_id = ? AND l.id IS NULL');
-  $st->execute([$plantId, $coId]);
-  $ids = $st->fetchAll(PDO::FETCH_COLUMN);
-  $ins = $pdo->prepare('INSERT INTO crm_leads (plant_id, company_id, crm_company, stage, score_why) VALUES (?,?,?,?,?)');
-  $n = 0;
-  foreach ($ids as $cid) { $ins->execute([$plantId, $coId, (int)$cid, 'new', 'Backfilled: promoted before pipeline rows existed']); $n++; }
-  return $n;
+  $ins = $pdo->prepare("INSERT INTO crm_leads (plant_id, company_id, crm_company, stage, score_why)
+    SELECT c.plant_id, c.company_id, c.id, 'new', 'Backfilled: promoted before pipeline rows existed'
+      FROM crm_companies c
+      LEFT JOIN crm_leads l ON l.crm_company = c.id AND l.plant_id = c.plant_id AND l.company_id = c.company_id
+     WHERE c.plant_id = ? AND c.company_id = ? AND l.id IS NULL");
+  $ins->execute([$plantId, $coId]);
+  return $ins->rowCount();
 }
 
 echo "\n=== backfillLeads: the real SQL, the real schema ===\n";
@@ -65,6 +63,10 @@ $live = file_get_contents(__DIR__ . '/crm.php');
 ok(strpos($live, 'LEFT JOIN crm_leads l ON l.crm_company = c.id AND l.plant_id = c.plant_id AND l.company_id = c.company_id') !== false
    && strpos($live, "WHERE c.plant_id = ? AND c.company_id = ? AND l.id IS NULL") !== false,
    'the harness SQL matches crm.php verbatim (drift guard)');
+/* One statement, not SELECT-then-loop: two concurrent clicks must not both
+   read "no lead yet" and both insert. */
+ok(strpos($live, 'INSERT INTO crm_leads (plant_id, company_id, crm_company, stage, score_why)
+    SELECT c.plant_id') !== false, 'backfill is a single INSERT..SELECT (no read-then-write race)');
 $n1 = runBackfill($pdo, $P, $C);
 ok($n1 === 2, "first run creates exactly the two orphans (created $n1)");
 $q = $pdo->prepare("SELECT stage, score FROM crm_leads WHERE crm_company = ?"); $q->execute([$o1]);

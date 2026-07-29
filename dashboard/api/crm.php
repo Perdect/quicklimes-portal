@@ -177,14 +177,16 @@ if ($action === 'upsertLead') {
    creates nothing. Score stays NULL — unscored is honest, the discovery fit
    score never reached crm_companies and inventing one here would be a lie. */
 if ($action === 'backfillLeads') {
-  $st = $db->prepare('SELECT c.id FROM crm_companies c
-    LEFT JOIN crm_leads l ON l.crm_company = c.id AND l.plant_id = c.plant_id AND l.company_id = c.company_id
-    WHERE c.plant_id = ? AND c.company_id = ? AND l.id IS NULL');
-  $st->execute([$plantId, $coId]);
-  $ids = $st->fetchAll(PDO::FETCH_COLUMN);
-  $ins = $db->prepare('INSERT INTO crm_leads (plant_id, company_id, crm_company, stage, score_why) VALUES (?,?,?,?,?)');
-  $n = 0;
-  foreach ($ids as $cid) { $ins->execute([$plantId, $coId, (int)$cid, 'new', 'Backfilled: promoted before pipeline rows existed']); $n++; }
+  /* ONE statement, so a concurrent second click (two tabs, two users, or a
+     backfill racing a promote) cannot both read "no lead yet" and both insert.
+     The anti-join is re-evaluated inside the INSERT, under the same lock. */
+  $ins = $db->prepare("INSERT INTO crm_leads (plant_id, company_id, crm_company, stage, score_why)
+    SELECT c.plant_id, c.company_id, c.id, 'new', 'Backfilled: promoted before pipeline rows existed'
+      FROM crm_companies c
+      LEFT JOIN crm_leads l ON l.crm_company = c.id AND l.plant_id = c.plant_id AND l.company_id = c.company_id
+     WHERE c.plant_id = ? AND c.company_id = ? AND l.id IS NULL");
+  $ins->execute([$plantId, $coId]);
+  $n = $ins->rowCount();
   ql_out(['ok' => true, 'created' => $n]);
 }
 

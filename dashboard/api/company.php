@@ -21,7 +21,7 @@ require __DIR__ . '/db.php';
 ql_cors();
 
 $b   = ql_body();
-$ctx = ql_token_ctx('');                               // any valid token for this account
+$ctx = ql_token_ctx();                               // any valid token for this account
 $act = (string)($b['action'] ?? 'add');
 
 $r = ($act === 'remove')

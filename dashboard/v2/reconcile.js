@@ -1022,18 +1022,47 @@ function auditHTML() {
    Deliberately ALL months, not the visible month: the user is cleaning the
    data, not the view. In-place splice, not reassignment — other views hold a
    reference to the same array. */
-function duplicateRows() { return txns().filter(t => statusKey(t) === 'duplicate'); }
+/* Money posted BY a bank line must not outlive the line. postOnAccount stores
+   the only reversal handle on the txn (m.ledgerEntryId); deleting the txn
+   without reversing strands the amount on a party's running balance and in the
+   cashbook with nothing left to reverse it by. Every single-row unlink path
+   already reverses — the bulk deletes below must too. */
+function reverseBeforeDrop(rows) {
+  let n = 0;
+  (rows || []).forEach(t => {
+    const m = t.m || {};
+    if (m.kind === 'ledger' && m.ledgerEntryId && reverseLedgerSafe(m.partyIdx, m.ledgerEntryId)) n++;
+  });
+  return n;
+}
+/* A row is safe to remove ONLY if an identical line survives it.
+
+   statusKey === 'duplicate' is not sufficient: markDuplicate() sets that flag
+   on ANY row the user picks, so a unique line flagged by hand would otherwise
+   be deleted as a "copy" of nothing — and the SHA-256 upload guard then blocks
+   re-importing the file to get it back. Group by the ENGINE's own key and keep
+   the first of each group; a group of one is never touched. */
+function duplicateRows() {
+  const seen = Object.create(null), out = [];
+  txns().forEach(t => {
+    const k = RC.dedupeKey(npOf(t), t);
+    if (seen[k]) { if (statusKey(t) === 'duplicate') out.push(t); }
+    else seen[k] = 1;
+  });
+  return out;
+}
 function removeDuplicates() {
   const rows = duplicateRows();
   if (!rows.length) { toast('No duplicate rows in this data', 'ok'); return; }
   const amt = rows.reduce((a, t) => a + (t.credit || 0) + (t.debit || 0), 0);
   if (!confirm('Remove ' + rows.length + ' duplicate row' + (rows.length === 1 ? '' : 's') + ' totalling ' + fC(amt) + '?\n\nEach is the same bank line imported twice — the first copy stays. This cannot be undone.')) return;
   const ids = new Set(rows.map(t => t.id));
+  const rev = reverseBeforeDrop(rows);
   rows.forEach(t => auditRecon('remove-duplicate', t, 'duplicate', 'removed', 'kept the first copy'));
   const keep = txns().filter(t => !ids.has(t.id));
   Q.recon.txns.length = 0; Q.recon.txns.push(...keep);
   Q.saveRecon(); ST.sel.clear(); render();
-  toast('Removed ' + rows.length + ' duplicate' + (rows.length === 1 ? '' : 's') + ' — first copies kept', 'ok');
+  toast('Removed ' + rows.length + ' duplicate' + (rows.length === 1 ? '' : 's') + ' — first copies kept' + (rev ? ' · ' + rev + ' on-account entr' + (rev === 1 ? 'y' : 'ies') + ' reversed' : ''), 'ok');
 }
 
 /* ── STATEMENTS MANAGER ────────────────────────────────────────────────────
@@ -1058,24 +1087,31 @@ function deleteStatement(id) {
     ? 'Delete "' + st.file + '" and the ' + n + ' transaction' + (n === 1 ? '' : 's') + ' it imported?\n\nThis cannot be undone.'
     : 'Delete the log entry for "' + st.file + '"?\n\nIts transactions were imported before per-statement tracking and stay in the data — use "Clear all bank data" to remove everything. Deleting the entry lets the same file upload again.';
   if (!confirm(msg)) return;
+  let rev = 0;
   if (n) {
+    const going = txns().filter(t => t.stmtId === id);
+    rev = reverseBeforeDrop(going);
     const keep = txns().filter(t => t.stmtId !== id);
     Q.recon.txns.length = 0; Q.recon.txns.push(...keep);
   }
   if (Q.logAudit) { try { Q.logAudit('delete', 'recon', { id: id }, { ref: st.file, amount: 0, reason: 'statement deleted with ' + n + ' transactions' }); } catch (_) {} }
   if (Q.removeStatement) Q.removeStatement(id);
   Q.saveRecon(); openStatements();
-  toast(n ? 'Deleted "' + st.file + '" + ' + n + ' transactions' : 'Deleted the log entry — the file can be uploaded again', 'ok');
+  toast(n ? 'Deleted "' + st.file + '" + ' + n + ' transactions' + (rev ? ' · ' + rev + ' on-account reversed' : '') : 'Deleted the log entry — the file can be uploaded again', 'ok');
 }
 function clearBankData() {
   const nT = txns().length, sts = (Q.statementRows ? Q.statementRows() : []);
   if (!nT && !sts.length) { toast('Nothing to clear', 'ok'); return; }
-  if (!confirm('Clear ALL bank data?\n\n• ' + nT + ' transactions\n• ' + sts.length + ' statement log entr' + (sts.length === 1 ? 'y' : 'ies') + '\n\nMatches, categories and duplicates flags go with them. Bills and payments are NOT touched. This cannot be undone.')) return;
+  const onAcct = txns().filter(t => (t.m || {}).kind === 'ledger' && (t.m || {}).ledgerEntryId).length;
+  if (!confirm('Clear ALL bank data?\n\n• ' + nT + ' transactions\n• ' + sts.length + ' statement log entr' + (sts.length === 1 ? 'y' : 'ies')
+    + (onAcct ? '\n• ' + onAcct + ' on-account entr' + (onAcct === 1 ? 'y' : 'ies') + ' will be REVERSED out of the party ledgers and cashbook' : '')
+    + '\n\nMatches, categories and duplicate flags go with them. Your bills and payments are NOT touched. This cannot be undone.')) return;
   if (Q.logAudit) { try { Q.logAudit('delete', 'recon', { id: 'ALL' }, { amount: 0, reason: 'cleared all bank data: ' + nT + ' transactions, ' + sts.length + ' statements' }); } catch (_) {} }
+  const revAll = reverseBeforeDrop(txns());
   sts.forEach(st => { if (Q.removeStatement) Q.removeStatement(st.id); });
   Q.recon.txns.length = 0;
   Q.saveRecon(); QLShell.closeModal(); ST.sel.clear(); render();
-  toast('Cleared ' + nT + ' transactions and ' + sts.length + ' statements — upload afresh', 'ok');
+  toast('Cleared ' + nT + ' transactions and ' + sts.length + ' statements' + (revAll ? ' · ' + revAll + ' on-account reversed' : '') + ' — upload afresh', 'ok');
 }
 function openStatements() {
   const sts = (Q.statementRows ? Q.statementRows() : []);

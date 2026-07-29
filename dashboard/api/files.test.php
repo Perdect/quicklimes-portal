@@ -45,6 +45,21 @@ ok(strpos($src, 'Require all denied') !== false, 'the files dir is written with 
 ok((bool)preg_match('/get.{0,400}plant_id = \? AND company_id = \? AND doc_id = \?/s', $src), 'get is tenant-scoped');
 ok((bool)preg_match('/DELETE FROM doc_files WHERE plant_id = \? AND company_id = \? AND doc_id = \?/', $src), 'del is tenant-scoped');
 
+echo "\n=== tenant key comes from the TOKEN, not the body ===\n";
+/* An explicit empty plant_id used to pass ql_token_ctx and then became the
+   scope key for every row AND every file path — one omitted field opening a
+   bucket shared by every tenant. Two independent guards now. */
+$dbsrc = file_get_contents(__DIR__ . '/db.php');
+ok(strpos($dbsrc, "if (func_num_args() > 0 && \$plantId === '') return null;") !== false,
+  'ql_token_ctx rejects an EXPLICIT empty plant id (root fix, all endpoints)');
+ok(strpos($src, "\$plantId = (string)\$ctx['plant'];") !== false,
+  'files.php scopes on the token context, not the request body');
+ok(strpos($src, "\$plantId = (string)(\$b['plant_id']") === false,
+  '  and never re-reads plant_id from the body afterwards');
+$putBlk2 = substr($src, strpos($src, "if (\$action === 'put')"), 2200);
+ok(strpos($putBlk2, 'catch (Throwable $e)') !== false && strpos($putBlk2, '@unlink($path)') !== false,
+  'a failed row insert removes the bytes it just wrote (no orphan files)');
+
 echo "\n=== the SQL, against a real MySQL ===\n";
 try {
   $pdo = new PDO('mysql:host=127.0.0.1;port=3399;charset=utf8mb4', 'root', '', [
