@@ -46,15 +46,6 @@ const toast = (m, t) => (QLShell.toast ? QLShell.toast(m, t) : 0);
 
 let ST = {
   view: 'recon', month: 'all', monthInit: false, ftype: 'all', fstatus: 'all', q: '', sel: new Set(), foOpen: false, acc: '',
-  /* Date range, on the TABLE not the page header. The header's month picker
-     could only ever say "one month"; reconciling a quarter, a financial year
-     or "since the last statement" needed a range that lives beside the rows
-     being filtered. Empty string = open-ended on that side. */
-  dFrom: '', dTo: '', dOpen: false, moreOpen: false,
-  /* EXCEPTION-FIRST. An accountant should not read 74 rows to find the 27 that
-     need them. On by default; the toggle restores plain date order for anyone
-     reconciling a statement line by line. */
-  exFirst: true,
   /* The status dropdown ("too many options" — the six tabs became one select).
      View state only, like advOpen: closed on every pick and on click-away. */
   stOpen: false,
@@ -70,13 +61,7 @@ let ST = {
   advOpen: false,
   /* Which month groups are folded shut. A Set of 'YYYY-MM', same as QLX's
      S.collapsed — collapsing is a VIEW preference, never saved to the blob. */
-  collapsed: new Set(),
-  /* Inline-expanded rows (click a row → details unfold under it; Review still
-     opens the full drawer). View state only. */
-  expanded: new Set(),
-  /* Render cap: with 1,000+ lines the DOM is the bottleneck, not the data.
-     Render the first N and offer "Show more" — honest, and never laggy. */
-  cap: 300
+  collapsed: new Set()
 };
 /* How many filters are actually narrowing the list — drives the button's badge.
    Counted from the SAME object the predicate reads, so the badge can never claim
@@ -539,9 +524,8 @@ function render() {
   let root = document.getElementById('rcRoot');
   if (!root) { main.innerHTML = '<div class="rc" id="rcRoot"></div>'; root = document.getElementById('rcRoot'); }
   try {
-    root.innerHTML = heroHTML() + (txns().length ? summaryHTML() + insightsHTML() + toolbarHTML() + filtersPanelHTML() + `<div class="rc-panel">${viewHTML()}</div>` + bulkBarHTML() : emptyHTML());
+    root.innerHTML = heroHTML() + (txns().length ? accBarHTML() + summaryHTML() + finOverviewHTML() + aiHTML() + toolbarHTML() + filtersPanelHTML() + `<div class="rc-panel">${viewHTML()}</div>` + bulkBarHTML() : emptyHTML());
     wire();
-    syncStickyOffset();   // the toolbar wraps — the header must pin below its REAL height
   } catch (e) { console.warn('recon render deferred:', e); }
   QLShell.paintWorkspace && QLShell.paintWorkspace();
 }
@@ -565,23 +549,12 @@ function accBarHTML() {
   </div>`;
 }
 function heroHTML() {
-  /* ONE header block. The account chips are context for the title, not their
-     own section, so they live under the subtitle. This failed when first
-     tried because the action row was ~700px and wrapped; the fix is on THIS
-     side — Update Payments and Export moved into the ⋯ menu, so the actions
-     need ~450px and both columns fit at 1440. */
-  const more = ST.moreOpen ? `<div class="rc-moremenu" role="menu">
-      <button class="rc-more-it" id="rcApply" role="menuitem">${svg(IC.ck)}<span>Update Payments</span><em>post payments for matched bills</em></button>
-      <button class="rc-more-it" id="rcExport" role="menuitem">${svg(IC.dl)}<span>Export</span><em>CSV of the current view</em></button>
-      <button class="rc-more-it" id="rcStmts" role="menuitem">${svg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>')}<span>Statements</span><em>view, delete, or clear everything</em></button>
-    </div>` : '';
   return `<div class="rc-hero">
-    <div class="rc-hero-l"><div class="rc-h1">Bank Reconciliation</div><div class="rc-sub">${esc(monthLabel())} · <b>${esc(Q.co.short || 'Company')}</b> · ${monthTxns().length} transaction${monthTxns().length === 1 ? '' : 's'}</div>${accBarHTML()}</div>
+    <div><div class="rc-h1">Bank Reconciliation</div><div class="rc-sub">${esc(monthLabel())} · <b>${esc(Q.co.short || 'Company')}</b> · ${monthTxns().length} transaction${monthTxns().length === 1 ? '' : 's'}</div></div>
     <div class="rc-hero-r">
       ${QLShell.monthButton({ id: 'rcMonth', label: monthLabel() })}
-      ${txns().length ? `<button class="rc-btn rc-btn-ai" id="rcMatch" title="Run the AI matching engine">${svg(IC.ai)}<span>AI Reconcile</span></button>` : ''}
+      ${txns().length ? `<button class="rc-btn rc-btn-ai" id="rcMatch" title="Run the AI matching engine">${svg(IC.ai)}<span>AI Reconcile</span></button><button class="rc-btn" id="rcApply" title="Post payments for the matched bills so their status stops saying Pending">${svg(IC.ck)}<span>Update Payments</span></button><button class="rc-btn" id="rcExport">${svg(IC.dl)}<span>Export</span></button>` : ''}
       <button class="rc-btn rc-btn-primary" id="rcUpload">${svg(IC.up)}<span>Upload statement</span></button>
-      ${txns().length ? `<div class="rc-morew"><button class="rc-btn rc-btn-more ${ST.moreOpen ? 'on' : ''}" id="rcMore" aria-haspopup="menu" aria-expanded="${!!ST.moreOpen}" title="More actions">${svg('<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>')}</button>${more}</div>` : ''}
     </div></div>`;
 }
 function emptyHTML() {
@@ -606,68 +579,44 @@ function needsReview(t) { return statusKey(t) !== 'matched'; }
 
 /* ── ONE compact summary strip (4 segments) — replaces the 9-card dashboard ── */
 function summaryHTML() {
-  /* v3: the cards total WHAT IS ON SCREEN — filteredTxns(), not the whole month —
-     so search/status/advanced filters update them instantly and the cards can
-     never disagree with the list below them. */
-  const tt = filteredTxns();
-  /* MONEY EXCLUDES DUPLICATES. A row flagged duplicate is the SAME bank line
-     imported twice — counting it again overstates what actually moved through
-     the account. The dedupe keeps the first copy and flags every later one, so
-     dropping the flagged rows leaves exactly one of each.
-     The duplicate COUNT is still shown, because the user has to know they are
-     there; it is only the money that must not double-count them. */
-  const real = tt.filter(t => statusKey(t) !== 'duplicate');
-  const cr = real.reduce((a, t) => a + (t.credit || 0), 0), dr = real.reduce((a, t) => a + (t.debit || 0), 0);
-  const credN = real.filter(t => (t.credit || 0) > 0).length, debN = real.filter(t => (t.debit || 0) > 0).length;
+  const c = cards(), tt = monthTxns();
+  const credN = tt.filter(t => (t.credit || 0) > 0).length, debN = tt.filter(t => (t.debit || 0) > 0).length;
   const matchedRows = tt.filter(t => statusKey(t) === 'matched');
-  const dup = tt.filter(t => statusKey(t) === 'duplicate').length;
+  const matchN = matchedRows.length;
+  c.matched = matchedRows.reduce((a, t) => a + (t.credit || 0) + (t.debit || 0), 0);   // same definition as the count
   const rev = tt.filter(needsReview); const revAmt = rev.reduce((a, t) => a + (t.credit || 0) + (t.debit || 0), 0);
-  const decided = tt.filter(t => t.m && t.m.confidence != null).length;
-  const acc = decided ? Math.round(matchedRows.length / decided * 100) : null;
-  /* ONE DENSE STRIP, not four cards. The cards cost ~100px above the table and
-     carried four numbers a reconciler reads in a glance. This says the same in
-     a single row, so more transactions are on screen — the whole point of the
-     page. Every figure still totals WHAT IS ON SCREEN (filteredTxns), so it can
-     never disagree with the list below it. */
-  const chip = (cls, ic, val, sub, title) =>
-    `<span class="rc-s2 ${cls}" title="${esc(title || '')}">${ic}<b>${val}</b><i>${esc(sub)}</i></span>`;
-  return `<div class="rc-summary2">
-    ${chip('g', svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>'), fC(cr), 'in · ' + credN, 'Money in from ' + credN + ' credits' + (dup ? ' — ' + dup + ' duplicate rows excluded' : ''))}
-    ${chip('r', svg('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>'), fC(dr), 'out · ' + debN, 'Money out from ' + debN + ' debits' + (dup ? ' — ' + dup + ' duplicate rows excluded' : ''))}
-    ${chip('b', svg(IC.ck), matchedRows.length + '<small>/' + tt.length + '</small>', 'matched' + (acc != null ? ' · ' + acc + '%' : ''), 'Matched' + (acc != null ? ', auto-match rate ' + acc + '%' : ''))}
-    ${chip('p', svg('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'), rev.length, 'to review' + (dup ? ' · ' + dup + ' dup' : ''), fC(revAmt) + ' needs review' + (dup ? ', ' + dup + ' duplicates' : ''))}
+  const seg = (cls, ic, label, val, sub) => `<div class="rc-sum-seg"><span class="rc-sum-ic ${cls}">${ic}</span><div class="rc-sum-x"><span class="rc-sum-l">${label}</span><span class="rc-sum-v">${val}</span><span class="rc-sum-sub">${sub}</span></div></div>`;
+  return `<div class="rc-summary">
+    ${seg('g', svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>'), 'Money In', fC(c.credits), credN + ' credit' + (credN === 1 ? '' : 's'))}
+    ${seg('r', svg('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>'), 'Money Out', fC(c.debits), debN + ' debit' + (debN === 1 ? '' : 's'))}
+    ${seg('b', svg(IC.ck), 'Matched', fC(c.matched), matchN + ' linked')}
+    ${seg('p', svg('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'), 'Needs Review', fC(revAmt), rev.length + ' transaction' + (rev.length === 1 ? '' : 's'))}
   </div>`;
 }
 /* Secondary metrics live in a collapsed accordion, out of the primary flow. */
-function insightsHTML() {
-  /* ONE card where there were two rows. The AI digest is the always-visible
-     summary line; the financial overview (receivables · payables · GST · net
-     flow) is the expandable body. The Review button must not toggle the
-     accordion — its handler stops propagation and preventDefaults. */
+function finOverviewHTML() {
   const c = cards();
-  const items = aiSuggestions();
-  const top = items[0] || { t: 'Nothing analysed yet', s: 'Upload a statement to begin.' };
   const kv = (l, v, col) => `<div class="rc-fo-kv"><span>${l}</span><b${col ? ` style="color:${col}"` : ''}>${fC(v)}</b></div>`;
-  return `<details class="rc-fo"${ST.foOpen ? ' open' : ''}><summary class="rc-fo-h">
-      <span class="rc-aibar-ic">${svg(IC.ai)}</span>
-      <span class="rc-aibar-t"><b>${esc(top.t)}</b><em>${top.s}</em></span>
-      ${items.length > 1 ? `<span class="rc-aibar-more">+${items.length - 1} more</span>` : ''}
-      <button class="rc-aibar-btn" id="rcAiReview">Review needs-action</button>
-      ${svg('<polyline points="6 9 12 15 18 9"/>')}</summary>
+  return `<details class="rc-fo"${ST.foOpen ? ' open' : ''}><summary class="rc-fo-h">${svg('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>')}<span>Financial overview</span><em>receivables · payables · GST · net flow</em>${svg('<polyline points="6 9 12 15 18 9"/>')}</summary>
     <div class="rc-fo-grid">
       ${kv('Pending receivable', c.recv)}${kv('Pending payable', c.pay)}${kv('GST input (ITC)', c.gstIn)}${kv('GST output', c.gstOut)}${kv('Net cash flow', c.net, c.net >= 0 ? '#16a34a' : 'var(--ql-danger-600)')}
     </div></details>`;
 }
+function aiHTML() {
+  const items = aiSuggestions();
+  if (!items.length) return '';
+  const top = items[0];
+  return `<div class="rc-aibar">
+    <span class="rc-aibar-ic">${svg(IC.ai)}</span>
+    <span class="rc-aibar-t"><b>${esc(top.t)}</b><em>${top.s}</em></span>
+    ${items.length > 1 ? `<span class="rc-aibar-more">+${items.length - 1} more</span>` : ''}
+    <button class="rc-aibar-btn" id="rcAiReview">Review needs-action</button>
+  </div>`;
+}
+/* ── ONE clean filter toolbar: a status dropdown + Filters + search ── */
 function toolbarHTML() {
   const tt = monthTxns();
   const cnt = k => k === 'all' ? tt.length : k === 'review' ? tt.filter(needsReview).length : tt.filter(t => statusKey(t) === k).length;
-  if (ST.view === 'audit') {
-    const n = ((Q.auditRows ? Q.auditRows() : []) || []).filter(a => a.module === 'recon').length;
-    return `<div class="rc-toolbar2">
-      <div class="rc-ftabs"><button class="rc-mini2" data-view="recon" title="Back to transactions">${svg('<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>')}<span>Transactions</span></button>
-        <span class="rc-audit-n">${n} recorded decision${n === 1 ? '' : 's'}</span></div>
-      <div class="rc-tb-r"><div class="rc-searchw">${svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')}<input class="rc-search2" id="rcAudSearch" placeholder="Search action, party, ref, user…" value="${esc(ST.aq || '')}"></div></div></div>`;
-  }
   if (ST.view === 'ledger') {
     /* Counts come from the SAME rows the list renders (ledgerRows), so a chip can
        never promise a number the list does not show. */
@@ -710,59 +659,10 @@ function toolbarHTML() {
   return `<div class="rc-toolbar2">
     <div class="rc-ftabs">${stSel}</div>
     <div class="rc-tb-r">
-      <button class="rc-exbtn ${ST.exFirst ? 'on' : ''}" id="rcExFirst" title="${ST.exFirst ? 'Showing what needs you first' : 'Showing newest first'}">
-        ${svg('<path d="M12 2v6M12 16v6M2 12h6M16 12h6"/><circle cx="12" cy="12" r="3"/>')}<span>${ST.exFirst ? 'Needs you first' : 'Newest first'}</span></button>
-      ${dateBtnHTML()}
       ${filtersBtnHTML()}
       <div class="rc-searchw">${svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')}<input class="rc-search2" id="rcSearch" placeholder="Search party, ref, amount…" value="${esc(ST.q)}"></div>
       <button class="rc-mini2" data-view="ledger" title="Party ledger">${svg('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>')}<span>Ledger</span></button>
-      <button class="rc-mini2" data-view="audit" title="Who decided what, and when">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}<span>Audit</span></button>
     </div></div>`;
-}
-/* ── DATE RANGE, on the table ─────────────────────────────────────────────
-   Presets cover what a reconciler actually asks for; the two date inputs cover
-   everything else. Deliberately not tied to the header month picker — that one
-   scopes the whole page (KPIs, AI summary), this one narrows the rows you are
-   working through, and conflating them is why "filter any time" was awkward. */
-function fyStart(d) { const y = d.getFullYear(); return (d.getMonth() >= 3 ? y : y - 1) + '-04-01'; }
-function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
-function datePresets() {
-  const now = new Date();
-  const som = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const eolm = new Date(now.getFullYear(), now.getMonth(), 0);
-  const q = Math.floor(now.getMonth() / 3);
-  return [
-    ['All time', '', ''],
-    ['This month', iso(som), iso(now)],
-    ['Last month', iso(lom), iso(eolm)],
-    ['Last 90 days', iso(new Date(now.getTime() - 89 * 86400000)), iso(now)],
-    ['This quarter', iso(new Date(now.getFullYear(), q * 3, 1)), iso(now)],
-    ['This FY', fyStart(now), iso(now)]
-  ];
-}
-function dLabel() {
-  if (!ST.dFrom && !ST.dTo) return 'Any date';
-  const f = ST.dFrom ? fDS(ST.dFrom) : '…';
-  const t = ST.dTo ? fDS(ST.dTo) : '…';
-  const hit = datePresets().find(p => p[1] === ST.dFrom && p[2] === ST.dTo && p[1]);
-  return hit ? hit[0] : f + ' – ' + t;
-}
-function dateBtnHTML() {
-  const on = !!(ST.dFrom || ST.dTo);
-  return `<div class="rc-dwrap">
-    <button class="rc-dbtn ${on ? 'on' : ''}" id="rcDBtn" aria-haspopup="dialog" aria-expanded="${!!ST.dOpen}" title="Filter by date">
-      ${svg('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>')}
-      <span>${esc(dLabel())}</span>${svg('<polyline points="6 9 12 15 18 9"/>')}
-    </button>
-    ${ST.dOpen ? `<div class="rc-dmenu" role="dialog" aria-label="Date range">
-      <div class="rc-dpre">${datePresets().map(p =>
-        `<button class="rc-dpb ${(ST.dFrom === p[1] && ST.dTo === p[2]) ? 'on' : ''}" data-dpre="${esc(p[1])}|${esc(p[2])}">${esc(p[0])}</button>`).join('')}</div>
-      <div class="rc-drow"><label>From</label><input type="date" id="rcDFrom" value="${esc(ST.dFrom)}"></div>
-      <div class="rc-drow"><label>To</label><input type="date" id="rcDTo" value="${esc(ST.dTo)}"></div>
-      <div class="rc-dfoot"><button class="rc-dclr" id="rcDClear">Clear</button><span class="rc-dn" id="rcDN"></span></div>
-    </div>` : ''}
-  </div>`;
 }
 function bulkBarHTML() {
   if (!ST.sel || !ST.sel.size) return '';
@@ -902,27 +802,9 @@ function filteredTxns() {
   else if (ST.fstatus === 'unmatched') r = r.filter(t => statusKey(t) === 'unmatched');
   else if (ST.fstatus === 'partial') r = r.filter(t => statusKey(t) === 'partial');
   else if (ST.fstatus === 'duplicate') r = r.filter(t => statusKey(t) === 'duplicate');
-  /* Dates are ISO (YYYY-MM-DD) so a string compare IS a date compare — no
-     parsing, no timezone to get wrong. */
-  if (ST.dFrom) r = r.filter(t => String(t.date || '') >= ST.dFrom);
-  if (ST.dTo)   r = r.filter(t => String(t.date || '') <= ST.dTo);
   r = r.filter(advMatch);          // advanced filters (Filters panel)
   if (ST.q) { const q = ST.q.toLowerCase(); r = r.filter(t => { const b = billFor(t); return ((t.clean || '') + ' ' + (t.raw || t.desc || '') + ' ' +(t.utr || '') + ' ' + (t.ref || '') + ' ' + (t.credit || t.debit || '') + ' ' + (b ? (b.party || b.sup || '') + ' ' + (b.inv || b.bill || '') : '')).toLowerCase().includes(q); }); }
-  const byDate = (a, b) => (b.date || '').localeCompare(a.date || '');
-  if (!ST.exFirst) return r.slice().sort(byDate);
-  /* Order by what it costs to ignore: an unmatched line is money unaccounted
-     for, a duplicate is money counted twice, a partial is half-done. Matched
-     lines are already settled and sink to the bottom — still there, still
-     scrollable, just not in the way. */
-  const rank = t => {
-    const k = statusKey(t);
-    if (k === 'unmatched') return 0;
-    if (k === 'duplicate') return 1;
-    if (k === 'partial') return 2;
-    if (k === 'other') return 3;
-    return 4;                       // matched / everything settled
-  };
-  return r.slice().sort((a, b) => (rank(a) - rank(b)) || byDate(a, b));
+  return r.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 }
 function badge(t) {
   const m = t.m || {}, s = STAT[m.status] || STAT.unmatched;
@@ -931,11 +813,9 @@ function badge(t) {
      column showed "80%", this badge showed "Partial · 80%", and the suggestion cell
      drew a progress bar of the same 80% — one fact, rendered three times, in three
      columns, on every row. That is what "too much data" meant. */
-  /* v3: the chip is COMPACT — status only, coloured dot, hover explains the
-     reason. The % moved to its own Confidence column (confCell) — one fact,
-     one place, still true, just each fact in ITS place now. */
-  const why = (m.reasons || []).filter(Boolean).slice(0, 3).join(' · ') || s[0];
-  return `<span class="rc-badge rc-schip" style="background:${s[1]};color:${s[2]}" title="${esc(why)}"><i class="rc-schip-d" style="background:${s[2]}"></i>${s[0]}${m.manual ? ' ✓' : ''}</span>`;
+  const showConf = m.confidence != null && ['matched', 'partial', 'review', 'overpayment', 'amountdiff', 'datemismatch', 'other'].indexOf(m.status) >= 0;
+  const dot = m.tier ? `<span class="rc-dot ${m.tier}"></span>` : '';
+  return `<span class="rc-badge" style="background:${s[1]};color:${s[2]}">${dot}${s[0]}${m.manual ? ' ✓' : ''}${showConf ? ' · ' + m.confidence + '%' : ''}</span>`;
 }
 function matchCell(t) {
   if (isSplit(t)) { const bl = billsFor(t); const names = bl.map(x => x.kind === 'sale' ? x.bill.party : x.bill.sup).filter(Boolean); const uniq = [...new Set(names)]; return `<div class="rc-match"><b>${bl.length} bills · ${fC(bl.reduce((a, x) => a + x.amount, 0))}</b><span>${esc(uniq.slice(0, 2).join(', '))}${uniq.length > 2 ? ' +' + (uniq.length - 2) : ''}</span></div>`; }
@@ -976,7 +856,7 @@ function monthGroupBar(g, first) {
   const dr = g.rows.reduce((a, t) => a + (t.debit || 0), 0);
   const todo = g.rows.filter(needsReview).length;
   const collapsed = ST.collapsed.has(g.key);
-  return `<tr class="qx-grp ${collapsed ? 'collapsed' : ''}" data-grp="${esc(g.key)}"><td colspan="7">
+  return `<tr class="qx-grp ${collapsed ? 'collapsed' : ''}" data-grp="${esc(g.key)}"><td colspan="8">
     <div class="qx-grp-bar ${first ? 'first' : ''}">
       <svg class="qx-grp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       <b>${esc(g.label)}</b>
@@ -988,298 +868,49 @@ function monthGroupBar(g, first) {
     </div></td></tr>`;
 }
 
-/* ── AUDIT TRAIL: who decided what, and what it was before ─────────────────
-   Reads the rows reconcile.js now writes. Deliberately read-only and
-   unfiltered by month: an audit trail you can quietly narrow is not one.
-   Same shape as purchase.js tabAudit so the two read alike. */
-function auditHTML() {
-  const all = (Q.auditRows ? Q.auditRows() : []) || [];
-  const rows = all.filter(a => a.module === 'recon');
-  if (!rows.length) return `<div class="rc-none">Nothing recorded yet. Confirming, unlinking, ignoring, categorising or marking a duplicate writes a line here.</div>`;
-  const q = (ST.aq || '').toLowerCase().trim();
-  const shown = q ? rows.filter(a => ((a.action || '') + ' ' + (a.party || '') + ' ' + (a.ref || '') + ' ' + (a.by || '') + ' ' + (a.reason || '')).toLowerCase().includes(q)) : rows;
-  const LBL = { confirm: 'Confirmed match', unlink: 'Unlinked', duplicate: 'Marked duplicate',
-    unduplicate: 'Unmarked duplicate', ignore: 'Ignored', categorise: 'Categorised', 'remove-duplicate': 'Removed duplicate' };
-  return `<div class="rc-tablewrap"><table class="rc-table rc-table2 rc-v3">
-    <thead><tr><th>When</th><th>Action</th><th>Transaction</th><th class="r">Amount</th><th>Change</th><th>By</th></tr></thead>
-    <tbody>${shown.slice(0, 400).map(a => `<tr>
-      <td class="rc-audit-t">${esc(String(a.ts || '').slice(0, 16).replace('T', ' '))}</td>
-      <td><span class="rc-audit-a">${esc(LBL[a.action] || a.action || '')}</span></td>
-      <td><div class="rc-mt"><span class="rc-mt-d">${esc(a.party || '—')}</span>${a.ref ? `<span class="rc-mt-w">${esc(a.ref)}</span>` : ''}</div></td>
-      <td class="r">${a.amount ? fC(a.amount) : '—'}</td>
-      <td class="rc-audit-c">${esc(a.reason || '—')}</td>
-      <td class="rc-audit-b">${esc(a.by || '—')}${a.role ? ' · ' + esc(a.role) : ''}</td>
-    </tr>`).join('')}</tbody></table>
-    ${shown.length > 400 ? `<div class="rc-none">Showing the latest 400 of ${shown.length}.</div>` : ''}</div>`;
-}
-/* ── REMOVE DUPLICATES ─────────────────────────────────────────────────────
-   A row flagged duplicate is the SAME bank line imported twice — the engine's
-   key is account + direction + amount + UTR (or the full raw narration) +
-   date, so two genuinely different payments of the same amount on the same
-   day are never both flagged. Removal keeps the first copy of each line (the
-   first copy is by construction the unflagged one) and audits every removal.
-
-   Deliberately ALL months, not the visible month: the user is cleaning the
-   data, not the view. In-place splice, not reassignment — other views hold a
-   reference to the same array. */
-/* Money posted BY a bank line must not outlive the line. postOnAccount stores
-   the only reversal handle on the txn (m.ledgerEntryId); deleting the txn
-   without reversing strands the amount on a party's running balance and in the
-   cashbook with nothing left to reverse it by. Every single-row unlink path
-   already reverses — the bulk deletes below must too. */
-function reverseBeforeDrop(rows) {
-  let n = 0;
-  (rows || []).forEach(t => {
-    const m = t.m || {};
-    if (m.kind === 'ledger' && m.ledgerEntryId && reverseLedgerSafe(m.partyIdx, m.ledgerEntryId)) n++;
-  });
-  return n;
-}
-/* A row is safe to remove ONLY if an identical line survives it.
-
-   statusKey === 'duplicate' is not sufficient: markDuplicate() sets that flag
-   on ANY row the user picks, so a unique line flagged by hand would otherwise
-   be deleted as a "copy" of nothing — and the SHA-256 upload guard then blocks
-   re-importing the file to get it back. Group by the ENGINE's own key and keep
-   the first of each group; a group of one is never touched. */
-function duplicateRows() {
-  const seen = Object.create(null), out = [];
-  txns().forEach(t => {
-    const k = RC.dedupeKey(npOf(t), t);
-    if (seen[k]) { if (statusKey(t) === 'duplicate') out.push(t); }
-    else seen[k] = 1;
-  });
-  return out;
-}
-function removeDuplicates() {
-  const rows = duplicateRows();
-  if (!rows.length) { toast('No duplicate rows in this data', 'ok'); return; }
-  const amt = rows.reduce((a, t) => a + (t.credit || 0) + (t.debit || 0), 0);
-  if (!confirm('Remove ' + rows.length + ' duplicate row' + (rows.length === 1 ? '' : 's') + ' totalling ' + fC(amt) + '?\n\nEach is the same bank line imported twice — the first copy stays. This cannot be undone.')) return;
-  const ids = new Set(rows.map(t => t.id));
-  const rev = reverseBeforeDrop(rows);
-  rows.forEach(t => auditRecon('remove-duplicate', t, 'duplicate', 'removed', 'kept the first copy'));
-  const keep = txns().filter(t => !ids.has(t.id));
-  Q.recon.txns.length = 0; Q.recon.txns.push(...keep);
-  Q.saveRecon(); ST.sel.clear(); render();
-  toast('Removed ' + rows.length + ' duplicate' + (rows.length === 1 ? '' : 's') + ' — first copies kept' + (rev ? ' · ' + rev + ' on-account entr' + (rev === 1 ? 'y' : 'ies') + ' reversed' : ''), 'ok');
-}
-
-/* ── STATEMENTS MANAGER ────────────────────────────────────────────────────
-   Asked for directly: "delete all statement I will upload again". Deleting a
-   statement's LOG entry alone would leave its transactions in the data AND
-   block the re-upload (the SHA-256 guard refuses a file it has seen), so:
-
-   • a statement whose rows are stamped (stmtId) deletes together with exactly
-     the transactions it imported;
-   • a legacy statement (uploaded before stamping) says plainly that its rows
-     cannot be identified — entry-only delete, so at least the re-upload works;
-   • "Clear ALL bank data" removes every transaction and every statement log
-     entry in one audited step. That is the honest primitive for "I will
-     upload again", and it shows exact counts before asking.
-
-   Every path is confirm-gated and audited. */
-function stmtTxnCount(id) { return txns().filter(t => t.stmtId === id).length; }
-function deleteStatement(id) {
-  const st = (Q.statementRows ? Q.statementRows() : []).find(x => x.id === id); if (!st) return;
-  const n = stmtTxnCount(id);
-  const msg = n
-    ? 'Delete "' + st.file + '" and the ' + n + ' transaction' + (n === 1 ? '' : 's') + ' it imported?\n\nThis cannot be undone.'
-    : 'Delete the log entry for "' + st.file + '"?\n\nIts transactions were imported before per-statement tracking and stay in the data — use "Clear all bank data" to remove everything. Deleting the entry lets the same file upload again.';
-  if (!confirm(msg)) return;
-  let rev = 0;
-  if (n) {
-    const going = txns().filter(t => t.stmtId === id);
-    rev = reverseBeforeDrop(going);
-    const keep = txns().filter(t => t.stmtId !== id);
-    Q.recon.txns.length = 0; Q.recon.txns.push(...keep);
-  }
-  if (Q.logAudit) { try { Q.logAudit('delete', 'recon', { id: id }, { ref: st.file, amount: 0, reason: 'statement deleted with ' + n + ' transactions' }); } catch (_) {} }
-  if (Q.removeStatement) Q.removeStatement(id);
-  Q.saveRecon(); openStatements();
-  toast(n ? 'Deleted "' + st.file + '" + ' + n + ' transactions' + (rev ? ' · ' + rev + ' on-account reversed' : '') : 'Deleted the log entry — the file can be uploaded again', 'ok');
-}
-function clearBankData() {
-  const nT = txns().length, sts = (Q.statementRows ? Q.statementRows() : []);
-  if (!nT && !sts.length) { toast('Nothing to clear', 'ok'); return; }
-  const onAcct = txns().filter(t => (t.m || {}).kind === 'ledger' && (t.m || {}).ledgerEntryId).length;
-  if (!confirm('Clear ALL bank data?\n\n• ' + nT + ' transactions\n• ' + sts.length + ' statement log entr' + (sts.length === 1 ? 'y' : 'ies')
-    + (onAcct ? '\n• ' + onAcct + ' on-account entr' + (onAcct === 1 ? 'y' : 'ies') + ' will be REVERSED out of the party ledgers and cashbook' : '')
-    + '\n\nMatches, categories and duplicate flags go with them. Your bills and payments are NOT touched. This cannot be undone.')) return;
-  if (Q.logAudit) { try { Q.logAudit('delete', 'recon', { id: 'ALL' }, { amount: 0, reason: 'cleared all bank data: ' + nT + ' transactions, ' + sts.length + ' statements' }); } catch (_) {} }
-  const revAll = reverseBeforeDrop(txns());
-  sts.forEach(st => { if (Q.removeStatement) Q.removeStatement(st.id); });
-  Q.recon.txns.length = 0;
-  Q.saveRecon(); QLShell.closeModal(); ST.sel.clear(); render();
-  toast('Cleared ' + nT + ' transactions and ' + sts.length + ' statements' + (revAll ? ' · ' + revAll + ' on-account reversed' : '') + ' — upload afresh', 'ok');
-}
-function openStatements() {
-  const sts = (Q.statementRows ? Q.statementRows() : []);
-  const rowsH = sts.length ? sts.map(st => {
-    const n = stmtTxnCount(st.id);
-    return `<div class="rc-stmt"><div class="rc-stmt-t"><b>${esc(st.file || '—')}</b>
-      <span>${esc(st.from || '?')} – ${esc(st.to || '?')} · ${st.rows || 0} row${st.rows === 1 ? '' : 's'} in file · ${n ? n + ' tracked here' : 'rows not tracked (older upload)'}</span></div>
-      <button class="rc-stmt-del" data-delstmt="${esc(st.id)}">${n ? 'Delete + ' + n + ' txns' : 'Delete entry'}</button></div>`;
-  }).join('') : '<div class="rc-none">No statements in the log.</div>';
-  const body = `<div class="rc-stmts">${rowsH}</div>
-    <div class="rc-stmt-foot"><button class="rc-dupbar-b" id="rcClearAll">Clear ALL bank data (${txns().length} transactions)</button>
-    <div class="in-note">Bills, payments and every other module are untouched — this clears only imported bank lines and the statement log, so the same files can be uploaded again.</div></div>`;
-  const pane = QLShell.panel({ title: 'Imported statements', sub: sts.length + ' in the log', body: body }) || document;
-  (pane.querySelectorAll ? pane : document).querySelectorAll('[data-delstmt]').forEach(b => b.onclick = () => deleteStatement(b.dataset.delstmt));
-  const ca = (pane.querySelector ? pane.querySelector('#rcClearAll') : null) || document.getElementById('rcClearAll');
-  if (ca) ca.onclick = clearBankData;
-}
-
 function viewHTML() {
   if (ST.view === 'ledger') return ledgerHTML();
-  if (ST.view === 'audit') return auditHTML();
   const rows = filteredTxns();
-  /* The cleanup offer rides above the table whenever flagged copies exist —
-     count and amount are ALL months, and the banner says so, because the
-     removal is. */
-  const _dups = (ST.fstatus === 'all' || ST.fstatus === 'duplicate') ? duplicateRows() : [];
-  const dupBar = _dups.length ? `<div class="rc-dupbar">${svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>')}
-    <span><b>${_dups.length}</b> duplicate row${_dups.length === 1 ? '' : 's'} across all months — the same bank line imported twice.</span>
-    <button class="rc-dupbar-b" id="rcRmDup">Remove all · keep first copies</button></div>` : '';
-  if (!rows.length) return dupBar +  `<div class="rc-none">${ST.month && ST.month !== 'all' ? 'No matching transactions for ' + esc(monthLabel()) : 'No transactions match these filters'}.</div>`;
+  if (!rows.length) return `<div class="rc-none">${ST.month && ST.month !== 'all' ? 'No matching transactions for ' + esc(monthLabel()) : 'No transactions match these filters'}.</div>`;
   /* ONE row template — the grouped and ungrouped paths must render the same row.
-     Two copies would drift the moment a column is added to only one of them.
-
-     v3 LAYOUT (information priority): Date · Transaction (name + mode·ref) ·
-     Amount · Status chip · Confidence bar · Review. Type + suggested-match moved
-     into the EXPANDABLE detail row — scan first, detail on demand. */
+     Two copies would drift the moment a column is added to only one of them. */
   const rowHTML = t => {
     const sel = ST.sel && ST.sel.has(t.id);
-    const open = ST.expanded.has(t.id);
-    return `<tr data-open="${t.id}" class="rc-clk${sel ? ' rc-selrow' : ''}${open ? ' rc-xopen' : ''}">
+    return `<tr data-open="${t.id}" class="rc-clk${sel ? ' rc-selrow' : ''}">
     <td class="rc-cbx"><button class="rc-cb${sel ? ' on' : ''}" data-sel="${t.id}" title="Select">${sel ? svg(IC.ck) : ''}</button></td>
     <td class="rc-mut rc-nowrap">${fDS(t.date)}</td>
     <td class="rc-party">${partyCell(t)}</td>
+    <td>${typeCell(t)}</td>
     <td class="r">${amountCell(t)}</td>
+    <td>${suggestCell(t)}</td>
     <td>${badge(t)}</td>
-    <td>${matchedCell(t)}</td>
     <td class="rc-actcell">${actionCell(t)}</td>
-  </tr>${open ? `<tr class="rc-xrow"><td colspan="7">${expandHTML(t)}</td></tr>` : ''}`; };
+  </tr>`; };
 
   /* Group only when there is more than one month to separate. */
-  const capped = rows.slice(0, ST.cap);
-  const more = rows.length - capped.length;
-  const groups = groupByMonth(capped);
+  const groups = groupByMonth(rows);
   const body = groups.length < 2
-    ? capped.map(rowHTML).join('')
+    ? rows.map(rowHTML).join('')
     : groups.map((g, i) =>
         monthGroupBar(g, i === 0) +
         (ST.collapsed.has(g.key) ? '' : g.rows.map(rowHTML).join(''))
       ).join('');
-  const moreBar = more > 0 ? `<tr><td colspan="7" class="rc-morebar"><button class="ql-btn ql-btn-secondary" data-showmore>Show ${Math.min(300, more)} more (${more.toLocaleString('en-IN')} remaining)</button></td></tr>` : '';
-  return dupBar + `<div class="rc-tablewrap"><table class="rc-table rc-table2 rc-v3">
-    <thead><tr><th class="rc-cbx"></th><th>Date</th><th>Transaction</th><th class="r">Amount</th><th>Status</th><th>Reconciled against</th><th></th></tr></thead>
-    <tbody>${body}${moreBar}</tbody></table></div>`;
-}
-/* ── v3: confidence indicator (bar + %) — the ONE place the number is drawn ── */
-/* WHAT THIS LINE IS RECONCILED AGAINST — a fact, not a score.
-
-   The AI-confidence bar was a percentage on every row that nobody could act
-   on: it said how sure the matcher was, never WHAT it matched. This shows the
-   document the money is tied to (invoice / bill number and party), or the
-   category for a line that is not a bill (bank charges, EMI, internal
-   transfer). Unmatched lines say so plainly instead of showing a low bar.
-   The confidence is still available — it is in the expandable row, next to
-   the reasons the matcher gives. */
-function matchedCell(t) {
-  const m = t.m || {}, b = billFor(t);
-  if (b) {
-    const no = b.inv || b.bill || '';
-    /* Do NOT repeat the party — the Transaction column already names them, and
-       the same name twice on one row is wasted width. What this column can add
-       is the SIDE of the trade: a credit settles a customer's invoice, a debit
-       pays a supplier's bill. That is the fact the accountant needs to see and
-       cannot infer from the name alone. */
-    const side = t.credit ? 'Customer' : 'Supplier';
-    return `<div class="rc-mt"><span class="rc-mt-d">${esc(no || 'Matched')}</span>`
-      + `<span class="rc-mt-w rc-side ${t.credit ? 'cust' : 'sup'}">${side}</span></div>`;
-  }
-  if (m.entryId) return `<div class="rc-mt"><span class="rc-mt-d">Cashbook entry</span>${m.cat ? `<span class="rc-mt-w">${esc(m.cat)}</span>` : ''}</div>`;
-  if (m.status === 'other' && m.cat) return `<div class="rc-mt"><span class="rc-mt-d">${esc(m.cat)}</span><span class="rc-mt-w">categorised</span></div>`;
-  if (m.status === 'duplicate') return `<div class="rc-mt"><span class="rc-mt-w">duplicate of an earlier line</span></div>`;
-  return `<div class="rc-mt"><span class="rc-mt-w">not matched yet</span></div>`;
-}
-function confCell(t) {
-  const m = t.m || {};
-  const c = m.confidence;
-  if (c == null || ['matched', 'partial', 'review', 'overpayment', 'amountdiff', 'datemismatch', 'other'].indexOf(m.status) < 0) return '<span class="rc-mut">—</span>';
-  const col = c >= 95 ? '#16a34a' : c >= 75 ? '#f59e0b' : '#ef4444';
-  return `<div class="rc-cf" title="AI confidence ${c}%${m.tier ? ' · ' + m.tier + ' tier' : ''}"><span class="rc-cf-n">${c}%</span><div class="rc-cf-bar"><i style="width:${Math.max(4, Math.min(100, c))}%;background:${col}"></i></div></div>`;
-}
-/* ── v3: the expandable detail row — everything the lean row hides ── */
-function expandHTML(t) {
-  const m = t.m || {};
-  const reasons = (m.reasons || []).filter(Boolean);
-  const ids = [t.utr ? 'UTR ' + t.utr : '', t.cheque ? 'CHQ ' + t.cheque : '', t.ref ? 'Ref ' + t.ref : ''].filter(Boolean).join(' · ');
-  return `<div class="rc-x">
-    <div class="rc-x-col">
-      <div class="rc-x-h">Narration</div>
-      <div class="rc-x-nar">${esc(t.raw || t.desc || '—')}</div>
-      ${ids ? `<div class="rc-x-ids">${esc(ids)}</div>` : ''}
-      <div class="rc-x-type">${typeCell(t)}</div>
-    </div>
-    <div class="rc-x-col">
-      <div class="rc-x-h">Suggested match</div>
-      ${suggestCell(t)}
-      ${reasons.length ? `<div class="rc-x-h" style="margin-top:10px">Why the AI thinks so</div><ul class="rc-x-why">${reasons.slice(0, 4).map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : ''}
-    </div>
-    <div class="rc-x-acts">
-      <button class="ql-btn ql-btn-primary rc-review" data-open="${t.id}">Open review</button>
-      <button class="ql-btn ql-btn-secondary" data-link="${t.id}">Identify party</button>
-      <button class="ql-btn ql-btn-secondary" data-mark="${t.id}">Mark as…</button>
-    </div>
-  </div>`;
+  return `<div class="rc-tablewrap"><table class="rc-table rc-table2">
+    <thead><tr><th class="rc-cbx"></th><th>Date</th><th>Party / Description</th><th>Type</th><th class="r">Amount</th><th>Suggested match</th><th>Status</th><th></th></tr></thead>
+    <tbody>${body}</tbody></table></div>`;
 }
 /* ── table cells ── */
 function titleCase(s) { return (s || '').toString().toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()); }
-/* Rail/bank boilerplate that carries no information about WHO was paid. */
-const TITLE_NOISE = /^(sent|using|payt|paytm@|upi|neft|imps|rtgs|chg|chrg|txn|trf|transfer|to|from|via|ref|no|the|and|of|ltd|pvt)$/i;
-function shortTitle(s, max) {
-  const words = String(s || '').replace(/[_\-\/]+/g, ' ').split(/\s+/).filter(Boolean);
-  const out = [];
-  for (const w of words) {
-    if (out.length >= (max || 3)) break;
-    if (w.length === 1) continue;                       // stray initials: "M U"
-    if (TITLE_NOISE.test(w)) continue;
-    if (/^\d+$/.test(w)) continue;                      // refs and date fragments (12/12/25 -> 12 12 25)
-    const prev = out[out.length - 1] || '';
-    /* "Utility Utilitypaytm" and "Hdfcbank HdfcOmerupi" are the same token
-       twice with the rail glued on — keep the first, drop the echo. */
-    const a = w.toLowerCase(), b = prev.toLowerCase();
-    if (prev && (a.startsWith(b) || b.startsWith(a))) continue;
-    out.push(w);
-  }
-  return out.join(' ');
-}
 function partyCell(t) {
   const b = billFor(t), m = t.m || {}, alias = (aliases()[RC.normName(t.clean || '')] || '');
   const known = b ? (t.credit ? b.party : b.sup) : (m.party || alias || '');
   // Primary line: the resolved PARTY (or the category for non-bill entries) —
   // never the raw bank blob. Secondary: normalized "mode · ref", not narration.
   const isOther = m.status === 'other';
-  /* NO FIXED CHARACTER LIMIT. This used to slice(0,36) — a hard cut that mangled
-     long party names while half the row sat empty. The name is now given the
-     room it needs and the CSS clamps it to two lines, so a 200-character
-     narration degrades gracefully instead of being chopped mid-word. */
-  /* A RESOLVED party keeps its full name — never cut a real name. An
-     UNRESOLVED bank blob ("Paytm Utility Utilitypaytm Hdfcbank HdfcOmerupi
-     Sent Using Payt M U") is not a name at all: it is rail noise, and it wraps
-     to two lines saying almost nothing. Show the first few meaningful words;
-     the full narration is always in the expandable row below. */
-  const name = known || (isOther ? m.cat : '') || shortTitle(titleCase(t.clean)) || shortTitle(t.raw || t.desc || '') || '—';
+  const name = known || (isOther ? m.cat : '') || titleCase(t.clean) || (t.raw || t.desc || '—').slice(0, 36);
   const mode = t.mode || (t.cheque ? 'CHQ' : '');
   const shortRef = t.utr ? String(t.utr).slice(-10) : (t.cheque || '');
-  /* The secondary line is the PAYMENT RAIL + reference (NEFT · 6161997932) —
-     short, structured, and the thing an accountant actually cross-checks. It
-     only falls back to the raw narration when the bank gave us no rail/ref, and
-     even then the CSS keeps it to one line: the FULL narration always lives in
-     the expandable detail row, never truncated there. */
-  const norm2 = [mode, shortRef].filter(Boolean).join(' · ') || (t.raw || t.desc || '');
+  const norm2 = [mode, shortRef].filter(Boolean).join(' · ') || (t.raw || t.desc || '').slice(0, 38);
   /* TWO LINES, ALWAYS. This cell used to grow a conditional THIRD line
      ("✓ Recognized as X" / "Unknown party · Identify"), so rows that had one stood
      taller than rows that did not — that is the ragged spacing he reported.
@@ -1434,7 +1065,7 @@ function openMark(tid, anchor) {
   const cats = ['Advance payment', 'Self transfer', 'Inter-firm transfer', 'Partner transfer', 'Loan / EMI', 'Cash withdrawal', 'GST payment', 'Bank charges', 'Interest', 'Petcoke', 'Limestone', 'Plastic Bags', 'Royalty', 'Ignore', 'Other'];
   const m = document.createElement('div'); m.className = 'rc-menu';
   m.innerHTML = `<div class="rc-menu-h">Mark as</div>${cats.map(c => `<button class="rc-menu-i" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}`;
-  m.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { const _wc = statusKey(t); t.m = { kind: 'other', idx: null, status: 'other', cat: b.dataset.cat, manual: true, confidence: 100, matchedBy: 'manual', reasons: ['Categorized as ' + b.dataset.cat + ' by user'], at: new Date().toISOString() }; auditRecon('categorise', t, _wc, 'other', b.dataset.cat); Q.saveRecon(); closeRcMenu(); render(); toast('Marked as ' + b.dataset.cat, 'ok'); });
+  m.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { t.m = { kind: 'other', idx: null, status: 'other', cat: b.dataset.cat, manual: true, confidence: 100, matchedBy: 'manual', reasons: ['Categorized as ' + b.dataset.cat + ' by user'], at: new Date().toISOString() }; Q.saveRecon(); closeRcMenu(); render(); toast('Marked as ' + b.dataset.cat, 'ok'); });
   placeRcMenu(m, anchor);
 }
 /* Row 3-dot menu: one place for the secondary actions (keeps the row clean). */
@@ -1471,41 +1102,14 @@ function openKebab(tid, anchor) {
   if (isLinked(t)) m.appendChild(item('Undo match', () => { undoMatch(t); render(); }, 'del'));
   placeRcMenu(m, anchor);
 }
-/* ── AUDIT: every reconciliation DECISION leaves a trace ────────────────────
-   reconcile.js wrote none. Confirming a match, unlinking one, marking a
-   duplicate or categorising a line all moved money-facing state with nothing
-   recorded — "who matched this, when, and was it the AI or a person" had no
-   answer. Q.auditRows() already reads the log (purchase.js does), so only the
-   write side was missing.
-
-   Kept cheap on purpose: one call per decision, the previous → new status in
-   `reason` so an override is legible without a schema change. */
-function auditRecon(action, t, was, now, extra) {
-  if (!Q.logAudit) return;                       // older data.js — never throw here
-  const b = billFor(t);
-  try {
-    Q.logAudit(action, 'recon', { id: t.id }, {
-      ref: t.utr || t.cheque || t.ref || '',
-      party: (b && (b.party || b.sup)) || (t.m && t.m.party) || t.clean || '',
-      amount: (t.credit || 0) + (t.debit || 0),
-      reason: (was && now ? was + ' → ' + now : (now || '')) + (extra ? ' · ' + extra : '')
-    });
-  } catch (_) { /* an audit failure must never block the user's action */ }
-}
-
-function markDuplicate(t, on) {
-  const was = statusKey(t);
-  t.m = Object.assign({}, t.m || {}, { status: on ? 'duplicate' : (t.m && t.m.idx != null ? 'matched' : 'unmatched'), manual: true });
-  auditRecon(on ? 'duplicate' : 'unduplicate', t, was, statusKey(t), 'by user');
-  Q.saveRecon();
-}
-function undoMatch(t) { const _was = statusKey(t); if (t.m && t.m.kind === 'ledger' && t.m.ledgerEntryId && Q.reverseLedgerEntry) Q.reverseLedgerEntry(t.m.partyIdx, t.m.ledgerEntryId); t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched', confidence: 0, matchedBy: 'manual', reasons: ['Unlinked by user'], at: new Date().toISOString() }; auditRecon('unlink', t, _was, 'unmatched', 'by user'); Q.saveRecon(); }
+function markDuplicate(t, on) { t.m = Object.assign({}, t.m || {}, { status: on ? 'duplicate' : (t.m && t.m.idx != null ? 'matched' : 'unmatched'), manual: true }); Q.saveRecon(); }
+function undoMatch(t) { if (t.m && t.m.kind === 'ledger' && t.m.ledgerEntryId && Q.reverseLedgerEntry) Q.reverseLedgerEntry(t.m.partyIdx, t.m.ledgerEntryId); t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched', confidence: 0, matchedBy: 'manual', reasons: ['Unlinked by user'], at: new Date().toISOString() }; Q.saveRecon(); }
 function bulkAction(a) {
   const rows = txns().filter(t => ST.sel.has(t.id));
   if (a === 'clear') { ST.sel.clear(); render(); return; }
-  if (a === 'confirm') { rows.forEach(t => { if (t.m && t.m.idx != null) { const _w = statusKey(t); t.m = Object.assign({}, t.m, { status: (t.credit || t.debit) < ((billFor(t) || {}).outstanding != null ? billFor(t).outstanding : Infinity) - 1 ? 'partial' : 'matched', manual: true, confidence: 100 }); auditRecon('confirm', t, _w, statusKey(t), 'bulk'); } }); Q.saveRecon(); ST.sel.clear(); render(); toast('Confirmed ' + rows.length + ' match' + (rows.length === 1 ? '' : 'es'), 'ok'); return; }
+  if (a === 'confirm') { rows.forEach(t => { if (t.m && t.m.idx != null) t.m = Object.assign({}, t.m, { status: (t.credit || t.debit) < ((billFor(t) || {}).outstanding != null ? billFor(t).outstanding : Infinity) - 1 ? 'partial' : 'matched', manual: true, confidence: 100 }); }); Q.saveRecon(); ST.sel.clear(); render(); toast('Confirmed ' + rows.length + ' match' + (rows.length === 1 ? '' : 'es'), 'ok'); return; }
   if (a === 'dup') { rows.forEach(t => markDuplicate(t, true)); ST.sel.clear(); render(); toast('Marked ' + rows.length + ' as duplicate', 'ok'); return; }
-  if (a === 'ignore') { rows.forEach(t => { const _w = statusKey(t); t.m = { kind: 'other', idx: null, status: 'other', cat: 'Ignored', manual: true, confidence: 100 }; auditRecon('ignore', t, _w, 'other', 'bulk'); }); Q.saveRecon(); ST.sel.clear(); render(); toast('Ignored ' + rows.length, 'ok'); return; }
+  if (a === 'ignore') { rows.forEach(t => { t.m = { kind: 'other', idx: null, status: 'other', cat: 'Ignored', manual: true, confidence: 100 }; }); Q.saveRecon(); ST.sel.clear(); render(); toast('Ignored ' + rows.length, 'ok'); return; }
   if (a === 'export') { exportRecon(); ST.sel.clear(); render(); return; }
   // Reassign the selected txns to a bank account (or back to Unassigned).
   // Dedupe keys are account-scoped, so duplicates are re-evaluated after.
@@ -1722,15 +1326,11 @@ function openUpload() {
       msg.innerHTML = `<div class="rc-err"><b>Nothing new to import.</b><br>All ${parsed.length} transaction${parsed.length === 1 ? '' : 's'} in this file ${parsed.length === 1 ? 'is' : 'are'} already in your books.</div>`;
       return;
     }
-    /* Stamp each row with its statement BEFORE pushing, so a statement can be
-       deleted together with exactly the transactions it brought in. Rows from
-       before this stamping have no stmtId — the manager is honest about that. */
     Q.recon.txns.push(...scr.keep); runMatchAll();
     const matched = scr.keep.filter(t => isLinked(t)).length;
     if (Q.addStatement && f) {
       const ds = scr.keep.map(t => t.date).filter(Boolean).sort();
-      const _st = Q.addStatement({ accountId: scr.keep[0].accountId || '', file: f.name, rows: scr.keep.length, from: ds[0] || '', to: ds[ds.length - 1] || '', sha: sha || '' });
-      if (_st && _st.id) { scr.keep.forEach(t => { t.stmtId = _st.id; }); Q.saveRecon(); }
+      Q.addStatement({ accountId: scr.keep[0].accountId || '', file: f.name, rows: scr.keep.length, from: ds[0] || '', to: ds[ds.length - 1] || '', sha: sha || '' });
     }
     close(); render();
     toast('Imported ' + scr.keep.length + ' transactions · ' + matched + ' auto-matched'
@@ -2028,12 +1628,8 @@ function wire() {
     const nm = row.dataset.ledger, ps = Q.partyRows(); const norm = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const p = ps.find(x => norm(x.name) === norm(nm)); if (p) location.href = './ledger.html?party=' + p.idx;
   });
-  if ($('rcAiReview')) $('rcAiReview').onclick = (e) => { e.preventDefault(); e.stopPropagation(); ST.fstatus = 'review'; render(); };
-  if ($('rcMore')) $('rcMore').onclick = e => { e.stopPropagation(); ST.moreOpen = !ST.moreOpen; render(); };
-  if ($('rcStmts')) $('rcStmts').onclick = () => { ST.moreOpen = false; render(); openStatements(); };
+  if ($('rcAiReview')) $('rcAiReview').onclick = () => { ST.fstatus = 'review'; render(); };
   root.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { ST.view = b.dataset.view; render(); });
-  if ($('rcRmDup')) $('rcRmDup').onclick = removeDuplicates;
-  if ($('rcAudSearch')) { const i = $('rcAudSearch'); i.oninput = () => { ST.aq = i.value; const p = document.querySelector('.rc-panel'); if (p) { p.innerHTML = viewHTML(); wire(); const j = $('rcAudSearch'); if (j) { j.focus(); j.setSelectionRange(j.value.length, j.value.length); } } }; }
   root.querySelectorAll('[data-ftype]').forEach(b => b.onclick = () => { ST.ftype = b.dataset.ftype; render(); });
   /* Filters. render() rebuilds the toolbar, so these rebind every paint — the
      same pattern the tab buttons above already use. */
@@ -2061,9 +1657,6 @@ function wire() {
     window.__rcStAway = 1;   // bound once per page load — wire() runs on every render
     document.addEventListener('click', e => {
       if (ST.stOpen && !e.target.closest('.rc-stwrap')) { ST.stOpen = false; render(); }
-      /* The date popover needs the same closer, and for the same reason. */
-      if (ST.dOpen && !e.target.closest('.rc-dwrap')) { ST.dOpen = false; render(); }
-      if (ST.moreOpen && !e.target.closest('.rc-morew')) { ST.moreOpen = false; render(); }
     });
   }
   root.querySelectorAll('[data-facc]').forEach(b => b.onclick = () => { ST.acc = b.dataset.facc; ST.sel.clear(); render(); });
@@ -2074,41 +1667,13 @@ function wire() {
   if ($('rcLgSort')) { const sel = $('rcLgSort'); sel.onchange = () => { ST.lsort = sel.value; lgRepaint(); }; }
   document.querySelectorAll('[data-lfilter]').forEach(b => { b.onclick = () => { ST.lfilter = b.dataset.lfilter; lgRepaint(); }; });
   if ($('rcLgClear')) $('rcLgClear').onclick = () => { ST.lq = ''; ST.lfilter = 'all'; lgRepaint(); };
-  if ($('rcSearch')) { const s = $('rcSearch'); s.oninput = () => { ST.q = s.value; ST.cap = 300; repaintList(); s2focus(); }; }
-  /* ── date range ── */
-  if ($('rcExFirst')) $('rcExFirst').onclick = () => { ST.exFirst = !ST.exFirst; ST.cap = 300; render(); };
-  if ($('rcDBtn')) $('rcDBtn').onclick = e => { e.stopPropagation(); ST.dOpen = !ST.dOpen; ST.stOpen = false; render(); };
-  (document.querySelectorAll('[data-dpre]') || []).forEach(b => b.onclick = e => {
-    e.stopPropagation();
-    const [f, t] = b.dataset.dpre.split('|');
-    ST.dFrom = f; ST.dTo = t; ST.dOpen = false; ST.cap = 300; render();
-  });
-  ['rcDFrom', 'rcDTo'].forEach(id => { const el = $(id); if (el) {
-    el.onclick = e => e.stopPropagation();
-    el.onchange = () => {
-      const f = ($('rcDFrom') || {}).value || '', t = ($('rcDTo') || {}).value || '';
-      /* A backwards range silently shows nothing, which reads as "no data".
-         Swap it instead — the user meant the span between the two dates. */
-      ST.dFrom = (f && t && f > t) ? t : f;
-      ST.dTo   = (f && t && f > t) ? f : t;
-      ST.cap = 300; render();
-    };
-  } });
-  if ($('rcDClear')) $('rcDClear').onclick = e => { e.stopPropagation(); ST.dFrom = ST.dTo = ''; ST.dOpen = false; render(); };
+  if ($('rcSearch')) { const s = $('rcSearch'); s.oninput = () => { ST.q = s.value; const p = document.querySelector('.rc-panel'); if (p) { p.innerHTML = viewHTML(); wire(); s2focus(); } }; }
   root.querySelectorAll('[data-link]').forEach(b => b.onclick = () => openLink(b.dataset.link));
   root.querySelectorAll('[data-unlink]').forEach(b => b.onclick = () => { const t = txns().find(x => x.id === b.dataset.unlink); if (t) { t.m = { kind: (t.credit || 0) > 0 ? 'sale' : 'purchase', idx: null, status: 'unmatched' }; Q.saveRecon(); render(); } });
   root.querySelectorAll('[data-mark]').forEach(b => b.onclick = e => openMark(b.dataset.mark, e.currentTarget));
   root.querySelectorAll('.rc-review').forEach(b => b.onclick = e => { e.stopPropagation(); openDetail(b.dataset.open); });
   root.querySelectorAll('[data-more]').forEach(b => b.onclick = e => { e.stopPropagation(); openKebab(b.dataset.more, e.currentTarget); });
-  /* v3: clicking a row EXPANDS it inline (details unfold under the row, no
-     navigation); the Review button is the path to the full side drawer. */
-  root.querySelectorAll('.rc-clk[data-open]').forEach(tr => tr.addEventListener('click', e => {
-    if (e.target.closest('button,a,input,select')) return;
-    const id = tr.dataset.open;
-    ST.expanded.has(id) ? ST.expanded.delete(id) : ST.expanded.add(id);
-    repaintList();
-  }));
-  root.querySelectorAll('[data-showmore]').forEach(b => b.onclick = () => { ST.cap += 300; repaintList(); });
+  root.querySelectorAll('.rc-clk[data-open]').forEach(tr => tr.addEventListener('click', e => { if (e.target.closest('button,a,input,select')) return; openDetail(tr.dataset.open); }));
   // selection + bulk bar
   root.querySelectorAll('[data-sel]').forEach(b => b.onclick = e => { e.stopPropagation(); const id = b.dataset.sel; ST.sel.has(id) ? ST.sel.delete(id) : ST.sel.add(id); render(); });
   root.querySelectorAll('[data-bulk]').forEach(b => b.onclick = () => bulkAction(b.dataset.bulk));
@@ -2116,56 +1681,6 @@ function wire() {
   const fo = root.querySelector('.rc-fo'); if (fo) fo.addEventListener('toggle', () => { ST.foOpen = fo.open; });
 }
 function s2focus() { const s = document.getElementById('rcSearch'); if (s) { s.focus(); const v = s.value; s.value = ''; s.value = v; } }
-/* THE STICKY OFFSET, measured — not guessed.
-   The toolbar WRAPS (status pills + Filters + search + Ledger): one line on a
-   wide screen, three on a narrow one, so its height is 56px…200px. A hard-coded
-   `top` for the table header is therefore wrong at most widths — too small and
-   the header slides under the toolbar, too large and a white band opens between
-   them. That band is the "header / sub-header gap". Measure the real element and
-   publish it as --rc-tb-h; re-measure on resize. */
-function syncStickyOffset() {
-  const tb = document.querySelector('.rc-toolbar2');
-  if (!tb) return;
-  const h = Math.round(tb.getBoundingClientRect().height);
-  if (h > 0) document.documentElement.style.setProperty('--rc-tb-h', h + 'px');
-  /* Watch the toolbar itself. A window-resize listener alone is not enough: the
-     toolbar also rewraps when its own content changes (a filter chip appears, the
-     count text grows) with no window resize at all — and a measurement taken
-     while the pane is still laying out would stick forever. ResizeObserver
-     re-measures on every real height change, so the header always pins flush. */
-  if (!window.__rcRO && typeof ResizeObserver === 'function') {
-    window.__rcRO = new ResizeObserver(() => {
-      const el = document.querySelector('.rc-toolbar2'); if (!el) return;
-      const hh = Math.round(el.getBoundingClientRect().height);
-      if (hh > 0) document.documentElement.style.setProperty('--rc-tb-h', hh + 'px');
-    });
-  }
-  if (window.__rcRO) { try { window.__rcRO.disconnect(); window.__rcRO.observe(tb); } catch (_) {} }
-
-}
-
-/* Guarded: this file is also loaded head-less by the recon test suites, whose
-   stubbed `window` has no addEventListener — an unguarded call here would throw
-   at PARSE time and take the whole page (and every test) down with it. */
-if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-  window.addEventListener('resize', () => { clearTimeout(window.__rcSyncT); window.__rcSyncT = setTimeout(syncStickyOffset, 120); });
-}
-/* Repaint the list AND the summary cards together. The cards now total the
-   FILTERED set, so refreshing only the panel (the old behaviour) would leave
-   them describing a list that is no longer on screen. */
-function repaintList() {
-  const p = document.querySelector('.rc-panel');
-  if (!p) { render(); return; }
-  p.innerHTML = viewHTML();
-  /* Must match the class summaryHTML() actually renders. When the strip was
-     renamed this selector was left behind: `s` came back null, the `if (s)`
-     guard swallowed it, and the totals silently stopped following the filters
-     while still looking authoritative. */
-  const s = document.querySelector('.rc-summary2');
-  if (s) s.outerHTML = summaryHTML();
-  wire();
-  syncStickyOffset();
-}
 
 /* ── Copilot: reconciliation Q&A (registered into the shared assistant) ── */
 if (QLShell.registerAssistIntent) QLShell.registerAssistIntent((q, t) => {

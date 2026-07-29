@@ -133,25 +133,11 @@
 /* ── WORKSPACE PANEL (holds toolbar + views) ────────────────────────── */
 .qx-panel {
   background: var(--ql-card); border: 1px solid var(--ql-border);
-  border-radius: 12px; box-shadow: var(--ql-shadow-xs);
-  /* `clip` instead of `hidden`: both clip to the rounded corners, but `hidden`
-     ESTABLISHES A SCROLL CONTAINER — which captures the sticky toolbar below and
-     makes it scroll away with the page. `clip` does not, so the toolbar can pin
-     to the page scrollport while still being clipped by the panel. */
-  overflow: clip;
+  border-radius: 12px; box-shadow: var(--ql-shadow-xs); overflow: hidden;
 }
 
 /* ── TOOLBAR ────────────────────────────────────────────────────────── */
-/* THE UNIVERSAL STICKY FILTER BAR.
-   Every QLX module (sales, purchase, payments, parties, cashbook, collections,
-   crm, labour, loans, payables, tds, …) renders its filters through this one
-   toolbar, so making it sticky here gives the whole ERP the same behaviour: the
-   filters stay reachable no matter how far you scroll, instead of disappearing
-   with the page header and forcing a scroll back to the top to change a month.
-   It sits INSIDE the clipped panel, so rows can never escape above it. */
-.qx-tb { position: sticky; top: 0; z-index: 12; display: flex; align-items: center; gap: 8px; padding: 11px 14px;
-  border-bottom: 1px solid var(--ql-divider); flex-wrap: wrap;
-  background: var(--ql-card); backdrop-filter: saturate(1.4) blur(8px); }
+.qx-tb { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--ql-divider); flex-wrap: wrap; }
 .qx-tabs { display: flex; gap: 2px; align-items: center; }
 .qx-tab {
   height: 34px; padding: 0 13px; border-radius: 9px; border: none; background: transparent;

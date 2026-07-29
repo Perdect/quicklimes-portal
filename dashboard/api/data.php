@@ -18,6 +18,9 @@ if ($method === 'GET') {
   $plantId = (string)($_GET['plant_id'] ?? '');
   $ctx = ql_token_ctx($plantId);
   if (!$ctx) ql_out(['error' => 'Unauthorized'], 401);
+  /* Tenant from the TOKEN, not the query/body — the blob store is the most
+     sensitive scope in the app. */
+  $plantId = (string)$ctx['plant'];
   $st = ql_db()->prepare('SELECT data_id, data FROM app_data WHERE plant_id = ?');
   $st->execute([$plantId]);
   $out = [];
@@ -36,6 +39,9 @@ if ($method === 'POST') {
   $data    = $b['p_data'] ?? null;
   $ctx = ql_token_ctx($plantId);
   if (!$ctx) ql_out(['error' => 'Unauthorized'], 401);
+  /* Tenant from the TOKEN, not the query/body — the blob store is the most
+     sensitive scope in the app. */
+  $plantId = (string)$ctx['plant'];
   if ($id === '') ql_out(['error' => 'Missing id'], 400);
 
   // Restricted roles never full-replace the row: merge their allowed modules

@@ -25,6 +25,10 @@ $b = ql_body();
 $plantId = (string)($b['plant_id'] ?? '');
 $ctx = ql_token_ctx($plantId);
 if (!$ctx) ql_out(['ok' => false, 'error' => 'Unauthorized'], 401);
+/* The tenant key comes from the TOKEN, not the body. ql_token_ctx has already
+   proven they agree; re-deriving here means no later line can be tricked by a
+   body field into scoping rows to another firm. */
+$plantId = (string)$ctx['plant'];
 if (!ql_role_can($ctx['role'], 'extract')) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
 
 $llm = ql_llm();

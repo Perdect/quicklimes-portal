@@ -44,14 +44,7 @@ function aOp(mode, fn) { return adb().then(d => new Promise((res, rej) => { cons
    PDFs, and the alternative was a second copy of this IndexedDB plumbing in another
    file — the exact duplication that has caused every "one rule, two places" bug in
    this codebase. One store, one accessor. Read-only from outside. */
-/* Server-aware read: browser store first, then the shared copy on /api/files
-   (which re-seeds the local store). Only after BOTH miss is a file gone. */
-async function getBlobDeep(id) {
-  const b = await aOp('readonly', st => st.get(id));
-  if (b instanceof Blob) return b;
-  return (window.Q && Q.fetchDocBlob) ? Q.fetchDocBlob(id) : null;
-}
-window.QLAttach = { get: id => getBlobDeep(id), DB: ADB };
+window.QLAttach = { get: id => aOp('readonly', st => st.get(id)), DB: ADB };
 
 /* Delegates to Q.attachDoc — the ONE writer for both registers' doc stores.
    The copy that lived here wrote the same store with the same record shape as the
@@ -61,7 +54,7 @@ window.QLAttach = { get: id => getBlobDeep(id), DB: ADB };
    that moved threw an async rejection into a synchronous try/catch that could not
    catch it. Q.attachDoc throws honestly; every caller here handles it. */
 function addAttach(idx, file, kind) { return Q.attachDoc('purchase', idx, file, kind); }
-async function openAttach(idx, id, dl) { const a = (Q.state.PURCHASES[idx].attach || []).find(x => x.id === id); if (!a) return; const b = await getBlobDeep(a.id); if (!(b instanceof Blob)) { toast('File not on this device or the server — re-upload it once', 'err'); return; } const url = URL.createObjectURL(b); if (dl) { const x = document.createElement('a'); x.href = url; x.download = a.name; x.click(); } else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 4000); }
+async function openAttach(idx, id, dl) { const a = (Q.state.PURCHASES[idx].attach || []).find(x => x.id === id); if (!a) return; const b = await aOp('readonly', st => st.get(a.id)); if (!(b instanceof Blob)) { toast('File not found in this browser', 'err'); return; } const url = URL.createObjectURL(b); if (dl) { const x = document.createElement('a'); x.href = url; x.download = a.name; x.click(); } else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 4000); }
 async function delAttach(idx, id) { const p = Q.state.PURCHASES[idx]; Q.updatePurchase(idx, { attach: (p.attach || []).filter(a => a.id !== id) }); try { await aOp('readwrite', st => st.delete(id)); } catch (_) {} QLX.refresh(); }
 
 /* ── freight, edited in place ─────────────────────────────────
@@ -257,14 +250,10 @@ async function openBillPdf(r) {
   if (a) {
     const w = window.open('', '_blank');
     try {
-      const blob = await getBlobDeep(a.id);
+      const blob = await aOp('readonly', st => st.get(a.id));
       if (blob instanceof Blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
-      /* The scan lives in the uploading browser's IndexedDB; only its name and
-         size sync. Absent bytes here are not a dead end — the bill below is
-         rebuilt from the row's own details. */
-      if (w) w.close();
-      toast('The uploaded scan is on the device it was uploaded from — showing the recorded bill');
-    } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the scan (' + QLAttachWhy(e) + ') — showing the recorded bill', 'err'); }
+      if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
+    } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the bill — ' + QLAttachWhy(e), 'err'); return; }
   }
   pdfWindow(r);
 }
@@ -280,14 +269,10 @@ async function viewBill(r) {
     // blocked after the await.
     const w = window.open('', '_blank');
     try {
-      const blob = await getBlobDeep(a.id);
+      const blob = await aOp('readonly', st => st.get(a.id));
       if (blob instanceof Blob) { const url = URL.createObjectURL(blob); if (w) w.location = url; else window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
-      /* The scan lives in the uploading browser's IndexedDB; only its name and
-         size sync. Absent bytes here are not a dead end — the bill below is
-         rebuilt from the row's own details. */
-      if (w) w.close();
-      toast('The uploaded scan is on the device it was uploaded from — showing the recorded bill');
-    } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the scan (' + QLAttachWhy(e) + ') — showing the recorded bill', 'err'); }
+      if (w) w.close(); toast('That uploaded file isn\'t stored in this browser — re-upload it on this device', 'err'); return;
+    } catch (e) { if (w) w.close(); console.warn('[bill] open failed', e); toast('Could not open the bill — ' + QLAttachWhy(e), 'err'); return; }
   }
   // no upload on this bill → the generated bill. On phones open it as a full-screen
   // PDF (like the sales invoice); on desktop keep the in-app preview drawer.
@@ -527,7 +512,7 @@ async function wireInvoice(body, r) {
   const host = (body || document).querySelector('#pxDocFrame'); if (!host) return;
   const a = (r.attach || []).find(x => x.id === host.dataset.doc); if (!a) return;
   try {
-    const blob = await getBlobDeep(a.id);
+    const blob = await aOp('readonly', st => st.get(a.id));
     if (!blob) { host.textContent = 'This file was uploaded on another device — re-upload it here to preview.'; return; }
     const url = URL.createObjectURL(blob);
     const isImg = /^image\//.test(blob.type || '') || /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(a.name || '');

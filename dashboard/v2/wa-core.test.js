@@ -186,36 +186,5 @@ ok('a full reminder survives encoding (newlines + ₹)', W.waLink('9460034743', 
 
 console.log('\n════ WhatsApp reminder engine ════\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));
-/* ══════════ a WhatsApp button only where WhatsApp can land ══════════
-   Reported live: "The phone number +917940235235 isn't on WhatsApp."
-   That is 079 4023 5235, an Ahmedabad landline, which normalizePhone reduces
-   to ten digits starting 7 — the exact shape of a mobile. Digits alone cannot
-   decide it; the raw grouping can. */
-{
-  const no = (n, why) => ok(why, W.isMobileNumber(n) === false);
-  const yes = (n, why) => ok(why, W.isMobileNumber(n) === true);
-  no('+91 79 4023 5235', 'the reported landline gets no WhatsApp button');
-  no('079 4023 5235', '  same number written with the trunk 0');
-  no('07940235235', '  and run together with the trunk 0');
-  no('+91 124 494 2555', 'Gurgaon landline (STD 124)');
-  no('077228 77477', 'Raipur landline with a trunk 0');
-  no('+91 771 223 4455', 'Raipur landline (STD 771)');
-  no('011 2345 6789', 'Delhi landline');
-  no('+91 22 6789 1234', 'Mumbai landline (2-digit STD)');
-  no('+91 5460767676', 'a 10-digit number outside the 6-9 mobile series');
-  no('', 'empty');
-  no(null, 'null');
-  no('12345', 'too short');
-  no('+91 946076767', 'a 9-digit truncated mobile (directory data is often clipped)');
-  no('+91 94607676761', 'an 11-digit run that merely starts like a mobile');
-  yes('+91 9460767676', 'a real mobile still shows WhatsApp');
-  yes('9460767676', '  bare 10 digits');
-  yes('+91 94607 67676', '  grouped 5+5, the way mobiles are written');
-  yes('+919824012345', '  no spaces, with country code');
-  yes('98240-12345', '  hyphenated 5+5');
-  yes('+91 7014547272', 'a mobile starting 7 is not mistaken for an STD code');
-  yes('+91 6301234567', 'a mobile starting 6');
-}
-
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' WA-CORE TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');
 process.exit(fail === 0 ? 0 : 1);

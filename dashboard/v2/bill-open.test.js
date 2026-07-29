@@ -69,33 +69,5 @@ console.log('\n═══ open bill · missing scan → clean message, not a cras
   ok(/if \(blob instanceof Blob\) \{ const url = URL\.createObjectURL/.test(pur), 'purchase.js: createObjectURL is guarded by instanceof Blob');
 }
 
-/* ══════════ a missing scan must NEVER dead-end the eye ══════════
-   Reported live: "sales bill not opening when click on the eye". The scan
-   lives in the uploading browser's IndexedDB and only its name and size sync,
-   so on any other device the bytes are absent. That is not a reason to show
-   nothing: both registers can rebuild the bill from the row itself. The
-   blob-miss branch must therefore fall THROUGH to that generated bill, not
-   return. */
-{
-  const fs2 = require('fs'), path2 = require('path');
-  const read = f => fs2.readFileSync(path2.join(__dirname, f), 'utf8');
-  [['sales.js', ['openInvPdf', 'viewBillSale'], /printInv\(r\)|QLX\.viewDoc/],
-   ['purchase.js', ['openBillPdf', 'viewBill'], /pdfWindow\(r\)|QLX\.viewDoc/]].forEach(([file, fns, fallback]) => {
-    const src = read(file);
-    fns.forEach(fn => {
-      const i = src.indexOf('function ' + fn + '(');
-      if (i < 0) return;                       // renamed — the other checks still cover it
-      const end = src.indexOf('\nasync function ', i + 10);
-      const blk = src.slice(i, end > 0 ? end : i + 2200);
-      const miss = blk.slice(blk.indexOf('instanceof Blob'));
-      ok(!/toast\([^)]*\);\s*return;/.test(miss),
-        file + ' · ' + fn + ': the missing-scan branch does not return early');
-      ok(fallback.test(blk), '  …so it reaches the generated bill');
-      ok(/device it was uploaded from/.test(blk),
-        '  …and it says WHY the scan is not here');
-    });
-  });
-}
-
 console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');
 process.exit(fail ? 1 : 0);

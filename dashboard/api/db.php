@@ -172,15 +172,6 @@ function ql_plant_exists($plantId) {
    One lookup here closes it for data.php, recon, wa, chat, crm, users, jobs,
    extract, plant and company alike. Pinned by auth-live.test.php. */
 function ql_token_ctx($plantId = '') {
-  /* An EXPLICIT empty plant id is a request that forgot to say which firm it
-     meant — and every caller then uses that '' as the scope key for its rows
-     AND its file paths, so one omitted field silently opens a bucket shared by
-     every tenant on the server. Reject it.
-
-     ql_token_ctx() with NO argument still means "any valid token for this
-     account" — company.php and plant.php need that, and they now call it
-     without an argument so the two cases cannot be confused. */
-  if (func_num_args() > 0 && $plantId === '') return null;
   $ctx = ql_parse_token(ql_token());
   if (!$ctx) return null;
   if ($plantId !== '' && $ctx['plant'] !== $plantId) return null;
@@ -417,14 +408,6 @@ function ql_ensure_tables() {
     UNIQUE KEY uq_place (plant_id, company_id, place_id),
     KEY idx_namekey (plant_id, company_id, name_key)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-  /* CREATE TABLE IF NOT EXISTS leaves an EXISTING table untouched, so a table
-     created before these columns existed never gains them — and the list query,
-     which ORDERs BY fit_score, then throws while the dedupe query (which does
-     not touch it) keeps working. Symptom: "30 seen before" but zero rows in
-     every tab. Add the columns if they are missing; ignore duplicate errors. */
-  foreach (['fit_score INT DEFAULT NULL', 'fit_tier VARCHAR(12) DEFAULT NULL'] as $col) {
-    try { $db->exec("ALTER TABLE discovered ADD COLUMN $col"); } catch (Throwable $e) { /* already there */ }
-  }
 
   $db->exec("CREATE TABLE IF NOT EXISTS crm_companies (
     id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -1125,9 +1108,7 @@ function ql_mapbox_search($what, $city, $opts = [], $http = null) {
   if ($token === '') return ['ok' => false, 'places' => [], 'error' => 'not_configured'];
   $what = trim((string)$what); $city = trim((string)$city);
   if ($what === '') return ['ok' => false, 'places' => [], 'error' => 'Say what to look for'];
-  /* Mapbox Search Box /forward caps limit at 10 — sending 25 returns a hard
-     HTTP 400 ("Limit must be in range [1,10]"), i.e. every search fails. */
-  $max = max(1, min(10, (int)($opts['max'] ?? 10)));
+  $max = max(1, min(25, (int)($opts['max'] ?? 25)));
   $get = $http ?: function ($url) {
     $ch = curl_init($url);
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15, CURLOPT_CONNECTTIMEOUT => 6]);
@@ -1150,13 +1131,7 @@ function ql_mapbox_search($what, $city, $opts = [], $http = null) {
   if (!empty($r['err'])) return ['ok' => false, 'places' => [], 'error' => 'Network error contacting Mapbox'];
   $j = json_decode((string)$r['body'], true);
   if ((int)$r['code'] !== 200) {
-    /* Mapbox nests the reason: {"message":{"status_code":400,"error":"Limit must
-       be in range [1,10]"}}. Casting that to a string prints the literal word
-       "Array" — which is what the user saw, and it says nothing. Dig out the
-       human sentence, whatever shape it arrives in. */
-    $m = $j['message'] ?? ($j['error'] ?? null);
-    if (is_array($m)) $m = $m['error'] ?? ($m['message'] ?? json_encode($m));
-    $msg = trim((string)($m ?? '')) !== '' ? (string)$m : ('HTTP ' . $r['code']);
+    $msg = (string)($j['message'] ?? ($j['error'] ?? ('HTTP ' . $r['code'])));
     return ['ok' => false, 'places' => [], 'error' => 'Mapbox: ' . $msg];
   }
   return ['ok' => true, 'places' => ql_mapbox_parse($j, $city), 'error' => ''];
@@ -1226,16 +1201,10 @@ function ql_places_request($key, $what, $city, $opts = [], $http = null) {
   if ($key === '') return ['ok' => false, 'places' => [], 'error' => 'not_configured'];
   $what = trim((string)$what); $city = trim((string)$city);
   if ($what === '') return ['ok' => false, 'places' => [], 'error' => 'Say what to look for'];
-  /* INDIA-ONLY. Without a region bias Google happily returns "steel plants" in
-     China or Turkey — wasted requests, wasted screen, useless to an Indian lime
-     seller. regionCode biases the search and the appended country term anchors
-     the text query. Pass opts['region'] to override when Global Search ships. */
-  $region = strtoupper(trim((string)($opts['region'] ?? 'IN')));
   $q = $what . ($city !== '' ? ' in ' . $city : '');
-  if ($region === 'IN' && !preg_match('/\bindia\b/i', $q)) $q .= ' India';
 
   $body = ['textQuery' => $q, 'maxResultCount' => (int)($opts['max'] ?? 20)];
-  if ($region !== '') $body['regionCode'] = $region;
+  if (!empty($opts['region'])) $body['regionCode'] = $opts['region'];
   $fields = 'places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.rating,places.location';
 
   if ($http === null) {
@@ -1446,10 +1415,6 @@ function ql_osm_search($what, $city, $opts = [], $http = null) {
 
 /* The one door the app uses: reads the key from config, then delegates. */
 function ql_places_search($what, $city, $opts = [], $http = null) {
-  /* The key may be passed in (per-plant, saved from inside the app) or come from
-     config.php. Same precedence rule as Mapbox: an explicit key wins. */
-  $key = trim((string)($opts['key'] ?? ''));
-  if ($key === '') $key = ql_places_key();
-  return ql_places_request($key, $what, $city, $opts, $http);
+  return ql_places_request(ql_places_key(), $what, $city, $opts, $http);
 }
 

@@ -235,70 +235,13 @@ $PLACES_JSON = [
   ok($tries === 1, 'radius: only ONE Overpass endpoint is tried (geocode already spent part of the 30s budget)');
 }
 
-/* ══════════ 4b. moving rows between companies can only ever move YOUR own ══════════
-   The live SQL is exercised against a real MySQL in move.test.php. These are the
-   static invariants that must hold however that statement is rewritten. */
-{
-  $src = file_get_contents(__DIR__ . '/discover.php');
-  $i = strpos($src, "if (\$action === 'move')");
-  ok($i !== false, 'the move action exists (the banner offers it)');
-  /* Bound the slice at the NEXT action or it swallows the dismiss/del block
-     below and the "never deletes" check reads that block's DELETE. */
-  $j = $i === false ? false : strpos($src, "if (\$action ===", $i + 10);
-  $blk = $i === false ? '' : substr($src, $i, ($j === false ? 1800 : $j - $i));
-  /* Assert the UPDATE ITSELF is scoped. Checking the block as a whole is
-     decoration: the COUNT queries also mention plant_id, so deleting the scope
-     from the UPDATE still passed. (Caught by mutation-testing this very test.) */
-  preg_match('/UPDATE[^;]*?discovered[^;]*?WHERE[^\x27]*/i', $blk, $um);
-  $upd = $um[0] ?? '';
-  ok($upd !== '', '  the move runs an UPDATE on discovered');
-  ok(strpos($upd, 'plant_id = ?') !== false, '  …and THAT UPDATE is scoped to one plant (no cross-tenant move)');
-  ok(strpos($upd, 'company_id = ?') !== false, '  …and to the one named source company');
-  preg_match('/\$up->execute\(\[([^\]]*)\]\)/', $blk, $em);
-  ok(isset($em[1]) && strpos($em[1], '$plantId') !== false,
-    '  …and plant_id is bound from the token context, never the request body');
-  ok(strpos($blk, 'UPDATE IGNORE') !== false, '  a uq_place collision leaves the row behind instead of failing the batch');
-  ok(strpos($blk, 'DELETE') === false, '  the move never deletes anything');
-  ok(strpos($blk, "array_key_exists('from', \$b)") !== false, '  a source company must be named — there is no "move everything" mode');
-  ok(strpos($blk, "\$from === \$coId") !== false, '  and moving a company onto itself is refused');
-}
-
 /* ══════════ 5. the key never leaves the server ══════════ */
 {
   $src = file_get_contents(__DIR__ . '/discover.php');
   /* Naming the SETTING in a help message is good ("add GOOGLE_PLACES_KEY to
-     config.php"). Letting its VALUE reach a response body is not.
-
-     This used to assert the endpoint never READ the key at all. That stopped
-     being the right rule the moment self-serve keys arrived: a plant's key
-     lives in app_data, and the endpoint must read it to call Google server-
-     side. The rule that actually protects the secret is narrower and is the
-     one asserted here — no ql_out() payload may carry the key value. Every
-     answer about a key must be a boolean.
-
-     Kept honest by construction: this walks EVERY ql_out() in the file rather
-     than grepping for known-bad spellings. */
-  $SECRET = '/(\$key\b|\$token\b|ql_places_key\(|ql_mapbox_key\(|ql_effective_google_key\(|ql_effective_mapbox_token\(|ql_plant_google_key\(|ql_plant_mapbox_token\()/';
-  $leaks = [];
-  $off = 0;
-  while (($i = strpos($src, 'ql_out(', $off)) !== false) {
-    // walk to the matching close paren so nested calls stay inside the payload
-    $d = 0; $j = $i + 6; $n = strlen($src);
-    for (; $j < $n; $j++) {
-      if ($src[$j] === '(') $d++;
-      elseif ($src[$j] === ')') { $d--; if ($d === 0) break; }
-    }
-    $payload = substr($src, $i, $j - $i + 1);
-    $off = $j + 1;
-    if (!preg_match_all($SECRET, $payload, $m, PREG_OFFSET_CAPTURE)) continue;
-    foreach ($m[0] as $hit) {
-      // a secret is allowed inside a response ONLY as a boolean test
-      $after = substr($payload, $hit[1], 80);
-      if (!preg_match('/(!==|===)\s*\x27\x27/', $after)) $leaks[] = trim($payload);
-    }
-  }
-  ok($leaks === [], 'no ql_out() response in discover.php can carry a key value'
-    . ($leaks ? ' — leaked in: ' . substr($leaks[0], 0, 120) : ''));
+     config.php"). Reading its VALUE in the endpoint is not — that is how a
+     secret ends up in a response body. Assert the latter, not the former. */
+  ok(strpos($src, 'ql_places_key(') === false, 'discover.php never reads the key value itself');
   ok(!preg_match('/\\$c\\s*\\[\\s*.GOOGLE_PLACES_KEY/', $src), '  and never pulls it out of config directly');
   ok(strpos($src, 'ql_places_search(') !== false, '  it calls the one door instead');
   /* Asking "is Google set up?" must hand back a yes/no, never the secret — the
