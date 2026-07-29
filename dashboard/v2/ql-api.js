@@ -81,12 +81,14 @@
     }
 
     if (fn === 'save_my_data') {
-      var s = await jfetch(API + 'data.php', {
-        method: 'POST', headers: JSON_HDR,
-        body: JSON.stringify({ p_plant_id: params.p_plant_id, p_id: params.p_id, p_data: params.p_data, token: token() })
-      });
+      var body = { p_plant_id: params.p_plant_id, p_id: params.p_id, p_data: params.p_data, token: token() };
+      // base_rev drives the server's optimistic-concurrency check (audit M2).
+      // Omitted by an old client → the server never blocks it. undefined must
+      // not become the string "undefined", so only attach a real number.
+      if (typeof params.base_rev === 'number') body.base_rev = params.base_rev;
+      var s = await jfetch(API + 'data.php', { method: 'POST', headers: JSON_HDR, body: JSON.stringify(body) });
       if (s.data && s.data.error) return { data: null, error: { message: s.data.error } };
-      return s;
+      return s;   // s.data is { success, rev } OR { conflict, rev, data } — the caller reads it
     }
 
     if (fn === 'update_my_plant') {

@@ -514,6 +514,7 @@
       const { data: rows, error } = await DB.rpc('get_my_data', { p_plant_id: QL_PLANT.id });
       if (error || !rows || !rows.length) return false;
       const row = rows.find(r => r.id === ACTIVE_CO);
+      if (row && typeof row.rev === 'number') _revs[ACTIVE_CO] = row.rev;   // remember the base for the next save (M2)
       const cd = row && row.data;
       const cloudN = blobCount(cd);
       // ── DATA-LOSS GUARD ──────────────────────────────────────────────
@@ -575,6 +576,11 @@
      syncState() + the 'ql:sync' window event let the shell show an indicator;
      _dirty drives the unsaved-changes guard below. */
   let _cloudTimer = null, _syncRetry = null, _syncBackoff = 0, _syncState = 'idle', _dirty = false;
+  /* Per-company revision last seen from the server (audit M2). Sent back as
+     base_rev so the server can reject a save that would clobber a newer copy
+     written by another device. Empty until a pull populates it → the server
+     treats "no base_rev" as unconditional (backward compatible). */
+  const _revs = {};
   function setSync(s) {
     if (s === _syncState) return;
     _syncState = s;
@@ -585,9 +591,24 @@
     if (!DB) return;
     clearTimeout(_syncRetry); _syncRetry = null;
     setSync('saving');
+    const co = ACTIVE_CO;                       // pin the target: the user may switch mid-flight
     try {
-      const { error } = await DB.rpc('save_my_data', { p_plant_id: QL_PLANT.id, p_id: ACTIVE_CO, p_data: blob(true) });
-      if (error) throw error;
+      const args = { p_plant_id: QL_PLANT.id, p_id: co, p_data: blob(true) };
+      if (typeof _revs[co] === 'number') args.base_rev = _revs[co];
+      const res = await DB.rpc('save_my_data', args);
+      if (res && res.error) throw res.error;
+      const body = (res && res.data) || {};
+      if (body.conflict) {
+        /* Another device wrote since we loaded (audit M2). Don't overwrite it —
+           adopt the server's copy and let the user redo the last edit if needed.
+           pullCloud refreshes state + rev; the shell re-renders on 'conflict'. */
+        if (typeof body.rev === 'number') _revs[co] = body.rev;
+        setSync('conflict');
+        try { await pullCloud(); if (typeof window !== 'undefined' && window.__qlRefresh) window.__qlRefresh(); } catch (_) {}
+        _dirty = false; _syncBackoff = 0;
+        return;
+      }
+      if (typeof body.rev === 'number') _revs[co] = body.rev;   // advance our base for the next save
       _dirty = false; _syncBackoff = 0; setSync('idle');
     } catch (e) {
       console.warn('v2 cloud save failed', e);

@@ -40,17 +40,26 @@ ok(start > 0 && end > start, 'located the sync-state region in data.js');
 const events = [];           // dispatched 'ql:sync' details, in order
 const listeners = {};        // window listeners we register
 let refreshed = 0, loaded = 0;
-let rpcMode = 'ok';          // 'ok' | 'fail'
+let rpcMode = 'ok';          // 'ok' | 'fail' | 'conflict'
+let pulled = 0;              // pullCloud calls (the M2 conflict path adopts via pull)
+const sentBaseRev = [];      // base_rev the client sent on each save
 const timers = [];           // pending setTimeout callbacks (we fire them manually)
 
 const ctx = {
-  DB: { rpc: async () => (rpcMode === 'fail' ? { error: new Error('network') } : { error: null }) },
+  DB: { rpc: async (fn, args) => {
+    sentBaseRev.push(args && ('base_rev' in args) ? args.base_rev : undefined);
+    if (rpcMode === 'fail') return { error: new Error('network') };
+    if (rpcMode === 'conflict') return { data: { conflict: true, rev: 9 } };
+    // echo an advancing rev so the client tracks its base
+    return { data: { success: true, rev: (args && typeof args.base_rev === 'number' ? args.base_rev + 1 : 1) } };
+  } },
   QL_PLANT: { id: 'P1' },
   ACTIVE_CO: 'CO1',
   COMPANIES: { CO1: { dataKey: 'dm_v2_CO1' } },
   blob: () => ({}),
   saveLocal: () => {},
   loadLocal: () => { loaded++; },
+  pullCloud: async () => { pulled++; },
   console: { warn: () => {} },
   clearTimeout: (id) => { const i = timers.findIndex(t => t.id === id); if (i >= 0) timers.splice(i, 1); },
   setTimeout: (fn, ms) => { const id = timers.length + 1; timers.push({ id, fn, ms }); return id; },
@@ -94,6 +103,20 @@ const beforeUnloadWarns = () => {
   await fireTimers();                        // fire the scheduled retry
   eq('the retry returns to idle', ctx.syncState(), 'idle');
   ok(!beforeUnloadWarns(), '  and the nag is gone');
+
+  /* 3b. M2 — the client SENDS its base_rev, and a server CONFLICT adopts the
+     authoritative copy instead of clobbering it. */
+  sentBaseRev.length = 0;
+  ctx.commit(); await fireTimers();          // a clean save; server echoed rev on the prior ok save
+  ok(sentBaseRev.some(v => typeof v === 'number'), 'the client sends base_rev once it has one (optimistic-concurrency)');
+
+  events.length = 0; pulled = 0; rpcMode = 'conflict';
+  ctx.commit(); await fireTimers();          // the server says another device won
+  eq('a save CONFLICT flags conflict, not idle', ctx.syncState(), 'conflict');
+  ok(pulled === 1, '  and adopts the server copy by pulling it (no clobber)');
+  rpcMode = 'ok';                            // heal for the cross-tab section below
+  ctx.commit(); await fireTimers();
+  eq('a clean save after a conflict returns to idle', ctx.syncState(), 'idle');
 
   /* 4. cross-tab: another tab writes the active company key */
   //   4a. this tab is CLEAN → adopt the other tab’s copy
