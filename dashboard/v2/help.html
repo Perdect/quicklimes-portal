@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — runs before the FIRST PAINT. The app shell applies the theme at
+   mount, which is far too late: the browser would paint the page light and then
+   flip, so a Light user on a dark Mac sees a white flash. Must stay in <head>,
+   above every stylesheet. (It used to guard the launch splash; the splash is
+   gone, the flash it prevents is not.) Resolves 'system' here too, so data-theme
+   is ALWAYS a literal light|dark and CSS never has to ask twice. */
+(function(){try{var t=localStorage.getItem('ql_theme')||'system';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Help &amp; support — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="manifest" href="/v2/app.webmanifest">
+<link rel="apple-touch-icon" href="/v2/pwa-apple.png?v=g1">
+<link rel="icon" type="image/png" sizes="32x32" href="/v2/favicon-32.png?v=g1">
+<link rel="icon" type="image/png" sizes="16x16" href="/v2/favicon-16.png?v=g1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Gotan Lime">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r9"><link rel="stylesheet" href="./pages.css?v=m16">
+<link rel="stylesheet" href="./mobile.css?v=m14">
+<!-- iOS launch images: without these iOS paints WHITE while the app boots.
+     background_color in the manifest is Android-only. -->
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/375x667@2x.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:736px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x736@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/375x812@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/414x896@2x.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x896@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/390x844@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/428x926@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/393x852@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/430x932@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/402x874@3x.png">
+<link rel="apple-touch-startup-image" media="(device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/440x956@3x.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/375x667@2x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:414px) and (device-height:736px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x736@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/375x812@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/414x896@2x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x896@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/390x844@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/428x926@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/393x852@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/430x932@3x-dark.png">
+<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/402x874@3x-dark.png">
+<style>
+/* ── Layout shapes borrowed from settings.html ────────────────────────────
+   .set-wrap / .set-intro / .set-ico / .set-grid are declared INSIDE
+   settings.html's own <style> block, not in any shared stylesheet — so a page
+   that merely uses the class names inherits nothing. Without these the header
+   icon has no box and the SVG expands to fill the whole content column, which
+   is exactly what happened. Copied rather than imported because the settings
+   block carries a lot this page has no use for. */
+.set-wrap { max-width: 860px; display: flex; flex-direction: column; }
+.set-intro { display: flex; align-items: center; gap: 14px; margin-bottom: 0; }
+.set-intro .set-ico { width: 44px; height: 44px; border-radius: 12px; }
+.set-ico { flex: none; width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--ql-brand-50, #eff6ff); color: var(--ql-brand-600, #2563eb); }
+.set-ico svg { width: 19px; height: 19px; }
+.set-intro .set-ico svg { width: 22px; height: 22px; }
+.set-grid { display: flex; flex-direction: column; gap: var(--ql-space-5); }
+.set-grid .card { margin: 0 !important; border-radius: var(--ql-radius-xl); }
+.set-wrap .ft-head { justify-content: flex-start; align-items: flex-start; gap: 13px; margin-bottom: 18px; }
+.set-wrap .ft-head > div { flex: 1; min-width: 0; }
+.set-wrap .ft-title { font-size: 15px; font-weight: 700; }
+
+/* Help page — deliberately reuses the settings page's card/section shapes
+   (.set-wrap, .set-ico, .ft-head, .ft-title) so it reads as the same app
+   rather than a bolted-on doc site. Only the help-specific bits live here. */
+.hlp-q { border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg, 12px); overflow: hidden; background: var(--ql-card); }
+.hlp-q + .hlp-q { margin-top: 10px; }
+.hlp-q > summary { cursor: pointer; padding: 14px 16px; font-weight: 650; font-size: 14px; color: var(--ql-text);
+  list-style: none; display: flex; align-items: center; gap: 10px; }
+.hlp-q > summary::-webkit-details-marker { display: none; }
+.hlp-q > summary::after { content: ''; margin-left: auto; flex: none; width: 8px; height: 8px;
+  border-right: 2px solid var(--ql-text-muted); border-bottom: 2px solid var(--ql-text-muted);
+  transform: rotate(45deg); transition: transform .16s; }
+.hlp-q[open] > summary::after { transform: rotate(-135deg); }
+.hlp-q > summary:hover { background: var(--ql-neutral-50); }
+.hlp-a { padding: 0 16px 15px; font-size: 13.5px; line-height: 1.65; color: var(--ql-text-secondary); }
+.hlp-a p { margin: 0 0 9px; } .hlp-a p:last-child { margin-bottom: 0; }
+.hlp-a b { color: var(--ql-text); }
+.hlp-a code { font-family: var(--ql-font-mono, ui-monospace, monospace); font-size: 12.5px;
+  background: var(--ql-neutral-50); border: 1px solid var(--ql-border); border-radius: 5px; padding: 1px 5px; }
+.hlp-steps { margin: 0 0 9px; padding-left: 20px; } .hlp-steps li { margin-bottom: 5px; }
+.hlp-contact { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.hlp-cbtn { display: inline-flex; align-items: center; gap: 9px; text-decoration: none;
+  border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg, 12px); background: var(--ql-card);
+  padding: 12px 15px; color: var(--ql-text); font-weight: 600; font-size: 13.5px; transition: all .14s; }
+.hlp-cbtn:hover { border-color: var(--ql-brand-500); background: var(--ql-brand-50, #eff6ff); }
+.hlp-cbtn svg { width: 18px; height: 18px; flex: none; color: var(--ql-brand-600, #2563eb); }
+.hlp-cbtn small { display: block; font-weight: 500; color: var(--ql-text-muted); font-size: 11.5px; margin-top: 1px; }
+.hlp-where { font-size: 12.5px; color: var(--ql-text-muted); margin-top: 12px; }
+</style>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+   <div class="set-wrap">
+    <div class="set-intro">
+      <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+      <div>
+        <h1 class="page-title">Help &amp; support</h1>
+        <div class="page-sub">Common tasks, what to do when something looks wrong, and how to reach us</div>
+      </div>
+    </div>
+    <div class="set-grid">
+
+    <!-- CONTACT FIRST. Someone who opens Help usually has a problem NOW; making
+         them scroll past an FAQ to find a phone number is its own small failure. -->
+    <div class="card">
+      <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
+        <div>
+          <h3 class="ft-title">Talk to a person</h3>
+          <div class="ft-note">Fastest on WhatsApp. Please include a screenshot and the name of the screen you were on — it usually saves a round trip.</div>
+        </div>
+      </div>
+      <div class="hlp-contact">
+        <a class="hlp-cbtn" id="hlpWa" href="https://wa.me/919460767676" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.2-1.7-.9-2-1-.3-.1-.5-.1-.7.1-.2.3-.7 1-.9 1.2-.2.2-.3.2-.6.1-.3-.2-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6l.5-.5c.1-.2.2-.3.3-.5v-.5c0-.2-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1.1 2.8 1.2 3c.2.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.2-.7.2-1.3.2-1.4-.1-.2-.3-.2-.6-.4zM12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z"/></svg>
+          <span>WhatsApp<small>+91 94607 67676</small></span>
+        </a>
+        <a class="hlp-cbtn" href="tel:+919460767676">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <span>Call<small>+91 94607 67676</small></span>
+        </a>
+      </div>
+      <div class="hlp-where">Gotan Lime Industries · Kanta Chorha, Gotan Road, Borunda, Rajasthan</div>
+    </div>
+
+    <!-- WHEN SOMETHING LOOKS WRONG. Every entry here is a real behaviour of this
+         app, with the exact wording the app uses, so the text can be matched
+         against what the user is actually staring at. -->
+    <div class="card">
+      <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+        <div>
+          <h3 class="ft-title">When something looks wrong</h3>
+          <div class="ft-note">The five things that come up most often.</div>
+        </div>
+      </div>
+
+      <details class="hlp-q">
+        <summary>An uploaded bill went into the wrong register (Sale vs Purchase)</summary>
+        <div class="hlp-a">
+          <p>The app decides this by <b>GSTIN</b>. If the bill's GSTIN matches your firm, it is a <b>Sale</b>; if not, it is a <b>Purchase</b>. A company with no GSTIN saved has nothing to compare against, so <b>every</b> uploaded bill is filed as a Purchase.</p>
+          <p>Fix it once, in <b>Settings → Company profile</b>: click <b>Edit</b> on the firm and fill in the GSTIN (15 characters, e.g. <code>08BNAPM0488E1Z3</code>). Bills uploaded after that sort correctly.</p>
+        </div>
+      </details>
+
+      <details class="hlp-q">
+        <summary>A red message says "AI reading is off"</summary>
+        <div class="hlp-a">
+          <p>The full message names the cause — for example <b>no AI key is configured on the server</b>, or <b>the AI service could not be reached</b>.</p>
+          <p>Your bills were still read, by the built-in offline reader, and they were still saved. It is less accurate than the AI, so the message ends with <b>check the figures</b> — that is worth doing before you post them.</p>
+          <p>This is a server setting, not something you can change from this screen. Send us the exact wording and we will sort it.</p>
+        </div>
+      </details>
+
+      <details class="hlp-q">
+        <summary>The eye button won't open a bill I uploaded</summary>
+        <div class="hlp-a">
+          <p>If it says the file <b>isn't stored in this browser</b>, the scan was uploaded on a different device or browser. Scans are saved on this device first and copied to the server in the background, so a bill added on your phone may not be on your laptop yet.</p>
+          <p>Re-upload it on the device you are using now, or open it on the device you uploaded it from.</p>
+        </div>
+      </details>
+
+      <details class="hlp-q">
+        <summary>The same bank line appears twice</summary>
+        <div class="hlp-a">
+          <p>This normally means one statement was imported more than once.</p>
+          <ol class="hlp-steps">
+            <li>Open <b>Bank Reconciliation</b>.</li>
+            <li>Use the <b>⋯</b> menu on the header → <b>Statements</b> to see everything that has been imported.</li>
+            <li>Delete the statement you imported twice, or use <b>Remove duplicates</b>, which keeps the first copy of each line and drops the rest.</li>
+          </ol>
+          <p>Both actions reverse any ledger entries that were posted from the lines they remove, so your balances stay correct.</p>
+        </div>
+      </details>
+
+      <details class="hlp-q">
+        <summary>A WhatsApp icon is missing next to a customer</summary>
+        <div class="hlp-a">
+          <p>That is deliberate. The icon only shows for numbers that can actually receive WhatsApp — mobile numbers. Landlines and STD-code numbers are skipped, because tapping through to "this number isn't on WhatsApp" wastes your time.</p>
+          <p>If a mobile number is missing its icon, check the number saved against the party — a missing digit or a stray landline is the usual cause.</p>
+        </div>
+      </details>
+    </div>
+
+    <!-- EVERYDAY TASKS -->
+    <div class="card">
+      <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+        <div>
+          <h3 class="ft-title">Everyday tasks</h3>
+          <div class="ft-note">Where things live.</div>
+        </div>
+      </div>
+
+      <details class="hlp-q">
+        <summary>Change your company's phone number or address</summary>
+        <div class="hlp-a">
+          <p><b>Settings → Company profile → Edit.</b> The mobile number you set here prints on your invoices.</p>
+          <p>The quick way in: your photo, top right → <b>Edit profile</b>. That opens this form directly.</p>
+        </div>
+      </details>
+
+      <details class="hlp-q">
+        <summary>Match bank lines against bills</summary>
+        <div class="hlp-a">
+          <p>Open <b>Bank Reconciliation</b> and click a line. The picker opens beside the table so you can still see what you are matching.</p>
+          <p>If one payment covers several bills, choose <b>Split across bills</b>. Add each bill on the right and set its amount; the panel keeps a running <b>Payment / Allocated / Unallocated</b> total on the left, and will not let you save an allocation larger than the payment.</p>
+        </div>
+      </details>
+
+      <details class="hlp-q">
+        <summary>Add someone to your team</summary>
+        <div class="hlp-a">
+          <p><b>Settings → Team.</b> You will need their name, the phone number they will log in with, and a password of at least 6 characters. Owners can change a member's role or switch them off later.</p>
+        </div>
+      </details>
+
+      <details class="hlp-q">
+        <summary>Switch between your firms</summary>
+        <div class="hlp-a">
+          <p>Use the company name in the top bar. Every screen — sales, purchases, bank, reports — reloads for the firm you pick, and uploads are filed against that firm.</p>
+        </div>
+      </details>
+    </div>
+
+    </div>
+   </div>
+  </div>
+</div>
+
+<div id="setToast" class="fin-toast" hidden></div>
+
+<script src="ql-api.js?v=a4"></script>
+<script src="./party-identity.js?v=m27"></script>
+<script src="./import-guard.js?v=m28"></script>
+<script src="./i18n.js?v=h8"></script>
+<script src="./data.js?v=m47"></script>
+<script src="./wa-core.js?v=w3"></script>
+<script src="./shell.js?v=m65"></script>
+<script src="./mobile.js?v=m16"></script>
+<script>
+QLShell.mount({ active: 'help', title: 'Help & support' });
+/* The WhatsApp link carries the firm the user is looking at, so a support
+   message arrives with context instead of "hi, it is not working". Built at
+   click time, not at load: the user can switch company without reloading. */
+/* Switching company must not force a full page reload. Nothing on this page is
+   rendered from the company — the only company-dependent text is the WhatsApp
+   message, and that is built at click time — so the honest hook is one that
+   redraws nothing. It exists so the shell takes the in-place path. */
+window.__qlOnSwitchCompany = function () {};
+window.__qlRefresh = function () {};
+
+document.getElementById('hlpWa').addEventListener('click', function (e) {
+  var co = '';
+  try { co = (window.QLD && QLD.co && (QLD.co.short || QLD.co.name)) || ''; } catch (_) {}
+  var msg = 'Hello, I need help with QuickLimes' + (co ? ' (' + co + ')' : '') + '.';
+  e.currentTarget.href = 'https://wa.me/919460767676?text=' + encodeURIComponent(msg);
+});
+</script>
+</body>
+</html>

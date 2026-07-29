@@ -333,7 +333,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./recon-core.js?v=rc5"></script>
 <script src="./wa-core.js?v=w3"></script>
 
-<script src="./shell.js?v=m64"></script>
+<script src="./shell.js?v=m65"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 QLShell.mount({ active: 'settings', title: 'Settings' });
@@ -917,7 +917,22 @@ $('#waRecheck').addEventListener('click', () => renderWa());
 
 window.__qlOnSwitchCompany = () => { render(); renderDM(); renderBanks(); renderCo(); };
 window.__qlRefresh = () => { render(); renderDM(); renderBanks(); renderCo(); };
-QLD.init(() => { render(); renderDM(); renderBanks(); renderCo(); });
+/* Deep link: settings.html#company opens the active firm's profile straight
+   away. "Edit profile" in the account menu lands here, and dropping someone on
+   a long settings page with no indication of which card they came for is how a
+   working link still feels broken.
+
+   Guarded on ownership because renderCo() hides the whole card for a non-owner
+   — opening a form over a hidden card would offer an edit the server refuses. */
+function openCompanyDeepLink() {
+  if (location.hash !== '#company') return;
+  if (!_isOwner()) return;
+  const c = (QLD.COMPANIES || {})[QLD.co && QLD.co.key] || Object.values(QLD.COMPANIES || {})[0];
+  const card = $('#coCard');
+  if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  if (c) editCo(c);
+}
+QLD.init(() => { render(); renderDM(); renderBanks(); renderCo(); openCompanyDeepLink(); });
 renderTeam();
 renderWa();
 </script>
