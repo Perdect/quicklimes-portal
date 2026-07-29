@@ -13,6 +13,11 @@ require __DIR__ . '/files.php';
 
 $fail = 0;
 function ok($c, $m) { global $fail; if ($c) echo "  ok  $m\n"; else { $fail++; echo "  ❌  $m\n"; } }
+/* The path checks below create real directories for their hostile inputs.
+   Sweep on EVERY exit path — including the no-MySQL skip — so a test run never
+   leaves litter that could be committed. */
+function sweep() { foreach (glob(__DIR__ . '/files/*', GLOB_ONLYDIR) as $d) { @array_map('unlink', glob("$d/*")); @rmdir($d); } }
+register_shutdown_function('sweep');
 
 echo "\n=== document ids become filenames — hostile ids must die first ===\n";
 foreach (['../../etc/passwd', 'a/b', 'a\\b', 'UPPER1', 'short', str_repeat('a', 65), "abc\0def", 'has.dot', ''] as $bad)
