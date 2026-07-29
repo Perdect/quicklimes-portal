@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuickLimes — Run your whole lime plant from one AI app</title>
+<meta name="description" content="QuickLimes is an AI-powered ERP for quick-lime and hydrated-lime plants — sales, GST invoicing, purchase, labour, cashbook and chunna in one app.">
+<link rel="canonical" href="https://quicklimes.com/landing">
+
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+<meta name="theme-color" content="#2563EB">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://quicklimes.com/landing">
+<meta property="og:title" content="QuickLimes — AI ERP for Lime Manufacturers">
+<meta property="og:description" content="Sales, GST invoicing, purchase, labour, cashbook and chunna for quick-lime &amp; hydrated-lime plants — in one AI-powered app.">
+<meta property="og:image" content="https://quicklimes.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:site_name" content="QuickLimes">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://quicklimes.com/assets/og-image.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   QuickLimes landing page.
+
+   TOKENS: values below are copied from dashboard/v2/tokens.css —
+   the PERDECT design system and the single source of truth. They are
+   inlined rather than linked because this page ships to the ROOT origin
+   (quicklimes.com) while tokens.css ships to the APP origin
+   (app.quicklimes.com/v2/), and the site has no build step to share
+   them. If tokens.css changes, mirror the change here.
+   Never hard-code a hex outside this block.
+
+   Stack: vanilla HTML/CSS/JS. No build step, no CDN JS, no framework.
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  /* ── BRAND (from tokens.css) ── */
+  --ql-brand-50:  #EFF6FF;
+  --ql-brand-100: #DBEAFE;
+  --ql-brand-200: #BFDBFE;
+  --ql-brand-300: #93C5FD;
+  --ql-brand-400: #60A5FA;
+  --ql-brand-500: #3B82F6;
+  --ql-brand-600: #2563EB;   /* primary action */
+  --ql-brand-700: #1D4ED8;
+  --ql-brand-800: #1E40AF;
+
+  /* ── NEUTRAL (Slate) ── */
+  --ql-neutral-0:   #FFFFFF;
+  --ql-neutral-50:  #F8FAFC;
+  --ql-neutral-100: #F1F5F9;
+  --ql-neutral-200: #E2E8F0;
+  --ql-neutral-300: #CBD5E1;
+  --ql-neutral-400: #94A3B8;
+  --ql-neutral-500: #64748B;
+  --ql-neutral-600: #475569;
+  --ql-neutral-700: #334155;
+  --ql-neutral-800: #1E293B;
+  --ql-neutral-900: #0F172A;
+
+  --ql-success-50:  #F0FDF4;
+  --ql-success-600: #16A34A;
+  --ql-success-700: #15803D;
+
+  --ql-text:           var(--ql-neutral-900);
+  --ql-text-secondary: var(--ql-neutral-500);
+  --ql-border:         var(--ql-neutral-200);
+  --ql-card:           var(--ql-neutral-0);
+
+  --ql-font-sans: 'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+                  'Helvetica Neue', Arial, sans-serif;
+
+  --ql-radius-md:   8px;
+  --ql-radius-xl:   10px;
+  --ql-radius-2xl:  12px;
+  --ql-radius-3xl:  14px;
+  --ql-radius-pill: 9999px;
+
+  --ql-shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px 0 rgba(15, 23, 42, 0.03);
+  --ql-shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -1px rgba(15, 23, 42, 0.04);
+  --ql-shadow-lg: 0 12px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.04);
+  --ql-shadow-xl: 0 24px 48px -8px rgba(15, 23, 42, 0.12), 0 8px 16px -4px rgba(15, 23, 42, 0.06);
+  --ql-shadow-ring: 0 0 0 3px rgba(37, 99, 235, 0.12);
+
+  --ql-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ql-duration-fast: 120ms;
+  --ql-duration-base: 180ms;
+
+  /* Landing-only scale — the marketing page needs display type the dense
+     ERP scale (13px base) does not carry. Derived, not invented. */
+  --lp-max: 1200px;
+  --lp-gutter: 20px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: var(--ql-font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ql-text);
+  background: var(--ql-neutral-0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+img { max-width: 100%; display: block; }
+a { color: inherit; text-decoration: none; }
+
+/* Keyboard users must be able to see where they are. */
+a:focus-visible, button:focus-visible {
+  outline: none;
+  box-shadow: var(--ql-shadow-ring);
+  border-radius: var(--ql-radius-md);
+}
+.skip-link {
+  position: absolute; left: -9999px; top: 8px; z-index: 200;
+  background: var(--ql-neutral-900); color: #fff;
+  padding: 10px 16px; border-radius: var(--ql-radius-md); font-weight: 600;
+}
+.skip-link:focus { left: 16px; }
+
+.wrap { max-width: var(--lp-max); margin: 0 auto; padding: 0 var(--lp-gutter); }
+
+/* ═══ NAV — floating pill ═══════════════════════════════════════ */
+.nav-outer {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 14px var(--lp-gutter);
+  transition: padding var(--ql-duration-base) var(--ql-ease-out);
+}
+.nav {
+  max-width: var(--lp-max); margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 9px 9px 9px 18px;
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  backdrop-filter: saturate(180%) blur(16px);
+  border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-pill);
+  box-shadow: var(--ql-shadow-sm);
+  transition: box-shadow var(--ql-duration-base) var(--ql-ease-out),
+              background var(--ql-duration-base) var(--ql-ease-out);
+}
+.nav-outer.scrolled .nav { box-shadow: var(--ql-shadow-lg); background: rgba(255, 255, 255, 0.88); }
+.nav-brand img { height: 30px; width: auto; }
+
+.nav-links {
+  display: flex; align-items: center; gap: 4px;
+  list-style: none; margin: 0; padding: 0;
+}
+.nav-links a {
+  display: block; padding: 8px 14px;
+  font-size: 14px; font-weight: 500; color: var(--ql-neutral-600);
+  border-radius: var(--ql-radius-pill);
+  transition: color var(--ql-duration-fast) var(--ql-ease-out),
+              background var(--ql-duration-fast) var(--ql-ease-out);
+}
+.nav-links a:hover { color: var(--ql-text); background: var(--ql-neutral-100); }
+
+.nav-right { display: flex; align-items: center; gap: 6px; }
+.nav-login {
+  padding: 9px 14px; font-size: 14px; font-weight: 500; color: var(--ql-neutral-600);
+  border-radius: var(--ql-radius-pill);
+  transition: color var(--ql-duration-fast) var(--ql-ease-out),
+              background var(--ql-duration-fast) var(--ql-ease-out);
+}
+.nav-login:hover { color: var(--ql-text); background: var(--ql-neutral-100); }
+.nav-cta {
+  padding: 10px 20px; font-size: 14px; font-weight: 600;
+  color: #fff; background: var(--ql-neutral-900);
+  border-radius: var(--ql-radius-pill);
+  transition: background var(--ql-duration-fast) var(--ql-ease-out),
+              transform var(--ql-duration-fast) var(--ql-ease-out);
+}
+.nav-cta:hover { background: var(--ql-neutral-800); transform: translateY(-1px); }
+
+/* Hidden at EVERY width by default. This lived only inside the 860px media
+   query at first, so above 860px it was unstyled — and a <div> of links
+   defaults to display:block, dumping "Modules AI Agent Pricing…" as raw text
+   over the desktop hero. The base rule is the fix; the query only opens it. */
+.nav-mobile { display: none; }
+
+.nav-toggle {
+  display: none; width: 40px; height: 40px; padding: 0;
+  align-items: center; justify-content: center;
+  background: transparent; border: 0; cursor: pointer;
+  border-radius: var(--ql-radius-pill); color: var(--ql-neutral-700);
+}
+.nav-toggle:hover { background: var(--ql-neutral-100); }
+
+/* ═══ HERO ══════════════════════════════════════════════════════ */
+.hero {
+  position: relative;
+  padding: 150px 0 0;
+  overflow: hidden;
+  /* Reference is lavender; his brand is blue. Same softness, his identity. */
+  background:
+    radial-gradient(1000px 520px at 50% -8%, var(--ql-brand-50) 0%, rgba(239, 246, 255, 0) 70%),
+    linear-gradient(180deg, #FBFCFE 0%, var(--ql-neutral-0) 62%);
+}
+/* Faint geometric line-art + glow blobs. transform/opacity only. */
+.hero-art {
+  position: absolute; inset: 0; pointer-events: none;
+  overflow: hidden;
+}
+.hero-lines {
+  position: absolute; top: 0; left: 50%;
+  width: 1500px; height: 900px;
+  transform: translateX(-50%);
+  color: var(--ql-brand-600);
+  opacity: 0.11;
+}
+.blob {
+  position: absolute; border-radius: 50%;
+  filter: blur(70px); opacity: 0.5;
+  will-change: transform;
+}
+.blob-1 {
+  width: 520px; height: 520px; top: -170px; left: 50%; margin-left: -600px;
+  background: radial-gradient(circle, var(--ql-brand-200) 0%, rgba(191, 219, 254, 0) 70%);
+  animation: drift1 24s var(--ql-ease-out) infinite alternate;
+}
+.blob-2 {
+  width: 460px; height: 460px; top: -110px; left: 50%; margin-left: 190px;
+  background: radial-gradient(circle, #DDD6FE 0%, rgba(221, 214, 254, 0) 70%);
+  animation: drift2 28s var(--ql-ease-out) infinite alternate;
+}
+.blob-3 {
+  width: 620px; height: 620px; top: 240px; left: 50%; margin-left: -310px;
+  background: radial-gradient(circle, var(--ql-brand-100) 0%, rgba(219, 234, 254, 0) 72%);
+  animation: drift1 32s var(--ql-ease-out) infinite alternate-reverse;
+}
+@keyframes drift1 {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(40px, 30px, 0) scale(1.12); }
+}
+@keyframes drift2 {
+  from { transform: translate3d(0, 0, 0) scale(1.08); }
+  to   { transform: translate3d(-50px, 26px, 0) scale(1); }
+}
+
+.hero-inner { position: relative; text-align: center; }
+
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px 6px 7px; margin-bottom: 26px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--ql-brand-100);
+  border-radius: var(--ql-radius-pill);
+  font-size: 13px; font-weight: 500; color: var(--ql-neutral-600);
+  box-shadow: var(--ql-shadow-sm);
+}
+.eyebrow b {
+  padding: 3px 9px; border-radius: var(--ql-radius-pill);
+  background: var(--ql-brand-600); color: #fff;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+
+h1 {
+  margin: 0 auto 22px;
+  max-width: 15ch;
+  font-size: clamp(2.25rem, 6.2vw, 4.25rem);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  font-weight: 700;
+}
+h1 .accent {
+  color: var(--ql-brand-600);
+  /* The reference sets one phrase in the accent colour. His is blue. */
+}
+.hero-sub {
+  margin: 0 auto 34px; max-width: 60ch;
+  font-size: clamp(1rem, 1.5vw, 1.1875rem);
+  line-height: 1.6; color: var(--ql-neutral-500);
+}
+
+.hero-ctas {
+  display: flex; align-items: center; justify-content: center;
+  gap: 14px; flex-wrap: wrap;
+}
+/* Dark pill primary with a circular arrow badge — the reference's shape. */
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 7px 7px 24px;
+  background: var(--ql-neutral-900); color: #fff;
+  border-radius: var(--ql-radius-pill);
+  font-size: 15px; font-weight: 600;
+  box-shadow: var(--ql-shadow-lg);
+  transition: background var(--ql-duration-base) var(--ql-ease-out),
+              transform var(--ql-duration-base) var(--ql-ease-out),
+              box-shadow var(--ql-duration-base) var(--ql-ease-out);
+}
+.btn-primary:hover { background: var(--ql-neutral-800); transform: translateY(-2px); box-shadow: var(--ql-shadow-xl); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary .badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--ql-brand-600); color: #fff;
+  transition: transform var(--ql-duration-base) var(--ql-ease-out);
+}
+.btn-primary:hover .badge { transform: translateX(3px); }
+
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 6px 22px 6px 6px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-pill);
+  font-size: 15px; font-weight: 600; color: var(--ql-text);
+  box-shadow: var(--ql-shadow-sm);
+  transition: border-color var(--ql-duration-base) var(--ql-ease-out),
+              transform var(--ql-duration-base) var(--ql-ease-out),
+              box-shadow var(--ql-duration-base) var(--ql-ease-out);
+}
+.btn-secondary:hover { border-color: var(--ql-neutral-300); transform: translateY(-2px); box-shadow: var(--ql-shadow-md); }
+.btn-secondary .circle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--ql-neutral-900); color: #fff;
+  transition: transform var(--ql-duration-base) var(--ql-ease-out);
+}
+.btn-secondary:hover .circle { transform: scale(1.06); }
+
+/* neutral-400 on white is 2.56:1 — it FAILS WCAG AA for body text. Every
+   muted label on a light surface uses neutral-500 (4.76:1) instead. The
+   400 tone is kept only for decorative chrome (the fake omnibox). */
+.hero-note {
+  margin: 22px 0 0; font-size: 13.5px; color: var(--ql-neutral-500);
+}
+
+/* ═══ SHOWCASE — browser frame ══════════════════════════════════ */
+.showcase {
+  position: relative;
+  margin-top: 62px;
+  padding-bottom: 90px;
+  perspective: 2000px;
+}
+.frame {
+  position: relative;
+  max-width: 1120px; margin: 0 auto;
+  border-radius: var(--ql-radius-3xl);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--ql-border);
+  box-shadow: var(--ql-shadow-xl), 0 48px 90px -24px rgba(15, 23, 42, 0.20);
+  overflow: hidden;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  transform: rotateX(7deg) scale(0.985);
+  transform-origin: 50% 0;
+  will-change: transform;
+}
+/* Float + the mouse-parallax offset (--px/--py) compose in one transform. */
+.frame.floating {
+  animation: float 7s ease-in-out infinite;
+}
+@keyframes float {
+  0%, 100% { transform: rotateX(7deg) translate3d(var(--px, 0px), 0, 0) scale(0.985); }
+  50%      { transform: rotateX(7deg) translate3d(var(--px, 0px), -14px, 0) scale(0.985); }
+}
+.frame-bar {
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 16px; height: 42px;
+  background: rgba(248, 250, 252, 0.9);
+  border-bottom: 1px solid var(--ql-border);
+}
+.dots { display: flex; gap: 7px; }
+.dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--ql-neutral-300); }
+.dots i:nth-child(1) { background: #FF5F57; }
+.dots i:nth-child(2) { background: #FEBC2E; }
+.dots i:nth-child(3) { background: #28C840; }
+.omnibox {
+  flex: 1; max-width: 340px; margin: 0 auto;
+  padding: 4px 12px;
+  background: var(--ql-neutral-0);
+  border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-pill);
+  /* Decorative browser chrome inside an aria-hidden bar — not page copy, so
+     the low-contrast grey a real omnibox uses is the correct look here. */
+  font-size: 11.5px; color: var(--ql-neutral-400);
+  text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.frame img { width: 100%; height: auto; display: block; }
+/* Sits under the frame: grounds it and softens the bottom edge. */
+.showcase::after {
+  content: '';
+  position: absolute; left: 50%; bottom: 60px;
+  width: 70%; height: 60px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(37, 99, 235, 0.13) 0%, rgba(37, 99, 235, 0) 70%);
+  filter: blur(16px);
+  pointer-events: none;
+}
+
+/* ═══ SECTIONS ══════════════════════════════════════════════════ */
+section { position: relative; }
+/* The nav is FIXED, so an anchor jump parks the target under it and the
+   section heading lands behind the pill. Reserve its height at every
+   scroll target. */
+section[id] { scroll-margin-top: 96px; }
+.section-pad { padding: 92px 0; }
+.bg-soft { background: var(--ql-neutral-50); border-block: 1px solid var(--ql-border); }
+
+.sec-head { text-align: center; max-width: 720px; margin: 0 auto 54px; }
+.sec-tag {
+  display: inline-block; margin-bottom: 14px;
+  padding: 5px 12px;
+  background: var(--ql-brand-50); color: var(--ql-brand-700);
+  border-radius: var(--ql-radius-pill);
+  font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+}
+h2 {
+  margin: 0 0 14px;
+  font-size: clamp(1.75rem, 3.4vw, 2.5rem);
+  line-height: 1.15; letter-spacing: -0.03em; font-weight: 700;
+}
+.sec-head p { margin: 0; font-size: 1.0625rem; line-height: 1.6; color: var(--ql-neutral-500); }
+
+/* Modules grid */
+.grid {
+  display: grid; gap: 18px;
+  grid-template-columns: repeat(3, 1fr);
+}
+.card {
+  padding: 26px;
+  background: var(--ql-card);
+  border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-2xl);
+  box-shadow: var(--ql-shadow-sm);
+  transition: transform var(--ql-duration-base) var(--ql-ease-out),
+              box-shadow var(--ql-duration-base) var(--ql-ease-out),
+              border-color var(--ql-duration-base) var(--ql-ease-out);
+}
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--ql-shadow-lg);
+  border-color: var(--ql-brand-200);
+}
+.card-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; margin-bottom: 16px;
+  background: var(--ql-brand-50); color: var(--ql-brand-600);
+  border-radius: var(--ql-radius-xl);
+}
+.card h3 {
+  margin: 0 0 8px; font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.01em;
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+}
+.card p { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--ql-neutral-500); }
+.pill-live {
+  padding: 2px 8px; border-radius: var(--ql-radius-pill);
+  /* 600 on 50 is only 3.15:1; 700 gets it to 4.79:1. */
+  background: var(--ql-success-50); color: var(--ql-success-700);
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+
+/* AI split */
+.split {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 56px; align-items: center;
+}
+.split h2 { text-align: left; }
+.ai-list { list-style: none; margin: 26px 0 0; padding: 0; }
+.ai-list li {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 11px 0;
+  font-size: 15px; color: var(--ql-neutral-600);
+}
+.ai-list svg { flex: none; margin-top: 2px; color: var(--ql-brand-600); }
+.ai-panel {
+  padding: 24px;
+  background: var(--ql-card);
+  border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-2xl);
+  box-shadow: var(--ql-shadow-lg);
+}
+.ai-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px 0; border-bottom: 1px solid var(--ql-neutral-100);
+}
+.ai-row:last-child { border-bottom: 0; }
+.ai-row .dot {
+  flex: none; width: 30px; height: 30px; border-radius: var(--ql-radius-md);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--ql-brand-50); font-size: 14px;
+}
+.ai-row b { display: block; font-size: 14px; font-weight: 600; }
+.ai-row span { display: block; font-size: 12.5px; color: var(--ql-neutral-500); margin-top: 2px; }
+.ai-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 12px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--ql-neutral-100);
+}
+.ai-head b { font-size: 14px; font-weight: 700; }
+.ai-head em {
+  font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--ql-brand-600); background: var(--ql-brand-50);
+  padding: 3px 8px; border-radius: var(--ql-radius-pill);
+}
+
+/* Pricing */
+.price-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; max-width: 800px; margin: 0 auto; }
+.price {
+  /* Grid stretches both cards to the tallest, so the shorter plan's button
+     floated mid-card. Column flex + margin-top:auto on the CTA pins both
+     buttons to the same baseline. */
+  display: flex; flex-direction: column;
+  padding: 30px;
+  background: var(--ql-card);
+  border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius-2xl);
+  box-shadow: var(--ql-shadow-sm);
+  transition: transform var(--ql-duration-base) var(--ql-ease-out),
+              box-shadow var(--ql-duration-base) var(--ql-ease-out);
+}
+.price:hover { transform: translateY(-4px); box-shadow: var(--ql-shadow-lg); }
+.price.featured { border-color: var(--ql-brand-600); box-shadow: var(--ql-shadow-lg); }
+.price h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; color: var(--ql-neutral-500); }
+.price .amt { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
+.price .per { font-size: 13px; color: var(--ql-neutral-500); margin-bottom: 20px; }
+.price ul { list-style: none; margin: 0 0 24px; padding: 0; }
+.price li {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 7px 0; font-size: 14px; color: var(--ql-neutral-600);
+}
+.price li svg { flex: none; margin-top: 3px; color: var(--ql-brand-600); }
+.price .btn-full {
+  display: flex; align-items: center; justify-content: center;
+  margin-top: auto;
+  padding: 12px; border-radius: var(--ql-radius-md);
+  font-size: 14.5px; font-weight: 600;
+  transition: background var(--ql-duration-fast) var(--ql-ease-out),
+              transform var(--ql-duration-fast) var(--ql-ease-out);
+}
+.btn-full.dark { background: var(--ql-neutral-900); color: #fff; }
+.btn-full.dark:hover { background: var(--ql-neutral-800); transform: translateY(-1px); }
+.btn-full.blue { background: var(--ql-brand-600); color: #fff; }
+.btn-full.blue:hover { background: var(--ql-brand-700); transform: translateY(-1px); }
+.price-tag {
+  display: inline-block; margin-bottom: 12px;
+  padding: 4px 10px; border-radius: var(--ql-radius-pill);
+  background: var(--ql-brand-600); color: #fff;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+}
+
+/* Final CTA */
+.cta-band {
+  position: relative; overflow: hidden;
+  padding: 84px 0;
+  background: linear-gradient(135deg, var(--ql-brand-700) 0%, var(--ql-brand-600) 50%, var(--ql-brand-800) 100%);
+  color: #fff; text-align: center;
+}
+.cta-band h2 { color: #fff; }
+/* .82 alpha over brand-600 lands at 4.01:1 — under AA. .95 = 4.82:1. */
+.cta-band p { margin: 0 auto 32px; max-width: 52ch; font-size: 1.0625rem; color: rgba(255, 255, 255, 0.95); }
+.cta-band .btn-primary { background: #fff; color: var(--ql-neutral-900); }
+.cta-band .btn-primary:hover { background: var(--ql-neutral-50); }
+.cta-band .btn-primary .badge { background: var(--ql-brand-600); color: #fff; }
+.cta-glow {
+  position: absolute; width: 700px; height: 700px; border-radius: 50%;
+  top: 50%; left: 50%; margin: -350px 0 0 -350px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 65%);
+  animation: pulse 9s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50%      { transform: scale(1.22); opacity: 1; }
+}
+.cta-band .wrap { position: relative; }
+
+/* Footer */
+footer { padding: 56px 0 40px; background: var(--ql-neutral-900); color: rgba(255, 255, 255, 0.62); }
+.foot-top {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 40px; flex-wrap: wrap;
+  padding-bottom: 34px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.foot-brand img { height: 32px; width: auto; margin-bottom: 14px; }
+.foot-brand p { margin: 0; max-width: 34ch; font-size: 13.5px; line-height: 1.7; }
+.foot-cols { display: flex; gap: 56px; flex-wrap: wrap; }
+.foot-col h4 {
+  margin: 0 0 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  /* .4 alpha blends to 3.81:1 on the slate-900 footer — under AA. .6 = 6.99:1. */
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.6);
+}
+.foot-col a { display: block; padding: 5px 0; font-size: 14px; color: rgba(255, 255, 255, 0.72); }
+.foot-col a:hover { color: #fff; }
+.foot-bot {
+  display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding-top: 22px; font-size: 13px; color: rgba(255, 255, 255, 0.6);
+}
+
+/* ═══ SCROLL REVEAL ═════════════════════════════════════════════
+   No-JS safety: only elements the observer picks up are hidden, and
+   the class is added by JS itself (see the .js- guard below). */
+.js-reveal .reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 620ms var(--ql-ease-out), transform 620ms var(--ql-ease-out);
+  transition-delay: var(--d, 0ms);
+}
+.js-reveal .reveal.in { opacity: 1; transform: none; }
+
+/* ═══ RESPONSIVE ════════════════════════════════════════════════ */
+@media (max-width: 980px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+  .split { grid-template-columns: 1fr; gap: 40px; }
+  .hero { padding-top: 128px; }
+}
+@media (max-width: 860px) {
+  .nav-links { display: none; }
+  .nav-toggle { display: inline-flex; }
+  .nav-login { display: none; }
+  /* Panel opened by the toggle — plain block flow, no overlay trickery. */
+  .nav-mobile {
+    max-width: var(--lp-max); margin: 8px auto 0;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.96);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+    border: 1px solid var(--ql-border);
+    border-radius: var(--ql-radius-2xl);
+    box-shadow: var(--ql-shadow-lg);
+  }
+  .nav-mobile.open { display: block; }
+  .nav-mobile a {
+    display: block; padding: 12px 14px;
+    font-size: 15px; font-weight: 500; color: var(--ql-neutral-700);
+    border-radius: var(--ql-radius-md);
+  }
+  .nav-mobile a:hover { background: var(--ql-neutral-100); }
+}
+@media (max-width: 720px) {
+  .grid { grid-template-columns: 1fr; }
+  .price-grid { grid-template-columns: 1fr; }
+  .section-pad { padding: 64px 0; }
+  .hero { padding-top: 116px; }
+  .showcase { margin-top: 44px; padding-bottom: 60px; perspective: none; }
+  /* Perspective + float read as jitter on a small screen; flatten it. */
+  .frame, .frame.floating { transform: none; animation: none; }
+  .foot-cols { gap: 32px; }
+}
+@media (max-width: 420px) {
+  :root { --lp-gutter: 16px; }
+  .hero-ctas { flex-direction: column; align-items: stretch; }
+  .hero-ctas a { justify-content: center; }
+  .btn-secondary { padding: 6px 6px 6px 6px; }
+  .nav-brand img { height: 26px; }
+  .nav-cta { padding: 9px 15px; font-size: 13.5px; }
+}
+
+/* ═══ REDUCED MOTION — every animation above, off ════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .js-reveal .reveal { opacity: 1; transform: none; }
+  .frame, .frame.floating { animation: none; transform: rotateX(7deg) scale(0.985); }
+  .blob { animation: none; }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<div class="nav-outer" id="navOuter">
+  <nav class="nav" aria-label="Primary">
+    <a class="nav-brand" href="/" aria-label="QuickLimes home">
+      <img src="/assets/logo.png" alt="QuickLimes" width="2292" height="600">
+    </a>
+    <ul class="nav-links">
+      <li><a href="#modules">Modules</a></li>
+      <li><a href="#ai">AI Agent</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+    <div class="nav-right">
+      <a class="nav-login" href="https://app.quicklimes.com/">Log in</a>
+      <a class="nav-cta" href="/signup">Sign Up</a>
+      <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navMobile">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M3 6h18M3 12h18M3 18h18"/>
+        </svg>
+      </button>
+    </div>
+  </nav>
+  <div class="nav-mobile" id="navMobile">
+    <a href="#modules">Modules</a>
+    <a href="#ai">AI Agent</a>
+    <a href="#pricing">Pricing</a>
+    <a href="/#contact">Contact</a>
+    <a href="https://app.quicklimes.com/">Log in</a>
+  </div>
+</div>
+
+<main id="main">
+
+  <!-- ═══ HERO ═══ -->
+  <section class="hero">
+    <div class="hero-art" aria-hidden="true">
+      <div class="blob blob-1" data-par="0.018"></div>
+      <div class="blob blob-2" data-par="-0.024"></div>
+      <div class="blob blob-3" data-par="0.012"></div>
+      <svg class="hero-lines" viewBox="0 0 1500 900" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
+        <circle cx="750" cy="330" r="150"/>
+        <circle cx="750" cy="330" r="260"/>
+        <circle cx="750" cy="330" r="380"/>
+        <circle cx="750" cy="330" r="510"/>
+        <path d="M240 900 L620 130 M1260 900 L880 130"/>
+        <path d="M60 130 L500 900 M1440 130 L1000 900" stroke-dasharray="6 10"/>
+        <rect x="470" y="52" width="560" height="560" transform="rotate(45 750 332)"/>
+      </svg>
+    </div>
+
+    <div class="wrap hero-inner">
+      <span class="eyebrow reveal"><b>New</b> Built for quick-lime &amp; hydrated-lime plants</span>
+      <h1 class="reveal" style="--d:70ms">Run your whole lime plant from <span class="accent">one AI app</span></h1>
+      <p class="hero-sub reveal" style="--d:140ms">
+        Sales, GST invoicing, purchase, labour, cashbook and chunna — in one place.
+        Six modules built exclusively for lime manufacturers. No spreadsheets, no manual errors.
+      </p>
+      <div class="hero-ctas reveal" style="--d:210ms">
+        <a class="btn-primary" href="/signup">
+          Start free
+          <span class="badge" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14M13 6l6 6-6 6"/>
+            </svg>
+          </span>
+        </a>
+        <a class="btn-secondary" href="/#contact">
+          <span class="circle" aria-hidden="true">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </span>
+          Book a demo
+        </a>
+      </div>
+      <p class="hero-note reveal" style="--d:280ms">Free forever plan · No credit card · Set up in 30 minutes</p>
+    </div>
+
+    <!-- ═══ SHOWCASE — his own dashboard, not a mock ═══ -->
+    <div class="showcase">
+      <div class="wrap">
+        <div class="frame reveal" id="frame" style="--d:340ms">
+          <div class="frame-bar" aria-hidden="true">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <span class="omnibox">app.quicklimes.com/v2/dashboard</span>
+          </div>
+          <img src="/assets/dashboard-showcase.webp"
+               alt="The QuickLimes dashboard: sales, collected, pending, purchases, production and gross profit for July 2026, a six-month revenue chart, AI insights, and the manufacturing flow from limestone through kiln and hydration to dispatch."
+               width="2400" height="1680" loading="lazy" decoding="async">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ MODULES ═══ -->
+  <section class="section-pad bg-soft" id="modules">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="sec-tag reveal">Modules</span>
+        <h2 class="reveal" style="--d:60ms">Everything your plant runs on</h2>
+        <p class="reveal" style="--d:120ms">Six powerful modules — built exclusively for lime manufacturers. No spreadsheets, no manual errors.</p>
+      </div>
+      <div class="grid">
+
+        <article class="card reveal">
+          <span class="card-ico" aria-hidden="true">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/>
+            </svg>
+          </span>
+          <h3>GST Billing + E-Invoice <span class="pill-live">Live</span></h3>
+          <p>IRN generation, QR codes, IGST/CGST auto-detect — fully GST portal compliant.</p>
+        </article>
+
+        <article class="card reveal" style="--d:70ms">
+          <span class="card-ico" aria-hidden="true">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h2"/>
+              <circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
+            </svg>
+          </span>
+          <h3>E-Way Bill System <span class="pill-live">Live</span></h3>
+          <p>One-click dispatch bills via direct GST API. No manual form filling ever again.</p>
+        </article>
+
+        <article class="card reveal" style="--d:140ms">
+          <span class="card-ico" aria-hidden="true">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+            </svg>
+          </span>
+          <h3>Kiln + Labour Tracking <span class="pill-live">Live</span></h3>
+          <p>Shift logs, attendance, daily production batches, and PF/ESI — all automated.</p>
+        </article>
+
+        <article class="card reveal" style="--d:210ms">
+          <span class="card-ico" aria-hidden="true">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/>
+            </svg>
+          </span>
+          <h3>Bank + P&amp;L Dashboard <span class="pill-live">Live</span></h3>
+          <p>Live profit &amp; loss, cost-per-tonne, bank reconciliation — know your numbers daily.</p>
+        </article>
+
+        <article class="card reveal" style="--d:280ms">
+          <span class="card-ico" aria-hidden="true">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+          </span>
+          <h3>Petcoke ITC Tracker <span class="pill-live">Live</span></h3>
+          <p>Auto-classifies every purchase bill — Eligible, RCM, Blocked. Zero ITC leakage.</p>
+        </article>
+
+        <article class="card reveal" style="--d:350ms">
+          <span class="card-ico" aria-hidden="true">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M12 14v4M10 16h4"/>
+            </svg>
+          </span>
+          <h3>Loan + EMI Calendar <span class="pill-live">Live</span></h3>
+          <p>Track all bank loans, EMI due dates, and repayment history — never miss a payment.</p>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ AI ═══ -->
+  <section class="section-pad" id="ai">
+    <div class="wrap split">
+      <div>
+        <span class="sec-tag reveal">AI Agent</span>
+        <h2 class="reveal" style="--d:60ms">Your AI agent works while you focus on business</h2>
+        <p class="reveal" style="--d:120ms; margin:0; font-size:1.0625rem; line-height:1.6; color:var(--ql-neutral-500);">
+          The QuickLimes AI Agent runs 24/7 — automatically handling invoices, compliance,
+          production logs, and alerts so nothing slips through.
+        </p>
+        <ul class="ai-list">
+          <li class="reveal" style="--d:180ms">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+            Photograph a purchase bill — OCR reads the supplier, GSTIN, date and amount.
+          </li>
+          <li class="reveal" style="--d:230ms">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+            Upload a bank statement — every line is matched to the bill or entry it pays.
+          </li>
+          <li class="reveal" style="--d:280ms">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+            WhatsApp payment reminders to customers, one tap, with the invoice attached.
+          </li>
+          <li class="reveal" style="--d:330ms">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+            Ask it anything about your own data — in plain English or Hindi.
+          </li>
+        </ul>
+      </div>
+
+      <!-- Mirrors the real AI Insights panel in the app. -->
+      <div class="ai-panel reveal" style="--d:200ms">
+        <div class="ai-head"><b>AI Insights</b><em>LIVE</em></div>
+        <div class="ai-row">
+          <span class="dot" aria-hidden="true">📈</span>
+          <div><b>Sales up 18.8% vs last month.</b><span>₹33.3L this month vs ₹28.0L previous.</span></div>
+        </div>
+        <div class="ai-row">
+          <span class="dot" aria-hidden="true">⚠️</span>
+          <div><b>Highest overdue receivable flagged.</b><span>Chase it before it ages past 180 days.</span></div>
+        </div>
+        <div class="ai-row">
+          <span class="dot" aria-hidden="true">🧾</span>
+          <div><b>12 supplier bills awaiting payment.</b><span>Grouped by due date, ITC checked.</span></div>
+        </div>
+        <div class="ai-row">
+          <span class="dot" aria-hidden="true">🔥</span>
+          <div><b>Kiln active — 663 T this month.</b><span>Limestone → kiln → hydration → dispatch.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PRICING ═══ -->
+  <section class="section-pad bg-soft" id="pricing">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="sec-tag reveal">Pricing</span>
+        <h2 class="reveal" style="--d:60ms">Simple, honest pricing</h2>
+        <p class="reveal" style="--d:120ms">No hidden fees. No long-term lock-in. Start free and upgrade when your lime business is ready.</p>
+      </div>
+      <div class="price-grid">
+
+        <div class="price reveal">
+          <h3>Starter</h3>
+          <div class="amt">Free</div>
+          <div class="per">Forever free · No credit card</div>
+          <ul>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>GST Billing (up to 50 invoices/month)</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Cash Book (Cash + PhonePe)</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Basic P&amp;L view</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>1 Company</li>
+          </ul>
+          <a class="btn-full dark" href="/signup">Start Free →</a>
+        </div>
+
+        <div class="price featured reveal" style="--d:80ms">
+          <span class="price-tag">Most Popular</span>
+          <h3>Professional</h3>
+          <div class="amt">₹999<span style="font-size:1rem;font-weight:500;color:var(--ql-neutral-500)">/month</span></div>
+          <div class="per">or ₹9,999/year · save 2 months</div>
+          <ul>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Unlimited GST Invoices + E-Way Bills</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Kiln Production Tracking</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Labour Wages + Attendance (Hindi)</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Petcoke ITC Tracker + Live P&amp;L</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>GSTR-1 + GSTR-3B Auto · TDS</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>AI Assistant</li>
+          </ul>
+          <a class="btn-full blue" href="/signup">Start Free Trial →</a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FINAL CTA ═══ -->
+  <section class="cta-band">
+    <div class="cta-glow" aria-hidden="true"></div>
+    <div class="wrap">
+      <h2 class="reveal">Your kiln runs. Your money shouldn't leak.</h2>
+      <p class="reveal" style="--d:70ms">
+        Tell us about your lime business. We'll set up your QuickLimes account and
+        walk you through the platform in 30 minutes.
+      </p>
+      <div class="hero-ctas reveal" style="--d:140ms">
+        <a class="btn-primary" href="/signup">
+          Start free
+          <span class="badge" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14M13 6l6 6-6 6"/>
+            </svg>
+          </span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-top">
+      <div class="foot-brand">
+        <img src="/assets/logo.png" alt="QuickLimes" width="2292" height="600"
+             style="filter:brightness(0) invert(1);opacity:.92">
+        <p>An AI-powered ERP for quick-lime and hydrated-lime plants — built in the Nagaur limestone belt, Rajasthan.</p>
+      </div>
+      <div class="foot-cols">
+        <div class="foot-col">
+          <h4>Product</h4>
+          <a href="#modules">Modules</a>
+          <a href="#ai">AI Agent</a>
+          <a href="#pricing">Pricing</a>
+          <a href="https://app.quicklimes.com/">Log in</a>
+        </div>
+        <div class="foot-col">
+          <h4>Company</h4>
+          <a href="/">Home</a>
+          <a href="/#contact">Contact</a>
+          <a href="/privacy_policy.html">Privacy</a>
+          <a href="/terms_and_conditions.html">Terms</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bot">
+      <span>© <span id="yr">2026</span> QuickLimes. All rights reserved.</span>
+      <span>Made in Rajasthan, India 🇮🇳</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  /* Reveal-on-scroll. The hiding class is added by JS, so with JS off (or if
+     this throws) the page renders fully visible instead of blank. */
+  var root = document.documentElement;
+  if (!reduce.matches) root.classList.add('js-reveal');
+
+  var items = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window && !reduce.matches) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('in');
+        io.unobserve(e.target);          // one-shot: never re-hide
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.06 });
+    items.forEach(function (el) { io.observe(el); });
+  } else {
+    items.forEach(function (el) { el.classList.add('in'); });
+  }
+
+  /* Nav shadow on scroll — passive listener, class toggled only on change. */
+  var navOuter = document.getElementById('navOuter'), scrolled = false;
+  window.addEventListener('scroll', function () {
+    var s = window.scrollY > 10;
+    if (s !== scrolled) { scrolled = s; navOuter.classList.toggle('scrolled', s); }
+  }, { passive: true });
+
+  /* Mobile menu */
+  var toggle = document.getElementById('navToggle'), panel = document.getElementById('navMobile');
+  if (toggle && panel) {
+    toggle.addEventListener('click', function () {
+      var open = panel.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    });
+    panel.addEventListener('click', function (e) {
+      if (e.target.tagName !== 'A') return;
+      panel.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', 'Open menu');
+    });
+  }
+
+  /* Mouse parallax — a few px, rAF-throttled, pointer:fine only.
+     The frame's float keyframes read --px, so the two compose instead of
+     fighting over `transform`. Blobs get their own translate. */
+  var fine = window.matchMedia('(pointer: fine)');
+  var frame = document.getElementById('frame');
+  var blobs = document.querySelectorAll('.blob');
+  if (fine.matches && !reduce.matches) {
+    var tx = 0, ty = 0, queued = false;
+    function paint() {
+      queued = false;
+      if (frame) frame.style.setProperty('--px', (tx * 0.010).toFixed(2) + 'px');
+      for (var i = 0; i < blobs.length; i++) {
+        var f = parseFloat(blobs[i].getAttribute('data-par')) || 0;
+        blobs[i].style.translate = (tx * f).toFixed(1) + 'px ' + (ty * f).toFixed(1) + 'px';
+      }
+    }
+    window.addEventListener('mousemove', function (e) {
+      tx = e.clientX - window.innerWidth / 2;
+      ty = e.clientY - window.innerHeight / 2;
+      if (!queued) { queued = true; requestAnimationFrame(paint); }
+    }, { passive: true });
+  }
+
+  /* Float only once the frame is on screen — no offscreen compositing. */
+  if (frame && !reduce.matches && 'IntersectionObserver' in window) {
+    new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { frame.classList.toggle('floating', e.isIntersecting); });
+    }, { threshold: 0.05 }).observe(frame);
+  }
+
+  document.getElementById('yr').textContent = new Date().getFullYear();
+})();
+</script>
+</body>
+</html>
