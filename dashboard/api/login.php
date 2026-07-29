@@ -14,6 +14,14 @@ if ($phone === '' || $password === '') {
   ql_out(['error' => 'Please enter phone and password']);
 }
 
+/* Brute-force guard (audit H1). Keyed on the PHONE being attacked — the stable
+   target an attacker can't rotate — so it directly caps guesses against one
+   account. A coarse per-IP backstop catches spraying across many phones from
+   one source. Checked BEFORE any password_verify, so throttled requests never
+   even reach the hash. 12/15min per phone is forgiving for a real typo-er. */
+ql_rate_guard('login:phone:' . strtolower($phone), 12, 900);
+ql_rate_guard('login:ip:' . ql_client_ip(), 60, 900);
+
 $role = 'owner';       // owner login = full access (legacy token shape)
 $userId = '';
 $userName = '';

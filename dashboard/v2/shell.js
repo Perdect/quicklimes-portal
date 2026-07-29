@@ -232,7 +232,11 @@
     { type: 'group', label: 'People', feat: 'people', items: [
       { id: 'parties',    label: 'All Parties', href: 'parties.html', icon: I.users },
       { id: 'labour',     label: 'Labour',      href: 'labour.html',  icon: I.users },
-      { id: 'attendance', label: 'Attendance',  href: 'attendance.html', icon: I.check }
+      /* attendance.html is a 0-byte stub — never built. It was wired as a live
+         link, so clicking it landed on a blank page with no way back but the
+         browser button. Marked `soon` (like Kiln/Stock/Dispatch) until the page
+         exists. Guarded by nav-targets.test.js. */
+      { id: 'attendance', label: 'Attendance',  href: SOON, icon: I.check, soon: true }
     ]},
     { type: 'group', label: 'Reports', feat: 'reports', items: [
       { id: 'reports', label: 'Reports Hub',          href: 'reports.html', icon: I.dl },
@@ -426,6 +430,23 @@
     requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateX(-50%) translateY(0)'; });
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(-50%) translateY(20px)'; }, 2200);
+  }
+
+  /* Surface sync trouble the data layer reports (audit M3). data.js retries on
+     its own; this just warns the user their last edits haven't reached the
+     cloud, so they don't close a device believing everything is saved.
+     Throttled — retries fire repeatedly and must not spam. */
+  let _syncWarnAt = 0;
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('ql:sync', e => {
+      const s = e && e.detail;
+      if (s !== 'error' && s !== 'conflict') return;
+      if (Date.now() - _syncWarnAt < 20000) return;
+      _syncWarnAt = Date.now();
+      toast(s === 'conflict'
+        ? 'Edited in another tab — reload to see the latest.'
+        : 'Changes aren’t synced yet — retrying. Keep this tab open.');
+    });
   }
 
   /* ════════════════════════ INTERACTIONS ════════════════════════ */

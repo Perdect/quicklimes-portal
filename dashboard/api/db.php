@@ -60,6 +60,12 @@ function ql_cors() {
   header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
   header('Access-Control-Allow-Headers: Content-Type, Authorization');
   header('Access-Control-Max-Age: 86400');
+  /* Security headers on every API response too, not only on the pages via
+     .htaccess — so they hold even if a server config doesn't apply .htaccess to
+     PHP output (audit H2). API replies are JSON, so these can't break rendering. */
+  header('X-Content-Type-Options: nosniff');
+  header('X-Frame-Options: DENY');
+  header('Referrer-Policy: strict-origin-when-cross-origin');
   if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
 }
 
@@ -82,6 +88,64 @@ function ql_body() {
   return $b;
 }
 
+/* ── Client IP, proxy-aware ──────────────────────────────────────────────
+   Behind LiteSpeed/CDN, REMOTE_ADDR is the proxy, so the real client is in
+   X-Forwarded-For (first hop). XFF is spoofable, so it is ONLY used to spread
+   rate-limit buckets — never for auth — and we fall back to REMOTE_ADDR. */
+function ql_client_ip() {
+  $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+  if ($xff !== '') {
+    $first = trim(explode(',', $xff)[0]);
+    if (filter_var($first, FILTER_VALIDATE_IP)) return $first;
+  }
+  return (string)($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+}
+
+/* ── Fixed-window rate limiter (audit H1/M4/M5) ──────────────────────────
+   Counts hits per key within a time window; returns false once $max is
+   exceeded so the caller can 429. One tiny counter row per (key, window),
+   upserted atomically.
+
+   FAILS OPEN. A limiter that fails closed would turn a transient DB hiccup
+   into a lockout of the ENTIRE user base — a self-inflicted outage far worse
+   than the abuse it guards against. On any error it returns true (allowed).
+
+   The limit key must be the STABLE TARGET (a phone, a plant id), which an
+   attacker can't rotate — not a spoofable header. $db is injectable for tests. */
+function ql_rate_limit($key, $max, $windowSec, $db = null) {
+  try {
+    $db = $db ?: ql_db();
+    $db->exec("CREATE TABLE IF NOT EXISTS rate_limits (
+      rl_key       VARCHAR(190) NOT NULL PRIMARY KEY,
+      window_start INT          NOT NULL,
+      hits         INT          NOT NULL DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $now = time();
+    $win = $now - ($now % $windowSec);
+    /* Atomic: same window → increment; a newer window → reset to 1. */
+    $st = $db->prepare('INSERT INTO rate_limits (rl_key, window_start, hits) VALUES (?, ?, 1)
+      ON DUPLICATE KEY UPDATE
+        hits = IF(window_start < VALUES(window_start), 1, hits + 1),
+        window_start = IF(window_start < VALUES(window_start), VALUES(window_start), window_start)');
+    $st->execute([(string)$key, $win]);
+    $rd = $db->prepare('SELECT hits FROM rate_limits WHERE rl_key = ?');
+    $rd->execute([(string)$key]);
+    $hits = (int)$rd->fetchColumn();
+    return $hits <= $max;
+  } catch (Throwable $e) {
+    error_log('[rate_limit] ' . $e->getMessage());
+    return true;   // fail OPEN — never lock everyone out on a DB error
+  }
+}
+
+/* Guard a request: 429 with a friendly message once the limit is hit. */
+function ql_rate_guard($key, $max, $windowSec, $msg = 'Too many attempts. Please wait a few minutes and try again.') {
+  if (!ql_rate_limit($key, $max, $windowSec)) {
+    header('Retry-After: ' . (int)$windowSec);
+    ql_out(['error' => $msg], 429);
+  }
+}
+
 /* ── Extract the login token (Authorization header, ?token=, or body) ── */
 function ql_token() {
   $h = $_SERVER['HTTP_AUTHORIZATION'] ?? ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
@@ -101,13 +165,31 @@ function ql_token() {
 function ql_b64url($s)     { return rtrim(strtr(base64_encode($s), '+/', '-_'), '='); }
 function ql_b64url_dec($s) { return base64_decode(strtr($s, '-_', '+/')); }
 
+/* THE signing key, or a hard stop. Tokens are the entire auth system: anyone
+   who knows APP_SECRET can forge a token for ANY plant id and take over every
+   account on the server. config.example.php ships a public placeholder, so an
+   install that copied it and forgot to change the key would be trivially
+   forgeable by anyone who read the repo.
+
+   This refuses to run at all with a weak key — empty, under 32 chars, or the
+   placeholder itself. It fails CLOSED (503): a misconfigured server that hands
+   out no tokens is safe; one that hands out forgeable tokens is not. It guards
+   BOTH signing and verifying, so the check cannot be skipped by any path. */
+function ql_app_secret() {
+  $s = (string)(ql_config()['APP_SECRET'] ?? '');
+  $placeholder = 'change-me-to-a-long-random-string-of-at-least-32-characters';
+  if ($s === '' || strlen($s) < 32 || $s === $placeholder) {
+    ql_out(['error' => 'Backend not configured: set a strong APP_SECRET (32+ random chars) in api/config.php'], 503);
+  }
+  return $s;
+}
+
 function ql_sign_token($plantId, $ttl = 2592000, $userId = '', $role = 'owner') {   // 30 days
-  $c = ql_config();
   $exp = time() + $ttl;
   $payload = ($userId === '' && $role === 'owner')
     ? $plantId . '|' . $exp                                      // legacy shape (unchanged for owners)
     : 'v2|' . $plantId . '|' . $userId . '|' . $role . '|' . $exp;
-  $sig = hash_hmac('sha256', $payload, $c['APP_SECRET']);        // hex string
+  $sig = hash_hmac('sha256', $payload, ql_app_secret());         // hex string
   return ql_b64url($payload) . '.' . ql_b64url($sig);
 }
 
@@ -115,12 +197,12 @@ function ql_sign_token($plantId, $ttl = 2592000, $userId = '', $role = 'owner') 
    ['plant'=>id, 'user'=>id|'', 'role'=>role, 'exp'=>int]. Plant scoping is
    left to the caller. */
 function ql_parse_token($token) {
-  $c = ql_config();
+  $secret = ql_app_secret();                         // halts if the key is weak
   $parts = explode('.', (string)$token);
   if (count($parts) !== 2) return null;
   $payload = ql_b64url_dec($parts[0]);
   $sig     = ql_b64url_dec($parts[1]);
-  $expect  = hash_hmac('sha256', $payload, $c['APP_SECRET']);
+  $expect  = hash_hmac('sha256', $payload, $secret);
   if (!hash_equals($expect, $sig)) return null;
   $bits = explode('|', $payload);
   if (count($bits) === 2) {                          // legacy: plant|exp

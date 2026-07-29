@@ -36,6 +36,13 @@ if (strlen($pass) < 8) {
   ql_out(['error' => 'Password must be at least 8 characters']);
 }
 
+/* Signup-flood guard (audit M4). Keyed per-IP because the abuse is mass
+   automated account creation across many phones; a real niche-B2B signup rate
+   is a handful a day, so 20/hour/IP stops bots without troubling anyone.
+   NOTE: this does not replace phone OWNERSHIP verification (SMS OTP) — that
+   still needs an SMS provider and is tracked as audit M4. */
+ql_rate_guard('signup:ip:' . ql_client_ip(), 20, 3600, 'Too many sign-up attempts. Please try again later.');
+
 // Tables may not exist yet on a fresh install — create them (idempotent).
 ql_ensure_tables();
 

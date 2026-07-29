@@ -51,3 +51,22 @@ RewriteRule ^ index.html [L]
   ExpiresByType application/javascript "access plus 1 day"
   ExpiresByType text/html       "access plus 0 seconds"
 </IfModule>
+
+# ── Security headers (added 2026-07-30, audit H2) ─────────────────────────
+# The app had none of these. All are safe to serve unconditionally:
+#   • X-Frame-Options + CSP frame-ancestors — stop the dashboard being iframed
+#     (clickjacking). This was the concrete gap the audit named.
+#   • nosniff — no MIME sniffing of our JSON/assets.
+#   • Referrer-Policy — don't leak full URLs (which can carry ids) cross-site.
+#   • HSTS — force HTTPS once seen (harmless if the host already redirects).
+# The CSP here is DELIBERATELY minimal: frame-ancestors / object-src / base-uri
+# only. It sets no default-src, so scripts, styles, fonts, Mapbox tiles and API
+# calls are UNCONSTRAINED — this cannot break the app. A full script/style CSP
+# needs testing against live network traffic first (see docs/AUDIT-2026-07-30 H2).
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Content-Security-Policy "frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+</IfModule>

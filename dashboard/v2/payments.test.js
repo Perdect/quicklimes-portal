@@ -10,15 +10,15 @@
  *      functions over one real store. So "user fills the form → money lands in the
  *      ledger" is the actual shipped path, end to end.
  *
- * What this file found (documented, NOT fixed — see the ✗ BUG sections):
+ * What this file covers:
  *
- *   A. OVER-PAYMENT SILENTLY LOSES MONEY. Paying ₹75,000 against a ₹60,000 invoice
- *      caps s.paid at ₹60,000 (Math.min) but posts the FULL ₹75,000 to the cash
- *      book. The ₹15,000 excess is in the bank ledger and recorded nowhere as an
- *      advance or a credit to the customer — the invoice says settled, and the
- *      customer's ₹15,000 has no home. s.payments[] keeps the uncapped ₹75,000, so
- *      the invoice's own two fields disagree with each other. Identical on the
- *      purchase side (payPurchaseBill → recordPurchasePayment).
+ *   A. OVER-PAYMENT IS CAPPED (fixed 2026-07-30, audit M1). §3/§4 used to
+ *      document a bug: ₹75,000 against a ₹60,000 invoice capped s.paid at
+ *      ₹60,000 but posted the FULL ₹75,000 to the cash book, leaving ₹15,000 of
+ *      phantom money with no home. Now the cashbook and payment log record the
+ *      APPLIED amount (paid - prev), so the ledger and the invoice agree to the
+ *      rupee and a redundant payment on a settled bill posts nothing. §3/§4 now
+ *      assert that corrected behaviour; both sides (sales + purchase) covered.
  *   B. delPayment() trashes a ledger row without reverting the invoice/bill it
  *      settled — the modal's own copy admits this ("The linked invoice/bill status
  *      is not reverted"). Deleting the payment leaves the invoice marked Paid.
@@ -202,39 +202,37 @@ const BILL = { bill: 'B-001', date: '2026-07-01', sup: 'Ramkaran And Sons', taxa
   eq('paying a non-existent invoice posts NOTHING', X.paymentsLedger().length, 0);
 }
 
-/* ══════════ 3. ✗ BUG — over-payment silently loses money (SALES) ══════════
-   This documents the CURRENT behaviour. It is not correct; it is what ships. */
+/* ══════════ 3. over-payment is CAPPED to what the bill owed (SALES) ══════════
+   FIXED (audit M1). The cashbook and the payment log now record the APPLIED
+   amount (paid - prev), never the raw entered amount. An over-entry — always a
+   typo, since the entrant sees the outstanding figure — can no longer post
+   phantom cash the reconciler could later match. */
 {
   reset(); S.SALES.push(Object.assign({}, INV));
   X.receiveSalesPayment(0, { amount: 75000, method: 'Bank', ref: 'UTR999', date: '2026-07-05' });
 
-  eq('the customer sent ₹75,000 against a ₹60,000 invoice — the cash book has all of it',
-    X.paymentsLedger()[0].credit, 75000);
-  eq('  and the bank balance is right', X.accountBalances().bank, 75000);
-  /* …but the invoice caps at its own total (Math.min(c.tot, prev + amount)). */
-  eq('  ✗ BUG: the invoice records only ₹60,000 paid — the ₹15,000 excess is capped away',
-    S.SALES[0].paid, 60000);
-  eq('  ✗ BUG: outstanding is 0, so the invoice looks cleanly settled', X.salesRows()[0].outstanding, 0);
-  /* The excess is not held anywhere: not on the invoice, not as an advance. The
-     firm owes this customer ₹15,000 and nothing in the books says so. */
-  eq('  ✗ BUG: the ₹15,000 the firm now OWES the customer is recorded nowhere',
-    X.paymentsLedger().reduce((s, r) => s + r.credit, 0) - X.salesRows()[0].paid, 15000);
-  /* The invoice's own two fields disagree — s.payments[] is uncapped, s.paid is not. */
-  eq('  ✗ BUG: s.payments[] kept the true ₹75,000…', S.SALES[0].payments[0].amount, 75000);
-  eq('  ✗ BUG: …while s.paid says ₹60,000 — one invoice, two numbers, ₹15,000 apart',
-    S.SALES[0].payments[0].amount - S.SALES[0].paid, 15000);
+  eq('₹75,000 entered on a ₹60,000 invoice — the cash book takes only the ₹60,000 that applied',
+    X.paymentsLedger()[0].credit, 60000);
+  eq('  and the bank balance reflects the applied amount, not the typo', X.accountBalances().bank, 60000);
+  eq('  the invoice records ₹60,000 paid', S.SALES[0].paid, 60000);
+  eq('  and is cleanly settled', X.salesRows()[0].outstanding, 0);
+  /* THE invariant this fix restores: the ledger and the invoice agree to the
+     rupee — no phantom "money owed back" hiding in the difference. */
+  eq('  cash book total EQUALS what the invoice says was paid — no phantom',
+    X.paymentsLedger().reduce((s, r) => s + r.credit, 0) - X.salesRows()[0].paid, 0);
+  eq('  s.payments[] records the applied ₹60,000, not the raw ₹75,000', S.SALES[0].payments[0].amount, 60000);
+  eq('  so the invoice’s two numbers agree', S.SALES[0].payments[0].amount - S.SALES[0].paid, 0);
 
-  /* The nastier shape: over-paying an ALREADY-paid invoice. prev = c.tot, so
-     Math.min caps at tot and paid does not move AT ALL — yet a full second credit
-     posts to the bank. A duplicate payment leaves no trace on the invoice. */
+  /* Paying an ALREADY-settled invoice again applies 0 — so it posts NOTHING.
+     The old behaviour posted a second full credit with no trace on the invoice;
+     capping to applied makes the data layer idempotent for the settled case. */
   reset(); S.SALES.push(Object.assign({}, INV));
   X.receiveSalesPayment(0, { amount: 60000, method: 'Bank', date: '2026-07-05' });
-  X.receiveSalesPayment(0, { amount: 60000, method: 'Bank', date: '2026-07-06' });   // paid twice
-  eq('  ✗ BUG: paying a settled invoice AGAIN posts a second ₹60,000 to the bank',
-    X.accountBalances().bank, 120000);
-  eq('  ✗ BUG: …and the invoice still just says ₹60,000 paid', S.SALES[0].paid, 60000);
-  ok(X.paymentsLedger().length === 2,
-    '  ✗ BUG: two credits exist; only the ledger knows the invoice was paid twice');
+  X.receiveSalesPayment(0, { amount: 60000, method: 'Bank', date: '2026-07-06' });   // pays a settled bill again
+  eq('paying a settled invoice again posts NO second credit', X.accountBalances().bank, 60000);
+  eq('  the invoice still says ₹60,000 paid', S.SALES[0].paid, 60000);
+  ok(X.paymentsLedger().length === 1,
+    '  exactly one credit exists — the redundant second payment applied nothing');
 }
 
 /* ══════════ 4. payPurchaseBill — and the SAME over-payment bug ══════════ */
@@ -263,13 +261,21 @@ const BILL = { bill: 'B-001', date: '2026-07-01', sup: 'Ramkaran And Sons', taxa
   eq('  the bill is partial', S.PURCHASES[0].status, 'partial');
   eq('  with ₹50,000 still to pay', X.purchaseRows()[0].outstanding, 50000);
 
-  /* Same bug, supplier side. */
+  /* Same cap, supplier side (audit M1). */
   reset(); S.PURCHASES.push(Object.assign({}, BILL));
   X.payPurchaseBill(0, { amount: 150000, method: 'Bank', date: '2026-07-05' });
-  eq('₹1,50,000 really left the bank on a ₹1,00,000 bill', X.accountBalances().bank, -150000);
-  eq('  ✗ BUG: the bill records only ₹1,00,000 paid', S.PURCHASES[0].paid, 100000);
-  eq('  ✗ BUG: the ₹50,000 the supplier now owes back is recorded nowhere',
-    X.paymentsLedger().reduce((s, r) => s + r.debit, 0) - S.PURCHASES[0].paid, 50000);
+  eq('₹1,50,000 entered on a ₹1,00,000 bill — only ₹1,00,000 leaves the bank', X.accountBalances().bank, -100000);
+  eq('  the bill records ₹1,00,000 paid', S.PURCHASES[0].paid, 100000);
+  eq('  and the ledger total EQUALS what the bill paid — no phantom debit',
+    X.paymentsLedger().reduce((s, r) => s + r.debit, 0) - S.PURCHASES[0].paid, 0);
+
+  /* Purchase side of the settled-bill guard: paying an already-paid bill again
+     applies 0, so it posts no second debit (symmetric with the sales case). */
+  reset(); S.PURCHASES.push(Object.assign({}, BILL));
+  X.payPurchaseBill(0, { amount: 100000, method: 'Bank', date: '2026-07-05' });
+  X.payPurchaseBill(0, { amount: 100000, method: 'Bank', date: '2026-07-06' });   // pays a settled bill again
+  eq('paying a settled bill again drains the bank only ONCE', X.accountBalances().bank, -100000);
+  ok(X.paymentsLedger().length === 1, '  exactly one debit — the redundant second payment applied nothing');
 
   reset();
   X.payPurchaseBill(99, { amount: 5000, method: 'Bank', date: '2026-07-05' });
@@ -459,20 +465,22 @@ const openPrimary = () => { FORM = null; toasts = []; CFG.primary.onClick(); ret
   ok(toasts.some(t => /no pending bills/i.test(t[0])), '  "No pending bills" instead');
 }
 
-/* ── ✗ BUG A, through the REAL modal ──
-   Not just a data.js quirk: this is what happens when a user types 75000. */
+/* ── over-payment through the REAL modal — capped end to end (audit M1) ──
+   The fix is in the data layer, so it holds no matter which caller reaches it. */
 {
   reset(); S.SALES.push(Object.assign({}, INV));
   const f = openPrimary();
   f.onSave({ inv: '0', amount: '75000', method: 'Bank', ref: '', date: '2026-07-05', notes: '' });
-  eq('✗ BUG (via the real form): the ledger takes the full ₹75,000', X.paymentsLedger()[0].credit, 75000);
-  eq('  ✗ BUG: the invoice caps at ₹60,000', S.SALES[0].paid, 60000);
-  eq('  ✗ BUG: and shows as fully settled', X.salesRows()[0].outstanding, 0);
+  eq('via the real form: the ledger takes only the applied ₹60,000', X.paymentsLedger()[0].credit, 60000);
+  eq('  the invoice records ₹60,000', S.SALES[0].paid, 60000);
+  eq('  and shows fully settled', X.salesRows()[0].outstanding, 0);
   ok(toasts.some(t => /invoice updated/i.test(t[0]) && t[1] === 'ok'),
-    '  ✗ BUG: the user is told "Payment received — invoice updated" with NO warning about the ₹15,000');
-  /* Nothing in the form even validates against the outstanding. */
+    '  the user is told the invoice was updated (the payment applied, just capped)');
+  /* The data layer is now the guard. A UI `max` on the amount field would be a
+     nice extra (warn on entry), but is no longer required for correctness —
+     tracked as a follow-up, not a books-integrity risk. */
   ok(!f.specs.find(s => s.k === 'amount').max,
-    '  ✗ BUG: the amount field has no max — over-paying is not even flagged in the UI');
+    '  (follow-up) the amount field still has no UI max — cosmetic now the data layer caps');
 }
 
 /* ── the Transfer modal ── */

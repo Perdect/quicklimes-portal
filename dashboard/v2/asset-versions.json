@@ -44,8 +44,8 @@
     "sha": "ef1ad4de9f66"
   },
   "data.js": {
-    "v": "m47",
-    "sha": "a7cd895f6161"
+    "v": "m48",
+    "sha": "721971488b88"
   },
   "i18n.js": {
     "v": "h8",
@@ -56,16 +56,16 @@
     "sha": "14462b5adbf8"
   },
   "shell.js": {
-    "v": "m65",
-    "sha": "db4543f4cd40"
+    "v": "m66",
+    "sha": "df3de3a44169"
   },
   "mobile.js": {
     "v": "m16",
     "sha": "106ad4847e8d"
   },
   "qlx.js": {
-    "v": "m17",
-    "sha": "aac79cd4bf19"
+    "v": "m18",
+    "sha": "dd6f3666bb60"
   },
   "cashbook.js": {
     "v": "m4",

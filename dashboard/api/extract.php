@@ -31,6 +31,12 @@ if (!$ctx) ql_out(['ok' => false, 'error' => 'Unauthorized'], 401);
 $plantId = (string)$ctx['plant'];
 if (!ql_role_can($ctx['role'], 'extract')) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
 
+/* AI spend cap (audit M5). Each call is already size-bounded; this bounds
+   FREQUENCY, so a leaked token can't loop the paid vision model and run up the
+   bill. 200/hour/plant is far above any human uploading bills, and the client
+   gets a clean 429 it can surface rather than a mystery failure. */
+ql_rate_guard('extract:' . $plantId, 200, 3600, 'Too many extractions this hour — please wait a bit.');
+
 $llm = ql_llm();
 if ($llm['key'] === '') ql_out(['ok' => false, 'fallback' => true, 'error' => 'llm_not_configured']);
 
@@ -44,7 +50,7 @@ $MEDIA_OK = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 
 $prompt =
   "You are extracting fields from ONE Indian GST tax invoice / bill for a lime-manufacturing firm " .
-  "(own GSTINs 08BNAPM0488E1Z3 Gotan Lime Industries, 08NLIPS9801K1Z5 Deshwali Minerals — they are the " .
+  "(own GSTIN 08BNAPM0488E1Z3 Gotan Lime Industries — the firm is the " .
   "recipient/buyer on purchases and the seller on sales).\n" .
   "Rules: return ONLY what is printed. If a field is not on the document, return null — NEVER guess or " .
   "fabricate. The supplier/buyer NAME must be the legal firm name, never a label like 'Buyer', 'For', " .

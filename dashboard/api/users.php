@@ -47,7 +47,7 @@ if ($action === 'create') {
   $phone = trim((string)($b['phone'] ?? ''));
   $pass = (string)($b['password'] ?? '');
   $role = (string)($b['role'] ?? '');
-  if ($phone === '' || strlen($pass) < 6) ql_out(['error' => 'Phone and a 6+ char password are required']);
+  if ($phone === '' || strlen($pass) < 8) ql_out(['error' => 'Phone and an 8+ char password are required']);
   if (!in_array($role, $ASSIGNABLE, true)) ql_out(['error' => 'Unknown role']);
   // Phone must be unique within the account and must not collide with the owner phone.
   $own = $db->prepare('SELECT id FROM plants WHERE id = ? AND owner_phone = ?');
@@ -81,7 +81,7 @@ if ($action === 'update') {
 if ($action === 'setpw') {
   $id = (string)($b['id'] ?? '');
   $pass = (string)($b['password'] ?? '');
-  if ($id === '' || strlen($pass) < 6) ql_out(['error' => 'A 6+ char password is required']);
+  if ($id === '' || strlen($pass) < 8) ql_out(['error' => 'An 8+ char password is required']);
   $st = $db->prepare('UPDATE users SET password_hash = ? WHERE id = ? AND plant_id = ?');
   $st->execute([password_hash($pass, PASSWORD_DEFAULT), $id, $account]);
   ql_out(['success' => true]);

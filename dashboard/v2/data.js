@@ -564,17 +564,73 @@
     try { localStorage.setItem(COMPANIES[ACTIVE_CO].dataKey, JSON.stringify(blob(false))); }
     catch (e) { console.error('v2 saveLocal failed', e); }
   }
-  let _cloudTimer = null;
+  /* ── Sync state (audit M3) ──────────────────────────────────────────────
+     The old saveCloudNow swallowed every error with a console.warn: a failed
+     cloud write left the data in THIS device's localStorage only, with no
+     signal and no retry — and because the debounce timer only re-armed on the
+     NEXT edit, a failure with no further edits stranded the change forever.
+       'idle'   — everything the user did has reached the cloud
+       'saving' — a write is in flight
+       'error'  — the last write failed; a retry is scheduled
+     syncState() + the 'ql:sync' window event let the shell show an indicator;
+     _dirty drives the unsaved-changes guard below. */
+  let _cloudTimer = null, _syncRetry = null, _syncBackoff = 0, _syncState = 'idle', _dirty = false;
+  function setSync(s) {
+    if (s === _syncState) return;
+    _syncState = s;
+    try { if (typeof window !== 'undefined' && window.dispatchEvent) window.dispatchEvent(new CustomEvent('ql:sync', { detail: s })); } catch (_) {}
+  }
+  function syncState() { return _syncState; }
   async function saveCloudNow() {
     if (!DB) return;
+    clearTimeout(_syncRetry); _syncRetry = null;
+    setSync('saving');
     try {
       const { error } = await DB.rpc('save_my_data', { p_plant_id: QL_PLANT.id, p_id: ACTIVE_CO, p_data: blob(true) });
       if (error) throw error;
-    } catch (e) { console.warn('v2 cloud save failed', e); }
+      _dirty = false; _syncBackoff = 0; setSync('idle');
+    } catch (e) {
+      console.warn('v2 cloud save failed', e);
+      setSync('error');
+      /* Retry with capped backoff so a transient outage self-heals without a
+         further edit. The local copy is already safe; this is about the cloud
+         (and therefore other devices) catching up. */
+      _syncBackoff = Math.min((_syncBackoff || 1500) * 2, 60000);
+      _syncRetry = setTimeout(saveCloudNow, _syncBackoff);
+    }
   }
   function commit() {                         // local now, cloud debounced (coalesce rapid edits)
     saveLocal();
-    if (DB) { clearTimeout(_cloudTimer); _cloudTimer = setTimeout(saveCloudNow, 300); }
+    if (DB) { _dirty = true; clearTimeout(_cloudTimer); _cloudTimer = setTimeout(saveCloudNow, 300); }
+  }
+
+  /* ── Cross-tab & unsaved-changes safety (audit M2/M3) ────────────────────
+     Two browser tabs on the same account both hold the whole company in
+     memory; whoever saves last silently clobbers the other (last-write-wins).
+     A `storage` event fires in THIS tab when ANOTHER tab writes the active
+     company's localStorage key — so we can react instead of overwriting:
+       • if this tab has no unsaved edits, adopt the other tab's copy (reload
+         local state and re-render) so the two stay consistent;
+       • if this tab IS dirty, don't destroy either side — flag a conflict and
+         let the user decide (the shell listens for 'ql:sync' === 'conflict').
+     This closes the same-browser case fully. True multi-DEVICE conflict needs
+     a server revision column (tracked as audit M2 follow-up); it can't be done
+     safely from the client alone. */
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('storage', function (e) {
+      try {
+        const key = COMPANIES[ACTIVE_CO] && COMPANIES[ACTIVE_CO].dataKey;
+        if (!key || e.key !== key || e.newValue == null) return;
+        if (_dirty) { setSync('conflict'); return; }   // don't clobber this tab's pending edits
+        loadLocal();                                   // adopt the other tab's write
+        try { if (window.__qlRefresh) window.__qlRefresh(); } catch (_) {}
+      } catch (_) {}
+    });
+    window.addEventListener('beforeunload', function (e) {
+      /* Only nag when the cloud is genuinely behind — a persistent error or an
+         unresolved cross-tab conflict. Normal debounced saves clear in 300ms. */
+      if (_syncState === 'error' || _syncState === 'conflict') { e.preventDefault(); e.returnValue = ''; return ''; }
+    });
   }
   // Wipe EVERY record for the active company (sales, purchases, parties, labour,
   // cashbook, chunna, TDS, attendance, finance, recon + this company's loans),
@@ -1432,12 +1488,18 @@
     const c = cP(p); amount = +amount || 0;
     const prev = +p.paid || (p.status === 'paid' ? c.tot : 0);
     const paid = Math.min(c.tot, prev + amount);
+    /* APPLIED, not entered — see receiveSalesPayment. The ledger debit and the
+       payment log record `paid - prev`, capped at what the bill still owed, so
+       an over-entry can't post phantom cash going OUT. Pinned by payments.test.js. */
+    const applied = Math.round((paid - prev) * 100) / 100;
     p.paid = paid;
     extra = extra || {};
-    // accountId (multi-bank): WHICH own bank account the supplier was paid from.
-    p.payments = (p.payments || []).concat([{ date: date || fmtISO(new Date()), amount, mode: mode || 'bank', accountId: extra.accountId || '' }]);
     p.status = paid >= c.tot - 0.5 ? 'paid' : (paid > 0 ? 'partial' : 'pending');
-    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: date || fmtISO(new Date()), type: 'debit', mode: methodToMode(mode), method: extra.method || modeToMethod(methodToMode(mode)), ptype: 'Purchase Payment', party: p.sup || '—', ref: extra.ref || p.bill || '', amount, notes: extra.notes || '', accountId: extra.accountId || '', link: { kind: 'purchase', idx: i } });
+    if (applied > 0.005) {
+      // accountId (multi-bank): WHICH own bank account the supplier was paid from.
+      p.payments = (p.payments || []).concat([{ date: date || fmtISO(new Date()), amount: applied, mode: mode || 'bank', accountId: extra.accountId || '' }]);
+      S.CASHBOOK.push({ id: 'cb' + idStamp(), date: date || fmtISO(new Date()), type: 'debit', mode: methodToMode(mode), method: extra.method || modeToMethod(methodToMode(mode)), ptype: 'Purchase Payment', party: p.sup || '—', ref: extra.ref || p.bill || '', amount: applied, notes: extra.notes || '', accountId: extra.accountId || '', link: { kind: 'purchase', idx: i } });
+    }
     commit();
   }
   // Per-bill AI insights.
@@ -2208,11 +2270,23 @@
     const c = cS(s), amount = +o.amount || 0;
     const prev = (s.status === 'paid' || s.status === 'cash') ? c.tot : (+s.paid || 0);
     const paid = Math.min(c.tot, prev + amount);
+    /* APPLIED, not entered. `paid` is capped at the invoice total, but the
+       cashbook credit and the payment log must record what ACTUALLY reduced the
+       balance — `paid - prev` — never the raw entered amount. Recording the raw
+       amount (the old bug) let ₹30k entered against a ₹10k-outstanding bill post
+       a ₹30k cashbook credit: the invoice showed paid, the cashbook showed ₹20k
+       of phantom money, and that phantom could itself be matched to a bank line.
+       The person entering the payment sees the outstanding figure, so an amount
+       over it is a typo, not a real overpayment; this app has no advance bucket
+       to hold a genuine excess. Pinned by payments.test.js. */
+    const applied = Math.round((paid - prev) * 100) / 100;
     s.paid = paid; s.status = paid >= c.tot - 0.5 ? 'paid' : (paid > 0 ? 'partial' : 'pending');
     s.paidDate = o.date || fmtISO(new Date()); s.paidMode = o.method || 'Bank';
-    // accountId (multi-bank): WHICH own bank account the customer paid into.
-    s.payments = (s.payments || []).concat([{ date: s.paidDate, amount, method: o.method || 'Bank', accountId: o.accountId || '' }]);
-    S.CASHBOOK.push({ id: 'cb' + idStamp(), date: s.paidDate, type: 'credit', mode: methodToMode(o.method), method: o.method || 'Bank', ptype: 'Sales Payment', party: s.party || '—', ref: o.ref || s.inv || '', amount, notes: o.notes || '', accountId: o.accountId || '', link: { kind: 'sale', idx: i } });
+    if (applied > 0.005) {
+      // accountId (multi-bank): WHICH own bank account the customer paid into.
+      s.payments = (s.payments || []).concat([{ date: s.paidDate, amount: applied, method: o.method || 'Bank', accountId: o.accountId || '' }]);
+      S.CASHBOOK.push({ id: 'cb' + idStamp(), date: s.paidDate, type: 'credit', mode: methodToMode(o.method), method: o.method || 'Bank', ptype: 'Sales Payment', party: s.party || '—', ref: o.ref || s.inv || '', amount: applied, notes: o.notes || '', accountId: o.accountId || '', link: { kind: 'sale', idx: i } });
+    }
     commit();
   }
   function payPurchaseBill(i, o) { o = o || {}; recordPurchasePayment(i, o.amount, methodToMode(o.method), o.date, { method: o.method, ref: o.ref, notes: o.notes, accountId: o.accountId || '' }); }
@@ -2746,7 +2820,7 @@
     addStatement, statementRows, lastStatement, removeStatement, statementConflict,
 
     // ── Writes (persist local immediately + cloud debounced) ──
-    commit, saveLocal, wipeData,
+    commit, saveLocal, wipeData, syncState,
     upsertParty, deleteParty,
     addSale, updateSale, deleteSale, setSaleStatus,
     addPurchase, updatePurchase, deletePurchase, setPurchaseStatus, importGenericBill,

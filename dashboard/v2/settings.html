@@ -329,11 +329,11 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./i18n.js?v=h8"></script>
 <script src="./selfcheck.js?v=s2"></script>
 <script src="./health-findings.js?v=h1"></script>
-<script src="./data.js?v=m47"></script>
+<script src="./data.js?v=m48"></script>
 <script src="./recon-core.js?v=rc5"></script>
 <script src="./wa-core.js?v=w3"></script>
 
-<script src="./shell.js?v=m65"></script>
+<script src="./shell.js?v=m66"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 QLShell.mount({ active: 'settings', title: 'Settings' });
@@ -697,9 +697,9 @@ async function renderTeam() {
   });
   $('#teamList').querySelectorAll('[data-team-pw]').forEach(b => b.onclick = () => {
     QLShell.openForm({ title: 'Reset password', sub: 'Set a new login password for this employee', saveLabel: 'Reset password', initial: {},
-      specs: [{ k: 'pw', label: 'New password (min 6 characters)', type: 'password', req: true, full: true }],
+      specs: [{ k: 'pw', label: 'New password (min 8 characters)', type: 'password', req: true, full: true }],
       onSave(v) {
-        if (!v.pw || v.pw.length < 6) { toast('Password must be 6+ characters'); return false; }
+        if (!v.pw || v.pw.length < 8) { toast('Password must be 8+ characters'); return false; }
         teamApi({ action: 'setpw', id: b.dataset.teamPw, password: v.pw }).then(() => toast('Password reset')).catch(e => toast(e.message));
       } });
   });
@@ -709,12 +709,12 @@ $('#teamAdd').addEventListener('click', () => {
     specs: [
       { k: 'name', label: 'Employee name', req: true, full: true },
       { k: 'phone', label: 'Login phone number', req: true },
-      { k: 'pw', label: 'Temporary password (min 6)', type: 'password', req: true },
+      { k: 'pw', label: 'Temporary password (min 8)', type: 'password', req: true },
       { k: 'role', label: 'Role', type: 'select', opts: TEAM_ROLES.map(r => r[1]) }
     ],
     onSave(v) {
       if (!v.name || !v.phone || !v.pw) { toast('Name, phone and password are required'); return false; }
-      if (v.pw.length < 6) { toast('Password must be 6+ characters'); return false; }
+      if (v.pw.length < 8) { toast('Password must be 8+ characters'); return false; }
       const role = (TEAM_ROLES.find(r => r[1] === v.role) || TEAM_ROLES[0])[0];
       teamApi({ action: 'create', name: v.name.trim(), phone: v.phone.trim(), password: v.pw, role })
         .then(() => { toast('Employee added'); renderTeam(); })
