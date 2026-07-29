@@ -394,6 +394,30 @@ fails.forEach(f => console.log('    ✗ ' + f));
   ok('  and NOT narrowed by the month filter', !/inMonth\(/.test(blk) && !/monthTxns\(/.test(blk));
 }
 
+/* ══════════ removing duplicates: gated, audited, first copy kept ══════════ */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  const blk = js.slice(js.indexOf('function duplicateRows'), js.indexOf('function viewHTML'));
+  ok('duplicate removal exists and is wired', /function removeDuplicates\(/.test(js) && /\$\('rcRmDup'\)\.onclick = removeDuplicates/.test(js));
+  ok('  selection is the ENGINE flag, never same-amount-same-day', /statusKey\(t\) === 'duplicate'/.test(blk) && !/date.*amount|amount.*date/.test(blk.slice(0, blk.indexOf('function removeDuplicates'))));
+  ok('  a confirm() gates the destruction', /if \(!confirm\(/.test(blk));
+  ok('  every removal is audited', /auditRecon\('remove-duplicate'/.test(blk));
+  ok('  the array is spliced in place, not reassigned', /Q\.recon\.txns\.length = 0; Q\.recon\.txns\.push/.test(blk) && !/Q\.recon\.txns = /.test(blk));
+  ok('  the banner rides both list branches', (js.match(/return dupBar \+/g) || []).length === 2);
+}
+
+/* ══════════ statements: delete deep, or clear everything — gated + audited ══════════ */
+{
+  const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
+  ok('imports stamp rows with their statement id', /t\.stmtId = _st\.id/.test(js));
+  const blk = js.slice(js.indexOf('function stmtTxnCount'), js.indexOf('function viewHTML'));
+  ok('a statement deletes together with ITS transactions', /t\.stmtId !== id/.test(blk));
+  ok('  clear-all empties txns AND the statement log', /sts\.forEach\(st => \{ if \(Q\.removeStatement\) Q\.removeStatement\(st\.id\); \}\);/.test(blk) && /Q\.recon\.txns\.length = 0;/.test(blk));
+  ok('  both destructions are confirm-gated', (blk.match(/if \(!confirm\(/g) || []).length >= 2);
+  ok('  and audited', (blk.match(/Q\.logAudit\('delete', 'recon'/g) || []).length >= 2);
+  ok('  reachable from the ⋯ menu', /id="rcStmts"/.test(js) && /\$\('rcStmts'\)\.onclick/.test(js));
+}
+
 if (fail) fails.slice(-12).forEach(f => console.log('    ✗ ' + f));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' WIRING TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');
 process.exit(fail === 0 ? 0 : 1);

@@ -16,8 +16,8 @@
     "sha": "197d7f49cc59"
   },
   "reconcile.css": {
-    "v": "f15",
-    "sha": "4ecbd50a51b5"
+    "v": "f16",
+    "sha": "50f00b5da798"
   },
   "recon-core.js": {
     "v": "rc5",
@@ -32,8 +32,8 @@
     "sha": "ad192a754db7"
   },
   "reconcile.js": {
-    "v": "f18",
-    "sha": "7e737dc0fbe1"
+    "v": "f19",
+    "sha": "9acde86639cc"
   },
   "party-identity.js": {
     "v": "m27",

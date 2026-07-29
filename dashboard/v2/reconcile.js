@@ -50,7 +50,7 @@ let ST = {
      could only ever say "one month"; reconciling a quarter, a financial year
      or "since the last statement" needed a range that lives beside the rows
      being filtered. Empty string = open-ended on that side. */
-  dFrom: '', dTo: '', dOpen: false,
+  dFrom: '', dTo: '', dOpen: false, moreOpen: false,
   /* EXCEPTION-FIRST. An accountant should not read 74 rows to find the 27 that
      need them. On by default; the toggle restores plain date order for anyone
      reconciling a statement line by line. */
@@ -539,7 +539,7 @@ function render() {
   let root = document.getElementById('rcRoot');
   if (!root) { main.innerHTML = '<div class="rc" id="rcRoot"></div>'; root = document.getElementById('rcRoot'); }
   try {
-    root.innerHTML = heroHTML() + (txns().length ? accBarHTML() + summaryHTML() + finOverviewHTML() + aiHTML() + toolbarHTML() + filtersPanelHTML() + `<div class="rc-panel">${viewHTML()}</div>` + bulkBarHTML() : emptyHTML());
+    root.innerHTML = heroHTML() + (txns().length ? summaryHTML() + insightsHTML() + toolbarHTML() + filtersPanelHTML() + `<div class="rc-panel">${viewHTML()}</div>` + bulkBarHTML() : emptyHTML());
     wire();
     syncStickyOffset();   // the toolbar wraps — the header must pin below its REAL height
   } catch (e) { console.warn('recon render deferred:', e); }
@@ -565,12 +565,23 @@ function accBarHTML() {
   </div>`;
 }
 function heroHTML() {
+  /* ONE header block. The account chips are context for the title, not their
+     own section, so they live under the subtitle. This failed when first
+     tried because the action row was ~700px and wrapped; the fix is on THIS
+     side — Update Payments and Export moved into the ⋯ menu, so the actions
+     need ~450px and both columns fit at 1440. */
+  const more = ST.moreOpen ? `<div class="rc-moremenu" role="menu">
+      <button class="rc-more-it" id="rcApply" role="menuitem">${svg(IC.ck)}<span>Update Payments</span><em>post payments for matched bills</em></button>
+      <button class="rc-more-it" id="rcExport" role="menuitem">${svg(IC.dl)}<span>Export</span><em>CSV of the current view</em></button>
+      <button class="rc-more-it" id="rcStmts" role="menuitem">${svg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>')}<span>Statements</span><em>view, delete, or clear everything</em></button>
+    </div>` : '';
   return `<div class="rc-hero">
-    <div><div class="rc-h1">Bank Reconciliation</div><div class="rc-sub">${esc(monthLabel())} · <b>${esc(Q.co.short || 'Company')}</b> · ${monthTxns().length} transaction${monthTxns().length === 1 ? '' : 's'}</div></div>
+    <div class="rc-hero-l"><div class="rc-h1">Bank Reconciliation</div><div class="rc-sub">${esc(monthLabel())} · <b>${esc(Q.co.short || 'Company')}</b> · ${monthTxns().length} transaction${monthTxns().length === 1 ? '' : 's'}</div>${accBarHTML()}</div>
     <div class="rc-hero-r">
       ${QLShell.monthButton({ id: 'rcMonth', label: monthLabel() })}
-      ${txns().length ? `<button class="rc-btn rc-btn-ai" id="rcMatch" title="Run the AI matching engine">${svg(IC.ai)}<span>AI Reconcile</span></button><button class="rc-btn" id="rcApply" title="Post payments for the matched bills so their status stops saying Pending">${svg(IC.ck)}<span>Update Payments</span></button><button class="rc-btn" id="rcExport">${svg(IC.dl)}<span>Export</span></button>` : ''}
+      ${txns().length ? `<button class="rc-btn rc-btn-ai" id="rcMatch" title="Run the AI matching engine">${svg(IC.ai)}<span>AI Reconcile</span></button>` : ''}
       <button class="rc-btn rc-btn-primary" id="rcUpload">${svg(IC.up)}<span>Upload statement</span></button>
+      ${txns().length ? `<div class="rc-morew"><button class="rc-btn rc-btn-more ${ST.moreOpen ? 'on' : ''}" id="rcMore" aria-haspopup="menu" aria-expanded="${!!ST.moreOpen}" title="More actions">${svg('<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>')}</button>${more}</div>` : ''}
     </div></div>`;
 }
 function emptyHTML() {
@@ -628,26 +639,25 @@ function summaryHTML() {
   </div>`;
 }
 /* Secondary metrics live in a collapsed accordion, out of the primary flow. */
-function finOverviewHTML() {
+function insightsHTML() {
+  /* ONE card where there were two rows. The AI digest is the always-visible
+     summary line; the financial overview (receivables · payables · GST · net
+     flow) is the expandable body. The Review button must not toggle the
+     accordion — its handler stops propagation and preventDefaults. */
   const c = cards();
+  const items = aiSuggestions();
+  const top = items[0] || { t: 'Nothing analysed yet', s: 'Upload a statement to begin.' };
   const kv = (l, v, col) => `<div class="rc-fo-kv"><span>${l}</span><b${col ? ` style="color:${col}"` : ''}>${fC(v)}</b></div>`;
-  return `<details class="rc-fo"${ST.foOpen ? ' open' : ''}><summary class="rc-fo-h">${svg('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>')}<span>Financial overview</span><em>receivables · payables · GST · net flow</em>${svg('<polyline points="6 9 12 15 18 9"/>')}</summary>
+  return `<details class="rc-fo"${ST.foOpen ? ' open' : ''}><summary class="rc-fo-h">
+      <span class="rc-aibar-ic">${svg(IC.ai)}</span>
+      <span class="rc-aibar-t"><b>${esc(top.t)}</b><em>${top.s}</em></span>
+      ${items.length > 1 ? `<span class="rc-aibar-more">+${items.length - 1} more</span>` : ''}
+      <button class="rc-aibar-btn" id="rcAiReview">Review needs-action</button>
+      ${svg('<polyline points="6 9 12 15 18 9"/>')}</summary>
     <div class="rc-fo-grid">
       ${kv('Pending receivable', c.recv)}${kv('Pending payable', c.pay)}${kv('GST input (ITC)', c.gstIn)}${kv('GST output', c.gstOut)}${kv('Net cash flow', c.net, c.net >= 0 ? '#16a34a' : 'var(--ql-danger-600)')}
     </div></details>`;
 }
-function aiHTML() {
-  const items = aiSuggestions();
-  if (!items.length) return '';
-  const top = items[0];
-  return `<div class="rc-aibar">
-    <span class="rc-aibar-ic">${svg(IC.ai)}</span>
-    <span class="rc-aibar-t"><b>${esc(top.t)}</b><em>${top.s}</em></span>
-    ${items.length > 1 ? `<span class="rc-aibar-more">+${items.length - 1} more</span>` : ''}
-    <button class="rc-aibar-btn" id="rcAiReview">Review needs-action</button>
-  </div>`;
-}
-/* ── ONE clean filter toolbar: a status dropdown + Filters + search ── */
 function toolbarHTML() {
   const tt = monthTxns();
   const cnt = k => k === 'all' ? tt.length : k === 'review' ? tt.filter(needsReview).length : tt.filter(t => statusKey(t) === k).length;
@@ -989,7 +999,7 @@ function auditHTML() {
   const q = (ST.aq || '').toLowerCase().trim();
   const shown = q ? rows.filter(a => ((a.action || '') + ' ' + (a.party || '') + ' ' + (a.ref || '') + ' ' + (a.by || '') + ' ' + (a.reason || '')).toLowerCase().includes(q)) : rows;
   const LBL = { confirm: 'Confirmed match', unlink: 'Unlinked', duplicate: 'Marked duplicate',
-    unduplicate: 'Unmarked duplicate', ignore: 'Ignored', categorise: 'Categorised' };
+    unduplicate: 'Unmarked duplicate', ignore: 'Ignored', categorise: 'Categorised', 'remove-duplicate': 'Removed duplicate' };
   return `<div class="rc-tablewrap"><table class="rc-table rc-table2 rc-v3">
     <thead><tr><th>When</th><th>Action</th><th>Transaction</th><th class="r">Amount</th><th>Change</th><th>By</th></tr></thead>
     <tbody>${shown.slice(0, 400).map(a => `<tr>
@@ -1002,11 +1012,100 @@ function auditHTML() {
     </tr>`).join('')}</tbody></table>
     ${shown.length > 400 ? `<div class="rc-none">Showing the latest 400 of ${shown.length}.</div>` : ''}</div>`;
 }
+/* ── REMOVE DUPLICATES ─────────────────────────────────────────────────────
+   A row flagged duplicate is the SAME bank line imported twice — the engine's
+   key is account + direction + amount + UTR (or the full raw narration) +
+   date, so two genuinely different payments of the same amount on the same
+   day are never both flagged. Removal keeps the first copy of each line (the
+   first copy is by construction the unflagged one) and audits every removal.
+
+   Deliberately ALL months, not the visible month: the user is cleaning the
+   data, not the view. In-place splice, not reassignment — other views hold a
+   reference to the same array. */
+function duplicateRows() { return txns().filter(t => statusKey(t) === 'duplicate'); }
+function removeDuplicates() {
+  const rows = duplicateRows();
+  if (!rows.length) { toast('No duplicate rows in this data', 'ok'); return; }
+  const amt = rows.reduce((a, t) => a + (t.credit || 0) + (t.debit || 0), 0);
+  if (!confirm('Remove ' + rows.length + ' duplicate row' + (rows.length === 1 ? '' : 's') + ' totalling ' + fC(amt) + '?\n\nEach is the same bank line imported twice — the first copy stays. This cannot be undone.')) return;
+  const ids = new Set(rows.map(t => t.id));
+  rows.forEach(t => auditRecon('remove-duplicate', t, 'duplicate', 'removed', 'kept the first copy'));
+  const keep = txns().filter(t => !ids.has(t.id));
+  Q.recon.txns.length = 0; Q.recon.txns.push(...keep);
+  Q.saveRecon(); ST.sel.clear(); render();
+  toast('Removed ' + rows.length + ' duplicate' + (rows.length === 1 ? '' : 's') + ' — first copies kept', 'ok');
+}
+
+/* ── STATEMENTS MANAGER ────────────────────────────────────────────────────
+   Asked for directly: "delete all statement I will upload again". Deleting a
+   statement's LOG entry alone would leave its transactions in the data AND
+   block the re-upload (the SHA-256 guard refuses a file it has seen), so:
+
+   • a statement whose rows are stamped (stmtId) deletes together with exactly
+     the transactions it imported;
+   • a legacy statement (uploaded before stamping) says plainly that its rows
+     cannot be identified — entry-only delete, so at least the re-upload works;
+   • "Clear ALL bank data" removes every transaction and every statement log
+     entry in one audited step. That is the honest primitive for "I will
+     upload again", and it shows exact counts before asking.
+
+   Every path is confirm-gated and audited. */
+function stmtTxnCount(id) { return txns().filter(t => t.stmtId === id).length; }
+function deleteStatement(id) {
+  const st = (Q.statementRows ? Q.statementRows() : []).find(x => x.id === id); if (!st) return;
+  const n = stmtTxnCount(id);
+  const msg = n
+    ? 'Delete "' + st.file + '" and the ' + n + ' transaction' + (n === 1 ? '' : 's') + ' it imported?\n\nThis cannot be undone.'
+    : 'Delete the log entry for "' + st.file + '"?\n\nIts transactions were imported before per-statement tracking and stay in the data — use "Clear all bank data" to remove everything. Deleting the entry lets the same file upload again.';
+  if (!confirm(msg)) return;
+  if (n) {
+    const keep = txns().filter(t => t.stmtId !== id);
+    Q.recon.txns.length = 0; Q.recon.txns.push(...keep);
+  }
+  if (Q.logAudit) { try { Q.logAudit('delete', 'recon', { id: id }, { ref: st.file, amount: 0, reason: 'statement deleted with ' + n + ' transactions' }); } catch (_) {} }
+  if (Q.removeStatement) Q.removeStatement(id);
+  Q.saveRecon(); openStatements();
+  toast(n ? 'Deleted "' + st.file + '" + ' + n + ' transactions' : 'Deleted the log entry — the file can be uploaded again', 'ok');
+}
+function clearBankData() {
+  const nT = txns().length, sts = (Q.statementRows ? Q.statementRows() : []);
+  if (!nT && !sts.length) { toast('Nothing to clear', 'ok'); return; }
+  if (!confirm('Clear ALL bank data?\n\n• ' + nT + ' transactions\n• ' + sts.length + ' statement log entr' + (sts.length === 1 ? 'y' : 'ies') + '\n\nMatches, categories and duplicates flags go with them. Bills and payments are NOT touched. This cannot be undone.')) return;
+  if (Q.logAudit) { try { Q.logAudit('delete', 'recon', { id: 'ALL' }, { amount: 0, reason: 'cleared all bank data: ' + nT + ' transactions, ' + sts.length + ' statements' }); } catch (_) {} }
+  sts.forEach(st => { if (Q.removeStatement) Q.removeStatement(st.id); });
+  Q.recon.txns.length = 0;
+  Q.saveRecon(); QLShell.closeModal(); ST.sel.clear(); render();
+  toast('Cleared ' + nT + ' transactions and ' + sts.length + ' statements — upload afresh', 'ok');
+}
+function openStatements() {
+  const sts = (Q.statementRows ? Q.statementRows() : []);
+  const rowsH = sts.length ? sts.map(st => {
+    const n = stmtTxnCount(st.id);
+    return `<div class="rc-stmt"><div class="rc-stmt-t"><b>${esc(st.file || '—')}</b>
+      <span>${esc(st.from || '?')} – ${esc(st.to || '?')} · ${st.rows || 0} row${st.rows === 1 ? '' : 's'} in file · ${n ? n + ' tracked here' : 'rows not tracked (older upload)'}</span></div>
+      <button class="rc-stmt-del" data-delstmt="${esc(st.id)}">${n ? 'Delete + ' + n + ' txns' : 'Delete entry'}</button></div>`;
+  }).join('') : '<div class="rc-none">No statements in the log.</div>';
+  const body = `<div class="rc-stmts">${rowsH}</div>
+    <div class="rc-stmt-foot"><button class="rc-dupbar-b" id="rcClearAll">Clear ALL bank data (${txns().length} transactions)</button>
+    <div class="in-note">Bills, payments and every other module are untouched — this clears only imported bank lines and the statement log, so the same files can be uploaded again.</div></div>`;
+  const pane = QLShell.panel({ title: 'Imported statements', sub: sts.length + ' in the log', body: body }) || document;
+  (pane.querySelectorAll ? pane : document).querySelectorAll('[data-delstmt]').forEach(b => b.onclick = () => deleteStatement(b.dataset.delstmt));
+  const ca = (pane.querySelector ? pane.querySelector('#rcClearAll') : null) || document.getElementById('rcClearAll');
+  if (ca) ca.onclick = clearBankData;
+}
+
 function viewHTML() {
   if (ST.view === 'ledger') return ledgerHTML();
   if (ST.view === 'audit') return auditHTML();
   const rows = filteredTxns();
-  if (!rows.length) return `<div class="rc-none">${ST.month && ST.month !== 'all' ? 'No matching transactions for ' + esc(monthLabel()) : 'No transactions match these filters'}.</div>`;
+  /* The cleanup offer rides above the table whenever flagged copies exist —
+     count and amount are ALL months, and the banner says so, because the
+     removal is. */
+  const _dups = (ST.fstatus === 'all' || ST.fstatus === 'duplicate') ? duplicateRows() : [];
+  const dupBar = _dups.length ? `<div class="rc-dupbar">${svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>')}
+    <span><b>${_dups.length}</b> duplicate row${_dups.length === 1 ? '' : 's'} across all months — the same bank line imported twice.</span>
+    <button class="rc-dupbar-b" id="rcRmDup">Remove all · keep first copies</button></div>` : '';
+  if (!rows.length) return dupBar +  `<div class="rc-none">${ST.month && ST.month !== 'all' ? 'No matching transactions for ' + esc(monthLabel()) : 'No transactions match these filters'}.</div>`;
   /* ONE row template — the grouped and ungrouped paths must render the same row.
      Two copies would drift the moment a column is added to only one of them.
 
@@ -1037,7 +1136,7 @@ function viewHTML() {
         (ST.collapsed.has(g.key) ? '' : g.rows.map(rowHTML).join(''))
       ).join('');
   const moreBar = more > 0 ? `<tr><td colspan="7" class="rc-morebar"><button class="ql-btn ql-btn-secondary" data-showmore>Show ${Math.min(300, more)} more (${more.toLocaleString('en-IN')} remaining)</button></td></tr>` : '';
-  return `<div class="rc-tablewrap"><table class="rc-table rc-table2 rc-v3">
+  return dupBar + `<div class="rc-tablewrap"><table class="rc-table rc-table2 rc-v3">
     <thead><tr><th class="rc-cbx"></th><th>Date</th><th>Transaction</th><th class="r">Amount</th><th>Status</th><th>Reconciled against</th><th></th></tr></thead>
     <tbody>${body}${moreBar}</tbody></table></div>`;
 }
@@ -1587,11 +1686,15 @@ function openUpload() {
       msg.innerHTML = `<div class="rc-err"><b>Nothing new to import.</b><br>All ${parsed.length} transaction${parsed.length === 1 ? '' : 's'} in this file ${parsed.length === 1 ? 'is' : 'are'} already in your books.</div>`;
       return;
     }
+    /* Stamp each row with its statement BEFORE pushing, so a statement can be
+       deleted together with exactly the transactions it brought in. Rows from
+       before this stamping have no stmtId — the manager is honest about that. */
     Q.recon.txns.push(...scr.keep); runMatchAll();
     const matched = scr.keep.filter(t => isLinked(t)).length;
     if (Q.addStatement && f) {
       const ds = scr.keep.map(t => t.date).filter(Boolean).sort();
-      Q.addStatement({ accountId: scr.keep[0].accountId || '', file: f.name, rows: scr.keep.length, from: ds[0] || '', to: ds[ds.length - 1] || '', sha: sha || '' });
+      const _st = Q.addStatement({ accountId: scr.keep[0].accountId || '', file: f.name, rows: scr.keep.length, from: ds[0] || '', to: ds[ds.length - 1] || '', sha: sha || '' });
+      if (_st && _st.id) { scr.keep.forEach(t => { t.stmtId = _st.id; }); Q.saveRecon(); }
     }
     close(); render();
     toast('Imported ' + scr.keep.length + ' transactions · ' + matched + ' auto-matched'
@@ -1889,8 +1992,11 @@ function wire() {
     const nm = row.dataset.ledger, ps = Q.partyRows(); const norm = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const p = ps.find(x => norm(x.name) === norm(nm)); if (p) location.href = './ledger.html?party=' + p.idx;
   });
-  if ($('rcAiReview')) $('rcAiReview').onclick = () => { ST.fstatus = 'review'; render(); };
+  if ($('rcAiReview')) $('rcAiReview').onclick = (e) => { e.preventDefault(); e.stopPropagation(); ST.fstatus = 'review'; render(); };
+  if ($('rcMore')) $('rcMore').onclick = e => { e.stopPropagation(); ST.moreOpen = !ST.moreOpen; render(); };
+  if ($('rcStmts')) $('rcStmts').onclick = () => { ST.moreOpen = false; render(); openStatements(); };
   root.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { ST.view = b.dataset.view; render(); });
+  if ($('rcRmDup')) $('rcRmDup').onclick = removeDuplicates;
   if ($('rcAudSearch')) { const i = $('rcAudSearch'); i.oninput = () => { ST.aq = i.value; const p = document.querySelector('.rc-panel'); if (p) { p.innerHTML = viewHTML(); wire(); const j = $('rcAudSearch'); if (j) { j.focus(); j.setSelectionRange(j.value.length, j.value.length); } } }; }
   root.querySelectorAll('[data-ftype]').forEach(b => b.onclick = () => { ST.ftype = b.dataset.ftype; render(); });
   /* Filters. render() rebuilds the toolbar, so these rebind every paint — the
@@ -1921,6 +2027,7 @@ function wire() {
       if (ST.stOpen && !e.target.closest('.rc-stwrap')) { ST.stOpen = false; render(); }
       /* The date popover needs the same closer, and for the same reason. */
       if (ST.dOpen && !e.target.closest('.rc-dwrap')) { ST.dOpen = false; render(); }
+      if (ST.moreOpen && !e.target.closest('.rc-morew')) { ST.moreOpen = false; render(); }
     });
   }
   root.querySelectorAll('[data-facc]').forEach(b => b.onclick = () => { ST.acc = b.dataset.facc; ST.sel.clear(); render(); });

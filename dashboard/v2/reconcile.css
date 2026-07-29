@@ -586,7 +586,9 @@
    everything else in an expandable row. Scan first, detail on demand.
    ═══════════════════════════════════════════════════════════════════════ */
 /* readable rhythm: bigger name, bigger amount, quieter reference */
-.rc-v3 td { padding: 14px 12px; }
+/* DENSITY: 7px vertical instead of 14 takes a row from 69px to ~53px — a
+   quarter more rows on screen with the same two-line content. */
+.rc-v3 td { padding: 7px 12px; }
 .rc-v3 .rc-party-nm { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }
 .rc-v3 .rc-party-nar { font-size: 12px; color: var(--ql-text-muted); margin-top: 2px; }
 .rc-v3 .rc-amt { font-size: 15.5px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
@@ -755,3 +757,49 @@
 .rc-side.sup { color: #b45309; }
 [data-theme="dark"] .rc-side.cust { color: #4ade80; }
 [data-theme="dark"] .rc-side.sup { color: #fbbf24; }
+
+/* ── duplicate cleanup banner ── */
+.rc-dupbar { display: flex; align-items: center; gap: 10px; background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 12px; padding: 9px 14px; margin-bottom: 10px; font: 500 13px var(--ql-font-sans); color: #991b1b; }
+[data-theme="dark"] .rc-dupbar { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); color: #fca5a5; }
+.rc-dupbar svg { width: 15px; height: 15px; flex: none; }
+.rc-dupbar b { font-weight: 800; }
+.rc-dupbar-b { margin-left: auto; font: 700 12px var(--ql-font-sans); color: #fff; background: #dc2626; border: 0;
+  border-radius: 999px; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+.rc-dupbar-b:hover { background: #b91c1c; }
+
+/* ── one-block header: accounts under the title, overflow actions in ⋯ ── */
+.rc-hero-l { min-width: 0; }
+.rc-hero-l .rc-accbar { margin: 10px 0 0; padding: 0; border: 0; background: none; }
+.rc-hero { align-items: flex-start; }
+.rc-morew { position: relative; }
+.rc-btn-more { padding: 9px 10px; }
+.rc-btn-more.on { border-color: var(--ql-brand-400,#60a5fa); color: var(--ql-brand-700,#1d4ed8); }
+.rc-btn-more svg { width: 16px; height: 16px; }
+.rc-moremenu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 70; width: 280px;
+  background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15,23,42,.14); padding: 6px; }
+[data-theme="dark"] .rc-moremenu { box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+.rc-more-it { display: grid; grid-template-columns: 18px 1fr; grid-template-rows: auto auto; column-gap: 10px;
+  align-items: center; width: 100%; text-align: left; background: none; border: 0; border-radius: 10px;
+  padding: 9px 10px; cursor: pointer; }
+.rc-more-it:hover { background: var(--ql-bg-subtle,#f1f5f9); }
+[data-theme="dark"] .rc-more-it:hover { background: rgba(255,255,255,.05); }
+.rc-more-it svg { width: 15px; height: 15px; grid-row: 1 / 3; color: var(--ql-text-secondary); }
+.rc-more-it span { font: 600 13px var(--ql-font-sans); color: var(--ql-text); }
+.rc-more-it em { font: 500 11px var(--ql-font-sans); font-style: normal; color: var(--ql-text-muted); }
+/* the merged insights card: AI digest as the summary row */
+.rc-fo-h .rc-aibar-ic { flex: none; }
+.rc-fo-h .rc-aibar-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.rc-fo-h .rc-aibar-btn { flex: none; }
+
+/* ── statements manager ── */
+.rc-stmts { display: flex; flex-direction: column; gap: 8px; }
+.rc-stmt { display: flex; align-items: center; gap: 12px; border: 1px solid var(--ql-border); border-radius: 12px; padding: 10px 12px; }
+.rc-stmt-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rc-stmt-t b { font: 700 13px var(--ql-font-sans); color: var(--ql-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-stmt-t span { font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-muted); }
+.rc-stmt-del { flex: none; font: 700 11.5px var(--ql-font-sans); color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.rc-stmt-del:hover { background: #fee2e2; }
+[data-theme="dark"] .rc-stmt-del { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); color: #fca5a5; }
+.rc-stmt-foot { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
