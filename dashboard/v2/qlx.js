@@ -206,14 +206,15 @@
     const tlabel = t => esc(typeof t.label === 'function' ? t.label() : t.label);
     const tools = (CFG.tools || []).map((t, i) => `<button class="qx-btn" data-tool="${i}">${t.icon ? svg(t.icon) : ''}<span>${tlabel(t)}</span></button>`).join('');
     const prim = CFG.primary ? `<button class="qx-btn qx-btn-primary" id="qxPrimary">${svg(CFG.primary.icon || IC.plus)}<span>${esc(CFG.primary.label)}</span></button>` : '';
-    // The month button is QLShell's — the same control the dashboard, recon and
-    // inventory render. Do not inline a copy of this markup here again.
-    const month = CFG.monthFilter ? QLShell.monthButton({ id: 'qxMonthBtn', label: monthLabel() }) : '';
+    /* The page header holds only the title and PAGE actions (add/upload/export/
+       AI). The month/date filter changes TABLE state, so it lives in the table
+       toolbar now, not here — see toolbarHTML. "The table controls the table."
+       Moving it in QLX moves it for every register at once. */
     return `<div class="qx-hero">
       <div class="qx-hero-l">
         <div class="qx-hero-tt"><div class="qx-title">${esc(CFG.title)}</div></div>
       </div>
-      <div class="qx-hero-r">${month}${tools}${prim}</div>
+      <div class="qx-hero-r">${tools}${prim}</div>
     </div>`;
   }
   /* "March 2026" / "Year 2026" / "All months" — QLD.periodLabel owns all three.
@@ -297,9 +298,16 @@
     const filBtn = (CFG.filters && CFG.filters.length) || CFG.dateRange ? `<button class="qx-tool ${advActive ? 'on' : ''}" id="qxFilBtn">${svg(IC.filter)} Filters</button>` : '';
     const resetBtn = anyFilter() ? `<button class="qx-tool" id="qxReset">${svg(IC.x)} Reset</button>` : '';
     const search = CFG.search ? `<div class="qx-search">${svg(IC.search)}<input id="qxSearch" placeholder="Search ${esc(CFG.nounPl || 'records')}" value="${esc(S.q)}"></div>` : '';
+    /* The month/date filter is the FIRST element of the toolbar (moved out of the
+       page header). The toolbar is sticky, so it stays visible while scrolling —
+       the accountant never loses the period they're looking at. Same QLShell
+       control the dashboard/recon use; only its home changed. */
+    const month = CFG.monthFilter ? QLShell.monthButton({ id: 'qxMonthBtn', label: monthLabel() }) : '';
     return `<div class="qx-tb">
-      ${showTabs ? `<div class="qx-tabs">${qf}</div><div class="qx-tb-sp"></div>${search}` : `${search}<div class="qx-tb-sp"></div>`}
-      ${grpBtn}${filBtn}${colBtn}${resetBtn}
+      ${month}
+      ${showTabs ? `<div class="qx-tabs">${qf}</div>` : ''}
+      <div class="qx-tb-sp"></div>
+      ${search}${grpBtn}${filBtn}${colBtn}${resetBtn}
       ${showViews ? `<div class="qx-views">${views}</div>` : ''}
     </div>`;
   }
