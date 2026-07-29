@@ -747,3 +747,11 @@
 .rc-audit-c { font: 500 12px var(--ql-font-sans); color: var(--ql-text-secondary); }
 .rc-audit-b { font: 600 12px var(--ql-font-sans); color: var(--ql-text-secondary); white-space: nowrap; }
 .rc-audit-n { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); margin-left: 10px; }
+
+/* Customer vs Supplier — the side of the trade, where the party name used to
+   be repeated from the Transaction column. */
+.rc-side { font-weight: 700; }
+.rc-side.cust { color: #15803d; }
+.rc-side.sup { color: #b45309; }
+[data-theme="dark"] .rc-side.cust { color: #4ade80; }
+[data-theme="dark"] .rc-side.sup { color: #fbbf24; }

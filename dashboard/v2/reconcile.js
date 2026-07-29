@@ -1055,9 +1055,14 @@ function matchedCell(t) {
   const m = t.m || {}, b = billFor(t);
   if (b) {
     const no = b.inv || b.bill || '';
-    const who = b.party || b.sup || '';
+    /* Do NOT repeat the party — the Transaction column already names them, and
+       the same name twice on one row is wasted width. What this column can add
+       is the SIDE of the trade: a credit settles a customer's invoice, a debit
+       pays a supplier's bill. That is the fact the accountant needs to see and
+       cannot infer from the name alone. */
+    const side = t.credit ? 'Customer' : 'Supplier';
     return `<div class="rc-mt"><span class="rc-mt-d">${esc(no || 'Matched')}</span>`
-      + (who ? `<span class="rc-mt-w">${esc(who)}</span>` : '') + `</div>`;
+      + `<span class="rc-mt-w rc-side ${t.credit ? 'cust' : 'sup'}">${side}</span></div>`;
   }
   if (m.entryId) return `<div class="rc-mt"><span class="rc-mt-d">Cashbook entry</span>${m.cat ? `<span class="rc-mt-w">${esc(m.cat)}</span>` : ''}</div>`;
   if (m.status === 'other' && m.cat) return `<div class="rc-mt"><span class="rc-mt-d">${esc(m.cat)}</span><span class="rc-mt-w">categorised</span></div>`;
