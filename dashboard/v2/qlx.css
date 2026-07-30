@@ -226,13 +226,20 @@
    only — mobile is cards-first and its table fallback scrolls the page. */
 .qx-grid-wrap { overflow-x: auto; }
 @media (min-width: 769px) {
-  /* FILL THE VIEWPORT — no dead white space below a short table. min-height
-     makes the scroll frame extend down to the sticky footer even when there
-     are only a few rows (the reported "empty white space, all pages"); the
-     max-height still caps it and lets the body scroll when rows overflow.
-     Both are viewport-relative, so the footer lands near the bottom edge on
-     any screen. min < max keeps them consistent. */
-  .qx-grid-wrap { min-height: calc(100vh - 340px); max-height: calc(100vh - 220px); overflow: auto; overscroll-behavior: contain; }
+  /* FILL THE VIEWPORT WITH FLEX, not magic-number heights. The page content
+     column flexes so the table area takes exactly the room between the header
+     stack and the footer — the table scrolls INSIDE itself, its header pins at
+     the top, and the totals footer sits at the bottom EDGE, never floating over
+     a data row (the reported "footer overlaps the row" + "empty white space").
+     Self-adjusting to any header height, so no per-page tuning.
+     Scoped with :has(.qx-panel) so non-register page layouts are untouched. */
+  .main:has(.qx-panel) { display: flex; flex-direction: column; }
+  .main:has(.qx-panel) > .dash { flex: 1 1 auto; min-height: 0; }
+  .dash:has(.qx-panel) > .qx-panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .qx-panel > #qxView { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .qx-panel > #qxView > .qx-grid-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+  /* Fallback for any table view not inside the flex chain (kept bounded). */
+  .qx-grid-wrap { max-height: calc(100vh - 220px); overflow: auto; overscroll-behavior: contain; }
 }
 .qx-grid { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--ql-text-base); min-width: 900px; }
 .qx-grid thead th {
