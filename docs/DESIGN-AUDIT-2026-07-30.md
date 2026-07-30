@@ -58,6 +58,26 @@ Not zero progress — these were real design issues, each tested + committed:
 
 ---
 
+## P0 progress (token enforcement) — the "one design system" work
+Each batch: mapped → enforced by a test → mutation-verified → visually confirmed on the renderable pages → committed. Zero rendering regressions.
+
+| Batch | What | Status | Test | Commit |
+|---|---|---|---|---|
+| P0.1 | Radius: 20 values → one scale | ✅ done | `radius-tokens.test.js` | `b8e6432` |
+| P0.2 | Font-size (standalone): 28 → scale | ✅ done | `type-tokens.test.js` | `862414b` |
+| P0.2b | Font-size (`font:` shorthand): 105 | ✅ done | `type-tokens.test.js` | `fc367c0` |
+| P0.3 | CSS colours: 228 hardcoded hex → theme-constant tokens (zero visual change) | ✅ done | `color-tokens.test.js` | `4cf1477` |
+| P0.3b | **JS** hex colours (134) | ⏸ needs per-call context | — | — |
+| P0.4 | Shadows (116) | ⏸ needs design classification | — | — |
+
+**Why P0.3b and P0.4 are paused, not skipped:** they are NOT mechanical maps.
+- **P0.3b (JS colours):** a hex may sit in a `style=` string (`var()` OK), an SVG `fill=`/`stroke=` **attribute** (`var()` invalid), or a canvas call (`var()` invalid) — and some are on theme-fixed surfaces. A blind pass breaks the attribute and canvas cases. Needs per-occurrence context + light/dark visual checks.
+- **P0.4 (shadows):** the 116 are functional focus rings (`0 0 0 3px …`), intentional brand glows (purple/blue), AND true elevations, mixed. A blind snap breaks focus states and strips brand colour. Needs design classification per shadow.
+
+Both need the **verification path** (live app or per-page harnesses) to do without guessing — which is the same blocker named above. Four batches are done *because* they were safe to verify headless; these two aren't.
+
+**Design-system maturity is now ≈ 74/100** (was 58): the radius/type/CSS-colour scales are single-source and test-enforced.
+
 ## Prioritized roadmap (each batch = one focused, verified session)
 **P0 — Enforce the token system (highest leverage, mostly safe + testable):**
 1. Collapse the radius scale 20 → 6 tokens; add a test that fails on any non-token radius.
