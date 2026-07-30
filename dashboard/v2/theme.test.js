@@ -69,7 +69,7 @@ function harness(opts) {
 {
   console.log('· the setting itself');
   const { T, store, html } = harness();
-  eq('with nothing stored, the mode is System', T.get(), 'system');
+  eq('with nothing stored, the mode is Light (the app default)', T.get(), 'light');
   T.set('dark');
   eq('choosing Dark writes ql_theme — THE BUG: nothing ever wrote this key', store.ql_theme, 'dark');
   eq('  and applies it to <html> instantly, no reload', html.attrs['data-theme'], 'dark');
@@ -105,7 +105,7 @@ function harness(opts) {
 {
   console.log('· it survives junk and hostile browsers');
   const { T } = harness({ store: { ql_theme: 'chartreuse' } });
-  eq('a mode we do not ship reads back as System, not as itself', T.get(), 'system');
+  eq('a mode we do not ship reads back as Light (the app default), not as itself', T.get(), 'light');
   const j = harness({ store: { ql_theme: 'chartreuse' } });
   eq('  and resolves to a real theme anyway', ['light', 'dark'].indexOf(j.T.resolve()) >= 0, true);
   const b = harness({ noMatchMedia: true });

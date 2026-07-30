@@ -35,12 +35,16 @@
      reload there, but it must at least hold for the session. */
   let mem = null;
 
-  /* Junk, null, or a mode we no longer ship all mean 'system'. */
+  /* DEFAULT IS LIGHT. Nothing stored, junk, or a mode we no longer ship all
+     resolve to 'light' — the app's design direction is the light theme, and a
+     fresh visitor on a dark-mode OS was getting a dark app that didn't match
+     the rest of the product. 'system' and 'dark' are still explicit CHOICES in
+     Settings; only the unset default changed. */
   function get() {
     let v = null;
     try { v = localStorage.getItem(KEY); } catch (_) {}
     if (MODES.indexOf(v) < 0) v = mem;
-    return MODES.indexOf(v) >= 0 ? v : 'system';
+    return MODES.indexOf(v) >= 0 ? v : 'light';
   }
   function resolve(mode) {
     const m = mode || get();

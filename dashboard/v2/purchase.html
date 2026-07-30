@@ -8,7 +8,7 @@
    above every stylesheet. (It used to guard the launch splash; the splash is
    gone, the flash it prevents is not.) Resolves 'system' here too, so data-theme
    is ALWAYS a literal light|dark and CSS never has to ask twice. */
-(function(){try{var t=localStorage.getItem('ql_theme')||'system';
+(function(){try{var t=localStorage.getItem('ql_theme')||'light';
 var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
 document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -66,7 +66,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./extract-api.js?v=x2"></script>
 <script src="./bulk.js?v=b17"></script>
 <script src="./wa-core.js?v=w3"></script>
-<script src="./shell.js?v=m66"></script>
+<script src="./shell.js?v=m67"></script>
 <script src="./mobile.js?v=m16"></script>
 <script src="./qlx.js?v=m19"></script>
 <script src="./purchase.js?v=m471"></script>
