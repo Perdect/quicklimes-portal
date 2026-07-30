@@ -226,7 +226,13 @@
    only — mobile is cards-first and its table fallback scrolls the page. */
 .qx-grid-wrap { overflow-x: auto; }
 @media (min-width: 769px) {
-  .qx-grid-wrap { max-height: calc(100vh - 230px); overflow: auto; overscroll-behavior: contain; }
+  /* FILL THE VIEWPORT — no dead white space below a short table. min-height
+     makes the scroll frame extend down to the sticky footer even when there
+     are only a few rows (the reported "empty white space, all pages"); the
+     max-height still caps it and lets the body scroll when rows overflow.
+     Both are viewport-relative, so the footer lands near the bottom edge on
+     any screen. min < max keeps them consistent. */
+  .qx-grid-wrap { min-height: calc(100vh - 340px); max-height: calc(100vh - 220px); overflow: auto; overscroll-behavior: contain; }
 }
 .qx-grid { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 900px; }
 .qx-grid thead th {
