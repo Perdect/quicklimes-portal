@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════
    QLX — QuickLimes Workspace (PERDECT Design System)
    A reusable, config-driven workspace layer for EVERY module, styled to
-   match IMZA CRM (crm.imza.ae): Geist type, #2563EB primary, slate
+   match IMZA CRM (crm.imza.ae): Geist type, var(--ql-brand-600) primary, slate
    neutrals, clean flat surfaces, tight 8–12px radii, subtle shadows.
    Scoped under .qx. Composes entirely from the PERDECT tokens (tokens.css).
    ═══════════════════════════════════════════════════════════════════════ */
@@ -10,22 +10,22 @@
    Each module gets a subtle accent while sharing one design system.
    JS sets .qx-a-<name> on the root; every accent-aware bit reads --qx-*. */
 .qx {
-  --qx: #2563eb; --qx-ink: #1d4ed8; --qx-soft: #eff4ff; --qx-soft2: #dbe8ff;
-  --qx-grad: linear-gradient(135deg, #3b82f6, #2563eb);
+  --qx: var(--ql-brand-600); --qx-ink: var(--ql-brand-700); --qx-soft: #eff4ff; --qx-soft2: #dbe8ff;
+  --qx-grad: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-600));
   --qx-glow: rgba(37, 99, 235, .18);
 }
-.qx-a-blue   { --qx:#2563eb; --qx-ink:#1d4ed8; --qx-soft:#eff4ff; --qx-soft2:#dbe8ff; --qx-grad:linear-gradient(135deg,#3b82f6,#2563eb); --qx-glow:rgba(37,99,235,.18); }
-.qx-a-green  { --qx:#16a34a; --qx-ink:#15803d; --qx-soft:#ecfdf3; --qx-soft2:#d1fadf; --qx-grad:linear-gradient(135deg,#22c55e,#16a34a); --qx-glow:rgba(22,163,74,.18); }
-.qx-a-amber  { --qx:#d97706; --qx-ink:#b45309; --qx-soft:#fef6ee; --qx-soft2:#fde8cf; --qx-grad:linear-gradient(135deg,#f59e0b,#d97706); --qx-glow:rgba(217,119,6,.18); }
+.qx-a-blue   { --qx:var(--ql-brand-600); --qx-ink:var(--ql-brand-700); --qx-soft:#eff4ff; --qx-soft2:#dbe8ff; --qx-grad:linear-gradient(135deg,var(--ql-brand-500),var(--ql-brand-600)); --qx-glow:rgba(37,99,235,.18); }
+.qx-a-green  { --qx:var(--ql-success-600); --qx-ink:var(--ql-success-700); --qx-soft:#ecfdf3; --qx-soft2:#d1fadf; --qx-grad:linear-gradient(135deg,var(--ql-success-500),var(--ql-success-600)); --qx-glow:rgba(22,163,74,.18); }
+.qx-a-amber  { --qx:var(--ql-warning-600); --qx-ink:var(--ql-warning-700); --qx-soft:#fef6ee; --qx-soft2:#fde8cf; --qx-grad:linear-gradient(135deg,var(--ql-warning-500),var(--ql-warning-600)); --qx-glow:rgba(217,119,6,.18); }
 .qx-a-violet { --qx:#7c3aed; --qx-ink:#6d28d9; --qx-soft:#f4f3ff; --qx-soft2:#e6e2ff; --qx-grad:linear-gradient(135deg,#8b5cf6,#7c3aed); --qx-glow:rgba(124,58,237,.18); }
 .qx-a-teal   { --qx:#0d9488; --qx-ink:#0f766e; --qx-soft:#ecfdfb; --qx-soft2:#cff6f1; --qx-grad:linear-gradient(135deg,#14b8a6,#0d9488); --qx-glow:rgba(13,148,136,.18); }
 .qx-a-rose   { --qx:#e11d48; --qx-ink:#be123c; --qx-soft:#fff1f3; --qx-soft2:#ffdfe4; --qx-grad:linear-gradient(135deg,#f43f5e,#e11d48); --qx-glow:rgba(225,29,72,.18); }
 .qx-a-cyan   { --qx:#0891b2; --qx-ink:#0e7490; --qx-soft:#ecfeff; --qx-soft2:#cff3fa; --qx-grad:linear-gradient(135deg,#06b6d4,#0891b2); --qx-glow:rgba(8,145,178,.18); }
 .qx-a-indigo { --qx:#4f46e5; --qx-ink:#4338ca; --qx-soft:#eef2ff; --qx-soft2:#e0e7ff; --qx-grad:linear-gradient(135deg,#6366f1,#4f46e5); --qx-glow:rgba(79,70,229,.18); }
 .qx-a-orange { --qx:#ea580c; --qx-ink:#c2410c; --qx-soft:#fff4ed; --qx-soft2:#ffe4d3; --qx-grad:linear-gradient(135deg,#fb923c,#ea580c); --qx-glow:rgba(234,88,12,.18); }
-.qx-a-slate  { --qx:#475569; --qx-ink:#334155; --qx-soft:#f1f5f9; --qx-soft2:#e2e8f0; --qx-grad:linear-gradient(135deg,#64748b,#475569); --qx-glow:rgba(71,85,105,.18); }
+.qx-a-slate  { --qx:var(--ql-neutral-600); --qx-ink:var(--ql-neutral-700); --qx-soft:#f1f5f9; --qx-soft2:var(--ql-neutral-200); --qx-grad:linear-gradient(135deg,var(--ql-neutral-500),var(--ql-neutral-600)); --qx-glow:rgba(71,85,105,.18); }
 .qx-a-purple { --qx:#9333ea; --qx-ink:#7e22ce; --qx-soft:#faf5ff; --qx-soft2:#f0dbff; --qx-grad:linear-gradient(135deg,#a855f7,#9333ea); --qx-glow:rgba(147,51,234,.18); }
-.qx-a-red    { --qx:#dc2626; --qx-ink:#b91c1c; --qx-soft:#fef2f2; --qx-soft2:#fee2e2; --qx-grad:linear-gradient(135deg,#ef4444,#dc2626); --qx-glow:rgba(220,38,38,.18); }
+.qx-a-red    { --qx:var(--ql-danger-600); --qx-ink:var(--ql-danger-700); --qx-soft:var(--ql-danger-50); --qx-soft2:var(--ql-danger-100); --qx-grad:linear-gradient(135deg,var(--ql-danger-500),var(--ql-danger-600)); --qx-glow:rgba(220,38,38,.18); }
 
 /* ── ROOT / AMBIENT ─────────────────────────────────────────────────── */
 .qx { position: relative; padding: 0 4px 120px; }
@@ -99,10 +99,10 @@
 .qx-tr.up { color: var(--ql-success-600); }
 .qx-tr.dn { color: var(--ql-danger-600); }
 /* icon tints */
-.t-blue{background:#eff4ff;color:#2563eb}.t-indigo{background:#eef2ff;color:#4f46e5}.t-green{background:#ecfdf3;color:#16a34a}
-.t-amber{background:#fef6ee;color:#d97706}.t-teal{background:#ecfdfb;color:#0d9488}.t-violet{background:#f4f3ff;color:#7c3aed}
-.t-rose{background:#fff1f3;color:#e11d48}.t-cyan{background:#ecfeff;color:#0891b2}.t-slate{background:#f1f5f9;color:#475569}
-.t-orange{background:#fff4ed;color:#ea580c}.t-purple{background:#faf5ff;color:#9333ea}.t-red{background:#fef2f2;color:#dc2626}
+.t-blue{background:#eff4ff;color:var(--ql-brand-600)}.t-indigo{background:#eef2ff;color:#4f46e5}.t-green{background:#ecfdf3;color:var(--ql-success-600)}
+.t-amber{background:#fef6ee;color:var(--ql-warning-600)}.t-teal{background:#ecfdfb;color:#0d9488}.t-violet{background:#f4f3ff;color:#7c3aed}
+.t-rose{background:#fff1f3;color:#e11d48}.t-cyan{background:#ecfeff;color:#0891b2}.t-slate{background:#f1f5f9;color:var(--ql-neutral-600)}
+.t-orange{background:#fff4ed;color:#ea580c}.t-purple{background:#faf5ff;color:#9333ea}.t-red{background:var(--ql-danger-50);color:var(--ql-danger-600)}
 
 /* ── AI INSIGHTS BAR (banner slot between stats and table) ──────────── */
 .qx-aibar { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; padding: 11px 14px; border-radius: var(--ql-radius-2xl); background: linear-gradient(135deg, rgba(124,58,237,.06), rgba(37,99,235,.05)); border: 1px solid rgba(124,58,237,.14); backdrop-filter: blur(8px); }
@@ -290,9 +290,9 @@
 /* status pills / dropdown */
 .qx-st { border: none; border-radius: var(--ql-radius-pill); padding: 4px 12px; font-size: var(--ql-text-xs); font-weight: 700; cursor: pointer; appearance: none; -webkit-appearance: none; text-align: center; }
 .qx-st:focus { outline: none; box-shadow: 0 0 0 3px rgba(15,23,42,.08); }
-.s-paid{background:#dcfce7;color:#15803d}.s-pending{background:#fef3c7;color:#b45309}.s-partial{background:#dbeafe;color:#1d4ed8}
-.s-cancelled{background:#fee2e2;color:#b91c1c}.s-overdue{background:#fee2e2;color:#b91c1c}.s-active{background:#dcfce7;color:#15803d}
-.s-draft{background:#f1f5f9;color:#475569}.s-sent{background:#e0e7ff;color:#4338ca}
+.s-paid{background:var(--ql-success-100);color:var(--ql-success-700)}.s-pending{background:var(--ql-warning-100);color:var(--ql-warning-700)}.s-partial{background:var(--ql-brand-100);color:var(--ql-brand-700)}
+.s-cancelled{background:var(--ql-danger-100);color:var(--ql-danger-700)}.s-overdue{background:var(--ql-danger-100);color:var(--ql-danger-700)}.s-active{background:var(--ql-success-100);color:var(--ql-success-700)}
+.s-draft{background:#f1f5f9;color:var(--ql-neutral-600)}.s-sent{background:#e0e7ff;color:#4338ca}
 
 /* quick actions */
 .qx-acts { display: flex; align-items: center; gap: 2px; justify-content: flex-end; opacity: .35; transition: opacity .14s; }
@@ -440,8 +440,8 @@
 .qx-comm a { display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: var(--ql-radius-xl); font-size: var(--ql-text-sm); font-weight: 600; text-decoration: none; border: 1px solid var(--ql-border); transition: all .14s; }
 .qx-comm a svg { width: 14px; height: 14px; }
 .qx-comm a:hover { transform: translateY(-1px); box-shadow: var(--ql-shadow-sm); }
-.qx-comm .wa { background: #ecfdf3; color: #15803d; border-color: #bbf7d0; }
-.qx-comm .call { background: #eff4ff; color: #2563eb; border-color: #bfdbfe; }
+.qx-comm .wa { background: #ecfdf3; color: var(--ql-success-700); border-color: #bbf7d0; }
+.qx-comm .call { background: #eff4ff; color: var(--ql-brand-600); border-color: var(--ql-brand-200); }
 .qx-comm .mail { background: #f4f3ff; color: #7c3aed; border-color: #ddd6fe; }
 .qx-comm .sms { background: #fff4ed; color: #ea580c; border-color: #fed7aa; }
 
@@ -505,7 +505,7 @@
 }
 .qx-bulk.on { opacity: 1; pointer-events: auto; transform: translateX(-50%); }
 .qx-bulk-head { display: flex; align-items: center; gap: 12px; padding: 0 4px 0 2px; }
-.qx-bulk-badge { position: relative; min-width: 56px; height: 50px; padding: 0 12px; display: grid; place-items: center; border-radius: var(--ql-radius-4xl); background: linear-gradient(150deg, #818cf8, #2563eb); color: #fff; font-size: var(--ql-text-2xl); font-weight: 800; letter-spacing: -.02em; box-shadow: 0 10px 20px -7px rgba(37,99,235,.75); }
+.qx-bulk-badge { position: relative; min-width: 56px; height: 50px; padding: 0 12px; display: grid; place-items: center; border-radius: var(--ql-radius-4xl); background: linear-gradient(150deg, #818cf8, var(--ql-brand-600)); color: #fff; font-size: var(--ql-text-2xl); font-weight: 800; letter-spacing: -.02em; box-shadow: 0 10px 20px -7px rgba(37,99,235,.75); }
 .qx-bulk-spark { position: absolute; top: -5px; right: -5px; }
 .qx-bulk-spark svg { width: 16px; height: 16px; fill: #fde047; stroke: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,.15)); }
 .qx-bulk-txt { display: flex; flex-direction: column; line-height: 1.25; }
@@ -518,10 +518,10 @@
 .qx-bulk-ic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
 .qx-bulk-ic svg { width: 19px; height: 19px; }
 .qx-bulk-lbl { font-size: var(--ql-text-xs); font-weight: 600; color: var(--ql-text-secondary); white-space: nowrap; }
-.qx-bulk-card.ok .qx-bulk-ic { background: #dcfce7; color: #16a34a; }
+.qx-bulk-card.ok .qx-bulk-ic { background: var(--ql-success-100); color: var(--ql-success-600); }
 .qx-bulk-card.info .qx-bulk-ic { background: #e0e7ff; color: #4f46e5; }
-.qx-bulk-card.del .qx-bulk-ic { background: #fee2e2; color: #dc2626; }
-.qx-bulk-card.del .qx-bulk-lbl { color: #dc2626; }
+.qx-bulk-card.del .qx-bulk-ic { background: var(--ql-danger-100); color: var(--ql-danger-600); }
+.qx-bulk-card.del .qx-bulk-lbl { color: var(--ql-danger-600); }
 .qx-bulk-x { width: 46px; height: 46px; border-radius: var(--ql-radius-4xl); border: 1px solid rgba(15,23,42,.06); background: #fff; color: var(--ql-text-muted); cursor: pointer; display: grid; place-items: center; box-shadow: 0 2px 7px -2px rgba(15,23,42,.14); transition: background .14s, color .14s; }
 .qx-bulk-x:hover { background: #f1f5f9; color: var(--ql-text); }
 .qx-bulk-x svg { width: 19px; height: 19px; }
@@ -611,8 +611,8 @@
    every accent at once, instead of restating each call site.
    (--ql-brand-600 is not so lucky: it is the primary button's background AND
    the link colour, so its ramp has to stay put. See shell.css.) */
-[data-theme="dark"] .qx { --qx-ink: #93b4fd; --qx-soft: #172554; --qx-soft2: #1e3a8a; }
-[data-theme="dark"] .qx-a-blue   { --qx-ink:#93b4fd; --qx-soft:#172554; --qx-soft2:#1e3a8a; }
+[data-theme="dark"] .qx { --qx-ink: #93b4fd; --qx-soft: #172554; --qx-soft2: var(--ql-brand-900); }
+[data-theme="dark"] .qx-a-blue   { --qx-ink:#93b4fd; --qx-soft:#172554; --qx-soft2:var(--ql-brand-900); }
 [data-theme="dark"] .qx-a-green  { --qx-ink:#86efac; --qx-soft:#052e16; --qx-soft2:#14532d; }
 [data-theme="dark"] .qx-a-amber  { --qx-ink:#fcd34d; --qx-soft:#451a03; --qx-soft2:#78350f; }
 [data-theme="dark"] .qx-a-violet { --qx-ink:#c4b5fd; --qx-soft:#2e1065; --qx-soft2:#4c1d95; }
@@ -621,7 +621,7 @@
 [data-theme="dark"] .qx-a-cyan   { --qx-ink:#67e8f9; --qx-soft:#083344; --qx-soft2:#164e63; }
 [data-theme="dark"] .qx-a-indigo { --qx-ink:#a5b4fc; --qx-soft:#1e1b4b; --qx-soft2:#312e81; }
 [data-theme="dark"] .qx-a-orange { --qx-ink:#fdba74; --qx-soft:#431407; --qx-soft2:#7c2d12; }
-[data-theme="dark"] .qx-a-slate  { --qx-ink:#cbd5e1; --qx-soft:#1e293b; --qx-soft2:#334155; }
+[data-theme="dark"] .qx-a-slate  { --qx-ink:var(--ql-neutral-300); --qx-soft:var(--ql-neutral-800); --qx-soft2:var(--ql-neutral-700); }
 [data-theme="dark"] .qx-a-purple { --qx-ink:#d8b4fe; --qx-soft:#3b0764; --qx-soft2:#581c87; }
 [data-theme="dark"] .qx-a-red    { --qx-ink:#fca5a5; --qx-soft:#450a0a; --qx-soft2:#7f1d1d; }
 /* The counter chip is a 70%-WHITE pill designed to sit on the near-white

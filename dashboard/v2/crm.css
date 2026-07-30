@@ -19,11 +19,11 @@
 .crm-ai-tx { min-width: 0; }
 .crm-ai-tx b { display: block; font-size: var(--ql-text-sm); font-weight: 700; color: var(--ql-text); line-height: 1.25; }
 .crm-ai-tx span { display: block; font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin-top: 2px; line-height: 1.35; }
-.crm-ai-c.t-rose { border-left: 3px solid #ef4444; }
-.crm-ai-c.t-amber { border-left: 3px solid #f59e0b; }
+.crm-ai-c.t-rose { border-left: 3px solid var(--ql-danger-500); }
+.crm-ai-c.t-amber { border-left: 3px solid var(--ql-warning-500); }
 .crm-ai-c.t-blue { border-left: 3px solid var(--ql-brand-500); }
-.crm-ai-c.t-green { border-left: 3px solid #22c55e; }
-.crm-ai-c.t-slate { border-left: 3px solid #94a3b8; }
+.crm-ai-c.t-green { border-left: 3px solid var(--ql-success-500); }
+.crm-ai-c.t-slate { border-left: 3px solid var(--ql-neutral-400); }
 
 /* ── customer cell (avatar + name) ── */
 .crm-cust { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -95,7 +95,7 @@
 .crm-num { font-size: var(--ql-text-base); font-weight: 700; font-variant-numeric: tabular-nums; }
 .crm-mut { font-size: var(--ql-text-sm); color: var(--ql-text-secondary); }
 .crm-st { display: inline-block; padding: 2px 8px; border-radius: var(--ql-radius-pill); font-size: var(--ql-text-2xs); font-weight: 700; }
-.crm-flag { display: inline-grid; place-content: center; width: 14px; height: 14px; border-radius: 50%; background: #ef4444;
+.crm-flag { display: inline-grid; place-content: center; width: 14px; height: 14px; border-radius: 50%; background: var(--ql-danger-500);
   color: #fff; font-size: var(--ql-text-2xs); font-weight: 800; font-style: normal; vertical-align: middle; }
 
 /* ── running-account ledger (bank statement) ── */

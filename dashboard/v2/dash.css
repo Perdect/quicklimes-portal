@@ -9,9 +9,9 @@
 .dx .dx-card, .dx-kpi, .dx-mk { background: var(--ql-card); border: 1px solid var(--b); border-radius: var(--r); box-shadow: var(--sh); }
 
 /* tint tokens */
-.dx-t-blue{color:#2563eb;background:#eff4ff}.dx-t-green{color:#16a34a;background:#effdf4}.dx-t-violet{color:#7c3aed;background:#f5f1ff}
+.dx-t-blue{color:var(--ql-brand-600);background:#eff4ff}.dx-t-green{color:var(--ql-success-600);background:#effdf4}.dx-t-violet{color:#7c3aed;background:#f5f1ff}
 .dx-t-teal{color:#0d9488;background:#effcfa}.dx-t-indigo{color:#4f46e5;background:#eef0ff}
-.dx-t-amber{color:#d97706;background:#fff8ec}.dx-t-red{color:#dc2626;background:#fef2f2}
+.dx-t-amber{color:var(--ql-warning-600);background:#fff8ec}.dx-t-red{color:var(--ql-danger-600);background:var(--ql-danger-50)}
 
 /* ── sticky filter bar ── */
 /* SOLID, not frosted. This was rgba(249,250,251,.82) + backdrop-filter — a glass
@@ -57,7 +57,7 @@
 .dx-kpi-m{font-size: var(--ql-text-xs);color:var(--ql-text-muted);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dx-kpi-sp{width:92px;flex:none}.dx-spark{width:92px;height:30px;display:block}
 .dx-g{display:inline-flex;align-items:center;gap:2px;font-size: var(--ql-text-xs);font-weight:700;padding:3px 8px;border-radius: var(--ql-radius-pill)}
-.dx-g.up{color:#15803d;background:#dcfce7}.dx-g.dn{color:#b91c1c;background:#fee2e2}.dx-g.warn{color:#a16207;background:#fef9c3}
+.dx-g.up{color:var(--ql-success-700);background:var(--ql-success-100)}.dx-g.dn{color:var(--ql-danger-700);background:var(--ql-danger-100)}.dx-g.warn{color:#a16207;background:#fef9c3}
 
 /* ── hero row: analytics + AI ── */
 .dx-hero{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(0,1fr);gap:16px;margin-top:16px}
@@ -79,7 +79,7 @@
 .dx-ac-v{font-size: var(--ql-text-3xl);font-weight:800;letter-spacing:-.025em;margin-top:2px}
 .dx-ac-g{display:flex;align-items:center;gap:8px}.dx-ac-gs{font-size: var(--ql-text-xs);color:var(--ql-text-muted)}
 .dx-chart{width:100%;margin-top:6px}.dx-chart svg{width:100%;height:auto;display:block}
-.dx-grid{stroke:#eef2f7;stroke-width:1}.dx-xlab{fill:#94a3b8;font-size: var(--ql-text-xs);font-weight:500}
+.dx-grid{stroke:#eef2f7;stroke-width:1}.dx-xlab{fill:var(--ql-neutral-400);font-size: var(--ql-text-xs);font-weight:500}
 .dx-line{stroke-dasharray:2000;stroke-dashoffset:2000;animation:dxdraw 1s ease forwards}
 @keyframes dxdraw{to{stroke-dashoffset:0}}
 .dx-dot{opacity:0;animation:dxfade .3s ease forwards .7s}@keyframes dxfade{to{opacity:1}}
@@ -94,7 +94,7 @@
 .dx-ins{display:flex;align-items:center;gap:11px;padding:10px;border-radius: var(--ql-radius-2xl);border:none;background:none;cursor:pointer;text-align:left;font:inherit;transition:background .14s;width:100%}
 .dx-ins:hover{background:var(--ql-neutral-50)}
 .dx-ins-ic{width:30px;height:30px;border-radius: var(--ql-radius-md);display:grid;place-items:center;font-size: var(--ql-text-md);flex:none}
-.dx-ins-ic.t-g{background:#effdf4}.dx-ins-ic.t-r{background:#fef2f2}.dx-ins-ic.t-a{background:#fff8ec}.dx-ins-ic.t-b{background:#eff4ff}.dx-ins-ic.t-v{background:#f5f1ff}
+.dx-ins-ic.t-g{background:#effdf4}.dx-ins-ic.t-r{background:var(--ql-danger-50)}.dx-ins-ic.t-a{background:#fff8ec}.dx-ins-ic.t-b{background:#eff4ff}.dx-ins-ic.t-v{background:#f5f1ff}
 .dx-ins-x{flex:1;min-width:0}.dx-ins-t{font-size: var(--ql-text-base);font-weight:600;color:var(--ql-text);line-height:1.35}
 .dx-ins-s{font-size: var(--ql-text-xs);color:var(--ql-text-muted);display:block;margin-top:1px}
 .dx-ins-ch{color:var(--ql-text-muted);opacity:0;transition:opacity .14s}.dx-ins-ch svg{width:14px;height:14px}.dx-ins:hover .dx-ins-ch{opacity:1}
@@ -109,8 +109,8 @@
 .dx-flow-e{font-size: var(--ql-text-2xl)}.dx-flow-n{font-size: var(--ql-text-sm);font-weight:700;color:var(--ql-text)}
 .dx-flow-t{font-size: var(--ql-text-md);font-weight:800;letter-spacing:-.02em}.dx-flow-m{font-size: var(--ql-text-2xs);color:var(--ql-text-muted)}
 .dx-flow-st::before{content:"";position:absolute;top:10px;left:10px;width:7px;height:7px;border-radius:50%}
-.dx-flow-st.st-ok::before{background:#22c55e}.dx-flow-st.st-run::before{background:#2563eb;box-shadow:0 0 0 3px #dbeafe}.dx-flow-st.st-idle::before{background:#cbd5e1}
-.dx-flow-arw{display:flex;align-items:center;color:#cbd5e1;font-size: var(--ql-text-xl);font-weight:700;flex:none;padding:0 2px}
+.dx-flow-st.st-ok::before{background:var(--ql-success-500)}.dx-flow-st.st-run::before{background:var(--ql-brand-600);box-shadow:0 0 0 3px var(--ql-brand-100)}.dx-flow-st.st-idle::before{background:var(--ql-neutral-300)}
+.dx-flow-arw{display:flex;align-items:center;color:var(--ql-neutral-300);font-size: var(--ql-text-xl);font-weight:700;flex:none;padding:0 2px}
 
 /* ── Row 2 manufacturing KPIs ── */
 .dx-sec-t{font-size: var(--ql-text-base);font-weight:700;color:var(--ql-text-secondary);margin:22px 2px 12px;letter-spacing:-.01em}
@@ -144,7 +144,7 @@
 .dx-acts{display:flex;flex-direction:column}
 .dx-act{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--ql-divider)}.dx-act:last-child{border-bottom:none}
 .dx-act-dot{width:9px;height:9px;border-radius:50%;flex:none}
-.dx-act-dot.t-b{background:#2563eb}.dx-act-dot.t-g{background:#16a34a}.dx-act-dot.t-a{background:#d97706}.dx-act-dot.t-r{background:#dc2626}.dx-act-dot.t-v{background:#7c3aed}
+.dx-act-dot.t-b{background:var(--ql-brand-600)}.dx-act-dot.t-g{background:var(--ql-success-600)}.dx-act-dot.t-a{background:var(--ql-warning-600)}.dx-act-dot.t-r{background:var(--ql-danger-600)}.dx-act-dot.t-v{background:#7c3aed}
 .dx-act-x{flex:1;min-width:0}.dx-act-t{font-size: var(--ql-text-base);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dx-act-s{font-size: var(--ql-text-xs);color:var(--ql-text-muted)}.dx-act-w{font-size: var(--ql-text-xs);color:var(--ql-text-muted);font-weight:500;flex:none}
 
@@ -202,17 +202,17 @@
 [data-theme="dark"] .dx-ai-t svg{color:#a78bfa}
 [data-theme="dark"] .dx-ai-badge{color:#c4b5fd;background:#2e1065}
 
-/* Chart furniture: a #eef2f7 grid is invisible-but-glaring on #0F172A. */
-[data-theme="dark"] .dx-grid{stroke:#1e293b}
-[data-theme="dark"] .dx-xlab{fill:#64748b}
+/* Chart furniture: a #eef2f7 grid is invisible-but-glaring on var(--ql-neutral-900). */
+[data-theme="dark"] .dx-grid{stroke:var(--ql-neutral-800)}
+[data-theme="dark"] .dx-xlab{fill:var(--ql-neutral-500)}
 
 /* Flow-stage status dots + the arrows between them. */
-[data-theme="dark"] .dx-flow-st.st-run::before{box-shadow:0 0 0 3px #1e3a8a}
-[data-theme="dark"] .dx-flow-st.st-idle::before{background:#475569}
-[data-theme="dark"] .dx-flow-arw{color:#64748b}
+[data-theme="dark"] .dx-flow-st.st-run::before{box-shadow:0 0 0 3px var(--ql-brand-900)}
+[data-theme="dark"] .dx-flow-st.st-idle::before{background:var(--ql-neutral-600)}
+[data-theme="dark"] .dx-flow-arw{color:var(--ql-neutral-500)}
 
 /* Skeleton: a light-grey shimmer on a dark page reads as a flash of content. */
-[data-theme="dark"] .dx-sk{background:linear-gradient(90deg,#1e293b 25%,#334155 50%,#1e293b 75%);background-size:200% 100%}
+[data-theme="dark"] .dx-sk{background:linear-gradient(90deg,var(--ql-neutral-800) 25%,var(--ql-neutral-700) 50%,var(--ql-neutral-800) 75%);background-size:200% 100%}
 
 /* The month picker's calendar lives in shell.css (.ql-mp) — ONE copy for the
    whole app. A near-identical .dx-mm-* clone used to sit here; it is deleted
@@ -221,5 +221,5 @@
 /* Same reasoning as shell.css: flip the pair together, dark only. This is the
    one big brand-tinted control on the dashboard. */
 [data-theme="dark"] .dx-ai-ask { background: #172554; border-color: #1e3a5f; color: #93b4fd; }
-[data-theme="dark"] .dx-ai-ask:hover { background: #1e3a8a; }
+[data-theme="dark"] .dx-ai-ask:hover { background: var(--ql-brand-900); }
 [data-theme="dark"] .dx-icobtn.on { background: #172554; border-color: #1e3a5f; color: #93b4fd; }

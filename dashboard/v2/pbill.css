@@ -12,8 +12,8 @@
    Lucide paths inlined as SVG, and dark mode rides the existing [data-theme].
 
    Colours come from tokens.css. The spec's palette is already the token palette:
-   #2563EB = --ql-brand-600, #10B981 ≈ --ql-success-500, #F59E0B = --ql-warning-500,
-   #EF4444 = --ql-danger-500. Hard-coding them would fork the design system.
+   var(--ql-brand-600) = --ql-brand-600, #10B981 ≈ --ql-success-500, var(--ql-warning-500) = --ql-warning-500,
+   var(--ql-danger-500) = --ql-danger-500. Hard-coding them would fork the design system.
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── scrim: deep, blurred, so the drawer reads as glass over the app ── */
@@ -218,11 +218,11 @@
 .pb-i-a { background: var(--ql-warning-50); color: var(--ql-warning-600); }
 .pb-i-r { background: var(--ql-danger-50); color: var(--ql-danger-600); }
 .pb-i-n { background: var(--ql-neutral-100); color: var(--ql-neutral-600); }
-[data-theme="dark"] .pb-i-b { background: rgba(37, 99, 235, .18); color: #93C5FD; }
+[data-theme="dark"] .pb-i-b { background: rgba(37, 99, 235, .18); color: var(--ql-brand-300); }
 [data-theme="dark"] .pb-i-g { background: rgba(16, 185, 129, .16); color: #6EE7B7; }
 [data-theme="dark"] .pb-i-a { background: rgba(245, 158, 11, .16); color: #FCD34D; }
 [data-theme="dark"] .pb-i-r { background: rgba(239, 68, 68, .16); color: #FCA5A5; }
-[data-theme="dark"] .pb-i-n { background: rgba(148, 163, 184, .14); color: #CBD5E1; }
+[data-theme="dark"] .pb-i-n { background: rgba(148, 163, 184, .14); color: var(--ql-neutral-300); }
 .pb-up { color: var(--ql-danger-600); } .pb-dn { color: var(--ql-success-600); } .pb-flat { color: var(--ql-text-muted); }
 
 /* ── cost breakdown bar ── */
@@ -273,7 +273,7 @@
 .pb-empty { text-align: center; padding: 34px 18px; border-radius: var(--ql-radius-5xl); border: 1px dashed var(--ql-border-strong); background: var(--ql-neutral-50); }
 [data-theme="dark"] .pb-empty { background: rgba(148, 163, 184, .05); }
 .pb-empty-i { width: 42px; height: 42px; border-radius: var(--ql-radius-3xl); margin: 0 auto 10px; display: grid; place-items: center; background: var(--ql-brand-50); color: var(--ql-brand-600); }
-[data-theme="dark"] .pb-empty-i { background: rgba(37, 99, 235, .16); color: #93C5FD; }
+[data-theme="dark"] .pb-empty-i { background: rgba(37, 99, 235, .16); color: var(--ql-brand-300); }
 .pb-empty-i svg { width: 20px; height: 20px; }
 .pb-empty-t { font-size: var(--ql-text-base); font-weight: 650; }
 .pb-empty-s { font-size: var(--ql-text-sm); color: var(--ql-text-muted); margin-top: 3px; max-width: 320px; margin-inline: auto; line-height: 1.5; }

@@ -600,7 +600,7 @@ body.ql-ai-open .ql-ai-fab { display: none; }          /* never cover the input 
    chat app: the assistant is connected to this company's books right now. It pulses
    because a static green dot is decoration; a pulsing one reads as a heartbeat. */
 .ql-ai-hname { display: inline-flex; align-items: center; gap: 7px; }
-.ql-ai-live { width: 7px; height: 7px; border-radius: 50%; background: #16a34a; flex: none;
+.ql-ai-live { width: 7px; height: 7px; border-radius: 50%; background: var(--ql-success-600); flex: none;
   box-shadow: 0 0 0 0 rgba(22, 163, 74, .55); animation: qlAiLive 2.4s ease-out infinite; }
 @keyframes qlAiLive {
   0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, .5); }
@@ -820,8 +820,8 @@ body.ql-ai-open .ql-ai-fab { display: none; }          /* never cover the input 
 /* `.on` — the class wireVoice ACTUALLY toggles (shell.js rec.onstart). I wrote this
    as `.rec` first: styling a class no code applies, which is precisely how the
    freight cell shipped unstyled this morning. Grep the toggler, not your memory. */
-.ql-ai-mic.on { border-color: #dc2626 !important; color: #dc2626 !important;
-  background: #fef2f2 !important; animation: qlMicRec 1.4s ease-out infinite; }
+.ql-ai-mic.on { border-color: var(--ql-danger-600) !important; color: var(--ql-danger-600) !important;
+  background: var(--ql-danger-50) !important; animation: qlMicRec 1.4s ease-out infinite; }
 @keyframes qlMicRec {
   0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, .45); }
   70% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
@@ -901,7 +901,7 @@ body.ql-ai-open .ql-ai-fab { display: none; }          /* never cover the input 
 .ft-switch input:disabled + .ft-slider { background: #a7b4c8; opacity: .7; }
 @media (max-width: 720px) { .ft-list { grid-template-columns: 1fr; } }
 /* shared toast (finance.css redefines identically on finance pages) */
-.fin-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; font: 600 var(--ql-text-base) var(--ql-font-sans); padding: 12px 20px; border-radius: var(--ql-radius-2xl); box-shadow: 0 14px 40px rgba(15, 23, 42, .35); z-index: 300; }
+.fin-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--ql-neutral-900); color: #fff; font: 600 var(--ql-text-base) var(--ql-font-sans); padding: 12px 20px; border-radius: var(--ql-radius-2xl); box-shadow: 0 14px 40px rgba(15, 23, 42, .35); z-index: 300; }
 .fin-toast[hidden] { display: none !important; }
 
 /* ═══ Purchase Register · Groups / Insights / Filters ═══ */
@@ -946,7 +946,7 @@ body.ql-ai-open .ql-ai-fab { display: none; }          /* never cover the input 
 .pf-sel, .pf-date { border: 1px solid var(--ql-border, #e2e8f0); background: var(--ql-card); border-radius: var(--ql-radius-xl); padding: 8px 11px; font: 500 var(--ql-text-sm) var(--ql-font-sans); color: var(--ql-text, #0f172a); cursor: pointer; max-width: 180px; }
 .pf-date { cursor: text; }
 .pf-clear { border: 1px solid var(--ql-border, #e2e8f0); background: var(--ql-card); border-radius: var(--ql-radius-xl); padding: 8px 12px; font: 600 var(--ql-text-sm) var(--ql-font-sans); color: var(--ql-danger-600, #dc2626); cursor: pointer; }
-.pf-clear:hover { background: #fef2f2; }
+.pf-clear:hover { background: var(--ql-danger-50); }
 .pf-bar .sr-search { margin-left: auto; }
 @media (max-width: 640px) { .pf-bar .sr-search { margin-left: 0; width: 100%; } .pf-sel, .pf-date { flex: 1; min-width: 130px; } }
 
