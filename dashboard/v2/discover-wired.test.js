@@ -361,7 +361,12 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
 {
   ok(/function openProposal\(/.test(bare), 'discover.js has the proposal generator');
   ok(/Lime Supply Proposal/.test(bare), '  it is a Gotan-Lime supply proposal (not a stray brand)');
-  ok(/LM\.roadKm\(/.test(bare.slice(bare.indexOf('function openProposal'))) && /DEFAULT_FREIGHT/.test(bare), '  delivered price comes from the real freight engine (road-km × rate)');
+  /* The freight math now lives in the SHARED leadPricing() helper (so the quote
+     and the proposal can't quote different numbers); the proposal prices through
+     it. Assert both: the real engine is used, and the proposal routes to it. */
+  const lp = bare.slice(bare.indexOf('function leadPricing'));
+  ok(/LM\.roadKm\(/.test(lp) && /DEFAULT_FREIGHT/.test(lp), '  delivered price comes from the real freight engine (road-km × rate)');
+  ok(/leadPricing\(r\)/.test(bare.slice(bare.indexOf('function openProposal'))), '  and the proposal prices through the shared leadPricing() (same number as the quote)');
   ok(/on address confirmation/.test(bare), '  and stays honest when there are no coordinates (no invented freight)');
   ok(/window\.print\(\)/.test(bare) && /@media print/.test(html) && /pr-doc/.test(html), '  Print/Save PDF prints just the branded document');
   ok(/cdProposal/.test(bare) && /plProposal/.test(bare), '  reachable from the Company 360 drawer + the pipeline lead panel');

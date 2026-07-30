@@ -701,6 +701,9 @@ const IC_TARGET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const IC_CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>';
 const IC_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
 const IC_SEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>';
+/* A real printer glyph as SVG — the old emoji print character rendered as an
+   empty tofu box on many systems. */
+const IC_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
 const IC_USERPLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>';
 const IC_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
 const IC_MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>';
@@ -947,7 +950,7 @@ function openLeadDrawer(r) {
       </div>
       <div class="cd-sec"><div class="cd-sec-t">Actions</div>
         <div class="cd-cta">
-          ${LA ? '<button class="ql-btn ql-btn-secondary" id="cdAssess">' + IC_SPARK + 'Assess</button><button class="ql-btn ql-btn-secondary" id="cdMsg">' + IC_MAIL + 'Message</button><button class="ql-btn ql-btn-secondary" id="cdProposal">' + IC_DOC + 'Proposal</button><button class="ql-btn ql-btn-secondary" id="cdOnboard">' + IC_LINK + 'Onboarding link</button>' : ''}
+          ${LA ? '<button class="ql-btn ql-btn-secondary" id="cdAssess">' + IC_SPARK + 'Assess</button><button class="ql-btn ql-btn-secondary" id="cdMsg">' + IC_MAIL + 'Message</button><button class="ql-btn ql-btn-secondary" id="cdQuote">' + IC_DOC + 'Quote</button><button class="ql-btn ql-btn-secondary" id="cdProposal">' + IC_DOC + 'Proposal</button><button class="ql-btn ql-btn-secondary" id="cdOnboard">' + IC_LINK + 'Onboarding link</button>' : ''}
           ${waOk ? '<button class="ql-btn ql-btn-secondary" id="cdWa">WhatsApp</button>' : ''}
           ${r.phone ? `<a class="ql-btn ql-btn-secondary" href="tel:${esc(r.phone)}" style="justify-content:center">Call</a>` : ''}
           ${r.status !== 'promoted' ? '<button class="ql-btn ql-btn-primary" id="cdPromote">Promote to pipeline</button>' : '<div class="lc-dup" style="color:#15803d;background:#dcfce7;align-self:center">In your pipeline</div>'}
@@ -987,6 +990,7 @@ function openLeadDrawer(r) {
   const wire = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
   wire('cdAssess', () => openAssess(r));
   wire('cdMsg', () => openMessage(r));
+  wire('cdQuote', () => openQuote(r));
   wire('cdProposal', () => openProposal(r));
   wire('cdOnboard', () => openOnboardLink(r));
   wire('cdWa', () => window.open(WA.waLink(r.phone, ''), '_blank', 'noopener'));
@@ -1010,20 +1014,92 @@ function leadPayload(r) { return { name: r.name, industry: r.industry || '', cit
    (like ZOG's). Delivered ₹/MT comes from the real freight engine when the lead
    has coordinates; otherwise it is honestly quoted "on address confirmation".
    Numbers are labelled estimates — never invented certainties. ═══ */
-function openProposal(r) {
+/* ONE pricing computation for BOTH the Quote and the Proposal — a single source
+   of truth for the delivered ₹/MT, so the short quote and the full proposal can
+   never show a different number for the same lead. */
+function leadPricing(r) {
   r = r || {};
-  const co = (Q && Q.co) || {};
-  const seller = co.short || 'Gotan Lime Industries';
   const FC = window.FreightCore;
   const origin = LM ? LM.DEFAULT_ORIGIN : { lat: 26.35, lon: 73.55, name: 'Borunda, Rajasthan' };
   const prod = (FC && FC.PRODUCTS[0]) || { label: 'Quick Lime (CaO)', exworks: 8000, gst: 0.05 };
   const exworks = prod.exworks;
   const rate = LM ? LM.DEFAULT_FREIGHT : 4;
-  const hasGeo = (r.lat != null && r.lng != null) || (r.lat != null && r.lon != null);
+  const hasGeo = (r.lat != null && (r.lng != null || r.lon != null));
   const lon = r.lng != null ? r.lng : r.lon;
   let km = null, freight = null, delivered = null;
   if (hasGeo && LM) { km = LM.roadKm({ lat: origin.lat, lon: origin.lon }, { lat: +r.lat, lon: +lon }); freight = Math.round(km * rate); delivered = exworks + freight; }
   const tpm = +r.tonnes || +r.est_tpm || 0;
+  return { prod, origin, exworks, rate, hasGeo, km, freight, delivered, tpm, gst: prod.gst || 0.05 };
+}
+
+/* The shared document shell — the same .pr-* design the proposal uses, so the
+   quote reads as the same professional letterhead. Takes the ready-made body. */
+function prShell(id, seller, sub, metaTitle, metaSub, rightBtns, bodyHTML) {
+  const back = document.createElement('div');
+  back.className = 'pr-back'; back.id = 'prBack';
+  back.innerHTML = `<div class="pr-bar"><button class="pr-close" id="prClose">← Back to lead</button><div class="pr-bar-r">${rightBtns}</div></div>
+    <div class="pr-doc" id="prDoc">
+      <div class="pr-head"><div><div class="pr-brand">${esc(seller)}</div><div class="pr-brand-s">${esc(sub)}</div></div>
+        <div class="pr-meta">${esc(metaTitle)}${metaSub ? `<span class="pr-meta-s">${esc(metaSub)}</span>` : ''}</div></div>
+      <hr class="pr-hr">
+      ${bodyHTML}
+    </div>`;
+  document.body.appendChild(back);
+  document.getElementById('prClose').addEventListener('click', () => back.remove());
+  const pp = document.getElementById('prPrint'); if (pp) pp.addEventListener('click', () => window.print());
+  const onKey = e => { if (e.key === 'Escape') { back.remove(); document.removeEventListener('keydown', onKey); } };
+  document.addEventListener('keydown', onKey);
+  return back;
+}
+
+/* PRICE QUOTATION — the short, professional PDF (just the number and terms), a
+   sibling of the full proposal. Same letterhead; sendable straight to WhatsApp. */
+function openQuote(r) {
+  r = r || {};
+  const co = (Q && Q.co) || {};
+  const seller = co.short || 'Gotan Lime Industries';
+  const P = leadPricing(r);
+  const fmt = n => '₹' + Math.round(+n || 0).toLocaleString('en-IN');
+  const city = r.city || 'your site';
+  const dateStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+  const priceRows = P.hasGeo
+    ? `<tr><td>Ex-works (${esc(P.prod.label)})</td><td>${fmt(P.exworks)}/MT</td></tr>
+        <tr><td>Freight — ${esc(P.origin.name.split(',')[0])} → ${esc(city)} (~${P.km.toLocaleString('en-IN')} km, est.)</td><td>${fmt(P.freight)}/MT</td></tr>
+        <tr class="pr-tot"><td>Delivered price</td><td>${fmt(P.delivered)}/MT + GST</td></tr>`
+    : `<tr><td>Ex-works (${esc(P.prod.label)})</td><td>${fmt(P.exworks)}/MT</td></tr>
+        <tr><td>Freight to ${esc(city)}</td><td>on address confirmation</td></tr>
+        <tr class="pr-tot"><td>Delivered price</td><td>ex-works + freight + GST</td></tr>`;
+  const vol = (P.tpm > 0 && P.delivered)
+    ? `<div class="pr-earn"><div><div class="pr-earn-l">Estimated monthly supply value at ${P.tpm} MT/month</div><div class="pr-earn-s">Delivered ${fmt(P.delivered)}/MT × ${P.tpm} MT (indicative)</div></div><div class="pr-earn-v">${fmt(P.delivered * P.tpm)}</div></div>`
+    : '';
+  const body = `<h1 class="pr-h1">Price Quotation${r.name ? ' for ' + esc(r.name) : ''}</h1>
+    <p class="pr-lede">Thank you for your enquiry. Our delivered price for ${esc(P.prod.label)} to ${esc(city)} is below — freight included. This quotation is valid for 7 days.</p>
+    <h2 class="pr-h2">Delivered pricing</h2>
+    <table class="pr-tbl"><tr><th>Item</th><th>Rate</th></tr>${priceRows}</table>
+    ${vol}
+    <p class="pr-fine">${P.hasGeo ? 'Freight is a road-distance estimate; the exact figure is confirmed against your delivery point and load size.' : 'Share your exact delivery point and we will confirm a delivered ₹/MT within the day.'}</p>
+    <h2 class="pr-h2">Terms</h2>
+    <ul class="pr-ul"><li>GST extra as applicable (${Math.round(P.gst * 100)}%)</li><li>Minimum order by vehicle load; dispatch schedule agreed on confirmation</li><li>Payment terms as mutually agreed</li><li>Prices subject to change after the validity period</li></ul>
+    <p class="pr-sign">${esc(seller)}${co.phone ? ' · ' + esc(co.phone) : ''}</p>`;
+  const btns = `<button class="ql-btn ql-btn-secondary" id="qtWa">${IC_SEND || ''}Send on WhatsApp</button><button class="ql-btn ql-btn-primary" id="prPrint">${IC_PRINT}Print / Save PDF</button>`;
+  prShell('prBack', seller, 'Quick Lime · Hydrated Lime · Limestone — ' + (co.city || 'Gotan, Rajasthan'), 'Price Quotation', dateStr, btns, body);
+  const wa = document.getElementById('qtWa');
+  if (wa) wa.addEventListener('click', () => {
+    const line = P.hasGeo
+      ? 'Delivered ' + fmt(P.delivered) + '/MT + GST to ' + city + ' (' + P.prod.label + ').'
+      : 'Ex-works ' + fmt(P.exworks) + '/MT for ' + P.prod.label + '; freight quoted on address confirmation.';
+    const msg = seller + ' — Price Quotation' + (r.name ? ' for ' + r.name : '') + '\n\n' + line + '\nValid 7 days. Full quotation PDF available on request.';
+    const WA = window.WACore; const link = (WA && WA.waLink) ? WA.waLink(r.phone || '', msg) : 'https://wa.me/?text=' + encodeURIComponent(msg);
+    window.open(link, '_blank', 'noopener');
+  });
+}
+
+function openProposal(r) {
+  r = r || {};
+  const co = (Q && Q.co) || {};
+  const seller = co.short || 'Gotan Lime Industries';
+  const P = leadPricing(r);
+  const prod = P.prod, origin = P.origin, exworks = P.exworks, hasGeo = P.hasGeo, km = P.km, freight = P.freight, delivered = P.delivered, tpm = P.tpm;
   const fmt = n => '₹' + Math.round(+n || 0).toLocaleString('en-IN');
   const city = r.city || 'your site';
   const priceBlock = hasGeo
@@ -1042,7 +1118,7 @@ function openProposal(r) {
     : '';
   const back = document.createElement('div');
   back.className = 'pr-back'; back.id = 'prBack';
-  back.innerHTML = `<div class="pr-bar"><button class="pr-close" id="prClose">← Back to lead</button><button class="ql-btn ql-btn-primary" id="prPrint">🖶 Print / Save PDF</button></div>
+  back.innerHTML = `<div class="pr-bar"><button class="pr-close" id="prClose">← Back to lead</button><button class="ql-btn ql-btn-primary" id="prPrint">${IC_PRINT}Print / Save PDF</button></div>
     <div class="pr-doc" id="prDoc">
       <div class="pr-head"><div><div class="pr-brand">${esc(seller)}</div><div class="pr-brand-s">Quick Lime · Hydrated Lime · Limestone — ${esc(co.city || 'Gotan, Rajasthan')}</div></div>
         <div class="pr-meta">Lime Supply Proposal</div></div>
@@ -1790,6 +1866,7 @@ function pipeOpenLead(id) {
     <div class="pd-sec"><div class="pd-sec-t">${IC_SPARK}Outreach</div>
       <div class="pd-btns">
         <button class="lr-b assess" id="plStudio" type="button">${IC_SEND}Draft message</button>
+        <button class="lr-b" id="plQuote" type="button">${IC_DOC}Send quotation</button>
         <button class="lr-b msg" id="plProposal" type="button">${IC_DOC}Generate proposal</button>
         <button class="lr-b" id="plOnboard" type="button">${IC_LINK}Onboarding link</button>
       </div></div>
@@ -1817,6 +1894,7 @@ function pipeOpenLead(id) {
     website: co.website || '', crm_company: l.crm_company, crm_lead: l.id };
   const on = (id, fn) => { const b = pane.querySelector('#' + id) || document.getElementById(id); if (b) b.addEventListener('click', fn); };
   on('plStudio', () => { QLShell.closeModal(); openStudio(leadR); });
+  on('plQuote', () => { QLShell.closeModal(); openQuote(leadR); logTouch({ kind: 'quote', crm_company: l.crm_company, crm_lead: l.id, body: 'Quotation generated for ' + (co.name || '') }); });
   on('plProposal', () => { QLShell.closeModal(); openProposal(leadR); logTouch({ kind: 'proposal', crm_company: l.crm_company, crm_lead: l.id, body: 'Proposal generated for ' + (co.name || '') }); });
   on('plOnboard', () => { QLShell.closeModal(); openOnboardLink(leadR); });
   on('plNextSave', async () => {

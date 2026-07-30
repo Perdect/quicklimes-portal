@@ -516,7 +516,15 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .pr-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
   .pr-brand { font: 800 20px var(--ql-font-sans); color: #0f172a; }
   .pr-brand-s { font: 500 12.5px var(--ql-font-sans); color: #64748b; margin-top: 3px; }
-  .pr-meta { font: 600 12.5px var(--ql-font-sans); color: #64748b; text-align: right; }
+  .pr-meta { font: 600 12.5px var(--ql-font-sans); color: #64748b; text-align: right; line-height: 1.5; }
+  .pr-meta-s { display: block; font-weight: 500; color: #94a3b8; margin-top: 2px; }
+  .pr-bar-r { display: flex; gap: 8px; align-items: center; }
+  /* polish (2026-07-30): a thin brand accent across the top of the document, so
+     the quote / proposal reads as a designed letterhead like the reference. */
+  .pr-doc { position: relative; overflow: hidden; }
+  .pr-doc::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, var(--ql-brand-600, #2563eb), var(--ql-brand-400, #60a5fa)); }
+  .pr-head { padding-top: 6px; }
   .pr-hr { border: none; border-top: 1px solid #e2e8f0; margin: 20px 0 24px; }
   .pr-h1 { font: 800 26px/1.2 var(--ql-font-sans); color: #0f172a; margin: 0 0 14px; letter-spacing: -.02em; }
   .pr-lede { font: 400 14.5px/1.7 var(--ql-font-sans); color: #334155; margin: 0 0 26px; }
@@ -532,7 +540,10 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .pr-earn-l { font: 700 14px var(--ql-font-sans); color: #0f172a; }
   .pr-earn-s { font: 500 12px var(--ql-font-sans); color: #64748b; margin-top: 3px; }
   .pr-earn-v { font: 800 26px var(--ql-font-sans); color: #15803d; white-space: nowrap; }
-  .pr-ul { margin: 0; padding-left: 20px; font: 400 14px/1.9 var(--ql-font-sans); color: #334155; }
+  /* Green-tick checklist, like the reference's "What's Included". */
+  .pr-ul { margin: 0; padding: 0; list-style: none; font: 400 14px/1.6 var(--ql-font-sans); color: #334155; }
+  .pr-ul li { position: relative; padding-left: 28px; margin-bottom: 10px; }
+  .pr-ul li::before { content: '✓'; position: absolute; left: 4px; top: 0; color: #16a34a; font-weight: 800; }
   .pr-sign { font: 400 14px/1.7 var(--ql-font-sans); color: #334155; margin-top: 26px; }
   @media print {
     body * { visibility: hidden !important; }
@@ -1065,6 +1076,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./freight-core.js?v=f1"></script>
 <script src="./freight.js?v=f2"></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d51"></script>
+<script src="./discover.js?v=d52"></script>
 </body>
 </html>
