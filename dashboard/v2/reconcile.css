@@ -715,7 +715,7 @@
    Beside the rows it filters, not in the page header: the header month picker
    scopes the whole page, this narrows what you are working through. */
 .rc-dwrap { position: relative; }
-.rc-dbtn { display: inline-flex; align-items: center; gap: 7px; font: 600 12.5px var(--ql-font-sans);
+.rc-dbtn { display: inline-flex; align-items: center; gap: 7px; font: 600 var(--ql-text-sm) var(--ql-font-sans);
   color: var(--ql-text-secondary); background: var(--ql-card); border: 1px solid var(--ql-border);
   border-radius: var(--ql-radius-xl); padding: 8px 12px; cursor: pointer; white-space: nowrap; }
 .rc-dbtn:hover { color: var(--ql-text); border-color: var(--ql-brand-400, #60a5fa); }
@@ -727,20 +727,20 @@
   box-shadow: 0 12px 32px rgba(15,23,42,.14); padding: 10px; }
 [data-theme="dark"] .rc-dmenu { box-shadow: 0 12px 32px rgba(0,0,0,.5); }
 .rc-dpre { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
-.rc-dpb { font: 600 11.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-neutral-50);
+.rc-dpb { font: 600 var(--ql-text-xs) var(--ql-font-sans); color: var(--ql-text-secondary); background: var(--ql-neutral-50);
   border: 1px solid transparent; border-radius: var(--ql-radius-md); padding: 7px 9px; cursor: pointer; text-align: left; }
 .rc-dpb:hover { color: var(--ql-text); border-color: var(--ql-border); }
 .rc-dpb.on { background: var(--ql-brand-50, #eff6ff); color: var(--ql-brand-700, #1d4ed8); border-color: var(--ql-brand-400, #60a5fa); }
 [data-theme="dark"] .rc-dpb { background: rgba(255,255,255,.04); }
 [data-theme="dark"] .rc-dpb.on { background: rgba(37,99,235,.18); color: #93c5fd; }
 .rc-drow { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
-.rc-drow label { font: 600 11px var(--ql-font-sans); color: var(--ql-text-muted); width: 34px; flex: none; }
-.rc-drow input { flex: 1; min-width: 0; font: 500 12.5px var(--ql-font-sans); color: var(--ql-text);
+.rc-drow label { font: 600 var(--ql-text-xs) var(--ql-font-sans); color: var(--ql-text-muted); width: 34px; flex: none; }
+.rc-drow input { flex: 1; min-width: 0; font: 500 var(--ql-text-sm) var(--ql-font-sans); color: var(--ql-text);
   background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); padding: 6px 8px; }
 .rc-dfoot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
-.rc-dclr { font: 600 11.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: none; border: 0; cursor: pointer; padding: 4px 2px; }
+.rc-dclr { font: 600 var(--ql-text-xs) var(--ql-font-sans); color: var(--ql-text-secondary); background: none; border: 0; cursor: pointer; padding: 4px 2px; }
 .rc-dclr:hover { color: #dc2626; }
-.rc-dn { font: 500 11px var(--ql-font-sans); color: var(--ql-text-muted); }
+.rc-dn { font: 500 var(--ql-text-xs) var(--ql-font-sans); color: var(--ql-text-muted); }
 
 /* ── ONE dense summary strip (replaces the four KPI cards) ─────────────────
    The cards cost ~100px above the table for four numbers read at a glance.
@@ -749,9 +749,9 @@
   background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-3xl);
   padding: 9px 12px; margin-bottom: var(--ql-space-4, 16px); }
 .rc-s2 { display: inline-flex; align-items: baseline; gap: 7px; padding: 4px 10px; border-radius: var(--ql-radius-pill);
-  font: 500 12px var(--ql-font-sans); color: var(--ql-text-secondary); white-space: nowrap; }
+  font: 500 var(--ql-text-sm) var(--ql-font-sans); color: var(--ql-text-secondary); white-space: nowrap; }
 .rc-s2 svg { width: 13px; height: 13px; align-self: center; flex: none; }
-.rc-s2 b { font: 800 15px var(--ql-font-sans); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ql-text); }
+.rc-s2 b { font: 800 var(--ql-text-md) var(--ql-font-sans); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ql-text); }
 .rc-s2 b small { font-size: var(--ql-text-xs); font-weight: 700; color: var(--ql-text-muted); }
 .rc-s2 i { font-style: normal; }
 .rc-s2.g { background: #f0fdf4; color: #15803d; } .rc-s2.g b { color: #15803d; }
@@ -768,13 +768,13 @@
    Replaces the AI-confidence bar, which showed how sure the matcher was but
    never WHAT it matched. Confidence still lives in the expandable row. */
 .rc-mt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.rc-mt-d { font: 700 12.5px var(--ql-font-sans); color: var(--ql-text);
+.rc-mt-d { font: 700 var(--ql-text-sm) var(--ql-font-sans); color: var(--ql-text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rc-mt-w { font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-muted);
+.rc-mt-w { font: 500 var(--ql-text-xs) var(--ql-font-sans); color: var(--ql-text-muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── exception-first toggle ── */
-.rc-exbtn { display: inline-flex; align-items: center; gap: 7px; font: 600 12.5px var(--ql-font-sans);
+.rc-exbtn { display: inline-flex; align-items: center; gap: 7px; font: 600 var(--ql-text-sm) var(--ql-font-sans);
   color: var(--ql-text-secondary); background: var(--ql-card); border: 1px solid var(--ql-border);
   border-radius: var(--ql-radius-xl); padding: 8px 12px; cursor: pointer; white-space: nowrap; }
 .rc-exbtn:hover { color: var(--ql-text); border-color: var(--ql-brand-400, #60a5fa); }
@@ -785,12 +785,12 @@
 /* ── audit trail view ─────────────────────────────────────────────────────
    Read-only, and deliberately not month-scoped: a trail you can quietly
    narrow is not a trail. */
-.rc-audit-t { font: 500 12px var(--ql-font-sans); color: var(--ql-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.rc-audit-a { font: 700 12px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-neutral-50); border-radius: var(--ql-radius-pill); padding: 3px 10px; white-space: nowrap; }
+.rc-audit-t { font: 500 var(--ql-text-sm) var(--ql-font-sans); color: var(--ql-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rc-audit-a { font: 700 var(--ql-text-sm) var(--ql-font-sans); color: var(--ql-text); background: var(--ql-neutral-50); border-radius: var(--ql-radius-pill); padding: 3px 10px; white-space: nowrap; }
 [data-theme="dark"] .rc-audit-a { background: rgba(255,255,255,.07); }
-.rc-audit-c { font: 500 12px var(--ql-font-sans); color: var(--ql-text-secondary); }
-.rc-audit-b { font: 600 12px var(--ql-font-sans); color: var(--ql-text-secondary); white-space: nowrap; }
-.rc-audit-n { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); margin-left: 10px; }
+.rc-audit-c { font: 500 var(--ql-text-sm) var(--ql-font-sans); color: var(--ql-text-secondary); }
+.rc-audit-b { font: 600 var(--ql-text-sm) var(--ql-font-sans); color: var(--ql-text-secondary); white-space: nowrap; }
+.rc-audit-n { font: 500 var(--ql-text-sm) var(--ql-font-sans); color: var(--ql-text-secondary); margin-left: 10px; }
 
 /* Customer vs Supplier — the side of the trade, where the party name used to
    be repeated from the Transaction column. */
@@ -802,11 +802,11 @@
 
 /* ── duplicate cleanup banner ── */
 .rc-dupbar { display: flex; align-items: center; gap: 10px; background: #fef2f2; border: 1px solid #fecaca;
-  border-radius: var(--ql-radius-2xl); padding: 9px 14px; margin-bottom: 10px; font: 500 13px var(--ql-font-sans); color: #991b1b; }
+  border-radius: var(--ql-radius-2xl); padding: 9px 14px; margin-bottom: 10px; font: 500 var(--ql-text-base) var(--ql-font-sans); color: #991b1b; }
 [data-theme="dark"] .rc-dupbar { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); color: #fca5a5; }
 .rc-dupbar svg { width: 15px; height: 15px; flex: none; }
 .rc-dupbar b { font-weight: 800; }
-.rc-dupbar-b { margin-left: auto; font: 700 12px var(--ql-font-sans); color: #fff; background: #dc2626; border: 0;
+.rc-dupbar-b { margin-left: auto; font: 700 var(--ql-text-sm) var(--ql-font-sans); color: #fff; background: #dc2626; border: 0;
   border-radius: var(--ql-radius-pill); padding: 7px 14px; cursor: pointer; white-space: nowrap; }
 .rc-dupbar-b:hover { background: #b91c1c; }
 
@@ -828,8 +828,8 @@
 .rc-more-it:hover { background: var(--ql-neutral-50); }
 [data-theme="dark"] .rc-more-it:hover { background: rgba(255,255,255,.05); }
 .rc-more-it svg { width: 15px; height: 15px; grid-row: 1 / 3; color: var(--ql-text-secondary); }
-.rc-more-it span { font: 600 13px var(--ql-font-sans); color: var(--ql-text); }
-.rc-more-it em { font: 500 11px var(--ql-font-sans); font-style: normal; color: var(--ql-text-muted); }
+.rc-more-it span { font: 600 var(--ql-text-base) var(--ql-font-sans); color: var(--ql-text); }
+.rc-more-it em { font: 500 var(--ql-text-xs) var(--ql-font-sans); font-style: normal; color: var(--ql-text-muted); }
 /* the merged insights card: AI digest as the summary row */
 .rc-fo-h .rc-aibar-ic { flex: none; }
 .rc-fo-h .rc-aibar-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -839,9 +839,9 @@
 .rc-stmts { display: flex; flex-direction: column; gap: 8px; }
 .rc-stmt { display: flex; align-items: center; gap: 12px; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-2xl); padding: 10px 12px; }
 .rc-stmt-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.rc-stmt-t b { font: 700 13px var(--ql-font-sans); color: var(--ql-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rc-stmt-t span { font: 500 11.5px var(--ql-font-sans); color: var(--ql-text-muted); }
-.rc-stmt-del { flex: none; font: 700 11.5px var(--ql-font-sans); color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--ql-radius-pill); padding: 6px 12px; cursor: pointer; }
+.rc-stmt-t b { font: 700 var(--ql-text-base) var(--ql-font-sans); color: var(--ql-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-stmt-t span { font: 500 var(--ql-text-xs) var(--ql-font-sans); color: var(--ql-text-muted); }
+.rc-stmt-del { flex: none; font: 700 var(--ql-text-xs) var(--ql-font-sans); color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--ql-radius-pill); padding: 6px 12px; cursor: pointer; }
 .rc-stmt-del:hover { background: #fee2e2; }
 [data-theme="dark"] .rc-stmt-del { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); color: #fca5a5; }
 .rc-stmt-foot { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }

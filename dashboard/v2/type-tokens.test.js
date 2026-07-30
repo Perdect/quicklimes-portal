@@ -9,9 +9,9 @@
  * 2xl 22 · 3xl 28 · 4xl 32). This fails the moment a NEW hardcoded px font-size
  * appears, so the scale stays the source of truth.
  *
- * SCOPE: standalone `font-size:` only. The `font:` SHORTHAND still carries
- * literal sizes (font: 700 11.5px …) — riskier to rewrite and tracked as P0.2b;
- * this test counts them so the follow-up has a number and they can't grow.
+ * SCOPE: standalone `font-size:` AND the `font:` shorthand (font: 700 11.5px …)
+ * — both are now on the scale (P0.2 + P0.2b). Neither may carry a literal px
+ * size again.
  *
  *   node type-tokens.test.js
  */
@@ -48,14 +48,13 @@ for (const f of fs.readdirSync(__dirname)) {
 }
 ok(uses >= 400, `the scale is used across components (${uses} token font-sizes)`);
 
-/* 4. the `font:` shorthand debt is measured and capped (P0.2b follow-up) —
-   it may not GROW past where it is today while P0.2b is pending. */
+/* 4. the `font:` shorthand carries NO literal px size either (P0.2b). */
 let shorthand = 0;
 for (const f of fs.readdirSync(__dirname)) {
-  if (!f.endsWith('.css')) continue;
+  if (!f.endsWith('.css') || f === 'tokens.css') continue;
   shorthand += (fs.readFileSync(path.join(__dirname, f), 'utf8').match(/font:\s*\d+\s+[\d.]+px/g) || []).length;
 }
-ok(shorthand <= 110, `font: shorthand literal sizes are capped at today's count (${shorthand} ≤ 110) — no new drift while P0.2b is pending`);
+ok(shorthand === 0, `the font: shorthand carries no literal px size (${shorthand} found) — the whole type scale is enforced`);
 
 console.log(fail ? `\n❌ FAILED — ${fail}\n` : `\n✅ PASSED — ${pass} checks; every standalone font-size is on the type scale\n`);
 process.exit(fail ? 1 : 0);
