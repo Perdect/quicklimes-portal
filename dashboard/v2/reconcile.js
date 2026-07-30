@@ -976,7 +976,7 @@ function monthGroupBar(g, first) {
   const dr = g.rows.reduce((a, t) => a + (t.debit || 0), 0);
   const todo = g.rows.filter(needsReview).length;
   const collapsed = ST.collapsed.has(g.key);
-  return `<tr class="qx-grp ${collapsed ? 'collapsed' : ''}" data-grp="${esc(g.key)}"><td colspan="7">
+  return `<tr class="qx-grp ${collapsed ? 'collapsed' : ''}" data-grp="${esc(g.key)}"><td colspan="9">
     <div class="qx-grp-bar ${first ? 'first' : ''}">
       <svg class="qx-grp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       <b>${esc(g.label)}</b>
@@ -1155,11 +1155,13 @@ function viewHTML() {
     <td class="rc-cbx"><button class="rc-cb${sel ? ' on' : ''}" data-sel="${t.id}" title="Select">${sel ? svg(IC.ck) : ''}</button></td>
     <td class="rc-mut rc-nowrap">${fDS(t.date)}</td>
     <td class="rc-party">${partyCell(t)}</td>
+    <td class="rc-typecell">${typeCell(t)}</td>
     <td class="r">${amountCell(t)}</td>
     <td>${badge(t)}</td>
+    <td class="rc-aicell">${confCell(t)}</td>
     <td>${matchedCell(t)}</td>
     <td class="rc-actcell">${actionCell(t)}</td>
-  </tr>${open ? `<tr class="rc-xrow"><td colspan="7">${expandHTML(t)}</td></tr>` : ''}`; };
+  </tr>${open ? `<tr class="rc-xrow"><td colspan="9">${expandHTML(t)}</td></tr>` : ''}`; };
 
   /* Group only when there is more than one month to separate. */
   const capped = rows.slice(0, ST.cap);
@@ -1171,9 +1173,9 @@ function viewHTML() {
         monthGroupBar(g, i === 0) +
         (ST.collapsed.has(g.key) ? '' : g.rows.map(rowHTML).join(''))
       ).join('');
-  const moreBar = more > 0 ? `<tr><td colspan="7" class="rc-morebar"><button class="ql-btn ql-btn-secondary" data-showmore>Show ${Math.min(300, more)} more (${more.toLocaleString('en-IN')} remaining)</button></td></tr>` : '';
+  const moreBar = more > 0 ? `<tr><td colspan="9" class="rc-morebar"><button class="ql-btn ql-btn-secondary" data-showmore>Show ${Math.min(300, more)} more (${more.toLocaleString('en-IN')} remaining)</button></td></tr>` : '';
   return dupBar + `<div class="rc-tablewrap"><table class="rc-table rc-table2 rc-v3">
-    <thead><tr><th class="rc-cbx"></th><th>Date</th><th>Transaction</th><th class="r">Amount</th><th>Status</th><th>Reconciled against</th><th></th></tr></thead>
+    <thead><tr><th class="rc-cbx"></th><th>Date</th><th>Transaction</th><th>Type</th><th class="r">Amount</th><th>Status</th><th>AI</th><th>Reconciled against</th><th></th></tr></thead>
     <tbody>${body}${moreBar}</tbody></table></div>`;
 }
 /* ── v3: confidence indicator (bar + %) — the ONE place the number is drawn ── */
@@ -1221,7 +1223,6 @@ function expandHTML(t) {
       <div class="rc-x-h">Narration</div>
       <div class="rc-x-nar">${esc(t.raw || t.desc || '—')}</div>
       ${ids ? `<div class="rc-x-ids">${esc(ids)}</div>` : ''}
-      <div class="rc-x-type">${typeCell(t)}</div>
     </div>
     <div class="rc-x-col">
       <div class="rc-x-h">Suggested match</div>
@@ -1346,8 +1347,12 @@ function suggestCell(t) {
    the same number the Status badge already carries ("Partial · 80%"), which this
    function's own comment used to call "the page disagreeing with itself". One
    fact, one place. A dead renderer is what someone re-wires by accident later. */
+/* Compact row actions. The full-width "Review" text button repeated on every
+   row was dead weight — the whole row is already clickable to open review. This
+   keeps a small review icon + the More kebab, giving the width back to data. */
 function actionCell(t) {
-  return `<button class="rc-review" data-open="${t.id}">Review</button><button class="rc-kebab" data-more="${t.id}" title="More">${svg(IC.dots || '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>')}</button>`;
+  return `<button class="rc-ib rc-review-ic" data-open="${t.id}" title="Review / match">${svg(IC.eye || '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>')}</button>`
+    + `<button class="rc-ib rc-kebab" data-more="${t.id}" title="More">${svg(IC.dots || '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>')}</button>`;
 }
 /* ONE place decides which parties the ledger shows — the toolbar's counts, the
    list, the header totals and the export all call this. Two implementations would
