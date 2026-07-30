@@ -67,26 +67,26 @@
 .qx-glass .qx-dp-top { display: flex; align-items: flex-start; gap: 14px; }
 .qx-glass .qx-dp-idt { min-width: 0; flex: 1; }
 .qx-glass .qx-dp-t {
-  font-size: 20px; font-weight: 700; letter-spacing: -.02em; line-height: 1.25;
+  font-size: var(--ql-text-xl); font-weight: 700; letter-spacing: -.02em; line-height: 1.25;
   overflow: hidden; text-overflow: ellipsis;
 }
-.qx-glass .qx-dp-s { font-size: 12.5px; color: var(--ql-text-secondary); margin-top: 3px; }
+.qx-glass .qx-dp-s { font-size: var(--ql-text-sm); color: var(--ql-text-secondary); margin-top: 3px; }
 
 /* supplier avatar: the initial on a brand gradient — no logo service to call,
    and a fabricated logo would be a lie about a real company */
 .qx-dp-av {
   width: 46px; height: 46px; flex: none; border-radius: var(--ql-radius-3xl);
   display: grid; place-items: center;
-  font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -.02em;
+  font-size: var(--ql-text-xl); font-weight: 700; color: #fff; letter-spacing: -.02em;
   background: linear-gradient(135deg, var(--ql-brand-500) 0%, var(--ql-brand-700) 100%);
   box-shadow: 0 6px 16px -6px rgba(37, 99, 235, .60), 0 0 0 1px rgba(255, 255, 255, .18) inset;
 }
 .qx-dp-hr { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
-.qx-dp-amt { font-size: 19px; font-weight: 700; letter-spacing: -.02em; white-space: nowrap; }
-.qx-dp-amt small { display: block; font-size: 10px; font-weight: 600; color: var(--ql-text-muted); text-align: right; letter-spacing: .04em; text-transform: uppercase; }
+.qx-dp-amt { font-size: var(--ql-text-xl); font-weight: 700; letter-spacing: -.02em; white-space: nowrap; }
+.qx-dp-amt small { display: block; font-size: var(--ql-text-2xs); font-weight: 600; color: var(--ql-text-muted); text-align: right; letter-spacing: .04em; text-transform: uppercase; }
 
 /* status pill */
-.pb-st { font-size: 10.5px; font-weight: 700; padding: 4px 10px; border-radius: var(--ql-radius-pill); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.pb-st { font-size: var(--ql-text-2xs); font-weight: 700; padding: 4px 10px; border-radius: var(--ql-radius-pill); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
 .pb-st-paid { background: var(--ql-success-50); color: var(--ql-success-700); box-shadow: 0 0 0 1px var(--ql-success-100) inset; }
 .pb-st-pend { background: var(--ql-warning-50); color: var(--ql-warning-700); box-shadow: 0 0 0 1px var(--ql-warning-100) inset; }
 .pb-st-over { background: var(--ql-danger-50); color: var(--ql-danger-700); box-shadow: 0 0 0 1px var(--ql-danger-100) inset; }
@@ -159,7 +159,7 @@
 [data-theme="dark"] .pb-card { background: rgba(30, 41, 59, .44); }
 .pb-card-h {
   display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
-  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ql-text-muted);
+  font-size: var(--ql-text-xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ql-text-muted);
 }
 .pb-card-h svg { width: 13px; height: 13px; }
 .pb-card-h .pb-h-act { margin-left: auto; text-transform: none; letter-spacing: 0; }
@@ -176,10 +176,10 @@
   background: radial-gradient(circle, rgba(255, 255, 255, .28), transparent 70%);
   pointer-events: none;
 }
-.pb-sum-l { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .82; }
-.pb-sum-v { font-size: 27px; font-weight: 700; letter-spacing: -.03em; margin: 4px 0 2px; }
-.pb-sum-s { font-size: 11.5px; opacity: .86; }
-.pb-row { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--ql-divider); font-size: 13px; }
+.pb-sum-l { font-size: var(--ql-text-2xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .82; }
+.pb-sum-v { font-size: var(--ql-text-3xl); font-weight: 700; letter-spacing: -.03em; margin: 4px 0 2px; }
+.pb-sum-s { font-size: var(--ql-text-xs); opacity: .86; }
+.pb-row { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--ql-divider); font-size: var(--ql-text-base); }
 .pb-row:last-child { border-bottom: none; }
 /* The rail is 296px. Left to wrap, "Bill amount" and "ITC available" break over
    two lines against their figure and the card reads as a mess — so the label
@@ -191,7 +191,7 @@
 .pb-row > span svg { width: 14px; height: 14px; flex: none; }
 .pb-row > b { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pb-row-tot { border-top: 2px solid var(--ql-text); border-bottom: none; margin-top: 4px; padding-top: 10px; }
-.pb-row-tot > b { font-size: 16px; }
+.pb-row-tot > b { font-size: var(--ql-text-lg); }
 /* a SUBTOTAL inside a breakdown — the bill before freight is added. Ruled above
    like a total, but lighter, so the eye reads taxable+GST=bill, +freight=landed
    as two steps rather than one flat list. */
@@ -210,9 +210,9 @@
 .pb-kpi:hover { transform: translateY(-2px); box-shadow: var(--ql-shadow-md); }
 .pb-kpi-i { width: 26px; height: 26px; border-radius: var(--ql-radius-md); display: grid; place-items: center; margin-bottom: 8px; }
 .pb-kpi-i svg { width: 14px; height: 14px; }
-.pb-kpi-l { font-size: 10.5px; font-weight: 600; color: var(--ql-text-muted); letter-spacing: .03em; text-transform: uppercase; }
-.pb-kpi-v { font-size: 17px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
-.pb-kpi-d { font-size: 11px; font-weight: 600; margin-top: 3px; }
+.pb-kpi-l { font-size: var(--ql-text-2xs); font-weight: 600; color: var(--ql-text-muted); letter-spacing: .03em; text-transform: uppercase; }
+.pb-kpi-v { font-size: var(--ql-text-lg); font-weight: 700; letter-spacing: -.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.pb-kpi-d { font-size: var(--ql-text-xs); font-weight: 600; margin-top: 3px; }
 .pb-i-b { background: var(--ql-brand-50); color: var(--ql-brand-600); }
 .pb-i-g { background: var(--ql-success-50); color: var(--ql-success-600); }
 .pb-i-a { background: var(--ql-warning-50); color: var(--ql-warning-600); }
@@ -228,7 +228,7 @@
 /* ── cost breakdown bar ── */
 .pb-bar { display: flex; height: 10px; border-radius: var(--ql-radius-pill); overflow: hidden; background: var(--ql-neutral-100); margin: 4px 0 10px; }
 .pb-bar > i { display: block; height: 100%; transition: width .5s var(--ql-ease-out); }
-.pb-leg { display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 11.5px; color: var(--ql-text-secondary); }
+.pb-leg { display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: var(--ql-text-xs); color: var(--ql-text-secondary); }
 .pb-leg > span { display: inline-flex; align-items: center; gap: 6px; }
 .pb-leg i { width: 8px; height: 8px; border-radius: var(--ql-radius-xs); }
 
@@ -241,7 +241,7 @@
   transform-origin: bottom; animation: pbGrow .5s var(--ql-ease-out) both;
 }
 .pb-tr-b.now { background: linear-gradient(180deg, var(--ql-brand-600), var(--ql-brand-800)); box-shadow: 0 0 0 2px var(--ql-brand-100); }
-.pb-tr-x { font-size: 9.5px; color: var(--ql-text-muted); white-space: nowrap; }
+.pb-tr-x { font-size: var(--ql-text-2xs); color: var(--ql-text-muted); white-space: nowrap; }
 @keyframes pbGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 
 /* ── AI insights ── */
@@ -250,9 +250,9 @@
   background: linear-gradient(135deg, rgba(37, 99, 235, .08), rgba(139, 92, 246, .08));
   border: 1px solid rgba(37, 99, 235, .18);
 }
-.pb-ins { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--ql-divider); font-size: 12.5px; line-height: 1.5; }
+.pb-ins { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--ql-divider); font-size: var(--ql-text-sm); line-height: 1.5; }
 .pb-ins:last-child { border-bottom: none; }
-.pb-ins-i { width: 20px; height: 20px; border-radius: var(--ql-radius-sm); flex: none; display: grid; place-items: center; font-size: 11px; }
+.pb-ins-i { width: 20px; height: 20px; border-radius: var(--ql-radius-sm); flex: none; display: grid; place-items: center; font-size: var(--ql-text-xs); }
 .pb-ins-i svg { width: 12px; height: 12px; }
 
 /* ── timeline ── */
@@ -266,8 +266,8 @@
 .pb-tl-i.done::before { background: var(--ql-success-500); box-shadow: 0 0 0 3px var(--ql-success-100); }
 .pb-tl-i.now::before { background: var(--ql-brand-600); box-shadow: 0 0 0 3px var(--ql-brand-100); animation: pbPulse 2s ease-out infinite; }
 @keyframes pbPulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, .5); } 70% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
-.pb-tl-t { font-size: 13px; font-weight: 650; }
-.pb-tl-s { font-size: 11.5px; color: var(--ql-text-muted); margin-top: 1px; }
+.pb-tl-t { font-size: var(--ql-text-base); font-weight: 650; }
+.pb-tl-s { font-size: var(--ql-text-xs); color: var(--ql-text-muted); margin-top: 1px; }
 
 /* ── empty states ── */
 .pb-empty { text-align: center; padding: 34px 18px; border-radius: var(--ql-radius-5xl); border: 1px dashed var(--ql-border-strong); background: var(--ql-neutral-50); }
@@ -275,13 +275,13 @@
 .pb-empty-i { width: 42px; height: 42px; border-radius: var(--ql-radius-3xl); margin: 0 auto 10px; display: grid; place-items: center; background: var(--ql-brand-50); color: var(--ql-brand-600); }
 [data-theme="dark"] .pb-empty-i { background: rgba(37, 99, 235, .16); color: #93C5FD; }
 .pb-empty-i svg { width: 20px; height: 20px; }
-.pb-empty-t { font-size: 13.5px; font-weight: 650; }
-.pb-empty-s { font-size: 12px; color: var(--ql-text-muted); margin-top: 3px; max-width: 320px; margin-inline: auto; line-height: 1.5; }
+.pb-empty-t { font-size: var(--ql-text-base); font-weight: 650; }
+.pb-empty-s { font-size: var(--ql-text-sm); color: var(--ql-text-muted); margin-top: 3px; max-width: 320px; margin-inline: auto; line-height: 1.5; }
 
 /* ── AI ask chips ── */
 .pb-asks { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
 .pb-ask {
-  font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: var(--ql-radius-pill); cursor: pointer;
+  font-size: var(--ql-text-sm); font-weight: 600; padding: 7px 12px; border-radius: var(--ql-radius-pill); cursor: pointer;
   background: rgba(255, 255, 255, .8); border: 1px solid var(--ql-border); color: var(--ql-text);
   transition: transform .14s var(--ql-ease-out), border-color .14s, box-shadow .14s;
 }
@@ -317,9 +317,9 @@
   .qx-glass .qx-dp-body { overflow: visible; padding: 16px 16px 56px; }
   .qx-glass .qx-dp-head { padding: 16px 16px 0; }
   .qx-glass .qx-dp-tabs { padding: 10px 16px; }
-  .qx-glass .qx-dp-t { font-size: 17px; }
-  .qx-dp-av { width: 40px; height: 40px; border-radius: var(--ql-radius-2xl); font-size: 16px; }
-  .qx-dp-amt { font-size: 16px; }
+  .qx-glass .qx-dp-t { font-size: var(--ql-text-lg); }
+  .qx-dp-av { width: 40px; height: 40px; border-radius: var(--ql-radius-2xl); font-size: var(--ql-text-lg); }
+  .qx-dp-amt { font-size: var(--ql-text-lg); }
   .pb-kpis { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -335,7 +335,7 @@
    So: the value is just a number, styled exactly like every other amount in the
    table. The affordance appears when you hover the ROW — the standard inline-edit
    pattern: quiet until you go looking, obvious the moment you do. */
-.pfr-edit { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ql-text);
+.pfr-edit { font: inherit; font-size: var(--ql-text-sm); font-weight: 600; color: var(--ql-text);
   background: transparent; border: 1px solid transparent; border-radius: var(--ql-radius-md);
   padding: 2px 7px; margin: -2px -7px; cursor: pointer; font-variant-numeric: tabular-nums;
   display: inline-flex; align-items: center; gap: 5px;
@@ -360,7 +360,7 @@
 /* The freight input — it lives IN the cell, sized to it, so the row never jumps.
    Replaces a native prompt() that greyed the whole page to ask for one number. */
 .pfr-inp {
-  font: inherit; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+  font: inherit; font-size: var(--ql-text-sm); font-weight: 600; font-variant-numeric: tabular-nums;
   width: 92px; max-width: 100%; padding: 3px 7px; margin: -3px 0;
   border: 1px solid var(--ql-brand-600); border-radius: var(--ql-radius-md);
   background: var(--ql-card); color: var(--ql-text);

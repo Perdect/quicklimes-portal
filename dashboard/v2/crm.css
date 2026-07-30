@@ -10,15 +10,15 @@
   box-shadow: var(--ql-shadow-sm); overflow: hidden; }
 .crm-ai-head { display: flex; align-items: center; gap: 8px; padding: 11px 15px 3px; }
 .crm-ai-head svg { width: 16px; height: 16px; fill: var(--ql-brand-500); stroke: none; }
-.crm-ai-head span { font-weight: 800; font-size: 13px; letter-spacing: -.01em; background: linear-gradient(90deg, var(--ql-brand-600), #8b5cf6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-.crm-ai-head em { font-style: normal; font-size: 11px; color: var(--ql-text-secondary); margin-left: auto; }
+.crm-ai-head span { font-weight: 800; font-size: var(--ql-text-base); letter-spacing: -.01em; background: linear-gradient(90deg, var(--ql-brand-600), #8b5cf6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.crm-ai-head em { font-style: normal; font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin-left: auto; }
 .crm-ai-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 8px 13px 14px; }
 .crm-ai-c { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border-radius: var(--ql-radius-lg, 12px);
   background: var(--ql-card); border: 1px solid var(--ql-border); }
-.crm-ai-ic { font-size: 19px; line-height: 1; flex: none; margin-top: 1px; }
+.crm-ai-ic { font-size: var(--ql-text-xl); line-height: 1; flex: none; margin-top: 1px; }
 .crm-ai-tx { min-width: 0; }
-.crm-ai-tx b { display: block; font-size: 12.5px; font-weight: 700; color: var(--ql-text); line-height: 1.25; }
-.crm-ai-tx span { display: block; font-size: 11.5px; color: var(--ql-text-secondary); margin-top: 2px; line-height: 1.35; }
+.crm-ai-tx b { display: block; font-size: var(--ql-text-sm); font-weight: 700; color: var(--ql-text); line-height: 1.25; }
+.crm-ai-tx span { display: block; font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin-top: 2px; line-height: 1.35; }
 .crm-ai-c.t-rose { border-left: 3px solid #ef4444; }
 .crm-ai-c.t-amber { border-left: 3px solid #f59e0b; }
 .crm-ai-c.t-blue { border-left: 3px solid var(--ql-brand-500); }
@@ -30,25 +30,25 @@
 .crm-av { flex: none; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #fff;
   background: var(--av); box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); letter-spacing: -.02em; }
 .crm-cust-t { display: flex; flex-direction: column; min-width: 0; }
-.crm-cust-n { font-weight: 600; font-size: 13.5px; color: var(--ql-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.crm-cust-s { font-size: 11px; color: var(--ql-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crm-cust-n { font-weight: 600; font-size: var(--ql-text-base); color: var(--ql-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crm-cust-s { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── segment pill ── */
 .crm-seg { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 7px; border-radius: var(--ql-radius-pill);
-  font-size: 11.5px; font-weight: 700; background: var(--sb); color: var(--sf); white-space: nowrap; }
+  font-size: var(--ql-text-xs); font-weight: 700; background: var(--sb); color: var(--sf); white-space: nowrap; }
 .crm-seg i { width: 6px; height: 6px; border-radius: 50%; flex: none; }
 
 /* ── health bar (in table) ── */
 .crm-hb { display: flex; align-items: center; gap: 7px; justify-content: flex-end; }
 .crm-hb-t { width: 46px; height: 6px; border-radius: var(--ql-radius-pill); background: var(--ql-neutral-150); overflow: hidden; }
 .crm-hb-f { height: 100%; border-radius: var(--ql-radius-pill); transition: width .3s ease; }
-.crm-hb b { font-size: 12px; font-weight: 700; min-width: 20px; text-align: right; font-variant-numeric: tabular-nums; }
+.crm-hb b { font-size: var(--ql-text-sm); font-weight: 700; min-width: 20px; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ── health ring (drawer) ── */
 .crm-ring { position: relative; flex: none; }
 .crm-ring-v { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1; }
-.crm-ring-v b { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.crm-ring-v span { font-size: 10px; color: var(--ql-text-secondary); font-weight: 600; }
+.crm-ring-v b { font-size: var(--ql-text-2xl); font-weight: 800; font-variant-numeric: tabular-nums; }
+.crm-ring-v span { font-size: var(--ql-text-2xs); color: var(--ql-text-secondary); font-weight: 600; }
 
 /* ── sparkline ── */
 .crm-spark { display: block; overflow: visible; }
@@ -58,30 +58,30 @@
 .crm-mbar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; height: 100%; }
 .crm-mbar-t { flex: 1; width: 100%; max-width: 26px; display: flex; align-items: flex-end; }
 .crm-mbar-f { width: 100%; border-radius: 5px 5px 3px 3px; background: linear-gradient(180deg, var(--ql-brand-400), var(--ql-brand-600)); min-height: 3px; }
-.crm-mbar span { font-size: 10px; color: var(--ql-text-secondary); font-weight: 600; }
+.crm-mbar span { font-size: var(--ql-text-2xs); color: var(--ql-text-secondary); font-weight: 600; }
 
 /* ── drawer hero ── */
 .crm-dhero { display: flex; align-items: center; gap: 16px; padding: 4px 0 14px; margin-bottom: 4px; border-bottom: 1px solid var(--ql-border); }
 .crm-dhero-x { min-width: 0; }
 .crm-dhero-m { margin-top: 8px; }
-.crm-dhero-m b { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
-.crm-dhero-m span { font-size: 11px; color: var(--ql-text-secondary); margin-left: 6px; }
-.crm-dhero-sub { font-size: 12px; color: var(--ql-text-secondary); margin-top: 3px; }
+.crm-dhero-m b { font-size: var(--ql-text-xl); font-weight: 800; letter-spacing: -.02em; }
+.crm-dhero-m span { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin-left: 6px; }
+.crm-dhero-sub { font-size: var(--ql-text-sm); color: var(--ql-text-secondary); margin-top: 3px; }
 
 /* ── health component breakdown ── */
 .crm-comp { margin: 12px 0; }
 .crm-comp-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
-.crm-comp-h span { font-size: 12.5px; font-weight: 600; color: var(--ql-text); }
-.crm-comp-h b { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ql-text-secondary); }
-.crm-comp-d { font-size: 11.5px; color: var(--ql-text-secondary); margin-top: 4px; }
+.crm-comp-h span { font-size: var(--ql-text-sm); font-weight: 600; color: var(--ql-text); }
+.crm-comp-h b { font-size: var(--ql-text-sm); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ql-text-secondary); }
+.crm-comp-d { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); margin-top: 4px; }
 .crm-note { margin-top: 16px; padding: 11px 13px; border-radius: var(--ql-radius-lg, 12px); background: var(--ql-bg);
-  border: 1px solid var(--ql-border); font-size: 12px; color: var(--ql-text-secondary); line-height: 1.45; }
+  border: 1px solid var(--ql-border); font-size: var(--ql-text-sm); color: var(--ql-text-secondary); line-height: 1.45; }
 
 /* ── payments tab ── */
 .crm-paygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 6px 0 6px; }
 .crm-paycard { padding: 10px 12px; border-radius: var(--ql-radius-lg, 12px); background: var(--ql-bg); border: 1px solid var(--ql-border); }
-.crm-paycard span { display: block; font-size: 11px; color: var(--ql-text-secondary); font-weight: 600; }
-.crm-paycard b { display: block; font-size: 16px; font-weight: 800; margin-top: 3px; letter-spacing: -.01em; }
+.crm-paycard span { display: block; font-size: var(--ql-text-xs); color: var(--ql-text-secondary); font-weight: 600; }
+.crm-paycard b { display: block; font-size: var(--ql-text-lg); font-weight: 800; margin-top: 3px; letter-spacing: -.01em; }
 
 /* ── order timeline ── */
 .crm-tlwrap { position: relative; margin-top: 8px; padding-left: 4px; }
@@ -91,12 +91,12 @@
 .crm-tl-dot { position: absolute; left: 0; top: 3px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--ql-card); box-shadow: 0 0 0 1px var(--ql-border); }
 .crm-tl-b { flex: 1; min-width: 0; }
 .crm-tl-r { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
-.crm-tl-r b { font-size: 13px; font-weight: 700; }
-.crm-num { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.crm-mut { font-size: 12px; color: var(--ql-text-secondary); }
-.crm-st { display: inline-block; padding: 2px 8px; border-radius: var(--ql-radius-pill); font-size: 10.5px; font-weight: 700; }
+.crm-tl-r b { font-size: var(--ql-text-base); font-weight: 700; }
+.crm-num { font-size: var(--ql-text-base); font-weight: 700; font-variant-numeric: tabular-nums; }
+.crm-mut { font-size: var(--ql-text-sm); color: var(--ql-text-secondary); }
+.crm-st { display: inline-block; padding: 2px 8px; border-radius: var(--ql-radius-pill); font-size: var(--ql-text-2xs); font-weight: 700; }
 .crm-flag { display: inline-grid; place-content: center; width: 14px; height: 14px; border-radius: 50%; background: #ef4444;
-  color: #fff; font-size: 10px; font-weight: 800; font-style: normal; vertical-align: middle; }
+  color: #fff; font-size: var(--ql-text-2xs); font-weight: 800; font-style: normal; vertical-align: middle; }
 
 /* ── running-account ledger (bank statement) ── */
 .crm-ledger { margin-top: 4px; }
@@ -105,7 +105,7 @@
 .crm-ldot { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-top: 5px; }
 .crm-lmain { flex: 1; min-width: 0; }
 .crm-lr { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.crm-lr b { font-size: 13px; font-weight: 600; color: var(--ql-text); }
+.crm-lr b { font-size: var(--ql-text-base); font-weight: 600; color: var(--ql-text); }
 .crm-lr + .crm-lr { margin-top: 2px; }
 
 .crm-ledger-act { display: flex; gap: 8px; margin-bottom: 12px; }
@@ -113,22 +113,22 @@
 
 /* ── full-page party statement (ledger.html) ── */
 .lgp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.lgp-back { display: inline-block; font-size: 12.5px; font-weight: 600; color: var(--ql-brand-600); text-decoration: none; margin-bottom: 6px; }
+.lgp-back { display: inline-block; font-size: var(--ql-text-sm); font-weight: 600; color: var(--ql-brand-600); text-decoration: none; margin-bottom: 6px; }
 .lgp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .lgp-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 18px 0; }
 .lgp-card { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg, 12px); padding: 14px 16px; box-shadow: var(--ql-shadow-sm); }
-.lgp-card span { display: block; font-size: 11.5px; color: var(--ql-text-secondary); font-weight: 600; }
-.lgp-card b { display: block; font-size: 19px; font-weight: 800; margin-top: 4px; letter-spacing: -.01em; }
+.lgp-card span { display: block; font-size: var(--ql-text-xs); color: var(--ql-text-secondary); font-weight: 600; }
+.lgp-card b { display: block; font-size: var(--ql-text-xl); font-weight: 800; margin-top: 4px; letter-spacing: -.01em; }
 /* .card is display:flex + flex-direction:column — the filter MUST reset the
    direction or its controls stack vertically and centre (the tall empty bar). */
 .lgp-filter { display: flex; flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 10px 14px !important; margin-bottom: 14px; }
-.lgp-filter > span { font-size: 12.5px; color: var(--ql-text-secondary); font-weight: 600; }
-.lgp-filter input[type=date] { font-family: inherit; font-size: 13px; padding: 7px 10px; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); background: var(--ql-bg); color: var(--ql-text); }
-.lgp-count { margin-left: auto; font-size: 12px; color: var(--ql-text-secondary); }
+.lgp-filter > span { font-size: var(--ql-text-sm); color: var(--ql-text-secondary); font-weight: 600; }
+.lgp-filter input[type=date] { font-family: inherit; font-size: var(--ql-text-base); padding: 7px 10px; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); background: var(--ql-bg); color: var(--ql-text); }
+.lgp-count { margin-left: auto; font-size: var(--ql-text-sm); color: var(--ql-text-secondary); }
 /* quick range chips */
 .lgp-chip { border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-text-secondary);
-  font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 11px; border-radius: var(--ql-radius-pill); cursor: pointer; }
+  font: inherit; font-size: var(--ql-text-sm); font-weight: 600; padding: 6px 11px; border-radius: var(--ql-radius-pill); cursor: pointer; }
 .lgp-chip:hover { border-color: var(--ql-brand-300, #93b6f8); color: var(--ql-text); }
 .lgp-chip.on { background: var(--ql-brand-600, #2563eb); border-color: var(--ql-brand-600, #2563eb); color: #fff; }
 .lgp-sep { width: 1px; height: 20px; background: var(--ql-border); margin: 0 2px; }
@@ -139,7 +139,7 @@
   border: 1px solid rgba(124,58,237,.14); border-radius: var(--ql-radius-3xl); padding: 12px 14px; margin-bottom: 14px; }
 .lgp-ai-ic { width: 15px; height: 15px; flex: none; color: #6d28d9; margin-top: 1px; }
 .lgp-ai-list { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
-.lgp-ai-i { font-size: 12.5px; line-height: 1.45; color: var(--ql-text); }
+.lgp-ai-i { font-size: var(--ql-text-sm); line-height: 1.45; color: var(--ql-text); }
 .lgp-ai-i b { font-weight: 700; }
 .lgp-ai-i.warn b { color: var(--ql-warning-700, #b45309); }
 .lgp-ai-i.bad b { color: var(--ql-danger-600, #dc2626); }
@@ -152,11 +152,11 @@
 @media (min-width: 769px) {
   .lgp-tablewrap { max-height: calc(100vh - 300px); overflow: auto; overscroll-behavior: contain; }
 }
-.lgp-table { width: 100%; border-collapse: collapse; min-width: 620px; font-size: 13px; }
-.lgp-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--ql-text-secondary); font-weight: 700; padding: 12px 16px; border-bottom: 1px solid var(--ql-border); background: var(--ql-bg); position: sticky; top: 0; }
+.lgp-table { width: 100%; border-collapse: collapse; min-width: 620px; font-size: var(--ql-text-base); }
+.lgp-table th { text-align: left; font-size: var(--ql-text-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--ql-text-secondary); font-weight: 700; padding: 12px 16px; border-bottom: 1px solid var(--ql-border); background: var(--ql-bg); position: sticky; top: 0; }
 .lgp-table td { padding: 11px 16px; border-bottom: 1px solid var(--ql-border); vertical-align: top; }
 .lgp-table td.num, .lgp-table th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.lgp-table td.mono { font-family: var(--ql-font-mono, ui-monospace), monospace; font-size: 12px; color: var(--ql-text-secondary); }
+.lgp-table td.mono { font-family: var(--ql-font-mono, ui-monospace), monospace; font-size: var(--ql-text-sm); color: var(--ql-text-secondary); }
 .lgp-table td.strong { font-weight: 700; }
 .lgp-table tbody tr:hover { background: var(--ql-neutral-50, #f8fafc); }
 .lgp-table tfoot td { padding: 13px 16px; font-weight: 800; border-top: 2px solid var(--ql-border); background: var(--ql-bg); }
@@ -165,4 +165,4 @@
 /* ── responsive ── */
 @media (max-width: 720px) { .lgp-cards { grid-template-columns: 1fr 1fr; } .lgp-actions .ql-btn { flex: 1; } }
 @media (max-width: 900px) { .crm-ai-grid { grid-template-columns: 1fr; } }
-@media (max-width: 560px) { .crm-paygrid { grid-template-columns: 1fr 1fr; } .crm-dhero-m b { font-size: 18px; } }
+@media (max-width: 560px) { .crm-paygrid { grid-template-columns: 1fr 1fr; } .crm-dhero-m b { font-size: var(--ql-text-xl); } }

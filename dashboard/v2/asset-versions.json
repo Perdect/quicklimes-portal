@@ -1,23 +1,23 @@
 {
   "shell.css": {
-    "v": "r10",
-    "sha": "1722d7becb43"
+    "v": "r11",
+    "sha": "d624183107dd"
   },
   "pages.css": {
-    "v": "m17",
-    "sha": "44ddc9cc91f4"
+    "v": "m18",
+    "sha": "b16d22d092e5"
   },
   "qlx.css": {
-    "v": "m13",
-    "sha": "a5b0c75bbb6f"
+    "v": "m14",
+    "sha": "bc3c896effd6"
   },
   "mobile.css": {
-    "v": "m15",
-    "sha": "0313ed11fe9b"
+    "v": "m16",
+    "sha": "f93f639e3eb3"
   },
   "reconcile.css": {
-    "v": "f19",
-    "sha": "9e4e08752c1a"
+    "v": "f20",
+    "sha": "3d4e9def39a4"
   },
   "recon-core.js": {
     "v": "rc5",
@@ -84,8 +84,8 @@
     "sha": "313d25e71836"
   },
   "finance.css": {
-    "v": "f1",
-    "sha": "7c845dac2773"
+    "v": "f3",
+    "sha": "16b7b272ccfc"
   },
   "crm-core.js": {
     "v": "k1",
@@ -108,8 +108,8 @@
     "sha": "1ff0028f4f98"
   },
   "dash.css": {
-    "v": "d7",
-    "sha": "3d6934fadf01"
+    "v": "d8",
+    "sha": "9c0be2c1789c"
   },
   "dashboard.js": {
     "v": "m22",
@@ -156,8 +156,8 @@
     "sha": "1cbad3467ac5"
   },
   "inventory.css": {
-    "v": "i2",
-    "sha": "2f851ca20b7d"
+    "v": "i3",
+    "sha": "058942267985"
   },
   "invoice-templates.js": {
     "v": "t3",
@@ -172,8 +172,8 @@
     "sha": "ee705d0052bf"
   },
   "crm.css": {
-    "v": "m7",
-    "sha": "13b11ed1c02e"
+    "v": "m8",
+    "sha": "8d11dd4f23e1"
   },
   "ledger.js": {
     "v": "lg3",
@@ -184,8 +184,8 @@
     "sha": "563e1a0f3090"
   },
   "pbill.css": {
-    "v": "p5",
-    "sha": "e6d446e485c6"
+    "v": "p6",
+    "sha": "f4133f7b965c"
   },
   "ledger-core.js": {
     "v": "lc1",
@@ -236,12 +236,12 @@
     "sha": "bb28f8930d28"
   },
   "report.css": {
-    "v": "r3",
-    "sha": "c8e431246e33"
+    "v": "r4",
+    "sha": "d1a6f9dc3bde"
   },
   "reports.css": {
-    "v": "r1",
-    "sha": "315907e53f5c"
+    "v": "r2",
+    "sha": "dcda51cabb2f"
   },
   "sales.js": {
     "v": "m321",

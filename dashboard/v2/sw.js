@@ -1,7 +1,7 @@
 /* QuickLimes v2 — service worker (installable PWA + offline shell).
    Local-first app: data lives in localStorage, so once the CSS/JS shell is cached
    the app opens offline. Never caches the /api backend or cross-origin requests. */
-const CACHE = 'ql-v2-cache-231';   // bumped: radius design tokens (P0.1) — includes tokens.css + invoice.css
+const CACHE = 'ql-v2-cache-232';   // bumped: type tokens (P0.2) — standalone font-sizes on the scale
 
 self.addEventListener('install', () => self.skipWaiting());
 

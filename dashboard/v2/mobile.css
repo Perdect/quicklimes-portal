@@ -91,7 +91,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-h-back svg { width: 24px; height: 24px; }
 .qlm-h-title {
   flex: 1; min-width: 0;
-  font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: var(--ql-text);
+  font-size: var(--ql-text-xl); font-weight: 800; letter-spacing: -0.02em; color: var(--ql-text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .qlm-h-actions { display: flex; align-items: center; gap: 4px; flex: none; }
@@ -112,7 +112,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-h-badge {
   position: absolute; top: 3px; right: 4px; min-width: 15px; height: 15px; padding: 0 3px;
   border-radius: var(--ql-radius-pill); background: var(--ql-danger-500); color: #fff;
-  font-size: 9px; font-weight: 700; display: grid; place-items: center; line-height: 1;
+  font-size: var(--ql-text-2xs); font-weight: 700; display: grid; place-items: center; line-height: 1;
   box-shadow: 0 0 0 2px var(--ql-bg-elevated);
 }
 .qlm-h-badge[hidden] { display: none; }
@@ -120,7 +120,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
   width: 32px; height: 32px; flex: none; border-radius: var(--ql-radius-pill);
   background: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-700));
   color: #fff; display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 13px; background-size: cover; background-position: center;
+  font-weight: 700; font-size: var(--ql-text-base); background-size: cover; background-position: center;
 }
 
 /* ═══════════════ 3 · BOTTOM NAV ═══════════════ */
@@ -160,7 +160,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 4px; padding: 6px 2px 4px;
   background: transparent; border: 0; color: var(--ql-text-muted);
-  font-size: 10px; font-weight: 600; letter-spacing: -0.01em;
+  font-size: var(--ql-text-2xs); font-weight: 600; letter-spacing: -0.01em;
   transition: color var(--ql-duration-fast) var(--ql-ease-out);
   position: relative; isolation: isolate;
 }
@@ -223,7 +223,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
   display: flex; align-items: center; gap: 10px;
   padding: 4px 18px 12px; flex: none;
 }
-.qlm-sheet-title { flex: 1; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+.qlm-sheet-title { flex: 1; font-size: var(--ql-text-xl); font-weight: 800; letter-spacing: -0.02em; }
 .qlm-sheet-x {
   width: 30px; height: 30px; border-radius: var(--ql-radius-pill); border: 0; flex: none;
   background: var(--ql-neutral-100); color: var(--ql-text-secondary);
@@ -235,7 +235,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
   flex: none; padding: 12px 18px calc(12px + var(--qlm-safe-bottom));
   border-top: 1px solid var(--ql-border); display: flex; gap: 10px; background: var(--ql-bg-elevated);
 }
-.qlm-sheet-foot .ql-btn { flex: 1; height: 48px; font-size: 15px; border-radius: var(--ql-radius-3xl); }
+.qlm-sheet-foot .ql-btn { flex: 1; height: 48px; font-size: var(--ql-text-md); border-radius: var(--ql-radius-3xl); }
 
 /* ═══════════════ 6 · ACTION SHEET (iOS) ═══════════════ */
 .qlm-as-back {
@@ -258,14 +258,14 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 }
 .qlm-as-cancel { margin-top: 8px; }
 .qlm-as-title {
-  padding: 15px 16px 13px; text-align: center; font-size: 12px; font-weight: 600;
+  padding: 15px 16px 13px; text-align: center; font-size: var(--ql-text-sm); font-weight: 600;
   color: var(--ql-text-secondary); border-bottom: 1px solid var(--ql-border);
 }
 .qlm-as-item {
   display: flex; align-items: center; gap: 14px; width: 100%;
   padding: 16px 18px; background: transparent; border: 0;
   border-bottom: 1px solid var(--ql-border);
-  font-size: 16px; font-weight: 500; color: var(--ql-text); text-align: left;
+  font-size: var(--ql-text-lg); font-weight: 500; color: var(--ql-text); text-align: left;
 }
 .qlm-as-item:last-child { border-bottom: 0; }
 .qlm-as-item:active { background: var(--ql-neutral-100); }
@@ -285,9 +285,9 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 }
 .qlm-card:active { transform: scale(0.988); }
 .qlm-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.qlm-card-ttl { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
-.qlm-card-amt { font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; }
-.qlm-card-sub { color: var(--ql-text-secondary); font-size: 13px; margin-top: 2px; }
+.qlm-card-ttl { font-weight: 700; font-size: var(--ql-text-md); letter-spacing: -0.01em; }
+.qlm-card-amt { font-weight: 800; font-size: var(--ql-text-lg); font-variant-numeric: tabular-nums; }
+.qlm-card-sub { color: var(--ql-text-secondary); font-size: var(--ql-text-base); margin-top: 2px; }
 .qlm-card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 
 /* ═══════════════ 8 · QUICK-FILTER CHIPS (horizontal scroll) ═══════════════ */
@@ -301,7 +301,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
   flex: none; scroll-snap-align: start;
   padding: 9px 16px; border-radius: var(--ql-radius-pill); border: 1px solid var(--ql-border);
   background: var(--ql-bg-elevated); color: var(--ql-text-secondary);
-  font-size: 13px; font-weight: 600; white-space: nowrap;
+  font-size: var(--ql-text-base); font-weight: 600; white-space: nowrap;
   transition: color var(--ql-duration-fast) var(--ql-ease-out),
               border-color var(--ql-duration-fast) var(--ql-ease-out),
               transform var(--ql-duration-fast) var(--ql-ease-out);
@@ -343,17 +343,17 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 
 /* “More” app library (bottom-sheet grid of module tiles) */
 .qlm-more { padding-top: 2px; }
-.qlm-more-sec { font-size: 12px; font-weight: 700; color: var(--ql-text-muted); text-transform: uppercase; letter-spacing: .06em; margin: 14px 2px 8px; }
+.qlm-more-sec { font-size: var(--ql-text-sm); font-weight: 700; color: var(--ql-text-muted); text-transform: uppercase; letter-spacing: .06em; margin: 14px 2px 8px; }
 .qlm-more-sec:first-child { margin-top: 2px; }
 .qlm-more-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px 4px; }
 .qlm-more-tile { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 4px; border-radius: var(--ql-radius-3xl); color: var(--ql-text); text-align: center; text-decoration: none; }
 .qlm-more-tile:active { background: var(--ql-neutral-100); }
-.qlm-more-tile span:last-child { font-size: 11px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; }
+.qlm-more-tile span:last-child { font-size: var(--ql-text-xs); font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; }
 .qlm-more-ic { width: 48px; height: 48px; border-radius: var(--ql-radius-4xl); display: grid; place-items: center; background: var(--ql-brand-50); color: var(--ql-brand-600); }
 .qlm-more-ic svg { width: 23px; height: 23px; }
 
 /* status pills reused on cards */
-.qlm-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: var(--ql-radius-pill); font-size: 11px; font-weight: 700; }
+.qlm-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: var(--ql-radius-pill); font-size: var(--ql-text-xs); font-weight: 700; }
 .qlm-pill.ok { background: var(--ql-success-100); color: var(--ql-success-700); }
 .qlm-pill.warn { background: var(--ql-warning-100); color: var(--ql-warning-700); }
 .qlm-pill.info { background: var(--ql-brand-100); color: var(--ql-brand-700); }
@@ -369,22 +369,22 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 /* stat cards — 2 per row, compact */
 .qx-stats { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
 .qx-stat { padding: 13px !important; border-radius: var(--ql-radius-2xl) !important; }
-.qx-stat-v { font-size: 19px !important; }
-.qx-stat-l { font-size: 11px !important; }
+.qx-stat-v { font-size: var(--ql-text-xl) !important; }
+.qx-stat-l { font-size: var(--ql-text-xs) !important; }
 
 /* panel + toolbar */
 .qx-panel { border: 0 !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; overflow: visible !important; }
 .qx-tb { flex-wrap: wrap; gap: 8px !important; padding: 0 0 10px !important; border: 0 !important; }
 .qx-tb-sp { display: none !important; }
-.qx-search { flex: 1 1 100%; order: -1; height: 44px !important; border-radius: 12px !important; font-size: 15px !important; }
+.qx-search { flex: 1 1 100%; order: -1; height: 44px !important; border-radius: 12px !important; font-size: var(--ql-text-md) !important; }
 /* 16px, not 15px: below 16 iOS zooms the page on focus. This rule is more
    specific (0,1,1) than the blanket `input {16px !important}` further down, so it
    won — the search box was the one field that still lurched the page in. One
    pixel; the whole difference between an app and a web page. */
-.qx-search input { font-size: 16px !important; }
+.qx-search input { font-size: var(--ql-text-lg) !important; }
 /* views switcher hidden — mobile is card-first */
 .qx-views { display: none !important; }
-.qx-tool { height: 40px !important; padding: 0 14px !important; border-radius: 11px !important; font-size: 13px !important; }
+.qx-tool { height: 40px !important; padding: 0 14px !important; border-radius: 11px !important; font-size: var(--ql-text-base) !important; }
 .qx-pager, .qx-foot { flex-wrap: wrap; gap: 8px; }
 
 /* quick tabs → chips (horizontal scroll, no wrap) */
@@ -393,7 +393,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
   margin: 0 -14px 4px !important; padding: 0 14px 6px !important; gap: 8px !important;
 }
 .qx-tabs::-webkit-scrollbar { display: none; }
-.qx-tab { flex: none !important; white-space: nowrap; padding: 8px 14px !important; border-radius: 99px !important; font-size: 13px !important; }
+.qx-tab { flex: none !important; white-space: nowrap; padding: 8px 14px !important; border-radius: 99px !important; font-size: var(--ql-text-base) !important; }
 
 /* the FAB is the single create action on mobile — hide the in-toolbar primary */
 #qxPrimary { display: none !important; }
@@ -405,11 +405,11 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qx-cards { grid-template-columns: 1fr !important; gap: 10px !important; }
 .qx-card { padding: 15px !important; border-radius: var(--ql-radius-2xl) !important; }
 .qx-card-top { align-items: center; }
-.qx-card-id { font-size: 15px !important; font-weight: 700 !important; }
+.qx-card-id { font-size: var(--ql-text-md) !important; font-weight: 700 !important; }
 .qx-card-party { margin-top: 10px !important; }
-.qx-card-nm { font-size: 14px !important; }
+.qx-card-nm { font-size: var(--ql-text-md) !important; }
 .qx-card-rows { margin-top: 10px !important; }
-.qx-card-r { font-size: 13px !important; }
+.qx-card-r { font-size: var(--ql-text-base) !important; }
 .qx-card-r > span { color: var(--ql-text-secondary); }
 
 /* group headers */
@@ -442,8 +442,8 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
    The tighter letter-spacing is not decoration — at 28px the default tracking
    in Geist reads loose and webby; -0.03em is what makes it look set rather
    than typed. */
-.qlm-dash-greet h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; margin: 0; line-height: 1.15; }
-.qlm-dash-greet p { color: var(--ql-text-secondary); font-size: 14px; margin: 4px 0 0; }
+.qlm-dash-greet h1 { font-size: var(--ql-text-3xl); font-weight: 800; letter-spacing: -0.03em; margin: 0; line-height: 1.15; }
+.qlm-dash-greet p { color: var(--ql-text-secondary); font-size: var(--ql-text-md); margin: 4px 0 0; }
 
 /* The .qlm-seg segmented tabs lived here. They are DELETED, not hidden: the pills
    duplicated the bottom nav's five labels 60px away while meaning something
@@ -469,13 +469,13 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
   width: 34px; height: 34px; border-radius: var(--ql-radius-2xl); display: grid; place-items: center; margin-bottom: 11px;
 }
 .qlm-kpi-ic svg { width: 18px; height: 18px; }
-.qlm-kpi-l { font-size: 12px; font-weight: 600; color: var(--ql-text-secondary); letter-spacing: -0.01em; }
-.qlm-kpi-v { font-size: 21px; font-weight: 800; letter-spacing: -0.03em; margin-top: 3px; font-variant-numeric: tabular-nums; }
-.qlm-kpi-t { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 700; margin-top: 5px; }
+.qlm-kpi-l { font-size: var(--ql-text-sm); font-weight: 600; color: var(--ql-text-secondary); letter-spacing: -0.01em; }
+.qlm-kpi-v { font-size: var(--ql-text-2xl); font-weight: 800; letter-spacing: -0.03em; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.qlm-kpi-t { display: inline-flex; align-items: center; gap: 3px; font-size: var(--ql-text-xs); font-weight: 700; margin-top: 5px; }
 .qlm-kpi-t.up { color: var(--ql-success-600); }
 .qlm-kpi-t.down { color: var(--ql-danger-600); }
 .qlm-kpi-t.flat { color: var(--ql-text-muted); }
-.qlm-kpi-m { font-size: 11px; color: var(--ql-text-muted); margin-top: 5px; line-height: 1.3; }
+.qlm-kpi-m { font-size: var(--ql-text-xs); color: var(--ql-text-muted); margin-top: 5px; line-height: 1.3; }
 /* tint helpers */
 .qlm-tint-blue { background: var(--ql-brand-50); color: var(--ql-brand-600); }
 .qlm-tint-green { background: var(--ql-success-50); color: var(--ql-success-600); }
@@ -492,8 +492,8 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 
 /* section title */
 .qlm-sec { display: flex; align-items: center; justify-content: space-between; margin: 6px 2px -2px; }
-.qlm-sec h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
-.qlm-sec a { font-size: 13px; font-weight: 600; color: var(--ql-brand-600); }
+.qlm-sec h3 { font-size: var(--ql-text-xl); font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+.qlm-sec a { font-size: var(--ql-text-base); font-weight: 600; color: var(--ql-brand-600); }
 
 /* mini bar chart (simplified) */
 .qlm-chartcard {
@@ -501,12 +501,12 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
   border-radius: var(--ql-radius-5xl); padding: 16px; box-shadow: var(--ql-shadow-xs);
 }
 .qlm-chartcard-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
-.qlm-chartcard-h .t { font-size: 14px; font-weight: 700; }
-.qlm-chartcard-h .s { font-size: 12px; color: var(--ql-text-secondary); }
+.qlm-chartcard-h .t { font-size: var(--ql-text-md); font-weight: 700; }
+.qlm-chartcard-h .s { font-size: var(--ql-text-sm); color: var(--ql-text-secondary); }
 .qlm-bars { display: flex; align-items: flex-end; gap: 8px; height: 120px; }
 .qlm-bar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
 .qlm-bar-fill { width: 100%; max-width: 30px; border-radius: 7px 7px 3px 3px; background: linear-gradient(180deg, var(--ql-brand-500), var(--ql-brand-600)); transition: height var(--ql-duration-slow) var(--ql-ease-out); }
-.qlm-bar-lbl { font-size: 10px; color: var(--ql-text-muted); font-weight: 600; }
+.qlm-bar-lbl { font-size: var(--ql-text-2xs); color: var(--ql-text-muted); font-weight: 600; }
 
 /* list container (dashboard recent) */
 .qlm-list { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-5xl); overflow: hidden; box-shadow: var(--ql-shadow-xs); }
@@ -520,14 +520,14 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 /* standalone inside a QLX card grid → each is its own rounded card (grid items must
    be allowed to shrink below content width so the name truncates, not the amount) */
 .qx-cards > .qlm-lrow { border: 1px solid var(--ql-border); border-radius: var(--ql-radius-4xl); box-shadow: var(--ql-shadow-xs); min-width: 0; }
-.qlm-lrow-av { width: 46px; height: 46px; flex: none; border-radius: var(--ql-radius-3xl); display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 17px; }
+.qlm-lrow-av { width: 46px; height: 46px; flex: none; border-radius: var(--ql-radius-3xl); display: grid; place-items: center; color: #fff; font-weight: 700; font-size: var(--ql-text-lg); }
 .qlm-lrow-mid { flex: 1; min-width: 0; }
-.qlm-lrow-name { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.qlm-lrow-l1 { font-size: 13px; color: var(--ql-text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.qlm-lrow-l2 { font-size: 12px; color: var(--ql-text-muted); margin-top: 4px; display: flex; align-items: center; gap: 5px; }
+.qlm-lrow-name { font-size: var(--ql-text-lg); font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qlm-lrow-l1 { font-size: var(--ql-text-base); color: var(--ql-text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qlm-lrow-l2 { font-size: var(--ql-text-sm); color: var(--ql-text-muted); margin-top: 4px; display: flex; align-items: center; gap: 5px; }
 .qlm-lrow-l2 svg { width: 13px; height: 13px; flex: none; }
 .qlm-lrow-right { flex: none; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.qlm-lrow-amt { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.qlm-lrow-amt { font-size: var(--ql-text-lg); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .qlm-lrow-chev { flex: none; color: var(--ql-text-muted); margin-left: 1px; }
 .qlm-lrow-chev svg { width: 20px; height: 20px; }
 /* keep the QLX status pill compact in the row's right column */
@@ -548,8 +548,8 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 }
 .qlm-iv-x { width: 38px; height: 38px; border-radius: var(--ql-radius-pill); border: 0; background: rgba(255,255,255,.12); color: #fff; display: flex; align-items: center; justify-content: center; }
 .qlm-iv-x svg { width: 20px; height: 20px; }
-.qlm-iv-ttl { flex: 1; font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.qlm-iv-zoom { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.7); min-width: 44px; text-align: right; }
+.qlm-iv-ttl { flex: 1; font-size: var(--ql-text-md); font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qlm-iv-zoom { font-size: var(--ql-text-sm); font-weight: 700; color: rgba(255,255,255,.7); min-width: 44px; text-align: right; }
 .qlm-iv-stage {
   flex: 1; overflow: auto; -webkit-overflow-scrolling: touch;
   display: flex; align-items: flex-start; justify-content: center; padding: 16px;
@@ -568,7 +568,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-iv-btn {
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: 8px 4px; border-radius: var(--ql-radius-2xl); border: 0; background: transparent; color: #fff;
-  font-size: 11px; font-weight: 600;
+  font-size: var(--ql-text-xs); font-weight: 600;
 }
 .qlm-iv-btn:active { background: rgba(255,255,255,.1); }
 .qlm-iv-btn svg { width: 22px; height: 22px; }
@@ -581,18 +581,18 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-wiz-dot { flex: 1; height: 4px; border-radius: var(--ql-radius-pill); background: var(--ql-neutral-200); transition: background var(--ql-duration-base) var(--ql-ease-out); }
 .qlm-wiz-dot.done { background: var(--ql-brand-600); }
 .qlm-wiz-dot.cur { background: var(--ql-brand-400); }
-.qlm-wiz-step { font-size: 12px; font-weight: 600; color: var(--ql-text-secondary); margin-top: 10px; }
-.qlm-wiz-step b { color: var(--ql-text); font-size: 16px; font-weight: 800; display: block; letter-spacing: -0.02em; }
+.qlm-wiz-step { font-size: var(--ql-text-sm); font-weight: 600; color: var(--ql-text-secondary); margin-top: 10px; }
+.qlm-wiz-step b { color: var(--ql-text); font-size: var(--ql-text-lg); font-weight: 800; display: block; letter-spacing: -0.02em; }
 .qlm-field { margin-bottom: 15px; }
-.qlm-field label { display: block; font-size: 13px; font-weight: 600; color: var(--ql-text-secondary); margin-bottom: 7px; }
+.qlm-field label { display: block; font-size: var(--ql-text-base); font-weight: 600; color: var(--ql-text-secondary); margin-bottom: 7px; }
 .qlm-field input, .qlm-field select, .qlm-field textarea {
-  width: 100%; height: 50px; padding: 0 15px; font-size: 16px; /* 16px avoids iOS zoom */
+  width: 100%; height: 50px; padding: 0 15px; font-size: var(--ql-text-lg); /* 16px avoids iOS zoom */
   border: 1px solid var(--ql-border); border-radius: var(--ql-radius-3xl); background: var(--ql-bg);
   color: var(--ql-text); font-family: inherit; -webkit-appearance: none; appearance: none;
 }
 .qlm-field textarea { height: auto; min-height: 80px; padding: 13px 15px; }
 .qlm-field input:focus, .qlm-field select:focus, .qlm-field textarea:focus { outline: none; border-color: var(--ql-brand-500); box-shadow: var(--ql-shadow-ring); }
-.qlm-review-row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--ql-divider); font-size: 14px; }
+.qlm-review-row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--ql-divider); font-size: var(--ql-text-md); }
 .qlm-review-row span { color: var(--ql-text-secondary); }
 .qlm-review-row b { text-align: right; }
 
@@ -635,7 +635,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .ql-btn.ql-btn-primary {
   height: var(--qlm-touch); border-radius: var(--qlm-r-ctl);
   background: var(--qlm-grad); border: 0; color: #fff;
-  font-size: 15px; font-weight: 700; letter-spacing: -0.01em;
+  font-size: var(--ql-text-md); font-weight: 700; letter-spacing: -0.01em;
   box-shadow: var(--qlm-grad-shadow);
   transition: transform var(--ql-duration-fast) var(--ql-ease-out),
               box-shadow var(--ql-duration-fast) var(--ql-ease-out);
@@ -650,7 +650,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .ql-btn.ql-btn-ghost, .ql-btn.ql-btn-secondary {
   height: var(--qlm-touch); border-radius: var(--qlm-r-ctl);
   background: var(--ql-bg-elevated); border: 1px solid var(--ql-border);
-  color: var(--ql-text); font-size: 15px; font-weight: 600;
+  color: var(--ql-text); font-size: var(--ql-text-md); font-weight: 600;
 }
 .ql-btn.ql-btn-ghost:active, .ql-btn.ql-btn-secondary:active {
   background: var(--ql-neutral-100); transform: scale(0.975);
@@ -691,9 +691,9 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 }
 .qlm-act-ic svg { width: 22px; height: 22px; stroke-width: 1.9; }
 .qlm-act-tx { flex: 1; min-width: 0; }
-.qlm-act-t { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.qlm-act-t { font-size: var(--ql-text-lg); font-weight: 600; letter-spacing: -0.01em; }
 .qlm-act-s {
-  font-size: 13px; color: var(--ql-text-secondary); margin-top: 2px;
+  font-size: var(--ql-text-base); color: var(--ql-text-secondary); margin-top: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .qlm-act-ch { flex: none; color: var(--ql-text-muted); display: flex; }
@@ -740,7 +740,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 }
 .qlm-dfilter .ql-mp-btn {
   flex: 1; height: 44px; border-radius: var(--qlm-r-ctl);
-  font-size: 14px; font-weight: 600; justify-content: center;
+  font-size: var(--ql-text-md); font-weight: 600; justify-content: center;
 }
 /* The picker is OPEN — say so. .on is what closeMonthPicker resets, so the
    lit state and the close path already agree; no second flag to fall out of
@@ -752,7 +752,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-dfilter .ql-mp-btn.on svg { color: #fff; }
 .qlm-dfilter .qx-btn {
   flex: none; height: 44px; padding: 0 14px; border-radius: var(--qlm-r-ctl);
-  font-size: 14px; font-weight: 600;
+  font-size: var(--ql-text-md); font-weight: 600;
 }
 
 /* ── Month picker → bottom sheet ─────────────────────────────────
@@ -788,7 +788,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
    minimum and these were nowhere near it. */
 .ql-mp.qlm-mp .ql-mp-grid { gap: 8px !important; }
 .ql-mp.qlm-mp .ql-mp-grid button,
-.ql-mp.qlm-mp .ql-mp-wide { height: 46px !important; font-size: 14px !important; border-radius: 12px !important; }
+.ql-mp.qlm-mp .ql-mp-wide { height: 46px !important; font-size: var(--ql-text-md) !important; border-radius: 12px !important; }
 .ql-mp.qlm-mp .ql-mp-nav { width: 40px !important; height: 40px !important; }
 .ql-mp.qlm-mp .ql-mp-grid button.on,
 .ql-mp.qlm-mp .ql-mp-wide.on {
@@ -827,7 +827,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-h-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .qlm-h-co { display: inline-flex; align-items: center; gap: 3px; align-self: flex-start; max-width: 100%;
             padding: 1px 0; border: 0; background: none; cursor: pointer;
-            font-family: inherit; font-size: 11.5px; font-weight: 600; color: var(--ql-text-secondary);
+            font-family: inherit; font-size: var(--ql-text-xs); font-weight: 600; color: var(--ql-text-secondary);
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .qlm-h-co svg { width: 12px; height: 12px; flex: none; opacity: .8; }
 .qlm-h-co:active { opacity: .55; }
@@ -842,7 +842,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
      real controls only, so it cannot leak into the invoice preview iframe. */
   input, select, textarea,
   .qlf-input, .if-f input, .if-f select, .qx-f input, .qx-f select {
-    font-size: 16px !important;
+    font-size: var(--ql-text-lg) !important;
   }
   /* Never inflate text on rotate (iOS decides it knows better; it does not). */
   html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }

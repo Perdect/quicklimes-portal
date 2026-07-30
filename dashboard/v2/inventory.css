@@ -30,14 +30,14 @@
   text-transform: uppercase; letter-spacing: var(--ql-tracking-wide);
   color: var(--ql-text-muted); margin: var(--ql-space-6) 0 var(--ql-space-3);
 }
-.inv-sec-h .hint { text-transform: none; letter-spacing: var(--ql-tracking-base); font-weight: var(--ql-weight-regular); font-size: 12px; }
+.inv-sec-h .hint { text-transform: none; letter-spacing: var(--ql-tracking-base); font-weight: var(--ql-weight-regular); font-size: var(--ql-text-sm); }
 
 /* ── notes / banners ───────────────────────────────────────────── */
 .inv-note {
   display: flex; gap: 11px; align-items: flex-start;
   border-radius: var(--ql-radius-xl); padding: 13px 15px;
   margin-bottom: var(--ql-space-4);
-  font-size: 13px; line-height: var(--ql-leading-base); color: var(--ql-text-secondary);
+  font-size: var(--ql-text-base); line-height: var(--ql-leading-base); color: var(--ql-text-secondary);
   background: color-mix(in srgb, var(--ql-brand-600) 6%, var(--ql-card));
   border: 1px solid color-mix(in srgb, var(--ql-brand-600) 22%, var(--ql-border));
 }
@@ -55,7 +55,7 @@
 .inv-note.good svg { color: var(--ql-success-600); }
 .inv-note .fix {
   display: inline-flex; align-items: center; gap: 5px; margin-top: 7px;
-  font-size: 12.5px; font-weight: var(--ql-weight-semibold);
+  font-size: var(--ql-text-sm); font-weight: var(--ql-weight-semibold);
   color: var(--ql-link); text-decoration: none;
 }
 .inv-note .fix:hover { color: var(--ql-link-hover); text-decoration: underline; }
@@ -78,31 +78,31 @@
   display: grid; place-items: center; flex: none;
 }
 .inv-card .ic svg { width: 19px; height: 19px; }
-.inv-card .nm { font-weight: var(--ql-weight-semibold); font-size: 14.5px; color: var(--ql-text); line-height: var(--ql-leading-snug); }
-.inv-card .sub { font-size: 12px; color: var(--ql-text-muted); margin-top: 1px; }
+.inv-card .nm { font-weight: var(--ql-weight-semibold); font-size: var(--ql-text-md); color: var(--ql-text); line-height: var(--ql-leading-snug); }
+.inv-card .sub { font-size: var(--ql-text-sm); color: var(--ql-text-muted); margin-top: 1px; }
 
 /* the headline. `.qty` is a real measured number; `.unk` is the honest absence of
    one — they must never look alike, because "0 T" and "not recorded" are
    different statements and the user could act on either. */
 .inv-card .qty {
-  font-size: 27px; font-weight: var(--ql-weight-bold);
+  font-size: var(--ql-text-3xl); font-weight: var(--ql-weight-bold);
   letter-spacing: var(--ql-tracking-tight); color: var(--ql-text);
   font-variant-numeric: tabular-nums; line-height: 1.15;
 }
-.inv-card .qty u { font-size: 14px; font-weight: var(--ql-weight-medium); color: var(--ql-text-muted); text-decoration: none; margin-left: 3px; }
+.inv-card .qty u { font-size: var(--ql-text-md); font-weight: var(--ql-weight-medium); color: var(--ql-text-muted); text-decoration: none; margin-left: 3px; }
 .inv-card .qty.neg { color: var(--ql-danger-600); }
 .inv-card .unk {
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: 17px; font-weight: var(--ql-weight-semibold);
+  font-size: var(--ql-text-lg); font-weight: var(--ql-weight-semibold);
   color: var(--ql-text-muted); line-height: 1.3;
 }
 .inv-card .unk svg { width: 15px; height: 15px; color: var(--ql-warning-600); }
-.inv-card .qnote { font-size: 12px; color: var(--ql-warning-700); margin-top: 5px; line-height: var(--ql-leading-snug); }
+.inv-card .qnote { font-size: var(--ql-text-sm); color: var(--ql-warning-700); margin-top: 5px; line-height: var(--ql-leading-snug); }
 .inv-card .qnote.mute { color: var(--ql-text-muted); }
 
 .inv-kv {
   display: flex; justify-content: space-between; gap: 10px;
-  font-size: 12.5px; color: var(--ql-text-secondary);
+  font-size: var(--ql-text-sm); color: var(--ql-text-secondary);
   padding: 7px 0; border-top: 1px solid var(--ql-divider);
 }
 .inv-kv:first-of-type { margin-top: 12px; }
@@ -112,7 +112,7 @@
 .inv-flag {
   display: flex; gap: 8px; align-items: flex-start; margin-top: 12px;
   padding: 9px 10px; border-radius: var(--ql-radius-md);
-  font-size: 11.5px; line-height: var(--ql-leading-snug); color: var(--ql-warning-700);
+  font-size: var(--ql-text-xs); line-height: var(--ql-leading-snug); color: var(--ql-warning-700);
   background: color-mix(in srgb, var(--ql-warning-600) 9%, var(--ql-card));
   border: 1px solid color-mix(in srgb, var(--ql-warning-600) 26%, var(--ql-border));
 }
@@ -120,7 +120,7 @@
 .inv-flag b { font-weight: var(--ql-weight-semibold); }
 .inv-fix {
   display: inline-flex; align-items: center; gap: 5px; margin-top: auto; padding-top: 12px;
-  font-size: 12.5px; font-weight: var(--ql-weight-semibold);
+  font-size: var(--ql-text-sm); font-weight: var(--ql-weight-semibold);
   color: var(--ql-link); text-decoration: none;
 }
 .inv-fix:hover { color: var(--ql-link-hover); }
@@ -130,7 +130,7 @@
 .inv-empty {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   padding: 44px 20px; text-align: center;
-  font-size: 13.5px; color: var(--ql-text-muted);
+  font-size: var(--ql-text-base); color: var(--ql-text-muted);
   border: 1px dashed var(--ql-border); border-radius: var(--ql-radius-xl);
   background: var(--ql-bg-elevated);
 }
@@ -140,7 +140,7 @@
   background: var(--ql-card); border: 1px solid var(--ql-border); color: var(--ql-text-muted);
 }
 .inv-empty .eic svg { width: 24px; height: 24px; }
-.inv-empty .et { font-weight: var(--ql-weight-semibold); font-size: 14.5px; color: var(--ql-text); }
+.inv-empty .et { font-weight: var(--ql-weight-semibold); font-size: var(--ql-text-md); color: var(--ql-text); }
 .inv-empty .es { max-width: 340px; line-height: var(--ql-leading-base); }
 .inv-empty .ql-btn { margin-top: 10px; text-decoration: none; }
 
@@ -156,6 +156,6 @@
   .inv-bar { top: 0; padding: 8px 0 10px; }
   .inv-grid { grid-template-columns: 1fr; gap: 12px; }
   .inv-card { padding: 14px; }
-  .inv-card .qty { font-size: 24px; }
+  .inv-card .qty { font-size: var(--ql-text-2xl); }
   .inv-scope { width: 100%; }
 }

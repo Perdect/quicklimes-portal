@@ -309,7 +309,7 @@
 .rx-chart-t { font-size: var(--ql-text-base); font-weight: var(--ql-weight-bold); color: var(--ql-text); }
 .rx-chart-s { font-size: var(--ql-text-xs); color: var(--ql-text-muted); }
 .rx-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
-.rx-ax { font-size: 9px; fill: var(--ql-text-muted); }
+.rx-ax { font-size: var(--ql-text-2xs); fill: var(--ql-text-muted); }
 .rx-gl { stroke: var(--ql-border); stroke-width: 1; }
 
 .rx-legend { display: flex; flex-wrap: wrap; gap: var(--ql-space-2) var(--ql-space-3); margin-top: var(--ql-space-3); }

@@ -8,14 +8,14 @@
 .rp-kpis { display: grid; gap: 12px; margin: 4px 0 16px; }
 .rp-kpi { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-3xl); padding: 14px 16px; box-shadow: var(--ql-shadow-xs); transition: transform var(--ql-duration-fast) var(--ql-ease-out), box-shadow var(--ql-duration-fast) var(--ql-ease-out); }
 .rp-kpi:hover { transform: translateY(-2px); box-shadow: var(--ql-shadow-md); }
-.rp-kpi-l { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ql-text-secondary); }
-.rp-kpi-v { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.rp-kpi-l { font-size: var(--ql-text-xs); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ql-text-secondary); }
+.rp-kpi-v { font-size: var(--ql-text-xl); font-weight: 800; letter-spacing: -0.02em; margin-top: 4px; font-variant-numeric: tabular-nums; }
 
 /* modern table */
 .rp-table-wrap { border: 1px solid var(--ql-border); border-radius: var(--ql-radius-3xl); overflow: hidden; box-shadow: var(--ql-shadow-xs); background: var(--ql-card); }
 .rp-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-height: 62vh; }
-table.rp-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
-.rp-table thead th { position: sticky; top: 0; z-index: 2; background: var(--ql-neutral-50); color: var(--ql-text-secondary); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--ql-border); white-space: nowrap; }
+table.rp-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--ql-text-base); }
+.rp-table thead th { position: sticky; top: 0; z-index: 2; background: var(--ql-neutral-50); color: var(--ql-text-secondary); font-weight: 600; font-size: var(--ql-text-xs); text-transform: uppercase; letter-spacing: 0.04em; text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--ql-border); white-space: nowrap; }
 .rp-table thead th.num { text-align: right; }
 .rp-table tbody td { padding: 12px 14px; border-bottom: 1px solid var(--ql-divider); vertical-align: middle; color: var(--ql-text); white-space: nowrap; }
 .rp-table tbody tr:last-child td { border-bottom: 0; }
@@ -24,11 +24,11 @@ table.rp-table { width: 100%; border-collapse: separate; border-spacing: 0; font
 .rp-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .rp-table td.inv { font-weight: 700; color: var(--ql-brand-600); }
 .rp-table td.strong { font-weight: 700; }
-.rp-table td.mut { color: var(--ql-text-muted); font-family: var(--ql-font-mono); font-size: 12px; }
+.rp-table td.mut { color: var(--ql-text-muted); font-family: var(--ql-font-mono); font-size: var(--ql-text-sm); }
 .rp-table tbody tr.rp-tot td { background: var(--ql-neutral-50); font-weight: 800; border-top: 2px solid var(--ql-border-strong); border-bottom: 0; position: sticky; bottom: 0; }
 
 /* status pill */
-.rp-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: var(--ql-radius-pill); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.rp-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: var(--ql-radius-pill); font-size: var(--ql-text-xs); font-weight: 700; white-space: nowrap; }
 .rp-pill::before { content: ""; width: 6px; height: 6px; border-radius: var(--ql-radius-pill); background: currentColor; }
 .rp-pill.ok { background: var(--ql-success-100); color: var(--ql-success-700); }
 .rp-pill.warn { background: var(--ql-warning-100); color: var(--ql-warning-700); }
@@ -39,7 +39,7 @@ table.rp-table { width: 100%; border-collapse: separate; border-spacing: 0; font
 .rp-act:hover { border-color: var(--ql-brand-300); color: var(--ql-brand-600); background: var(--ql-brand-50); transform: translateY(-1px); }
 .rp-act svg { width: 15px; height: 15px; }
 
-.rp-note { margin-top: 10px; font-size: 12px; color: var(--ql-text-muted); }
+.rp-note { margin-top: 10px; font-size: var(--ql-text-sm); color: var(--ql-text-muted); }
 
 /* ── mobile: table → invoice cards ── */
 @media (max-width: 768px) {
@@ -48,11 +48,11 @@ table.rp-table { width: 100%; border-collapse: separate; border-spacing: 0; font
   .rp-mcards { display: flex; flex-direction: column; gap: 10px; }
   .rp-mcard { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-3xl); padding: 14px; box-shadow: var(--ql-shadow-xs); }
   .rp-mcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .rp-mcard-inv { font-weight: 700; color: var(--ql-brand-600); font-size: 14px; }
-  .rp-mcard-sub { color: var(--ql-text-secondary); font-size: 12.5px; margin-top: 6px; }
+  .rp-mcard-inv { font-weight: 700; color: var(--ql-brand-600); font-size: var(--ql-text-md); }
+  .rp-mcard-sub { color: var(--ql-text-secondary); font-size: var(--ql-text-sm); margin-top: 6px; }
   .rp-mcard-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 11px; }
-  .rp-mcard-r span { color: var(--ql-text-secondary); font-size: 11.5px; }
-  .rp-mcard-r b { display: block; font-size: 14px; margin-top: 1px; font-variant-numeric: tabular-nums; }
+  .rp-mcard-r span { color: var(--ql-text-secondary); font-size: var(--ql-text-xs); }
+  .rp-mcard-r b { display: block; font-size: var(--ql-text-md); margin-top: 1px; font-variant-numeric: tabular-nums; }
 }
 .rp-mcards { display: none; }
 
