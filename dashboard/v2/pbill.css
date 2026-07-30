@@ -75,7 +75,7 @@
 /* supplier avatar: the initial on a brand gradient — no logo service to call,
    and a fabricated logo would be a lie about a real company */
 .qx-dp-av {
-  width: 46px; height: 46px; flex: none; border-radius: 14px;
+  width: 46px; height: 46px; flex: none; border-radius: var(--ql-radius-3xl);
   display: grid; place-items: center;
   font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -.02em;
   background: linear-gradient(135deg, var(--ql-brand-500) 0%, var(--ql-brand-700) 100%);
@@ -149,7 +149,7 @@
 
 /* ── cards ── */
 .pb-card {
-  border-radius: 18px; padding: 16px;
+  border-radius: var(--ql-radius-5xl); padding: 16px;
   background: rgba(255, 255, 255, .70);
   border: 1px solid var(--ql-border);
   box-shadow: var(--ql-shadow-xs);
@@ -166,7 +166,7 @@
 
 /* the summary rail's hero card — the one number the drawer exists to state */
 .pb-sum {
-  border-radius: 18px; padding: 16px; margin-bottom: 14px; color: #fff;
+  border-radius: var(--ql-radius-5xl); padding: 16px; margin-bottom: 14px; color: #fff;
   background: linear-gradient(140deg, var(--ql-brand-600) 0%, var(--ql-brand-800) 100%);
   box-shadow: 0 16px 32px -18px rgba(37, 99, 235, .9);
   position: relative; overflow: hidden;
@@ -201,14 +201,14 @@
 /* ── KPI grid ── */
 .pb-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 10px; }
 .pb-kpi {
-  border-radius: 14px; padding: 12px;
+  border-radius: var(--ql-radius-3xl); padding: 12px;
   background: rgba(255, 255, 255, .68);
   border: 1px solid var(--ql-border);
   transition: transform .18s var(--ql-ease-out), box-shadow .18s var(--ql-ease-out);
 }
 [data-theme="dark"] .pb-kpi { background: rgba(30, 41, 59, .44); }
 .pb-kpi:hover { transform: translateY(-2px); box-shadow: var(--ql-shadow-md); }
-.pb-kpi-i { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; margin-bottom: 8px; }
+.pb-kpi-i { width: 26px; height: 26px; border-radius: var(--ql-radius-md); display: grid; place-items: center; margin-bottom: 8px; }
 .pb-kpi-i svg { width: 14px; height: 14px; }
 .pb-kpi-l { font-size: 10.5px; font-weight: 600; color: var(--ql-text-muted); letter-spacing: .03em; text-transform: uppercase; }
 .pb-kpi-v { font-size: 17px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
@@ -230,7 +230,7 @@
 .pb-bar > i { display: block; height: 100%; transition: width .5s var(--ql-ease-out); }
 .pb-leg { display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 11.5px; color: var(--ql-text-secondary); }
 .pb-leg > span { display: inline-flex; align-items: center; gap: 6px; }
-.pb-leg i { width: 8px; height: 8px; border-radius: 3px; }
+.pb-leg i { width: 8px; height: 8px; border-radius: var(--ql-radius-xs); }
 
 /* ── trend (inline SVG, no chart library) ── */
 .pb-tr { display: flex; align-items: flex-end; gap: 6px; height: 92px; padding-top: 6px; }
@@ -246,18 +246,18 @@
 
 /* ── AI insights ── */
 .pb-ai {
-  border-radius: 18px; padding: 14px; margin-bottom: 14px;
+  border-radius: var(--ql-radius-5xl); padding: 14px; margin-bottom: 14px;
   background: linear-gradient(135deg, rgba(37, 99, 235, .08), rgba(139, 92, 246, .08));
   border: 1px solid rgba(37, 99, 235, .18);
 }
 .pb-ins { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--ql-divider); font-size: 12.5px; line-height: 1.5; }
 .pb-ins:last-child { border-bottom: none; }
-.pb-ins-i { width: 20px; height: 20px; border-radius: 6px; flex: none; display: grid; place-items: center; font-size: 11px; }
+.pb-ins-i { width: 20px; height: 20px; border-radius: var(--ql-radius-sm); flex: none; display: grid; place-items: center; font-size: 11px; }
 .pb-ins-i svg { width: 12px; height: 12px; }
 
 /* ── timeline ── */
 .pb-tl { position: relative; padding-left: 26px; }
-.pb-tl::before { content: ''; position: absolute; left: 8px; top: 6px; bottom: 6px; width: 2px; background: linear-gradient(180deg, var(--ql-brand-400), var(--ql-border)); border-radius: 2px; }
+.pb-tl::before { content: ''; position: absolute; left: 8px; top: 6px; bottom: 6px; width: 2px; background: linear-gradient(180deg, var(--ql-brand-400), var(--ql-border)); border-radius: var(--ql-radius-xs); }
 .pb-tl-i { position: relative; padding: 0 0 16px; }
 .pb-tl-i::before {
   content: ''; position: absolute; left: -22px; top: 4px; width: 10px; height: 10px; border-radius: 50%;
@@ -270,9 +270,9 @@
 .pb-tl-s { font-size: 11.5px; color: var(--ql-text-muted); margin-top: 1px; }
 
 /* ── empty states ── */
-.pb-empty { text-align: center; padding: 34px 18px; border-radius: 18px; border: 1px dashed var(--ql-border-strong); background: var(--ql-neutral-50); }
+.pb-empty { text-align: center; padding: 34px 18px; border-radius: var(--ql-radius-5xl); border: 1px dashed var(--ql-border-strong); background: var(--ql-neutral-50); }
 [data-theme="dark"] .pb-empty { background: rgba(148, 163, 184, .05); }
-.pb-empty-i { width: 42px; height: 42px; border-radius: 13px; margin: 0 auto 10px; display: grid; place-items: center; background: var(--ql-brand-50); color: var(--ql-brand-600); }
+.pb-empty-i { width: 42px; height: 42px; border-radius: var(--ql-radius-3xl); margin: 0 auto 10px; display: grid; place-items: center; background: var(--ql-brand-50); color: var(--ql-brand-600); }
 [data-theme="dark"] .pb-empty-i { background: rgba(37, 99, 235, .16); color: #93C5FD; }
 .pb-empty-i svg { width: 20px; height: 20px; }
 .pb-empty-t { font-size: 13.5px; font-weight: 650; }
@@ -318,7 +318,7 @@
   .qx-glass .qx-dp-head { padding: 16px 16px 0; }
   .qx-glass .qx-dp-tabs { padding: 10px 16px; }
   .qx-glass .qx-dp-t { font-size: 17px; }
-  .qx-dp-av { width: 40px; height: 40px; border-radius: 12px; font-size: 16px; }
+  .qx-dp-av { width: 40px; height: 40px; border-radius: var(--ql-radius-2xl); font-size: 16px; }
   .qx-dp-amt { font-size: 16px; }
   .pb-kpis { grid-template-columns: repeat(2, 1fr); }
 }
@@ -336,7 +336,7 @@
    table. The affordance appears when you hover the ROW — the standard inline-edit
    pattern: quiet until you go looking, obvious the moment you do. */
 .pfr-edit { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ql-text);
-  background: transparent; border: 1px solid transparent; border-radius: 7px;
+  background: transparent; border: 1px solid transparent; border-radius: var(--ql-radius-md);
   padding: 2px 7px; margin: -2px -7px; cursor: pointer; font-variant-numeric: tabular-nums;
   display: inline-flex; align-items: center; gap: 5px;
   transition: border-color .13s, background .13s, color .13s; }
@@ -362,7 +362,7 @@
 .pfr-inp {
   font: inherit; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums;
   width: 92px; max-width: 100%; padding: 3px 7px; margin: -3px 0;
-  border: 1px solid var(--ql-brand-600); border-radius: 7px;
+  border: 1px solid var(--ql-brand-600); border-radius: var(--ql-radius-md);
   background: var(--ql-card); color: var(--ql-text);
   outline: none; box-shadow: 0 0 0 3px var(--ql-brand-50);
   text-align: right;

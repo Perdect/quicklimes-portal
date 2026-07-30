@@ -127,6 +127,8 @@
   --ql-radius-xl:  10px;
   --ql-radius-2xl: 12px;   /* .75rem — card radius */
   --ql-radius-3xl: 14px;
+  --ql-radius-4xl: 16px;
+  --ql-radius-5xl: 20px;
   --ql-radius-pill: 9999px;
 
   /* ── SHADOW (soft, layered, never harsh) ──────────────────── */

@@ -111,7 +111,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-h-ai { color: var(--ql-brand-600); }
 .qlm-h-badge {
   position: absolute; top: 3px; right: 4px; min-width: 15px; height: 15px; padding: 0 3px;
-  border-radius: 99px; background: var(--ql-danger-500); color: #fff;
+  border-radius: var(--ql-radius-pill); background: var(--ql-danger-500); color: #fff;
   font-size: 9px; font-weight: 700; display: grid; place-items: center; line-height: 1;
   box-shadow: 0 0 0 2px var(--ql-bg-elevated);
 }
@@ -169,7 +169,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
    who does not separate blue from grey easily. */
 .qlm-tab::before {
   content: ""; position: absolute; z-index: -1;
-  top: 4px; left: 50%; margin-left: -23px; width: 46px; height: 28px; border-radius: 999px;
+  top: 4px; left: 50%; margin-left: -23px; width: 46px; height: 28px; border-radius: var(--ql-radius-pill);
   background: var(--qlm-grad);
   box-shadow: var(--qlm-grad-shadow);
   opacity: 0; transform: scale(.5);
@@ -191,7 +191,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 }
 .qlm-tab-dot {
   position: absolute; top: 5px; right: calc(50% - 16px);
-  min-width: 8px; height: 8px; border-radius: 99px; background: var(--ql-danger-500);
+  min-width: 8px; height: 8px; border-radius: var(--ql-radius-pill); background: var(--ql-danger-500);
   border: 1.5px solid var(--ql-bg-elevated);
 }
 
@@ -218,14 +218,14 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 }
 .qlm-sheet-back.open .qlm-sheet { transform: translateY(0); }
 .qlm-sheet-grab { padding: 9px 0 3px; display: flex; justify-content: center; flex: none; touch-action: none; }
-.qlm-sheet-grab::before { content: ""; width: 38px; height: 5px; border-radius: 99px; background: var(--ql-neutral-300); }
+.qlm-sheet-grab::before { content: ""; width: 38px; height: 5px; border-radius: var(--ql-radius-pill); background: var(--ql-neutral-300); }
 .qlm-sheet-head {
   display: flex; align-items: center; gap: 10px;
   padding: 4px 18px 12px; flex: none;
 }
 .qlm-sheet-title { flex: 1; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
 .qlm-sheet-x {
-  width: 30px; height: 30px; border-radius: 99px; border: 0; flex: none;
+  width: 30px; height: 30px; border-radius: var(--ql-radius-pill); border: 0; flex: none;
   background: var(--ql-neutral-100); color: var(--ql-text-secondary);
   display: flex; align-items: center; justify-content: center;
 }
@@ -235,7 +235,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
   flex: none; padding: 12px 18px calc(12px + var(--qlm-safe-bottom));
   border-top: 1px solid var(--ql-border); display: flex; gap: 10px; background: var(--ql-bg-elevated);
 }
-.qlm-sheet-foot .ql-btn { flex: 1; height: 48px; font-size: 15px; border-radius: 14px; }
+.qlm-sheet-foot .ql-btn { flex: 1; height: 48px; font-size: 15px; border-radius: var(--ql-radius-3xl); }
 
 /* ═══════════════ 6 · ACTION SHEET (iOS) ═══════════════ */
 .qlm-as-back {
@@ -254,7 +254,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-as-group, .qlm-as-cancel {
   background: color-mix(in srgb, var(--ql-bg-elevated) 96%, transparent);
   -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
-  border-radius: 16px; overflow: hidden;
+  border-radius: var(--ql-radius-4xl); overflow: hidden;
 }
 .qlm-as-cancel { margin-top: 8px; }
 .qlm-as-title {
@@ -299,7 +299,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-chips::-webkit-scrollbar { display: none; }
 .qlm-chip {
   flex: none; scroll-snap-align: start;
-  padding: 9px 16px; border-radius: 99px; border: 1px solid var(--ql-border);
+  padding: 9px 16px; border-radius: var(--ql-radius-pill); border: 1px solid var(--ql-border);
   background: var(--ql-bg-elevated); color: var(--ql-text-secondary);
   font-size: 13px; font-weight: 600; white-space: nowrap;
   transition: color var(--ql-duration-fast) var(--ql-ease-out),
@@ -313,7 +313,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
    solid gradient-coloured border so the shape never depends on the fade. */
 .qlm-chip::before {
   content: ""; position: absolute; inset: -1px; z-index: -1;
-  border-radius: 99px; background: var(--qlm-grad);
+  border-radius: var(--ql-radius-pill); background: var(--qlm-grad);
   opacity: 0; transition: opacity var(--ql-duration-base) var(--ql-ease-out);
 }
 .qlm-chip.active { color: #fff; border-color: transparent; }
@@ -346,14 +346,14 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-more-sec { font-size: 12px; font-weight: 700; color: var(--ql-text-muted); text-transform: uppercase; letter-spacing: .06em; margin: 14px 2px 8px; }
 .qlm-more-sec:first-child { margin-top: 2px; }
 .qlm-more-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px 4px; }
-.qlm-more-tile { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 4px; border-radius: 14px; color: var(--ql-text); text-align: center; text-decoration: none; }
+.qlm-more-tile { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 4px; border-radius: var(--ql-radius-3xl); color: var(--ql-text); text-align: center; text-decoration: none; }
 .qlm-more-tile:active { background: var(--ql-neutral-100); }
 .qlm-more-tile span:last-child { font-size: 11px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; }
-.qlm-more-ic { width: 48px; height: 48px; border-radius: 15px; display: grid; place-items: center; background: var(--ql-brand-50); color: var(--ql-brand-600); }
+.qlm-more-ic { width: 48px; height: 48px; border-radius: var(--ql-radius-4xl); display: grid; place-items: center; background: var(--ql-brand-50); color: var(--ql-brand-600); }
 .qlm-more-ic svg { width: 23px; height: 23px; }
 
 /* status pills reused on cards */
-.qlm-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+.qlm-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: var(--ql-radius-pill); font-size: 11px; font-weight: 700; }
 .qlm-pill.ok { background: var(--ql-success-100); color: var(--ql-success-700); }
 .qlm-pill.warn { background: var(--ql-warning-100); color: var(--ql-warning-700); }
 .qlm-pill.info { background: var(--ql-brand-100); color: var(--ql-brand-700); }
@@ -461,12 +461,12 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .qlm-kpi {
   background: var(--ql-card); border: 1px solid var(--ql-border);
-  border-radius: 18px; padding: 15px; position: relative; overflow: hidden;
+  border-radius: var(--ql-radius-5xl); padding: 15px; position: relative; overflow: hidden;
   box-shadow: var(--ql-shadow-xs);
 }
 .qlm-kpi:active { transform: scale(0.99); }
 .qlm-kpi-ic {
-  width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; margin-bottom: 11px;
+  width: 34px; height: 34px; border-radius: var(--ql-radius-2xl); display: grid; place-items: center; margin-bottom: 11px;
 }
 .qlm-kpi-ic svg { width: 18px; height: 18px; }
 .qlm-kpi-l { font-size: 12px; font-weight: 600; color: var(--ql-text-secondary); letter-spacing: -0.01em; }
@@ -498,7 +498,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 /* mini bar chart (simplified) */
 .qlm-chartcard {
   background: var(--ql-card); border: 1px solid var(--ql-border);
-  border-radius: 18px; padding: 16px; box-shadow: var(--ql-shadow-xs);
+  border-radius: var(--ql-radius-5xl); padding: 16px; box-shadow: var(--ql-shadow-xs);
 }
 .qlm-chartcard-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
 .qlm-chartcard-h .t { font-size: 14px; font-weight: 700; }
@@ -509,7 +509,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-bar-lbl { font-size: 10px; color: var(--ql-text-muted); font-weight: 600; }
 
 /* list container (dashboard recent) */
-.qlm-list { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 18px; overflow: hidden; box-shadow: var(--ql-shadow-xs); }
+.qlm-list { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-5xl); overflow: hidden; box-shadow: var(--ql-shadow-xs); }
 
 /* ── shared native list row (dashboard recent + QLX Sales/Purchase lists) ── */
 .qlm-lrow { display: flex; align-items: center; gap: 12px; padding: 14px 15px; background: var(--ql-card); min-width: 0; max-width: 100%; overflow: hidden; }
@@ -519,8 +519,8 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-list > .qlm-lrow:last-child { border-bottom: 0; }
 /* standalone inside a QLX card grid → each is its own rounded card (grid items must
    be allowed to shrink below content width so the name truncates, not the amount) */
-.qx-cards > .qlm-lrow { border: 1px solid var(--ql-border); border-radius: 16px; box-shadow: var(--ql-shadow-xs); min-width: 0; }
-.qlm-lrow-av { width: 46px; height: 46px; flex: none; border-radius: 13px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 17px; }
+.qx-cards > .qlm-lrow { border: 1px solid var(--ql-border); border-radius: var(--ql-radius-4xl); box-shadow: var(--ql-shadow-xs); min-width: 0; }
+.qlm-lrow-av { width: 46px; height: 46px; flex: none; border-radius: var(--ql-radius-3xl); display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 17px; }
 .qlm-lrow-mid { flex: 1; min-width: 0; }
 .qlm-lrow-name { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .qlm-lrow-l1 { font-size: 13px; color: var(--ql-text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -546,7 +546,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
   background: rgba(20,24,28,.92); color: #fff;
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
 }
-.qlm-iv-x { width: 38px; height: 38px; border-radius: 99px; border: 0; background: rgba(255,255,255,.12); color: #fff; display: flex; align-items: center; justify-content: center; }
+.qlm-iv-x { width: 38px; height: 38px; border-radius: var(--ql-radius-pill); border: 0; background: rgba(255,255,255,.12); color: #fff; display: flex; align-items: center; justify-content: center; }
 .qlm-iv-x svg { width: 20px; height: 20px; }
 .qlm-iv-ttl { flex: 1; font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .qlm-iv-zoom { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.7); min-width: 44px; text-align: right; }
@@ -567,7 +567,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 }
 .qlm-iv-btn {
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 8px 4px; border-radius: 12px; border: 0; background: transparent; color: #fff;
+  padding: 8px 4px; border-radius: var(--ql-radius-2xl); border: 0; background: transparent; color: #fff;
   font-size: 11px; font-weight: 600;
 }
 .qlm-iv-btn:active { background: rgba(255,255,255,.1); }
@@ -578,7 +578,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 /* ═══════════════ 12 · WIZARD (step-by-step form) ═══════════════ */
 .qlm-wiz-head { padding: 2px 18px 14px; flex: none; }
 .qlm-wiz-steps { display: flex; align-items: center; gap: 6px; }
-.qlm-wiz-dot { flex: 1; height: 4px; border-radius: 99px; background: var(--ql-neutral-200); transition: background var(--ql-duration-base) var(--ql-ease-out); }
+.qlm-wiz-dot { flex: 1; height: 4px; border-radius: var(--ql-radius-pill); background: var(--ql-neutral-200); transition: background var(--ql-duration-base) var(--ql-ease-out); }
 .qlm-wiz-dot.done { background: var(--ql-brand-600); }
 .qlm-wiz-dot.cur { background: var(--ql-brand-400); }
 .qlm-wiz-step { font-size: 12px; font-weight: 600; color: var(--ql-text-secondary); margin-top: 10px; }
@@ -587,7 +587,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
 .qlm-field label { display: block; font-size: 13px; font-weight: 600; color: var(--ql-text-secondary); margin-bottom: 7px; }
 .qlm-field input, .qlm-field select, .qlm-field textarea {
   width: 100%; height: 50px; padding: 0 15px; font-size: 16px; /* 16px avoids iOS zoom */
-  border: 1px solid var(--ql-border); border-radius: 13px; background: var(--ql-bg);
+  border: 1px solid var(--ql-border); border-radius: var(--ql-radius-3xl); background: var(--ql-bg);
   color: var(--ql-text); font-family: inherit; -webkit-appearance: none; appearance: none;
 }
 .qlm-field textarea { height: auto; min-height: 80px; padding: 13px 15px; }
@@ -782,7 +782,7 @@ body.ql-v2 { background: var(--ql-bg); -webkit-tap-highlight-color: transparent;
    build (and for a future edit to forget). */
 .ql-mp.qlm-mp::before {
   content: ""; display: block; width: 38px; height: 5px; margin: 3px auto 10px;
-  border-radius: 99px; background: var(--ql-neutral-300);
+  border-radius: var(--ql-radius-pill); background: var(--ql-neutral-300);
 }
 /* Thumb-sized cells. The desktop grid is built for a cursor; 44px is Apple's
    minimum and these were nowhere near it. */
