@@ -624,18 +624,25 @@ function summaryHTML() {
   const rev = tt.filter(needsReview); const revAmt = rev.reduce((a, t) => a + (t.credit || 0) + (t.debit || 0), 0);
   const decided = tt.filter(t => t.m && t.m.confidence != null).length;
   const acc = decided ? Math.round(matchedRows.length / decided * 100) : null;
-  /* ONE DENSE STRIP, not four cards. The cards cost ~100px above the table and
-     carried four numbers a reconciler reads in a glance. This says the same in
-     a single row, so more transactions are on screen — the whole point of the
-     page. Every figure still totals WHAT IS ON SCREEN (filteredTxns), so it can
-     never disagree with the list below it. */
-  const chip = (cls, ic, val, sub, title) =>
-    `<span class="rc-s2 ${cls}" title="${esc(title || '')}">${ic}<b>${val}</b><i>${esc(sub)}</i></span>`;
-  return `<div class="rc-summary2">
-    ${chip('g', svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>'), fC(cr), 'in · ' + credN, 'Money in from ' + credN + ' credits' + (dup ? ' — ' + dup + ' duplicate rows excluded' : ''))}
-    ${chip('r', svg('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>'), fC(dr), 'out · ' + debN, 'Money out from ' + debN + ' debits' + (dup ? ' — ' + dup + ' duplicate rows excluded' : ''))}
-    ${chip('b', svg(IC.ck), matchedRows.length + '<small>/' + tt.length + '</small>', 'matched' + (acc != null ? ' · ' + acc + '%' : ''), 'Matched' + (acc != null ? ', auto-match rate ' + acc + '%' : ''))}
-    ${chip('p', svg('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'), rev.length, 'to review' + (dup ? ' · ' + dup + ' dup' : ''), fC(revAmt) + ' needs review' + (dup ? ', ' + dup + ' duplicates' : ''))}
+  /* KPI CARDS — the SAME .qx-stat cards the Sales / Purchase registers use, so
+     Bank Reconciliation reads as one product with the rest of the ERP (asked
+     for directly: "make it same as Sales Register"). qlx.css is loaded on this
+     page, so these are the exact same components, not a look-alike. Every figure
+     still totals WHAT IS ON SCREEN (filteredTxns), so the cards can never
+     disagree with the list below them. Clicking a card filters to it. */
+  const net = cr - dr;
+  const card = (tint, icon, label, value, sub) =>
+    `<div class="qx-stat qx-tint-${tint}">
+      <div class="qx-stat-top"><span class="qx-stat-ic t-${tint}">${icon}</span><span class="qx-stat-l">${esc(label)}</span></div>
+      <div class="qx-stat-v">${value}</div>
+      <div class="qx-stat-s">${esc(sub)}</div>
+    </div>`;
+  return `<div class="qx-stats">
+    ${card('green', svg('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>'), 'Money In', fC(cr), credN + ' credit' + (credN === 1 ? '' : 's'))}
+    ${card('rose', svg('<line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/>'), 'Money Out', fC(dr), debN + ' debit' + (debN === 1 ? '' : 's'))}
+    ${card('blue', svg(IC.ck), 'Matched', matchedRows.length + '<small style="font-size:60%;color:var(--ql-text-muted);font-weight:600"> / ' + tt.length + '</small>', acc != null ? acc + '% auto-matched' : 'no matches yet')}
+    ${card('amber', svg('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'), 'To Review', rev.length, revAmt ? fC(revAmt) + ' pending' : (dup ? dup + ' duplicate' + (dup === 1 ? '' : 's') : 'all clear'))}
+    ${card('violet', svg('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'), 'Net Movement', (net < 0 ? '− ' : '+ ') + fC(Math.abs(net)), net < 0 ? 'net outflow' : 'net inflow')}
   </div>`;
 }
 /* Secondary metrics live in a collapsed accordion, out of the primary flow. */
@@ -2177,11 +2184,12 @@ function repaintList() {
   const p = document.querySelector('.rc-panel');
   if (!p) { render(); return; }
   p.innerHTML = viewHTML();
-  /* Must match the class summaryHTML() actually renders. When the strip was
-     renamed this selector was left behind: `s` came back null, the `if (s)`
-     guard swallowed it, and the totals silently stopped following the filters
-     while still looking authoritative. */
-  const s = document.querySelector('.rc-summary2');
+  /* Must match the class summaryHTML() actually renders (now the shared
+     .qx-stats KPI cards). When this selector was left behind at a rename, `s`
+     came back null, the `if (s)` guard swallowed it, and the totals silently
+     stopped following the filters while still looking authoritative.
+     recon-wiring.test.js pins this selector to the class summaryHTML emits. */
+  const s = document.querySelector('.qx-stats');
   if (s) s.outerHTML = summaryHTML();
   wire();
   syncStickyOffset();

@@ -320,12 +320,17 @@ fails.forEach(f => console.log('    ✗ ' + f));
    still looking authoritative. Pin the two to each other. */
 {
   const js = fs.readFileSync(path.join(__dirname, 'reconcile.js'), 'utf8');
-  const m = js.match(/return `<div class="(rc-summary\d*)"/);
+  /* Class-agnostic: whatever container summaryHTML() returns (it is now the
+     shared .qx-stats KPI cards, matching Sales/Purchase — it was rc-summary2),
+     repaintList() must re-query THAT exact class or the totals stop following
+     the filters. Pin the two to each other without hard-coding the name. */
+  const sumFn = js.slice(js.indexOf('function summaryHTML'), js.indexOf('\n}', js.indexOf('function summaryHTML')));
+  const m = sumFn.match(/return `<div class="([a-z0-9-]+)"/);
   ok('summaryHTML renders a known summary container', !!m);
   const cls = m ? m[1] : '';
   ok('  repaintList() replaces THAT container, not a stale class name',
     !!cls && js.includes("document.querySelector('." + cls + "')"));
-  ok('  and the old four-card container is gone', !/class="rc-summary"/.test(js));
+  ok('  and the summary is the shared KPI-card component (same as Sales Register)', cls === 'qx-stats');
 }
 
 /* ══════════ duplicates must not be counted as money ══════════
