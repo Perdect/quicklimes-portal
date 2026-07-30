@@ -234,8 +234,8 @@
      Self-adjusting to any header height, so no per-page tuning.
      Scoped with :has(.qx-panel) so non-register page layouts are untouched. */
   .main:has(.qx-panel) { display: flex; flex-direction: column; }
-  .main:has(.qx-panel) > .dash { flex: 1 1 auto; min-height: 0; }
-  .dash:has(.qx-panel) > .qx-panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .main:has(.qx-panel) > #qxRoot { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  #qxRoot > .qx-panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   .qx-panel > #qxView { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   .qx-panel > #qxView > .qx-grid-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; }
   /* Fallback for any table view not inside the flex chain (kept bounded). */
