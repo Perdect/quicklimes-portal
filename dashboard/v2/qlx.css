@@ -149,12 +149,18 @@
    filters stay reachable no matter how far you scroll, instead of disappearing
    with the page header and forcing a scroll back to the top to change a month.
    It sits INSIDE the clipped panel, so rows can never escape above it. */
-.qx-tb { position: sticky; top: 0; z-index: 12; display: flex; align-items: center; gap: 8px; padding: 11px 14px;
+/* ── UNIVERSAL LIST-HEADER SPEC ────────────────────────────────────────────
+   One toolbar spec for every register (Sales/Purchase/Payments/Cashbook/TDS
+   share this via QLX; Bank Rec is aligned to match). Fixed values so every
+   module is pixel-identical: 64px bar (40px control + 12px top/bottom), 24px
+   horizontal padding, 12px gap, 40px controls, radius-xl (10px), 18px icons,
+   320px search. Change here = change everywhere. */
+.qx-tb { position: sticky; top: 0; z-index: 12; display: flex; align-items: center; gap: 12px; padding: 12px 24px;
   border-bottom: 1px solid var(--ql-divider); flex-wrap: wrap;
   background: var(--ql-card); backdrop-filter: saturate(1.4) blur(8px); }
 .qx-tabs { display: flex; gap: 2px; align-items: center; }
 .qx-tab {
-  height: 34px; padding: 0 13px; border-radius: var(--ql-radius-md); border: none; background: transparent;
+  height: 40px; padding: 0 14px; border-radius: var(--ql-radius-xl); border: none; background: transparent;
   font-size: var(--ql-text-base); font-weight: 600; color: var(--ql-text-secondary); cursor: pointer;
   display: inline-flex; align-items: center; gap: 7px; transition: all .14s var(--ql-ease-out); white-space: nowrap;
 }
@@ -164,17 +170,17 @@
 .qx-tab.active .qx-tab-ct { background: rgba(255,255,255,.7); color: var(--qx-ink); }
 
 .qx-tb-sp { flex: 1; }
-.qx-search { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 11px; border-radius: var(--ql-radius-md); background: var(--ql-neutral-100); border: 1px solid transparent; transition: all .15s; min-width: 190px; }
-.qx-search:focus-within { background: #fff; border-color: var(--qx); box-shadow: 0 0 0 3px var(--qx-glow); }
-.qx-search svg { width: 15px; height: 15px; color: var(--ql-text-muted); flex: none; }
+.qx-search { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 13px; border-radius: var(--ql-radius-xl); background: var(--ql-neutral-100); border: 1px solid transparent; transition: all .15s; width: 320px; max-width: 100%; }
+.qx-search:focus-within { background: var(--ql-card); border-color: var(--qx); box-shadow: 0 0 0 3px var(--qx-glow); }
+.qx-search svg { width: 18px; height: 18px; color: var(--ql-text-muted); flex: none; }
 .qx-search input { border: none; background: none; outline: none; font-size: var(--ql-text-base); width: 100%; color: var(--ql-text); }
 
 .qx-tool {
-  height: 34px; padding: 0 11px; border-radius: var(--ql-radius-md); border: 1px solid transparent; background: transparent;
+  height: 40px; padding: 0 14px; border-radius: var(--ql-radius-xl); border: 1px solid transparent; background: transparent;
   font-size: var(--ql-text-sm); font-weight: 600; color: var(--ql-text-secondary); cursor: pointer;
   display: inline-flex; align-items: center; gap: 6px; transition: all .14s; white-space: nowrap;
 }
-.qx-tool svg { width: 14px; height: 14px; }
+.qx-tool svg { width: 18px; height: 18px; }
 .qx-tool:hover { background: var(--ql-neutral-100); color: var(--ql-text); }
 .qx-tool.on { background: var(--qx-soft); color: var(--qx-ink); }
 .qx-tool-dot { width: 6px; height: 6px; border-radius: var(--ql-radius-pill); background: var(--qx); }
