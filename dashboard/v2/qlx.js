@@ -285,8 +285,12 @@
 
   function toolbarHTML(rows) {
     const showTabs = CFG.quickFilters && CFG.quickFilters.length > 1;
-    const qf = showTabs ? CFG.quickFilters.map(f => {
+    /* Hide EMPTY status tabs (count 0) — an "Partial 0 · Cash 0" that can never
+       be clicked to anything is noise. Always keep the first tab ("All") and
+       whichever tab is currently active, so the current filter never vanishes. */
+    const qf = showTabs ? CFG.quickFilters.map((f, i) => {
       const n = f.test ? allRows().filter(f.test).length : allRows().length;
+      if (n === 0 && i !== 0 && S.quick !== f.key) return '';
       return `<button class="qx-tab ${S.quick === f.key ? 'active' : ''}" data-qf="${f.key}">${esc(f.label)}<span class="qx-tab-ct">${n}</span></button>`;
     }).join('') : '';
     const showViews = (CFG.views || []).length > 1;
