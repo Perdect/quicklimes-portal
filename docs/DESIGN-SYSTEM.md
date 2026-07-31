@@ -43,7 +43,7 @@ The shared component is QLX's `toolbarHTML` (`qlx.js`), used by Sales, Purchase,
 - **Bar** 64px (12/24 padding), **gap** 12px, sticky top
 - **Order (never changes):** Month/date filter → status tabs (with counts) → search → Group → Filters → Columns → module extras (Ledger/Audit/Export/Import)
 - Controls **40px**, radius **xl (10)**, icons **18px**, **search 320px**
-- ⚠️ **Bank Reconciliation** (`reconcile.js`) has its own toolbar (status dropdown + account tabs + Ledger/Audit views) — **not yet aligned** to this spec; tracked as the next step.
+- ✅ **Bank Reconciliation** (`reconcile.js`) now follows this spec: date filter far-left, search leading the right cluster (search → sort → Filters → Ledger → Audit), 40px controls, radius-xl, 320px search, 18px icons. It keeps a status *dropdown* (not tabs) because it has six statuses + account scoping — too many for a tab row.
 
 ---
 
