@@ -369,8 +369,8 @@
    Dot colours come inline from the SAME STAT palette as the row pills. */
 .rc-stwrap { position: relative; }
 .rc-stbtn {
-  display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px;
-  border: 1px solid var(--ql-border); border-radius: var(--ql-radius-2xl); background: var(--ql-card);
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px;
+  border: 1px solid var(--ql-border); border-radius: var(--ql-radius-xl); background: var(--ql-card);
   font: inherit; font-size: var(--ql-text-base); font-weight: 600; color: var(--ql-text);
   cursor: pointer; white-space: nowrap;
   transition: border-color .13s, box-shadow .13s;
@@ -419,11 +419,11 @@
 .rc-typ { height: 26px; padding: 0 12px; border: none; background: transparent; border-radius: var(--ql-radius-md); font: inherit; font-size: var(--ql-text-sm); font-weight: 600; color: var(--ql-text-secondary); cursor: pointer; }
 .rc-typ.on { background: var(--ql-card); color: var(--ql-text); box-shadow: var(--ql-shadow-sm); }
 .rc-searchw { position: relative; display: flex; align-items: center; }
-.rc-searchw svg { position: absolute; left: 10px; width: 15px; height: 15px; color: var(--ql-text-secondary); pointer-events: none; }
-.rc-search2 { height: 34px; width: 220px; max-width: 42vw; padding: 0 12px 0 32px; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); font: inherit; font-size: var(--ql-text-base); background: var(--ql-card); color: var(--ql-text); outline: none; }
+.rc-searchw svg { position: absolute; left: 14px; width: 18px; height: 18px; color: var(--ql-text-secondary); pointer-events: none; }
+.rc-search2 { height: 40px; width: 320px; max-width: 100%; padding: 0 14px 0 40px; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-xl); font: inherit; font-size: var(--ql-text-base); background: var(--ql-card); color: var(--ql-text); outline: none; }
 .rc-search2:focus { border-color: var(--ql-brand-400); box-shadow: 0 0 0 3px var(--ql-brand-50); }
-.rc-mini2 { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); background: var(--ql-card); font: inherit; font-size: var(--ql-text-base); font-weight: 600; color: var(--ql-text); cursor: pointer; }
-.rc-mini2 svg { width: 15px; height: 15px; }
+.rc-mini2 { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-xl); background: var(--ql-card); font: inherit; font-size: var(--ql-text-base); font-weight: 600; color: var(--ql-text); cursor: pointer; }
+.rc-mini2 svg { width: 18px; height: 18px; }
 .rc-mini2:hover { border-color: var(--ql-brand-400); color: var(--ql-brand-600); }
 
 /* 5) the table — primary focus */
@@ -715,9 +715,9 @@
    Beside the rows it filters, not in the page header: the header month picker
    scopes the whole page, this narrows what you are working through. */
 .rc-dwrap { position: relative; }
-.rc-dbtn { display: inline-flex; align-items: center; gap: 7px; font: 600 var(--ql-text-sm) var(--ql-font-sans);
+.rc-dbtn { display: inline-flex; align-items: center; gap: 7px; height: 40px; font: 600 var(--ql-text-sm) var(--ql-font-sans);
   color: var(--ql-text-secondary); background: var(--ql-card); border: 1px solid var(--ql-border);
-  border-radius: var(--ql-radius-xl); padding: 8px 12px; cursor: pointer; white-space: nowrap; }
+  border-radius: var(--ql-radius-xl); padding: 0 14px; cursor: pointer; white-space: nowrap; }
 .rc-dbtn:hover { color: var(--ql-text); border-color: var(--ql-brand-400, #60a5fa); }
 .rc-dbtn.on { color: var(--ql-brand-700, #1d4ed8); border-color: var(--ql-brand-400, #60a5fa); background: var(--ql-brand-50, #eff6ff); }
 [data-theme="dark"] .rc-dbtn.on { background: rgba(37,99,235,.16); color: var(--ql-brand-300); }
@@ -774,9 +774,9 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── exception-first toggle ── */
-.rc-exbtn { display: inline-flex; align-items: center; gap: 7px; font: 600 var(--ql-text-sm) var(--ql-font-sans);
+.rc-exbtn { display: inline-flex; align-items: center; gap: 7px; height: 40px; font: 600 var(--ql-text-sm) var(--ql-font-sans);
   color: var(--ql-text-secondary); background: var(--ql-card); border: 1px solid var(--ql-border);
-  border-radius: var(--ql-radius-xl); padding: 8px 12px; cursor: pointer; white-space: nowrap; }
+  border-radius: var(--ql-radius-xl); padding: 0 14px; cursor: pointer; white-space: nowrap; }
 .rc-exbtn:hover { color: var(--ql-text); border-color: var(--ql-brand-400, #60a5fa); }
 .rc-exbtn.on { color: var(--ql-warning-700); border-color: #fde68a; background: var(--ql-warning-50); }
 [data-theme="dark"] .rc-exbtn.on { background: rgba(245,158,11,.14); border-color: rgba(245,158,11,.3); color: #fbbf24; }

@@ -714,14 +714,17 @@ function toolbarHTML() {
     </button>
     ${ST.stOpen ? `<div class="rc-stmenu" role="menu">${Object.keys(stLabel).map(stItem).join('')}</div>` : ''}
   </div>`;
+  /* Layout mirrors the Sales/Purchase register toolbar so the whole ERP reads as
+     one product: date filter FAR-LEFT (where "June 2026" sits), status next, then
+     a right cluster LED BY SEARCH — search, sort, Filters, Ledger, Audit — instead
+     of the old right-crammed "sort · date · filters · search" order. */
   return `<div class="rc-toolbar2">
-    <div class="rc-ftabs">${stSel}</div>
+    <div class="rc-ftabs">${dateBtnHTML()}${stSel}</div>
     <div class="rc-tb-r">
+      <div class="rc-searchw">${svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')}<input class="rc-search2" id="rcSearch" placeholder="Search party, ref, amount…" value="${esc(ST.q)}"></div>
       <button class="rc-exbtn ${ST.exFirst ? 'on' : ''}" id="rcExFirst" title="${ST.exFirst ? 'Showing what needs you first' : 'Showing newest first'}">
         ${svg('<path d="M12 2v6M12 16v6M2 12h6M16 12h6"/><circle cx="12" cy="12" r="3"/>')}<span>${ST.exFirst ? 'Needs you first' : 'Newest first'}</span></button>
-      ${dateBtnHTML()}
       ${filtersBtnHTML()}
-      <div class="rc-searchw">${svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')}<input class="rc-search2" id="rcSearch" placeholder="Search party, ref, amount…" value="${esc(ST.q)}"></div>
       <button class="rc-mini2" data-view="ledger" title="Party ledger">${svg('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>')}<span>Ledger</span></button>
       <button class="rc-mini2" data-view="audit" title="Who decided what, and when">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}<span>Audit</span></button>
     </div></div>`;
