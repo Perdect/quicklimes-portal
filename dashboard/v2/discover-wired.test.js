@@ -121,7 +121,7 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(!/id="dcHero"/.test(html) && !/dc-hero-actions/.test(html), 'the hero block is gone (removed on request) — search leads the page');
   ok(html.split('<div class="dash"').length === 2 && (html.slice(html.indexOf('<div id="ql-page">'), html.indexOf('<script src=')).split('<div').length === html.slice(html.indexOf('<div id="ql-page">'), html.indexOf('<script src=')).split('</div>').length), '  and the markup is still balanced (no stray </div> closing .dash early)');
   ok(/id="dcSecTabs"/.test(html) && /data-sec="copilot"/.test(html) && /data-sec="markets"/.test(html) && /data-sec="leads"/.test(html), 'three progressive-disclosure sections (Copilot / Markets / Leads)');
-  ok(/id="secMarkets" hidden/.test(html) && /id="secLeads" hidden/.test(html), '  Markets & Leads start hidden — one section visible at a time');
+  ok(/id="secCopilot" hidden/.test(html) && /id="secMarkets" hidden/.test(html), '  Copilot & Markets start hidden — Leads is first + the default visible section');
   ok(/id="dcFilters" hidden/.test(html) && /dc-row\[hidden\] \{ display: none/.test(html), '  advanced filters collapse by default (and the [hidden] grid rule is restored)');
   ok(/function renderHero\(/.test(bare) && /function switchSection\(/.test(bare) && /function renderCopilot\(/.test(bare), 'discover.js has the hero / copilot / section-switch logic');
   // Honesty: real counts, labelled estimates, NO fabricated confidence %.

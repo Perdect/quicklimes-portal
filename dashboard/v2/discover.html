@@ -855,15 +855,15 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 
     <!-- ═══ SECTION TABS — progressive disclosure: one section at a time ═══ -->
     <div class="dc-sectabs" id="dcSecTabs">
-      <button class="dc-sectab active" data-sec="copilot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/></svg>AI Copilot</button>
+      <button class="dc-sectab active" data-sec="leads"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Leads <span class="dc-sectab-n" id="dcSecLeadsN"></span></button>
+      <button class="dc-sectab" data-sec="copilot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/></svg>AI Copilot</button>
       <button class="dc-sectab" data-sec="markets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Markets</button>
-      <button class="dc-sectab" data-sec="leads"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Leads <span class="dc-sectab-n" id="dcSecLeadsN"></span></button>
       <button class="dc-sectab" data-sec="freight"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>Freight</button>
       <button class="dc-sectab" data-sec="pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Acquisition</button>
     </div>
 
     <!-- COPILOT SECTION -->
-    <div class="dc-sec" id="secCopilot"><div id="dcCopilot"></div></div>
+    <div class="dc-sec" id="secCopilot" hidden><div id="dcCopilot"></div></div>
 
     <!-- MARKETS SECTION -->
     <div class="dc-sec" id="secMarkets" hidden>
@@ -905,7 +905,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     </div>
 
     <!-- LEADS SECTION -->
-    <div class="dc-sec" id="secLeads" hidden>
+    <div class="dc-sec" id="secLeads">
       <div class="dc-sum" id="dcSum" hidden></div>
       <div class="dc-recent" id="dcRecent"></div>
       <div class="dc-tabs" id="dcTabs"></div>
@@ -1066,7 +1066,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./lead-actions.js?v=la3"></script>
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
-<script src="./data.js?v=m49"></script>
+<script src="./data.js?v=m50"></script>
 <script src="./i18n.js?v=h8"></script>
 <script src="./wa-core.js?v=w3"></script>
 <script src="./shell.js?v=m67"></script>

@@ -133,7 +133,7 @@
     },
     '08BNAPM0488E1Z3': {
       address: 'TALANPUR ROAD ,SH 86B,, CHANDRA TYRE RETREADING GOTAN, DISTRICT -NAGAUR',
-      state: 'Rajasthan (08)', pin: '342604', gstin: '08BNAPM0488E1Z3', phone: '9460034743',
+      state: 'Rajasthan (08)', pin: '342604', gstin: '08BNAPM0488E1Z3', phone: '9460767676',
       email: 'gotanlimeindustries@gmail.com', station: 'GOTAN',
       bank: 'BANK OF BARODA', bankBranch: 'MERTA CITY', accNo: '33580500001254', ifsc: 'BARB0MERTAC',
       bank2: 'HDFC BANK', bankBranch2: 'UMAID STADIUM', accNo2: '50200084904066', ifsc2: 'HDFC0001845',
