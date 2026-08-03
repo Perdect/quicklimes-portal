@@ -74,6 +74,10 @@ const FILE = { name: 'bill.pdf', type: 'application/pdf' };
     ['network', 'the request never reached the server', 'the request never left'],
     ['llm_unknown_provider:gemni', 'the server has an unknown AI provider configured (gemni)', 'a TYPO in the provider config — names the typo'],
     ['ai_no_result:SAFETY', 'the AI returned no result (SAFETY)', 'a blocked prompt — not "unavailable"'],
+    ['HTTP 401', 'the AI key was rejected (401) — check LLM_API_KEY in api/config.php', 'a rejected key — names the KEY and the file, not a bare "HTTP 401"'],
+    ['HTTP 403', 'the AI key was rejected (403) — check LLM_API_KEY in api/config.php', '403 is also a rejected/blocked key'],
+    ['HTTP 429', 'the AI key hit its rate/quota limit (429) — add credit or slow down', 'rate-limit is a DIFFERENT fix from a bad key'],
+    ['HTTP 500', 'the AI provider had a server error (500) — usually temporary, try again', 'a 5xx is the provider, not the key'],
   ];
   for (const [err, want, label] of cases) {
     const { API } = loadClient({ ok: false, fallback: true, error: err });

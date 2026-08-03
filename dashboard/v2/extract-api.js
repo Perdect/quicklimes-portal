@@ -80,6 +80,18 @@
     if (WHY[e]) return WHY[e];
     if (e.indexOf('llm_unknown_provider:') === 0) return 'the server has an unknown AI provider configured (' + e.split(':')[1] + ')';
     if (e.indexOf('ai_no_result:') === 0) return 'the AI returned no result (' + e.split(':')[1] + ')';
+    /* A raw "HTTP 401/403" is the AI PROVIDER rejecting the key (llm.php passes its
+       status straight through). "HTTP 401" told the owner nothing; the actionable
+       fact is that the key is bad. 429 is the other one worth naming — it is a
+       funded key that is simply rate-limited/out of quota, a different fix. */
+    var m = e.match(/^HTTP (\d{3})/);
+    if (m) {
+      var code = m[1];
+      if (code === '401' || code === '403') return 'the AI key was rejected (' + code + ') — check LLM_API_KEY in api/config.php';
+      if (code === '429') return 'the AI key hit its rate/quota limit (429) — add credit or slow down';
+      if (code[0] === '5') return 'the AI provider had a server error (' + code + ') — usually temporary, try again';
+      return 'the AI provider returned ' + code;
+    }
     return e || 'the AI did not answer';
   }
   function status() { return _last; }
