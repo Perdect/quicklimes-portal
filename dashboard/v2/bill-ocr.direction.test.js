@@ -45,6 +45,28 @@ Invoice No 20263121B020885  Date 18-Dec-25`;
 r = O.parse(normalPurchase, OWN);
 eq('seller-first purchase still purchase', O.legacy(r).dir, 'purchase');
 
+// REAL BUG (Gotan invoice 58/2026-27, GTL JULY.pdf): a copy marker + title are
+// printed ABOVE the letterhead. The direction scan used to grab "Original Copy"
+// as the letterhead, fail the own-name match, and file the sale as a purchase.
+// Our GSTIN is on our own sales bill (as seller), so the buyerG branch is not
+// evidence of a purchase. Must be SALES.
+const gotanCopyMarker = `Original Copy
+GST INVOICE
+GOTAN LIME INDUSTRIES
+TALANPUR ROAD ,SH 86B,, CHANDRA TYRE RETREADING
+GOTAN, DISTRICT -NAGAUR
+GSTIN : ${GOTAN}
+Invoice No.  : 58/2026-27
+Dated  : 02-07-2026
+Billed to :
+M/S DURGA FLY ASH BRICKS
+GSTIN / UIN  : 21AFTPJ3586N1ZT
+Quick Lime  25221000  42.10 Tonne  6,000.00  2,52,600.00
+Grand Total  2,65,230.00`;
+r = O.parse(gotanCopyMarker, OWN);
+eq('sale with "Original Copy" atop letterhead → sale', O.legacy(r).dir, 'sales');
+eq('  and the party is the CUSTOMER, not us', r.fields.supplierGstin, '21AFTPJ3586N1ZT');
+
 console.log('\n════ direction (buyer-block-first) ════\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' DIRECTION TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');

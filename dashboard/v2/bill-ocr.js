@@ -339,12 +339,25 @@
       // wrong would flip every one of our own sales bills into a purchase.
       // (identity.test.js caught exactly that.)
       if ((ownNames || []).length) {
-        var head = '';
-        for (var hi = 0; hi < Math.min(lines.length, 8) && !head; hi++) head = goodName(lines[hi], []);
-        if (head) {
-          if (isOwnName(head, ownNames)) dir = 'sales';        // our letterhead ⇒ we issued it
-          else if (buyerG) dir = 'purchase';                   // someone else's letterhead + our GSTIN on it ⇒ we bought
+        /* Scan the top lines for OUR letterhead — do NOT stop at the FIRST
+           name-like line. Indian GST invoices print copy markers ("Original
+           Copy") and a title ("GST INVOICE") ABOVE the firm name; goodName let
+           those through, so grabbing the first hit took "Original Copy", failed
+           the own-name match, and — via the buyerG branch — filed our OWN sales
+           invoice as a purchase. buyerG only means "our GSTIN is on the bill",
+           which is ALWAYS true on our own sales bill, so it is not evidence we
+           bought. Reproduced on Gotan invoice 58/2026-27 (recon regression).
+           Rule: our name anywhere up top ⇒ we issued it (sale); ONLY a
+           positively-identified OTHER letterhead + our GSTIN ⇒ we bought. */
+        var sawOwn = false, sawOther = '';
+        for (var hi = 0; hi < Math.min(lines.length, 8); hi++) {
+          var nm = goodName(lines[hi], []);
+          if (!nm) continue;
+          if (isOwnName(nm, ownNames)) { sawOwn = true; break; }
+          if (!sawOther) sawOther = nm;                        // first plausible non-own letterhead
         }
+        if (sawOwn) dir = 'sales';
+        else if (sawOther && buyerG) dir = 'purchase';
       }
     }
 
@@ -669,7 +682,11 @@
     if (/^(?:the|for|to|from|as|we|i|received|certified|authoris|authoriz|payer|payee|ordering|declaration|subject|being|goods|value|amount|total|net|place|date|terms|note|remarks?)\b/i.test(c)) return '';
     if (/\b(?:buyer|signator|signature|hereby|certif|received|good\s*condition|amount\s*indicated|terms\s*(?:and|&|of)\b|payer\b|ordering\s*party|declaration|reconciliation|subject\s*to|digitally\s*signed|e-?way|original\s*for|duplicate\s*for|triplicate)\b/i.test(c)) return '';
     if (/\bfor\b/i.test(c) && !CO_SUFFIX.test(c)) return '';   // "the buyer. For", "For & on behalf" — not a company unless it carries a real suffix
-    if (/^(?:tax\s*invoice|consignment\s*note|credit\s*note|debit\s*note|delivery\s*challan|bill\s*of\s*supply|proforma|quotation|estimate|cash\s*memo|receipt|challan)\b/i.test(c)) return '';   // a document TITLE, not a firm
+    if (/^(?:gst\s*invoice|tax\s*invoice|consignment\s*note|credit\s*note|debit\s*note|delivery\s*challan|bill\s*of\s*supply|proforma|quotation|estimate|cash\s*memo|receipt|challan)\b/i.test(c)) return '';   // a document TITLE, not a firm
+    // Copy-type markers printed atop GST invoices ("Original Copy", "Duplicate
+    // for Transporter", "Office Copy") are not a letterhead — see the direction
+    // scan. Rejecting them here keeps them out of the "other letterhead" signal.
+    if (/^(?:original|duplicate|triplicate|quadruplicate|office|customer|transport(?:er)?|extra|counterfoil)\s+(?:copy|for\b)/i.test(c) || /^copy\b/i.test(c)) return '';
     if (/\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]/i.test(norm(c).replace(/\s/g, ''))) return '';    // contains a GSTIN → not a name
     var n = norm(c); for (var i = 0; i < (ownNames || []).length; i++) { if (ownNames[i] && (n.indexOf(ownNames[i]) >= 0 || ownNames[i].indexOf(n) >= 0)) return ''; }
     return c;
