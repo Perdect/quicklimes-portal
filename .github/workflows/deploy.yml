@@ -25,8 +25,8 @@ jobs:
           cp terms_and_conditions.html deploy/terms_and_conditions.html
           cp quicklime.html          deploy/quicklime.html
           cp quicklimes-admin.html   deploy/quicklimes-admin.html
-          # Redesign preview (noindex) — served at /new via .htaccess
-          cp landing-v2.html         deploy/landing-v2.html
+          # Pre-redesign page, archived (noindex) — instant rollback at /old
+          cp index-old.html          deploy/index-old.html
           # Backend shim so the ROOT login/signup pages talk to the Hostinger
           # PHP API (window.supabase drop-in). Single source: dashboard/v2/ql-api.js.
           cp dashboard/v2/ql-api.js  deploy/ql-api.js

@@ -18,7 +18,10 @@ RewriteRule ^hi/?$        deshwali_minerals_hindi.html [L]
 RewriteRule ^privacy/?$   privacy_policy.html         [L]
 RewriteRule ^terms/?$     terms_and_conditions.html   [L]
 RewriteRule ^dashboard/?$ deshwali_dashboard.html     [L]
-RewriteRule ^new/?$       landing-v2.html             [L]
+# the redesign moved from /new to the homepage; keep shared preview links alive
+RewriteRule ^new/?$       /                           [R=301,L]
+# archived pre-redesign page (noindex) — rollback / comparison
+RewriteRule ^old/?$       index-old.html              [L]
 
 # ── Clean URLs: /foo serves /foo.html if it exists ──
 RewriteCond %{REQUEST_FILENAME} !-f
