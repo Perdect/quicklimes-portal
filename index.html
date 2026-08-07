@@ -75,6 +75,14 @@
       "publisher": {"@id":"https://quicklimes.com/#org"},
       "description": "AI-powered ERP for quick-lime and hydrated-lime manufacturers — GST invoicing, kiln tracking, labour wages, cashbook and real-time P&L.",
       "offers": {"@type":"Offer","price":"0","priceCurrency":"INR","description":"1-month free trial"}
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://quicklimes.com/#website",
+      "url": "https://quicklimes.com/",
+      "name": "QuickLimes",
+      "publisher": {"@id":"https://quicklimes.com/#org"},
+      "inLanguage": ["en","hi"]
     }
   ]
 }
@@ -2002,6 +2010,59 @@ h1 .icon,h2 .icon,h3 .icon{width:0.85em;height:0.85em;vertical-align:-0.1em;}
     </div>
   </div>
 </section>
+
+<!-- ═══ FAQ — visible content + FAQPage schema (AI-search / rich results) ═══ -->
+<section id="faq">
+  <div class="container" style="max-width:860px;">
+    <h2 class="sec-title c">Frequently Asked Questions</h2>
+    <p class="sec-sub" style="text-align:center;margin:0 auto 2rem;">Everything lime manufacturers ask us before switching to QuickLimes.</p>
+    <div itemscope itemtype="https://schema.org/FAQPage">
+      <details style="border:1px solid #E2E8F0;border-radius:12px;padding:1rem 1.25rem;margin-bottom:.75rem;background:#fff;">
+        <summary style="font-weight:600;cursor:pointer;">What is QuickLimes?</summary>
+        <p style="margin:.75rem 0 0;color:#475569;">QuickLimes is an AI-powered ERP built exclusively for quick lime and hydrated lime manufacturers. It runs GST billing, purchase, kiln production, chunna, labour wages, cashbook, bank reconciliation and real-time profit &amp; loss in one app — on web and mobile.</p>
+      </details>
+      <details style="border:1px solid #E2E8F0;border-radius:12px;padding:1rem 1.25rem;margin-bottom:.75rem;background:#fff;">
+        <summary style="font-weight:600;cursor:pointer;">Which industries can use QuickLimes?</summary>
+        <p style="margin:.75rem 0 0;color:#475569;">Quick lime (calcium oxide), hydrated lime (calcium hydroxide), limestone crushing, lime kilns and calcination plants, chuna manufacturing, and lime powder units — any lime or limestone business that bills with GST.</p>
+      </details>
+      <details style="border:1px solid #E2E8F0;border-radius:12px;padding:1rem 1.25rem;margin-bottom:.75rem;background:#fff;">
+        <summary style="font-weight:600;cursor:pointer;">Does QuickLimes handle GST invoicing and e-invoices?</summary>
+        <p style="margin:.75rem 0 0;color:#475569;">Yes. QuickLimes generates GST-compliant tax invoices with your letterhead, HSN codes and vehicle numbers, tracks output tax and input credit, and gives you GSTR-ready sales and purchase registers.</p>
+      </details>
+      <details style="border:1px solid #E2E8F0;border-radius:12px;padding:1rem 1.25rem;margin-bottom:.75rem;background:#fff;">
+        <summary style="font-weight:600;cursor:pointer;">Can it read my old paper bills automatically?</summary>
+        <p style="margin:.75rem 0 0;color:#475569;">Yes. Upload a PDF or photo of any invoice and the AI reader extracts the party, GSTIN, quantities, taxable value and GST, then files it in the correct register — sales or purchase — automatically.</p>
+      </details>
+      <details style="border:1px solid #E2E8F0;border-radius:12px;padding:1rem 1.25rem;margin-bottom:.75rem;background:#fff;">
+        <summary style="font-weight:600;cursor:pointer;">Does it work in Hindi?</summary>
+        <p style="margin:.75rem 0 0;color:#475569;">Yes — the whole app works in Hindi and English. Your staff can use it in Hindi while your accountant exports English GST reports.</p>
+      </details>
+      <details style="border:1px solid #E2E8F0;border-radius:12px;padding:1rem 1.25rem;margin-bottom:.75rem;background:#fff;">
+        <summary style="font-weight:600;cursor:pointer;">How much does QuickLimes cost?</summary>
+        <p style="margin:.75rem 0 0;color:#475569;">You start with a 1-month free trial — no card required. After that, simple per-plant pricing is shown on this page, with an enterprise plan for multi-plant groups.</p>
+      </details>
+      <details style="border:1px solid #E2E8F0;border-radius:12px;padding:1rem 1.25rem;margin-bottom:.75rem;background:#fff;">
+        <summary style="font-weight:600;cursor:pointer;">Can I move from Excel or Tally to QuickLimes?</summary>
+        <p style="margin:.75rem 0 0;color:#475569;">Yes. Import your existing parties and bills from Excel/PDF, and keep exporting accountant-ready data whenever you need it. Most plants are fully running within a week.</p>
+      </details>
+    </div>
+  </div>
+</section>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"What is QuickLimes?","acceptedAnswer":{"@type":"Answer","text":"QuickLimes is an AI-powered ERP built exclusively for quick lime and hydrated lime manufacturers. It runs GST billing, purchase, kiln production, chunna, labour wages, cashbook, bank reconciliation and real-time profit & loss in one app — on web and mobile."}},
+    {"@type":"Question","name":"Which industries can use QuickLimes?","acceptedAnswer":{"@type":"Answer","text":"Quick lime (calcium oxide), hydrated lime (calcium hydroxide), limestone crushing, lime kilns and calcination plants, chuna manufacturing, and lime powder units — any lime or limestone business that bills with GST."}},
+    {"@type":"Question","name":"Does QuickLimes handle GST invoicing and e-invoices?","acceptedAnswer":{"@type":"Answer","text":"Yes. QuickLimes generates GST-compliant tax invoices with your letterhead, HSN codes and vehicle numbers, tracks output tax and input credit, and gives you GSTR-ready sales and purchase registers."}},
+    {"@type":"Question","name":"Can it read my old paper bills automatically?","acceptedAnswer":{"@type":"Answer","text":"Yes. Upload a PDF or photo of any invoice and the AI reader extracts the party, GSTIN, quantities, taxable value and GST, then files it in the correct register — sales or purchase — automatically."}},
+    {"@type":"Question","name":"Does it work in Hindi?","acceptedAnswer":{"@type":"Answer","text":"Yes — the whole app works in Hindi and English. Your staff can use it in Hindi while your accountant exports English GST reports."}},
+    {"@type":"Question","name":"How much does QuickLimes cost?","acceptedAnswer":{"@type":"Answer","text":"You start with a 1-month free trial — no card required. After that, simple per-plant pricing is shown on the pricing section, with an enterprise plan for multi-plant groups."}},
+    {"@type":"Question","name":"Can I move from Excel or Tally to QuickLimes?","acceptedAnswer":{"@type":"Answer","text":"Yes. Import your existing parties and bills from Excel/PDF, and keep exporting accountant-ready data whenever you need it. Most plants are fully running within a week."}}
+  ]
+}
+</script>
 
 <!-- ═══ CONTACT ═══ -->
 <section id="contact">
