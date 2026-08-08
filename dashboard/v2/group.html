@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — runs before the FIRST PAINT. The app shell applies the theme at
+   mount, which is far too late: the browser would paint the page light and then
+   flip, so a Light user on a dark Mac sees a white flash. Must stay in <head>,
+   above every stylesheet. (It used to guard the launch splash; the splash is
+   gone, the flash it prevents is not.) Resolves 'system' here too, so data-theme
+   is ALWAYS a literal light|dark and CSS never has to ask twice. */
+(function(){try{var t=localStorage.getItem('ql_theme')||'light';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Group Overview — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="manifest" href="/v2/app.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/v2/favicon-32.png?v=g1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20">
+<link rel="stylesheet" href="./mobile.css?v=m16">
+<style>
+/* ── Group Overview — consolidated multi-company reporting ── */
+.gv-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:var(--ql-space-4)}
+.gv-cos{display:inline-flex;background:var(--ql-neutral-100);border-radius:var(--ql-radius-xl);padding:4px;gap:2px}
+.gv-co{height:36px;padding:0 14px;border:none;background:transparent;border-radius:var(--ql-radius-lg);font:inherit;font-size:var(--ql-text-base);font-weight:600;color:var(--ql-text-secondary);cursor:pointer;white-space:nowrap}
+.gv-co.on{background:var(--ql-card);color:var(--ql-text);box-shadow:var(--ql-shadow-sm)}
+.gv-co.on.all{background:var(--ql-brand-600);color:#fff}
+.gv-sel{height:40px;padding:0 12px;border:1px solid var(--ql-border);border-radius:var(--ql-radius-xl);font:inherit;font-size:var(--ql-text-base);font-weight:600;background:var(--ql-card);color:var(--ql-text)}
+.gv-date{height:40px;padding:0 10px;border:1px solid var(--ql-border);border-radius:var(--ql-radius-xl);font:inherit;font-size:var(--ql-text-sm);background:var(--ql-card);color:var(--ql-text)}
+.gv-note{font-size:var(--ql-text-sm);color:var(--ql-text-secondary);background:var(--ql-brand-50);border:1px solid var(--ql-brand-100);border-radius:var(--ql-radius-lg);padding:8px 12px;margin-bottom:var(--ql-space-4)}
+[data-theme="dark"] .gv-note{background:rgba(37,99,235,.12);border-color:rgba(37,99,235,.3)}
+.gv-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:var(--ql-space-5)}
+@media(max-width:1100px){.gv-kpis{grid-template-columns:repeat(2,1fr)}}
+.gv-kpi{background:var(--ql-card);border:1px solid var(--ql-border);border-radius:var(--ql-radius-2xl);padding:16px 18px;box-shadow:var(--ql-shadow-xs)}
+.gv-kpi .l{font-size:var(--ql-text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ql-text-muted)}
+.gv-kpi .v{font-family:var(--ql-font-sans);font-size:var(--ql-text-2xl);font-weight:800;letter-spacing:-.02em;margin-top:6px}
+.gv-kpi .s{font-size:var(--ql-text-sm);color:var(--ql-text-secondary);margin-top:2px}
+.gv-h{font-size:var(--ql-text-lg);font-weight:700;margin:26px 0 10px}
+.gv-tbl{width:100%;border-collapse:collapse;font-size:var(--ql-text-base);background:var(--ql-card);border:1px solid var(--ql-border);border-radius:var(--ql-radius-2xl);overflow:hidden}
+.gv-tbl th{font-size:var(--ql-text-2xs);text-transform:uppercase;letter-spacing:.05em;color:var(--ql-text-muted);text-align:right;padding:10px 14px;border-bottom:1px solid var(--ql-border);background:var(--ql-neutral-50)}
+[data-theme="dark"] .gv-tbl th{background:var(--ql-neutral-100)}
+.gv-tbl th:first-child,.gv-tbl td:first-child{text-align:left}
+.gv-tbl td{padding:10px 14px;border-bottom:1px solid var(--ql-divider);text-align:right;font-variant-numeric:tabular-nums}
+.gv-tbl tr:last-child td{border-bottom:none}
+.gv-tbl .tot td{font-weight:800;background:var(--ql-neutral-50);border-top:2px solid var(--ql-border)}
+[data-theme="dark"] .gv-tbl .tot td{background:var(--ql-neutral-100)}
+.gv-tbl .sec td{font-weight:700;color:var(--ql-text-secondary);background:var(--ql-neutral-50);font-size:var(--ql-text-sm)}
+.gv-wrap{overflow-x:auto}
+.gv-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:900px){.gv-cards{grid-template-columns:1fr}}
+.gv-led{background:var(--ql-card);border:1px solid var(--ql-border);border-radius:var(--ql-radius-2xl);padding:16px 18px}
+.gv-led h4{font-size:var(--ql-text-md);font-weight:700;margin:0 0 10px}
+.gv-led table{width:100%;border-collapse:collapse;font-size:var(--ql-text-sm)}
+.gv-led td{padding:5px 0;font-variant-numeric:tabular-nums}
+.gv-led td:last-child{text-align:right;font-weight:600}
+.gv-led .cl td{border-top:1px solid var(--ql-border);font-weight:800;padding-top:8px}
+.gv-led .warn{color:var(--ql-warning-700);font-size:var(--ql-text-xs);margin-top:8px}
+.gv-bars{display:flex;align-items:flex-end;gap:6px;height:110px;padding-top:8px}
+.gv-bars .b{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;min-width:0}
+.gv-bars i{display:block;border-radius:4px 4px 2px 2px;background:var(--ql-brand-500)}
+.gv-bars .m{font-size:var(--ql-text-2xs);color:var(--ql-text-muted);text-align:center;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gv-exp summary{cursor:pointer;font-weight:600;color:var(--ql-brand-700);font-size:var(--ql-text-sm);list-style:none;padding:6px 0}
+.gv-exp summary::-webkit-details-marker{display:none}
+.gv-empty{color:var(--ql-text-secondary);font-size:var(--ql-text-base);background:var(--ql-warning-50);border:1px solid #fde68a;border-radius:var(--ql-radius-lg);padding:10px 14px;margin:8px 0}
+[data-theme="dark"] .gv-empty{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.3)}
+</style>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash">
+    <div class="page-head">
+      <div><h1 class="page-title">Group Overview</h1><div class="page-sub">All companies, one truth — purchase · production · sales · stock, company-wise</div></div>
+    </div>
+    <div class="card">
+      <div id="gvRoot"><div class="gv-empty" style="background:var(--ql-neutral-50);border-color:var(--ql-border)">Loading company books…</div></div>
+    </div>
+  </div>
+</div>
+<script src="ql-api.js?v=a5"></script>
+<script src="./party-identity.js?v=m27"></script>
+<script src="./import-guard.js?v=m28"></script>
+<script src="./data.js?v=m50"></script>
+<script src="./i18n.js?v=h8"></script>
+<script src="./wa-core.js?v=w3"></script>
+<script src="./shell.js?v=m68"></script>
+<script src="./mobile.js?v=m16"></script>
+<script src="./group-core.js?v=g1"></script>
+<script src="./group.js?v=g1"></script>
+</body>
+</html>

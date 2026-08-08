@@ -243,6 +243,7 @@
       { id: 'attendance', label: 'Attendance',  href: SOON, icon: I.check, soon: true }
     ]},
     { type: 'group', label: 'Reports', feat: 'reports', items: [
+      { id: 'group',   label: 'Group Overview',       href: 'group.html', icon: I.pulse },
       { id: 'reports', label: 'Reports Hub',          href: 'reports.html', icon: I.dl },
       { id: 'biz-an',  label: 'Business Analytics',   href: SOON, icon: I.pulse, soon: true },
       { id: 'prod-an', label: 'Production Analytics', href: SOON, icon: I.pulse, soon: true }

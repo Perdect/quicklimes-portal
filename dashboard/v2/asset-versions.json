@@ -56,8 +56,8 @@
     "sha": "14462b5adbf8"
   },
   "shell.js": {
-    "v": "m67",
-    "sha": "537e97d73307"
+    "v": "m68",
+    "sha": "0229715e9344"
   },
   "mobile.js": {
     "v": "m16",
@@ -146,6 +146,14 @@
   "discover.js": {
     "v": "d52",
     "sha": "d25382a09f9f"
+  },
+  "group-core.js": {
+    "v": "g1",
+    "sha": "ecf02e43807d"
+  },
+  "group.js": {
+    "v": "g1",
+    "sha": "29467c95f6a1"
   },
   "health-findings.js": {
     "v": "h1",
