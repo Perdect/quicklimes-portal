@@ -27,6 +27,15 @@ jobs:
           cp quicklimes-admin.html   deploy/quicklimes-admin.html
           # Pre-redesign page, archived (noindex) — instant rollback at /old
           cp index-old.html          deploy/index-old.html
+          # Shared design system + detail pages (clean URLs via .htaccess)
+          cp site.css                deploy/site.css
+          cp site.js                 deploy/site.js
+          cp product.html            deploy/product.html
+          cp ai.html                 deploy/ai.html
+          cp kiln.html               deploy/kiln.html
+          cp crm.html                deploy/crm.html
+          cp pricing.html            deploy/pricing.html
+          cp faq.html                deploy/faq.html
           # Backend shim so the ROOT login/signup pages talk to the Hostinger
           # PHP API (window.supabase drop-in). Single source: dashboard/v2/ql-api.js.
           cp dashboard/v2/ql-api.js  deploy/ql-api.js

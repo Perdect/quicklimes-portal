@@ -19,6 +19,38 @@
     <priority>0.9</priority>
   </url>
 
+
+  <!-- Detail pages -->
+  <url>
+    <loc>https://quicklimes.com/product</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://quicklimes.com/ai</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://quicklimes.com/kiln</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://quicklimes.com/crm</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://quicklimes.com/pricing</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://quicklimes.com/faq</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
   <!-- Portal login -->
   <url>
     <loc>https://quicklimes.com/portal</loc>
