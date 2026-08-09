@@ -131,6 +131,48 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 .dz-pin .dz-pin-txt { font: 500 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); flex: 1; min-width: 180px; }
 .dz-pin .dz-pin-txt b { color: var(--ql-text); }
 .dz-pin .dz-lock { color: var(--ql-text-muted); }
+/* ── Replace a month ──────────────────────────────────────────────────
+   Four boxes, never a dropdown: source independence has to be readable
+   before anything is clicked. */
+.rm-firm{background:var(--ql-brand-50);border:1px solid var(--ql-brand-100);border-radius:var(--ql-radius-lg);padding:10px 14px;margin-bottom:var(--ql-space-4);font-size:var(--ql-text-sm)}
+.rm-firm span{display:block;color:var(--ql-text-secondary);margin-top:2px}
+[data-theme="dark"] .rm-firm{background:rgba(37,99,235,.12);border-color:rgba(37,99,235,.3)}
+.rm-box{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--ql-border);border-radius:var(--ql-radius-xl);margin-bottom:10px;background:var(--ql-card)}
+.rm-box.off{background:var(--ql-neutral-50);border-style:dashed}
+.rm-ico{font-size:22px;flex:none;width:34px;text-align:center}
+.rm-txt{flex:1;min-width:0}
+.rm-t{font-weight:700;font-size:var(--ql-text-base)}
+.rm-s{font-size:var(--ql-text-sm);color:var(--ql-text-secondary)}
+.rm-hold{font-size:var(--ql-text-xs);color:var(--ql-warning-700);margin-top:6px;line-height:1.45}
+.rm-go{flex:none}
+.rm-pick p{font-weight:600;margin:0 0 10px}
+.rm-months{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.rm-m{text-align:left;padding:10px 12px;border:1px solid var(--ql-border);border-radius:var(--ql-radius-lg);background:var(--ql-card);font:inherit;font-weight:600;cursor:pointer;color:var(--ql-text)}
+.rm-m:hover{border-color:var(--ql-brand-500);background:var(--ql-brand-50)}
+.rm-m span{display:block;font-weight:500;font-size:var(--ql-text-xs);color:var(--ql-text-muted)}
+.rm-safe{margin-top:14px;padding-top:12px;border-top:1px solid var(--ql-divider);font-size:var(--ql-text-sm);color:var(--ql-text-secondary)}
+.rm-blk{margin-bottom:var(--ql-space-4);padding:14px 16px;border-radius:var(--ql-radius-xl);border:1px solid var(--ql-border)}
+.rm-blk h4{margin:0 0 8px;font-size:var(--ql-text-md);font-weight:800}
+.rm-blk p{margin:6px 0;font-size:var(--ql-text-sm);line-height:1.5}
+.rm-blk.goes{border-color:#fca5a5;background:var(--ql-danger-50,#FEF2F2)}
+.rm-blk.stays{border-color:#86efac;background:var(--ql-success-50,#F0FDF4)}
+.rm-blk.changes{border-color:var(--ql-brand-200,#BFDBFE);background:var(--ql-brand-50)}
+[data-theme="dark"] .rm-blk.goes{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.32)}
+[data-theme="dark"] .rm-blk.stays{background:rgba(22,163,74,.1);border-color:rgba(22,163,74,.32)}
+[data-theme="dark"] .rm-blk.changes{background:rgba(37,99,235,.1);border-color:rgba(37,99,235,.32)}
+.rm-list{max-height:210px;overflow:auto;font-size:var(--ql-text-sm);font-variant-numeric:tabular-nums}
+.rm-list>div{display:flex;gap:10px;padding:4px 0;border-bottom:1px solid var(--ql-divider)}
+.rm-list>div>span:first-child{font-weight:700;min-width:104px}
+.rm-list>div>span:nth-child(3){flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rm-arrow{color:var(--ql-success-700,#15803D);font-weight:600}
+.rm-more,.rm-note{font-size:var(--ql-text-xs);color:var(--ql-text-secondary);padding-top:6px}
+.rm-tbl{width:100%;border-collapse:collapse;font-size:var(--ql-text-sm)}
+.rm-tbl td{padding:5px 0;border-bottom:1px solid var(--ql-divider)}
+.rm-tbl td:nth-child(2){text-align:right;white-space:nowrap}
+.rm-zero{text-align:right;color:var(--ql-text-muted);font-size:var(--ql-text-xs);width:110px}
+.rm-warn{color:var(--ql-warning-700);font-weight:600}
+.rm-done>div{padding:6px 0;font-size:var(--ql-text-base)}
+.rm-next{margin-top:14px;font-weight:700}
 </style>
 </head>
 <body class="ql-v2">
@@ -286,6 +328,21 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
       <div id="bankList" style="margin-top:var(--ql-space-4)"></div>
     </div>
 
+    <!-- REPLACE A MONTH: take one wrong month out of ONE register, put the
+         corrected file back in. Sits above Data Management because that is
+         where its Trash rows land, and well above the Danger zone, which is
+         the only card here that cannot be undone. -->
+    <div class="card" id="rmCard" style="margin-top:var(--ql-space-5)">
+      <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M21 12A9 9 0 0 0 6 5.3L3 8"/><path d="M21 22v-6h-6"/><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"/></svg></span>
+        <div>
+          <h3 class="ft-title">Replace a month</h3>
+          <div class="ft-note">Uploaded the wrong file for a month? Take that month out of <b>one</b> register and upload the corrected file. Sales, Purchase, Payments and Bank are separate — removing a month from one <b>never</b> touches the others, and <b>your money is never deleted</b>: a receipt keeps its amount and only loses the tick that said which bill it belonged to.</div>
+        </div>
+      </div>
+      <div id="rmBody"></div>
+    </div>
+
     <!-- DATA MANAGEMENT: Trash + Audit + Backup -->
     <div class="card" id="dmCard" style="margin-top:var(--ql-space-5)">
       <div class="ft-head">
@@ -329,11 +386,14 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./i18n.js?v=h8"></script>
 <script src="./selfcheck.js?v=s2"></script>
 <script src="./health-findings.js?v=h1"></script>
+<script src="./sources-core.js?v=g9"></script>
+<script src="./month-apply.js?v=g9"></script>
 <script src="./data.js?v=m51"></script>
 <script src="./recon-core.js?v=rc5"></script>
 <script src="./wa-core.js?v=w3"></script>
 
 <script src="./shell.js?v=m68"></script>
+<script src="./replace-month.js?v=g9"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 QLShell.mount({ active: 'settings', title: 'Settings' });
@@ -444,7 +504,7 @@ function render() {
 /* Sticky section nav — one tap jumps to any section (no long scrolling), with a
    smooth scroll, an active pill, and a brief flash on the target. Rebuilt each
    render so it reflects which cards are actually visible (Team is owner-only). */
-const SET_SECTIONS = [['coCard', 'Company'], ['dhCard', 'Data health'], ['healthCard', 'App health'], ['langCard', 'Language'], ['themeCard', 'Appearance'], ['ftCard', 'Features'], ['teamCard', 'Team'], ['waCard', 'WhatsApp'], ['bankCard', 'Banks'], ['dmCard', 'Data'], ['dzCard', 'Danger']];
+const SET_SECTIONS = [['coCard', 'Company'], ['dhCard', 'Data health'], ['healthCard', 'App health'], ['langCard', 'Language'], ['themeCard', 'Appearance'], ['ftCard', 'Features'], ['teamCard', 'Team'], ['waCard', 'WhatsApp'], ['bankCard', 'Banks'], ['rmCard', 'Replace month'], ['dmCard', 'Data'], ['dzCard', 'Danger']];
 let _setSpy;
 function setActiveChip(id) {
   document.querySelectorAll('#setNav .set-chip').forEach(c => c.classList.toggle('active', c.dataset.sec === id));
@@ -915,8 +975,19 @@ async function renderWa() {
 }
 $('#waRecheck').addEventListener('click', () => renderWa());
 
-window.__qlOnSwitchCompany = () => { render(); renderDM(); renderBanks(); renderCo(); };
-window.__qlRefresh = () => { render(); renderDM(); renderBanks(); renderCo(); };
+/* Replace-a-month is owner-only, and the check FAILS CLOSED: _isOwner()
+   treats a missing role as 'owner', which is a fine default for reading a
+   card and a bad one for emptying a month of the firm's books. The reveal is
+   synchronous so buildSetNav's offsetParent filter sees it on first paint. */
+function renderRm() {
+  const card = document.getElementById('rmCard'); if (!card) return;
+  const role = _plant().role;
+  const owner = role ? ['owner', 'admin', 'partner'].indexOf(role) >= 0 : false;
+  card.style.display = owner ? '' : 'none';
+  if (owner && window.QLReplaceMonth) { try { window.QLReplaceMonth.render(); } catch (e) { console.error(e); } }
+}
+window.__qlOnSwitchCompany = () => { QLShell.closeModal(); render(); renderDM(); renderBanks(); renderCo(); renderRm(); };
+window.__qlRefresh = () => { render(); renderDM(); renderBanks(); renderCo(); renderRm(); };
 /* Deep link: settings.html#company opens the active firm's profile straight
    away. "Edit profile" in the account menu lands here, and dropping someone on
    a long settings page with no indication of which card they came for is how a
@@ -932,7 +1003,7 @@ function openCompanyDeepLink() {
   if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
   if (c) editCo(c);
 }
-QLD.init(() => { render(); renderDM(); renderBanks(); renderCo(); openCompanyDeepLink(); });
+QLD.init(() => { render(); renderDM(); renderBanks(); renderCo(); renderRm(); openCompanyDeepLink(); });
 renderTeam();
 renderWa();
 </script>

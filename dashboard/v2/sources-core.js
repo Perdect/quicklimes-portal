@@ -388,6 +388,68 @@
     return plan;
   }
 
+  /* ═══════════════════════════════════════════════════════════════════
+     unmatchTxn — return ONE bank line to "needs review" after the invoice
+     it was matched to has been deleted.  Mutates t in place; returns what
+     it was, or null when the line was deliberately left alone.
+
+     Three things here are not obvious and all three were found the hard way:
+
+     1. REBUILD t.m, NEVER PATCH IT. Object.assign over the old match leaks
+        cat, catKey, party, allocs, entryId, needsLink, action and tag into a
+        match that no longer exists, and the reconcile renderers keep drawing
+        the dead bill from those leftovers.
+     2. `manual` MUST STAY ABSENT. reconcile.js isLinked() treats m.manual
+        alone as "linked", so setting it would render the row as Matched
+        forever AND freeze it out of the re-match you want after the
+        corrected file is uploaded.
+     3. THE POSTED STAMP SURVIVES. m.posted records that money was already
+        written to the cash book, and that cash-book row is NOT deleted here
+        (deleting sales never removes a receipt). recon-apply.js checks the
+        stamp before posting; clear it and re-linking the same bank line to a
+        re-uploaded invoice posts the money a SECOND time. So it is kept,
+        flagged orphaned, and every dead index inside it is nulled — a
+        persisted index pointing into a deleted slot is exactly the orphan
+        this whole feature exists to prevent. */
+  function unmatchTxn(t, opts) {
+    opts = opts || {};
+    const m = t && t.m;
+    if (!m) return null;
+    /* A ledger or cashbook-entry match has nothing to do with an invoice. */
+    if (m.kind === 'ledger' || m.ledgerEntryId) return null;
+    if (m.kind === 'entry' || m.entryId) return null;
+
+    const before = {
+      status: m.status || '', kind: m.kind || '',
+      idx: m.idx == null ? null : m.idx,
+      confidence: m.confidence == null ? null : m.confidence
+    };
+    const posted = m.posted || null;
+    const noun = opts.module === 'purchase' ? 'bill' : 'invoice';
+    t.m = {
+      kind: num(t.credit) > 0 ? 'sale' : 'purchase',
+      idx: null,
+      status: 'unmatched',
+      confidence: 0,
+      tier: 'red',
+      matchedBy: 'manual',
+      reasons: [opts.why || ('The ' + noun + ' this line was matched to was removed' +
+        (opts.ym ? ' with ' + opts.ym : '') + ' — match it again once the corrected file is uploaded')],
+      at: opts.at || ''
+    };
+    if (posted) {
+      t.m.posted = {
+        batch: posted.batch || '', at: posted.at || '',
+        cashbookIds: arr(posted.cashbookIds).slice(),
+        lines: arr(posted.lines).map(l => ({ kind: l.kind, idx: null, wasIdx: l.idx == null ? null : l.idx, amount: l.amount, cashbookId: l.cashbookId || '' })),
+        orphaned: true, orphanedWhy: (opts.module || '') + ' ' + (opts.ym || '') + ' removed'
+      };
+      t.m.reasons.push('A payment was already posted from this line' + (posted.batch ? ' (batch ' + posted.batch + ')' : '') +
+        ' — it stays in your cash book as an unallocated receipt and is never posted again.');
+    }
+    return { id: t.id, before: before, postedKept: !!posted };
+  }
+
   /* Months a source actually holds rows for — what the delete picker offers.
      Never a hard-coded twelve: you cannot delete a month you never uploaded. */
   function availableMonths(blob, module) {
@@ -396,7 +458,7 @@
     return Object.keys(m).sort().reverse().map(ym => ({ ym: ym, count: m[ym] }));
   }
 
-  const api = { scan, metrics, deletePlan, availableMonths, MODULES, MODULE_LABEL,
+  const api = { scan, metrics, deletePlan, availableMonths, unmatchTxn, MODULES, MODULE_LABEL,
                 _internals: { ymOf, liveRow, liveCash, saleTaxable, saleTotal, ok, nodata, nocalc } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SourcesCore = api;

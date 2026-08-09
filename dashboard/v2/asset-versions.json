@@ -149,7 +149,7 @@
   },
   "sources-core.js": {
     "v": "g9",
-    "sha": "706fded10a1a"
+    "sha": "885606c1ddbc"
   },
   "group-core.js": {
     "v": "g5",
@@ -262,6 +262,14 @@
   "selfcheck.js": {
     "v": "s2",
     "sha": "5e7f1cf587f5"
+  },
+  "month-apply.js": {
+    "v": "g9",
+    "sha": "f26c76dbee2b"
+  },
+  "replace-month.js": {
+    "v": "g9",
+    "sha": "f650f6a31816"
   },
   "tds.js": {
     "v": "m3",
