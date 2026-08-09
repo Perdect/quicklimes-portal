@@ -103,7 +103,11 @@
       <div class="gv-kpi"><div class="l">Purchases</div><div class="v">${fC(t.purchase.value)}</div><div class="s">${fT(t.purchase.tonnes)} material · excl. GST</div>${split(vm, s => s.purchase.value, fC)}</div>
       <div class="gv-kpi"><div class="l">Production cost</div><div class="v">${fC(t.production.cost)}</div><div class="s">materials at avg rates + labour</div>${split(vm, s => s.production.cost, fC)}</div>
       <div class="gv-kpi"><div class="l">Sales − production cost</div><div class="v">${fC(margin)}</div><div class="s">production margin · not P&amp;L</div>${split(vm, s => round2(s.sales.taxable - s.production.cost), fC)}</div>
-      <div class="gv-kpi"><div class="l">Finished-goods stock</div><div class="v">${stockNote}</div><div class="s">${t.stockComputable.fg ? 'made − dispatched, as at period end' : 'not computable — bills missing quantities'}</div></div>
+      <div class="gv-kpi"><div class="l">Finished-goods stock</div><div class="v">${stockNote}</div><div class="s">${
+        t.stockComputable.fg ? 'made − dispatched, as at period end'
+          : (vm.entries.some(e => (e.summary.stock.find(s => s.key === 'fg') || {}).noProduction)
+              ? 'no production recorded — record runs to get a stock figure'
+              : 'not computable — bills missing quantities')}</div></div>
     </div>`;
   }
   const round2 = n => Math.round(n * 100) / 100;
@@ -337,7 +341,9 @@
           <tr><td>+ ${s.key === 'fg' ? 'Produced' : 'Purchased'} (cumulative)</td><td>${fT(s.inward)}</td></tr>
           <tr><td>− ${s.key === 'fg' ? 'Dispatched' : 'Consumed'} (cumulative)</td><td>${fT(s.used)}</td></tr>
           <tr class="cl"><td>Closing (as at period end)</td><td>${s.computable ? fT(s.closing) : '—'}</td></tr>
-        </table>${s.missing ? `<div class="warn">⚠ ${s.missing} bill(s) missing quantities — closing withheld rather than guessed.</div>` : ''}`).join('')}
+        </table>${s.noProduction ? `<div class="warn">⚠ No production runs recorded — lime has been dispatched but nothing was booked as produced, so closing stock cannot be derived. Record runs on the Production page.</div>`
+          : s.missing ? `<div class="warn">⚠ ${s.missing} bill(s) missing quantities — closing withheld rather than guessed.</div>`
+          : s.negative ? `<div class="warn">⚠ Dispatched more than recorded as produced — some runs or opening stock are missing.</div>` : ''}`).join('')}
       </div>`;
     };
     return `<div class="gv-h">Stock ledger — opening + in − out = closing</div><div class="gv-cards">${vm.entries.map(card).join('')}</div>`;

@@ -109,6 +109,25 @@ eq('Last FY is Apr 2025 – Mar 2026', [P.lastfy.from, P.lastfy.to], ['2025-04-0
 eq('Last month is July 2026', [P.lastmonth.from, P.lastmonth.to], ['2026-07-01', '2026-07-31']);
 eq('All Time has open bounds', [P.all.from, P.all.to], [null, null]);
 
+/* ══ FG stock must not report a confident negative when NO production was
+   ever recorded — that number is the size of the missing data, not stock.
+   (Real case: Deshwali showed −4,945 T from dispatches with 0 runs.) ══ */
+const NOPROD = { sales: [{ inv: 'S1', date: '2026-07-02', qty: 264.4, rate: 5000, gstR: 5, status: 'pending' }],
+                 purchases: [], prod: [], chunna: [] };
+const np = G.summarize(NOPROD, JULY).stock.find(s => s.key === 'fg');
+eq('dispatch with ZERO production runs ⇒ FG not computable', np.computable, false);
+eq('  closing is withheld, not a negative', np.closing, null);
+eq('  and the reason is named', np.noProduction, true);
+const npT = G.consolidate([{ id: 'x', name: 'X', summary: G.summarize(NOPROD, JULY) }]);
+eq('  consolidated FG is withheld too', npT.stockComputable.fg, false);
+/* with runs on file, a genuine shortfall is still shown — flagged, not hidden */
+const SHORT = { sales: [{ inv: 'S1', date: '2026-07-02', qty: 50, rate: 5000, gstR: 5 }],
+                purchases: [], prod: [{ date: '2026-07-01', quicklime: 20 }], chunna: [] };
+const sh = G.summarize(SHORT, JULY).stock.find(s => s.key === 'fg');
+eq('made 20 − sold 50 with runs on file stays computable', sh.computable, true);
+close('  and shows the real shortfall', sh.closing, -30);
+eq('  flagged as negative for the UI to caveat', sh.negative, true);
+
 /* ══ PARTNERSHIP: two firms, two kilns run jointly ══
    Deshwali Minerals (own firm) + Gotan Lime Industries (partner firm) operate
    Kiln 1 and Kiln 2 together. A kiln is a physical asset — the SAME kiln can

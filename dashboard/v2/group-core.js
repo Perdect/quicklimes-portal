@@ -102,8 +102,21 @@
     const out = withQty.reduce((a, r) => a + num(r.qty), 0);
     if (!made && !out) return { inward: 0, used: 0, missing: 0, computable: false, closing: null, empty: true };
     const missing = disp.length - withQty.length;
-    return { inward: made, used: out, missing, computable: missing === 0,
-             closing: missing === 0 ? round2(made - out) : null, empty: false };
+    /* NO PRODUCTION RECORDED. Lime has been dispatched but not one production
+       run exists, so "made − dispatched" is not a stock level — it is the size
+       of the missing production data, and rendering it as a confident negative
+       balance (−4,945 T) reads as catastrophic loss instead of "nobody has
+       recorded any runs yet". Refuse the number and say which is missing. */
+    const noProduction = made === 0 && out > 0;
+    const computable = missing === 0 && !noProduction;
+    return {
+      inward: made, used: out, missing, noProduction, computable,
+      closing: computable ? round2(made - out) : null,
+      /* produced less than dispatched WITH runs on file: still a real gap
+         (unrecorded runs or opening stock), so the UI can caveat it. */
+      negative: computable && (made - out) < 0,
+      empty: false
+    };
   }
 
   /* local-date formatting — toISOString() is UTC and shifts IST midnight to
@@ -220,7 +233,8 @@
         opening: from ? open.closing : 0,
         openingComputable: from ? (open.computable || open.empty) : true,
         closing: close.closing, computable: close.computable,
-        inward: close.inward, used: close.used, missing: close.missing, empty: close.empty
+        inward: close.inward, used: close.used, missing: close.missing, empty: close.empty,
+        noProduction: !!close.noProduction, negative: !!close.negative
       };
     }
     const stock = [
