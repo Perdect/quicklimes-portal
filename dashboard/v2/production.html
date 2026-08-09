@@ -108,14 +108,14 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
       <div class="card-head">
         <div><h3 class="card-title">Measured runs</h3><div class="card-sub">Recorded on site — the only source of true output. Each one overrides its month above.</div></div>
       </div>
-      <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Date</th><th class="num">Limestone (T)</th><th class="num">Petcoke (T)</th><th class="num">Bags</th><th class="num">Quick Lime (T)</th><th class="num">Hydrated (T)</th><th class="num">Labour</th><th></th></tr></thead><tbody id="prdRuns"></tbody></table></div>
+      <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Date</th><th>Kiln</th><th class="num">Limestone (T)</th><th class="num">Petcoke (T)</th><th class="num">Bags</th><th class="num">Quick Lime (T)</th><th class="num">Hydrated (T)</th><th class="num">Labour</th><th></th></tr></thead><tbody id="prdRuns"></tbody></table></div>
     </div>
   </div>
 </div>
 <script src="ql-api.js?v=a5"></script>
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
-<script src="./data.js?v=m50"></script>
+<script src="./data.js?v=m51"></script>
 <script src="./i18n.js?v=h8"></script>
 <script src="./wa-core.js?v=w3"></script>
 <script src="./shell.js?v=m68"></script>
@@ -240,7 +240,7 @@ function renderRuns() {
   document.getElementById('prdRunsCard').style.display = rows.length ? '' : 'none';
   const rt = document.getElementById('prdRuns');
   rt.innerHTML = rows.map(r => `<tr>
-    <td>${r.date || '—'}</td><td class="num">${r.limestone ? nT(r.limestone) : '—'}</td><td class="num">${r.petcoke ? nT(r.petcoke) : '—'}</td>
+    <td>${r.date || '—'}</td><td>${r.kiln ? esc(r.kiln) : '<span class="prd-dash" title="This run was recorded before kilns were tracked, or the kiln was left blank.">Unassigned</span>'}</td><td class="num">${r.limestone ? nT(r.limestone) : '—'}</td><td class="num">${r.petcoke ? nT(r.petcoke) : '—'}</td>
     <td class="num">${r.bags ? r.bags.toLocaleString('en-IN') : '—'}</td><td class="num">${r.quicklime ? nT(r.quicklime) : '—'}</td>
     <td class="num">${r.hydrated ? nT(r.hydrated) : '—'}</td><td class="num">${r.labour ? fC(r.labour) : '—'}</td>
     <td class="num"><button class="ql-btn ql-btn-ghost" data-del="${r.idx}" title="Delete">✕</button></td></tr>`).join('');
@@ -248,6 +248,10 @@ function renderRuns() {
 }
 const PROD_SPECS = [
   { k: 'date', label: 'Date', type: 'date', req: true },
+  /* Two kilns run in partnership: a run has to say which one burnt it, or the
+     asset that produced the tonnage cannot be identified later. Free text (not
+     a fixed list) so a third kiln never needs a code change. */
+  { k: 'kiln', label: 'Kiln', ph: 'Kiln 1 / Kiln 2' },
   { k: 'limestone', label: 'Limestone consumed (T)', type: 'number', ph: '0' },
   { k: 'petcoke', label: 'Petcoke consumed (T)', type: 'number', ph: '0' },
   { k: 'bags', label: 'Bags used', type: 'number', ph: '0' },

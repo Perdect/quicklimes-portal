@@ -43,12 +43,28 @@
   }
 
   /* ── state (persisted) ── */
-  const LS_CO = 'ql_group_co', LS_RANGE = 'ql_group_range';
+  const LS_CO = 'ql_group_co', LS_RANGE = 'ql_group_range', LS_PART = 'ql_partnership';
   let COS = companies();
   let state = { co: 'all', preset: 'fy', from: null, to: null };
   try { const s = JSON.parse(localStorage.getItem(LS_RANGE) || 'null'); if (s && s.preset) state = Object.assign(state, s); } catch (_) {}
   const savedCo = localStorage.getItem(LS_CO);
   if (savedCo && (savedCo === 'all' || COS.some(c => c.id === savedCo))) state.co = savedCo;
+
+  /* ── PARTNERSHIP: whose firm is whose, and on what share ──────────────
+     This is a partnership, not a parent-and-subsidiary: one firm is the
+     owner's, the other is the partner's, and the two kilns are run jointly.
+     Roles default from the firm name and are editable; the profit-share ratio
+     is NEVER assumed — until the owner sets it, the split reads "not set"
+     rather than a made-up 50/50 that could be quoted at a settlement. */
+  let part = { mine: null, ratio: null };   // ratio = { mine, partner } | null
+  try { const p = JSON.parse(localStorage.getItem(LS_PART) || 'null'); if (p) part = Object.assign(part, p); } catch (_) {}
+  if (!part.mine || !COS.some(c => c.id === part.mine)) {
+    const guess = COS.find(c => /deshwali/i.test(c.short));   // owner's own firm
+    part.mine = guess ? guess.id : (COS[0] ? COS[0].id : null);
+  }
+  const savePart = () => { try { localStorage.setItem(LS_PART, JSON.stringify(part)); } catch (_) {} };
+  const roleOf = id => (id === part.mine ? 'My firm' : 'Partner firm');
+  const isMine = id => id === part.mine;
 
   function currentRange() {
     if (state.preset === 'custom') return { from: state.from || null, to: state.to || null };
@@ -134,6 +150,56 @@
     </tbody></table></div></details>`;
   }
 
+  /* ── the two kilns: physical assets, shown as assets ── */
+  function kilnTable(vm) {
+    const kilns = Object.values(vm.total.production.byKiln)
+      .sort((a, b) => (a.kiln === G.UNASSIGNED ? 1 : b.kiln === G.UNASSIGNED ? -1 : b.output - a.output));
+    if (!kilns.length) return `<div class="gv-h">Kilns</div><div class="gv-empty">No production runs in this period. Record a run on the Production page — it now asks which kiln burnt it, so output can be attributed to the right plant.</div>`;
+    const unassigned = kilns.find(k => k.kiln === G.UNASSIGNED);
+    return `<div class="gv-h">Kiln-wise production — the partnership's plants</div><div class="gv-wrap"><table class="gv-tbl">
+      <thead><tr><th>Kiln</th><th>Runs</th><th>Quick Lime</th><th>Hydrated</th><th>Output</th><th>Limestone used</th><th>Yield</th><th>Cost / tonne</th>${vm.entries.length > 1 ? '<th>Booked by</th>' : ''}</tr></thead><tbody>
+      ${kilns.map(k => `<tr${k.kiln === G.UNASSIGNED ? ' style="opacity:.75"' : ''}>
+        <td><b>${esc(k.kiln)}</b></td><td>${k.runs}</td><td>${fT(k.quicklime)}</td><td>${fT(k.hydrated)}</td>
+        <td><b>${fT(k.output)}</b></td><td>${fT(k.limestone)}</td><td>${k.yield ? k.yield.toFixed(0) + '%' : '—'}</td>
+        <td>${k.costPerTon ? fC(k.costPerTon) : '—'}</td>
+        ${vm.entries.length > 1 ? `<td style="text-align:left;font-size:var(--ql-text-sm)">${esc((k.firms || []).join(' + ')) || '—'}</td>` : ''}</tr>`).join('')}
+      <tr class="tot"><td>Total</td><td>${vm.total.production.runs}</td><td>${fT(vm.total.production.produced.quicklime)}</td><td>${fT(vm.total.production.produced.hydrated)}</td><td>${fT(vm.total.production.output)}</td><td>${fT(vm.total.production.consumed.limestone)}</td><td></td><td></td>${vm.entries.length > 1 ? '<td></td>' : ''}</tr>
+    </tbody></table></div>
+    ${unassigned ? `<div class="gv-empty" style="margin-top:10px">⚠ <b>${fT(unassigned.output)}</b> of output across ${unassigned.runs} run(s) has no kiln recorded — these ran before kilns were tracked, or the field was left blank. Open the run on the Production page and set its kiln to attribute it.</div>` : ''}`;
+  }
+
+  /* ── partnership share: real totals × a ratio the owner sets ── */
+  function shareCard(vm) {
+    if (vm.entries.length < 2) return '';
+    const mineCo = COS.find(c => c.id === part.mine), otherCo = COS.find(c => c.id !== part.mine);
+    const sp = G.partnerSplit(vm.total, part.ratio);
+    const head = `<div class="gv-h">Partnership share</div>`;
+    if (!sp) return head + `<div class="gv-empty">
+      <b>Profit-sharing ratio not set.</b> Enter how the partnership result is shared between
+      <b>${esc(mineCo ? mineCo.short : 'your firm')}</b> and <b>${esc(otherCo ? otherCo.short : 'the partner firm')}</b>
+      and this section will split the figures. Nothing is assumed — a made-up 50/50 has no place next to money.
+      <div style="margin-top:10px">${ratioInputs()}</div></div>`;
+    const row = (label, k, fmt) => `<tr><td>${label}</td><td>${fmt(sp.mine[k])}</td><td>${fmt(sp.partner[k])}</td><td><b>${fmt(sp.mine[k] + sp.partner[k])}</b></td></tr>`;
+    return head + `<div class="gv-wrap"><table class="gv-tbl">
+      <thead><tr><th>Figure</th><th>${esc(mineCo ? mineCo.short : 'My firm')} (${sp.mine.pct}%)</th><th>${esc(otherCo ? otherCo.short : 'Partner')} (${sp.partner.pct}%)</th><th>Partnership total</th></tr></thead><tbody>
+      ${row('Sales value (excl. GST)', 'sales', fC)}
+      ${row('Purchases (excl. GST)', 'purchase', fC)}
+      ${row('Production cost', 'prodCost', fC)}
+      ${row('Output', 'output', fT)}
+      <tr class="tot"><td>Indicative gross margin</td><td>${fC(sp.mine.margin)}</td><td>${fC(sp.partner.margin)}</td><td>${fC(sp.margin)}</td></tr>
+    </tbody></table></div>
+    <div class="gv-note" style="margin-top:10px">Gross margin here is <b>sales − production cost</b> (materials at average purchase rate + labour). It carries no overheads, interest, depreciation or drawings, so it is <b>not the P&amp;L</b> and not a settlement statement — it is the operating picture, split at the ratio you set. ${ratioInputs()}</div>`;
+  }
+  function ratioInputs() {
+    const r = part.ratio || { mine: '', partner: '' };
+    return `<span style="display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:var(--ql-text-sm)">My share
+        <input id="gvRm" class="gv-date" style="width:74px" type="number" min="0" step="1" value="${esc(r.mine)}" placeholder="—"></label>
+      <label style="font-size:var(--ql-text-sm)">Partner share
+        <input id="gvRp" class="gv-date" style="width:74px" type="number" min="0" step="1" value="${esc(r.partner)}" placeholder="—"></label>
+      <button class="gv-co" id="gvRsave" style="background:var(--ql-brand-600);color:#fff;height:34px">Save ratio</button></span>`;
+  }
+
   function ledgers(vm) {
     const card = e => {
       const led = e.summary.stock.filter(s => !s.empty);
@@ -175,9 +241,9 @@
       : (presets.find(p => p.key === state.preset) || {}).label || '';
     $('gvRoot').innerHTML = `
       <div class="gv-bar">
-        <div class="gv-cos" role="tablist" aria-label="Company">
-          <button class="gv-co all ${state.co === 'all' ? 'on' : ''}" data-co="all">All Companies</button>
-          ${COS.map(c => `<button class="gv-co ${state.co === c.id ? 'on' : ''}" data-co="${esc(c.id)}">${esc(c.short)}</button>`).join('')}
+        <div class="gv-cos" role="tablist" aria-label="Firm">
+          <button class="gv-co all ${state.co === 'all' ? 'on' : ''}" data-co="all">${COS.length > 1 ? 'Partnership (both firms)' : 'All Companies'}</button>
+          ${COS.map(c => `<button class="gv-co ${state.co === c.id ? 'on' : ''}" data-co="${esc(c.id)}" title="${esc(roleOf(c.id))}">${esc(c.short)}${COS.length > 1 ? ` <span style="opacity:.6;font-weight:500">· ${isMine(c.id) ? 'mine' : 'partner'}</span>` : ''}</button>`).join('')}
         </div>
         <select class="gv-sel" id="gvPreset" aria-label="Date range">
           ${presets.map(p => `<option value="${p.key}" ${p.key === state.preset ? 'selected' : ''}>${p.label}</option>`).join('')}
@@ -185,10 +251,13 @@
         ${state.preset === 'custom' ? `<input type="date" class="gv-date" id="gvFrom" value="${esc(state.from || '')}">
         <input type="date" class="gv-date" id="gvTo" value="${esc(state.to || '')}">` : ''}
       </div>
-      ${consolidated ? `<div class="gv-note">📊 <b>Consolidated view</b> — totals combine ${vm.entries.map(e => esc(e.name)).join(' + ')} for <b>${esc(rangeLabel)}</b>. Every figure below keeps its company breakdown; nothing is mixed at the row level.</div>` : ''}
+      ${consolidated ? `<div class="gv-note">🤝 <b>Partnership view</b> — ${vm.entries.map(e => `<b>${esc(e.name)}</b> (${esc(roleOf(e.id).toLowerCase())})`).join(' + ')}, consolidated for <b>${esc(rangeLabel)}</b>. Each firm keeps its own books and GSTIN; every figure below keeps its firm breakdown and nothing is mixed at the row level.</div>` : ''}
+      ${!consolidated && state.co !== 'all' && COS.length > 1 ? `<div class="gv-note">Showing <b>${esc((COS.find(c => c.id === state.co) || {}).short || '')}</b> only — ${esc(roleOf(state.co).toLowerCase())}. The other firm's books are not read into this view.</div>` : ''}
       ${vm.missing.map(c => `<div class="gv-empty">⚠ <b>${esc(c.short)}</b> has not been opened on this device yet, so its books aren't synced here. Switch to it once from the company menu and come back — it will be included automatically.</div>`).join('')}
       ${vm.entries.length ? kpis(vm.total, consolidated) : '<div class="gv-empty">No company books available yet.</div>'}
       ${comparison(vm)}
+      ${vm.entries.length ? kilnTable(vm) : ''}
+      ${shareCard(vm)}
       ${vm.entries.length ? productTable(vm) : ''}
       ${vm.entries.length ? ledgers(vm) : ''}
       ${trend(vm.total)}`;
@@ -200,6 +269,13 @@
     const f = $('gvFrom'), t2 = $('gvTo');
     if (f) f.onchange = () => { state.from = f.value || null; persist(); render(); };
     if (t2) t2.onchange = () => { state.to = t2.value || null; persist(); render(); };
+    const rs = $('gvRsave');
+    if (rs) rs.onclick = () => {
+      const m = parseFloat(($('gvRm') || {}).value), p = parseFloat(($('gvRp') || {}).value);
+      /* both sides required and positive — a half-entered ratio is not a ratio */
+      part.ratio = (isFinite(m) && isFinite(p) && m + p > 0) ? { mine: m, partner: p } : null;
+      savePart(); render();
+    };
   }
   function persist() { try { localStorage.setItem(LS_RANGE, JSON.stringify({ preset: state.preset, from: state.from, to: state.to })); } catch (_) {} }
 

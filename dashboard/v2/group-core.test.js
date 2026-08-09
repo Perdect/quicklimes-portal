@@ -109,6 +109,49 @@ eq('Last FY is Apr 2025 – Mar 2026', [P.lastfy.from, P.lastfy.to], ['2025-04-0
 eq('Last month is July 2026', [P.lastmonth.from, P.lastmonth.to], ['2026-07-01', '2026-07-31']);
 eq('All Time has open bounds', [P.all.from, P.all.to], [null, null]);
 
+/* ══ PARTNERSHIP: two firms, two kilns run jointly ══
+   Deshwali Minerals (own firm) + Gotan Lime Industries (partner firm) operate
+   Kiln 1 and Kiln 2 together. A kiln is a physical asset — the SAME kiln can
+   appear in both firms' books, and its rolled-up total must be the kiln's real
+   output, not one firm's slice. */
+const K_GOTAN = { sales: [], purchases: [
+    { bill: 'K1', date: '2026-07-01', cat: 'limestone', qty: 100, taxable: 200000, status: 'paid' }],
+  prod: [
+    { date: '2026-07-03', kiln: 'Kiln 1', limestone: 40, petcoke: 5, quicklime: 26, hydrated: 0, labour: 8000 },
+    { date: '2026-07-05', kiln: 'Kiln 2', limestone: 30, petcoke: 4, quicklime: 20, hydrated: 0, labour: 6000 },
+    { date: '2026-07-07', limestone: 10, petcoke: 1, quicklime: 6, hydrated: 0, labour: 2000 } ], chunna: [] };
+const K_DESH = { sales: [], purchases: [
+    { bill: 'K2', date: '2026-07-01', cat: 'limestone', qty: 50, taxable: 100000, status: 'paid' }],
+  prod: [
+    { date: '2026-07-04', kiln: 'Kiln 1', limestone: 20, petcoke: 3, quicklime: 13, hydrated: 0, labour: 4000 } ],
+  chunna: [] };
+const kg = G.summarize(K_GOTAN, JULY), kd = G.summarize(K_DESH, JULY);
+eq('kiln names are kept per company', Object.keys(kg.production.byKiln).sort(), ['Kiln 1', 'Kiln 2', 'Unassigned']);
+close('Kiln 1 output in Gotan books', kg.production.byKiln['Kiln 1'].output, 26);
+close('a run with no kiln lands in Unassigned (never silently attributed)', kg.production.byKiln['Unassigned'].output, 6);
+eq('kiln costs sum back to the company production cost',
+   Math.round(Object.values(kg.production.byKiln).reduce((a, b) => a + b.cost, 0)), Math.round(kg.production.cost));
+const KT = G.consolidate([{ id: 'g', name: 'Gotan Lime Industries', summary: kg },
+                          { id: 'd', name: 'Deshwali Minerals', summary: kd }]);
+close('SAME kiln across BOTH firms rolls up to the kiln real total (26+13)', KT.production.byKiln['Kiln 1'].output, 39);
+eq('  and records which firms ran it', KT.production.byKiln['Kiln 1'].firms.sort(), ['Deshwali Minerals', 'Gotan Lime Industries']);
+close('Kiln 2 (single firm) unchanged', KT.production.byKiln['Kiln 2'].output, 20);
+close('kiln totals still equal the consolidated output',
+      Object.values(KT.production.byKiln).reduce((a, b) => a + b.output, 0), KT.production.output);
+
+/* profit-share split — arithmetic on real totals, ratio always user-set */
+eq('no ratio configured ⇒ null, never a silent 50/50', G.partnerSplit(KT, null), null);
+eq('zero/invalid ratio ⇒ null', G.partnerSplit(KT, { mine: 0, partner: 0 }), null);
+const sp = G.partnerSplit(T, { mine: 60, partner: 40 });
+close('60/40 split: my share of sales', sp.mine.sales, T.sales.taxable * 0.6);
+close('60/40 split: partner share of sales', sp.partner.sales, T.sales.taxable * 0.4);
+close('shares sum back to the whole', sp.mine.sales + sp.partner.sales, T.sales.taxable);
+close('margin = sales − production cost', sp.margin, T.sales.taxable - T.production.cost);
+close('margin splits by the same ratio', sp.mine.margin + sp.partner.margin, sp.margin);
+const half = G.partnerSplit(T, { mine: 50, partner: 50 });
+close('50/50 halves the margin', half.mine.margin, half.partner.margin);
+eq('ratio is normalised to a percentage (3:1 ⇒ 75%)', G.partnerSplit(T, { mine: 3, partner: 1 }).mine.pct, 75);
+
 console.log('\n════ group-core (multi-company consolidation) ════');
 console.log('  Passed: ' + pass + '   Failed: ' + fail);
 bad.forEach(b => console.log('    ✗ ' + b));

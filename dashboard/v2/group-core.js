@@ -43,6 +43,7 @@
     if (/spare|machin|equip|repair/.test(c)) return 'spares';
     return 'other';
   }
+  const UNASSIGNED = 'Unassigned';
   const GROUPS = ['limestone', 'petcoke', 'packaging', 'utilities', 'spares', 'other'];
   const GROUP_LABEL = {
     limestone: 'Limestone', petcoke: 'Petcoke', packaging: 'Packaging (bags)',
@@ -160,11 +161,39 @@
       consumed.limestone * avgRate(purchases, 'limestone') +
       consumed.petcoke * avgRate(purchases, 'petcoke') +
       consumed.bags * avgRate(purchases, 'packaging'));
+    /* KILN-WISE: the partnership runs two kilns, so output has to be
+       attributable to the asset that produced it. Runs recorded before kilns
+       were tracked carry no kiln and are grouped under UNASSIGNED — named, not
+       silently folded into a kiln nobody chose. */
+    const byKiln = {};
+    for (const r of rIn) {
+      const k = (r.kiln || '').toString().trim() || UNASSIGNED;
+      const b = byKiln[k] || (byKiln[k] = { kiln: k, runs: 0, quicklime: 0, hydrated: 0, output: 0,
+                                            limestone: 0, petcoke: 0, bags: 0, labour: 0 });
+      b.runs++;
+      b.quicklime += num(r.quicklime); b.hydrated += num(r.hydrated);
+      b.limestone += num(r.limestone); b.petcoke += num(r.petcoke);
+      b.bags += num(r.bags); b.labour += num(r.labour);
+    }
+    for (const k in byKiln) {
+      const b = byKiln[k];
+      b.output = round2(b.quicklime + b.hydrated);
+      ['quicklime', 'hydrated', 'limestone', 'petcoke', 'bags', 'labour'].forEach(f => b[f] = round2(b[f]));
+      /* Cost is apportioned at the SAME avg-rate basis as the company total,
+         so kiln costs always sum back to the company's production cost. */
+      b.matCost = round2(b.limestone * avgRate(purchases, 'limestone') +
+                         b.petcoke * avgRate(purchases, 'petcoke') +
+                         b.bags * avgRate(purchases, 'packaging'));
+      b.cost = round2(b.matCost + b.labour);
+      b.costPerTon = b.output ? round2(b.cost / b.output) : 0;
+      b.yield = b.limestone ? round2(b.output / b.limestone * 100) : 0;
+    }
     const R = {
       runs: rIn.length, consumed, produced, output, labour, matCost,
       cost: round2(matCost + labour),
       costPerTon: output ? round2((matCost + labour) / output) : 0,
-      yield: consumed.limestone ? round2(output / consumed.limestone * 100) : 0
+      yield: consumed.limestone ? round2(output / consumed.limestone * 100) : 0,
+      byKiln
     };
 
     /* STOCK LEDGERS — opening (balance before `from`) → closing (balance at `to`).
@@ -206,7 +235,8 @@
       purchase: { count: 0, value: 0, tonnes: 0, byGroup: {} },
       production: { runs: 0, output: 0, labour: 0, matCost: 0, cost: 0,
                     produced: { quicklime: 0, hydrated: 0 },
-                    consumed: { limestone: 0, petcoke: 0, bags: 0 } },
+                    consumed: { limestone: 0, petcoke: 0, bags: 0 },
+                    byKiln: {} },
       stockClosing: { limestone: 0, petcoke: 0, fg: 0 },
       stockComputable: { limestone: true, petcoke: true, fg: true },
       months: {}
@@ -231,6 +261,21 @@
       t.production.consumed.limestone += s.production.consumed.limestone;
       t.production.consumed.petcoke += s.production.consumed.petcoke;
       t.production.consumed.bags += s.production.consumed.bags;
+      /* A kiln is a physical asset, not a company's: the SAME kiln can appear
+         in both firms' books when the partnership splits its runs. Roll it up
+         by kiln name and keep which firms contributed, so a kiln's total is
+         the kiln's real output — never one firm's slice of it. */
+      for (const kn in s.production.byKiln) {
+        const src = s.production.byKiln[kn];
+        const dst = t.production.byKiln[kn] || (t.production.byKiln[kn] = {
+          kiln: kn, runs: 0, quicklime: 0, hydrated: 0, output: 0,
+          limestone: 0, petcoke: 0, bags: 0, labour: 0, matCost: 0, cost: 0, firms: [] });
+        ['runs', 'quicklime', 'hydrated', 'output', 'limestone', 'petcoke', 'bags', 'labour', 'matCost', 'cost']
+          .forEach(f => dst[f] = round2(dst[f] + src[f]));
+        if (dst.firms.indexOf(e.name) < 0) dst.firms.push(e.name);
+        dst.costPerTon = dst.output ? round2(dst.cost / dst.output) : 0;
+        dst.yield = dst.limestone ? round2(dst.output / dst.limestone * 100) : 0;
+      }
       for (const st of s.stock) {
         const k = st.key === 'fg' ? 'fg' : st.key;
         if (k in t.stockClosing) {
@@ -248,6 +293,31 @@
     t.purchase.value = round2(t.purchase.value); t.purchase.tonnes = round2(t.purchase.tonnes);
     t.production.output = round2(t.production.output); t.production.cost = round2(t.production.cost);
     return t;
+  }
+
+  /* ── partnership split ───────────────────────────────────────────────
+     Two firms, one partnership running the kilns. This applies the SHARE THE
+     USER CONFIGURED to figures computed from real books — it never guesses a
+     ratio, and it is not a substitute for the partnership deed or settled
+     accounts. `margin` is indicative: sales (excl GST) − production cost
+     (materials at avg purchase rate + labour). It is a gross figure — it does
+     not carry overheads, interest, depreciation or drawings, so it is NOT the
+     P&L. Returns null when no ratio is set: an unset share must read as
+     "not set", never as a silent 50/50. */
+  function partnerSplit(total, ratio) {
+    if (!ratio || !isFinite(ratio.mine) || !isFinite(ratio.partner)) return null;
+    const sum = num(ratio.mine) + num(ratio.partner);
+    if (sum <= 0) return null;
+    const margin = round2(total.sales.taxable - total.production.cost);
+    const cut = pct => ({
+      pct: round2(pct / sum * 100),
+      sales: round2(total.sales.taxable * pct / sum),
+      purchase: round2(total.purchase.value * pct / sum),
+      prodCost: round2(total.production.cost * pct / sum),
+      output: round2(total.production.output * pct / sum),
+      margin: round2(margin * pct / sum)
+    });
+    return { margin, mine: cut(num(ratio.mine)), partner: cut(num(ratio.partner)) };
   }
 
   /* ── date presets (§13) ── FY = April–March ─────────────────────────── */
@@ -273,7 +343,7 @@
     ];
   }
 
-  const api = { summarize, consolidate, presets, pgroup, GROUPS, GROUP_LABEL,
+  const api = { summarize, consolidate, presets, partnerSplit, pgroup, GROUPS, GROUP_LABEL, UNASSIGNED,
                 _internals: { materialBal, fgBal, avgRate, saleTaxable, saleTotal, live } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.GroupCore = api;

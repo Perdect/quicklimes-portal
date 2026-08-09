@@ -1822,6 +1822,12 @@
   function addProduction(e) {
     S.PROD.push({
       id: 'PR' + idStamp(), date: e.date,
+      /* WHICH KILN burnt this. The plant is not one kiln any more — the
+         partnership runs two — and a run with no kiln cannot be attributed to
+         the asset that produced it. Optional on purpose: every run recorded
+         before kilns existed stays valid and reports as "Unassigned" rather
+         than being silently attributed to a kiln nobody chose. */
+      kiln: (e.kiln || '').toString().trim().slice(0, 40),
       limestone: nQ(e.limestone), petcoke: nQ(e.petcoke), bags: nQ(e.bags),
       quicklime: nQ(e.quicklime), hydrated: nQ(e.hydrated), labour: nQ(e.labour),
       note: (e.note || '').toString().slice(0, 200)
@@ -1832,6 +1838,7 @@
     if (!S.PROD[i]) return;
     ['limestone', 'petcoke', 'bags', 'quicklime', 'hydrated', 'labour'].forEach(k => { if (e[k] != null) S.PROD[i][k] = nQ(e[k]); });
     if (e.date) S.PROD[i].date = e.date;
+    if (e.kiln != null) S.PROD[i].kiln = e.kiln.toString().trim().slice(0, 40);
     if (e.note != null) S.PROD[i].note = e.note.toString().slice(0, 200);
     commit();
   }
@@ -1841,7 +1848,7 @@
      would renumber it and delete the wrong run. */
   function productionRows(period) {
     return withIdx(S.PROD).map(([p, i]) => ({
-      idx: i, date: p.date,
+      idx: i, date: p.date, kiln: p.kiln || '',
       limestone: nQ(p.limestone), petcoke: nQ(p.petcoke), bags: nQ(p.bags),
       quicklime: nQ(p.quicklime), hydrated: nQ(p.hydrated), labour: nQ(p.labour),
       output: nQ(p.quicklime) + nQ(p.hydrated), note: p.note || ''

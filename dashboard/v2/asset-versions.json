@@ -44,8 +44,8 @@
     "sha": "ef1ad4de9f66"
   },
   "data.js": {
-    "v": "m50",
-    "sha": "99ba745cc5fa"
+    "v": "m51",
+    "sha": "0075b07668af"
   },
   "i18n.js": {
     "v": "h8",
@@ -148,12 +148,12 @@
     "sha": "d25382a09f9f"
   },
   "group-core.js": {
-    "v": "g1",
-    "sha": "ecf02e43807d"
+    "v": "g2",
+    "sha": "ba17598deba8"
   },
   "group.js": {
-    "v": "g1",
-    "sha": "29467c95f6a1"
+    "v": "g2",
+    "sha": "ab5b054495e1"
   },
   "health-findings.js": {
     "v": "h1",
