@@ -21,6 +21,7 @@
   QLShell.mount({ active: 'group', title: 'Group Overview' });
 
   const G = window.GroupCore;
+  const SRC = window.SourcesCore;
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fC = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
@@ -80,9 +81,32 @@
     for (const c of wanted) {
       const blob = readBlob(c.id);
       if (!blob) { missing.push(c); continue; }
-      entries.push({ id: c.id, name: c.short, summary: G.summarize(blob, range) });
+      entries.push({ id: c.id, name: c.short, summary: G.summarize(blob, range), src: SRC.scan(blob, range) });
     }
-    return { range, entries, missing, total: G.consolidate(entries) };
+    return { range, entries, missing, total: G.consolidate(entries), sources: rollupSources(entries) };
+  }
+
+  /* ── DATA SOURCES (§9) ────────────────────────────────────────────────
+     Four independent sources. A source is "available" for the group if ANY
+     selected firm has rows for it in this period — and its totals are the
+     sum of the firms that do. What we never do is fill a firm's silence
+     with a zero: silence and zero are different facts. */
+  function rollupSources(entries) {
+    const blank = () => ({ present: false, count: 0, months: {} });
+    const t = { sales: blank(), purchase: blank(), payments: blank(), bank: blank() };
+    Object.assign(t.sales, { value: 0, total: 0, qty: 0 });
+    Object.assign(t.purchase, { value: 0 });
+    Object.assign(t.payments, { inValue: 0, outValue: 0, allocatedIn: 0, allocatedOut: 0, unallocated: 0 });
+    Object.assign(t.bank, { credits: 0, debits: 0, matched: 0, unmatched: 0, statements: 0 });
+    entries.forEach(e => SRC.MODULES.forEach(k => {
+      const s = e.src[k]; if (!s) return;
+      t[k].present = t[k].present || s.present;
+      t[k].count += s.count;
+      Object.keys(s).forEach(f => { if (typeof s[f] === 'number' && f !== 'count') t[k][f] = (t[k][f] || 0) + s[f]; });
+      Object.keys(s.months || {}).forEach(m => { t[k].months[m] = (t[k].months[m] || 0) + s.months[m]; });
+    }));
+    SRC.MODULES.forEach(k => { t[k].key = k; t[k].label = SRC.MODULE_LABEL[k]; });
+    return t;
   }
 
   /* ── renderers ── */
@@ -111,6 +135,54 @@
     </div>`;
   }
   const round2 = n => Math.round(n * 100) / 100;
+
+  /* ── §9 · DATA SOURCES ────────────────────────────────────────────────
+     Printed FIRST, before any money, because it is the answer to "why is
+     that figure blank?". Four independent sources, each either uploaded or
+     not. Nothing below this strip may quote a number whose source shows a
+     dash here. */
+  function sourcesStrip(vm) {
+    const S = vm.sources;
+    const cell = (s, sub) => `<div class="gv-src ${s.present ? 'on' : 'off'}">
+      <span class="gv-src-i">${s.present ? '✓' : '—'}</span>
+      <div><div class="gv-src-l">${esc(s.label)}</div>
+      <div class="gv-src-s">${s.present ? esc(sub) : 'Not uploaded'}</div></div></div>`;
+    const B = S.bank;
+    return `<div class="gv-srcs" aria-label="Data sources">
+      ${cell(S.sales, S.sales.count + ' invoice' + (S.sales.count === 1 ? '' : 's'))}
+      ${cell(S.purchase, S.purchase.count + ' bill' + (S.purchase.count === 1 ? '' : 's'))}
+      ${cell(S.payments, S.payments.count + ' receipt/payment' + (S.payments.count === 1 ? '' : 's'))}
+      ${cell(B, B.count + ' bank line' + (B.count === 1 ? '' : 's'))}
+    </div>`;
+  }
+
+  /* ── §17/§19 · MONEY, ONLY WHERE THE DATA EXISTS ─────────────────────
+     Every tile asks metrics() whether we are entitled to a number. A state
+     of 'nodata' or 'nocalc' renders the REASON, never ₹0 — because the old
+     page answered "Collected ₹0 · Outstanding ₹25,44,152" off sales alone,
+     and both halves of that sentence were invented. */
+  function moneyRow(vm) {
+    const m = SRC.metrics(vm.sources);
+    /* Nothing but sales uploaded? Then this whole row is four dashes and a
+       lecture — §18 says don't clutter. Say it once instead. */
+    if (!vm.sources.payments.present && !vm.sources.bank.present) {
+      return `<div class="gv-note gv-note-mut">💡 <b>Payments and the bank statement have not been uploaded for this period.</b>
+        Collected, outstanding and reconciliation are left blank on purpose — the app will not guess them from the sales file.
+        Upload receipts or a bank e-statement to unlock them.</div>`;
+    }
+    const tile = (label, mm, fmt, sub) => `<div class="gv-kpi ${mm.state === 'ok' ? '' : 'na'}">
+      <div class="l">${esc(label)}</div>
+      <div class="v">${mm.state === 'ok' ? fmt(mm.value) : '—'}</div>
+      <div class="s">${mm.state === 'ok' ? esc(sub || mm.why || '') : esc(mm.why)}</div></div>`;
+    const pct = v => v + '%';
+    return `<div class="gv-h">Money · payments &amp; bank</div>
+      <div class="gv-kpis gv-kpis-4">
+        ${tile('Received (recorded)', m.received, fC, vm.sources.payments.count + ' payment records')}
+        ${tile('Paid out (recorded)', m.paidOut, fC, '')}
+        ${tile('Outstanding', m.outstanding, fC, 'sales − allocated receipts')}
+        ${tile('Bank reconciled', m.reconciled, pct, m.reconciled.why)}
+      </div>`;
+  }
 
   function comparison(vm) {
     if (vm.entries.length < 2) return '';
@@ -390,7 +462,9 @@
       ${consolidated ? `<div class="gv-note">🤝 <b>Partnership view</b> — ${vm.entries.map(e => `<b>${esc(e.name)}</b> (${esc(roleOf(e.id).toLowerCase())})`).join(' + ')}, consolidated for <b>${esc(rangeLabel)}</b>. Each firm keeps its own books and GSTIN; every figure below keeps its firm breakdown and nothing is mixed at the row level.</div>` : ''}
       ${!consolidated && state.co !== 'all' && COS.length > 1 ? `<div class="gv-note">Showing <b>${esc((COS.find(c => c.id === state.co) || {}).short || '')}</b> only — ${esc(roleOf(state.co).toLowerCase())}. The other firm's books are not read into this view.</div>` : ''}
       ${vm.missing.map(c => `<div class="gv-empty">⚠ <b>${esc(c.short)}</b> has not been opened on this device yet, so its books aren't synced here. Switch to it once from the company menu and come back — it will be included automatically.</div>`).join('')}
+      ${vm.entries.length ? sourcesStrip(vm) : ''}
       ${vm.entries.length ? kpis(vm) : '<div class="gv-empty">No company books available yet.</div>'}
+      ${vm.entries.length ? moneyRow(vm) : ''}
       ${comparison(vm)}
       ${vm.entries.length ? kilnTable(vm) : ''}
       ${shareCard(vm)}

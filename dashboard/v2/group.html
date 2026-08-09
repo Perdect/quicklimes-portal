@@ -80,6 +80,28 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 [data-theme="dark"] .gv-badge.mine{background:rgba(37,99,235,.18);color:#93C5FD}
 [data-theme="dark"] .gv-badge.partner{background:rgba(22,163,74,.18);color:#86EFAC}
 .gv-bad{color:var(--ql-danger-600);font-size:var(--ql-text-sm);font-weight:600;margin-top:6px}
+/* ── DATA SOURCES strip (§9) — printed before any money figure, because it
+   is the answer to "why is that blank?". Four independent sources. ── */
+.gv-srcs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:var(--ql-space-4)}
+@media(max-width:820px){.gv-srcs{grid-template-columns:repeat(2,1fr)}}
+.gv-src{display:flex;align-items:center;gap:10px;background:var(--ql-card);border:1px solid var(--ql-border);border-radius:var(--ql-radius-xl);padding:10px 14px}
+.gv-src-i{width:24px;height:24px;flex:none;display:grid;place-items:center;border-radius:50%;font-size:13px;font-weight:800}
+.gv-src.on .gv-src-i{background:var(--ql-success-50,#DCFCE7);color:var(--ql-success-700,#15803D)}
+.gv-src.off{background:var(--ql-neutral-50);border-style:dashed}
+.gv-src.off .gv-src-i{background:var(--ql-neutral-100);color:var(--ql-text-muted)}
+.gv-src-l{font-size:var(--ql-text-sm);font-weight:700}
+.gv-src.off .gv-src-l{color:var(--ql-text-secondary)}
+.gv-src-s{font-size:var(--ql-text-xs);color:var(--ql-text-muted)}
+[data-theme="dark"] .gv-src.on .gv-src-i{background:rgba(22,163,74,.18);color:#86EFAC}
+/* A tile with no entitlement to a number: dashed, muted, reason in place of the value */
+.gv-kpis-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:1100px){.gv-kpis-4{grid-template-columns:repeat(2,1fr)}}
+.gv-kpi.na{border-style:dashed;background:var(--ql-neutral-50)}
+.gv-kpi.na .v{color:var(--ql-text-muted);font-weight:700}
+.gv-kpi.na .s{color:var(--ql-text-secondary)}
+[data-theme="dark"] .gv-kpi.na{background:var(--ql-neutral-100)}
+.gv-note-mut{background:var(--ql-neutral-50);border-color:var(--ql-border);color:var(--ql-text-secondary)}
+[data-theme="dark"] .gv-note-mut{background:var(--ql-neutral-100);border-color:var(--ql-border)}
 @media print{
   .ql-sidebar,.ql-topbar,nav,#gvCsv,#gvPrint,.gv-cos,.gv-sel,.gv-date{display:none!important}
   body,#ql-page,.dash,.card{background:#fff!important;margin:0;padding:0}
@@ -107,7 +129,8 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./wa-core.js?v=w3"></script>
 <script src="./shell.js?v=m68"></script>
 <script src="./mobile.js?v=m16"></script>
+<script src="./sources-core.js?v=g6"></script>
 <script src="./group-core.js?v=g5"></script>
-<script src="./group.js?v=g5"></script>
+<script src="./group.js?v=g6"></script>
 </body>
 </html>

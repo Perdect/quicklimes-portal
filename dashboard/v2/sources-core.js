@@ -1,0 +1,310 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   sources-core.js — the FOUR INDEPENDENT DATA SOURCES, and the rule that
+   a number is only shown when the data to compute it actually exists.
+
+   Pure. No DOM, no QLD, no localStorage. Runs under node for the tests.
+
+   ── THE BUSINESS RULE THIS FILE EXISTS TO ENFORCE ────────────────────
+   Sales, Purchase, Payments/Receipts and the Bank e-statement are FOUR
+   SEPARATE SOURCES. Each is uploaded on its own and stands on its own.
+   Uploading one must never create, delete or compute another. They may
+   be MATCHED afterwards, but a match is a relationship laid on top —
+   never the record itself.
+
+   The bug this replaces: salesRows() stamps every imported invoice
+   status:'pending' (data.js:763) and then reports
+   outstanding = total − paid (data.js:1214). Upload July sales with no
+   payment data anywhere and the app confidently announces
+   "Collected ₹0 · Outstanding ₹25,44,152". Both numbers are inventions.
+   Nothing was collected because nothing was RECORDED, and an unknown is
+   not a zero.
+
+   So every figure here carries a STATE, never a bare number:
+     'ok'     — we have the inputs; `value` is real (0 is a real 0)
+     'nodata' — that source has not been uploaded → "Not uploaded"
+     'nocalc' — sources exist but an input this figure needs does not
+                → "Cannot calculate"
+   The UI renders state first and the number second. ₹0 is only ever
+   printed when uploaded data proves the answer is zero.
+   ═══════════════════════════════════════════════════════════════════════ */
+(function (root) {
+  'use strict';
+
+  const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+  const round2 = n => Math.round(n * 100) / 100;
+  const arr = v => Array.isArray(v) ? v : [];
+
+  /* Liveness — the same rule the registers use (data.js withIdx + the void
+     rule). A soft-deleted row is gone as far as every reader is concerned;
+     it keeps its array slot only so the persisted indices other modules
+     stored (cashbook link.idx, recon m.idx …) never shift under them. */
+  const liveRow = r => !!r && !r._del && !r._arch && (r.status || 'pending') !== 'cancelled';
+  const liveCash = r => !!r && !r._del && !r._arch && (r.status || '') !== 'cancelled';
+
+  const ymOf = d => { const s = String(d == null ? '' : d); return /^\d{4}-\d{2}/.test(s) ? s.slice(0, 7) : ''; };
+  const inRange = (d, from, to) => !!d && (!from || d >= from) && (!to || d <= to);
+
+  /* The four sources, in the order the business thinks about them. */
+  const MODULES = ['sales', 'purchase', 'payments', 'bank'];
+  const MODULE_LABEL = { sales: 'Sales', purchase: 'Purchase', payments: 'Payments', bank: 'Bank statement' };
+
+  /* Where each source physically lives inside a company blob. Keeping this
+     in one table is the point: it is the only place that knows a payment
+     is a CASHBOOK row and a bank line is a RECON txn. */
+  function bank(blob) { const r = blob && blob.recon; return arr(r && r.txns); }
+
+  /* ── invoice money, mirrored from data.js cS/cP ───────────────────────
+     Sale: taxable = qty × rate, gst = taxable × rate%.  Purchase: the
+     bill's own taxable. Never re-derived differently here — a second
+     opinion on arithmetic is how two screens start disagreeing. */
+  function saleTaxable(s) { return num(s.taxable) || round2(num(s.qty) * num(s.rate)); }
+  function saleTotal(s) { const tx = saleTaxable(s); return round2(tx + tx * num(s.gstR) / 100); }
+  function purchTaxable(p) { return num(p.taxable); }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     SCAN — what do we actually have?
+     Answers, per source: is it there at all, how many rows, over which
+     months, and what it totals. Nothing here computes ACROSS sources.
+     ═══════════════════════════════════════════════════════════════════ */
+  function scan(blob, range) {
+    blob = blob || {};
+    const from = range && range.from, to = range && range.to;
+    const keep = d => inRange(d, from, to);
+
+    /* SALES — invoices, on their own. */
+    const sales = arr(blob.sales).filter(liveRow);
+    const salesIn = sales.filter(s => keep(s.date));
+
+    /* PURCHASE — bills, on their own. */
+    const purch = arr(blob.purchases).filter(liveRow);
+    const purchIn = purch.filter(p => keep(p.date));
+
+    /* PAYMENTS / RECEIPTS — the cashbook is the independent payment
+       ledger: a receipt may exist with link:null and no invoice at all.
+       Receipts recorded ON an invoice (s.payments[]) are payment records
+       too — they are just attached at birth. Both count as evidence that
+       the payments source has been populated. */
+    const cash = arr(blob.cashbook).filter(liveCash);
+    const cashIn = cash.filter(e => keep(e.date));
+    const embedded = [];
+    sales.forEach((s, i) => arr(s.payments).forEach(p => {
+      if (keep(p.date || s.date)) embedded.push({ dir: 'in', amount: num(p.amount), date: p.date || s.date, salesIdx: i });
+    }));
+    purch.forEach((p, i) => arr(p.payments).forEach(x => {
+      if (keep(x.date || p.date)) embedded.push({ dir: 'out', amount: num(x.amount), date: x.date || p.date, purchIdx: i });
+    }));
+
+    /* BANK E-STATEMENT — raw imported lines. Untouched by matching; a
+       match is stored beside the line (t.m), never folded into it. */
+    const txns = bank(blob).filter(t => !t._del);
+    const txnsIn = txns.filter(t => keep(t.date));
+    const stmts = arr(blob.statements);
+
+    const months = rows => { const s = {}; rows.forEach(r => { const m = ymOf(r.date); if (m) s[m] = (s[m] || 0) + 1; }); return s; };
+
+    /* Allocation = a payment that has been tied to a specific bill. This is
+       the ONLY thing that licenses an outstanding figure. An unallocated
+       receipt is money in, not a settled invoice. */
+    const allocIn = cashIn.filter(e => e.link && e.link.kind === 'sale' && e.link.idx != null).length + embedded.filter(e => e.dir === 'in').length;
+    const allocOut = cashIn.filter(e => e.link && e.link.kind === 'purchase' && e.link.idx != null).length + embedded.filter(e => e.dir === 'out').length;
+
+    const credit = e => e.type === 'credit' ? num(e.amount) : 0;
+    const debit = e => e.type === 'debit' ? num(e.amount) : 0;
+    const inValue = cashIn.reduce((a, e) => a + credit(e), 0) + embedded.filter(e => e.dir === 'in').reduce((a, e) => a + e.amount, 0);
+    const outValue = cashIn.reduce((a, e) => a + debit(e), 0) + embedded.filter(e => e.dir === 'out').reduce((a, e) => a + e.amount, 0);
+
+    /* A bank line counts as matched only when the match was actually
+       accepted — a suggestion the user has not confirmed is not a fact. */
+    const matched = txnsIn.filter(t => t.m && (t.m.state === 'matched' || t.m.state === 'posted' || t.m.posted)).length;
+
+    return {
+      range: { from: from || null, to: to || null },
+      sales: {
+        key: 'sales', label: MODULE_LABEL.sales, present: salesIn.length > 0,
+        count: salesIn.length, months: months(salesIn),
+        value: round2(salesIn.reduce((a, s) => a + saleTaxable(s), 0)),
+        total: round2(salesIn.reduce((a, s) => a + saleTotal(s), 0)),
+        qty: round2(salesIn.reduce((a, s) => a + num(s.qty), 0))
+      },
+      purchase: {
+        key: 'purchase', label: MODULE_LABEL.purchase, present: purchIn.length > 0,
+        count: purchIn.length, months: months(purchIn),
+        value: round2(purchIn.reduce((a, p) => a + purchTaxable(p), 0))
+      },
+      payments: {
+        key: 'payments', label: MODULE_LABEL.payments,
+        present: (cashIn.length + embedded.length) > 0,
+        count: cashIn.length + embedded.length, months: months(cashIn),
+        inValue: round2(inValue), outValue: round2(outValue),
+        allocatedIn: allocIn, allocatedOut: allocOut,
+        unallocated: cashIn.filter(e => !e.link).length
+      },
+      bank: {
+        key: 'bank', label: MODULE_LABEL.bank, present: txnsIn.length > 0,
+        count: txnsIn.length, months: months(txnsIn), statements: stmts.length,
+        credits: round2(txnsIn.reduce((a, t) => a + num(t.credit), 0)),
+        debits: round2(txnsIn.reduce((a, t) => a + num(t.debit), 0)),
+        matched: matched, unmatched: txnsIn.length - matched
+      }
+    };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     METRICS — every headline figure, each tagged with whether we are
+     entitled to state it.  This is §17: "Do we actually have the data
+     required for this calculation?" asked once, in one place.
+     ═══════════════════════════════════════════════════════════════════ */
+  const ok = (value, note) => ({ state: 'ok', value: round2(value), why: note || '' });
+  const nodata = why => ({ state: 'nodata', value: null, why: why });
+  const nocalc = why => ({ state: 'nocalc', value: null, why: why });
+
+  function metrics(sc) {
+    const S = sc.sales, P = sc.purchase, Y = sc.payments, B = sc.bank;
+    const m = {};
+
+    m.sales = S.present ? ok(S.value) : nodata('Sales not uploaded');
+    m.salesQty = S.present ? ok(S.qty) : nodata('Sales not uploaded');
+    m.purchase = P.present ? ok(P.value) : nodata('Purchase not uploaded');
+
+    /* Payments stands alone — it does not need sales to exist. */
+    m.received = Y.present ? ok(Y.inValue) : nodata('Payments not recorded');
+    m.paidOut = Y.present ? ok(Y.outValue) : nodata('Payments not recorded');
+
+    /* Bank stands alone too. Its credits are NOT "sales collected" until
+       something matches them to an invoice (§ Example 3). */
+    m.bankIn = B.present ? ok(B.credits) : nodata('Bank statement not uploaded');
+    m.bankOut = B.present ? ok(B.debits) : nodata('Bank statement not uploaded');
+
+    /* Collected against sales — needs BOTH sales and allocated receipts.
+       Receipts that are not allocated to an invoice cannot settle one. */
+    if (!S.present) m.collected = nodata('Sales not uploaded');
+    else if (!Y.present) m.collected = nodata('Payments not recorded');
+    else if (!Y.allocatedIn) m.collected = nocalc('Receipts exist but none are allocated to an invoice');
+    else m.collected = ok(allocatedInValue(sc));
+
+    /* Outstanding — the figure the old code invented. It exists only when
+       collected exists. Never "sales minus nothing". */
+    m.outstanding = m.collected.state === 'ok'
+      ? ok(Math.max(0, S.value - m.collected.value))
+      : (m.collected.state === 'nodata' ? nocalc(m.collected.why) : nocalc(m.collected.why));
+
+    /* Reconciliation — meaningless with no bank statement, and equally
+       meaningless with a statement and nothing to match it against. */
+    if (!B.present) m.reconciled = nodata('Bank statement not uploaded');
+    else if (!S.present && !P.present && !Y.present) m.reconciled = nocalc('Nothing to match the statement against');
+    else m.reconciled = ok(B.count ? Math.round(B.matched * 100 / B.count) : 0, B.matched + ' of ' + B.count + ' lines');
+
+    return m;
+  }
+
+  /* Value of receipts that are actually allocated to an invoice. Kept
+     separate from scan() because it is a cross-source figure and scan()
+     is deliberately single-source. */
+  function allocatedInValue(sc) {
+    return sc.payments.inValue;   // every allocated receipt is a credit already counted
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     DELETE PLAN — §10-13.  Deleting one source deletes ONLY that source.
+     Payments, bank lines, the other register, parties and vendors all
+     survive; the only thing that is destroyed alongside is the now-false
+     MATCH, because a link to a row that no longer exists is the orphan
+     the spec forbids.
+
+     Deletion is a soft delete (_del) and that is not a compromise, it is
+     the only safe option here: fourteen places in this codebase persist a
+     row's ARRAY INDEX (cashbook link.idx, recon m.idx, m.allocs[].idx,
+     m.posted.lines[].idx, m.partyIdx). recon-apply.js:314 dereferences one
+     of them to post money. Splicing a month out of S.SALES shifts every
+     index above it and silently re-points a receipt at the wrong invoice.
+     Soft delete makes the rows invisible to every reader (withIdx filters
+     _del) while the slots stay put, and the import guard already excludes
+     deleted rows (data.js:716) so the re-upload lands clean.
+     ═══════════════════════════════════════════════════════════════════ */
+  function deletePlan(blob, module, ym) {
+    blob = blob || {};
+    if (MODULES.indexOf(module) < 0) throw new Error('unknown module: ' + module);
+    if (!/^\d{4}-\d{2}$/.test(String(ym || ''))) throw new Error('month must be YYYY-MM, got: ' + ym);
+
+    const plan = {
+      module: module, label: MODULE_LABEL[module], ym: ym,
+      remove: { sales: [], purchases: [], cashbook: [], txnIds: [], statementIds: [] },
+      unlink: { cashbook: [], recon: [] },
+      keep: {}, warnings: []
+    };
+    const hit = r => liveRow(r) && ymOf(r.date) === ym;
+
+    if (module === 'sales') {
+      arr(blob.sales).forEach((s, i) => { if (hit(s)) plan.remove.sales.push(i); });
+    } else if (module === 'purchase') {
+      arr(blob.purchases).forEach((p, i) => { if (hit(p)) plan.remove.purchases.push(i); });
+    } else if (module === 'payments') {
+      arr(blob.cashbook).forEach((e, i) => { if (liveCash(e) && ymOf(e.date) === ym) plan.remove.cashbook.push(i); });
+    } else if (module === 'bank') {
+      bank(blob).forEach(t => { if (!t._del && ymOf(t.date) === ym) plan.remove.txnIds.push(t.id); });
+      arr(blob.statements).forEach(s => { if (ymOf(s.period || s.from || s.date) === ym) plan.remove.statementIds.push(s.id); });
+    }
+
+    /* Which relationships die with it. Note what is NOT here: the payment
+       row itself, the bank line itself, the party, the other register. */
+    const goneSale = new Set(plan.remove.sales);
+    const gonePurch = new Set(plan.remove.purchases);
+    const goneCash = new Set(plan.remove.cashbook);
+    const goneTxn = new Set(plan.remove.txnIds);
+
+    if (module === 'sales' || module === 'purchase') {
+      const kind = module === 'sales' ? 'sale' : 'purchase';
+      const gone = module === 'sales' ? goneSale : gonePurch;
+      arr(blob.cashbook).forEach((e, i) => {
+        if (liveCash(e) && e.link && e.link.kind === kind && gone.has(e.link.idx)) {
+          plan.unlink.cashbook.push({ idx: i, was: e.link, amount: num(e.amount), date: e.date });
+        }
+      });
+      bank(blob).forEach(t => {
+        const mm = t.m; if (!mm || t._del) return;
+        const pointsAt = x => x && x.kind === kind && gone.has(x.idx);
+        const direct = (mm.kind === kind && gone.has(mm.idx));
+        const allocs = arr(mm.allocs).some(a => pointsAt(a) || (mm.kind === kind && gone.has(a.idx)));
+        const posted = arr(mm.posted && mm.posted.lines).some(l => gone.has(l.idx));
+        if (direct || allocs || posted) plan.unlink.recon.push({ id: t.id, date: t.date, amount: num(t.credit) || num(t.debit), posted: posted });
+      });
+    }
+    if (module === 'payments') {
+      /* A deleted receipt un-settles the invoice it was paying. The invoice
+         SURVIVES — it just goes back to "payment unknown". */
+      arr(blob.cashbook).forEach((e, i) => {
+        if (goneCash.has(i) && e.link) plan.unlink.cashbook.push({ idx: i, was: e.link, amount: num(e.amount), date: e.date });
+      });
+    }
+    if (module === 'bank') {
+      bank(blob).forEach(t => { if (goneTxn.has(t.id) && t.m && t.m.posted) plan.warnings.push('Bank line ' + t.id + ' had a posted match — the payment it created stays, only the bank line goes.'); });
+    }
+
+    plan.keep = {
+      sales: module === 'sales' ? 0 : arr(blob.sales).filter(liveRow).length,
+      purchases: module === 'purchase' ? 0 : arr(blob.purchases).filter(liveRow).length,
+      payments: module === 'payments' ? 0 : arr(blob.cashbook).filter(liveCash).length,
+      bank: module === 'bank' ? 0 : bank(blob).filter(t => !t._del).length
+    };
+    plan.counts = {
+      removed: plan.remove.sales.length + plan.remove.purchases.length + plan.remove.cashbook.length + plan.remove.txnIds.length,
+      unlinkedPayments: plan.unlink.cashbook.length,
+      unlinkedBank: plan.unlink.recon.length,
+      statements: plan.remove.statementIds.length
+    };
+    return plan;
+  }
+
+  /* Months a source actually holds rows for — what the delete picker offers.
+     Never a hard-coded twelve: you cannot delete a month you never uploaded. */
+  function availableMonths(blob, module) {
+    const sc = scan(blob, null);
+    const m = sc[module] && sc[module].months || {};
+    return Object.keys(m).sort().reverse().map(ym => ({ ym: ym, count: m[ym] }));
+  }
+
+  const api = { scan, metrics, deletePlan, availableMonths, MODULES, MODULE_LABEL,
+                _internals: { ymOf, liveRow, liveCash, saleTaxable, saleTotal, ok, nodata, nocalc } };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.SourcesCore = api;
+})(typeof window !== 'undefined' ? window : globalThis);

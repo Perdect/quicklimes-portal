@@ -147,13 +147,17 @@
     "v": "d52",
     "sha": "d25382a09f9f"
   },
+  "sources-core.js": {
+    "v": "g6",
+    "sha": "fbe55c3b7ccc"
+  },
   "group-core.js": {
     "v": "g5",
     "sha": "13c71facb0f8"
   },
   "group.js": {
-    "v": "g5",
-    "sha": "eeca345ed921"
+    "v": "g6",
+    "sha": "f4eea5ce19b2"
   },
   "health-findings.js": {
     "v": "h1",
