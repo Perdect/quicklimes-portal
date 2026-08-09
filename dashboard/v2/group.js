@@ -212,9 +212,9 @@
       ${row('Purchases (excl. GST)', 'purchase', fC)}
       ${row('Production cost', 'prodCost', fC)}
       ${row('Output', 'output', fT)}
-      <tr class="tot"><td>Indicative gross margin</td><td>${fC(sp.mine.margin)}</td><td>${fC(sp.partner.margin)}</td><td>${fC(sp.margin)}</td></tr>
+      <tr class="tot"><td>Production margin (sales − production cost)</td><td>${fC(sp.mine.margin)}</td><td>${fC(sp.partner.margin)}</td><td>${fC(sp.margin)}</td></tr>
     </tbody></table></div>
-    <div class="gv-note" style="margin-top:10px">Gross margin here is <b>sales − production cost</b> (materials at average purchase rate + labour). It carries no overheads, interest, depreciation or drawings, so it is <b>not the P&amp;L</b> and not a settlement statement — it is the operating picture, split at the ratio you set. ${ratioInputs()}</div>`;
+    <div class="gv-note" style="margin-top:10px">Production margin here is <b>sales − production cost</b> (materials at average purchase rate + labour). It carries no overheads, interest, depreciation or drawings, so it is <b>not the P&amp;L</b> and not a settlement statement — it is the operating picture, split at the ratio you set. ${ratioInputs()}</div>`;
   }
   function ratioInputs() {
     const r = part.ratio || { mine: '', partner: '' };

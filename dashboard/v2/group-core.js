@@ -320,7 +320,7 @@
      Two firms, one partnership running the kilns. This applies the SHARE THE
      USER CONFIGURED to figures computed from real books — it never guesses a
      ratio, and it is not a substitute for the partnership deed or settled
-     accounts. `margin` is indicative: sales (excl GST) − production cost
+     accounts. `margin` is the PRODUCTION MARGIN: sales (excl GST) − production cost
      (materials at avg purchase rate + labour). It is a gross figure — it does
      not carry overheads, interest, depreciation or drawings, so it is NOT the
      P&L. Returns null when no ratio is set: an unset share must read as
