@@ -117,21 +117,47 @@
     return `<div class="gv-split">${vm.entries.map(e =>
       `<span><i class="gv-dot ${isMine(e.id) ? 'mine' : 'partner'}"></i>${esc(e.name)} <b>${fmt(fn(e.summary))}</b></span>`).join('')}</div>`;
   }
+  /* One KPI tile. `have` is the entitlement: false means the source behind
+     this figure holds nothing for the period, so we print the reason and
+     NOT a zero. "Purchases ₹0" next to a strip that says "Purchase — not
+     uploaded" is the same lie as the old outstanding figure, in smaller
+     type. (§19: ₹0 is only for data that proves the answer is zero.) */
+  function tile(label, have, value, sub, why, splitHtml) {
+    return `<div class="gv-kpi ${have ? '' : 'na'}"><div class="l">${esc(label)}</div>
+      <div class="v">${have ? value : '—'}</div>
+      <div class="s">${esc(have ? sub : why)}</div>${have ? (splitHtml || '') : ''}</div>`;
+  }
   function kpis(vm) {
-    const t = vm.total;
-    const stockNote = t.stockComputable.fg ? fT(t.stockClosing.fg) : '—';
-    const margin = round2(t.sales.taxable - t.production.cost);
+    const t = vm.total, S = vm.sources;
+    /* Production is its own source too: runs are RECORDED, not uploaded, and
+       zero recorded runs means we do not know the output — not that the
+       kilns produced nothing. */
+    const hasProd = t.production.runs > 0;
+    const fgRow = vm.entries.some(e => (e.summary.stock.find(s => s.key === 'fg') || {}).noProduction);
+    /* A margin needs BOTH sides. Sales minus a production cost that was
+       never recorded is just the sales figure wearing a different label —
+       and it was reading as pure profit. */
+    const hasMargin = S.sales.present && hasProd;
     return `<div class="gv-kpis">
-      <div class="gv-kpi"><div class="l">Production</div><div class="v">${fT(t.production.output)}</div><div class="s">${t.production.runs} runs · QL ${fT(t.production.produced.quicklime)} + HL ${fT(t.production.produced.hydrated)}</div>${split(vm, s => s.production.output, fT)}</div>
-      <div class="gv-kpi"><div class="l">Sales</div><div class="v">${fC(t.sales.taxable)}</div><div class="s">${fT(t.sales.qty)} · ${t.sales.count} invoices · excl. GST</div>${split(vm, s => s.sales.taxable, fC)}</div>
-      <div class="gv-kpi"><div class="l">Purchases</div><div class="v">${fC(t.purchase.value)}</div><div class="s">${fT(t.purchase.tonnes)} material · excl. GST</div>${split(vm, s => s.purchase.value, fC)}</div>
-      <div class="gv-kpi"><div class="l">Production cost</div><div class="v">${fC(t.production.cost)}</div><div class="s">materials at avg rates + labour</div>${split(vm, s => s.production.cost, fC)}</div>
-      <div class="gv-kpi"><div class="l">Sales − production cost</div><div class="v">${fC(margin)}</div><div class="s">production margin · not P&amp;L</div>${split(vm, s => round2(s.sales.taxable - s.production.cost), fC)}</div>
-      <div class="gv-kpi"><div class="l">Finished-goods stock</div><div class="v">${stockNote}</div><div class="s">${
-        t.stockComputable.fg ? 'made − dispatched, as at period end'
-          : (vm.entries.some(e => (e.summary.stock.find(s => s.key === 'fg') || {}).noProduction)
-              ? 'no production recorded — record runs to get a stock figure'
-              : 'not computable — bills missing quantities')}</div></div>
+      ${tile('Production', hasProd, fT(t.production.output),
+        `${t.production.runs} runs · QL ${fT(t.production.produced.quicklime)} + HL ${fT(t.production.produced.hydrated)}`,
+        'No production runs recorded', split(vm, s => s.production.output, fT))}
+      ${tile('Sales', S.sales.present, fC(t.sales.taxable),
+        `${fT(t.sales.qty)} · ${t.sales.count} invoices · excl. GST`,
+        'Sales not uploaded', split(vm, s => s.sales.taxable, fC))}
+      ${tile('Purchases', S.purchase.present, fC(t.purchase.value),
+        `${fT(t.purchase.tonnes)} material · excl. GST`,
+        'Purchase not uploaded', split(vm, s => s.purchase.value, fC))}
+      ${tile('Production cost', hasProd, fC(t.production.cost),
+        'materials at avg rates + labour',
+        'No production runs recorded', split(vm, s => s.production.cost, fC))}
+      ${tile('Sales − production cost', hasMargin, fC(round2(t.sales.taxable - t.production.cost)),
+        'production margin · not P&L',
+        hasProd ? 'Sales not uploaded' : 'Cannot calculate — no production cost recorded',
+        split(vm, s => round2(s.sales.taxable - s.production.cost), fC))}
+      ${tile('Finished-goods stock', t.stockComputable.fg, fT(t.stockClosing.fg),
+        'made − dispatched, as at period end',
+        fgRow ? 'No production recorded — record runs to get a stock figure' : 'Not computable — bills missing quantities')}
     </div>`;
   }
   const round2 = n => Math.round(n * 100) / 100;
@@ -288,7 +314,9 @@
       ${row('Purchases (excl. GST)', 'purchase', fC)}
       ${row('Production cost', 'prodCost', fC)}
       ${row('Output', 'output', fT)}
-      <tr class="tot"><td>Production margin (sales − production cost)</td><td>${fC(sp.mine.margin)}</td><td>${fC(sp.partner.margin)}</td><td>${fC(sp.margin)}</td></tr>
+      ${vm.total.production.runs > 0
+        ? `<tr class="tot"><td>Production margin (sales − production cost)</td><td>${fC(sp.mine.margin)}</td><td>${fC(sp.partner.margin)}</td><td>${fC(sp.margin)}</td></tr>`
+        : `<tr class="tot"><td>Production margin (sales − production cost)</td><td colspan="3" style="text-align:left;font-weight:600;color:var(--ql-text-secondary)">— Cannot calculate: no production runs recorded, so there is no production cost to subtract. Splitting sales alone would allocate revenue as if it were profit.</td></tr>`}
     </tbody></table></div>
     <div class="gv-note" style="margin-top:10px">Production margin here is <b>sales − production cost</b> (materials at average purchase rate + labour). It carries no overheads, interest, depreciation or drawings, so it is <b>not the P&amp;L</b> and not a settlement statement — it is the operating picture, split at the ratio you set. ${ratioInputs()}</div>`;
   }
