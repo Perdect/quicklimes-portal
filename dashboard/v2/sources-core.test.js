@@ -79,6 +79,80 @@ const salesPay = {
   eq('EX2b · and says why', m.outstanding.why, 'Receipts exist but none are allocated to an invoice');
 }
 
+/* ══ ONE receipt, recorded TWICE — the real shape in Gotan's book ═════
+   receiveSalesPayment (data.js:2314) writes the same event into s.payments[]
+   AND into S.CASHBOOK with link:{kind:'sale',idx}. Summing both doubled the
+   money: three real receipts totalling ₹3,58,953 were reported as ₹7,17,906
+   on the live Group Overview. */
+{
+  const mirrored = {
+    sales: [
+      { inv: '15/2026-27', date: '2026-04-23', qty: 20, rate: 5000, gstR: 5, status: 'paid', paid: 104286,
+        payments: [{ date: '2026-06-01', amount: 104286, method: 'Bank' }] },
+      { inv: '24/2026-27', date: '2026-05-06', qty: 27, rate: 5000, gstR: 5, status: 'paid', paid: 144375,
+        payments: [{ date: '2026-06-06', amount: 144375, method: 'Bank' }] },
+      { inv: '49/2026-27', date: '2026-06-18', qty: 21, rate: 5000, gstR: 5, status: 'paid', paid: 110292,
+        payments: [{ date: '2026-06-03', amount: 110292, method: 'Bank' }] }
+    ],
+    purchases: [],
+    cashbook: [
+      { date: '2026-06-01', type: 'credit', amount: 104286, ptype: 'Sales Payment', link: { kind: 'sale', idx: 0 } },
+      { date: '2026-06-06', type: 'credit', amount: 144375, ptype: 'Sales Payment', link: { kind: 'sale', idx: 1 } },
+      { date: '2026-06-03', type: 'credit', amount: 110292, ptype: 'Sales Payment', link: { kind: 'sale', idx: 2 } }
+    ],
+    recon: { txns: [] }, statements: []
+  };
+  const all = { from: null, to: null };
+  const sc = SC.scan(mirrored, all), m = SC.metrics(sc);
+  close('MIRROR · received counts each receipt ONCE', m.received.value, 358953);
+  eq('MIRROR · not the doubled figure', m.received.value === 717906, false);
+  eq('MIRROR · three payment records, not six', sc.payments.count, 3);
+  eq('MIRROR · three allocations, not six', sc.payments.allocatedIn, 3);
+  close('MIRROR · collected = the allocated total', m.collected.value, 358953);
+}
+/* Legacy shape: the payment lives ONLY on the invoice, nothing in the
+   cashbook. It must still be counted — exactly once. */
+{
+  const legacy = {
+    sales: [{ inv: 'L1', date: '2026-04-01', qty: 10, rate: 5000, gstR: 5, status: 'paid', paid: 52500,
+              payments: [{ date: '2026-04-10', amount: 52500 }] }],
+    purchases: [], cashbook: [], recon: { txns: [] }, statements: []
+  };
+  const sc = SC.scan(legacy, { from: null, to: null }), m = SC.metrics(sc);
+  eq('LEGACY · an invoice-only payment still registers the source', sc.payments.present, true);
+  close('LEGACY · counted once', m.received.value, 52500);
+  eq('LEGACY · and counts as an allocation', sc.payments.allocatedIn, 1);
+}
+/* Partial mirror: ₹100 recorded on the invoice, only ₹60 reached the
+   cashbook. Count ₹100 — the ledger's ₹60 plus the ₹40 it is missing. */
+{
+  const partial = {
+    sales: [{ inv: 'P1', date: '2026-04-01', qty: 10, rate: 5000, gstR: 5, status: 'partial', paid: 100,
+              payments: [{ date: '2026-04-10', amount: 100 }] }],
+    purchases: [],
+    cashbook: [{ date: '2026-04-10', type: 'credit', amount: 60, link: { kind: 'sale', idx: 0 } }],
+    recon: { txns: [] }, statements: []
+  };
+  const m = SC.metrics(SC.scan(partial, { from: null, to: null }));
+  close('PARTIAL · ledger 60 + missing 40 = 100, never 160', m.received.value, 100);
+}
+/* An unallocated receipt is real money in, but it settles no invoice. */
+{
+  const mixed = {
+    sales: [{ inv: 'X1', date: '2026-04-01', qty: 100, rate: 5000, gstR: 5, status: 'pending' }],
+    purchases: [],
+    cashbook: [
+      { date: '2026-04-10', type: 'credit', amount: 100000, link: { kind: 'sale', idx: 0 } },
+      { date: '2026-04-11', type: 'credit', amount: 25000, link: null }
+    ],
+    recon: { txns: [] }, statements: []
+  };
+  const sc = SC.scan(mixed, { from: null, to: null }), m = SC.metrics(sc);
+  close('ALLOC · money in counts BOTH receipts', m.received.value, 125000);
+  close('ALLOC · but only the linked one settles an invoice', m.collected.value, 100000);
+  close('ALLOC · so outstanding subtracts 1,00,000 not 1,25,000', m.outstanding.value, 400000);
+}
+
 /* ══ Ex.3 — SALES + BANK, no payment module ══════════════════════════ */
 const salesBank = {
   sales: salesOnly.sales, purchases: [], cashbook: [],
@@ -160,6 +234,13 @@ const full = {
   eq('§10 · payments survive', p.keep.payments, 3);
   eq('§10 · bank lines survive', p.keep.bank, 3);
   eq('§10 · August sale is untouched', p.remove.sales.indexOf(1), -1);
+  /* keep.sales counts what LIVES after the delete — the other months of the
+     same source. Reporting 0 here (because sales is the target) told the
+     owner every invoice was going when only one month was. */
+  eq('§10 · the OTHER month of sales survives', p.keep.sales, 1);
+  eq('§10 · and is reported as 1 other month', p.sameSource.months, 1);
+  eq('§10 · with 1 invoice untouched', p.sameSource.rows, 1);
+  eq('§10 · while this month holds 1 invoice', p.sameSource.monthRows, 1);
 }
 { /* §11 — delete July PURCHASE */
   const p = SC.deletePlan(full, 'purchase', '2026-07');
@@ -169,6 +250,7 @@ const full = {
   eq('§11 · drops the purchase payment link only', p.unlink.cashbook.map(x => x.idx), [1]);
   eq('§11 · un-matches T2 only', p.unlink.recon.map(x => x.id), ['T2']);
   eq('§11 · sales survive', p.keep.sales, 2);
+  eq('§11 · the August bill survives', p.keep.purchases, 1);
 }
 { /* §12 — delete July BANK STATEMENT */
   const p = SC.deletePlan(full, 'bank', '2026-07');
@@ -177,6 +259,7 @@ const full = {
   eq('§12 · sales survive', p.keep.sales, 2);
   eq('§12 · purchases survive', p.keep.purchases, 2);
   eq('§12 · payments survive', p.keep.payments, 3);
+  eq('§12 · the August bank line survives', p.keep.bank, 1);
 }
 { /* §13 — delete July PAYMENTS */
   const p = SC.deletePlan(full, 'payments', '2026-07');
@@ -185,6 +268,7 @@ const full = {
   eq('§13 · bills survive', p.keep.purchases, 2);
   eq('§13 · bank lines survive', p.keep.bank, 3);
   eq('§13 · their invoice links are released', p.unlink.cashbook.map(x => x.idx), [0, 1]);
+  eq('§13 · the August receipt survives', p.keep.payments, 1);
 }
 { /* the picker only offers months that exist */
   eq('picker · sales months', SC.availableMonths(full, 'sales').map(x => x.ym), ['2026-08', '2026-07']);

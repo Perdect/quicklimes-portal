@@ -86,13 +86,39 @@
        the payments source has been populated. */
     const cash = arr(blob.cashbook).filter(liveCash);
     const cashIn = cash.filter(e => keep(e.date));
+
+    /* ── ONE payment, recorded TWICE ──────────────────────────────────
+       receiveSalesPayment (data.js:2314) writes the same event into BOTH
+       s.payments[] and S.CASHBOOK with link:{kind:'sale',idx}. They are one
+       receipt mirrored in two places, not two receipts. Adding them up
+       doubles the money: three real receipts of ₹3,58,953 reported as
+       ₹7,17,906.
+
+       The cashbook IS the payment ledger, so it is the count of record.
+       An embedded payment contributes only the part the ledger does not
+       already carry — which is how legacy rows (payment on the invoice,
+       nothing in the cashbook) still get counted exactly once.
+
+       Indices here are RAW positions in blob.sales / blob.purchases,
+       because that is what link.idx means. Walking a pre-filtered array
+       would offset every link by the number of deleted rows above it. */
+    const ledgerBy = kind => {
+      const m = {};
+      cashIn.forEach(e => { if (e.link && e.link.kind === kind && e.link.idx != null) m[e.link.idx] = (m[e.link.idx] || 0) + num(e.amount); });
+      return m;
+    };
+    const bySale = ledgerBy('sale'), byPurch = ledgerBy('purchase');
     const embedded = [];
-    sales.forEach((s, i) => arr(s.payments).forEach(p => {
-      if (keep(p.date || s.date)) embedded.push({ dir: 'in', amount: num(p.amount), date: p.date || s.date, salesIdx: i });
-    }));
-    purch.forEach((p, i) => arr(p.payments).forEach(x => {
-      if (keep(x.date || p.date)) embedded.push({ dir: 'out', amount: num(x.amount), date: x.date || p.date, purchIdx: i });
-    }));
+    const gather = (rows, dir, ledger) => arr(rows).forEach((r, i) => {
+      if (!liveRow(r)) return;
+      const pays = arr(r.payments).filter(p => keep(p.date || r.date));
+      if (!pays.length) return;
+      const sum = pays.reduce((a, p) => a + num(p.amount), 0);
+      const extra = round2(sum - (ledger[i] || 0));       // what the ledger is missing
+      if (extra > 0.005) embedded.push({ dir: dir, amount: extra, date: pays[0].date || r.date, idx: i, mirrored: !!ledger[i] });
+    });
+    gather(blob.sales, 'in', bySale);
+    gather(blob.purchases, 'out', byPurch);
 
     /* BANK E-STATEMENT — raw imported lines. Untouched by matching; a
        match is stored beside the line (t.m), never folded into it. */
@@ -105,8 +131,10 @@
     /* Allocation = a payment that has been tied to a specific bill. This is
        the ONLY thing that licenses an outstanding figure. An unallocated
        receipt is money in, not a settled invoice. */
-    const allocIn = cashIn.filter(e => e.link && e.link.kind === 'sale' && e.link.idx != null).length + embedded.filter(e => e.dir === 'in').length;
-    const allocOut = cashIn.filter(e => e.link && e.link.kind === 'purchase' && e.link.idx != null).length + embedded.filter(e => e.dir === 'out').length;
+    const allocIn = cashIn.filter(e => e.link && e.link.kind === 'sale' && e.link.idx != null).length
+      + embedded.filter(e => e.dir === 'in' && !e.mirrored).length;
+    const allocOut = cashIn.filter(e => e.link && e.link.kind === 'purchase' && e.link.idx != null).length
+      + embedded.filter(e => e.dir === 'out' && !e.mirrored).length;
 
     const credit = e => e.type === 'credit' ? num(e.amount) : 0;
     const debit = e => e.type === 'debit' ? num(e.amount) : 0;
@@ -137,6 +165,12 @@
         count: cashIn.length + embedded.length, months: months(cashIn),
         inValue: round2(inValue), outValue: round2(outValue),
         allocatedIn: allocIn, allocatedOut: allocOut,
+        /* Money that actually settles invoices — NOT the same as money in.
+           A walk-in receipt with no link is real cash and belongs in
+           inValue, but it cannot reduce anyone's outstanding. */
+        allocatedInValue: round2(
+          cashIn.reduce((a, e) => a + (e.link && e.link.kind === 'sale' && e.link.idx != null ? credit(e) : 0), 0)
+          + embedded.filter(e => e.dir === 'in' && !e.mirrored).reduce((a, e) => a + e.amount, 0)),
         unallocated: cashIn.filter(e => !e.link).length
       },
       bank: {
@@ -197,12 +231,7 @@
     return m;
   }
 
-  /* Value of receipts that are actually allocated to an invoice. Kept
-     separate from scan() because it is a cross-source figure and scan()
-     is deliberately single-source. */
-  function allocatedInValue(sc) {
-    return sc.payments.inValue;   // every allocated receipt is a credit already counted
-  }
+  const allocatedInValue = sc => sc.payments.allocatedInValue;
 
   /* ═══════════════════════════════════════════════════════════════════
      DELETE PLAN — §10-13.  Deleting one source deletes ONLY that source.
@@ -280,11 +309,27 @@
       bank(blob).forEach(t => { if (goneTxn.has(t.id) && t.m && t.m.posted) plan.warnings.push('Bank line ' + t.id + ' had a posted match — the payment it created stays, only the bank line goes.'); });
     }
 
+    /* What SURVIVES — the real count, not "is this the target module".
+       An earlier version reported 0 for the module being edited, so deleting
+       one month of April showed "Sales: 0 survive" while 140 invoices across
+       seven other months were never in danger. On a delete screen that reads
+       as "everything goes", which is the opposite of the truth and exactly
+       the kind of number that stops an owner from using the feature at all. */
+    const liveN = (a, f) => arr(a).filter(f).length;
     plan.keep = {
-      sales: module === 'sales' ? 0 : arr(blob.sales).filter(liveRow).length,
-      purchases: module === 'purchase' ? 0 : arr(blob.purchases).filter(liveRow).length,
-      payments: module === 'payments' ? 0 : arr(blob.cashbook).filter(liveCash).length,
-      bank: module === 'bank' ? 0 : bank(blob).filter(t => !t._del).length
+      sales: liveN(blob.sales, liveRow) - plan.remove.sales.length,
+      purchases: liveN(blob.purchases, liveRow) - plan.remove.purchases.length,
+      payments: liveN(blob.cashbook, liveCash) - plan.remove.cashbook.length,
+      bank: bank(blob).filter(t => !t._del).length - plan.remove.txnIds.length
+    };
+    /* Of the source being deleted, how much lives in OTHER months — the
+       reassurance line: "140 invoices across 7 other months are untouched." */
+    const own = { sales: 'sales', purchase: 'purchases', payments: 'payments', bank: 'bank' }[module];
+    const allMonths = availableMonths(blob, module);
+    plan.sameSource = {
+      months: allMonths.filter(x => x.ym !== ym).length,
+      rows: plan.keep[own],
+      monthRows: (allMonths.find(x => x.ym === ym) || { count: 0 }).count
     };
     plan.counts = {
       removed: plan.remove.sales.length + plan.remove.purchases.length + plan.remove.cashbook.length + plan.remove.txnIds.length,
