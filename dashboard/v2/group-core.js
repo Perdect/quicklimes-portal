@@ -44,6 +44,19 @@
     return 'other';
   }
   const UNASSIGNED = 'Unassigned';
+  /* STABLE KILN IDENTITY. A kiln is a physical asset shared by both firms, so
+     two books must resolve the same furnace to the same key or its output
+     splits in half on a stray capital letter ("Kiln 1" vs "kiln 1" vs
+     "Kiln  1"). Key = case/space-normalised; the first spelling seen is kept
+     as the display label. */
+  function kilnKey(name) {
+    const s = String(name == null ? '' : name).trim().replace(/\s+/g, ' ');
+    return s ? s.toUpperCase() : UNASSIGNED.toUpperCase();
+  }
+  function kilnLabel(name) {
+    const s = String(name == null ? '' : name).trim().replace(/\s+/g, ' ');
+    return s || UNASSIGNED;
+  }
   const GROUPS = ['limestone', 'petcoke', 'packaging', 'utilities', 'spares', 'other'];
   const GROUP_LABEL = {
     limestone: 'Limestone', petcoke: 'Petcoke', packaging: 'Packaging (bags)',
@@ -167,8 +180,8 @@
        silently folded into a kiln nobody chose. */
     const byKiln = {};
     for (const r of rIn) {
-      const k = (r.kiln || '').toString().trim() || UNASSIGNED;
-      const b = byKiln[k] || (byKiln[k] = { kiln: k, runs: 0, quicklime: 0, hydrated: 0, output: 0,
+      const k = kilnKey(r.kiln);
+      const b = byKiln[k] || (byKiln[k] = { key: k, kiln: kilnLabel(r.kiln), runs: 0, quicklime: 0, hydrated: 0, output: 0,
                                             limestone: 0, petcoke: 0, bags: 0, labour: 0 });
       b.runs++;
       b.quicklime += num(r.quicklime); b.hydrated += num(r.hydrated);
@@ -268,11 +281,19 @@
       for (const kn in s.production.byKiln) {
         const src = s.production.byKiln[kn];
         const dst = t.production.byKiln[kn] || (t.production.byKiln[kn] = {
-          kiln: kn, runs: 0, quicklime: 0, hydrated: 0, output: 0,
-          limestone: 0, petcoke: 0, bags: 0, labour: 0, matCost: 0, cost: 0, firms: [] });
+          key: kn, kiln: src.kiln, runs: 0, quicklime: 0, hydrated: 0, output: 0,
+          limestone: 0, petcoke: 0, bags: 0, labour: 0, matCost: 0, cost: 0,
+          firms: [], byFirm: {} });
         ['runs', 'quicklime', 'hydrated', 'output', 'limestone', 'petcoke', 'bags', 'labour', 'matCost', 'cost']
           .forEach(f => dst[f] = round2(dst[f] + src[f]));
         if (dst.firms.indexOf(e.name) < 0) dst.firms.push(e.name);
+        /* WHO BOOKED WHAT on this physical kiln. The firm slices are for
+           attribution only — the kiln's own total is the SUM of them, never a
+           third number added alongside (26 + 13 = 39, not 78). */
+        const fb = dst.byFirm[e.name] || (dst.byFirm[e.name] = { id: e.id, output: 0, cost: 0, runs: 0 });
+        fb.output = round2(fb.output + src.output);
+        fb.cost = round2(fb.cost + src.cost);
+        fb.runs += src.runs;
         dst.costPerTon = dst.output ? round2(dst.cost / dst.output) : 0;
         dst.yield = dst.limestone ? round2(dst.output / dst.limestone * 100) : 0;
       }
@@ -307,7 +328,10 @@
   function partnerSplit(total, ratio) {
     if (!ratio || !isFinite(ratio.mine) || !isFinite(ratio.partner)) return null;
     const sum = num(ratio.mine) + num(ratio.partner);
-    if (sum <= 0) return null;
+    /* Must total EXACTLY 100%. A ratio that does not is a typo, and silently
+       normalising it (3:1 → 75/25) would put a number the owner never agreed
+       to next to a settlement figure. Refuse instead. */
+    if (Math.abs(sum - 100) > 1e-9) return null;
     const margin = round2(total.sales.taxable - total.production.cost);
     const cut = pct => ({
       pct: round2(pct / sum * 100),
@@ -318,6 +342,54 @@
       margin: round2(margin * pct / sum)
     });
     return { margin, mine: cut(num(ratio.mine)), partner: cut(num(ratio.partner)) };
+  }
+
+  /* ── DETAIL ROWS: the transactions behind every total ────────────────
+     Same filters, same liveness rule, same money maths as summarize() — so a
+     detail table can never disagree with the card above it. Each row carries
+     its company, because in partnership mode the firm IS part of the record. */
+  function detailRows(data, range, firm) {
+    data = data || {};
+    const from = (range && range.from) || null, to = (range && range.to) || null;
+    const co = firm || {};
+    const purchases = data.purchases || [];
+    const rate = {
+      limestone: avgRate(purchases, 'limestone'),
+      petcoke: avgRate(purchases, 'petcoke'),
+      packaging: avgRate(purchases, 'packaging')
+    };
+    const production = (data.prod || []).filter(r => live(r) && inRange(r.date, from, to)).map(r => {
+      const output = round2(num(r.quicklime) + num(r.hydrated));
+      const cost = round2(num(r.limestone) * rate.limestone + num(r.petcoke) * rate.petcoke +
+                          num(r.bags) * rate.packaging + num(r.labour));
+      return {
+        company: co.name || '', companyId: co.id || '',
+        date: r.date || '', id: r.id || '', kilnKey: kilnKey(r.kiln), kiln: kilnLabel(r.kiln),
+        quicklime: round2(num(r.quicklime)), hydrated: round2(num(r.hydrated)), output,
+        limestone: round2(num(r.limestone)), petcoke: round2(num(r.petcoke)), bags: round2(num(r.bags)),
+        labour: round2(num(r.labour)), cost, costPerTon: output ? round2(cost / output) : 0,
+        status: r._del ? 'trashed' : (r.status || 'recorded'), note: r.note || ''
+      };
+    }).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    const sales = (data.sales || []).filter(s => live(s) && inRange(s.date, from, to)).map(s => ({
+      company: co.name || '', companyId: co.id || '',
+      date: s.date || '', inv: s.inv || '', party: s.party || '—',
+      product: s.product || 'Lime', qty: round2(num(s.qty)), unit: s.unit || 'T',
+      rate: round2(num(s.rate)), taxable: saleTaxable(s), gstR: num(s.gstR), total: saleTotal(s),
+      status: s.status || 'pending', veh: s.veh || ''
+    })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    const purchasesOut = purchases.filter(p => live(p) && inRange(p.date, from, to)).map(p => ({
+      company: co.name || '', companyId: co.id || '',
+      date: p.date || '', bill: p.bill || '', sup: p.sup || p.supplier || '—',
+      group: pgroup(p.cat), material: GROUP_LABEL[pgroup(p.cat)] || 'Other', cat: p.cat || '',
+      qty: isAddon(p) ? 0 : round2(num(p.qty)), value: round2(purchVal(p)),
+      rate: (!isAddon(p) && num(p.qty)) ? round2(purchVal(p) / num(p.qty)) : 0,
+      status: p.status || 'pending', addon: isAddon(p)
+    })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    return { production, sales, purchases: purchasesOut };
   }
 
   /* ── date presets (§13) ── FY = April–March ─────────────────────────── */
@@ -336,14 +408,16 @@
       { key: 'month', label: 'This Month', from: iso(new Date(y, m, 1)), to: iso(now) },
       { key: 'lastmonth', label: 'Last Month', from: iso(new Date(y, m - 1, 1)), to: iso(new Date(y, m, 0)) },
       { key: 'quarter', label: 'This Quarter', from: iso(new Date(y, q * 3, 1)), to: iso(now) },
-      { key: 'fy', label: 'This FY', from: fyStartYear + '-04-01', to: iso(now) },
+      { key: 'year', label: 'This Year (Jan–Dec)', from: y + '-01-01', to: iso(now) },
+      { key: 'fy', label: 'This FY (Apr–Mar)', from: fyStartYear + '-04-01', to: iso(now) },
       { key: 'lastfy', label: 'Last FY', from: (fyStartYear - 1) + '-04-01', to: fyStartYear + '-03-31' },
       { key: 'all', label: 'All Time', from: null, to: null },
       { key: 'custom', label: 'Custom…', from: null, to: null }
     ];
   }
 
-  const api = { summarize, consolidate, presets, partnerSplit, pgroup, GROUPS, GROUP_LABEL, UNASSIGNED,
+  const api = { summarize, consolidate, presets, partnerSplit, detailRows, kilnKey, kilnLabel,
+                pgroup, GROUPS, GROUP_LABEL, UNASSIGNED,
                 _internals: { materialBal, fgBal, avgRate, saleTaxable, saleTotal, live } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.GroupCore = api;

@@ -148,12 +148,12 @@
     "sha": "d25382a09f9f"
   },
   "group-core.js": {
-    "v": "g2",
-    "sha": "ba17598deba8"
+    "v": "g3",
+    "sha": "5cfa33ac2592"
   },
   "group.js": {
-    "v": "g2",
-    "sha": "ab5b054495e1"
+    "v": "g3",
+    "sha": "007ba5a3a7ce"
   },
   "health-findings.js": {
     "v": "h1",

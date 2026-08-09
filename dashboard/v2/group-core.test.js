@@ -126,22 +126,26 @@ const K_DESH = { sales: [], purchases: [
     { date: '2026-07-04', kiln: 'Kiln 1', limestone: 20, petcoke: 3, quicklime: 13, hydrated: 0, labour: 4000 } ],
   chunna: [] };
 const kg = G.summarize(K_GOTAN, JULY), kd = G.summarize(K_DESH, JULY);
-eq('kiln names are kept per company', Object.keys(kg.production.byKiln).sort(), ['Kiln 1', 'Kiln 2', 'Unassigned']);
-close('Kiln 1 output in Gotan books', kg.production.byKiln['Kiln 1'].output, 26);
-close('a run with no kiln lands in Unassigned (never silently attributed)', kg.production.byKiln['Unassigned'].output, 6);
+eq('kilns key on a stable identity', Object.keys(kg.production.byKiln).sort(), ['KILN 1', 'KILN 2', 'UNASSIGNED']);
+eq('  display label keeps the spelling as typed', kg.production.byKiln['KILN 1'].kiln, 'Kiln 1');
+close('Kiln 1 output in Gotan books', kg.production.byKiln['KILN 1'].output, 26);
+close('a run with no kiln lands in Unassigned (never silently attributed)', kg.production.byKiln['UNASSIGNED'].output, 6);
 eq('kiln costs sum back to the company production cost',
    Math.round(Object.values(kg.production.byKiln).reduce((a, b) => a + b.cost, 0)), Math.round(kg.production.cost));
 const KT = G.consolidate([{ id: 'g', name: 'Gotan Lime Industries', summary: kg },
                           { id: 'd', name: 'Deshwali Minerals', summary: kd }]);
-close('SAME kiln across BOTH firms rolls up to the kiln real total (26+13)', KT.production.byKiln['Kiln 1'].output, 39);
-eq('  and records which firms ran it', KT.production.byKiln['Kiln 1'].firms.sort(), ['Deshwali Minerals', 'Gotan Lime Industries']);
-close('Kiln 2 (single firm) unchanged', KT.production.byKiln['Kiln 2'].output, 20);
+close('SAME kiln across BOTH firms rolls up to the kiln real total (26+13)', KT.production.byKiln['KILN 1'].output, 39);
+eq('  and records which firms ran it', KT.production.byKiln['KILN 1'].firms.sort(), ['Deshwali Minerals', 'Gotan Lime Industries']);
+close('Kiln 2 (single firm) unchanged', KT.production.byKiln['KILN 2'].output, 20);
 close('kiln totals still equal the consolidated output',
       Object.values(KT.production.byKiln).reduce((a, b) => a + b.output, 0), KT.production.output);
 
 /* profit-share split — arithmetic on real totals, ratio always user-set */
 eq('no ratio configured ⇒ null, never a silent 50/50', G.partnerSplit(KT, null), null);
 eq('zero/invalid ratio ⇒ null', G.partnerSplit(KT, { mine: 0, partner: 0 }), null);
+eq('ratio must total EXACTLY 100% — 3:1 is a typo, not 75/25', G.partnerSplit(T, { mine: 3, partner: 1 }), null);
+eq('90 + 5 = 95% rejected', G.partnerSplit(T, { mine: 90, partner: 5 }), null);
+eq('60 + 50 = 110% rejected', G.partnerSplit(T, { mine: 60, partner: 50 }), null);
 const sp = G.partnerSplit(T, { mine: 60, partner: 40 });
 close('60/40 split: my share of sales', sp.mine.sales, T.sales.taxable * 0.6);
 close('60/40 split: partner share of sales', sp.partner.sales, T.sales.taxable * 0.4);
@@ -150,7 +154,44 @@ close('margin = sales − production cost', sp.margin, T.sales.taxable - T.produ
 close('margin splits by the same ratio', sp.mine.margin + sp.partner.margin, sp.margin);
 const half = G.partnerSplit(T, { mine: 50, partner: 50 });
 close('50/50 halves the margin', half.mine.margin, half.partner.margin);
-eq('ratio is normalised to a percentage (3:1 ⇒ 75%)', G.partnerSplit(T, { mine: 3, partner: 1 }).mine.pct, 75);
+
+/* ══ THE SPEC'S HEADLINE CASE (§10): 26 + 13 = 39, never 78 ══ */
+const SPEC_G = { sales: [], purchases: [], chunna: [],
+  prod: [{ date: '2026-07-10', kiln: 'Kiln 1', quicklime: 26, hydrated: 0, limestone: 40, labour: 0 }] };
+const SPEC_D = { sales: [], purchases: [], chunna: [],
+  prod: [{ date: '2026-07-11', kiln: 'Kiln 1', quicklime: 13, hydrated: 0, limestone: 20, labour: 0 }] };
+const sg = G.summarize(SPEC_G, JULY), sd = G.summarize(SPEC_D, JULY);
+const ST = G.consolidate([{ id: 'g', name: 'Gotan Lime', summary: sg }, { id: 'd', name: 'Deshwali Minerals', summary: sd }]);
+close('TEST4 · Gotan alone on Kiln 1 = 26 T', sg.production.output, 26);
+close('TEST4 · Deshwali alone on Kiln 1 = 13 T', sd.production.output, 13);
+close('TEST4 · PHYSICAL Kiln 1 output = 39 T', ST.production.byKiln['KILN 1'].output, 39);
+close('TEST4 · partnership production = 39 T (NOT 78)', ST.production.output, 39);
+eq('TEST4 · 39 is the sum of the firm slices, not a third record',
+   ST.production.byKiln['KILN 1'].output === ST.production.byKiln['KILN 1'].byFirm['Gotan Lime'].output
+                                            + ST.production.byKiln['KILN 1'].byFirm['Deshwali Minerals'].output, true);
+close('TEST4 · per-firm slice: Gotan', ST.production.byKiln['KILN 1'].byFirm['Gotan Lime'].output, 26);
+close('TEST4 · per-firm slice: Deshwali', ST.production.byKiln['KILN 1'].byFirm['Deshwali Minerals'].output, 13);
+
+/* stable kiln identity: spelling variants are ONE physical furnace (§9) */
+const VAR_A = { sales: [], purchases: [], chunna: [], prod: [{ date: '2026-07-10', kiln: 'Kiln 1', quicklime: 26 }] };
+const VAR_B = { sales: [], purchases: [], chunna: [], prod: [{ date: '2026-07-11', kiln: 'kiln  1', quicklime: 13 }] };
+const VT = G.consolidate([{ id: 'a', name: 'A', summary: G.summarize(VAR_A, JULY) },
+                          { id: 'b', name: 'B', summary: G.summarize(VAR_B, JULY) }]);
+eq('"Kiln 1" and "kiln  1" resolve to ONE kiln', Object.keys(VT.production.byKiln), ['KILN 1']);
+close('  and its output is the real 39 T', VT.production.byKiln['KILN 1'].output, 39);
+
+/* ══ DETAIL ROWS (§3/§4/§5) — must agree with the cards above them ══ */
+const dr = G.detailRows(GOTAN, JULY, { id: 'g', name: 'Gotan Lime' });
+eq('production detail excludes out-of-range + trashed', dr.production.length, 2);
+eq('  every row is tagged with its company', dr.production.every(r => r.company === 'Gotan Lime'), true);
+close('  detail output total = card production output', dr.production.reduce((a, r) => a + r.output, 0), g.production.output);
+eq('sales detail row count = card count', dr.sales.length, g.sales.count);
+close('  detail sales taxable = card taxable', dr.sales.reduce((a, r) => a + r.taxable, 0), g.sales.taxable);
+eq('  cancelled/trashed invoices never reach the table', dr.sales.some(r => /CANC|DEL/.test(r.party)), false);
+eq('purchase detail row count = card count', dr.purchases.length, g.purchase.count);
+close('  detail purchase value = card value', dr.purchases.reduce((a, r) => a + r.value, 0), g.purchase.value);
+eq('  purchase rows carry their material group', dr.purchases.find(r => r.bill === 'P2').material, 'Petcoke');
+close('  per-row rate = value / qty', dr.purchases.find(r => r.bill === 'P1').rate, 2000);
 
 console.log('\n════ group-core (multi-company consolidation) ════');
 console.log('  Passed: ' + pass + '   Failed: ' + fail);

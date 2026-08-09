@@ -86,16 +86,27 @@
   }
 
   /* ── renderers ── */
-  function kpis(t, consolidated) {
+  /* Every card shows the firm split UNDER the combined figure, so a
+     consolidated number is never readable without seeing who contributed it. */
+  function split(vm, fn, fmt) {
+    if (vm.entries.length < 2) return '';
+    return `<div class="gv-split">${vm.entries.map(e =>
+      `<span><i class="gv-dot ${isMine(e.id) ? 'mine' : 'partner'}"></i>${esc(e.name)} <b>${fmt(fn(e.summary))}</b></span>`).join('')}</div>`;
+  }
+  function kpis(vm) {
+    const t = vm.total;
     const stockNote = t.stockComputable.fg ? fT(t.stockClosing.fg) : '—';
+    const margin = round2(t.sales.taxable - t.production.cost);
     return `<div class="gv-kpis">
-      <div class="gv-kpi"><div class="l">Purchases</div><div class="v">${fC(t.purchase.value)}</div><div class="s">${fT(t.purchase.tonnes)} material · excl. GST</div></div>
-      <div class="gv-kpi"><div class="l">Production</div><div class="v">${fT(t.production.output)}</div><div class="s">${t.production.runs} runs · QL ${fT(t.production.produced.quicklime)} + HL ${fT(t.production.produced.hydrated)}</div></div>
-      <div class="gv-kpi"><div class="l">Sales</div><div class="v">${fC(t.sales.taxable)}</div><div class="s">${fT(t.sales.qty)} · ${t.sales.count} invoices · excl. GST</div></div>
-      <div class="gv-kpi"><div class="l">Production cost</div><div class="v">${fC(t.production.cost)}</div><div class="s">materials at avg rates + labour</div></div>
+      <div class="gv-kpi"><div class="l">Production</div><div class="v">${fT(t.production.output)}</div><div class="s">${t.production.runs} runs · QL ${fT(t.production.produced.quicklime)} + HL ${fT(t.production.produced.hydrated)}</div>${split(vm, s => s.production.output, fT)}</div>
+      <div class="gv-kpi"><div class="l">Sales</div><div class="v">${fC(t.sales.taxable)}</div><div class="s">${fT(t.sales.qty)} · ${t.sales.count} invoices · excl. GST</div>${split(vm, s => s.sales.taxable, fC)}</div>
+      <div class="gv-kpi"><div class="l">Purchases</div><div class="v">${fC(t.purchase.value)}</div><div class="s">${fT(t.purchase.tonnes)} material · excl. GST</div>${split(vm, s => s.purchase.value, fC)}</div>
+      <div class="gv-kpi"><div class="l">Production cost</div><div class="v">${fC(t.production.cost)}</div><div class="s">materials at avg rates + labour</div>${split(vm, s => s.production.cost, fC)}</div>
+      <div class="gv-kpi"><div class="l">Sales − production cost</div><div class="v">${fC(margin)}</div><div class="s">production margin · not P&amp;L</div>${split(vm, s => round2(s.sales.taxable - s.production.cost), fC)}</div>
       <div class="gv-kpi"><div class="l">Finished-goods stock</div><div class="v">${stockNote}</div><div class="s">${t.stockComputable.fg ? 'made − dispatched, as at period end' : 'not computable — bills missing quantities'}</div></div>
     </div>`;
   }
+  const round2 = n => Math.round(n * 100) / 100;
 
   function comparison(vm) {
     if (vm.entries.length < 2) return '';
@@ -156,14 +167,24 @@
       .sort((a, b) => (a.kiln === G.UNASSIGNED ? 1 : b.kiln === G.UNASSIGNED ? -1 : b.output - a.output));
     if (!kilns.length) return `<div class="gv-h">Kilns</div><div class="gv-empty">No production runs in this period. Record a run on the Production page — it now asks which kiln burnt it, so output can be attributed to the right plant.</div>`;
     const unassigned = kilns.find(k => k.kiln === G.UNASSIGNED);
-    return `<div class="gv-h">Kiln-wise production — the partnership's plants</div><div class="gv-wrap"><table class="gv-tbl">
-      <thead><tr><th>Kiln</th><th>Runs</th><th>Quick Lime</th><th>Hydrated</th><th>Output</th><th>Limestone used</th><th>Yield</th><th>Cost / tonne</th>${vm.entries.length > 1 ? '<th>Booked by</th>' : ''}</tr></thead><tbody>
+    const multi = vm.entries.length > 1;
+    const firmCols = multi ? vm.entries : [];
+    const kOf = (k, e) => (k.byFirm && k.byFirm[e.name]) ? k.byFirm[e.name].output : 0;
+    return `<div class="gv-h">Kiln-wise production — physical plant output</div>
+    ${multi ? `<div class="gv-note" style="margin-bottom:10px">Each kiln row shows what <b>each firm booked</b> and the <b>physical kiln total</b>. The kiln total is the <b>sum</b> of the firm columns — the same furnace recorded in two sets of books is one kiln, counted once.</div>` : ''}
+    <div class="gv-wrap"><table class="gv-tbl">
+      <thead><tr><th>Kiln</th>${firmCols.map(e => `<th>${esc(e.name)}</th>`).join('')}<th>${multi ? 'Kiln total (physical)' : 'Output'}</th><th>Runs</th><th>Quick Lime</th><th>Hydrated</th><th>Limestone used</th><th>Yield</th><th>Cost / tonne</th></tr></thead><tbody>
       ${kilns.map(k => `<tr${k.kiln === G.UNASSIGNED ? ' style="opacity:.75"' : ''}>
-        <td><b>${esc(k.kiln)}</b></td><td>${k.runs}</td><td>${fT(k.quicklime)}</td><td>${fT(k.hydrated)}</td>
-        <td><b>${fT(k.output)}</b></td><td>${fT(k.limestone)}</td><td>${k.yield ? k.yield.toFixed(0) + '%' : '—'}</td>
-        <td>${k.costPerTon ? fC(k.costPerTon) : '—'}</td>
-        ${vm.entries.length > 1 ? `<td style="text-align:left;font-size:var(--ql-text-sm)">${esc((k.firms || []).join(' + ')) || '—'}</td>` : ''}</tr>`).join('')}
-      <tr class="tot"><td>Total</td><td>${vm.total.production.runs}</td><td>${fT(vm.total.production.produced.quicklime)}</td><td>${fT(vm.total.production.produced.hydrated)}</td><td>${fT(vm.total.production.output)}</td><td>${fT(vm.total.production.consumed.limestone)}</td><td></td><td></td>${vm.entries.length > 1 ? '<td></td>' : ''}</tr>
+        <td><b>${esc(k.kiln)}</b></td>
+        ${firmCols.map(e => `<td>${kOf(k, e) ? fT(kOf(k, e)) : '—'}</td>`).join('')}
+        <td><b>${fT(k.output)}</b></td>
+        <td>${k.runs}</td><td>${fT(k.quicklime)}</td><td>${fT(k.hydrated)}</td><td>${fT(k.limestone)}</td>
+        <td>${k.yield ? k.yield.toFixed(0) + '%' : '—'}</td><td>${k.costPerTon ? fC(k.costPerTon) : '—'}</td></tr>`).join('')}
+      <tr class="tot"><td>All kilns</td>
+        ${firmCols.map(e => `<td>${fT(e.summary.production.output)}</td>`).join('')}
+        <td>${fT(vm.total.production.output)}</td><td>${vm.total.production.runs}</td>
+        <td>${fT(vm.total.production.produced.quicklime)}</td><td>${fT(vm.total.production.produced.hydrated)}</td>
+        <td>${fT(vm.total.production.consumed.limestone)}</td><td></td><td></td></tr>
     </tbody></table></div>
     ${unassigned ? `<div class="gv-empty" style="margin-top:10px">⚠ <b>${fT(unassigned.output)}</b> of output across ${unassigned.runs} run(s) has no kiln recorded — these ran before kilns were tracked, or the field was left blank. Open the run on the Production page and set its kiln to attribute it.</div>` : ''}`;
   }
@@ -174,11 +195,16 @@
     const mineCo = COS.find(c => c.id === part.mine), otherCo = COS.find(c => c.id !== part.mine);
     const sp = G.partnerSplit(vm.total, part.ratio);
     const head = `<div class="gv-h">Partnership share</div>`;
-    if (!sp) return head + `<div class="gv-empty">
-      <b>Profit-sharing ratio not set.</b> Enter how the partnership result is shared between
-      <b>${esc(mineCo ? mineCo.short : 'your firm')}</b> and <b>${esc(otherCo ? otherCo.short : 'the partner firm')}</b>
-      and this section will split the figures. Nothing is assumed — a made-up 50/50 has no place next to money.
-      <div style="margin-top:10px">${ratioInputs()}</div></div>`;
+    if (!sp) {
+      const r = part.ratio, sum = r ? (Number(r.mine) || 0) + (Number(r.partner) || 0) : null;
+      const bad = r && Math.abs(sum - 100) > 1e-9;
+      return head + `<div class="gv-empty">
+      <b>Profit-sharing ratio ${bad ? 'invalid' : 'not set'}.</b> ${bad
+        ? `The two shares total <b>${round2(sum)}%</b> — they must add up to exactly <b>100%</b>. Nothing is allocated until they do.`
+        : `Enter how the partnership result is shared between <b>${esc(mineCo ? mineCo.short : 'your firm')}</b> and <b>${esc(otherCo ? otherCo.short : 'the partner firm')}</b> and this section will split the figures. Nothing is assumed — a made-up 50/50 has no place next to money.`}
+      <div style="margin-top:10px">${ratioInputs()}</div>
+      ${bad ? '<div class="gv-bad">Shares must total 100%.</div>' : ''}</div>`;
+    }
     const row = (label, k, fmt) => `<tr><td>${label}</td><td>${fmt(sp.mine[k])}</td><td>${fmt(sp.partner[k])}</td><td><b>${fmt(sp.mine[k] + sp.partner[k])}</b></td></tr>`;
     return head + `<div class="gv-wrap"><table class="gv-tbl">
       <thead><tr><th>Figure</th><th>${esc(mineCo ? mineCo.short : 'My firm')} (${sp.mine.pct}%)</th><th>${esc(otherCo ? otherCo.short : 'Partner')} (${sp.partner.pct}%)</th><th>Partnership total</th></tr></thead><tbody>
@@ -198,6 +224,106 @@
       <label style="font-size:var(--ql-text-sm)">Partner share
         <input id="gvRp" class="gv-date" style="width:74px" type="number" min="0" step="1" value="${esc(r.partner)}" placeholder="—"></label>
       <button class="gv-co" id="gvRsave" style="background:var(--ql-brand-600);color:#fff;height:34px">Save ratio</button></span>`;
+  }
+
+  /* ── DETAIL TABLES (§3/§4/§5): the transactions behind the totals ──
+     Built from GroupCore.detailRows so they use the same filters, liveness
+     rule and money maths as the cards — a table can't disagree with its KPI. */
+  function allDetails(vm) {
+    const out = { production: [], sales: [], purchases: [] };
+    for (const e of vm.entries) {
+      const blob = readBlob(e.id); if (!blob) continue;
+      const d = G.detailRows(blob, vm.range, { id: e.id, name: e.name });
+      out.production.push(...d.production); out.sales.push(...d.sales); out.purchases.push(...d.purchases);
+    }
+    const byDate = (a, b) => (b.date || '').localeCompare(a.date || '');
+    out.production.sort(byDate); out.sales.sort(byDate); out.purchases.sort(byDate);
+    return out;
+  }
+  const CAP = 200;   // render cap: the export carries every row, the DOM doesn't
+  function capNote(n, what) {
+    return n > CAP ? `<div class="gv-empty" style="margin-top:8px">Showing the first ${CAP} of <b>${n}</b> ${what} — use Export CSV for the complete filtered list.</div>` : '';
+  }
+  const badge = r => `<span class="gv-badge ${isMine(r.companyId) ? 'mine' : 'partner'}">${esc(r.company)}</span>`;
+  const multiCo = vm => vm.entries.length > 1;
+
+  function detailTables(vm, det) {
+    const mc = multiCo(vm);
+    const prod = `<div class="gv-h">Production runs${det.production.length ? ` <span style="font-weight:500;color:var(--ql-text-muted);font-size:var(--ql-text-sm)">${det.production.length} run(s)</span>` : ''}</div>
+      ${det.production.length ? `<div class="gv-wrap"><table class="gv-tbl">
+      <thead><tr><th>Date</th><th>Run ID</th>${mc ? '<th>Company</th>' : ''}<th>Kiln</th><th>Quick Lime</th><th>Hydrated</th><th>Output</th><th>Production cost</th><th>Cost / tonne</th><th>Status</th></tr></thead><tbody>
+      ${det.production.slice(0, CAP).map(r => `<tr><td>${esc(r.date)}</td><td style="font-size:var(--ql-text-sm)">${esc(r.id || '—')}</td>${mc ? `<td style="text-align:left">${badge(r)}</td>` : ''}<td style="text-align:left">${esc(r.kiln)}</td><td>${fT(r.quicklime)}</td><td>${fT(r.hydrated)}</td><td><b>${fT(r.output)}</b></td><td>${fC(r.cost)}</td><td>${r.costPerTon ? fC(r.costPerTon) : '—'}</td><td style="text-align:left">${esc(r.status)}</td></tr>`).join('')}
+      </tbody></table></div>${capNote(det.production.length, 'runs')}` : '<div class="gv-empty">No production runs in this period.</div>'}`;
+
+    const sales = `<div class="gv-h">Sales${det.sales.length ? ` <span style="font-weight:500;color:var(--ql-text-muted);font-size:var(--ql-text-sm)">${det.sales.length} invoice(s)</span>` : ''}</div>
+      ${det.sales.length ? `<div class="gv-wrap"><table class="gv-tbl">
+      <thead><tr><th>Date</th><th>Invoice</th>${mc ? '<th>Company</th>' : ''}<th>Customer</th><th>Qty</th><th>Rate</th><th>Amount (excl GST)</th><th>Total (incl GST)</th><th>Status</th></tr></thead><tbody>
+      ${det.sales.slice(0, CAP).map(r => `<tr><td>${esc(r.date)}</td><td style="text-align:left">${esc(r.inv || '—')}</td>${mc ? `<td style="text-align:left">${badge(r)}</td>` : ''}<td style="text-align:left">${esc(r.party)}</td><td>${r.qty ? fT(r.qty) : '—'}</td><td>${r.rate ? fC(r.rate) : '—'}</td><td>${fC(r.taxable)}</td><td>${fC(r.total)}</td><td style="text-align:left">${esc(r.status)}</td></tr>`).join('')}
+      </tbody></table></div>${capNote(det.sales.length, 'invoices')}` : '<div class="gv-empty">No sales invoices in this period.</div>'}`;
+
+    const purch = `<div class="gv-h">Purchases${det.purchases.length ? ` <span style="font-weight:500;color:var(--ql-text-muted);font-size:var(--ql-text-sm)">${det.purchases.length} bill(s)</span>` : ''}</div>
+      ${det.purchases.length ? `<div class="gv-wrap"><table class="gv-tbl">
+      <thead><tr><th>Date</th><th>Bill</th>${mc ? '<th>Company</th>' : ''}<th>Supplier</th><th>Material</th><th>Qty</th><th>Rate</th><th>Amount (excl GST)</th><th>Status</th></tr></thead><tbody>
+      ${det.purchases.slice(0, CAP).map(r => `<tr><td>${esc(r.date)}</td><td style="text-align:left">${esc(r.bill || '—')}</td>${mc ? `<td style="text-align:left">${badge(r)}</td>` : ''}<td style="text-align:left">${esc(r.sup)}</td><td style="text-align:left">${esc(r.material)}${r.addon ? ' <span style="color:var(--ql-text-muted)">(freight)</span>' : ''}</td><td>${r.qty ? r.qty.toLocaleString('en-IN') : '—'}</td><td>${r.rate ? fC(r.rate) : '—'}</td><td>${fC(r.value)}</td><td style="text-align:left">${esc(r.status)}</td></tr>`).join('')}
+      </tbody></table></div>${capNote(det.purchases.length, 'bills')}` : '<div class="gv-empty">No purchase bills in this period.</div>'}`;
+
+    return prod + sales + purch;
+  }
+
+  /* ── EXPORT (§13): every row that passed the CURRENT filters ── */
+  const csvCell = v => { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const csvRows = rows => rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+  function exportCSV(vm, det) {
+    const r = vm.range, scope = state.co === 'all' ? 'Partnership (' + vm.entries.map(e => e.name).join(' + ') + ')' : (COS.find(c => c.id === state.co) || {}).short || '';
+    const L = [];
+    L.push(['QuickLimes — Group / Partnership report']);
+    L.push(['Scope', scope]);
+    L.push(['Period', (r.from || 'start of books') + ' to ' + (r.to || 'today')]);
+    L.push(['Generated', new Date().toLocaleString('en-IN')]);
+    L.push([]);
+    L.push(['CONSOLIDATED TOTALS']);
+    L.push(['Figure', ...vm.entries.map(e => e.name), 'Total']);
+    const line = (label, fn) => L.push([label, ...vm.entries.map(e => fn(e.summary)), vm.entries.reduce((a, e) => a + fn(e.summary), 0)]);
+    line('Production output (T)', s => s.production.output);
+    line('Quick lime (T)', s => s.production.produced.quicklime);
+    line('Hydrated lime (T)', s => s.production.produced.hydrated);
+    line('Production cost (INR)', s => s.production.cost);
+    line('Sales value excl GST (INR)', s => s.sales.taxable);
+    line('Sales qty (T)', s => s.sales.qty);
+    line('Purchases excl GST (INR)', s => s.purchase.value);
+    line('Sales - production cost (INR)', s => round2(s.sales.taxable - s.production.cost));
+    L.push([]);
+    L.push(['KILN-WISE PHYSICAL OUTPUT']);
+    L.push(['Kiln', ...vm.entries.map(e => e.name), 'Kiln total (physical)', 'Runs', 'Cost/tonne']);
+    Object.values(vm.total.production.byKiln).forEach(k => L.push([k.kiln,
+      ...vm.entries.map(e => (k.byFirm && k.byFirm[e.name] ? k.byFirm[e.name].output : 0)), k.output, k.runs, k.costPerTon]));
+    const sp = G.partnerSplit(vm.total, part.ratio);
+    L.push([]);
+    L.push(['PROFIT SHARE']);
+    if (!sp) L.push(['Ratio', 'NOT SET — no allocation calculated']);
+    else {
+      const mineCo = COS.find(c => c.id === part.mine), otherCo = COS.find(c => c.id !== part.mine);
+      L.push(['Production margin (sales - production cost)', sp.margin]);
+      L.push([(mineCo || {}).short || 'My firm', sp.mine.pct + '%', sp.mine.margin]);
+      L.push([(otherCo || {}).short || 'Partner firm', sp.partner.pct + '%', sp.partner.margin]);
+    }
+    L.push([]); L.push(['PRODUCTION RUNS']);
+    L.push(['Date', 'Run ID', 'Company', 'Kiln', 'Quick lime (T)', 'Hydrated (T)', 'Output (T)', 'Limestone (T)', 'Petcoke (T)', 'Bags', 'Labour (INR)', 'Production cost (INR)', 'Cost/tonne (INR)', 'Status']);
+    det.production.forEach(r => L.push([r.date, r.id, r.company, r.kiln, r.quicklime, r.hydrated, r.output, r.limestone, r.petcoke, r.bags, r.labour, r.cost, r.costPerTon, r.status]));
+    L.push([]); L.push(['SALES']);
+    L.push(['Date', 'Invoice', 'Company', 'Customer', 'Product', 'Qty', 'Unit', 'Rate', 'Amount excl GST', 'GST %', 'Total incl GST', 'Status']);
+    det.sales.forEach(r => L.push([r.date, r.inv, r.company, r.party, r.product, r.qty, r.unit, r.rate, r.taxable, r.gstR, r.total, r.status]));
+    L.push([]); L.push(['PURCHASES']);
+    L.push(['Date', 'Bill', 'Company', 'Supplier', 'Material', 'Category', 'Qty', 'Rate', 'Amount excl GST', 'Status']);
+    det.purchases.forEach(r => L.push([r.date, r.bill, r.company, r.sup, r.material, r.cat, r.qty, r.rate, r.value, r.status]));
+
+    /* BOM so Excel opens rupee symbols and Devanagari correctly */
+    const blob = new Blob(['﻿' + csvRows(L)], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'quicklimes-group-' + (state.co === 'all' ? 'partnership' : state.co.slice(0, 6)) + '-' + (r.from || 'start') + '_to_' + (r.to || 'today') + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
 
   function ledgers(vm) {
@@ -234,6 +360,7 @@
 
   function render() {
     const vm = build();
+    const det = vm.entries.length ? allDetails(vm) : { production: [], sales: [], purchases: [] };
     const presets = G.presets();
     const consolidated = state.co === 'all' && vm.entries.length > 1;
     const rangeLabel = state.preset === 'custom'
@@ -250,17 +377,21 @@
         </select>
         ${state.preset === 'custom' ? `<input type="date" class="gv-date" id="gvFrom" value="${esc(state.from || '')}">
         <input type="date" class="gv-date" id="gvTo" value="${esc(state.to || '')}">` : ''}
+        <span style="flex:1"></span>
+        <button class="gv-sel" id="gvCsv" title="Every row that passed the current filters">⬇ Export CSV</button>
+        <button class="gv-sel" id="gvPrint" title="Print / save as PDF">🖨 Print · PDF</button>
       </div>
       ${consolidated ? `<div class="gv-note">🤝 <b>Partnership view</b> — ${vm.entries.map(e => `<b>${esc(e.name)}</b> (${esc(roleOf(e.id).toLowerCase())})`).join(' + ')}, consolidated for <b>${esc(rangeLabel)}</b>. Each firm keeps its own books and GSTIN; every figure below keeps its firm breakdown and nothing is mixed at the row level.</div>` : ''}
       ${!consolidated && state.co !== 'all' && COS.length > 1 ? `<div class="gv-note">Showing <b>${esc((COS.find(c => c.id === state.co) || {}).short || '')}</b> only — ${esc(roleOf(state.co).toLowerCase())}. The other firm's books are not read into this view.</div>` : ''}
       ${vm.missing.map(c => `<div class="gv-empty">⚠ <b>${esc(c.short)}</b> has not been opened on this device yet, so its books aren't synced here. Switch to it once from the company menu and come back — it will be included automatically.</div>`).join('')}
-      ${vm.entries.length ? kpis(vm.total, consolidated) : '<div class="gv-empty">No company books available yet.</div>'}
+      ${vm.entries.length ? kpis(vm) : '<div class="gv-empty">No company books available yet.</div>'}
       ${comparison(vm)}
       ${vm.entries.length ? kilnTable(vm) : ''}
       ${shareCard(vm)}
       ${vm.entries.length ? productTable(vm) : ''}
       ${vm.entries.length ? ledgers(vm) : ''}
-      ${trend(vm.total)}`;
+      ${trend(vm.total)}
+      ${vm.entries.length ? detailTables(vm, det) : ''}`;
 
     document.querySelectorAll('.gv-co').forEach(b => b.onclick = () => {
       state.co = b.dataset.co; localStorage.setItem(LS_CO, state.co); render();
@@ -269,11 +400,14 @@
     const f = $('gvFrom'), t2 = $('gvTo');
     if (f) f.onchange = () => { state.from = f.value || null; persist(); render(); };
     if (t2) t2.onchange = () => { state.to = t2.value || null; persist(); render(); };
+    const cs = $('gvCsv'); if (cs) cs.onclick = () => exportCSV(vm, det);
+    const pr = $('gvPrint'); if (pr) pr.onclick = () => window.print();
     const rs = $('gvRsave');
     if (rs) rs.onclick = () => {
       const m = parseFloat(($('gvRm') || {}).value), p = parseFloat(($('gvRp') || {}).value);
-      /* both sides required and positive — a half-entered ratio is not a ratio */
-      part.ratio = (isFinite(m) && isFinite(p) && m + p > 0) ? { mine: m, partner: p } : null;
+      /* Keep what was typed even when it is wrong, so the page can say WHY it
+         was rejected (must total 100%) instead of silently clearing the boxes. */
+      part.ratio = (isFinite(m) && isFinite(p)) ? { mine: m, partner: p } : null;
       savePart(); render();
     };
   }
