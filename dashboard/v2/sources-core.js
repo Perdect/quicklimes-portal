@@ -51,7 +51,33 @@
   /* Where each source physically lives inside a company blob. Keeping this
      in one table is the point: it is the only place that knows a payment
      is a CASHBOOK row and a bank line is a RECON txn. */
-  function bank(blob) { const r = blob && blob.recon; return arr(r && r.txns); }
+  /* THE KEY IS `reconcile`, NOT `recon`.  In memory the store is S.RECON, but
+     blob() persists it as `reconcile` (data.js:552) and loadLocal reads back
+     d.reconcile (data.js:466). Reading blob.recon returns undefined for every
+     saved book — which is how the Group Overview reported "Bank statement —
+     not uploaded" while 656 real transactions sat in the file. Both spellings
+     are accepted so a hand-built object (and the tests) still work. */
+  function bank(blob) {
+    const r = (blob && (blob.reconcile || blob.recon)) || null;
+    return arr(r && r.txns);
+  }
+
+  /* ── What a bank line's match actually means ──────────────────────────
+     The field is m.status, not m.state. Real values in a live book:
+       matched · partial · overpayment · review · duplicate · unknown · other
+     Two different things get called "reconciled" and they must not be added
+     together silently:
+       LINKED     — points at a specific invoice or bill (kind sale|purchase
+                    with an idx). This is reconciliation in the accounting
+                    sense: this money is that document.
+       CLASSIFIED — status 'other': bank interest, charges, an own-account
+                    transfer. Resolved, but there is no document to point at
+                    and there never will be.
+     Everything else is still open. */
+  const mOf = t => (t && t.m) || null;
+  const isLinked = t => { const m = mOf(t); return !!m && (m.kind === 'sale' || m.kind === 'purchase') && m.idx != null; };
+  const isClassified = t => { const m = mOf(t); return !!m && m.status === 'other'; };
+  const isPosted = t => { const m = mOf(t); return !!(m && m.posted); };
 
   /* ── invoice money, mirrored from data.js cS/cP ───────────────────────
      Sale: taxable = qty × rate, gst = taxable × rate%.  Purchase: the
@@ -141,9 +167,8 @@
     const inValue = cashIn.reduce((a, e) => a + credit(e), 0) + embedded.filter(e => e.dir === 'in').reduce((a, e) => a + e.amount, 0);
     const outValue = cashIn.reduce((a, e) => a + debit(e), 0) + embedded.filter(e => e.dir === 'out').reduce((a, e) => a + e.amount, 0);
 
-    /* A bank line counts as matched only when the match was actually
-       accepted — a suggestion the user has not confirmed is not a fact. */
-    const matched = txnsIn.filter(t => t.m && (t.m.state === 'matched' || t.m.state === 'posted' || t.m.posted)).length;
+    const linked = txnsIn.filter(isLinked).length;
+    const classified = txnsIn.filter(t => !isLinked(t) && isClassified(t)).length;
 
     return {
       range: { from: from || null, to: to || null },
@@ -178,7 +203,11 @@
         count: txnsIn.length, months: months(txnsIn), statements: stmts.length,
         credits: round2(txnsIn.reduce((a, t) => a + num(t.credit), 0)),
         debits: round2(txnsIn.reduce((a, t) => a + num(t.debit), 0)),
-        matched: matched, unmatched: txnsIn.length - matched
+        linked: linked,                       // points at an invoice or bill
+        classified: classified,               // interest/charges/transfer — no document
+        posted: txnsIn.filter(isPosted).length,
+        matched: linked + classified,         // resolved, either way
+        unmatched: txnsIn.length - linked - classified
       }
     };
   }
@@ -271,7 +300,26 @@
       arr(blob.cashbook).forEach((e, i) => { if (liveCash(e) && ymOf(e.date) === ym) plan.remove.cashbook.push(i); });
     } else if (module === 'bank') {
       bank(blob).forEach(t => { if (!t._del && ymOf(t.date) === ym) plan.remove.txnIds.push(t.id); });
-      arr(blob.statements).forEach(s => { if (ymOf(s.period || s.from || s.date) === ym) plan.remove.statementIds.push(s.id); });
+      /* THE STATEMENT LOG IS THE SHA GATE. ImportGuard.fileVerdict refuses a
+         PDF whose sha is already logged, so the log row MUST go or the
+         corrected file cannot be re-uploaded — and it must go by splice, not
+         _del, because the guard reads the raw array.
+
+         But a statement can span months: the real one in this book runs
+         2026-01-31 → 2026-05-31. Removing it while deleting January would
+         drop the receipt for February–May's lines too. So a log row is
+         removed only when it lies ENTIRELY inside the month; a spanning file
+         is kept and reported, because the honest answer is "clear the whole
+         file's range, or drop it yourself in Settings", not a silent partial. */
+      arr(blob.statements).forEach(s => {
+        const from = ymOf(s.from || s.period || s.date), to = ymOf(s.to || s.from || s.period || s.date);
+        if (!from && !to) return;
+        if (from === ym && to === ym) { plan.remove.statementIds.push(s.id); return; }
+        if ((from && from <= ym) && (to && to >= ym)) {
+          plan.warnings.push('The statement file "' + (s.file || s.id) + '" covers ' + from + ' to ' + to +
+            ', not just ' + ym + '. Its log entry is kept, so re-uploading that exact PDF will still be refused as a duplicate. Delete every month it covers, or remove the file from Settings → Bank statements.');
+        }
+      });
     }
 
     /* Which relationships die with it. Note what is NOT here: the payment

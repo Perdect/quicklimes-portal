@@ -292,6 +292,67 @@ const full = {
   eq('re-upload · August is untouched', aug.sales.count, 1);
 }
 
+/* ══ THE REAL BANK SHAPE — three bugs found against the live Gotan book ══
+   1. blob() persists the store as `reconcile` (data.js:552), not `recon`.
+      Reading blob.recon returned undefined for every saved book, so 656 real
+      transactions rendered as "Bank statement — not uploaded".
+   2. the match field is m.status, not m.state — so nothing ever counted.
+   3. a statement file spans months (the live one runs 2026-01-31 →
+      2026-05-31); removing its log row on a single-month delete would drop
+      the receipt for the other four months. */
+{
+  const t = (id, date, cr, dr, m) => ({ id, date, credit: cr, debit: dr, m });
+  const real = {
+    sales: [{ inv: 'S1', date: '2026-06-02', qty: 10, rate: 5000, gstR: 5, status: 'pending' }],
+    purchases: [], cashbook: [],
+    reconcile: { txns: [                                   // the PERSISTED key
+      t('b1', '2026-06-06', 145000, 0, { status: 'matched', kind: 'sale', idx: 0, posted: { batch: 'rb1', lines: [{ kind: 'sale', idx: 0, amount: 144375 }] } }),
+      t('b2', '2026-06-03', 111000, 0, { status: 'partial', kind: 'sale', idx: 0 }),
+      t('b3', '2026-06-04', 0, 5000, { status: 'other', kind: 'other', cat: 'Interest (CC/OD)' }),
+      t('b4', '2026-06-05', 0, 900, { status: 'review', kind: 'purchase', idx: null }),
+      t('b5', '2026-05-30', 22000, 0, { status: 'other', kind: 'other', cat: 'Bank charges' })
+    ] },
+    statements: [
+      { id: 'STspan', file: 'loan245.pdf', from: '2026-01-31', to: '2026-05-31', rows: 10, sha: 'abc' },
+      { id: 'STjune', file: 'icici_jun.pdf', from: '2026-06-01', to: '2026-06-30', rows: 4, sha: 'def' }
+    ]
+  };
+  const JUNE = { from: '2026-06-01', to: '2026-06-30' };
+  const sc = SC.scan(real, JUNE);
+  eq('BANK · the persisted `reconcile` key is read', sc.bank.present, true);
+  eq('BANK · four June lines', sc.bank.count, 4);
+  /* linked = points at a document; classified = interest/charges with no
+     document; review with a null idx is neither — it is still open. */
+  eq('BANK · two lines point at an invoice', sc.bank.linked, 2);
+  eq('BANK · one is classified, no document to point at', sc.bank.classified, 1);
+  eq('BANK · one posted a payment', sc.bank.posted, 1);
+  eq('BANK · the review line stays open', sc.bank.unmatched, 1);
+  const m = SC.metrics(sc);
+  st('BANK · reconciliation is computable', m.reconciled, 'ok');
+  close('BANK · 3 of 4 resolved = 75%', m.reconciled.value, 75);
+  /* the legacy hand-built `recon` spelling still works (our own fixtures) */
+  eq('BANK · the `recon` spelling is still accepted', SC.scan({ recon: { txns: [t('x', '2026-06-01', 1, 0, null)] } }, JUNE).bank.count, 1);
+
+  /* deleting June bank: the June-only statement goes, the spanning one is
+     kept WITH a warning, because its sha still guards four other months. */
+  const p = SC.deletePlan(real, 'bank', '2026-06');
+  eq('BANK-DEL · removes the four June lines', p.remove.txnIds, ['b1', 'b2', 'b3', 'b4']);
+  eq('BANK-DEL · leaves the May line', p.remove.txnIds.indexOf('b5'), -1);
+  eq('BANK-DEL · removes only the June-only statement', p.remove.statementIds, ['STjune']);
+  /* June is OUTSIDE the Jan–May file, so there is nothing to warn about. */
+  eq('BANK-DEL · no warning for a file that does not cover June', /loan245/.test(p.warnings.join(' ')), false);
+  eq('BANK-DEL · the sale survives', p.keep.sales, 1);
+  /* March IS inside the spanning file. Its log row must survive (four other
+     months depend on it) and the user must be told the sha still blocks the
+     re-upload of that exact PDF. */
+  const pMar = SC.deletePlan(real, 'bank', '2026-03');
+  eq('BANK-DEL · March holds no lines', pMar.remove.txnIds.length, 0);
+  eq('BANK-DEL · the spanning file is NOT dropped', pMar.remove.statementIds.length, 0);
+  eq('BANK-DEL · but it IS reported by name', /loan245\.pdf/.test(pMar.warnings.join(' ')), true);
+  eq('BANK-DEL · and says re-upload would be refused', /duplicate/.test(pMar.warnings.join(' ')), true);
+  eq('BANK-DEL · naming the full range it covers', /2026-01 to 2026-05/.test(pMar.warnings.join(' ')), true);
+}
+
 console.log('\n════ sources-core (four independent sources · no invented data) ════');
 console.log('  Passed: ' + pass + '   Failed: ' + fail);
 bad.forEach(b => console.log('    ✗ ' + b));
