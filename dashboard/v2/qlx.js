@@ -69,15 +69,22 @@
       month: null, monthInit: false   // global Month filter (opt-in via CFG.monthFilter)
     };
   }
+  /* The namespace for anything this register persists. Defaults to CFG.active,
+     which is what every existing page has always used — so nothing moves. A
+     multi-tab workspace passes its own stateKey per tab, otherwise seven tabs
+     sharing one `active` would share one set of hidden columns and one comment
+     thread, and hiding a column on Sales would hide it on Bank. */
+  function stateKey() { return CFG.stateKey || CFG.active; }
   function loadHidden() {
-    try { const s = JSON.parse(localStorage.getItem('qx_hidden_' + CFG.active) || 'null'); if (s) return new Set(s); } catch (_) {}
+    try { const s = JSON.parse(localStorage.getItem('qx_hidden_' + stateKey()) || 'null'); if (s) return new Set(s); } catch (_) {}
     return new Set((CFG.columns || []).filter(c => c.hidden).map(c => c.key));
   }
-  function saveHidden() { try { localStorage.setItem('qx_hidden_' + CFG.active, JSON.stringify([...S.hidden])); } catch (_) {} }
+  function saveHidden() { try { localStorage.setItem('qx_hidden_' + stateKey(), JSON.stringify([...S.hidden])); } catch (_) {} }
 
   /* ══════════════════ MOUNT ══════════════════ */
   function mount(config) {
     CFG = config; S = freshState();
+    _mounted = true;
     QLShell.mount({ active: CFG.active, title: CFG.title });
     const main = document.getElementById('ql-main');
     const root = document.createElement('div');
@@ -96,6 +103,32 @@
       window.__qlOnSwitchCompany = () => { S.monthInit = false; S._saved = false; S.month = null; refresh(); };   // shell already switched; re-read the new company's saved month
     } else { render(); }
     QLShell.paintWorkspace && QLShell.paintWorkspace();
+  }
+
+  /* ── REMOUNT — swap the register in place, on a page already mounted ───
+     For a tabbed workspace. mount() cannot be called twice: it re-enters
+     QLShell.mount(), which on its second call finds #ql-page already removed,
+     so `content` is '' and a WHOLE SECOND SHELL is prepended to document.body
+     — duplicate sidebar, duplicate #ql-main, and getElementById then resolves
+     to the new one while the old page sits stranded below it.
+
+     So remount does the three things mount does that are still needed — new
+     config, fresh state, re-render — and none of the three that must not
+     happen twice: the shell, the QLD.init paint-driver registration, and the
+     keydown listeners inside ensureChrome().
+
+     Per-tab state stays isolated because freshState() re-reads hidden columns
+     through stateKey(). Sharing one QLX instance is not a compromise here: it
+     is the only shape the engine supports, since CFG and S are module-level
+     singletons (there is exactly one of each, by design). */
+  let _mounted = false;
+  function remount(config) {
+    if (!_mounted || !document.getElementById('qxRoot')) return mount(config);
+    CFG = config; S = freshState();
+    const root = document.getElementById('qxRoot');
+    root.innerHTML = skeletonHTML();
+    refresh();
+    return true;
   }
 
   function ensureChrome() {
@@ -791,7 +824,7 @@
 
   /* ══════════════════ PUBLIC API ══════════════════ */
   window.QLX = {
-    mount, refresh, toast, viewDoc,
+    mount, remount, refresh, toast, viewDoc,
     open: openDetail, close: closeDetail,
     actionsCell, icons: IC, svg, esc, avColor,
     // helpers configs can use to build cells
