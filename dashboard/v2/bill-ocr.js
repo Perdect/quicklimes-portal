@@ -449,17 +449,47 @@
     /* Date */
     var dt = findDate(T); if (dt) set('date', dt, 0.85);
 
-    /* ── SELLER (supplier) name — the crux. Never a label. ──────────────── */
+    /* ── COUNTERPARTY name — "the party that isn't us". ───────────────────
+       On a PURCHASE that is the seller, read off the letterhead. On a SALE it
+       is the BUYER — and the letterhead is OURS, so every line at the top of
+       the page is our own boilerplate. pickSupplier()'s header scan cannot
+       find a customer up there: goodName() deletes our own firm name (the
+       ownNames filter below) and the loop simply walks on, handing back
+       whatever came NEXT on our own letterhead. That is how "MANUFACTURES OF
+       QUICK LIME AND HYDRATED LIME" became the customer on 8 sales invoices —
+       and why rejecting that one string is not a fix: the next line down is
+       "AN ISO 9001:2015 CERTIFIED COMPANY", then the proprietor's name, then
+       the brand line. A blocklist just walks further down our own header.
+
+       Direction is already decided above, so use it. On a sale the party comes
+       from the BUYER block; if there is no readable buyer block the party
+       stays BLANK and goes to review — never a line lifted from our own
+       header. A blank the user fills in is recoverable; a confident wrong
+       name silently becomes a customer and then poisons the party master. */
     var master = masterName(sellerG, opts.partyMaster);
+    var buyer = pickBuyer(lines, ownNames);
+    if (buyer.name) set('buyer', buyer.name, buyer.conf);
+
     if (master) { set('supplier', master, 0.99); ver.supplier = 'party_master'; }
-    else {
+    else if (dir === 'sales') {
+      /* An EXPLICITLY LABELLED seller block outranks the direction guess. A
+         bill that prints "Sold By: Balaji Minerals" is telling us in words who
+         sold it; our own name sitting at the top merely means the bill was
+         addressed to us. Only the bare HEADER SCAN is unsafe on a sale — a
+         labelled block is a statement, not an inference. */
+      var sold = pickNamedBlock(lines, /^(?:seller|supplier|sold\s*by|vendor|billed\s*by)\b/i, ownNames);
+      if (sold.name && !isOwnName(sold.name, ownNames) && plausibleName(sold.name)) {
+        set('supplier', sold.name, 0.85); ver.supplier = 'seller_block';
+      } else if (buyer.name && !isOwnName(buyer.name, ownNames) && plausibleName(buyer.name)) {
+        set('supplier', buyer.name, buyer.conf); ver.supplier = 'buyer_block';
+      } else {
+        var cons0 = pickNamedBlock(lines, /^(?:consignee|ship(?:ped)?\s*to|receiver)\b/i, ownNames);
+        if (cons0.name && plausibleName(cons0.name)) { set('supplier', cons0.name, 0.6); ver.supplier = 'buyer_block'; }
+      }
+    } else {
       var supplier = pickSupplier(lines, sellerG, ownNames, aliases);
       if (supplier.name) { set('supplier', supplier.name, supplier.conf); if (supplier.conf >= 0.7) ver.supplier = 'layout'; }
     }
-
-    /* Buyer name (separate) */
-    var buyer = pickBuyer(lines, ownNames);
-    if (buyer.name) set('buyer', buyer.name, buyer.conf);
 
     /* ── Multi-pass counterparty fallback ──────────────────────────────────
        The COUNTERPARTY (supplier on a purchase, customer on a sale) is "the
@@ -667,6 +697,32 @@
     }
     return w.slice(0, h).join(' ');
   }
+  /* ── trade strapline ────────────────────────────────────────────────────
+     The line printed under an Indian letterhead that says what the firm MAKES,
+     not who it is: "MANUFACTURES OF QUICK LIME AND HYDRATED LIME". (The
+     misspelling is the BILL's — OCR reproduces it faithfully, so the rule must
+     match "manufactures" as well as "manufacturers".) It is a descriptor and
+     never a party — but blanket-rejecting a leading trade word destroys real
+     Indian firms: AMAN TRADERS, Bombay Metal Traders LLP, Rajasthan Dealers
+     Corporation, TRADERS ASSOCIATION OF NAGAUR.
+
+     The only shape safe to reject is the descriptor GRAMMAR: a trade-role word
+     (or a run of them joined by & / and / ,) IMMEDIATELY followed by of|in|for.
+       "MANUFACTURES OF QUICK LIME …"             → strapline (rejected)
+       "MANUFACTURERS & SUPPLIERS OF HYDRATED …"  → strapline (rejected)
+       "TRADERS ASSOCIATION OF NAGAUR"            → a NAME (kept — the word
+            after the role is not a connective, so the run never closes)
+       "AMAN TRADERS", "Bombay Metal Traders LLP" → a NAME (kept — the role
+            word is a suffix, not the head of the line)
+     A legal-form ending always wins: "Manufacturers of Quick Lime Pvt Ltd" is a
+     REGISTERED name, not a boast, so LEGAL_END vetoes the rejection.
+     This cannot be done through LABEL_RE — its nameLike escape hatch lets
+     "MANUFACTURES OF …" straight back through, so isLabel() stays false. */
+  var TRADE_ROLE = 'manufacturers?|manufactures|manufacturing|mfrs?|mfg|makers?|producers?|processors?|dealers?|traders?|suppliers?|stockists?|exporters?|importers?|distributors?|wholesalers?|retailers?|fabricators?|converters?|crushers?';
+  var STRAPLINE_RE = new RegExp('^(?:' + TRADE_ROLE + ')(?:\\s*(?:,|&|and)\\s*(?:' + TRADE_ROLE + '))*\\.?\\s+(?:of|in|for)\\b', 'i');
+  var LEGAL_END = /\b(?:ltd|limited|pvt|private|llp|inc|corp|corporation|company|co)\.?$/i;
+  function isTradeStrapline(s) { var c = clean(s); return STRAPLINE_RE.test(c) && !LEGAL_END.test(c); }
+
   function goodName(s, ownNames) {
     var c = dedupePhrase(clean(s).replace(/[.,;:]+$/, ''));
     if (c.length < 3 || c.length > 72) return '';               // long Indian firm names are valid
@@ -687,6 +743,7 @@
     // for Transporter", "Office Copy") are not a letterhead — see the direction
     // scan. Rejecting them here keeps them out of the "other letterhead" signal.
     if (/^(?:original|duplicate|triplicate|quadruplicate|office|customer|transport(?:er)?|extra|counterfoil)\s+(?:copy|for\b)/i.test(c) || /^copy\b/i.test(c)) return '';
+    if (isTradeStrapline(c)) return '';                                                        // trade descriptor, never a party
     if (/\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]/i.test(norm(c).replace(/\s/g, ''))) return '';    // contains a GSTIN → not a name
     var n = norm(c); for (var i = 0; i < (ownNames || []).length; i++) { if (ownNames[i] && (n.indexOf(ownNames[i]) >= 0 || ownNames[i].indexOf(n) >= 0)) return ''; }
     return c;
@@ -767,7 +824,7 @@
     return { name: '' };
   }
   // buyer can BE our own firm, so don't exclude own names here
-  function goodNameAny(s) { var c = dedupePhrase(clean(s).replace(/^['`\s(\[{]+/, '').replace(/[\s)\]}.,;:'`]+$/, '')); if (c.length < 3 || c.length > 48 || isLabel(c) || /^s\s+order|order\s*no|\bdated\b|reference\s*no/i.test(c) || !/[A-Za-z]{3}/.test(c) || /^\d/.test(c) || /\d{6}/.test(c)) return ''; if (/road|street|nagar|\bpin\b|tehsil/i.test(c)) return ''; return c; }
+  function goodNameAny(s) { var c = dedupePhrase(clean(s).replace(/^['`\s(\[{]+/, '').replace(/[\s)\]}.,;:'`]+$/, '')); if (c.length < 3 || c.length > 48 || isLabel(c) || isTradeStrapline(c) || /^s\s+order|order\s*no|\bdated\b|reference\s*no/i.test(c) || !/[A-Za-z]{3}/.test(c) || /^\d/.test(c) || /\d{6}/.test(c)) return ''; if (/road|street|nagar|\bpin\b|tehsil/i.test(c)) return ''; return c; }
 
   /* ── amount picker ───────────────────────────────────────────────────── */
   function labelled(text, re) { var m = text.match(re); return m ? nMoney(m[1]) : null; }
