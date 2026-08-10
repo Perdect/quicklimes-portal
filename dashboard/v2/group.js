@@ -46,8 +46,9 @@
   /* ── state (persisted) ── */
   const LS_CO = 'ql_group_co', LS_RANGE = 'ql_group_range', LS_PART = 'ql_partnership';
   let COS = companies();
-  let state = { co: 'all', preset: 'fy', from: null, to: null, tab: 'overview' };
-  try { const s = JSON.parse(localStorage.getItem(LS_RANGE) || 'null'); if (s && s.preset) state = Object.assign(state, s); } catch (_) {}
+  let state = { co: 'all', period: 'all', tab: 'overview' };
+  try { const s = JSON.parse(localStorage.getItem(LS_RANGE) || 'null'); if (s) state = Object.assign(state, s); } catch (_) {}
+  if (!state.period) state.period = 'all';
   const savedCo = localStorage.getItem(LS_CO);
   if (savedCo && (savedCo === 'all' || COS.some(c => c.id === savedCo))) state.co = savedCo;
 
@@ -67,11 +68,43 @@
   const roleOf = id => (id === part.mine ? 'My firm' : 'Partner firm');
   const isMine = id => id === part.mine;
 
-  function currentRange() {
-    if (state.preset === 'custom') return { from: state.from || null, to: state.to || null };
-    const p = G.presets().find(p => p.key === state.preset) || G.presets().find(p => p.key === 'fy');
-    return { from: p.from, to: p.to };
+  /* ── PERIOD ───────────────────────────────────────────────────────────
+     One calendar, everywhere. This page used to hand-roll a <select> of
+     presets while Sales, Purchase, GST, P&L, Chunna and the rest all used
+     QLShell.monthButton + monthPicker — the same control that draws the
+     calendar. A page that filters time differently from every other page
+     is a page the owner has to re-learn.
+
+     The shared picker speaks 'all' | 'YYYY' | 'YYYY-MM', which QLD.inPeriod
+     already understands. GroupCore wants a {from,to} range, so this is the
+     one translation. A bare year means the CALENDAR year, matching what the
+     picker's own year row says — it must not silently mean the financial
+     year, because the label would then disagree with the figures. */
+  function periodToRange(p) {
+    p = p || 'all';
+    if (p === 'all') return { from: null, to: null };
+    if (/^\d{4}$/.test(p)) return { from: p + '-01-01', to: p + '-12-31' };
+    if (/^\d{4}-\d{2}$/.test(p)) {
+      const y = +p.slice(0, 4), m = +p.slice(5, 7);
+      const last = new Date(y, m, 0).getDate();
+      return { from: p + '-01', to: p + '-' + String(last).padStart(2, '0') };
+    }
+    return { from: null, to: null };
   }
+  function currentRange() { return periodToRange(state.period); }
+  /* Which months actually hold books — the picker dots them, so a month
+     that was never uploaded is visibly not worth choosing. */
+  function haveMonths() {
+    const s = new Set();
+    COS.forEach(c => {
+      const b = readBlob(c.id); if (!b) return;
+      [].concat(b.sales || [], b.purchases || [], b.cashbook || [], b.prod || []).forEach(r => {
+        if (r && !r._del && typeof r.date === 'string' && /^\d{4}-\d{2}/.test(r.date)) s.add(r.date.slice(0, 7));
+      });
+    });
+    return [...s];
+  }
+  const periodLabel = () => (window.QLD && QLD.periodLabel) ? QLD.periodLabel(state.period, 'All time') : (state.period || 'All time');
 
   /* ── view model: summaries with provenance, missing blobs reported ── */
   function build() {
@@ -498,22 +531,16 @@
   function render() {
     const vm = build();
     const det = vm.entries.length ? allDetails(vm) : { production: [], sales: [], purchases: [] };
-    const presets = G.presets();
+
     const consolidated = state.co === 'all' && vm.entries.length > 1;
-    const rangeLabel = state.preset === 'custom'
-      ? `${state.from || '…'} → ${state.to || '…'}`
-      : (presets.find(p => p.key === state.preset) || {}).label || '';
+    const rangeLabel = periodLabel();
     $('gvRoot').innerHTML = `
       <div class="gv-bar">
         <div class="gv-cos" role="tablist" aria-label="Firm">
           <button class="gv-co all ${state.co === 'all' ? 'on' : ''}" data-co="all">${COS.length > 1 ? 'Partnership (both firms)' : 'All Companies'}</button>
           ${COS.map(c => `<button class="gv-co ${state.co === c.id ? 'on' : ''}" data-co="${esc(c.id)}" title="${esc(roleOf(c.id))}">${esc(c.short)}${COS.length > 1 ? ` <span style="opacity:.6;font-weight:500">· ${isMine(c.id) ? 'mine' : 'partner'}</span>` : ''}</button>`).join('')}
         </div>
-        <select class="gv-sel" id="gvPreset" aria-label="Date range">
-          ${presets.map(p => `<option value="${p.key}" ${p.key === state.preset ? 'selected' : ''}>${p.label}</option>`).join('')}
-        </select>
-        ${state.preset === 'custom' ? `<input type="date" class="gv-date" id="gvFrom" value="${esc(state.from || '')}">
-        <input type="date" class="gv-date" id="gvTo" value="${esc(state.to || '')}">` : ''}
+        ${QLShell.monthButton({ id: 'gvMonthBtn', label: periodLabel(), title: 'Filter by month or year' })}
         <span style="flex:1"></span>
         <button class="gv-sel" id="gvCsv" title="Every row that passed the current filters">⬇ Export CSV</button>
         <button class="gv-sel" id="gvPrint" title="Print / save as PDF">🖨 Print · PDF</button>
@@ -560,10 +587,13 @@
     document.querySelectorAll('.gv-co').forEach(b => b.onclick = () => {
       state.co = b.dataset.co; localStorage.setItem(LS_CO, state.co); render();
     });
-    const ps = $('gvPreset'); if (ps) ps.onchange = () => { state.preset = ps.value; persist(); render(); };
-    const f = $('gvFrom'), t2 = $('gvTo');
-    if (f) f.onchange = () => { state.from = f.value || null; persist(); render(); };
-    if (t2) t2.onchange = () => { state.to = t2.value || null; persist(); render(); };
+    /* The SHARED calendar — the same control Sales, Purchase, GST and P&L
+       open, so the month filter behaves identically wherever he meets it. */
+    const mb = $('gvMonthBtn');
+    if (mb) mb.onclick = () => QLShell.monthPicker(mb, {
+      month: state.period, have: haveMonths(), allLabel: 'All time',
+      onPick: p => { state.period = p || 'all'; persist(); render(); }
+    });
     const cs = $('gvCsv'); if (cs) cs.onclick = () => exportCSV(vm, det);
     const pr = $('gvPrint'); if (pr) pr.onclick = () => window.print();
     const rs = $('gvRsave');
@@ -575,7 +605,7 @@
       savePart(); render();
     };
   }
-  function persist() { try { localStorage.setItem(LS_RANGE, JSON.stringify({ preset: state.preset, from: state.from, to: state.to , tab: state.tab })); } catch (_) {} }
+  function persist() { try { localStorage.setItem(LS_RANGE, JSON.stringify({ period: state.period, tab: state.tab })); } catch (_) {} }
 
   render();
 })();
