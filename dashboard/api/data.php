@@ -91,7 +91,18 @@ if ($method === 'POST') {
     $rq->execute([$plantId, $id]);
     $curRev = $rq->fetchColumn();
     $curRev = ($curRev === false) ? null : (int)$curRev;
-    if ($baseRev !== null && $curRev !== null && $curRev > $baseRev) {
+    /* A MISSING base_rev IS A CONFLICT, NOT CONSENT.
+       This used to read `$baseRev !== null && ...`, so a client that held no
+       revision was waved straight through to an unconditional overwrite. That
+       is not a hypothetical: a tab hydrated from localStorage rather than from
+       the cloud has no revision, sends no base_rev, and could therefore
+       silently replace a NEWER server copy — whole blob, audit rows and all —
+       while being told the save succeeded. It is how a verified delete came
+       back from the dead.
+       A client with no revision has not read this row and cannot know what it
+       is about to destroy, so it must pull first. Only a genuinely NEW row
+       ($curRev === null) may be written without one. */
+    if ($curRev !== null && ($baseRev === null || $curRev > $baseRev)) {
       $dq = $db->prepare('SELECT data FROM app_data WHERE plant_id = ? AND data_id = ?');
       $dq->execute([$plantId, $id]);
       $curData = ql_filter_blob_for_role(json_decode((string)$dq->fetchColumn(), true), $ctx['role']);

@@ -32,7 +32,10 @@ $save = function ($plant, $id, $data, $baseRev) use ($db) {
   $rq->execute([$plant, $id]);
   $cur = $rq->fetchColumn();
   $cur = ($cur === false) ? null : (int)$cur;
-  if ($baseRev !== null && $cur !== null && $cur > $baseRev) return ['conflict' => true, 'rev' => $cur];
+  /* A missing base_rev against an EXISTING row is a conflict, not consent:
+     a client with no revision has not read this row and cannot know what it
+     would destroy. Only a genuinely new row may be written without one. */
+  if ($cur !== null && ($baseRev === null || $cur > $baseRev)) return ['conflict' => true, 'rev' => $cur];
   $new = ($cur === null ? 1 : $cur + 1);
   $db->prepare('INSERT INTO app_data (plant_id, data_id, data, rev) VALUES (?,?,?,?)
     ON CONFLICT(plant_id, data_id) DO UPDATE SET data=excluded.data, rev=excluded.rev')
@@ -60,9 +63,26 @@ ok($cur === '{"v":2}', "  and the stored data is still device A's — no clobber
 $r = $save('P', 'CO', '{"v":3}', 2);
 ok(($r['rev'] ?? 0) === 3, 'after adopting the new rev, the retry succeeds');
 
-// A client that sends NO base_rev is never blocked (old build, backward compat).
+/* THE HOLE THAT LET A VERIFIED DELETE COME BACK.
+   This once asserted that a client sending NO base_rev "is never blocked
+   (backward compatible)". That waved through an unconditional whole-blob
+   overwrite: a tab hydrated from localStorage rather than the cloud holds no
+   revision, so it sent none, so it could silently replace a NEWER server copy
+   — data, audit rows and all — while being told the save succeeded.
+   Backward compatibility is not worth a silent financial rollback. A client
+   with no revision has not read the row and must pull before it may write. */
 $r = $save('P', 'CO', '{"v":4}', null);
-ok(($r['rev'] ?? 0) === 4 && empty($r['conflict']), 'a client with no base_rev is never blocked (backward compatible)');
+ok(!empty($r['conflict']), 'a client with NO base_rev is refused on an existing row');
+$cur = $db->query("SELECT data FROM app_data WHERE plant_id='P' AND data_id='CO'")->fetchColumn();
+ok($cur === '{"v":3}', '  and the stored data is untouched — no silent rollback');
+
+// A genuinely NEW row still writes without a base_rev; there is nothing to lose.
+$r = $save('P', 'NEWCO', '{"v":1}', null);
+ok(($r['rev'] ?? 0) === 1 && empty($r['conflict']), 'a brand-new row still writes with no base_rev');
+
+// And the normal path still works: pull the current rev, then save.
+$r = $save('P', 'CO', '{"v":5}', 3);
+ok(($r['rev'] ?? 0) === 4 && empty($r['conflict']), 'after pulling rev 3, the write succeeds');
 
 /* ── 2. data.php wires the guard, the bump, and the fallback ───────────────*/
 $src = file_get_contents(__DIR__ . '/data.php');

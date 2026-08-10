@@ -593,6 +593,14 @@
     setSync('saving');
     const co = ACTIVE_CO;                       // pin the target: the user may switch mid-flight
     try {
+      /* NEVER SAVE BLIND. Without a revision the server now refuses the write
+         (a client that has not read the row cannot know what it would
+         destroy), so pull one first. This is the ordinary case for a tab that
+         hydrated from localStorage instead of the cloud — which is exactly
+         the tab that used to be able to roll the account back silently. */
+      if (typeof _revs[co] !== 'number') {
+        try { await pullCloud(); } catch (_) {}
+      }
       const args = { p_plant_id: QL_PLANT.id, p_id: co, p_data: blob(true) };
       if (typeof _revs[co] === 'number') args.base_rev = _revs[co];
       const res = await DB.rpc('save_my_data', args);
