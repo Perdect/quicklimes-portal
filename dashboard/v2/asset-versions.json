@@ -43,9 +43,13 @@
     "v": "m28",
     "sha": "ef1ad4de9f66"
   },
+  "party-resolve.js": {
+    "v": "pr1",
+    "sha": "2b271ee5c6b3"
+  },
   "data.js": {
     "v": "m51",
-    "sha": "0075b07668af"
+    "sha": "d6d8b3389ef1"
   },
   "i18n.js": {
     "v": "h8",
@@ -57,7 +61,7 @@
   },
   "shell.js": {
     "v": "m68",
-    "sha": "0229715e9344"
+    "sha": "15d0753630aa"
   },
   "mobile.js": {
     "v": "m16",
@@ -146,10 +150,6 @@
   "discover.js": {
     "v": "d52",
     "sha": "d25382a09f9f"
-  },
-  "party-resolve.js": {
-    "v": "pr1",
-    "sha": "2b271ee5c6b3"
   },
   "sources-core.js": {
     "v": "g9",

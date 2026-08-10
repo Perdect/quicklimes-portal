@@ -1126,7 +1126,7 @@
       onSave(v) {
         if (editing) { Object.assign(window.QLD.state.PARTIES[idx], v); window.QLD.commit(); }
         else {
-          window.QLD.upsertParty(v.name, v.gstin, v.phone, v.address, v.state, v.type);
+          window.QLD.upsertParty(v.name, v.gstin, v.phone, v.address, v.state, v.type, true);   // typed by a human — never second-guessed
           const p = window.QLD.state.PARTIES.find(x => (x.name || '').toUpperCase() === (v.name || '').toUpperCase());
           // upsertParty only takes the core identity fields, so everything the
           // form collects beyond them has to be copied on explicitly — a field

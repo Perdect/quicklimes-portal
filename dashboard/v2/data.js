@@ -668,9 +668,30 @@
   // OCR label-leak names ("Delivery Note Mode/Terms of Payment", "the buyer", …) — never a real supplier
   const SUP_LEAK = /delivery\s*note|mode\s*\/?\s*terms|terms\s*of\b|the\s*buyer|reference\s*no|dispatch|bill\s*of\s*lading|^[—\-\s]*$/i;
   // Party auto-create/merge — same merge rules as v1 autoSaveParty.
-  function upsertParty(name, gstin, phone, address, state, type) {
+  /* ── THE BOUNDARY: RAW OCR IS NOT CANONICAL PARTY IDENTITY ────────────
+     Every automatic party creation in this app funnels through here —
+     addSale, updateSale, addPurchase, updatePurchase all call it with
+     whatever string the parser produced. That made this one function the
+     poison loop: a bad OCR read became a party, ownInfo() then fed that
+     party back to the parser as a 0.99-confidence canonical name, and the
+     mistake reinforced itself on every later bill. It is how "MANUFACTURES
+     OF QUICK LIME AND HYDRATED LIME" became a customer in two books.
+
+     So the guard lives HERE rather than at the four call sites: a call site
+     can be forgotten, a choke point cannot. A name that is not a name may
+     never CREATE a party. It may still update an existing one (a real party
+     with a bad label still deserves its phone number), and a human typing
+     into the party form passes trusted=true and is never second-guessed —
+     the owner knows his own customers better than any parser.
+
+     QLPartyResolve.suspect() is the single shared definition of "not a
+     name", used by the resolver, the repair tooling and this guard, so the
+     three can never drift apart. */
+  function upsertParty(name, gstin, phone, address, state, type, trusted) {
     if (!name || name.trim().length < 2) return;
     const nm = upper(name);
+    const PR = (typeof window !== 'undefined' && window.QLPartyResolve) || null;
+    const junk = (!trusted && PR && PR.suspect) ? PR.suspect(name.trim()) : null;
     const idx = S.PARTIES.findIndex(p => upper(p.name) === nm || (gstin && p.gstin && upper(p.gstin) === upper(gstin)));
     if (idx >= 0) {
       const p = S.PARTIES[idx];
@@ -682,6 +703,18 @@
       if (state && !p.state) p.state = state;
       if (type && p.type !== type && p.type !== 'both') p.type = type;
     } else {
+      /* REFUSE. A strapline, a document title, a copy marker or an address
+         fragment is not a customer, and creating one here is irreversible in
+         practice — it becomes canonical and then teaches the parser. The
+         invoice itself still saves with whatever was printed; only the
+         promotion to canonical identity is blocked, and it is recorded so
+         the row can be found and repaired. */
+      if (junk) {
+        logAudit('refused', 'party', { name: name.trim() },
+          { ref: upper(gstin) || '', reason: 'Not created — the detected name is a ' + junk + ' (raw OCR is never canonical identity)' });
+        commit();
+        return { ok: false, refused: junk, name: name.trim(), gstin: upper(gstin) };
+      }
       S.PARTIES.push({ id: 'p' + idStamp(), name: name.trim(), gstin: upper(gstin), phone: phone || '', address: address || '', state: state || '', type: type || 'customer', notes: '', opening: 0, creditLimit: 0, creditDays: 0 });
     }
     commit();
