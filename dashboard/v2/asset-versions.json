@@ -248,8 +248,8 @@
     "sha": "1abf109c7a43"
   },
   "purchase.js": {
-    "v": "m471",
-    "sha": "fca2746e1ca3"
+    "v": "m471p",
+    "sha": "ab3c56f0ddd5"
   },
   "refund-ocr.js": {
     "v": "r2",
@@ -264,8 +264,8 @@
     "sha": "dcda51cabb2f"
   },
   "sales.js": {
-    "v": "m321",
-    "sha": "f7d73b45512b"
+    "v": "m321p",
+    "sha": "3fb08a697ec2"
   },
   "selfcheck.js": {
     "v": "s2",
