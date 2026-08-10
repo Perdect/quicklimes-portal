@@ -367,9 +367,46 @@
   }
 
   /* ══════════════════ TABLE VIEW ══════════════════ */
-  const PER = 40;
+  /* ── PAGINATION ───────────────────────────────────────────────────────
+     S.page has been declared and reset in a dozen handlers since forever
+     and READ in none, and `.qx-pager`/`.qx-pg` have been styled in qlx.css
+     (with a dark override and a mobile flex-wrap rule) with no JS consumer.
+     The socket existed; this fills it, so all fifteen registers gain it at
+     once rather than Group Overview growing a private one.
+
+     TWO RULES THAT MATTER MORE THAN THE SLICING:
+     · FOOTER TOTALS USE THE WHOLE FILTERED SET, never the visible page. A
+       "Grand Total" that changes when you turn the page is worse than no
+       total at all — it looks authoritative and is wrong.
+     · GROUPED VIEWS ARE NOT PAGINATED. groupRows() builds section headers
+       with per-group counts and sums; slicing underneath them would print
+       "42" over three visible rows. A grouped register shows everything,
+       exactly as it does today. */
+  const PER_DEFAULT = 25;
+  function perPage() { const n = +CFG.perPage || PER_DEFAULT; return n > 0 ? n : PER_DEFAULT; }
+  function paged() { return !!CFG.paginate && !(CFG.groupBy && S.groupBy); }
+  function pageOf(rows) {
+    if (!paged()) return { rows: rows, page: 1, pages: 1, from: rows.length ? 1 : 0, to: rows.length, total: rows.length };
+    const per = perPage(), total = rows.length, pages = Math.max(1, Math.ceil(total / per));
+    const page = Math.min(Math.max(1, S.page || 1), pages);
+    if (page !== S.page) S.page = page;                       // clamp a stale page after filtering
+    const from = (page - 1) * per;
+    return { rows: rows.slice(from, from + per), page: page, pages: pages,
+             from: total ? from + 1 : 0, to: Math.min(from + per, total), total: total };
+  }
+  /* The markup contract qlx.css already expects. */
+  function pagerHTML(p) {
+    if (!paged() || p.total <= perPage()) return '';
+    const btn = (dir, label, off) => `<button data-pg="${dir}" ${off ? 'disabled' : ''} aria-label="${label}">${label === 'Previous' ? '‹' : '›'}</button>`;
+    return `<div class="qx-pager">
+      <span>Showing ${p.from}–${p.to} of ${p.total}</span>
+      <div class="qx-pg">${btn('prev', 'Previous', p.page <= 1)}<span>${p.page} / ${p.pages}</span>${btn('next', 'Next', p.page >= p.pages)}</div>
+    </div>`;
+  }
   function visCols() { return (CFG.columns || []).filter(c => !S.hidden.has(c.key)); }
-  function tableHTML(rows) {
+  function tableHTML(allRows) {
+    const pg = pageOf(allRows);
+    const rows = pg.rows;
     const cols = visCols(), hasSel = !!CFG.bulkActions;
     const head = '<tr>' + (hasSel ? `<th class="qx-ck"><span class="qx-cbx ${allSel(rows) ? 'on' : ''}" id="qxAll">${svg(IC.check)}</span></th>` : '') +
       cols.map(c => { const st = S.sort.key === c.key; return `<th class="${c.num ? 'num' : ''} ${c.sort ? 'sortable' : ''} ${st ? 'sorted' : ''}" ${c.sort ? `data-sort="${c.key}"` : ''}>${esc(c.label)}${c.sort ? `<span class="qx-sic">${st ? (S.sort.dir === 'asc' ? '↑' : '↓') : ''}</span>` : ''}</th>`; }).join('') + '</tr>';
@@ -397,8 +434,12 @@
           cols.map(c => `<td class="${c.num ? 'num' : ''} ${c.cls || ''}">${c.cell ? c.cell(r, sr) : esc(r[c.key])}</td>`).join('') + '</tr>';
       });
     });
-    const foot = CFG.footer ? footHTML(rows) : '';
-    return `<div class="qx-grid-wrap"><table class="qx-grid"><thead>${head}</thead><tbody id="qxBody">${body}</tbody></table></div>${foot}`;
+    /* allRows, NOT rows: the footer is the total for everything the current
+       filters select, not for the twenty-five lines you happen to be looking
+       at. A Grand Total that changes when you turn the page is worse than no
+       total — it reads as authoritative and is wrong. */
+    const foot = CFG.footer ? footHTML(allRows) : '';
+    return `<div class="qx-grid-wrap"><table class="qx-grid"><thead>${head}</thead><tbody id="qxBody">${body}</tbody></table></div>${foot}${pagerHTML(pg)}`;
   }
   function footHTML(rows) {
     const cells = CFG.footer(rows) || [];
@@ -501,7 +542,13 @@
     if ($('qxFrom')) $('qxFrom').onchange = e => { S.adv._from = e.target.value; render(); };
     if ($('qxTo')) $('qxTo').onchange = e => { S.adv._to = e.target.value; render(); };
     // sorting
-    root.querySelectorAll('th[data-sort]').forEach(th => th.onclick = () => { const k = th.dataset.sort; if (S.sort.key === k) S.sort.dir = S.sort.dir === 'asc' ? 'desc' : 'asc'; else { S.sort.key = k; S.sort.dir = 'asc'; } render(); });
+    root.querySelectorAll('th[data-sort]').forEach(th => th.onclick = () => { const k = th.dataset.sort; if (S.sort.key === k) S.sort.dir = S.sort.dir === 'asc' ? 'desc' : 'asc'; else { S.sort.key = k; S.sort.dir = 'asc'; } S.page = 1; render(); });
+    /* Sorting resets to page 1 above for the same reason every filter handler
+       already does: page 4 of a differently-ordered list is a different set of
+       rows, and landing there silently is disorienting. */
+    root.querySelectorAll('[data-pg]').forEach(b => b.onclick = () => {
+      S.page = Math.max(1, (S.page || 1) + (b.dataset.pg === 'next' ? 1 : -1)); render();
+    });
     // group collapse
     root.querySelectorAll('.qx-grp-bar').forEach(bar => bar.onclick = () => { const key = bar.closest('.qx-grp').dataset.grp; S.collapsed.has(key) ? S.collapsed.delete(key) : S.collapsed.add(key); render(); });
     // selection
