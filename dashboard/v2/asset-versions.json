@@ -147,6 +147,10 @@
     "v": "d52",
     "sha": "d25382a09f9f"
   },
+  "party-resolve.js": {
+    "v": "pr1",
+    "sha": "2b271ee5c6b3"
+  },
   "sources-core.js": {
     "v": "g9",
     "sha": "885606c1ddbc"
