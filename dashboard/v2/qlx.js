@@ -417,7 +417,12 @@
        exactly as it does today. */
   const PER_DEFAULT = 25;
   function perPage() { const n = +CFG.perPage || PER_DEFAULT; return n > 0 ? n : PER_DEFAULT; }
-  function paged() { return !!CFG.paginate && !(CFG.groupBy && S.groupBy); }
+  /* 'none' is the OFF value for grouping and it is a truthy string — so
+     `CFG.groupBy && S.groupBy` was true even with grouping switched off, and
+     pagination silently never engaged on any register that merely DEFINES
+     group options. Test the active grouping, not the presence of the config. */
+  function grouped() { return !!(CFG.groupBy && S.groupBy && S.groupBy !== 'none'); }
+  function paged() { return !!CFG.paginate && !grouped(); }
   function pageOf(rows) {
     if (!paged()) return { rows: rows, page: 1, pages: 1, from: rows.length ? 1 : 0, to: rows.length, total: rows.length };
     const per = perPage(), total = rows.length, pages = Math.max(1, Math.ceil(total / per));

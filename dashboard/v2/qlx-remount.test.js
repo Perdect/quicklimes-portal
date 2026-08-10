@@ -37,7 +37,13 @@ ok('no qx_hidden_ key still uses CFG.active directly', !/qx_hidden_' \+ CFG\.act
 /* pagination contract (landed alongside) */
 ok('pagination is opt-in', /CFG\.paginate/.test(Q));
 ok('footer totals use the FULL filtered set', /footHTML\(allRows\)/.test(Q));
-ok('grouped views are not paginated', /!\(CFG\.groupBy && S\.groupBy\)/.test(Q));
+ok('grouped views are not paginated', /function grouped\(\)/.test(Q));
+/* 'none' is the OFF value and a truthy string. The first cut tested
+   `CFG.groupBy && S.groupBy`, so pagination silently never engaged on any
+   register that merely DEFINED group options — caught live on the Sales
+   register rendering all 161 rows with a paginate:true config. */
+ok("  and 'none' counts as NOT grouped", /S\.groupBy !== 'none'/.test(Q));
+ok('  paged() is gated on the active grouping', /return !!CFG\.paginate && !grouped\(\)/.test(Q));
 ok('the page is clamped after filtering', /if \(page !== S\.page\) S\.page = page/.test(Q));
 ok('sorting resets to page 1', /S\.sort\.dir = 'asc'; \} S\.page = 1; render\(\)/.test(Q));
 ok('the pager emits the already-styled markup', /class="qx-pager"/.test(Q) && /class="qx-pg"/.test(Q));
