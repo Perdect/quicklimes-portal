@@ -46,7 +46,7 @@
   /* ── state (persisted) ── */
   const LS_CO = 'ql_group_co', LS_RANGE = 'ql_group_range', LS_PART = 'ql_partnership';
   let COS = companies();
-  let state = { co: 'all', preset: 'fy', from: null, to: null };
+  let state = { co: 'all', preset: 'fy', from: null, to: null, tab: 'overview' };
   try { const s = JSON.parse(localStorage.getItem(LS_RANGE) || 'null'); if (s && s.preset) state = Object.assign(state, s); } catch (_) {}
   const savedCo = localStorage.getItem(LS_CO);
   if (savedCo && (savedCo === 'all' || COS.some(c => c.id === savedCo))) state.co = savedCo;
@@ -209,6 +209,37 @@
         ${tile('Bank reconciled', m.reconciled, pct, m.reconciled.why)}
       </div>`;
   }
+
+  /* ── TABS ─────────────────────────────────────────────────────────────
+     The page used to render every section stacked: KPIs, comparison, kilns,
+     partnership, products, ledgers, trend, and three full transaction tables
+     — ten thousand pixels of scrolling to answer "how are we doing".
+     Overview now holds only what management reads at a glance; everything
+     else moves one click away. Nothing is removed and no figure is
+     recomputed — the same functions render into hidden sections, so the
+     numbers are identical to before by construction. */
+  const TABS = [
+    ['overview', 'Overview'], ['sales', 'Sales'], ['purchases', 'Purchases'],
+    ['production', 'Production'], ['stock', 'Stock'], ['trend', 'Trend']
+  ];
+  function tabBar() {
+    return `<div class="gv-tabs" role="tablist">${TABS.map(([k, label]) =>
+      `<button class="gv-tab ${state.tab === k ? 'on' : ''}" role="tab" aria-selected="${state.tab === k}" data-tab="${k}">${esc(label)}</button>`).join('')}</div>`;
+  }
+  /* Detail panes reuse detailTables()'s own markup, split by section so a tab
+     shows only its own rows. detailTables returns production+sales+purchases
+     concatenated; these slice that same output rather than re-deriving it. */
+  function paneOf(vm, det, which) {
+    const html = detailTables(vm, det);
+    const marks = { production: 'Production runs', sales: 'Sales', purchases: 'Purchases' };
+    const start = html.indexOf('<div class="gv-h">' + marks[which]);
+    if (start < 0) return '<div class="gv-empty">Nothing in this period.</div>';
+    const nextIdx = Object.values(marks).map(m => html.indexOf('<div class="gv-h">' + m, start + 5))
+      .filter(i => i > start).sort((a, b) => a - b)[0];
+    return html.slice(start, nextIdx > 0 ? nextIdx : undefined);
+  }
+  const salesPane = (vm, det) => paneOf(vm, det, 'sales');
+  const purchPane = (vm, det) => paneOf(vm, det, 'purchases');
 
   function comparison(vm) {
     if (vm.entries.length < 2) return '';
@@ -491,16 +522,41 @@
       ${!consolidated && state.co !== 'all' && COS.length > 1 ? `<div class="gv-note">Showing <b>${esc((COS.find(c => c.id === state.co) || {}).short || '')}</b> only — ${esc(roleOf(state.co).toLowerCase())}. The other firm's books are not read into this view.</div>` : ''}
       ${vm.missing.map(c => `<div class="gv-empty">⚠ <b>${esc(c.short)}</b> has not been opened on this device yet, so its books aren't synced here. Switch to it once from the company menu and come back — it will be included automatically.</div>`).join('')}
       ${vm.entries.length ? sourcesStrip(vm) : ''}
-      ${vm.entries.length ? kpis(vm) : '<div class="gv-empty">No company books available yet.</div>'}
-      ${vm.entries.length ? moneyRow(vm) : ''}
-      ${comparison(vm)}
-      ${vm.entries.length ? kilnTable(vm) : ''}
-      ${shareCard(vm)}
-      ${vm.entries.length ? productTable(vm) : ''}
-      ${vm.entries.length ? ledgers(vm) : ''}
-      ${trend(vm.total)}
-      ${vm.entries.length ? detailTables(vm, det) : ''}`;
+      ${vm.entries.length ? tabBar() : ''}
+      ${vm.entries.length ? `
+        <section data-tab="overview" ${state.tab === 'overview' ? '' : 'hidden'}>
+          ${kpis(vm)}${moneyRow(vm)}${comparison(vm)}${shareCard(vm)}
+        </section>
+        <section data-tab="sales" ${state.tab === 'sales' ? '' : 'hidden'}>
+          ${salesPane(vm, det)}
+        </section>
+        <section data-tab="purchases" ${state.tab === 'purchases' ? '' : 'hidden'}>
+          ${purchPane(vm, det)}
+        </section>
+        <section data-tab="production" ${state.tab === 'production' ? '' : 'hidden'}>
+          ${kilnTable(vm)}${paneOf(vm, det, 'production')}
+        </section>
+        <section data-tab="stock" ${state.tab === 'stock' ? '' : 'hidden'}>
+          ${ledgers(vm)}${productTable(vm)}
+        </section>
+        <section data-tab="trend" ${state.tab === 'trend' ? '' : 'hidden'}>
+          ${trend(vm.total)}
+        </section>` : '<div class="gv-empty">No company books available yet.</div>'}`;
 
+    /* Tab switching is show/hide, not a re-render: every section is already
+       in the DOM with its numbers computed once, so switching is instant and
+       cannot produce a figure that disagrees with the tab beside it. */
+    document.querySelectorAll('.gv-tab').forEach(b => b.onclick = () => {
+      state.tab = b.dataset.tab; persist();
+      document.querySelectorAll('.gv-tab').forEach(x => {
+        const on = x.dataset.tab === state.tab;
+        x.classList.toggle('on', on); x.setAttribute('aria-selected', on);
+      });
+      document.querySelectorAll('#gvRoot section[data-tab]').forEach(s => {
+        s.hidden = s.dataset.tab !== state.tab;
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
     document.querySelectorAll('.gv-co').forEach(b => b.onclick = () => {
       state.co = b.dataset.co; localStorage.setItem(LS_CO, state.co); render();
     });
@@ -519,7 +575,7 @@
       savePart(); render();
     };
   }
-  function persist() { try { localStorage.setItem(LS_RANGE, JSON.stringify({ preset: state.preset, from: state.from, to: state.to })); } catch (_) {} }
+  function persist() { try { localStorage.setItem(LS_RANGE, JSON.stringify({ preset: state.preset, from: state.from, to: state.to , tab: state.tab })); } catch (_) {} }
 
   render();
 })();

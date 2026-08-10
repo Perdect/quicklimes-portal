@@ -100,6 +100,13 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 .gv-kpi.na .v{color:var(--ql-text-muted);font-weight:700}
 .gv-kpi.na .s{color:var(--ql-text-secondary)}
 [data-theme="dark"] .gv-kpi.na{background:var(--ql-neutral-100)}
+/* ── Tabs — Overview holds the summary, everything else is one click away ── */
+.gv-tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--ql-border);margin-bottom:var(--ql-space-5);padding-bottom:0;-webkit-overflow-scrolling:touch}
+.gv-tab{flex:none;height:40px;padding:0 16px;border:none;background:transparent;font:inherit;font-size:var(--ql-text-base);font-weight:600;color:var(--ql-text-secondary);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px}
+.gv-tab:hover{color:var(--ql-text)}
+.gv-tab.on{color:var(--ql-brand-700);border-bottom-color:var(--ql-brand-600)}
+[data-theme="dark"] .gv-tab.on{color:#93C5FD;border-bottom-color:#3B82F6}
+#gvRoot section[hidden]{display:none}
 .gv-note-mut{background:var(--ql-neutral-50);border-color:var(--ql-border);color:var(--ql-text-secondary)}
 [data-theme="dark"] .gv-note-mut{background:var(--ql-neutral-100);border-color:var(--ql-border)}
 @media print{
@@ -133,6 +140,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./mobile.js?v=m16"></script>
 <script src="./sources-core.js?v=g9"></script>
 <script src="./group-core.js?v=g5"></script>
-<script src="./group.js?v=g7"></script>
+<script src="./group.js?v=g8"></script>
 </body>
 </html>
