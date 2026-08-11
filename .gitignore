@@ -26,3 +26,6 @@ dashboard/api/files/
 
 # scratch MySQL datadir used by the PHP test suites — never committed
 .scratch/
+
+# local secrets — never commit
+admin-config.local.js

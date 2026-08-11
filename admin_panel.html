@@ -185,12 +185,21 @@ tr:hover td{background:#FAFAFA;}
   </div>
 </div>
 
+<script src="./admin-config.local.js"></script>
 <script>
 /* ── CONFIG ── same values as landing pages ── */
 const SB_URL     = 'https://iteaawedfmaujujyrqdu.supabase.co';
 const SB_ANON    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0ZWFhd2VkZm1hdWp1anlycWR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NDcxMjMsImV4cCI6MjA5MjAyMzEyM30.13zzs_qkn51wMm-ZC84FhruuLtPlYLpuDdJvMj8AP-Y';
-const SB_SERVICE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0ZWFhd2VkZm1hdWp1anlycWR1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjQ0NzEyMywiZXhwIjoyMDkyMDIzMTIzfQ.m4QK37_u4tDF7XeI5pCD6VE3VbXw65m1x_-AWaWPKa4'; /* for admin reads */
-const ADMIN_PASS = 'DeshwaliAdmin@2026';             /* change this password */
+/* ── SECRETS ARE NOT SOURCE ────────────────────────────────────────
+   A service_role key bypasses row-level security entirely: whoever holds
+   it can read or delete the whole database. It was committed here in
+   plain text, which put it in git history forever. It now loads from
+   admin-config.local.js — a file that is gitignored and never deployed.
+   Create it from admin-config.example.js and paste the CURRENT key in.
+   If the file is absent, admin reads simply fail; nothing silently
+   falls back to a weaker credential. */
+const SB_SERVICE = (window.ADMIN_CONFIG && window.ADMIN_CONFIG.serviceKey) || '';
+const ADMIN_PASS = (window.ADMIN_CONFIG && window.ADMIN_CONFIG.adminPass) || '';
 
 /* ── AUTH ── */
 function doLogin(){
