@@ -147,8 +147,109 @@ const mk = k => ST.newRecord(k, base);
   eq('AUDIT · but the FIRST entries survive', r.history[0].to, 'ready');
 }
 
+/* ══ AUDIT TRAIL — every required field survives a full lifecycle ═══
+   Traced end to end: create -> attempt -> fail -> retry -> succeed. */
+{
+  const r = ST.newRecord('einvoice', Object.assign({}, base, { provider: 'cleartax', at: '2026-08-12T09:00:00Z' }));
+  ST.transition(r, 'ready', { at: '2026-08-12T09:00:01Z', by: 'haji' });
+  ST.transition(r, 'generating', { at: '2026-08-12T09:00:02Z' });
+  ST.transition(r, 'failed', { at: '2026-08-12T09:00:09Z', code: '2172', category: 'VALIDATION',
+    message: 'Invalid HSN', providerStatus: 'REJECTED', providerRef: 'ct-req-991',
+    response: { errors: [{ code: '2172' }], 'X-Cleartax-Auth-Token': 'SHOULD-NOT-PERSIST' } });
+  /* capture the error fields WHILE failed — lastError is deliberately
+     cleared on success (it is the CURRENT error), and the permanent record
+     of the failure lives in history. */
+  const errAtFailure = { category: r.lastError.category, code: r.lastError.code };
+  /* redaction must happen AT PERSIST TIME — check it on the failure payload,
+     which is the one that carried a credential-shaped key. */
+  const failDump = JSON.stringify(r.sanitizedResponse);
+  eq('AUDIT · no auth token ever persisted', /SHOULD-NOT-PERSIST/.test(failDump), false);
+  eq('AUDIT · it is redacted instead', /\[redacted\]/.test(failDump), true);
+  eq('AUDIT · while the useful error survives', r.sanitizedResponse.errors[0].code, '2172');
+  eq('AUDIT · error category captured at failure', errAtFailure.category, 'VALIDATION');
+  eq('AUDIT · error code captured at failure', errAtFailure.code, '2172');
+  ST.transition(r, 'generating', { at: '2026-08-12T09:05:00Z' });
+  ST.transition(r, 'generated', { at: '2026-08-12T09:05:03Z',
+    gov: { irn: 'IRN-ABC', ackNo: '112233', ackDate: '2026-08-12T09:05:03Z' },
+    providerStatus: 'ACK', providerRef: 'ct-req-992', response: { irn: 'IRN-ABC', status: 'ACK' } });
+
+  const need = {
+    'ERP invoice ID': r.invoiceRef, 'provider': r.provider, 'provider ref': r.providerRef,
+    'IRN': r.gov.irn, 'ack number': r.gov.ackNo, 'ack timestamp': r.gov.ackDate,
+    'provider status': r.providerStatus, 'normalized status': r.status,
+    'attempt count': r.attempts, 'last attempt': r.lastAttemptAt,
+    'error category (at failure)': errAtFailure.category, 'error code (at failure)': errAtFailure.code,
+    'sanitized response': r.sanitizedResponse, 'created_at': r.createdAt, 'updated_at': r.updatedAt
+  };
+  Object.keys(need).forEach(k => eq('AUDIT · persists ' + k, need[k] != null && need[k] !== '', true));
+  eq('AUDIT · attempts counted across retries', r.attempts, 2);
+  eq('AUDIT · updatedAt moved past createdAt', r.updatedAt > r.createdAt, true);
+  eq('AUDIT · lastError cleared on success — history keeps the failure', r.lastError, null);
+  eq('AUDIT · and the failure IS in history', r.history.some(h => h.to === 'failed'), true);
+  /* THE SAFETY CHECK: no credential may reach the database */
+  const dump = JSON.stringify(r);
+  eq('AUDIT · the whole record holds no credential', /SHOULD-NOT-PERSIST/.test(dump), false);
+  eq('AUDIT · and the success payload survives', r.sanitizedResponse.irn, 'IRN-ABC');
+  /* an EWB record carries its own number in the same slot */
+  const e = ST.newRecord('ewb', Object.assign({}, base, { at: 'T0' }));
+  ST.transition(e, 'ready', {}); ST.transition(e, 'generating', {});
+  ST.transition(e, 'generated', { gov: { ewbNo: '171000999888', validUpto: '2026-08-15' }, at: 'T1' });
+  eq('AUDIT · EWB number persisted', e.gov.ewbNo, '171000999888');
+  eq('AUDIT · with its validity', e.gov.validUpto, '2026-08-15');
+}
 console.log('\n════ gst-store (compliance records) ════');
 console.log('  Passed: ' + pass + '   Failed: ' + fail);
 bad.forEach(b => console.log('    ✗ ' + b));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' GST-STORE TESTS PASSED\n' : '\n❌ FAILED\n');
 process.exit(fail === 0 ? 0 : 1);
+
+/* ══ AUDIT TRAIL — every required field survives a full lifecycle ═══
+   Traced end to end: create -> attempt -> fail -> retry -> succeed. */
+{
+  const r = ST.newRecord('einvoice', Object.assign({}, base, { provider: 'cleartax', at: '2026-08-12T09:00:00Z' }));
+  ST.transition(r, 'ready', { at: '2026-08-12T09:00:01Z', by: 'haji' });
+  ST.transition(r, 'generating', { at: '2026-08-12T09:00:02Z' });
+  ST.transition(r, 'failed', { at: '2026-08-12T09:00:09Z', code: '2172', category: 'VALIDATION',
+    message: 'Invalid HSN', providerStatus: 'REJECTED', providerRef: 'ct-req-991',
+    response: { errors: [{ code: '2172' }], 'X-Cleartax-Auth-Token': 'SHOULD-NOT-PERSIST' } });
+  /* capture the error fields WHILE failed — lastError is deliberately
+     cleared on success (it is the CURRENT error), and the permanent record
+     of the failure lives in history. */
+  const errAtFailure = { category: r.lastError.category, code: r.lastError.code };
+  /* redaction must happen AT PERSIST TIME — check it on the failure payload,
+     which is the one that carried a credential-shaped key. */
+  const failDump = JSON.stringify(r.sanitizedResponse);
+  eq('AUDIT · no auth token ever persisted', /SHOULD-NOT-PERSIST/.test(failDump), false);
+  eq('AUDIT · it is redacted instead', /\[redacted\]/.test(failDump), true);
+  eq('AUDIT · while the useful error survives', r.sanitizedResponse.errors[0].code, '2172');
+  eq('AUDIT · error category captured at failure', errAtFailure.category, 'VALIDATION');
+  eq('AUDIT · error code captured at failure', errAtFailure.code, '2172');
+  ST.transition(r, 'generating', { at: '2026-08-12T09:05:00Z' });
+  ST.transition(r, 'generated', { at: '2026-08-12T09:05:03Z',
+    gov: { irn: 'IRN-ABC', ackNo: '112233', ackDate: '2026-08-12T09:05:03Z' },
+    providerStatus: 'ACK', providerRef: 'ct-req-992', response: { irn: 'IRN-ABC', status: 'ACK' } });
+
+  const need = {
+    'ERP invoice ID': r.invoiceRef, 'provider': r.provider, 'provider ref': r.providerRef,
+    'IRN': r.gov.irn, 'ack number': r.gov.ackNo, 'ack timestamp': r.gov.ackDate,
+    'provider status': r.providerStatus, 'normalized status': r.status,
+    'attempt count': r.attempts, 'last attempt': r.lastAttemptAt,
+    'error category (at failure)': errAtFailure.category, 'error code (at failure)': errAtFailure.code,
+    'sanitized response': r.sanitizedResponse, 'created_at': r.createdAt, 'updated_at': r.updatedAt
+  };
+  Object.keys(need).forEach(k => eq('AUDIT · persists ' + k, need[k] != null && need[k] !== '', true));
+  eq('AUDIT · attempts counted across retries', r.attempts, 2);
+  eq('AUDIT · updatedAt moved past createdAt', r.updatedAt > r.createdAt, true);
+  eq('AUDIT · lastError cleared on success — history keeps the failure', r.lastError, null);
+  eq('AUDIT · and the failure IS in history', r.history.some(h => h.to === 'failed'), true);
+  /* THE SAFETY CHECK: no credential may reach the database */
+  const dump = JSON.stringify(r);
+  eq('AUDIT · the whole record holds no credential', /SHOULD-NOT-PERSIST/.test(dump), false);
+  eq('AUDIT · and the success payload survives', r.sanitizedResponse.irn, 'IRN-ABC');
+  /* an EWB record carries its own number in the same slot */
+  const e = ST.newRecord('ewb', Object.assign({}, base, { at: 'T0' }));
+  ST.transition(e, 'ready', {}); ST.transition(e, 'generating', {});
+  ST.transition(e, 'generated', { gov: { ewbNo: '171000999888', validUpto: '2026-08-15' }, at: 'T1' });
+  eq('AUDIT · EWB number persisted', e.gov.ewbNo, '171000999888');
+  eq('AUDIT · with its validity', e.gov.validUpto, '2026-08-15');
+}

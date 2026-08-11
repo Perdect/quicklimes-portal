@@ -65,8 +65,43 @@
       requestKey: GST ? GST.requestKey(o.companyId, o.gstin, o.docType || 'INV', o.docNo, o.docDate) : '',
       gov: null,                        // the government reference, once and only once
       provider: S(o.provider), environment: S(o.environment) || 'sandbox',
-      lastError: null, attempts: 0, history: []
+      /* ── RECONCILIATION FIELDS ─────────────────────────────────────
+         These exist so that after a lost response we can answer "what did
+         we send, when, what came back, and what does the provider think
+         now" without guessing. providerStatus is the vendor's OWN word,
+         kept beside our normalised `status` because the two disagreeing is
+         itself the signal that a reconciliation is needed.
+         providerRef is whatever correlation id the vendor returns — the
+         only handle their support team will accept when something is
+         stuck. sanitizedResponse is the payload with credentials stripped;
+         it is what a developer reads at 11pm, and storing a raw response
+         with an auth header in it would put a token in the database. */
+      providerStatus: '',               // the vendor's own status word
+      providerRef: '',                  // vendor request/correlation id
+      sanitizedResponse: null,          // last response, credentials removed
+      lastAttemptAt: '',                // when we last tried
+      lastError: null, attempts: 0, history: [],
+      createdAt: S(o.at), updatedAt: S(o.at)
     };
+  }
+
+  /* Strip anything credential-shaped before a response is persisted. The
+     database is not a place for tokens, and a support ticket should be
+     copy-pasteable without leaking one. */
+  var SECRETY = /auth|token|secret|password|key|cookie|signature|sek|clientid|client_id/i;
+  function sanitize(v, depth) {
+    depth = depth || 0;
+    if (v == null || depth > 6) return v;
+    if (Array.isArray(v)) return v.slice(0, 50).map(function (x) { return sanitize(x, depth + 1); });
+    if (typeof v === 'object') {
+      var out = {};
+      Object.keys(v).slice(0, 60).forEach(function (k) {
+        out[k] = SECRETY.test(k) ? '[redacted]' : sanitize(v[k], depth + 1);
+      });
+      return out;
+    }
+    if (typeof v === 'string' && v.length > 2000) return v.slice(0, 2000) + '…[truncated]';
+    return v;
   }
 
   function log(rec, action, meta) {
@@ -102,8 +137,17 @@
       rec.gov = Object.assign({}, g);
       rec.lastError = null;
     }
-    if (to === 'failed') { rec.lastError = { code: S(opts.code), message: S(opts.message), at: S(opts.at) }; }
-    if (to === 'generating') rec.attempts++;
+    /* The full error record, category included — the retry policy reads
+       category, and a stored error without one cannot be re-decided later. */
+    if (to === 'failed') {
+      rec.lastError = { code: S(opts.code), message: S(opts.message),
+                        category: S(opts.category) || 'UNKNOWN', at: S(opts.at) };
+    }
+    if (to === 'generating') { rec.attempts++; rec.lastAttemptAt = S(opts.at); }
+    if (opts.providerStatus != null) rec.providerStatus = S(opts.providerStatus);
+    if (opts.providerRef != null) rec.providerRef = S(opts.providerRef);
+    if (opts.response !== undefined) rec.sanitizedResponse = sanitize(opts.response);
+    rec.updatedAt = S(opts.at) || rec.updatedAt;
     var from = rec.status;
     rec.status = to;
     log(rec, to, { at: opts.at, by: opts.by, from: from, to: to, note: opts.note, requestId: opts.requestId });
@@ -143,6 +187,7 @@
   }
 
   var api = { newRecord: newRecord, transition: transition, guard: guard, prepare: prepare,
+              sanitize: sanitize,
               EINV_NEXT: EINV_NEXT, EWB_NEXT: EWB_NEXT };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.QLGstStore = api;
