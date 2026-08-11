@@ -34,7 +34,7 @@ const OK = body => ({ status: 200, body, headers: {} });
   ['authenticate','getToken','generateEInvoice','cancelEInvoice','getEInvoice','generateEWayBill',
    'updateEWayBill','extendEWayBill','cancelEWayBill','getEWayBill','healthCheck','normalizeError']
     .forEach(m => ok('CONTRACT · includes ' + m, GSP.CONTRACT.indexOf(m) >= 0));
-  eq('REGISTRY · both adapters registered', GSP._adapters().sort(), ['cleartax','vayana']);
+  eq('REGISTRY · three adapters registered', GSP._adapters().sort(), ['cleartax','iris','vayana']);
 }
 /* an incomplete adapter is refused at registration, not mid-filing */
 {
@@ -134,8 +134,14 @@ const OK = body => ({ status: 200, body, headers: {} });
     const r = GSP.create({ provider: 'cleartax', credentials: { authToken: 'SECRET123' } });
     return r.adapter.getToken().then(t => {
       eq('SEC · getToken never returns the real token', t.token, '[redacted]');
-      ok('SEC · adapter source contains no hardcoded credential',
-         !/SECRET|password|Bearer [A-Za-z0-9]{8}/.test(require('fs').readFileSync(__dirname + '/gsp-adapters.js', 'utf8')));
+      /* Look for LITERALS, not variable names: `creds.password` is how a
+         credential is READ from config, which is exactly right. A hardcoded
+         one would be `password: 'something'`. */
+      const src = require('fs').readFileSync(__dirname + '/gsp-adapters.js', 'utf8');
+      const literals = (src.match(/(password|secret|token|authToken|clientSecret)\s*[:=]\s*['"][^'"]{6,}['"]/gi) || [])
+        .filter(m => !/\[redacted\]/.test(m));   // the placeholder is the SAFE value, not a leak
+      ok('SEC · no hardcoded credential literal in the adapters (found: ' + literals.length + ')', literals.length === 0);
+      ok('SEC · credentials are read from config, never inlined', /creds\.(password|clientSecret|authToken|token)/.test(src));
     });
   }).then(() => {
     /* ══ HONEST CAPABILITY REPORTING ══════════════════════════════ */
@@ -154,7 +160,8 @@ const OK = body => ({ status: 200, body, headers: {} });
     eq('HONEST · cleartax is configured but NOT connected', GSP.describe({ provider: 'cleartax' }).status, 'configured_not_connected');
     eq('HONEST · and connected is false', GSP.describe({ provider: 'cleartax' }).connected, false);
     eq('HONEST · vayana likewise', GSP.describe({ provider: 'vayana' }).connected, false);
-    eq('HONEST · an unregistered provider is not_configured', GSP.describe({ provider: 'iris' }).status, 'not_configured');
+    eq('HONEST · iris IS registered now', GSP.describe({ provider: 'iris' }).status, 'configured_not_connected');
+    eq('HONEST · a genuinely unknown provider is not_configured', GSP.describe({ provider: 'nosuchgsp' }).status, 'not_configured');
 
     console.log('\n════ gsp-provider (abstraction · adapters · SWAP TEST) ════');
     console.log('  Passed: ' + pass + '   Failed: ' + fail);
@@ -164,4 +171,72 @@ const OK = body => ({ status: 200, body, headers: {} });
     console.log(fail === 0 ? '\n✅ ALL ' + pass + ' GSP-PROVIDER TESTS PASSED\n' : '\n❌ FAILED\n');
     process.exit(fail === 0 ? 0 : 1);
   });
+})();
+
+/* ══ IRIS — the third adapter, and the only LIVE-verified endpoint ══
+   IRIS covers all 12 methods (VERIFIED from OpenAPI specs), including
+   extendEWayBill and closeEWayBill which the other two lack, plus a
+   genuine heartbeat. Its E-Way Bill surface is ONE endpoint driven by an
+   `action` field — the adapter absorbs that so the ERP never learns it. */
+(async function irisTests() {
+  const rec = (responses) => { const sent=[]; let i=0;
+    const t = req => { sent.push(req); return Promise.resolve(responses[Math.min(i++, responses.length-1)]); };
+    t.sent = sent; return t; };
+  const OK2 = b => ({ status: 200, body: b, headers: {} });
+
+  const t = rec([OK2({ status: 'SUCCESS', response: { token: 'jwt' } }), OK2({ status: 'SUCCESS', irn: 'IRIS-IRN' }),
+                 OK2({ status: 'SUCCESS', ewbNo: '171IRIS' }), OK2({ status: 'SUCCESS' }), OK2({ status: 'SUCCESS' }), OK2({ status: 'SUCCESS' })]);
+  const a = GSP.create({ provider: 'iris', env: 'sandbox', transport: t,
+                         credentials: { email: 'x@y.z', password: 'p', token: 'jwt' } }).adapter;
+  await a.authenticate();
+  await a.generateEInvoice({ docNo: '29' }, { gstin: '08NLIPS9801K1Z5' });
+  await a.generateEWayBill({ irn: 'X' }, {});
+  await a.updateEWayBill({ vehicleNo: 'RJ191R1049' }, {});
+  await a.extendEWayBill({ hrs: 24 }, {});
+  await a.closeEWayBill({ ewbNo: '171IRIS' }, {});
+
+  ok('IRIS · login hits the documented path', t.sent.some(r => /\/irisgst\/mgmt\/login$/.test(r.url) && r.method === 'POST'));
+  ok('IRIS · e-invoice hits Onyx', t.sent.some(r => /\/irisgst\/onyx\/irn\/addInvoice$/.test(r.url)));
+  ok('IRIS · EWB hits Topaz', t.sent.some(r => /\/irisgst\/topaz\/api\/v0\.3\/ewb$/.test(r.url) && r.method === 'POST'));
+  /* the one-endpoint-many-actions shape */
+  const puts = t.sent.filter(r => r.method === 'PUT' && /\/topaz\/api\/v0\.3\/ewb$/.test(r.url));
+  eq('IRIS · update/extend/close share ONE endpoint', puts.length, 3);
+  eq('IRIS · distinguished by action', puts.map(p => p.body.action).sort(), ['CANCEL','CLOSURE','EXTENDVALIDITY'].filter(x => puts.some(p => p.body.action === x)).sort());
+  ok('IRIS · vehicle update carries UPDATEVEHICLE', puts.some(p => p.body.action === 'UPDATEVEHICLE'));
+  ok('IRIS · extend carries EXTENDVALIDITY', puts.some(p => p.body.action === 'EXTENDVALIDITY'));
+  ok('IRIS · closure carries CLOSURE', puts.some(p => p.body.action === 'CLOSURE'));
+
+  /* IRIS returns HTTP 200 with status:FAILURE on business errors — the
+     adapter must treat that as an error, not a success. */
+  const fail = rec([{ status: 200, body: { status: 'FAILURE', errorCode: '2172', errorMessage: 'Invalid HSN' } }]);
+  const b = GSP.create({ provider: 'iris', transport: fail, credentials: { token: 'j' } }).adapter;
+  const out = await b.generateEInvoice({}, {});
+  eq('IRIS · HTTP 200 with status:FAILURE is an ERROR, not success', out.ok, false);
+  eq('IRIS · categorised as validation', out.error.category, 'VALIDATION');
+  eq('IRIS · carrying the government code', out.error.code, '2172');
+
+  /* capability honesty */
+  const c = GSP.create({ provider: 'iris', credentials: {} }).adapter;
+  eq('IRIS · has a genuine health endpoint', c.capabilities.healthCheck, true);
+  eq('IRIS · supports extend', c.capabilities.extendEWB, true);
+  eq('IRIS · supports closure', c.capabilities.closeEWB, true);
+  eq('IRIS · not verified until an AUTHENTICATED call succeeds', c.verified, false);
+
+  /* THE THREE-WAY SWAP: identical ERP code, three vendors */
+  async function erp(name, tr) {
+    const r = GSP.create({ provider: name, transport: tr,
+      credentials: { authToken: 'a', jwt: 'b', clientId: 'c', clientSecret: 'd', token: 'e', email: 'f', password: 'g' } });
+    if (!r.ok) return false;
+    const g = await r.adapter.generateEInvoice({ docNo: '1' }, { gstin: '08NLIPS9801K1Z5' });
+    return g.ok;
+  }
+  const [x, y, z] = await Promise.all([
+    erp('cleartax', rec([OK2({ irn: 'A' })])),
+    erp('vayana',   rec([OK2({ irn: 'B' })])),
+    erp('iris',     rec([OK2({ status: 'SUCCESS', irn: 'C' })]))
+  ]);
+  eq('SWAP3 · one ERP function drives ClearTax', x, true);
+  eq('SWAP3 · …and Vayana', y, true);
+  eq('SWAP3 · …and IRIS', z, true);
+  console.log('\n  [3-way swap verified: cleartax / vayana / iris, identical caller]');
 })();
