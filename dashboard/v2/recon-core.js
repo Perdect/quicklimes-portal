@@ -203,12 +203,56 @@
      Score 0..1 of how strongly `clean` narration identifies `party`.
      Rewards distinctive-token overlap + containment (so a distinctive prefix
      like "ARIF" fully matches "ARIF CHEMICAL LIME"), ignores generic words. */
-  function nameMatch(clean, party) {
+  /* Fingerprint = the distinctive tokens, joined. Two DIFFERENT customers
+     that reduce to the same fingerprint cannot be told apart by name, and
+     the matcher must stop pretending otherwise. Built from the party list
+     by the caller; empty means "no ambiguity known", which preserves the
+     old behaviour for callers that do not supply it. */
+  function fingerprint(name) { return distinctive(tokens(name)).join('|'); }
+  function ambiguousSet(parties) {
+    var seen = {}, amb = new Set();
+    (parties || []).forEach(function (p) {
+      var n = (p && (p.name || p)) || '', fp = fingerprint(n);
+      if (!fp) return;
+      var key = normName(n);
+      if (seen[fp] && seen[fp] !== key) amb.add(fp);
+      else if (!seen[fp]) seen[fp] = key;
+    });
+    return amb;
+  }
+
+  function nameMatch(clean, party, ambiguous) {
     var cToks = tokens(clean), pToks = tokens(party);
     if (!cToks.length || !pToks.length) return { s: 0, shared: [] };
     var cSet = new Set(cToks);
     var pDist = distinctive(pToks), cDist = distinctive(cToks);
     var sharedDist = pDist.filter(function (t) { return cSet.has(t); });
+    /* ── THE AMBIGUITY BRAKE ────────────────────────────────────────────
+       STOP strips industry words — LIME, PRODUCTS, ENTERPRISES, MINERALS,
+       CHEMICAL. Sensible in general; ruinous in a lime business, where
+       'AMAN LIME PRODUCTS' and 'AMAN ENTERPRISES' both reduce to [AMAN]
+       and this function returned CERTAIN for either. A real ₹4,97,490 RTGS
+       from AMAN ENTERPRISES was matched to an AMAN LIME PRODUCTS invoice
+       worth ₹1,32,489 and booked as a ₹3,65,001 overpayment, while AMAN
+       ENTERPRISES' ledger still read 'no payment received'.
+       Worse, the same collapse maps DESHWALI MINERALS (our own firm) onto
+       DESHWALI LIME INDUSTRIES (a real external customer).
+       So: when the fingerprint is shared by more than one known party, the
+       name alone can never be certain. Cap it below the certainty gate and
+       say why — the GSTIN or the amount must break the tie, not the name. */
+    var fp = pDist.join('|');
+    /* An EXACT full-name match is never ambiguous: if the narration carries
+       the whole name, the shared fingerprint is irrelevant. Without this the
+       brake would demote correct matches — 'AMAN ENTERPRISES' paying against
+       an AMAN ENTERPRISES bill is certain, and must stay certain. */
+    var exact = normName(clean).indexOf(normName(party)) >= 0 && distinctive(pToks).length === sharedDist.length
+                && pToks.every(function (t) { return cSet.has(t); });
+    var isAmb = !exact && ambiguous && ambiguous.size && ambiguous.has(fp);
+    if (isAmb) {
+      var ratio = pDist.length ? sharedDist.length / pDist.length : 0;
+      return { s: Math.min(0.55, ratio * 0.55), shared: sharedDist, ambiguous: true,
+               why: 'more than one customer reduces to "' + fp + '" — the name alone cannot identify them' };
+    }
     // ALL of the party's distinctive tokens are present → certain
     if (pDist.length && sharedDist.length === pDist.length) return { s: 1, shared: sharedDist };
     var distRatio = pDist.length ? sharedDist.length / pDist.length : 0;
@@ -257,7 +301,8 @@
     var isCr = (txn.credit || 0) > 0, amt = isCr ? txn.credit : txn.debit;
     var name = isCr ? bill.party : bill.sup;
     var reasons = [], score = 0;
-    var nm = nameMatch(np.clean, name).s;
+    var _nmr = nameMatch(np.clean, name, opts.ambiguous); var nm = _nmr.s;
+    if (_nmr.ambiguous) reasons.push('Ambiguous: ' + _nmr.why);
     if (opts.aliasParty && normName(opts.aliasParty) === normName(name)) { nm = Math.max(nm, 1); reasons.push('Learned alias → ' + name); }
     if (nm >= 0.99) { score += 55; reasons.push('Party name matched'); }
     else if (nm >= 0.6) { score += Math.round(48 * nm); reasons.push('Party name likely (' + Math.round(nm * 100) + '%)'); }
@@ -344,7 +389,8 @@
     opts = opts || {};
     var isCr = (txn.credit || 0) > 0, amt = isCr ? txn.credit : txn.debit;
     var reasons = [], score = 0;
-    var nm = nameMatch(np.clean, entry.party).s;
+    var _nmr2 = nameMatch(np.clean, entry.party, opts.ambiguous); var nm = _nmr2.s;
+    if (_nmr2.ambiguous) reasons.push('Ambiguous: ' + _nmr2.why);
     if (opts.aliasParty && normName(opts.aliasParty) === normName(entry.party)) { nm = Math.max(nm, 1); reasons.push('Learned alias → ' + entry.party); }
     if (nm >= 0.99) { score += 50; reasons.push('Paid-to name matched'); }
     else if (nm >= 0.6) { score += Math.round(42 * nm); reasons.push('Paid-to name likely (' + Math.round(nm * 100) + '%)'); }
@@ -766,6 +812,7 @@
     bankAccountMatch: bankAccountMatch, backfillPlan: backfillPlan,
     accountOverview: accountOverview, isSelfLeg: isSelfLeg,
     splitStatus: splitStatus, suggestAlloc: suggestAlloc, STOP: STOP,
+    fingerprint: fingerprint, ambiguousSet: ambiguousSet, nameMatch: nameMatch,
     signedBalance: signedBalance, inferDirections: inferDirections,
     classifyTxn: classifyTxn, classifyResidual: classifyResidual, directionCat: directionCat, selfPairs: selfPairs
   };

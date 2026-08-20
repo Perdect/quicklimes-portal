@@ -20,8 +20,8 @@
     "sha": "6ba7749b5370"
   },
   "recon-core.js": {
-    "v": "rc5",
-    "sha": "22530e020ddc"
+    "v": "rc5a",
+    "sha": "3de1804b3eb4"
   },
   "recon-apply.js": {
     "v": "ra1",
@@ -32,8 +32,8 @@
     "sha": "ad192a754db7"
   },
   "reconcile.js": {
-    "v": "f25",
-    "sha": "58c93885a2c4"
+    "v": "f25a",
+    "sha": "af17c09cbaa3"
   },
   "party-identity.js": {
     "v": "m27",

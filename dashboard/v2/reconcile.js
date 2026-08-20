@@ -155,6 +155,19 @@ function recurring() {
   catch (_) { RECUR = []; }
   return RECUR;
 }
+/* Rebuilt whenever the party list changes size — cheap, and correct after
+   an import adds a colliding name. */
+let _ambCache = null, _ambN = -1;
+function ambiguousParties() {
+  try {
+    const list = (Q.state && Q.state.PARTIES) || [];
+    if (_ambCache && _ambN === list.length) return _ambCache;
+    _ambN = list.length;
+    _ambCache = (RC.ambiguousSet ? RC.ambiguousSet(list) : new Set());
+    return _ambCache;
+  } catch (_) { return new Set(); }
+}
+
 function autoMatch(t) {
   const np = npOf(t);
   // 1) hard rules first: charges, interest, GST, cash, self — these narrations
@@ -167,7 +180,14 @@ function autoMatch(t) {
   const hardM = hard ? { kind: 'other', idx: null, status: 'other', cat: hard.cat, catKey: hard.key, auto: true, confidence: hard.confidence, tier: 'green', matchedBy: 'rule', reasons: hard.reasons, at: new Date().toISOString() } : null;
   // 2) invoice matching (sister firms pay real invoices — matching wins).
   const bills = (t.credit || 0) > 0 ? Q.salesRows() : Q.purchaseRows();
-  const opts = { aliasParty: aliasOf(np.clean), accountId: t.accountId || '' };
+  /* AMBIGUITY SET — built once per run from the party list, then handed to
+     the matcher. Without this the fix in recon-core is inert: two customers
+     that reduce to the same distinctive token (AMAN LIME PRODUCTS vs AMAN
+     ENTERPRISES; DESHWALI MINERALS vs DESHWALI LIME INDUSTRIES) still match
+     each other at certainty. Cached because it is stable for the whole
+     pass and recomputing it per transaction over ~650 lines is waste. */
+  const opts = { aliasParty: aliasOf(np.clean), accountId: t.accountId || '',
+                 ambiguous: ambiguousParties() };
   /* A bank line is one of two things, and confusing them costs real money:
        it PAYS a bill      -> the money is not recorded yet; matching POSTS it
        it IS an entry      -> already in the cashbook; matching may only LINK
