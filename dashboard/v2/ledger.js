@@ -163,6 +163,55 @@ function exportLedger(L) {
   QLShell.toast('Statement exported — ' + L.rows.length + ' entries', 'ok');
 }
 
+
+/* ── OUTSTANDING ─────────────────────────────────────────────────────────
+   Invoice-by-invoice, from QLD.salesRows()/purchaseRows() — the SAME rows
+   the registers show, never a second calculation. The ledger above answers
+   "what is the balance"; this answers "which bills make it up", which is
+   the question you need answered before allocating a receipt.
+   Matching is by the party's own identity: GSTIN when both sides have one,
+   otherwise the exact name. A near-name is NOT accepted — this book already
+   contains two AMANs and two DESHWALIs. */
+function outstandingFor(p) {
+  const G = x => String(x == null ? '' : x).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const N = x => String(x == null ? '' : x).toUpperCase().replace(/\s+/g, ' ').trim();
+  const pg = G(p.gstin), pn = N(p.name);
+  const mine = r => (pg && G(r.gstin) === pg) || (!G(r.gstin) && N(r.party || r.sup) === pn) || (!pg && N(r.party || r.sup) === pn);
+  const src = (p.type === 'supplier') ? (Q.purchaseRows ? Q.purchaseRows() : []) : (Q.salesRows ? Q.salesRows() : []);
+  const today = new Date().toISOString().slice(0, 10);
+  const days = d => { const a = new Date(today + 'T00:00'), b = new Date(String(d) + 'T00:00');
+    const n = Math.round((a - b) / 86400000); return isFinite(n) ? n : 0; };
+  return src.filter(r => r.status !== 'cancelled' && mine(r) && (+r.outstanding || 0) > 0.5)
+    .map(r => ({ ref: r.inv || r.bill || '—', date: r.date, total: +r.total || 0,
+                 paid: +r.paid || 0, bal: +r.outstanding || 0, age: days(r.date) }))
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+}
+function outstandingBlock(p) {
+  const rows = outstandingFor(p);
+  const noun = p.type === 'supplier' ? 'bill' : 'invoice';
+  if (!rows.length) return `<div class="card lgp-tablewrap"><table class="lgp-table">
+      <thead><tr><th>Outstanding</th></tr></thead>
+      <tbody><tr><td class="lgp-empty">Nothing outstanding — every ${noun} is settled.</td></tr></tbody></table></div>`;
+  const tot = rows.reduce((a, r) => a + r.bal, 0);
+  const body = rows.map(r => `<tr>
+      <td class="mono"><b>${esc(r.ref)}</b></td>
+      <td>${Q.fDS(r.date)}</td>
+      <td class="num">${fC(Math.round(r.total))}</td>
+      <td class="num" style="color:#16a34a">${r.paid ? fC(Math.round(r.paid)) : ''}</td>
+      <td class="num strong" style="color:#b91c1c">${fC(Math.round(r.bal))}</td>
+      <td class="num">${r.age > 0 ? r.age + 'd' : '—'}</td>
+    </tr>`).join('');
+  return `<div class="card lgp-tablewrap">
+    <table class="lgp-table">
+      <thead><tr><th>${noun[0].toUpperCase() + noun.slice(1)}</th><th>Date</th><th class="num">Amount</th>
+        <th class="num">Received</th><th class="num">Balance</th><th class="num">Age</th></tr></thead>
+      <tbody>${body}</tbody>
+      <tfoot><tr><td colspan="4">${rows.length} open ${noun}${rows.length === 1 ? '' : 's'}</td>
+        <td class="num strong" style="color:#b91c1c">${fC(Math.round(tot))}</td><td></td></tr></tfoot>
+    </table>
+  </div>`;
+}
+
 function render() {
   const main = document.getElementById('ql-main'); if (!main) return;
   const L = Q.partyLedger(IDX, { from: FROM, to: TO });
@@ -207,6 +256,9 @@ function render() {
       <input type="date" id="lgFrom" value="${FROM}" aria-label="From date"><span>→</span><input type="date" id="lgTo" value="${TO}" aria-label="To date">
       <span class="lgp-count">${L.rows.length} entr${L.rows.length === 1 ? 'y' : 'ies'} · <button class="lgp-chip" id="lgExp" style="margin-left:6px">⬇ Export</button></span>
     </div>
+    <h2 class="lgp-h">Outstanding</h2>
+    ${outstandingBlock(p)}
+    <h2 class="lgp-h">Ledger</h2>
     <div class="card lgp-tablewrap">
       <table class="lgp-table">
         <thead><tr><th>Date</th><th>Particulars</th><th>Ref</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr></thead>

@@ -1007,3 +1007,4 @@ body.ql-ai-open .ql-ai-fab { display: none; }          /* never cover the input 
 .pl-bal{font-weight:800;font-variant-numeric:tabular-nums}
 .pl-bal.dr{color:var(--ql-danger-600)}
 .pl-bal.cr{color:var(--ql-success-700,#15803D)}
+.lgp-h{font-size:var(--ql-text-lg);font-weight:700;margin:22px 0 10px}
