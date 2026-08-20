@@ -1008,3 +1008,17 @@ body.ql-ai-open .ql-ai-fab { display: none; }          /* never cover the input 
 .pl-bal.dr{color:var(--ql-danger-600)}
 .pl-bal.cr{color:var(--ql-success-700,#15803D)}
 .lgp-h{font-size:var(--ql-text-lg);font-weight:700;margin:22px 0 10px}
+
+/* Receipt allocation panel — which invoices does this money pay? */
+.alc-why{padding:10px 12px;border-radius:var(--ql-radius-md);font-size:var(--ql-text-sm);margin-bottom:12px;
+  background:var(--ql-bg-elevated);color:var(--ql-text-muted);border:1px solid var(--ql-border)}
+.alc-why.exact{background:color-mix(in srgb,var(--ql-success-600) 10%,transparent);color:var(--ql-success-700);border-color:color-mix(in srgb,var(--ql-success-600) 35%,transparent);font-weight:600}
+.alc-t{width:100%}
+.alc-d{font-size:var(--ql-text-xs);color:var(--ql-text-muted);margin-top:2px}
+.alc-i{width:130px;text-align:right}
+.alc-sum{display:flex;flex-wrap:wrap;gap:8px 22px;justify-content:space-between;align-items:center;
+  margin-top:14px;padding-top:12px;border-top:1px solid var(--ql-border);font-size:var(--ql-text-sm)}
+.alc-oa{color:var(--ql-warning-700)}
+.alc-ok{color:var(--ql-success-700);font-weight:600}
+.alc-err{color:var(--ql-danger-600);font-size:var(--ql-text-sm);margin-top:8px}
+.alc-err:empty{margin:0}

@@ -45,6 +45,14 @@ function resolveParty() {
 }
 let FROM = '', TO = '';
 
+/* ── RECORD A RECEIPT, AND SAY WHICH BILLS IT PAYS ──────────────────────
+   Two steps on purpose. Step one is the money: how much, when, by what
+   route — facts the person has in front of them from the bank line. Step
+   two is the judgement: which invoices it settles. Merging them would
+   force the second decision before the first is even typed.
+
+   Step two is skipped when there is nothing to decide (a supplier, or a
+   customer with no open bills) — the receipt posts on-account as before. */
 function recordReceipt(p) {
   const isSupp = p.type === 'supplier';
   QLShell.openForm({
@@ -57,12 +65,99 @@ function recordReceipt(p) {
       { k: 'desc', label: 'Note', type: 'textarea', full: true, ph: 'e.g. advance for July dispatch' }
     ],
     initial: { date: new Date().toISOString().slice(0, 10), mode: 'Bank' },
-    saveLabel: isSupp ? 'Record payment' : 'Record receipt',
+    saveLabel: isSupp ? 'Record payment' : 'Continue',
     onSave: v => {
-      Q.recordLedgerEntry(IDX, isSupp ? { dr: +v.amount, date: v.date, mode: v.mode, ref: v.ref, desc: v.desc } : { cr: +v.amount, date: v.date, mode: v.mode, ref: v.ref, desc: v.desc });
-      QLShell.toast(isSupp ? 'Payment recorded' : 'Receipt recorded', 'ok'); render();
+      const openBills = isSupp ? [] : outstandingFor(p);
+      if (!openBills.length) { postOnAccount(p, v); return; }
+      setTimeout(() => allocateStep(p, v, openBills), 0);   // let this modal close first
     }
   });
+}
+
+function postOnAccount(p, v) {
+  const isSupp = p.type === 'supplier';
+  const e = { date: v.date, mode: v.mode, ref: v.ref, desc: v.desc };
+  Q.recordLedgerEntry(IDX, isSupp ? Object.assign({ dr: +v.amount }, e) : Object.assign({ cr: +v.amount }, e));
+  QLShell.toast(isSupp ? 'Payment recorded' : 'Receipt recorded — on account', 'ok');
+  render();
+}
+
+/* Step two: the allocation. QLAllocate proposes, the user decides, and
+   every line stays editable — the engine only refuses what is arithmetically
+   impossible (more than the bill, more than the money). */
+function allocateStep(p, v, bills) {
+  const AL = window.QLAllocate;
+  const amt = +v.amount || 0;
+  const prop = AL.propose(amt, bills);
+  const pre = {}; prop.rows.forEach(r => pre[r.idx] = r.apply);
+
+  const line = b => `<tr>
+      <td><b>${esc(b.ref)}</b><div class="alc-d">${Q.fDS(b.date)}${b.age > 0 ? ' · ' + b.age + 'd' : ''}</div></td>
+      <td class="num">${fC(Math.round(b.bal))}</td>
+      <td class="num"><input class="qlf-input alc-i" data-idx="${b.idx}" type="number" inputmode="decimal" step="any"
+           max="${b.bal}" value="${pre[b.idx] != null ? pre[b.idx] : ''}" placeholder="0"></td>
+    </tr>`;
+
+  QLShell.panel({
+    title: 'Which invoices does this pay?', wide: true,
+    sub: fC(Math.round(amt)) + ' from ' + (p.name || '') + ' · ' + Q.fDS(v.date) + (v.ref ? ' · ' + v.ref : ''),
+    body: `<div class="alc">
+      <div class="alc-why ${prop.kind}">${prop.kind === 'exact' ? '✓ ' : ''}${esc(prop.why || 'No open bills matched.')}</div>
+      <table class="lgp-table alc-t">
+        <thead><tr><th>Invoice</th><th class="num">Outstanding</th><th class="num">Apply</th></tr></thead>
+        <tbody>${bills.map(line).join('')}</tbody>
+      </table>
+      <div class="alc-sum" id="alcSum"></div>
+      <div class="alc-err" id="alcErr"></div>
+    </div>`,
+    actions: [
+      { label: 'Back', onClick: () => { QLShell.closeModal(); setTimeout(() => recordReceipt(p), 0); } },
+      { label: 'Post receipt', primary: true, onClick: el => {
+          const r = AL.validate(amt, bills, readAlloc(el));
+          if (!r.ok) { el.querySelector('#alcErr').innerHTML = r.errors.map(esc).join('<br>'); return; }
+          postAllocated(p, v, r);
+          QLShell.closeModal();
+        } }
+    ],
+    onMount: el => {
+      const paint = () => {
+        const r = AL.validate(amt, bills, readAlloc(el));
+        el.querySelector('#alcErr').innerHTML = r.errors.map(esc).join('<br>');
+        el.querySelector('#alcSum').innerHTML =
+          `<span>Applied to ${r.rows.length} invoice${r.rows.length === 1 ? '' : 's'}: <b>${fC(Math.round(r.applied))}</b></span>` +
+          (r.unapplied > 0.005
+            ? `<span class="alc-oa">On account: <b>${fC(Math.round(r.unapplied))}</b> — kept as an unallocated credit, not forced onto a bill</span>`
+            : `<span class="alc-ok">Fully allocated</span>`);
+      };
+      el.querySelectorAll('.alc-i').forEach(i => { i.oninput = paint; });
+      paint();
+    }
+  });
+}
+
+function readAlloc(el) {
+  const m = {};
+  el.querySelectorAll('.alc-i').forEach(i => { const v = parseFloat(i.value); if (isFinite(v) && v !== 0) m[i.dataset.idx] = v; });
+  return m;
+}
+
+/* Posting. Each allocated line goes through Q.receiveSalesPayment, the same
+   call the sales register uses — so the invoice status, its payment log and
+   the cashbook all move together and there is no second way to pay a bill.
+   Anything unallocated posts as one on-account ledger entry. The two paths
+   add up to the amount received, never more. */
+function postAllocated(p, v, r) {
+  r.rows.forEach(row => Q.receiveSalesPayment(row.idx, {
+    amount: row.apply, date: v.date, method: v.mode, ref: v.ref,
+    notes: v.desc || ('Allocated from receipt' + (v.ref ? ' ' + v.ref : ''))
+  }));
+  if (r.unapplied > 0.005) {
+    Q.recordLedgerEntry(IDX, { cr: r.unapplied, date: v.date, mode: v.mode, ref: v.ref,
+      desc: v.desc || 'On-account receipt (unallocated balance)' });
+  }
+  const n = r.rows.length;
+  QLShell.toast(n ? 'Receipt posted · ' + n + ' invoice' + (n === 1 ? '' : 's') + ' updated' : 'Receipt posted on account', 'ok');
+  render();
 }
 
 function statementDoc(L) {
@@ -185,7 +280,7 @@ function outstandingFor(p) {
   const days = d => { const a = new Date(today + 'T00:00'), b = new Date(String(d) + 'T00:00');
     const n = Math.round((a - b) / 86400000); return isFinite(n) ? n : 0; };
   return src.filter(r => r.status !== 'cancelled' && mine(r) && (+r.outstanding || 0) > 0.5)
-    .map(r => ({ ref: r.inv || r.bill || '—', date: r.date, total: +r.total || 0,
+    .map(r => ({ idx: r.idx, ref: r.inv || r.bill || '—', date: r.date, total: +r.total || 0,
                  paid: +r.paid || 0, bal: +r.outstanding || 0, age: days(r.date) }))
     .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 }

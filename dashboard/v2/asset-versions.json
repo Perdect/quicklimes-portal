@@ -4,8 +4,8 @@
     "sha": "d624183107dd"
   },
   "pages.css": {
-    "v": "m20co",
-    "sha": "ff61dfc4bcba"
+    "v": "m20cor",
+    "sha": "4dd203817dc1"
   },
   "qlx.css": {
     "v": "m21",
@@ -199,9 +199,13 @@
     "v": "m9",
     "sha": "39e3307c698d"
   },
+  "allocate-core.js": {
+    "v": "al1",
+    "sha": "901c12cfe254"
+  },
   "ledger.js": {
-    "v": "lg3cop",
-    "sha": "3ac7e81277dd"
+    "v": "lg3copq",
+    "sha": "af0e755e13fe"
   },
   "loans.js": {
     "v": "b2",
