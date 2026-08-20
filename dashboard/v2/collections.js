@@ -158,7 +158,9 @@ QLX.mount({
   sortDefault: { key: 'out', dir: 'desc' },
   columns: [
     { key: 'sr', label: '#', cell: (r, sr) => `<span class="qx-sr">${sr}</span>`, cls: 'qx-sr' },
-    { key: 'party', label: 'Customer', sort: true, cell: r => `<span class="qx-party-n" style="font-weight:600">${esc(r.party)}</span>` },
+    { key: 'party', label: 'Customer', sort: true,
+      cell: r => window.QLPartyLink ? QLPartyLink.chip({ name: r.party, gstin: r.gstin })
+                                    : `<span class="qx-party-n" style="font-weight:600">${esc(r.party)}</span>` },
     { key: 'bills', label: 'Bills', sort: true, num: true, cell: r => `<span class="qx-mut">${r.bills}</span>` },
     { key: 'days', label: 'Aging', sort: true, cell: agePill },
     { key: 'last', label: 'Last sale', sort: true, cell: r => `<span class="qx-mut">${Q.fDS(r.last)}</span>` },

@@ -37,7 +37,14 @@ async function delAttach(idx, id) { const s = Q.state.SALES[idx]; Q.updateSale(i
 /* ── cells ── */
 function stCell(r) { return `<select class="qx-st s-${r.status}" data-st="${r.idx}" onclick="event.stopPropagation()">${STATUSES.map(s => `<option value="${s[0]}" ${s[0] === r.status ? 'selected' : ''}>${s[1]}</option>`).join('')}</select>`; }
 function stPill(r) { const st = r.status; return `<span class="qx-pill s-${st}">${st[0].toUpperCase() + st.slice(1)}</span>`; }
-function partyCell(r) { return `<span class="qx-party-n" style="font-weight:600">${esc(r.party)}</span>`; }
+/* One seam for the whole app: the customer name IS the way into their
+   finance portal. QLPartyLink resolves GSTIN-first and renders plain,
+   unlinked text when it cannot be certain who this is — an ambiguous name
+   goes nowhere rather than to a plausible wrong customer. */
+function partyCell(r) {
+  if (window.QLPartyLink) return QLPartyLink.chip({ name: r.party, gstin: r.gstin });
+  return `<span class="qx-party-n" style="font-weight:600">${esc(r.party)}</span>`;
+}
 
 /* ── mutations ── */
 function printInv(r) { QLShell.printInvoice(r.idx); }

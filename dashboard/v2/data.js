@@ -1642,7 +1642,11 @@
   /* ── Parties helpers ─────────────────────────────────────────── */
   function partyRows() {
     return withIdx(S.PARTIES).map(([p, i]) => ({
-      idx: i, name: p.name, gstin: p.gstin || '', phone: p.phone || '',
+      /* idx is the ARRAY POSITION and moves when the list changes; id is
+         stable for the life of the party. Links must prefer id — a URL that
+         means "the 10th row" silently shows a different customer's finances
+         after any list change. */
+      idx: i, id: p.id || '', name: p.name, gstin: p.gstin || '', phone: p.phone || '',
       address: p.address || '', state: p.state || '', type: p.type || 'customer', notes: p.notes || '',
       // Running-account fields (bank-ledger model): opening balance (+ = they owe us),
       // credit limit & credit days for terms/overdue tracking.

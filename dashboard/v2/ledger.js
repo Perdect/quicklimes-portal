@@ -21,7 +21,25 @@ function waLink(phone, text) {
 }
 function isMobile() { return window.matchMedia && window.matchMedia('(max-width:768px)').matches; }
 
-let IDX = parseInt(qp('party'), 10); if (isNaN(IDX)) IDX = 0;
+/* ── WHICH CUSTOMER ────────────────────────────────────────────────────
+   ?id=<stable party id> is canonical. ?party=<array index> still works so
+   every existing link and bookmark keeps resolving, but it is a POSITION:
+   it means "the 10th row", so after the party list changes it points at a
+   different customer's finances. Prefer id; fall back to index; and if an
+   id is given that no longer exists, say so rather than silently showing
+   row 0 — which would put one customer's balance under another's name. */
+let IDX = 0, BAD_ID = '';
+(function resolveParty() {
+  const wantId = qp('id');
+  if (wantId) {
+    const rows = (window.QLD && QLD.partyRows) ? QLD.partyRows() : [];
+    const hit = rows.find(r => r.id === wantId);
+    if (hit) { IDX = hit.idx; return; }
+    BAD_ID = wantId;                       // fall through to the index, but remember
+  }
+  const n = parseInt(qp('party'), 10);
+  IDX = isNaN(n) ? 0 : n;
+})();
 let FROM = '', TO = '';
 
 function recordReceipt(p) {

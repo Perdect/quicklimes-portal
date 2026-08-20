@@ -37,7 +37,14 @@ function accSpec() {
   return accounts.length ? [{ k: 'accountId', label: 'Bank account', type: 'select', opts: [['', '—']].concat(accounts.map(a => [a.id, a.label])) }] : [];
 }
 function accLabel(mode) { return (ACC[mode] || ACC.bank)[0]; }
-function partyCell(r) { return `<span class="qx-party-n" style="font-weight:600">${esc(r.party)}</span>`; }
+/* One seam for the whole app: the customer name IS the way into their
+   finance portal. QLPartyLink resolves GSTIN-first and renders plain,
+   unlinked text when it cannot be certain who this is — an ambiguous name
+   goes nowhere rather than to a plausible wrong customer. */
+function partyCell(r) {
+  if (window.QLPartyLink) return QLPartyLink.chip({ name: r.party, gstin: r.gstin });
+  return `<span class="qx-party-n" style="font-weight:600">${esc(r.party)}</span>`;
+}
 
 /* ══════════════════ MODALS ══════════════════ */
 function receivePaymentModal() {

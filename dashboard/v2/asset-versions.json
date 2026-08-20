@@ -4,8 +4,8 @@
     "sha": "d624183107dd"
   },
   "pages.css": {
-    "v": "m20",
-    "sha": "e23abe934f09"
+    "v": "m20c",
+    "sha": "c1cf893f3965"
   },
   "qlx.css": {
     "v": "m21",
@@ -48,8 +48,8 @@
     "sha": "2b271ee5c6b3"
   },
   "data.js": {
-    "v": "m52",
-    "sha": "2f708a694602"
+    "v": "m52c",
+    "sha": "d2732222df04"
   },
   "i18n.js": {
     "v": "h8",
@@ -66,6 +66,10 @@
   "mobile.js": {
     "v": "m16",
     "sha": "106ad4847e8d"
+  },
+  "party-link.js": {
+    "v": "pl1",
+    "sha": "29ea62c4731c"
   },
   "qlx.js": {
     "v": "m20prg",
@@ -84,8 +88,8 @@
     "sha": "5fe01c9cd041"
   },
   "collections.js": {
-    "v": "c3",
-    "sha": "313d25e71836"
+    "v": "c3c",
+    "sha": "ab09d0f853e1"
   },
   "finance.css": {
     "v": "f5",
@@ -196,8 +200,8 @@
     "sha": "39e3307c698d"
   },
   "ledger.js": {
-    "v": "lg3",
-    "sha": "eca8528cf4fd"
+    "v": "lg3c",
+    "sha": "2b27d6091f5c"
   },
   "loans.js": {
     "v": "b2",
@@ -224,8 +228,8 @@
     "sha": "92f29dea02a8"
   },
   "payments.js": {
-    "v": "m2d",
-    "sha": "12261323db3a"
+    "v": "m2dc",
+    "sha": "1914c3958696"
   },
   "qty-backfill.js": {
     "v": "q2",
@@ -264,8 +268,8 @@
     "sha": "dcda51cabb2f"
   },
   "sales.js": {
-    "v": "m321p",
-    "sha": "3fb08a697ec2"
+    "v": "m321pc",
+    "sha": "632d8beffdfd"
   },
   "selfcheck.js": {
     "v": "s2",
