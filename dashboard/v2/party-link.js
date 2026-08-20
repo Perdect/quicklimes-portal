@@ -118,7 +118,30 @@
       '<a class="ql-btn ql-btn-secondary" href="' + financeUrl(p) + '">Finance portal →</a></div>';
   }
 
-  var api = { chip: chip, actions: actions, header: header, resolve: resolve,
+
+  /* Which customer does this URL mean?  Shared by every page that opens a
+     single customer, so the answer is the same everywhere and testable.
+
+     Two rules earned by a real bug:
+       · ?id (stable) beats ?party (an array POSITION that moves).
+       · An EMPTY party list means "not loaded yet", never "not found". The
+         ledger page resolved before the company blob had hydrated, found an
+         empty list, and fell back to index 0 — so every id link opened row
+         0's customer. Callers must resolve when data is ready; if they call
+         early, this returns notReady rather than a confident wrong answer. */
+  function route(search, rows) {
+    var qs = new (root.URLSearchParams || URLSearchParams)(String(search || '').replace(/^\?/, ''));
+    var wantId = qs.get('id'), n = parseInt(qs.get('party'), 10);
+    var idx = isNaN(n) ? 0 : n;
+    if (wantId) {
+      if (!rows || !rows.length) return { idx: idx, notReady: true, badId: '' };
+      for (var i = 0; i < rows.length; i++) if (rows[i].id === wantId) return { idx: rows[i].idx, notReady: false, badId: '' };
+      return { idx: idx, notReady: false, badId: wantId };
+    }
+    return { idx: idx, notReady: false, badId: '' };
+  }
+
+  var api = { route: route, chip: chip, actions: actions, header: header, resolve: resolve,
               financeUrl: financeUrl, profileUrl: profileUrl, invalidate: invalidate };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.QLPartyLink = api;

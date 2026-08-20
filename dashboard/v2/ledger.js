@@ -27,19 +27,22 @@ function isMobile() { return window.matchMedia && window.matchMedia('(max-width:
    it means "the 10th row", so after the party list changes it points at a
    different customer's finances. Prefer id; fall back to index; and if an
    id is given that no longer exists, say so rather than silently showing
-   row 0 — which would put one customer's balance under another's name. */
-let IDX = 0, BAD_ID = '';
-(function resolveParty() {
-  const wantId = qp('id');
-  if (wantId) {
-    const rows = (window.QLD && QLD.partyRows) ? QLD.partyRows() : [];
-    const hit = rows.find(r => r.id === wantId);
-    if (hit) { IDX = hit.idx; return; }
-    BAD_ID = wantId;                       // fall through to the index, but remember
-  }
-  const n = parseInt(qp('party'), 10);
-  IDX = isNaN(n) ? 0 : n;
-})();
+   row 0 — which would put one customer's balance under another's name.
+
+   RESOLVE AT RENDER TIME, NOT AT LOAD TIME. This ran once as an IIFE while
+   the module was still parsing — before Q.init() had hydrated the company
+   blob — so partyRows() was empty, every id "wasn't found", and IDX fell
+   back to 0. Every id link opened row 0's customer. It looked correct only
+   because the party I first tested with happened to BE row 0. Data is ready
+   inside render(), and re-resolving there also survives a company switch. */
+let IDX = 0, BAD_ID = '', NOT_READY = false;
+function resolveParty() {
+  const rows = (window.QLD && QLD.partyRows) ? QLD.partyRows() : [];
+  const r = (window.QLPartyLink && QLPartyLink.route)
+    ? QLPartyLink.route(location.search, rows)
+    : { idx: parseInt(qp('party'), 10) || 0, badId: '' };
+  IDX = r.idx; BAD_ID = r.badId || ''; NOT_READY = !!r.notReady;
+}
 let FROM = '', TO = '';
 
 function recordReceipt(p) {
@@ -214,7 +217,10 @@ function outstandingBlock(p) {
 
 function render() {
   const main = document.getElementById('ql-main'); if (!main) return;
+  resolveParty();
   const L = Q.partyLedger(IDX, { from: FROM, to: TO });
+  if (NOT_READY) { main.innerHTML = `<div class="dash"><div class="card" style="padding:28px">Loading customer…</div></div>`; return; }
+  if (BAD_ID) { main.innerHTML = `<div class="dash"><div class="page-head"><h1 class="page-title">Customer not found</h1></div><div class="card" style="padding:28px">No customer with id <span class="mono">${esc(BAD_ID)}</span> in <b>${esc((Q.co && Q.co.name) || 'this company')}</b>. They may belong to another company, or have been deleted.<br><br><a href="parties.html">← Back to customers</a></div></div>`; return; }
   if (!L) { main.innerHTML = `<div class="dash"><div class="page-head"><h1 class="page-title">Statement</h1></div><div class="card" style="padding:28px">Party not found. <a href="parties.html">← Back to customers</a></div></div>`; return; }
   const p = L.party, bal = L.closing;
   const balCol = bal > 0.5 ? 'var(--ql-danger-600)' : bal < -0.5 ? '#16a34a' : 'var(--ql-text)';

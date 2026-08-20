@@ -102,6 +102,28 @@ global.QLD = { partyRows: () => ([
   global.QLD.partyRows = real;
 }
 
+/* ── ROUTE: which customer does this URL mean? ──────────────────────────── */
+{
+  const ROWS = [{ id: 'pARIF', idx: 0, name: 'ARIF CHEMICAL LIME' },
+                { id: 'pAMAN', idx: 9, name: 'AMAN ENTERPRISES' }];
+  ok('ROUTE · ?id finds the party by stable id, not by position',
+     PL.route('?id=pAMAN', ROWS).idx === 9);
+  ok('ROUTE · ?id for row 0 still resolves (the case that hid the bug)',
+     PL.route('?id=pARIF', ROWS).idx === 0 && !PL.route('?id=pARIF', ROWS).badId);
+  ok('ROUTE · legacy ?party index keeps working',
+     PL.route('?party=9', ROWS).idx === 9);
+  ok('ROUTE · ?id wins over a conflicting ?party',
+     PL.route('?id=pAMAN&party=0', ROWS).idx === 9);
+  /* THE REGRESSION. An unhydrated list is "not loaded yet", never "not found".
+     Resolving early against [] silently sent every id link to row 0. */
+  const early = PL.route('?id=pAMAN', []);
+  ok('ROUTE · empty list is notReady, NOT a bad id', early.notReady === true && early.badId === '');
+  const gone = PL.route('?id=pGHOST', ROWS);
+  ok('ROUTE · an id that is genuinely absent reports badId rather than showing row 0',
+     gone.badId === 'pGHOST' && !gone.notReady);
+  ok('ROUTE · no params at all falls back to row 0', PL.route('', ROWS).idx === 0);
+}
+
 console.log('\n════ party-link (one way into a customer) ════');
 console.log('  Passed: ' + pass + '   Failed: ' + fail);
 bad.forEach(b => console.log('    ✗ ' + b));
