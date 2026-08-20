@@ -645,8 +645,24 @@
          did. Deleted records stay out: a hit you tap and cannot find in the
          register is worse than no hit. */
       const live = x => !x._del && !x._arch && (x.status || 'pending') !== 'cancelled';
-      [...new Set(Q.state.PARTIES.filter(p => !p._del).map(p => p.name))].filter(n => n.toLowerCase().includes(ql)).slice(0, 4)
-        .forEach(n => res.push({ group: 'Parties', icon: 'users', t: n, s: 'Customer / supplier', href: 'sales.html' }));
+      /* A party hit used to send you to sales.html — you searched for a
+         customer, pressed Enter, and landed on the sales register with no
+         customer selected. It now opens THAT customer's finance portal by
+         stable id, which is the thing you were looking for.
+         Names are no longer deduped: two real parties can share a name (this
+         book holds two AMANs and two DESHWALIs), and collapsing them hid one
+         of them entirely. Both are listed, told apart by GSTIN. GSTIN is
+         searchable too — it is often what you have in front of you. */
+      Q.partyRows().filter(p => (p.name || '').toLowerCase().includes(ql) || (p.gstin || '').toLowerCase().includes(ql)).slice(0, 5)
+        .forEach(p => res.push({
+          group: 'Parties', icon: 'users', t: p.name,
+          s: ((p.type || 'customer') === 'supplier' ? 'Supplier' : 'Customer') + (p.gstin ? ' · ' + p.gstin : ' · no GSTIN'),
+          /* Mirrors QLPartyLink.financeUrl, including its fallback: a legacy
+             party with no stable id must carry &party=<idx>, or the link
+             reads as "no id given" and the portal opens row 0. */
+          href: (window.QLPartyLink ? QLPartyLink.financeUrl(p)
+                 : 'ledger.html?id=' + encodeURIComponent(p.id || '') + (p.id ? '' : '&party=' + p.idx))
+        }));
       Q.state.SALES.filter(live).filter(s => (s.inv + ' ' + s.party + ' ' + (s.veh || '') + ' ' + (s.gstin || '')).toLowerCase().includes(ql)).slice(0, 5)
         .forEach(s => res.push({ group: 'Invoices', icon: 'sales', t: s.inv + ' — ' + s.party, s: Q.fDS(s.date) + (s.veh ? ' · 🚚 ' + s.veh : ''), href: 'sales.html' }));
       Q.state.PURCHASES.filter(live).filter(p => ((p.bill || '') + ' ' + (p.sup || '') + ' ' + (p.veh || '') + ' ' + (p.gstin || '')).toLowerCase().includes(ql)).slice(0, 5)

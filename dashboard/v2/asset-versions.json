@@ -51,6 +51,10 @@
     "v": "m52c",
     "sha": "d2732222df04"
   },
+  "party-link.js": {
+    "v": "pl1p",
+    "sha": "84f66376d4a0"
+  },
   "i18n.js": {
     "v": "h8",
     "sha": "82e32fac7f7c"
@@ -60,16 +64,12 @@
     "sha": "14462b5adbf8"
   },
   "shell.js": {
-    "v": "m68",
-    "sha": "15d0753630aa"
+    "v": "m68s",
+    "sha": "eb65c33b309c"
   },
   "mobile.js": {
     "v": "m16",
     "sha": "106ad4847e8d"
-  },
-  "party-link.js": {
-    "v": "pl1p",
-    "sha": "84f66376d4a0"
   },
   "qlx.js": {
     "v": "m20prg",
