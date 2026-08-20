@@ -193,7 +193,11 @@ function copyLink(r) { const text = `${Q.co.short} · Bill ${r.bill || ''} · ${
 function stCell(r) { const st = r.isOverdue ? 'overdue' : r.status; return `<select class="qx-st s-${st}" data-st="${r.idx}" onclick="event.stopPropagation()">${STATUSES.map(s => `<option value="${s[0]}" ${s[0] === r.status ? 'selected' : ''}>${r.isOverdue && s[0] === 'pending' ? 'Overdue' : s[1]}</option>`).join('')}</select>`; }
 function stPill(r) { const st = r.isOverdue ? 'overdue' : r.status; return `<span class="qx-pill s-${st}">${st[0].toUpperCase() + st.slice(1)}</span>`; }
 function groupChip(r) { const gc = GCOL[r.group] || GCOL.other; return `<span class="qx-pill" style="background:${gc[0]};color:${gc[1]}">${r.emoji} ${esc(r.groupLabel)}</span>`; }
-function supCell(r) { return `<span class="qx-party-n" style="font-weight:600">${esc(r.sup)}</span>`; }
+/* Suppliers are parties too — same component, same finance portal. */
+function supCell(r) {
+  if (window.QLPartyLink) return QLPartyLink.chip({ name: r.sup, gstin: r.gstin });
+  return `<span class="qx-party-n" style="font-weight:600">${esc(r.sup)}</span>`;
+}
 /* No freight badge here. It used to carry the amount because the Freight column
    was off the right edge of a register wider than the screen — but the amount now
    appears twice more on the same row (in Freight, and inside Landed cost), and a
@@ -916,6 +920,11 @@ QLX.mount({
     ...(r.status !== 'paid' && r.status !== 'cancelled' ? [{ tt: 'Mark paid', icon: IC.check, cls: 'qx-ib-ok', onClick: markPaid }] : [])
   ],
   rowMenu: r => [
+    /* Every row reaches the customer: one shared definition, so the
+       menu cannot drift between registers. Empty when the party
+       cannot be identified with certainty. */
+    ...(window.QLPartyLink ? QLPartyLink.actions({ name: r.sup, gstin: r.gstin }) : []),
+
     { label: 'Duplicate', icon: IC.copy, onClick: dupBill },
     { label: 'Download PDF', icon: IC.dl, onClick: openBillPdf },
     { label: 'Print', icon: IC.print, onClick: pdfWindow },

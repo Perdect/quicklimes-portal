@@ -310,6 +310,11 @@ QLX.mount({
     { tt: 'Edit', icon: IC.edit, onClick: r => QLShell.openSaleForm(r.idx) }
   ],
   rowMenu: r => [
+    /* Every row reaches the customer: one shared definition, so the
+       menu cannot drift between registers. Empty when the party
+       cannot be identified with certainty. */
+    ...(window.QLPartyLink ? QLPartyLink.actions({ name: r.party, gstin: r.gstin }) : []),
+
     { label: 'Print / PDF', icon: IC.print, onClick: openInvPdf },
     { label: 'Edit', icon: IC.edit, onClick: r => QLShell.openSaleForm(r.idx) },
     { label: 'Duplicate', icon: IC.copy, onClick: dupInv },

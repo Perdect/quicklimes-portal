@@ -76,8 +76,8 @@
     "sha": "26b4300d0ad0"
   },
   "cashbook.js": {
-    "v": "m4",
-    "sha": "c4b7a4fa1346"
+    "v": "m4d",
+    "sha": "c1b8088ddf1d"
   },
   "chat.js": {
     "v": "ch2",
@@ -88,8 +88,8 @@
     "sha": "5fe01c9cd041"
   },
   "collections.js": {
-    "v": "c3c",
-    "sha": "ab09d0f853e1"
+    "v": "c3cd",
+    "sha": "658aa014f4d8"
   },
   "finance.css": {
     "v": "f5",
@@ -224,8 +224,8 @@
     "sha": "c80d58b5e4b0"
   },
   "parties.js": {
-    "v": "crm9c",
-    "sha": "92f29dea02a8"
+    "v": "crm9cd",
+    "sha": "7bfc1be08139"
   },
   "payments.js": {
     "v": "m2dc",
@@ -252,8 +252,8 @@
     "sha": "1abf109c7a43"
   },
   "purchase.js": {
-    "v": "m471p",
-    "sha": "ab3c56f0ddd5"
+    "v": "m471pd",
+    "sha": "c3a9bdc935aa"
   },
   "refund-ocr.js": {
     "v": "r2",
@@ -268,8 +268,8 @@
     "sha": "dcda51cabb2f"
   },
   "sales.js": {
-    "v": "m321pc",
-    "sha": "632d8beffdfd"
+    "v": "m321pcd",
+    "sha": "321e8548bc82"
   },
   "selfcheck.js": {
     "v": "s2",

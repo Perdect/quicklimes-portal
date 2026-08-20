@@ -173,6 +173,11 @@ QLX.mount({
     { tt: 'Receive payment', icon: IC.check, cls: 'qx-ib-ok', onClick: r => receivePayment(r) }
   ],
   rowMenu: r => [
+    /* Every row reaches the customer: one shared definition, so the
+       menu cannot drift between registers. Empty when the party
+       cannot be identified with certainty. */
+    ...(window.QLPartyLink ? QLPartyLink.actions({ name: r.party, gstin: r.gstin }) : []),
+
     { label: 'Receive payment', icon: IC.check, onClick: r => receivePayment(r) },
     { label: 'Details', icon: IC.eye, onClick: r => QLX.open(r.idx) },
     ...(r.phone ? [{ label: 'WhatsApp reminder', icon: IC.wa, onClick: r => window.open(waLink(r.phone, reminderMsg(r)), '_blank') }, { label: 'Call', icon: IC.call, onClick: r => location.href = 'tel:' + r.phone }] : [])

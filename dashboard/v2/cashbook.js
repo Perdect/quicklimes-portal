@@ -63,7 +63,9 @@ QLX.mount({
     { key: 'sr', label: '#', cell: (r, sr) => `<span class="qx-sr">${sr}</span>`, cls: 'qx-sr' },
     { key: 'date', label: 'Date', sort: true, cell: r => `<span class="qx-mut">${fDS(r.date)}</span>` },
     { key: 'category', label: 'Category', sort: true, cell: r => `<span class="qx-strong">${esc(r.category || '—')}</span>` },
-    { key: 'party', label: 'Party', cell: r => `<span class="qx-party-n">${esc(r.party || '—')}</span>` },
+    { key: 'party', label: 'Party',
+      cell: r => window.QLPartyLink ? QLPartyLink.chip({ name: r.party || '—', gstin: r.gstin })
+                                    : `<span class="qx-party-n">${esc(r.party || '—')}</span>` },
     { key: 'mode', label: 'Account', cell: modeTag },
     { key: 'ref', label: 'Reference', cell: r => `<span class="qx-mut">${esc(r.ref || '—')}</span>` },
     { key: 'amount', label: 'Amount', sort: true, num: true, cell: amtCell },

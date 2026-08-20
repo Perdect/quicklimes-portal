@@ -403,7 +403,7 @@ QLX.mount({
   sortDefault: { key: 'salesAmt', dir: 'desc' },
   columns: [
     { key: 'sr', label: '#', cell: (r, sr) => `<span class="qx-sr">${sr}</span>`, cls: 'qx-sr' },
-    { key: 'name', label: 'Customer', sort: true, cell: r => `<div class="crm-cust">${avatar(r)}<div class="crm-cust-t"><span class="crm-cust-n">${esc(r.name)}</span><span class="crm-cust-s">${esc(r.state || r.gstin || r.phone || 'No GSTIN')}</span></div></div>` },
+    { key: 'name', label: 'Customer', sort: true, cell: r => `<div class="crm-cust">${avatar(r)}<div class="crm-cust-t"><span class="crm-cust-n">${window.QLPartyLink ? QLPartyLink.chip({ name: r.name, gstin: r.gstin }) : esc(r.name)}</span><span class="crm-cust-s">${esc(r.state || r.gstin || r.phone || 'No GSTIN')}</span></div></div>` },
     { key: 'seg', label: 'Segment', sort: true, cell: segPill },
     { key: 'health', label: 'Health', sort: true, num: true, cell: r => r.salesN ? healthBar(r.health) : '<span class="qx-mut">—</span>' },
     { key: 'salesAmt', label: 'Business', sort: true, num: true, cell: r => `<span class="qx-num qx-strong">${fC(r.business)}</span>` },
