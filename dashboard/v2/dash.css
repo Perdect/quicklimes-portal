@@ -223,3 +223,6 @@
 [data-theme="dark"] .dx-ai-ask { background: #172554; border-color: #1e3a5f; color: #93b4fd; }
 [data-theme="dark"] .dx-ai-ask:hover { background: var(--ql-brand-900); }
 [data-theme="dark"] .dx-icobtn.on { background: #172554; border-color: #1e3a5f; color: #93b4fd; }
+.dx-party-l{text-decoration:none;color:inherit;cursor:pointer;border-radius:var(--ql-radius-md)}
+.dx-party-l:hover{background:var(--ql-bg-elevated)}
+.dx-party-l:hover .dx-party-n{text-decoration:underline}

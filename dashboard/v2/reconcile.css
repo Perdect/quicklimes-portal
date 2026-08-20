@@ -845,3 +845,7 @@
 .rc-stmt-del:hover { background: var(--ql-danger-100); }
 [data-theme="dark"] .rc-stmt-del { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); color: #fca5a5; }
 .rc-stmt-foot { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+
+/* A recognised party name opens their finance portal. */
+.rc-party-lnk{text-decoration:none;color:inherit;cursor:pointer}
+.rc-party-lnk:hover{text-decoration:underline;color:var(--ql-brand-600)}

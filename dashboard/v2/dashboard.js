@@ -347,12 +347,28 @@ function financeCard(gst, bal, pay) {
 }
 const AVC = ['#0891B2,#155E75', '#7C3AED,#5B21B6', '#16A34A,#15803D', '#F59E0B,#B45309', '#DB2777,#9D174D', '#2563EB,#1D4ED8'];
 const avc = s => AVC[(((s || '?').charCodeAt(0)) + (s || '').length) % AVC.length];
+/* A customer's name on the dashboard is the shortest route to their finances,
+   so it opens the finance portal — resolved through QLPartyLink by identity
+   (GSTIN first), never by array position. A name that cannot be resolved to
+   exactly one saved party stays plain text rather than linking to a guess. */
+function pHref(name, gstin) {
+  const PL = window.QLPartyLink;
+  if (!PL || !PL.resolve) return '';
+  const r = PL.resolve({ name: name, gstin: gstin });
+  return (r && r.party) ? PL.financeUrl(r.party) : '';
+}
 function partiesCard() {
-  const byC = {}; Q.salesRows().forEach(r => { const k = r.party; byC[k] = byC[k] || { n: k, amt: 0, pend: 0 }; byC[k].amt += r.total; byC[k].pend += r.outstanding; });
+  const byC = {}; Q.salesRows().forEach(r => { const k = r.party; byC[k] = byC[k] || { n: k, g: '', amt: 0, pend: 0 }; byC[k].g = byC[k].g || r.gstin || ''; byC[k].amt += r.total; byC[k].pend += r.outstanding; });
   const cust = Object.values(byC).sort((a, b) => b.amt - a.amt).slice(0, 5);
-  const byS = {}; Q.purchaseRows().forEach(r => { const k = r.sup; byS[k] = byS[k] || { n: k, amt: 0, pend: 0 }; byS[k].amt += r.total; byS[k].pend += r.outstanding; });
+  const byS = {}; Q.purchaseRows().forEach(r => { const k = r.sup; byS[k] = byS[k] || { n: k, g: '', amt: 0, pend: 0 }; byS[k].g = byS[k].g || r.gstin || ''; byS[k].amt += r.total; byS[k].pend += r.outstanding; });
   const sup = Object.values(byS).sort((a, b) => b.amt - a.amt).slice(0, 5);
-  const rowsOf = arr => arr.length ? arr.map(x => `<div class="dx-party"><span class="dx-av" style="background:linear-gradient(135deg,${avc(x.n)})">${(x.n || '?').charAt(0).toUpperCase()}</span><span class="dx-party-n">${esc(x.n)}</span><span class="dx-party-a">${fC(x.amt)}${x.pend > 0 ? `<span class="dx-party-p">${fC(x.pend)} due</span>` : ''}</span></div>`).join('') : '<div class="dx-empty">No data yet.</div>';
+  const rowsOf = arr => arr.length ? arr.map(x => {
+    const href = pHref(x.n, x.g);
+    const inner = `<span class="dx-av" style="background:linear-gradient(135deg,${avc(x.n)})">${(x.n || '?').charAt(0).toUpperCase()}</span><span class="dx-party-n">${esc(x.n)}</span><span class="dx-party-a">${fC(x.amt)}${x.pend > 0 ? `<span class="dx-party-p">${fC(x.pend)} due</span>` : ''}</span>`;
+    return href
+      ? `<a class="dx-party dx-party-l" href="${href}" title="Open finance portal">${inner}</a>`
+      : `<div class="dx-party">${inner}</div>`;
+  }).join('') : '<div class="dx-empty">No data yet.</div>';
   return `<div class="dx-card"><div class="dx-card-h"><div class="dx-seg2"><button class="on" data-pt="cust">Top customers</button><button data-pt="sup">Top suppliers</button></div><a class="dx-link" href="parties.html">All →</a></div>
     <div class="dx-parties" data-pane="cust">${rowsOf(cust)}</div>
     <div class="dx-parties" data-pane="sup" hidden>${rowsOf(sup)}</div></div>`;

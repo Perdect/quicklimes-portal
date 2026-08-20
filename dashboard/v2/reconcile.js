@@ -1323,7 +1323,16 @@ function partyCell(t) {
   const unknown = !isOther && ((m.status === 'unknown') || !isLinked(t));
   const tick = known ? `<span class="rc-ok" title="Recognized as ${esc(known)}">${svg('<path d="M20 6 9 17l-5-5"/>')}</span>` : '';
   const idLink = unknown ? `<button class="rc-idbtn" data-link="${t.id}">Identify</button>` : '';
-  return `<div class="rc-party-n">${tick}<span class="rc-party-nm">${esc(name)}</span></div>`
+  /* A RECOGNISED name opens that customer's finance portal — the reconcile
+     screen is where you most often need to see the rest of their account
+     before deciding what a payment was for. Resolved through QLPartyLink by
+     identity, and only when the name maps to exactly one saved party: an
+     unresolved bank blob stays plain text rather than linking to a guess. */
+  const pl = (known && window.QLPartyLink && QLPartyLink.resolve) ? QLPartyLink.resolve({ name: known, gstin: b ? b.gstin : '' }) : null;
+  const nameHTML = (pl && pl.party)
+    ? `<a class="rc-party-nm rc-party-lnk" href="${QLPartyLink.financeUrl(pl.party)}" title="Open finance portal">${esc(name)}</a>`
+    : `<span class="rc-party-nm">${esc(name)}</span>`;
+  return `<div class="rc-party-n">${tick}${nameHTML}</div>`
     + `<div class="rc-party-nar"><span class="rc-nar-t">${esc(norm2)}</span>${idLink}</div>`;
 }
 /* Transaction column — WHAT this money movement is, not just Credit/Debit. */
