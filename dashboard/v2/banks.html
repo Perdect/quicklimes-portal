@@ -87,6 +87,17 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <div id="ql-page">
   <div class="dash">
     <div id="bkHero"></div>
+    <!-- The page binds handlers to these ids at MODULE SCOPE, and an inline
+         onclick elsewhere clicks one of them. Keeping the original buttons here
+         (hidden) leaves every one of those bindings untouched; the shared
+         header's tools simply call their onclick. Removing them with the old
+         header made `$('#bkManage').onclick = …` throw on null, which killed the
+         rest of the page render — the body showed only the nav shell. -->
+    <div hidden>
+      <button id="bkManage" type="button"></button>
+      <button id="bkAdd" type="button"></button>
+      <button id="bkUpload" type="button"></button>
+    </div>
     </div>
     <div id="bkBody"></div>
   </div>
