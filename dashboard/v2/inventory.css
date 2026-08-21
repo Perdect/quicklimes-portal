@@ -168,4 +168,7 @@
 .inv-scope{font-size:var(--ql-text-sm);color:var(--ql-text-muted)}
 .inv-scope b{color:var(--ql-text);font-weight:600}
 /* A tonnage headline carries its unit small, the way the registers do. */
-.qx-stat-v .qx-u{font-size:.62em;font-weight:600;color:var(--ql-text-muted);margin-left:3px;font-style:normal}
+/* <u> is the unit element this page already uses for tonnage, so keep the tag
+   for consistency — but <u> underlines by default, and an underlined 'T'
+   beside a number reads as a link. */
+.qx-stat-v .qx-u{font-size:.62em;font-weight:600;color:var(--ql-text-muted);margin-left:4px;font-style:normal;text-decoration:none}
