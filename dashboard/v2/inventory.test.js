@@ -92,7 +92,7 @@ function buildQLXChrome() {
     IC: { plus: '<plus/>', file: '<file/>' }
   };
   vm.createContext(sandbox);
-  vm.runInContext(grab('heroMarkup') + '\n' + grab('statsMarkup') +
+  vm.runInContext([grab('icon'), grab('heroMarkup'), grab('statsMarkup')].join('\n') +
     '\n;this.__c = { heroHTML: heroMarkup, statsHTML: statsMarkup, wireHero: function(){} };', sandbox);
   return sandbox.__c;
 }

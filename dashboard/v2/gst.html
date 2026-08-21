@@ -25,7 +25,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cor">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cor"><link rel="stylesheet" href="./qlx.css?v=m21">
 <link rel="stylesheet" href="./mobile.css?v=m16">
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
@@ -55,15 +55,9 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <body class="ql-v2">
 <div id="ql-page">
   <div class="dash">
-    <div class="page-head">
-      <div><h1 class="page-title">GST Summary</h1><div class="page-sub" id="gsSub">Output tax · Input credit · Net liability</div></div>
-      <!-- QLShell.periodFilter prepends the shared month/year button here. GST is
-           filed BY PERIOD, so an all-time-only GST screen was the odd one out. -->
-      <div class="page-actions" id="gsActions">
-        <button class="ql-btn ql-btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> GSTR report</button>
-      </div>
+    <div id="gsHero"></div>
     </div>
-    <div class="kpi-strip" id="gsKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div id="gsKpis"></div>
     <div class="gst-grid">
       <div class="card gst-liab">
         <div class="card-head"><div><div class="card-title">Net GST Liability</div><div class="card-sub">Output tax payable minus input tax credit</div></div></div>
@@ -85,6 +79,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./i18n.js?v=h8"></script>
 <script src="./wa-core.js?v=w3"></script>
 <script src="./shell.js?v=m68s"></script>
+<script src="./qlx.js?v=m20prgc"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 QLShell.mount({ active: 'gst', title: 'GST Summary' });
@@ -93,12 +88,45 @@ QLShell.mount({ active: 'gst', title: 'GST Summary' });
    so this page had the strongest claim to the picker and none of it. Both sides
    of the liability are dated (sales, purchases), so every number below scopes
    honestly; nothing here is a running balance. */
-let PF = null;
+let PF = null, HERO = null;
+
+/* The GSTR figures this page already shows, as a file. Uses the shared
+   QLShell.exportCSV so the escaping and filename rules match every other
+   export in the app. */
+const DL_ICON = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>';
+function exportGstr() {
+  const per = PF ? PF.label() : 'All time';
+  const g = QLD.gstSummary(PF ? PF.period() : null);
+  QLShell.exportCSV(
+    'gstr_' + String(QLD.co.short || 'summary').replace(/\s+/g, '_') + '_' + per.replace(/\s+/g, '_'),
+    ['Line', 'Amount'],
+    [['Period', per],
+     ['Taxable sales', g.taxable], ['CGST (output)', g.cgst], ['SGST (output)', g.sgst], ['IGST (output)', g.igst],
+     ['Total output GST', g.outGST], ['Taxable purchases', g.purchaseTaxable], ['Input tax credit', g.itc],
+     ['Net payable', g.net]]);
+}
+
 const gstHave = () => new Set([...QLD.salesRows().map(r => (r.date || '').slice(0, 7)),
   ...QLD.purchaseRows().map(r => (r.date || '').slice(0, 7))].filter(Boolean));
 function render() {
   /* One mount, not one per render: periodFilter appends its button, and calling
      it from render() would stack a new calendar button on every refresh. */
+  /* The header is the app's shared one (QLX.heroHTML). It is rendered ONCE,
+     before periodFilter mounts, because periodFilter prepends its month button
+     into #gsActions — re-rendering the header on every refresh would throw that
+     button away. `actionsId` keeps that container id, so the period control
+     works exactly as it did. */
+  if (!HERO) {
+    HERO = { title: 'GST Summary', actionsId: 'gsActions',
+      sub: '<span id="gsSub">Output tax · Input credit · Net liability</span>',
+      /* The old header carried a "GSTR report" button with no click handler at
+         all — it had never done anything. Rather than port a dead control into
+         the new header, it downloads the GSTR summary this page already
+         computes. */
+      tools: [{ label: 'GSTR report', icon: DL_ICON, onClick: () => exportGstr() }] };
+    document.getElementById('gsHero').innerHTML = QLX.heroHTML(HERO);
+    QLX.wireHero(document.getElementById('gsHero'), HERO);
+  }
   if (!PF) PF = QLShell.periodFilter('gsActions', { id: 'gsMonthBtn', have: gstHave, prepend: true, onChange: () => render() });
   const co = QLD.co, g = QLD.gstSummary(PF.period());
   const per = PF.label();
@@ -108,7 +136,12 @@ function render() {
     { label: 'Net Payable', v: QLD.fC(g.net), meta: 'to government · ' + per, bg: 'var(--ql-danger-50)', fg: 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>' },
     { label: 'Taxable Sales', v: QLD.fC(g.taxable), meta: 'net of GST · ' + per, bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-5"/></svg>' }
   ];
-  document.getElementById('gsKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
+  /* The SHARED stat row (QLX.statsHTML) — the same component the Sales and
+     Purchase registers use. The K array above is untouched: only its shape is
+     adapted here, so every figure on this page is still computed by the same
+     GST code as before. */
+  document.getElementById('gsKpis').innerHTML = QLX.statsHTML(
+    K.map(k => ({ label: k.label, value: k.v, sub: k.meta, icon: k.ic, tint: QLX.tint(k.bg) })));
   document.getElementById('gsSub').textContent = `${co.short} · ${per} · Net payable ${QLD.fC(g.net)}`;
   const liab = [
     { l: 'CGST (output)', v: g.cgst, sign: '+' },

@@ -242,11 +242,16 @@
      hand-copy the markup, and the copy is what makes pages drift apart. */
   function heroMarkup(cfg) {
     cfg = cfg || {};
+    /* actionsId lets a migrating page keep the id its own code already targets
+       — QLShell.periodFilter('gsActions', …) prepends the month button INTO
+       that container. Without it, moving a page onto this header would silently
+       delete its period picker: the markup would look right and the control
+       would be gone. */
     // label may be a function so a tool can show a live count ("Reminders (7)").
     // esc() would otherwise stringify the function body into the button.
     const tlabel = t => esc(typeof t.label === 'function' ? t.label() : t.label);
-    const tools = (cfg.tools || []).map((t, i) => `<button class="qx-btn" data-tool="${i}">${t.icon ? svg(t.icon) : ''}<span>${tlabel(t)}</span></button>`).join('');
-    const prim = cfg.primary ? `<button class="qx-btn qx-btn-primary" id="qxPrimary">${svg(cfg.primary.icon || IC.plus)}<span>${esc(cfg.primary.label)}</span></button>` : '';
+    const tools = (cfg.tools || []).map((t, i) => `<button class="qx-btn" data-tool="${i}">${t.icon ? icon(t.icon) : ''}<span>${tlabel(t)}</span></button>`).join('');
+    const prim = cfg.primary ? `<button class="qx-btn qx-btn-primary" id="qxPrimary">${icon(cfg.primary.icon || IC.plus)}<span>${esc(cfg.primary.label)}</span></button>` : '';
     /* The page header holds only the title and PAGE actions (add/upload/export/
        AI). The month/date filter changes TABLE state, so it lives in the table
        toolbar now, not here — see toolbarHTML. "The table controls the table."
@@ -255,7 +260,7 @@
       <div class="qx-hero-l">
         <div class="qx-hero-tt"><div class="qx-title">${esc(cfg.title)}</div>${cfg.sub ? `<div class="qx-hero-sub">${cfg.sub}</div>` : ''}</div>
       </div>
-      <div class="qx-hero-r">${tools}${prim}</div>
+      <div class="qx-hero-r"${cfg.actionsId ? ` id="${cfg.actionsId}"` : ''}>${tools}${prim}</div>
     </div>`;
   }
   function heroHTML() { return heroMarkup(CFG); }
@@ -315,11 +320,30 @@
     });
   }
 
+  /* An icon may be PATH BODY (the registers' convention) or a whole <svg>…</svg>
+     (what every legacy page's KPI strip already holds). Accepting both is what
+     lets those pages move onto this component by passing the icon strings they
+     already have, instead of having their icon sets rewritten — a rewrite is
+     where working code gets broken for a visual change. */
+  /* Legacy KPI strips carry a CSS-variable background ("var(--ql-success-50)")
+     where this component wants an accent name. Mapping it here means a page can
+     migrate by passing the colour it already has, and every page maps the same
+     way — the alternative was each page inventing its own tint table. */
+  function tintOf(bg) {
+    const m = /--ql-(\w+?)-\d+/.exec(String(bg || ''));
+    const k = m ? m[1] : '';
+    return ({ brand: 'blue', success: 'green', danger: 'red', warning: 'amber',
+              violet: 'violet', indigo: 'indigo', teal: 'teal', lime: 'green' })[k] || 'blue';
+  }
+  function icon(x) {
+    const v = x || IC.file;
+    return /^\s*<svg[\s>]/i.test(v) ? v : svg(v);
+  }
   function statsMarkup(cards) {
     cards = cards || [];
     if (!cards.length) return '';
     return `<div class="qx-stats">${cards.map(c => `<div class="qx-stat qx-tint-${c.tint || 'blue'}">
-      <div class="qx-stat-top"><span class="qx-stat-ic t-${c.tint || 'blue'}">${svg(c.icon || IC.file)}</span><span class="qx-stat-l">${esc(c.label)}</span></div>
+      <div class="qx-stat-top"><span class="qx-stat-ic t-${c.tint || 'blue'}">${icon(c.icon)}</span><span class="qx-stat-l">${esc(c.label)}</span></div>
       <div class="qx-stat-v">${c.value}</div>
       <div class="qx-stat-s">${c.sub || ''}${c.trend != null ? ` <span class="qx-tr ${c.trend >= 0 ? 'up' : 'dn'}">${c.trend >= 0 ? '↑' : '↓'} ${Math.abs(c.trend).toFixed(0)}%</span>` : ''}</div>
     </div>`).join('')}</div>`;
@@ -856,7 +880,7 @@
     open: openDetail, close: closeDetail,
     actionsCell, icons: IC, svg, esc, avColor,
     // Page chrome for non-register pages — same header and stat row, no table.
-    heroHTML: heroMarkup, statsHTML: statsMarkup, wireHero,
+    heroHTML: heroMarkup, statsHTML: statsMarkup, wireHero, tint: tintOf,
     // helpers configs can use to build cells
     statusPill(val, label, cls) { return `<select class="qx-st ${cls || 's-' + val}" data-st="__ID__">${label}</select>`; },
     getComments, addComment,
