@@ -169,9 +169,11 @@
              (finding.idxs.length - 1) + ' extra ' + (finding.idxs.length === 2 ? 'copy' : 'copies') + '.'
       };
     }
+    var n = finding.idxs.length;
     return {
       remove: finding.idxs.slice(), keep: [], kind: finding.kind,
-      why: 'Removes the row entirely: it is the supplier\'s bill, already recorded in Purchases, and was never a sale.'
+      why: 'Removes ' + (n === 1 ? 'the row' : 'all ' + n + ' rows') + ' entirely: it is the supplier\'s bill, ' +
+           'already recorded in Purchases, and was never a sale.'
     };
   }
 
