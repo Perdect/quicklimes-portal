@@ -19,7 +19,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <link rel="icon" type="image/png" sizes="32x32" href="/v2/favicon-32.png?v=g1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cor">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cor"><link rel="stylesheet" href="./qlx.css?v=m22">
 <link rel="stylesheet" href="./mobile.css?v=m16">
 <style>
 /* ── Group Overview — consolidated multi-company reporting ── */
@@ -120,9 +120,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <body class="ql-v2">
 <div id="ql-page">
   <div class="dash">
-    <div class="page-head">
-      <div><h1 class="page-title">Group Overview</h1><div class="page-sub">All companies, one truth — purchase · production · sales · stock, company-wise</div></div>
-    </div>
+    <div id="gvHero"></div>
     <div class="card">
       <div id="gvRoot"><div class="gv-empty" style="background:var(--ql-neutral-50);border-color:var(--ql-border)">Loading company books…</div></div>
     </div>
@@ -138,9 +136,26 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./i18n.js?v=h8"></script>
 <script src="./wa-core.js?v=w3"></script>
 <script src="./shell.js?v=m68s"></script>
+<script src="./qlx.js?v=m20prgd"></script>
 <script src="./mobile.js?v=m16"></script>
 <script src="./sources-core.js?v=g9"></script>
 <script src="./group-core.js?v=g5"></script>
 <script src="./group.js?v=g9"></script>
+<script>
+/* The app's shared header (QLX.heroHTML) — the same one the registers render.
+   This page's logic lives in an external file, so the header is mounted here
+   rather than threaded through it. */
+(function () {
+  const go = () => {
+    const host = document.getElementById('gvHero');
+    if (!host || host.dataset.on) return;
+    host.dataset.on = '1';
+    const cfg = { title: 'Group Overview', sub: 'All companies, one truth — purchase · production · sales · stock, company-wise', tools: [] };
+    host.innerHTML = QLX.heroHTML(cfg);
+    QLX.wireHero(host, cfg);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+})();
+</script>
 </body>
 </html>

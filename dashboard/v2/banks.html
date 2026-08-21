@@ -21,7 +21,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cor">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cor"><link rel="stylesheet" href="./qlx.css?v=m22">
 <link rel="stylesheet" href="./mobile.css?v=m16">
 <style>
   .bk-total { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; border-radius: 16px; padding: 20px 24px; margin-bottom: var(--ql-space-5); }
@@ -86,13 +86,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <body class="ql-v2">
 <div id="ql-page">
   <div class="dash">
-    <div class="page-head">
-      <div><h1 class="page-title">Banks</h1><div class="page-sub" id="bkSub">Every account's balance, flows and reconciliation health</div></div>
-      <div class="page-actions">
-        <button class="ql-btn" id="bkManage">⚙ Manage accounts</button>
-        <button class="ql-btn" id="bkAdd">+ Add account</button>
-        <button class="ql-btn ql-btn-primary" id="bkUpload">⬆ Import statement</button>
-      </div>
+    <div id="bkHero"></div>
     </div>
     <div id="bkBody"></div>
   </div>
@@ -109,8 +103,30 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./wa-core.js?v=w3"></script>
 
 <script src="./shell.js?v=m68s"></script>
+<script src="./qlx.js?v=m20prgd"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
+/* ── PAGE HEADER ────────────────────────────────────────────────────────────
+   The app's shared header (QLX.heroHTML) — the same one the registers render.
+   Rendered once, on DOM ready, so it is in place before the page's own code
+   looks for anything inside it. */
+const ICO = { gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>', plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>', up: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>' };
+(function mountHero() {
+  const go = () => {
+    const host = document.getElementById('bkHero');
+    if (!host || host.dataset.on) return;
+    host.dataset.on = '1';
+    const cfg = { title: 'Banks',
+      sub: '<span id="bkSub">Every account\'s balance, flows and reconciliation health</span>',
+      tools: [{ label: 'Manage accounts', icon: ICO.gear, onClick: () => { const b = document.getElementById('bkManage'); if (b && b.onclick) b.onclick(); } }, { label: 'Add account', icon: ICO.plus, onClick: () => { const b = document.getElementById('bkAdd'); if (b && b.onclick) b.onclick(); } }],
+      primary: { label: 'Import statement', icon: ICO.up, onClick: () => { const b = document.getElementById('bkUpload'); if (b && b.onclick) b.onclick(); } } };
+    host.innerHTML = QLX.heroHTML(cfg);
+    QLX.wireHero(host, cfg);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go);
+  else go();
+})();
+
 QLShell.mount({ active: 'banks', title: 'Banks' });
 const $ = s => document.querySelector(s);
 const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

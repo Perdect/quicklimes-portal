@@ -120,11 +120,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <body class="ql-v2">
 <div id="ql-page">
   <div class="dash">
-    <div class="page-head">
-      <div>
-        <h1 class="page-title">App Health</h1>
-        <div class="page-sub" id="hbSub">Every module audited, every confirmed issue — and what today's code actually says.</div>
-      </div>
+    <div id="hbHero"></div>
     </div>
     <div id="hbGate"></div>
     <div id="hbMain" hidden>
@@ -146,8 +142,25 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./i18n.js?v=h8"></script>
 <script src="./wa-core.js?v=w3"></script>
 <script src="./shell.js?v=m68s"></script>
+<script src="./qlx.js?v=m20prgd"></script>
 <script src="./mobile.js?v=m16"></script>
 <script src="./health-findings.js?v=h1"></script>
 <script src="./health.js?v=h1"></script>
+<script>
+/* The app's shared header (QLX.heroHTML) — the same one the registers render.
+   This page's logic lives in an external file, so the header is mounted here
+   rather than threaded through it. */
+(function () {
+  const go = () => {
+    const host = document.getElementById('hbHero');
+    if (!host || host.dataset.on) return;
+    host.dataset.on = '1';
+    const cfg = { title: 'App Health', sub: '<span id="hbSub">Every module audited, every confirmed issue — and what today\'s code actually says.</span>', tools: [] };
+    host.innerHTML = QLX.heroHTML(cfg);
+    QLX.wireHero(host, cfg);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+})();
+</script>
 </body>
 </html>
