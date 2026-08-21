@@ -25,7 +25,11 @@ const pages = fs.readdirSync(__dirname).filter(f => /\.html$/.test(f));
 const seen = {};   // asset -> { version -> [pages] }
 for (const f of pages) {
   const src = fs.readFileSync(path.join(__dirname, f), 'utf8');
-  const re = /(?:src|href)="\.\/([\w.-]+\.(?:js|css))\?v=([\w.-]+)"/g;
+  /* The `./` was REQUIRED here, so `src="ql-api.js?v=a5"` — written without the
+     prefix — matched nothing and that asset was never version-checked at all.
+     It could have changed under a cached URL forever without this test noticing.
+     Both spellings are the same file; both are tracked now. */
+  const re = /(?:src|href)="\.?\/?([\w.-]+\.(?:js|css))\?v=([\w.-]+)"/g;
   let m;
   while ((m = re.exec(src))) {
     const [, asset, ver] = m;

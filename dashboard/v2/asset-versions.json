@@ -35,6 +35,10 @@
     "v": "f25ar",
     "sha": "1e9268c00adf"
   },
+  "ql-api.js": {
+    "v": "a5",
+    "sha": "cde317cbde9b"
+  },
   "party-identity.js": {
     "v": "m27",
     "sha": "a3eec586e482"
@@ -72,7 +76,7 @@
     "sha": "106ad4847e8d"
   },
   "qlx.js": {
-    "v": "m20prgc",
+    "v": "m20prgd",
     "sha": "44573fec1882"
   },
   "cashbook.js": {
