@@ -35,6 +35,17 @@ function isMobile() { return window.matchMedia && window.matchMedia('(max-width:
    back to 0. Every id link opened row 0's customer. It looked correct only
    because the party I first tested with happened to BE row 0. Data is ready
    inside render(), and re-resolving there also survives a company switch. */
+const ICO = {
+  wa: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/>',
+  print: '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'
+};
+function sendWhatsApp(p, bal) {
+  const msg = bal > 0.5
+    ? `Dear ${p.name},\nYour current outstanding balance with ${(Q.co.short || 'us')} is ${fC(Math.round(bal))}. Kindly arrange payment at your convenience. Thank you.`
+    : `Dear ${p.name},\nThank you — your account is clear. We appreciate your business.`;
+  window.open(waLink(p.phone, msg), '_blank');
+}
 let IDX = 0, BAD_ID = '', NOT_READY = false;
 function resolveParty() {
   const rows = (window.QLD && QLD.partyRows) ? QLD.partyRows() : [];
@@ -385,8 +396,8 @@ function render() {
   resolveParty();
   const L = Q.partyLedger(IDX, { from: FROM, to: TO });
   if (NOT_READY) { main.innerHTML = `<div class="dash"><div class="card" style="padding:28px">Loading customer…</div></div>`; return; }
-  if (BAD_ID) { main.innerHTML = `<div class="dash"><div class="page-head"><h1 class="page-title">Customer not found</h1></div><div class="card" style="padding:28px">No customer with id <span class="mono">${esc(BAD_ID)}</span> in <b>${esc((Q.co && Q.co.name) || 'this company')}</b>. They may belong to another company, or have been deleted.<br><br><a href="parties.html">← Back to customers</a></div></div>`; return; }
-  if (!L) { main.innerHTML = `<div class="dash"><div class="page-head"><h1 class="page-title">Statement</h1></div><div class="card" style="padding:28px">Party not found. <a href="parties.html">← Back to customers</a></div></div>`; return; }
+  if (BAD_ID) { main.innerHTML = `<div class="dash"><div class="qx-hero"><div class="qx-hero-l"><div class="qx-hero-tt"><div class="qx-title">Customer not found</div></div></div></div><div class="card" style="padding:28px">No customer with id <span class="mono">${esc(BAD_ID)}</span> in <b>${esc((Q.co && Q.co.name) || 'this company')}</b>. They may belong to another company, or have been deleted.<br><br><a href="parties.html">← Back to customers</a></div></div>`; return; }
+  if (!L) { main.innerHTML = `<div class="dash"><div class="qx-hero"><div class="qx-hero-l"><div class="qx-hero-tt"><div class="qx-title">Statement</div></div></div></div><div class="card" style="padding:28px">Party not found. <a href="parties.html">← Back to customers</a></div></div>`; return; }
   const p = L.party, bal = L.closing;
   const balCol = bal > 0.5 ? 'var(--ql-danger-600)' : bal < -0.5 ? '#16a34a' : 'var(--ql-text)';
   const ins = insights(L);
@@ -398,19 +409,21 @@ function render() {
       <td class="num" style="color:#16a34a">${e.cr ? fC(e.cr) : ''}</td>
       <td class="num strong" style="color:${e.bal > 0.5 ? '#b91c1c' : e.bal < -0.5 ? '#16a34a' : 'inherit'}">${drcr(e.bal)}</td>
     </tr>`).join('');
+  /* The app's shared header. The customer's NAME is the page title, and the
+     back-link and identity line ride in the subtitle — so the finance portal
+     wears the same chrome as the registers it is opened from. The buttons keep
+     their ids, because the wiring below finds them by id. */
+  const heroCfg = {
+    title: p.name || 'Statement',
+    sub: `<a class="lgp-back" href="parties.html">← Customers</a><span class="lgp-idl">${p.gstin ? 'GSTIN ' + esc(p.gstin) : 'No GSTIN'}${p.phone ? ' · ' + esc(p.phone) : ''} · ${(p.type || 'customer')[0].toUpperCase() + (p.type || 'customer').slice(1)} · <b style="color:${balCol}">${drcr(bal)}</b></span>`,
+    tools: [].concat(
+      p.phone ? [{ label: 'WhatsApp', icon: ICO.wa, onClick: () => sendWhatsApp(p, bal) }] : [],
+      [{ label: 'Print / PDF', icon: ICO.print, onClick: () => printStatement(L) }]),
+    primary: { label: p.type === 'supplier' ? 'Record payment' : 'Record receipt',
+               icon: ICO.plus, onClick: () => recordReceipt(p) }
+  };
   main.innerHTML = `<div class="dash lgp">
-    <div class="page-head lgp-head">
-      <div>
-        <a class="lgp-back" href="parties.html">← Customers</a>
-        <h1 class="page-title">${esc(p.name)}</h1>
-        <div class="page-sub">${p.gstin ? 'GSTIN ' + esc(p.gstin) : 'No GSTIN'}${p.phone ? ' · ' + esc(p.phone) : ''} · ${(p.type || 'customer')[0].toUpperCase() + (p.type || 'customer').slice(1)} · <b style="color:${balCol}">${drcr(bal)}</b></div>
-      </div>
-      <div class="lgp-actions">
-        ${p.phone ? '<button class="ql-btn ql-btn-secondary" id="lgWa">WhatsApp</button>' : ''}
-        <button class="ql-btn ql-btn-secondary" id="lgPrint">Print / PDF</button>
-        <button class="ql-btn ql-btn-primary" id="lgRec">${p.type === 'supplier' ? 'Record payment' : 'Record receipt'}</button>
-      </div>
-    </div>
+    <div id="lgHero"></div>
     <div class="lgp-cards">
       ${card('Opening balance', drcr(L.openingForRange), '', FROM ? 'as on ' + Q.fDS(FROM) : 'start of ledger')}
       ${card('Billed (debit)', fC(Math.round(L.totalDr)), '', L.rows.filter(e => e.dr > 0).length + ' entries')}
@@ -450,12 +463,13 @@ function render() {
   if ($('lgTo')) $('lgTo').onchange = e => { TO = e.target.value; render(); };
   document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { const [f, t] = b.dataset.r.split('|'); FROM = f; TO = t; render(); });
   if ($('lgExp')) $('lgExp').onclick = () => exportLedger(L);
-  if ($('lgPrint')) $('lgPrint').onclick = () => printStatement(L);
-  if ($('lgRec')) $('lgRec').onclick = () => recordReceipt(p);
-  if ($('lgWa')) $('lgWa').onclick = () => {
-    const msg = bal > 0.5 ? `Dear ${p.name},\nYour current outstanding balance with ${(Q.co.short || 'us')} is ${fC(Math.round(bal))}. Kindly arrange payment at your convenience. Thank you.` : `Dear ${p.name},\nThank you — your account is clear. We appreciate your business.`;
-    window.open(waLink(p.phone, msg), '_blank');
-  };
+  /* The header is chrome — if qlx.js did not load, the ledger below must still
+     be readable, so this warns rather than throwing. */
+  const heroHost = $('lgHero');
+  if (heroHost) {
+    if (!window.QLX || !QLX.heroHTML) { console.warn('QLX not loaded — shared page header skipped'); }
+    else { heroHost.innerHTML = QLX.heroHTML(heroCfg); QLX.wireHero(heroHost, heroCfg); }
+  }
   QLShell.paintWorkspace && QLShell.paintWorkspace();
 }
 

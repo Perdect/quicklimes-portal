@@ -1022,3 +1022,6 @@ body.ql-ai-open .ql-ai-fab { display: none; }          /* never cover the input 
 .alc-ok{color:var(--ql-success-700);font-weight:600}
 .alc-err{color:var(--ql-danger-600);font-size:var(--ql-text-sm);margin-top:8px}
 .alc-err:empty{margin:0}
+.lgp-idl{display:block}
+.lgp-back{display:inline-block;margin-right:10px;text-decoration:none;color:var(--ql-brand-600);font-weight:600}
+.lgp-back:hover{text-decoration:underline}
