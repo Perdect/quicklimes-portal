@@ -25,7 +25,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cor">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cor"><link rel="stylesheet" href="./qlx.css?v=m21">
 <link rel="stylesheet" href="./mobile.css?v=m16">
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
@@ -55,14 +55,9 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <body class="ql-v2">
 <div id="ql-page">
   <div class="dash">
-    <div class="page-head">
-      <div><h1 class="page-title">Chunna Sales</h1><div class="page-sub" id="chSub">Cash &amp; PhonePe lime-powder sales</div></div>
-      <div class="page-actions" id="chActions">
-        <button class="ql-btn ql-btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
-        <button class="ql-btn ql-btn-primary" onclick="QLShell.openChunnaForm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New sale</button>
-      </div>
+    <div id="chHero"></div>
     </div>
-    <div class="kpi-strip" id="chKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div id="chKpis"></div>
     <div class="card" style="gap:var(--ql-space-4)">
       <div class="sr-toolbar">
         <div class="sr-tabs" id="chTabs">
@@ -86,6 +81,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./i18n.js?v=h8"></script>
 <script src="./wa-core.js?v=w3"></script>
 <script src="./shell.js?v=m68s"></script>
+<script src="./qlx.js?v=m20prgc"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 QLShell.mount({ active: 'chunna', title: 'Chunna Sales' });
@@ -105,7 +101,20 @@ const COLS = [
    month AND year both scope honestly. The table and the cards read the same
    period; QLD.inPeriod is the one rule that understands 'YYYY' as well as
    'YYYY-MM'. */
-let PF = null;
+let PF = null, HERO = null;
+const DL_ICON = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>';
+const PLUS_ICON = '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>';
+
+/* Every chunna sale in the chosen period — the FULL filtered set, not just
+   the page on screen. An export that silently stopped at the current page
+   would be a quietly wrong file. */
+function exportChunna() {
+  const per = PF ? PF.label() : 'All time';
+  const rows = filtered();
+  QLShell.exportCSV('chunna_' + String(QLD.co.short || '').replace(/\s+/g, '_') + '_' + per.replace(/\s+/g, '_'),
+    ['Date', 'Customer', 'Qty (T)', 'Rate', 'Total', 'Mode'],
+    rows.map(r => [r.date, r.customer, r.qty, r.rate, r.total, r.mode]));
+}
 const chHave = () => new Set(QLD.chunnaRows().map(r => (r.date || '').slice(0, 7)).filter(Boolean));
 function filtered() {
   let r = QLD.chunnaRows().filter(x => QLD.inPeriod(x.date, PF ? PF.period() : 'all'));
@@ -115,6 +124,18 @@ function filtered() {
   return r;
 }
 function render() {
+  /* The app's shared header (QLX.heroHTML), rendered ONCE — before
+     periodFilter mounts, because periodFilter prepends its month button into
+     #chActions. Re-rendering the header each refresh would throw that button
+     away, and `actionsId` is what keeps that container id alive. */
+  if (!HERO) {
+    HERO = { title: 'Chunna Sales', actionsId: 'chActions',
+      sub: '<span id="chSub"></span>',
+      tools: [{ label: 'Export', icon: DL_ICON, onClick: () => exportChunna() }],
+      primary: { label: 'New sale', icon: PLUS_ICON, onClick: () => QLShell.openChunnaForm() } };
+    document.getElementById('chHero').innerHTML = QLX.heroHTML(HERO);
+    QLX.wireHero(document.getElementById('chHero'), HERO);
+  }
   if (!PF) PF = QLShell.periodFilter('chActions', { id: 'chMonthBtn', have: chHave, prepend: true, onChange: () => { chPage = 1; render(); } });
   const per = PF.label(), scoped = PF.period() !== 'all';
   const co = QLD.co, s = QLD.chunnaSummary(PF.period());
@@ -130,7 +151,12 @@ function render() {
       ? { label: 'Cash · PhonePe', v: QLD.fC(s.cash) + ' · ' + QLD.fC(s.phonepay), meta: 'by mode · ' + per.toLowerCase(), bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/></svg>' }
       : { label: 'This Month', v: QLD.fC(s.monthTotal), meta: 'current month', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' }
   ];
-  document.getElementById('chKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
+  /* The SHARED stat row (QLX.statsHTML) — the same component the registers
+     use. The K array above is untouched: only its shape is adapted here, so
+     every figure on this page is still computed by the code that always
+     computed it. */
+  document.getElementById('chKpis').innerHTML = QLX.statsHTML(
+    K.map(k => ({ label: k.label, value: k.v, sub: k.meta, icon: k.ic, tint: QLX.tint(k.bg) })));
   document.getElementById('chSub').textContent = `${co.short} · ${per} · ${s.count} sales · ${QLD.fC(s.total)} · ${QLD.fmt(s.qty,1)} T`;
   document.getElementById('chHead').innerHTML = COLS.map(c => { const st = chSort.key === c.key; return `<th class="${st ? 'sorted' : ''} ${c.num ? 'sr-num' : ''}" data-sort="${c.key}">${c.label}<span class="sort-ic">${st ? (chSort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></th>`; }).join('') + '<th class="no-sort"></th>';
   document.querySelectorAll('#chHead th[data-sort]').forEach(th => th.addEventListener('click', () => { const k = th.dataset.sort; if (chSort.key === k) chSort.dir = chSort.dir === 'asc' ? 'desc' : 'asc'; else { chSort.key = k; chSort.dir = 'asc'; } chPage = 1; render(); }));

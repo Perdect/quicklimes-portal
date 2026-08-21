@@ -25,7 +25,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cor">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cor"><link rel="stylesheet" href="./qlx.css?v=m21">
 <link rel="stylesheet" href="./mobile.css?v=m16">
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
@@ -55,13 +55,9 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <body class="ql-v2">
 <div id="ql-page">
   <div class="dash">
-    <div class="page-head">
-      <div><h1 class="page-title">Profit &amp; Loss</h1><div class="page-sub" id="plSub">Revenue · costs · net profit</div></div>
-      <div class="page-actions" id="plActions">
-        <button class="ql-btn ql-btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
-      </div>
+    <div id="plHero"></div>
     </div>
-    <div class="kpi-strip" id="plKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div id="plKpis"></div>
     <div class="gst-grid">
       <div class="card gst-liab">
         <div class="card-head"><div><div class="card-title">Income statement</div><div class="card-sub" id="plScope">Derived from your sales, purchases &amp; labour</div></div></div>
@@ -83,6 +79,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./i18n.js?v=h8"></script>
 <script src="./wa-core.js?v=w3"></script>
 <script src="./shell.js?v=m68s"></script>
+<script src="./qlx.js?v=m20prgc"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 QLShell.mount({ active: 'pl', title: 'Profit & Loss' });
@@ -99,10 +96,36 @@ QLShell.mount({ active: 'pl', title: 'Profit & Loss' });
    one in use. Subtracting an all-time wage bill from one month's revenue would
    have been the alternative, and it would have reported a loss where he made a
    profit. */
-let PF = null;
+let PF = null, HERO = null;
+const DL_ICON = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>';
+const PLUS_ICON = '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>';
+
+/* The income statement this page already builds, as a file. The old header
+   carried an "Export" button with no click handler at all — it had never done
+   anything; this is what it always looked like it did. */
+function exportPL() {
+  const per = PF ? PF.label() : 'All time';
+  const p = QLD.getPL(PF ? PF.period() : null);
+  QLShell.exportCSV('profit_loss_' + String(QLD.co.short || '').replace(/\s+/g, '_') + '_' + per.replace(/\s+/g, '_'),
+    ['Line', 'Amount'],
+    [['Period', per], ['Revenue (taxable sales)', p.rev], ['Cost of materials', p.cogs], ['Gross profit', p.gp],
+     ['Labour', p.labour], ['EBITDA', p.ebitda], ['Net GST payable', p.netGST], ['Net profit', p.np],
+     ['Net margin %', p.npm]]);
+}
 const plHave = () => new Set([...QLD.salesRows().map(r => (r.date || '').slice(0, 7)),
   ...QLD.purchaseRows().map(r => (r.date || '').slice(0, 7))].filter(Boolean));
 function render() {
+  /* The app's shared header (QLX.heroHTML), rendered ONCE — before
+     periodFilter mounts, because periodFilter prepends its month button into
+     #plActions. Re-rendering the header each refresh would throw that button
+     away, and `actionsId` is what keeps that container id alive. */
+  if (!HERO) {
+    HERO = { title: 'Profit & Loss', actionsId: 'plActions',
+      sub: '<span id="plSub"></span>',
+      tools: [{ label: 'Export', icon: DL_ICON, onClick: () => exportPL() }] };
+    document.getElementById('plHero').innerHTML = QLX.heroHTML(HERO);
+    QLX.wireHero(document.getElementById('plHero'), HERO);
+  }
   if (!PF) PF = QLShell.periodFilter('plActions', { id: 'plMonthBtn', have: plHave, prepend: true, onChange: () => render() });
   const co = QLD.co, p = QLD.getPL(PF.period());
   const per = PF.label(), scoped = p.labourSrc === 'cashbook';
@@ -115,7 +138,12 @@ function render() {
     { label: 'EBITDA', v: QLD.fC(p.ebitda), meta: 'after labour', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>' },
     { label: 'Net Profit', v: QLD.fC(p.np), meta: p.npm.toFixed(1) + '% margin', bg: p.np >= 0 ? 'var(--ql-success-50)' : 'var(--ql-danger-50)', fg: p.np >= 0 ? 'var(--ql-success-600)' : 'var(--ql-danger-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>' }
   ];
-  document.getElementById('plKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
+  /* The SHARED stat row (QLX.statsHTML) — the same component the registers
+     use. The K array above is untouched: only its shape is adapted here, so
+     every figure on this page is still computed by the code that always
+     computed it. */
+  document.getElementById('plKpis').innerHTML = QLX.statsHTML(
+    K.map(k => ({ label: k.label, value: k.v, sub: k.meta, icon: k.ic, tint: QLX.tint(k.bg) })));
   document.getElementById('plSub').textContent = `${co.short} · ${per} · Net profit ${QLD.fC(p.np)} (${p.npm.toFixed(1)}%)`;
   const rows = [
     { l: 'Revenue (taxable sales)', v: p.rev, sign: '' },
