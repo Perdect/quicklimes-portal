@@ -2536,12 +2536,25 @@
      one here (a year's twelve rows, which is what this table is for); 'YYYY-MM'
      legitimately leaves a single row, because the register is a list of months
      and the owner asked for one. */
+  /* DELETED ROWS ARE NOT IN THE BOOK. This read the RAW S.SALES / S.PURCHASES
+     arrays, which still hold soft-deleted records — so the Monthly Register
+     counted 170 invoices while every other screen in the app counted 153, and
+     its money was overstated by whatever had been deleted. It was the only
+     aggregate that did this: getPL, gstSummary and salesSummary all go through
+     withIdx() and were right.
+
+     It surfaced the moment the eight misfiled Indian Oil rows were removed —
+     the deletion took effect everywhere except here, so this page went on
+     reporting revenue the owner had just struck off. Now it reads the same
+     rows every other screen reads. */
   function monthlyRegister(period) {
-    const months = [...new Set([...S.SALES.map(s => ymOf(s.date)), ...S.PURCHASES.map(p => ymOf(p.date))].filter(Boolean))]
+    const liveS = withIdx(S.SALES).map(([s]) => s);
+    const liveP = withIdx(S.PURCHASES).map(([p]) => p);
+    const months = [...new Set([...liveS.map(s => ymOf(s.date)), ...liveP.map(p => ymOf(p.date))].filter(Boolean))]
       .filter(ym => inPeriod(ym, period)).sort().reverse();
     return months.map(ym => {
-      const sal = S.SALES.filter(s => ymOf(s.date) === ym);
-      const pur = S.PURCHASES.filter(p => ymOf(p.date) === ym);
+      const sal = liveS.filter(s => ymOf(s.date) === ym);
+      const pur = liveP.filter(p => ymOf(p.date) === ym);
       const sTx = sal.reduce((a, s) => a + cS(s).tx, 0);
       const sTot = sal.reduce((a, s) => a + cS(s).tot, 0);
       const pTx = pur.reduce((a, p) => a + p.taxable, 0);
