@@ -22,7 +22,8 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cor">
-<link rel="stylesheet" href="./inventory.css?v=i3">
+<link rel="stylesheet" href="./qlx.css?v=m21">
+<link rel="stylesheet" href="./inventory.css?v=i4">
 <link rel="stylesheet" href="./mobile.css?v=m16">
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
@@ -51,13 +52,9 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 </head>
 <body class="ql-v2">
 <div id="ql-page">
-  <div class="dash">
-    <div class="page-head">
-      <div>
-        <h1 class="page-title">Inventory</h1>
-        <div class="page-sub" id="invSub">Raw material inward &amp; finished-goods dispatch</div>
-      </div>
-    </div>
+  <div class="dash qx qx-a-blue">
+    <div id="invHero"></div>
+    <div id="invStats"></div>
     <div id="invBar"></div>
     <div id="invBody"></div>
   </div>
@@ -72,6 +69,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./i18n.js?v=h8"></script>
 <script src="./wa-core.js?v=w3"></script>
 <script src="./shell.js?v=m68s"></script>
+<script src="./qlx.js?v=m20prg"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -392,6 +390,62 @@ function openMenu(anchor) {
   });
 }
 
+/* ── KPI ROW ────────────────────────────────────────────────────────────────
+   The same qx-stat cards the Sales and Purchase registers use — built through
+   QLX.statsHTML rather than copied, so this page cannot drift away from them.
+
+   The whole point of this page is the difference between "zero" and "not
+   recorded", so the stat row must honour it too. Tonnage reads "—" with
+   "not recorded" beneath it when no bill carries a quantity: a confident
+   "0 T" is the bug this page exists to kill, and a headline card is the
+   loudest possible place to tell that lie. */
+const SVG_ST = {
+  file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+  down: '<path d="M12 3v14"/><polyline points="6 11 12 17 18 11"/><path d="M4 21h16"/>',
+  up: '<path d="M12 21V7"/><polyline points="6 13 12 7 18 13"/><path d="M4 3h16"/>',
+  rupee: '<path d="M6 3h12"/><path d="M6 8h12"/><path d="M6 13h4a5 5 0 0 0 0-10"/><path d="m6 13 8 8"/>',
+  cart: '<path d="M3 3h2l2 13h11l2-8H6"/><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/>'
+};
+function statCards(M) {
+  const nBills = M.raw.reduce((a, c) => a + c.bills, 0) + (M.fg ? M.fg.bills : 0);
+  const inValue = M.raw.reduce((a, c) => a + c.value, 0);
+  const outValue = M.fg ? M.fg.value : 0;
+  const inQty = M.raw.reduce((a, c) => a + (c.qty || 0), 0);
+  const inKnown = M.raw.some(c => c.qtyKnown);
+  const outKnown = !!(M.fg && M.fg.qtyKnown);
+
+  const qtyCard = (label, val, known, missing, tint, icon) => ({
+    label: label, tint: tint, icon: icon,
+    value: known ? nQ(val) + '<u class="qx-u">T</u>' : '—',
+    sub: known
+      ? (missing ? missing + ' bill' + (missing > 1 ? 's' : '') + ' still missing a quantity' : 'every bill recorded')
+      : 'not recorded — the value is still real'
+  });
+
+  return [
+    { label: 'Bills in scope', value: nBills,
+      sub: M.missingBills ? M.missingBills + ' without a quantity' : (nBills ? 'all carry a quantity' : 'nothing in this period'),
+      tint: 'blue', icon: SVG_ST.file },
+    qtyCard('Raw material in', inQty, inKnown, M.missingBills, 'amber', SVG_ST.down),
+    { label: 'Inward value', value: fC(inValue), sub: 'purchase bills', tint: 'indigo', icon: SVG_ST.rupee },
+    qtyCard('Dispatched', outKnown ? M.fg.qty : 0, outKnown, 0, 'green', SVG_ST.up),
+    { label: 'Dispatch value', value: fC(outValue), sub: 'sales invoices', tint: 'violet', icon: SVG_ST.cart }
+  ];
+}
+
+/* Page actions, in the app's standard header. */
+function heroCfg() {
+  return {
+    title: 'Inventory',
+    sub: (QLD.co ? esc(QLD.co.short) + ' · ' : '') + 'derived from real purchase &amp; sales bills',
+    tools: [
+      { label: 'Purchase Register', icon: SVG_ST.file, onClick: () => { location.href = 'purchase'; } },
+      { label: 'Production', icon: '<path d="M2 22h20"/><path d="M4 22V8l8-6 8 6v14"/>', onClick: () => { location.href = 'production'; } }
+    ],
+    primary: { label: 'Add / Upload Bills', icon: '<path d="M12 5v14"/><path d="M5 12h14"/>', onClick: () => { location.href = 'purchase'; } }
+  };
+}
+
 /* ── render ─────────────────────────────────────────────────────────────── */
 const pl = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
 function qtyBlock(c) {
@@ -460,12 +514,14 @@ function emptyHTML(icon, title, sub, href, btn) {
 function bannerHTML(M) {
   const scope = PERIOD === 'all' ? '' : ` in ${esc(periodLabel(PERIOD))}`;
   if (M.missingBills) {
+    /* This used to be a six-line paragraph that explained the OLD bug ("which
+       is why Limestone read 0 T") — history the person reading it never saw,
+       taking up the top third of the page every single visit. Say what is
+       missing, where to fix it, and stop. */
     return `<div class="inv-note warn">${ic('warn')}<div>
       <b>${M.missingBills} purchase bill${M.missingBills > 1 ? 's carry' : ' carries'} no quantity${scope}.</b>
-      Their value is counted in full — the money on this page is right. The tonnage is not: a bill with no quantity
-      used to be summed as zero, which is why Limestone read "0 T". Cards below say what is actually known.
-      Quantities are entered on the bill itself (the Purchase form has a Qty field; bills brought in by upload or OCR
-      capture the amount but not the tonnage).
+      The value is counted in full — the money here is right; the tonnage is incomplete.
+      Quantities are entered on the bill itself.
       <a class="fix" href="purchase">Open the Purchase Register ${ic('arrow')}</a>
     </div></div>`;
   }
@@ -482,19 +538,28 @@ function bannerHTML(M) {
     finished = produced − dispatched. Nothing here is estimated.
   </div></div>`;
 }
+/* The registers put the period control in a sticky toolbar of its own, not in
+   the page header ("the table controls the table"). Inventory has no table,
+   but the same rule applies: the period changes what the CARDS below say, so
+   it belongs with them. Same qx-tb shell, same QLShell.monthButton. */
 function barHTML() {
-  return `<div class="inv-bar">
+  return `<div class="qx-panel inv-panel"><div class="qx-tb">
     ${QLShell.monthButton({ id: 'invPerBtn', label: periodLabel(PERIOD), title: 'Filter by period' })}
     <span class="inv-scope" id="invScope"></span>
-    <span class="inv-bar-sp"></span>
-  </div>`;
+    <span class="qx-tb-sp"></span>
+  </div></div>`;
 }
 
 function render() {
   const P = QLD.purchaseRows(), S = QLD.salesRows(), R = QLD.productionRows ? QLD.productionRows() : [];
   const M = invModel(P, S, R, PERIOD);
 
-  $('#invSub').textContent = (QLD.co ? QLD.co.short + ' · ' : '') + 'derived from real purchase & sales bills';
+  /* Header and stat row come from QLX — the same functions the registers call.
+     This page never mounts the table engine; it borrows only the chrome. */
+  const hc = heroCfg();
+  $('#invHero').innerHTML = QLX.heroHTML(hc);
+  QLX.wireHero($('#invHero'), hc);
+  $('#invStats').innerHTML = QLX.statsHTML(statCards(M));
   $('#invBar').innerHTML = barHTML();
   // monthPicker toggles itself off on a second click of the same trigger.
   $('#invPerBtn').onclick = e => { e.stopPropagation(); openMenu($('#invPerBtn')); };

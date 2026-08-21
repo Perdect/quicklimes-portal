@@ -9,7 +9,7 @@
   },
   "qlx.css": {
     "v": "m21",
-    "sha": "8a86e0875c4a"
+    "sha": "2a3d205e2d9d"
   },
   "mobile.css": {
     "v": "m16",
@@ -73,7 +73,7 @@
   },
   "qlx.js": {
     "v": "m20prg",
-    "sha": "26b4300d0ad0"
+    "sha": "ed21c8a7d120"
   },
   "cashbook.js": {
     "v": "m4d",
@@ -184,8 +184,8 @@
     "sha": "1cbad3467ac5"
   },
   "inventory.css": {
-    "v": "i3",
-    "sha": "058942267985"
+    "v": "i4",
+    "sha": "5a91ff76b123"
   },
   "invoice-templates.js": {
     "v": "t3",

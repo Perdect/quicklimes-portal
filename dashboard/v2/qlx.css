@@ -651,3 +651,4 @@
    ones that moved to shell.css unchanged: qlx.css is not loaded by Inventory or
    Reports, so the picker could never have been shared from here. That is a large
    part of why four copies of it grew. */
+.qx-hero-sub{font-size:var(--ql-text-sm);color:var(--ql-text-muted);margin-top:3px}

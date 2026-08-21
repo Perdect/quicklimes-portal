@@ -233,23 +233,32 @@
   }
   function refresh() { render(); if (S.openId != null && rowById(S.openId)) renderDetailBody(); else if (S.openId != null) closeDetail(); }
 
-  function heroHTML() {
+  /* ── PAGE CHROME, USABLE WITHOUT MOUNTING ────────────────────────────────
+     heroMarkup and statsMarkup are pure: config in, HTML out, no CFG, no S.
+     They are exported as QLX.heroHTML / QLX.statsHTML so a page that is NOT a
+     register — Inventory is cards, not rows — can wear the app's header and
+     stat row without pretending to be a table. Before this, the only way to
+     look like the rest of the app was to mount the whole table engine or to
+     hand-copy the markup, and the copy is what makes pages drift apart. */
+  function heroMarkup(cfg) {
+    cfg = cfg || {};
     // label may be a function so a tool can show a live count ("Reminders (7)").
     // esc() would otherwise stringify the function body into the button.
     const tlabel = t => esc(typeof t.label === 'function' ? t.label() : t.label);
-    const tools = (CFG.tools || []).map((t, i) => `<button class="qx-btn" data-tool="${i}">${t.icon ? svg(t.icon) : ''}<span>${tlabel(t)}</span></button>`).join('');
-    const prim = CFG.primary ? `<button class="qx-btn qx-btn-primary" id="qxPrimary">${svg(CFG.primary.icon || IC.plus)}<span>${esc(CFG.primary.label)}</span></button>` : '';
+    const tools = (cfg.tools || []).map((t, i) => `<button class="qx-btn" data-tool="${i}">${t.icon ? svg(t.icon) : ''}<span>${tlabel(t)}</span></button>`).join('');
+    const prim = cfg.primary ? `<button class="qx-btn qx-btn-primary" id="qxPrimary">${svg(cfg.primary.icon || IC.plus)}<span>${esc(cfg.primary.label)}</span></button>` : '';
     /* The page header holds only the title and PAGE actions (add/upload/export/
        AI). The month/date filter changes TABLE state, so it lives in the table
        toolbar now, not here — see toolbarHTML. "The table controls the table."
        Moving it in QLX moves it for every register at once. */
     return `<div class="qx-hero">
       <div class="qx-hero-l">
-        <div class="qx-hero-tt"><div class="qx-title">${esc(CFG.title)}</div></div>
+        <div class="qx-hero-tt"><div class="qx-title">${esc(cfg.title)}</div>${cfg.sub ? `<div class="qx-hero-sub">${cfg.sub}</div>` : ''}</div>
       </div>
       <div class="qx-hero-r">${tools}${prim}</div>
     </div>`;
   }
+  function heroHTML() { return heroMarkup(CFG); }
   /* "March 2026" / "Year 2026" / "All months" — QLD.periodLabel owns all three.
      QLD.monthLabel alone cannot: it validates a MONTH and returns blank for a
      bare 'YYYY', so the year pick would have shown an empty button. */
@@ -306,14 +315,28 @@
     });
   }
 
-  function statsHTML() {
-    if (!CFG.stats) return '';
-    const cards = CFG.stats(allRows()) || [];
+  function statsMarkup(cards) {
+    cards = cards || [];
+    if (!cards.length) return '';
     return `<div class="qx-stats">${cards.map(c => `<div class="qx-stat qx-tint-${c.tint || 'blue'}">
       <div class="qx-stat-top"><span class="qx-stat-ic t-${c.tint || 'blue'}">${svg(c.icon || IC.file)}</span><span class="qx-stat-l">${esc(c.label)}</span></div>
       <div class="qx-stat-v">${c.value}</div>
       <div class="qx-stat-s">${c.sub || ''}${c.trend != null ? ` <span class="qx-tr ${c.trend >= 0 ? 'up' : 'dn'}">${c.trend >= 0 ? '↑' : '↓'} ${Math.abs(c.trend).toFixed(0)}%</span>` : ''}</div>
     </div>`).join('')}</div>`;
+  }
+  function statsHTML() {
+    if (!CFG.stats) return '';
+    return statsMarkup(CFG.stats(allRows()) || []);
+  }
+  /* Wires a hero built by heroMarkup on a page that never mounted QLX. */
+  function wireHero(el, cfg) {
+    if (!el || !cfg) return;
+    (cfg.tools || []).forEach((t, i) => {
+      const b = el.querySelector(`[data-tool="${i}"]`);
+      if (b && t.onClick) b.onclick = t.onClick;
+    });
+    const p = el.querySelector('#qxPrimary');
+    if (p && cfg.primary && cfg.primary.onClick) p.onclick = cfg.primary.onClick;
   }
 
   function toolbarHTML(rows) {
@@ -832,6 +855,8 @@
     mount, remount, refresh, toast, viewDoc,
     open: openDetail, close: closeDetail,
     actionsCell, icons: IC, svg, esc, avColor,
+    // Page chrome for non-register pages — same header and stat row, no table.
+    heroHTML: heroMarkup, statsHTML: statsMarkup, wireHero,
     // helpers configs can use to build cells
     statusPill(val, label, cls) { return `<select class="qx-st ${cls || 's-' + val}" data-st="__ID__">${label}</select>`; },
     getComments, addComment,

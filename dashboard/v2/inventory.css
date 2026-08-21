@@ -159,3 +159,13 @@
   .inv-card .qty { font-size: var(--ql-text-2xl); }
   .inv-scope { width: 100%; }
 }
+
+/* ── Modernised chrome (matches the registers) ──────────────────────────────
+   The page borrows QLX's hero and stat row, so it only needs the few rules
+   that are specific to a card page rather than a table. */
+.inv-panel{padding:0;margin-bottom:var(--ql-space-4)}
+.inv-panel .qx-tb{border-bottom:none}
+.inv-scope{font-size:var(--ql-text-sm);color:var(--ql-text-muted)}
+.inv-scope b{color:var(--ql-text);font-weight:600}
+/* A tonnage headline carries its unit small, the way the registers do. */
+.qx-stat-v .qx-u{font-size:.62em;font-weight:600;color:var(--ql-text-muted);margin-left:3px;font-style:normal}

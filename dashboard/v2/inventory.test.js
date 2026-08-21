@@ -74,6 +74,29 @@ eq('data.js still owns monthLabel (this test leans on the real one)', realMonthL
    1. A BROWSER, STUBBED JUST ENOUGH TO LOAD THE PAGE
    ══════════════════════════════════════════════════════════════════════════ */
 const noop = () => {};
+
+/* Slice the two pure chrome builders out of qlx.js and make them callable. */
+function buildQLXChrome() {
+  const qlx = fs.readFileSync(path.join(__dirname, 'qlx.js'), 'utf8');
+  const grab = name => {
+    const i = qlx.indexOf('function ' + name + '(');
+    if (i < 0) throw new Error('qlx.js no longer defines ' + name + ' — the shared chrome moved');
+    const open = qlx.indexOf('{', i);
+    let j = open + 1, d = 1;
+    while (j < qlx.length && d > 0) { const c = qlx[j]; if (c === '{') d++; else if (c === '}') d--; j++; }
+    return qlx.slice(i, j);
+  };
+  const sandbox = {
+    esc: x => (x == null ? '' : String(x)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])),
+    svg: b => '<svg>' + (b || '') + '</svg>',
+    IC: { plus: '<plus/>', file: '<file/>' }
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(grab('heroMarkup') + '\n' + grab('statsMarkup') +
+    '\n;this.__c = { heroHTML: heroMarkup, statsHTML: statsMarkup, wireHero: function(){} };', sandbox);
+  return sandbox.__c;
+}
+
 function loadPage(fx) {
   const script = /<script>\n([\s\S]*?)\n<\/script>\s*<\/body>/.exec(HTML);
   if (!script) throw new Error('could not find the page script in inventory.html');
@@ -124,7 +147,16 @@ function loadPage(fx) {
       monthButton: o => `<button class="ql-mp-btn" id="${o.id}">${o.label}</button>`,
       monthPicker: noop, closeMonthPicker: noop
     },
-    QLMobile: null, setTimeout: noop, clearTimeout: noop
+    QLMobile: null, setTimeout: noop, clearTimeout: noop,
+    location: { href: '' },
+    /* THE REAL SHARED CHROME, not a stub. heroMarkup/statsMarkup are sliced
+       straight out of qlx.js and run here, so these assertions fail if the
+       registers' header or stat row changes shape and Inventory is left
+       behind. A hand-written stub would have proved only the stub — the same
+       reason the page core is extracted rather than copied. Only esc/svg/IC
+       are shimmed; they affect escaping and icon bodies, never the structure
+       being asserted. */
+    QLX: buildQLXChrome()
   };
   ctx.window.document = doc;
   vm.createContext(ctx);
@@ -623,6 +655,48 @@ const FULL = { purchases: LIMESTONE_9.concat(PETCOKE_16, BAGS_1), sales: SALES_R
     'the core decides "recorded" with an explicit qty > 0 test');
   ok(!/\+r\.qty\s*\|\|\s*0/.test(HTML.replace(/\/\*[\s\S]*?\*\//g, ' ')),
     'and `+r.qty || 0` is gone from the whole page, not just the core');
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE MODERN CHROME — and the headline that must not lie
+   The page now wears the registers' header and KPI row (QLX.heroHTML /
+   QLX.statsHTML). Everything this file exists to protect applies to the stat
+   cards too: a big confident "0 T" at the TOP of the page would be the same
+   defect in the loudest place on the screen.
+   ══════════════════════════════════════════════════════════════════════════ */
+{
+  const p = loadPage({ purchases: LIMESTONE_9, sales: [], prod: [] });
+  p.setP('all'); p.render();
+  const hero = p.els.invHero.innerHTML, stats = p.els.invStats.innerHTML;
+
+  ok(/qx-hero/.test(hero), 'CHROME · the page renders the shared register header');
+  ok(/qx-title/.test(hero) && /Inventory/.test(hero), '  with the page title in it');
+  ok(/qx-btn-primary/.test(hero), '  and the primary action, styled like every other page');
+  ok(/qx-stats/.test(stats) && /qx-stat-v/.test(stats), 'CHROME · the KPI row is the registers’ stat row');
+
+  /* THE HEADLINE MUST NOT LIE. Nine limestone bills, no tonnage on any. */
+  ok(/—/.test(stats), 'KPI · with no quantity recorded the tonnage headline is a dash');
+  ok(/not recorded/i.test(stats), '  and says "not recorded" underneath');
+  ok(!/>0<u|>0 ?<u|>0 T</.test(stats), '  it NEVER prints a confident "0 T" — the defect, in the loudest place');
+  ok(/4,71,494|4471494/.test(stats.replace(/,/g, m => m)) || /₹44,71,494/.test(stats),
+     '  the MONEY stays confident — the value is complete even when the tonnage is not');
+}
+{
+  /* Quantities fully recorded → the headline is a real number, with its unit. */
+  const p = loadPage({ purchases: [], sales: SALES_REAL, prod: [] });
+  p.setP('all'); p.render();
+  const stats = p.els.invStats.innerHTML;
+  ok(/4,416.5|4416.5/.test(stats), 'KPI · a fully recorded tonnage IS shown as the number');
+  ok(/qx-u/.test(stats), '  with the unit set small beside it, as the registers do');
+}
+{
+  /* Partial: some bills carry tonnage, some do not. The number is a floor and
+     the card must say how many are still missing rather than imply a total. */
+  const p = loadPage({ purchases: PETCOKE_16, sales: [], prod: [] });
+  p.setP('all'); p.render();
+  const stats = p.els.invStats.innerHTML;
+  ok(/still missing a quantity/.test(stats),
+     'KPI · a partial tonnage says how many bills are still missing one');
 }
 
 console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');

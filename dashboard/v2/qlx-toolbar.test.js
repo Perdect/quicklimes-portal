@@ -31,7 +31,13 @@ const fnBody = name => {
   return src.slice(i, j);
 };
 
-const hero = fnBody('heroHTML');
+/* The header markup moved into heroMarkup() so non-register pages (Inventory)
+   can render the same header without mounting the table engine. heroHTML() is
+   now a one-line delegate, so assert against the function that actually holds
+   the markup — and pin the delegation, or this check would silently pass over
+   a header that had been rebuilt somewhere else. */
+const hero = fnBody('heroMarkup');
+ok(/heroMarkup\(CFG\)/.test(fnBody('heroHTML')), 'heroHTML delegates to the shared heroMarkup — one header, not two');
 const toolbar = fnBody('toolbarHTML');
 
 /* 1. the header no longer renders the month button */
