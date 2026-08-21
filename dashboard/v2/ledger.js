@@ -310,6 +310,76 @@ function outstandingBlock(p) {
   </div>`;
 }
 
+/* ── DOCUMENTS ───────────────────────────────────────────────────────────
+   Every scan already attached to this party's invoices or bills, gathered
+   in one place. Nothing new is stored: these are the SAME files the sales
+   and purchase registers hold, listed by the customer they belong to
+   instead of by the register they were filed in. Opening one fetches the
+   blob from IndexedDB, or from the server if this device never had it. */
+function docsFor(p) {
+  const G = x => String(x == null ? '' : x).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const N = x => String(x == null ? '' : x).toUpperCase().replace(/\s+/g, ' ').trim();
+  const pg = G(p.gstin), pn = N(p.name);
+  const mine = r => (pg && G(r.gstin) === pg) || (!pg && N(r.party || r.sup) === pn) || (!G(r.gstin) && N(r.party || r.sup) === pn);
+  const out = [];
+  const scan = (rows, kind, refKey) => rows.filter(mine).forEach(r => (r.attach || []).forEach(a =>
+    out.push({ id: a.id, name: a.name || '(unnamed file)', label: a.kind || 'Document', size: +a.size || 0,
+               at: a.at || '', kind: kind, ref: r[refKey] || '—', date: r.date })));
+  scan(Q.salesRows ? Q.salesRows() : [], 'sales', 'inv');
+  scan(Q.purchaseRows ? Q.purchaseRows() : [], 'purchase', 'bill');
+  return out.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+}
+function documentsBlock(p) {
+  const d = docsFor(p);
+  if (!d.length) return `<div class="card lgp-tablewrap"><table class="lgp-table">
+      <tbody><tr><td class="lgp-empty">No scans attached to this party's bills yet. Attach them from the register and they appear here.</td></tr></tbody></table></div>`;
+  const kb = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n > 1024 ? Math.round(n / 1024) + ' KB' : (n ? n + ' B' : '');
+  return `<div class="card lgp-tablewrap"><table class="lgp-table">
+    <thead><tr><th>File</th><th>Against</th><th>Date</th><th class="num">Size</th><th></th></tr></thead>
+    <tbody>${d.map(x => `<tr>
+      <td><b>${esc(x.label)}</b><div class="alc-d">${esc(x.name)}</div></td>
+      <td class="mono">${esc(x.ref)}</td>
+      <td>${Q.fDS(x.date)}</td>
+      <td class="num">${kb(x.size)}</td>
+      <td class="num"><button class="ql-btn ql-btn-secondary lgp-docbtn" data-doc="${esc(x.kind)}|${esc(x.id)}">Open</button></td>
+    </tr>`).join('')}</tbody></table></div>`;
+}
+async function openPartyDoc(kind, id) {
+  try {
+    let b = await Q.getDoc(kind, id);
+    if (!(b instanceof Blob) && Q.fetchDocBlob) b = await Q.fetchDocBlob(id);
+    if (!(b instanceof Blob)) { QLShell.toast('That file is not on this device or the server — re-upload it once', 'err'); return; }
+    const url = URL.createObjectURL(b);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (e) { QLShell.toast('Could not open that file', 'err'); }
+}
+
+/* ── ACTIVITY ────────────────────────────────────────────────────────────
+   The audit trail, filtered to this party. It is the app's own record of
+   what was changed and by whom — not a new log written for this screen. */
+function activityFor(p) {
+  const N = x => String(x == null ? '' : x).toUpperCase().replace(/\s+/g, ' ').trim();
+  const pn = N(p.name);
+  return (Q.auditRows ? Q.auditRows() : []).filter(a => N(a.party) === pn).slice(0, 40);
+}
+function activityBlock(p) {
+  const a = activityFor(p);
+  if (!a.length) return `<div class="card lgp-tablewrap"><table class="lgp-table">
+      <tbody><tr><td class="lgp-empty">No recorded changes for this party.</td></tr></tbody></table></div>`;
+  const when = ts => { try { return Q.fDS(String(ts).slice(0, 10)) + ' ' + String(ts).slice(11, 16); } catch (_) { return ts || ''; } };
+  return `<div class="card lgp-tablewrap"><table class="lgp-table">
+    <thead><tr><th>When</th><th>What</th><th>Record</th><th class="num">Amount</th><th>By</th></tr></thead>
+    <tbody>${a.map(x => `<tr>
+      <td>${esc(when(x.ts))}</td>
+      <td><b>${esc((x.action || '').replace(/^\w/, c => c.toUpperCase()))}</b> ${esc(x.module || '')}${x.reason ? `<div class="alc-d">${esc(x.reason)}</div>` : ''}</td>
+      <td class="mono">${esc(x.recId || x.ref || '—')}</td>
+      <td class="num">${x.amount ? fC(Math.round(x.amount)) : ''}</td>
+      <td>${esc(x.by || '—')}</td>
+    </tr>`).join('')}</tbody></table></div>`;
+}
+
+
 function render() {
   const main = document.getElementById('ql-main'); if (!main) return;
   resolveParty();
@@ -367,8 +437,15 @@ function render() {
         <tfoot><tr><td colspan="3">Period total</td><td class="num">${fC(Math.round(L.totalDr))}</td><td class="num" style="color:#16a34a">${fC(Math.round(L.totalCr))}</td><td class="num strong" style="color:${balCol}">${drcr(bal)}</td></tr></tfoot>
       </table>
     </div>
+    <h2 class="lgp-h">Documents</h2>
+    ${documentsBlock(p)}
+    <h2 class="lgp-h">Activity</h2>
+    ${activityBlock(p)}
   </div>`;
   const $ = id => document.getElementById(id);
+  document.querySelectorAll('.lgp-docbtn').forEach(b => b.onclick = () => {
+    const [kind, id] = b.dataset.doc.split('|'); openPartyDoc(kind, id);
+  });
   if ($('lgFrom')) $('lgFrom').onchange = e => { FROM = e.target.value; render(); };
   if ($('lgTo')) $('lgTo').onchange = e => { TO = e.target.value; render(); };
   document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { const [f, t] = b.dataset.r.split('|'); FROM = f; TO = t; render(); });
