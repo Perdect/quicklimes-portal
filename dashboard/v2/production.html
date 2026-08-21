@@ -25,7 +25,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cor">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cor"><link rel="stylesheet" href="./qlx.css?v=m22">
 <link rel="stylesheet" href="./mobile.css?v=m16">
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
@@ -74,10 +74,8 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 </style>
 <div id="ql-page">
   <div class="dash">
-    <div class="page-head">
-      <div><h1 class="page-title">Production</h1><div class="page-sub" id="prdSub">Quick Lime dispatch &amp; output</div></div>
-    </div>
-    <div class="kpi-strip" id="prdKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div id="prdHero"></div>
+    <div id="prdKpis"></div>
     <div class="row-2">
       <div class="card chart-wrap">
         <div class="card-head"><div><h3 class="card-title">Dispatch trend</h3><div class="card-sub">Tonnes dispatched · last 7 months</div></div></div>
@@ -100,7 +98,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
         A purchase bill proves material <b>arrived</b>; an invoice proves lime <b>left the gate</b>. Neither one proves what was burnt and made on a given day —
         so this table never claims an output figure, and a blank cell means the bills don't say. Record a run to override a month with measured numbers.
       </div>
-      <div class="kpi-strip" id="prdStats" style="grid-template-columns:repeat(4,1fr);margin-bottom:var(--ql-space-3)"></div>
+      <div id="prdStats" class="qx-stats-inset"></div>
       <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Month</th><th class="num">Limestone (T)</th><th class="num">Petcoke (T)</th><th class="num">Bags</th><th class="num">Quick Lime (T)</th><th class="num">Hydrated (T)</th><th class="num">Implied</th><th>Source</th></tr></thead><tbody id="prdDerived"></tbody></table></div>
     </div>
 
@@ -121,6 +119,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./i18n.js?v=h8"></script>
 <script src="./wa-core.js?v=w3"></script>
 <script src="./shell.js?v=m68s"></script>
+<script src="./qlx.js?v=m20prgd"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 QLShell.mount({ active: 'ql-prod', title: 'Production' });
@@ -138,6 +137,17 @@ function bars(series) {
   const rect = data.map((d, i) => `<rect x="${x(i) - bw / 2}" y="${y(d.qty)}" width="${bw}" height="${P.t + iH - y(d.qty)}" rx="4" fill="${v('--ql-brand-500')}"><title>${d.m}: ${d.qty.toFixed(1)} T</title></rect><text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-family="${v('--ql-font-sans')}" font-size="11" fill="${v('--ql-text-secondary')}">${d.m}</text>`).join('');
   host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Dispatch trend">${grid}${rect}</svg>`;
 }
+let HERO = null;
+const DL_ICON = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>';
+
+/* The production figures this page derives, as a file. */
+function exportProduction() {
+  const rows = (QLD.productionRows ? QLD.productionRows() : []);
+  QLShell.exportCSV('production_' + String(QLD.co.short || '').replace(/\s+/g, '_'),
+    ['Date', 'Kiln', 'Limestone (T)', 'Petcoke (T)', 'Bags', 'Quick lime (T)', 'Hydrated (T)', 'Output (T)', 'Labour', 'Note'],
+    rows.map(r => [r.date, r.kiln, r.limestone, r.petcoke, r.bags, r.quicklime, r.hydrated, r.output, r.labour, r.note]));
+}
+
 function render() {
   const co = QLD.co, pr = QLD.production();
   const K = [
@@ -146,7 +156,15 @@ function render() {
     { label: 'This Month', v: QLD.fmt(pr.month, 1) + ' T', meta: 'month to date', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V12M9 21V8M13 21V4M17 21V11M21 21V14"/></svg>' },
     { label: 'Chunna (month)', v: QLD.fmt(pr.chunnaMonth, 1) + ' T', meta: 'powder sales', bg: '#F3E8FF', fg: '#7C3AED', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13V8h14v5a7 7 0 0 1-7 7Z"/><line x1="9" y1="3" x2="9" y2="6"/><line x1="13" y1="3" x2="13" y2="6"/></svg>' }
   ];
-  document.getElementById('prdKpis').innerHTML = K.map(k => `<div class="kpi-tile"><div class="kpi-head"><div class="kpi-ic" style="background:${k.bg};color:${k.fg}">${k.ic}</div></div><div><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.v}</div><div class="kpi-meta">${k.meta}</div></div></div>`).join('');
+  /* The SHARED stat row — same component as the registers. K is untouched. */
+  document.getElementById('prdKpis').innerHTML = QLX.statsHTML(
+    K.map(k => ({ label: k.label, value: k.v, sub: k.meta, icon: k.ic, tint: QLX.tint(k.bg) })));
+  if (!HERO) {
+    HERO = { title: 'Production', sub: '<span id="prdSub"></span>',
+      tools: [{ label: 'Export', icon: DL_ICON, onClick: () => exportProduction() }] };
+    document.getElementById('prdHero').innerHTML = QLX.heroHTML(HERO);
+    QLX.wireHero(document.getElementById('prdHero'), HERO);
+  }
   document.getElementById('prdSub').textContent = `${co.short} · ${QLD.fmt(pr.month,1)} T this month`;
   bars(QLD.monthSeries(7));
   document.getElementById('prdProducts').innerHTML = QLD.topProducts().map(r => `
@@ -199,7 +217,10 @@ function renderRuns() {
     ${gaps.purchase.fixable ? '<a class="ql-btn ql-btn-ghost" href="/v2/purchase">Open Purchase register →</a>' : ''}
   </div>` : '';
 
-  const stat = (lb, v, m) => `<div class="kpi-tile"><div><div class="kpi-label">${lb}</div><div class="kpi-val">${v}</div><div class="kpi-meta">${m}</div></div></div>`;
+  /* The inner strip has no icons by design (it sits inside a card, where a
+     second row of coloured chips would compete with the card's own heading).
+     Same component, icon omitted. */
+  const stat = (lb, v, m) => ({ label: lb, value: v, sub: m, tint: 'blue', icon: '' });
   const sum = k => der.reduce((a, r) => a + (r[k].v || 0), 0);
   const any = k => der.some(r => r[k].v != null);
   const hasOut = any('quicklime') || any('hydrated');
@@ -208,12 +229,12 @@ function renderRuns() {
      he can dispatch stock he burnt last month — which is why it is not allowed to be
      called a yield anywhere on this page. Both sides must be real or it stays blank. */
   const ratio = (any('limestone') && totIn > 0 && hasOut) ? (totOut / totIn * 100).toFixed(0) + '%' : '—';
-  document.getElementById('prdStats').innerHTML = [
+  document.getElementById('prdStats').innerHTML = QLX.statsHTML([
     stat('Limestone in', any('limestone') ? nT(totIn) + ' T' : '—', any('limestone') ? 'from purchase bills' : 'no quantity on any bill'),
     stat('Petcoke in', any('petcoke') ? nT(sum('petcoke')) + ' T' : '—', any('petcoke') ? 'from purchase bills' : 'no quantity on any bill'),
     stat('Lime dispatched', hasOut ? nT(totOut) + ' T' : '—', 'from your invoices'),
     stat('Implied ratio', ratio, 'dispatch ÷ intake · not a yield')
-  ].join('');
+  ]);
 
   const tb = document.getElementById('prdDerived');
   if (!der.length) {

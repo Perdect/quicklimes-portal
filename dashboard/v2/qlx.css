@@ -652,3 +652,9 @@
    Reports, so the picker could never have been shared from here. That is a large
    part of why four copies of it grew. */
 .qx-hero-sub{font-size:var(--ql-text-sm);color:var(--ql-text-muted);margin-top:3px}
+/* A stat row nested inside a card: same cards, tighter, and no icon chips
+   competing with the card's own heading. */
+.qx-stats-inset .qx-stats{gap:10px;margin-bottom:0}
+.qx-stats-inset .qx-stat{padding:12px 14px}
+.qx-stats-inset .qx-stat-ic{display:none}
+.qx-stats-inset .qx-stat-v{font-size:var(--ql-text-xl)}
