@@ -25,7 +25,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cora">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cora"><link rel="stylesheet" href="./qlx.css?v=m22">
 <link rel="stylesheet" href="./mobile.css?v=m16">
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
@@ -179,12 +179,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <div id="ql-page">
   <div class="dash">
    <div class="set-wrap">
-    <div class="set-intro">
-      <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
-      <div>
-        <h1 class="page-title">Settings</h1>
-        <div class="page-sub" id="setSub">Manage your company, team, data and app preferences</div>
-      </div>
+    <div id="setHero"></div>
     </div>
     <div class="set-nav" id="setNav"></div>
     <div class="set-grid">
@@ -395,6 +390,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./wa-core.js?v=w3"></script>
 
 <script src="./shell.js?v=m68s"></script>
+<script src="./qlx.js?v=m20prgd"></script>
 <script src="./replace-month.js?v=g9"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
@@ -1008,6 +1004,26 @@ function openCompanyDeepLink() {
 QLD.init(() => { render(); renderDM(); renderBanks(); renderCo(); renderRm(); openCompanyDeepLink(); });
 renderTeam();
 renderWa();
+</script>
+<script>
+/* The app's shared header (QLX.heroHTML). This page used .set-intro — a
+   one-off "intro" block with a large icon, shared only with the other page
+   that copied it. The icon is dropped rather than bolted onto the shared
+   header: no other page has one, and adding a variant for two pages is how
+   a design system starts growing exceptions. */
+(function () {
+  const go = () => {
+    const host = document.getElementById('setHero');
+    if (!host || host.dataset.on) return;
+    if (!window.QLX || !QLX.heroHTML) { console.warn('QLX not loaded — shared page header skipped'); return; }
+    host.dataset.on = '1';
+    const cfg = { title: 'Settings', sub: '<span id="setSub">Manage your company, team, data and app preferences</span>', tools: [] };
+    host.innerHTML = QLX.heroHTML(cfg);
+    QLX.wireHero(host, cfg);
+  };
+  go();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go);
+})();
 </script>
 </body>
 </html>

@@ -51,6 +51,10 @@ function codeOf(page) {
        that will drift away from the rest. */
     if (/<div class="kpi-tile"/.test(code)) offenders.push(p + ' (kpi-tile)');
     if (/<div class="page-head"/.test(code)) offenders.push(p + ' (page-head)');
+    /* The legacy TYPOGRAPHY can outlive the legacy wrapper: settings and help
+       had no page-head at all, just `<h1 class="page-title">` inside their own
+       intro block. Same drift, one level down. */
+    if (/class="page-title"/.test(code)) offenders.push(p + ' (page-title)');
   }
   ok('no page hand-writes a KPI tile or a page header — they come from QLX' +
      (offenders.length ? '\n       still doing it: ' + offenders.join(', ') : ''),

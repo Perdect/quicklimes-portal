@@ -25,7 +25,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cora">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cora"><link rel="stylesheet" href="./qlx.css?v=m22">
 <link rel="stylesheet" href="./mobile.css?v=m16">
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
@@ -104,12 +104,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <div id="ql-page">
   <div class="dash">
    <div class="set-wrap">
-    <div class="set-intro">
-      <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
-      <div>
-        <h1 class="page-title">Help &amp; support</h1>
-        <div class="page-sub">Common tasks, what to do when something looks wrong, and how to reach us</div>
-      </div>
+    <div id="hpHero"></div>
     </div>
     <div class="set-grid">
 
@@ -252,6 +247,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./wa-core.js?v=w3"></script>
 <script src="./shell.js?v=m68s"></script>
+<script src="./qlx.js?v=m20prgd"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 QLShell.mount({ active: 'help', title: 'Help & support' });
@@ -271,6 +267,26 @@ document.getElementById('hlpWa').addEventListener('click', function (e) {
   var msg = 'Hello, I need help with QuickLimes' + (co ? ' (' + co + ')' : '') + '.';
   e.currentTarget.href = 'https://wa.me/919460767676?text=' + encodeURIComponent(msg);
 });
+</script>
+<script>
+/* The app's shared header (QLX.heroHTML). This page used .set-intro — a
+   one-off "intro" block with a large icon, shared only with the other page
+   that copied it. The icon is dropped rather than bolted onto the shared
+   header: no other page has one, and adding a variant for two pages is how
+   a design system starts growing exceptions. */
+(function () {
+  const go = () => {
+    const host = document.getElementById('hpHero');
+    if (!host || host.dataset.on) return;
+    if (!window.QLX || !QLX.heroHTML) { console.warn('QLX not loaded — shared page header skipped'); return; }
+    host.dataset.on = '1';
+    const cfg = { title: 'Help & support', sub: 'Common tasks, what to do when something looks wrong, and how to reach us', tools: [] };
+    host.innerHTML = QLX.heroHTML(cfg);
+    QLX.wireHero(host, cfg);
+  };
+  go();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go);
+})();
 </script>
 </body>
 </html>
