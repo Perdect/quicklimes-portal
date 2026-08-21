@@ -17,28 +17,47 @@ const PHANTOM = Array.from({ length: 8 }, (_, k) => ({
 const REAL_SALE = { idx: 10, inv: '51/2026-27', date: '2026-06-21', party: ARIF.name, gstin: ARIF.gstin, total: 248745 };
 const PURCHASES = [{ idx: 3, bill: '20263121B024217', date: '2026-01-15', sup: IOC.name, gstin: IOC.gstin, total: 474627 }];
 
-/* ── THE REAL FINDING ────────────────────────────────────────────────────── */
+/* ── THE REAL FINDING ────────────────────────────────────────────────────
+   All eight rows are the supplier's own bill on the wrong side of the book.
+   The whole 8 × 4,74,627 is phantom revenue — and it must be counted ONCE.
+   The first version of this engine reported 71,19,405: it billed the eight
+   rows as a duplicate (seven extra copies) AND as eight wrong-direction
+   rows. Live data caught it. */
 {
   const r = I.scan({ sales: PHANTOM.concat([REAL_SALE]), purchases: PURCHASES, parties: PARTIES });
-  const dup = r.findings.find(f => f.type === 'duplicate');
-  ok('IOC · the eight copies are found as ONE duplicate finding, not eight',
-     dup && dup.count === 8 && dup.idxs.length === 8);
-  ok('IOC · it names the overstatement: seven extra copies, 33,22,389',
-     dup.overstatedBy === 474627 * 7);
-  ok('IOC · the explanation says how many times and that they are identical',
-     /recorded 8 times/.test(dup.why) && /every copy identical/.test(dup.why));
 
-  const wd = r.findings.find(f => f.type === 'wrong-direction');
-  ok('IOC · booking a sale to a SUPPLIER is also caught', !!wd);
-  ok('IOC · and it is CERTAIN, because the same number is their purchase bill',
-     wd.severity === 'certain' && /cannot be our invoice number/.test(wd.why));
-  ok('IOC · the twin purchase bill is quoted as the evidence',
-     /2026-01-15/.test(wd.why) && /474627/.test(wd.why));
+  ok('IOC · eight misfiled rows are ONE finding, not eight',
+     r.findings.length === 1 && r.findings[0].count === 8 && r.findings[0].idxs.length === 8);
 
+  const wd = r.findings[0];
+  ok('IOC · it is a wrong-direction finding, and CERTAIN',
+     wd.type === 'wrong-direction' && wd.severity === 'certain');
+  ok('IOC · the overstatement is the whole 8 × 4,74,627 — every row is phantom',
+     wd.overstatedBy === 474627 * 8 && r.overstated === 474627 * 8);
+  ok('IOC · NOT double counted as a duplicate as well',
+     !r.findings.some(f => f.type === 'duplicate') && r.overstated !== 474627 * 15);
+  ok('IOC · the explanation gives the count and the evidence',
+     /8 rows book this as a SALE/.test(wd.why) && /2026-01-15/.test(wd.why) &&
+     /cannot be our invoice number/.test(wd.why));
   ok('IOC · a genuine customer invoice is left alone',
      !r.findings.some(f => /51\/2026-27/.test(f.doc)));
-  ok('IOC · certain findings are counted and ranked above warnings',
-     r.certain >= 2 && r.warnings === 0 && r.findings[0].severity === 'certain');
+  ok('IOC · removing the finding removes all eight rows and keeps none',
+     I.fixPlan(wd).remove.length === 8 && I.fixPlan(wd).keep.length === 0);
+}
+
+/* A plain duplicate — same party, right direction — is still caught, and is
+   still the thing the duplicate check exists for. */
+{
+  const twice = [
+    { idx: 1, inv: '90/2026-27', date: '2026-07-01', party: ARIF.name, gstin: ARIF.gstin, total: 100000 },
+    { idx: 2, inv: '90/2026-27', date: '2026-07-01', party: ARIF.name, gstin: ARIF.gstin, total: 100000 }
+  ];
+  const r = I.scan({ sales: twice, purchases: PURCHASES, parties: PARTIES });
+  const dup = r.findings.find(f => f.type === 'duplicate');
+  ok('DUP · a customer invoice entered twice is caught', dup && dup.count === 2);
+  ok('DUP · and overstates by exactly one copy', dup.overstatedBy === 100000 && r.overstated === 100000);
+  ok('DUP · the fix keeps one and removes one',
+     I.fixPlan(dup).keep.length === 1 && I.fixPlan(dup).remove.length === 1);
 }
 
 /* ── SEVERITY IS EARNED, NOT ASSUMED ─────────────────────────────────────── */
@@ -97,18 +116,17 @@ const PURCHASES = [{ idx: 3, bill: '20263121B024217', date: '2026-01-15', sup: I
 
 /* ── THE FIX PLAN NEVER ERASES A REAL TRANSACTION ────────────────────────── */
 {
-  const r = I.scan({ sales: PHANTOM, purchases: PURCHASES, parties: PARTIES });
-  const dup = r.findings.find(f => f.type === 'duplicate');
+  const dup = I.duplicates(PHANTOM, { doc: 'inv', party: 'party' })[0];
   const plan = I.fixPlan(dup);
   ok('FIX · a duplicate keeps the FIRST copy — the transaction is real',
      plan.keep.length === 1 && plan.keep[0] === 144 && plan.remove.length === 7);
   ok('FIX · it never proposes removing every copy', plan.remove.indexOf(plan.keep[0]) === -1);
   ok('FIX · and explains what it keeps and why', /Keeps the first copy/.test(plan.why));
 
-  const wd = r.findings.find(f => f.type === 'wrong-direction');
+  const wd = I.wrongDirection(PHANTOM, PURCHASES, PARTIES)[0];
   const wplan = I.fixPlan(wd);
-  ok('FIX · a wrong-direction row is removed entirely — it was never ours',
-     wplan.remove.length === 1 && wplan.keep.length === 0 && /never a sale/.test(wplan.why));
+  ok('FIX · wrong-direction rows are removed entirely — they were never ours',
+     wplan.remove.length === 8 && wplan.keep.length === 0 && /never a sale/.test(wplan.why));
 
   ok('FIX · asked about nothing, it proposes nothing', I.fixPlan(null).remove.length === 0);
 }

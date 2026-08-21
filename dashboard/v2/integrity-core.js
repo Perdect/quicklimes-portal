@@ -85,35 +85,64 @@
       var d = D(b.bill); if (!d) return;
       purchByDoc[d + '~' + idOf(b.gstin, b.sup)] = b;
     });
-    var out = [];
+    /* GROUPED by document + party. Eight copies of one misfiled bill is ONE
+       thing that went wrong, not eight. The first live run listed it eight
+       times and the panel was unreadable. */
+    var by = {}, order = [];
     (sales || []).forEach(function (s, i) {
       var pid = idOf(s.gstin, s.party);
-      var sup = supplier[pid]; if (!sup) return;
-      var twin = purchByDoc[D(s.inv) + '~' + pid];
-      out.push({
+      if (!supplier[pid]) return;
+      var k = D(s.inv) + '~' + pid;
+      if (!by[k]) { by[k] = { rows: [], twin: purchByDoc[D(s.inv) + '~' + pid] || null, first: s }; order.push(k); }
+      by[k].rows.push({ r: s, at: i });
+    });
+    return order.map(function (k) {
+      var g = by[k], s = g.first, twin = g.twin, n = g.rows.length;
+      var each = money(s.total);
+      var total = g.rows.reduce(function (a, x) { return a + money(x.r.total); }, 0);
+      return {
         type: 'wrong-direction', severity: twin ? 'certain' : 'warning', kind: 'sale',
         doc: s.inv || '', party: s.party || '', gstin: s.gstin || '',
-        count: 1, idxs: [s.idx != null ? s.idx : i], each: money(s.total),
-        overstatedBy: twin ? money(s.total) : 0,
+        count: n, idxs: g.rows.map(function (x) { return x.r.idx != null ? x.r.idx : x.at; }),
+        each: each, overstatedBy: twin ? total : 0,
         why: twin
-          ? 'This is booked as a SALE to ' + (s.party || 'a supplier') + ', but ' + (s.inv || 'the same number') +
-            ' is also their purchase bill to us, dated ' + (twin.date || '?') + ' for ' + money(twin.total) +
-            '. A supplier\'s own bill number cannot be our invoice number — this is their bill, entered on the wrong side.'
-          : (s.party || 'This party') + ' is saved as a SUPPLIER, so a sales invoice to them is unusual. ' +
-            'It can be legitimate — you may sell to a firm you also buy from — so check it rather than assume.'
-      });
-    });
-    return out.sort(function (a, b) { return b.overstatedBy - a.overstatedBy; });
+          ? (n > 1 ? n + ' rows book this as a SALE' : 'This is booked as a SALE') + ' to ' + (s.party || 'a supplier') +
+            ', but ' + (s.inv || 'the same number') + ' is also their purchase bill to us, dated ' + (twin.date || '?') +
+            ' for ' + money(twin.total) + '. A supplier\'s own bill number cannot be our invoice number — this is their ' +
+            'bill, entered on the wrong side' + (n > 1 ? ', ' + n + ' times' : '') + '.'
+          : (s.party || 'This party') + ' is saved as a SUPPLIER, so a sales invoice to them is unusual' +
+            (n > 1 ? ' (' + n + ' rows)' : '') + '. It can be legitimate — you may sell to a firm you also buy from — ' +
+            'so check it rather than assume.'
+      };
+    }).sort(function (a, b) { return b.overstatedBy - a.overstatedBy; });
   }
 
   /* Everything, worst first. Certain findings outrank warnings; within a
      tier, the one distorting the books most comes first. */
   function scan(data) {
     data = data || {};
+    var sales = data.sales || [], purchases = data.purchases || [], parties = data.parties || [];
+
+    var wd = wrongDirection(sales, purchases, parties);
+
+    /* NO DOUBLE COUNTING. The first live run reported 71,19,405 overstated
+       when the true figure was 37,97,016: the eight misfiled Indian Oil rows
+       were counted once as a duplicate (seven extra copies) AND again as
+       eight wrong-direction rows. A row that should not be in this register
+       at all cannot ALSO be an extra copy of something that belongs here.
+       Wrong-direction wins, and the duplicate check simply does not see
+       those rows — so the headline is the money, counted once. */
+    var claimed = {};
+    wd.forEach(function (f) {
+      if (f.severity !== 'certain') return;
+      f.idxs.forEach(function (i) { claimed[i] = 1; });
+    });
+    var remaining = sales.filter(function (s, i) { return !claimed[s.idx != null ? s.idx : i]; });
+
     var f = []
-      .concat(duplicates(data.sales || [], { doc: 'inv', party: 'party', kind: 'sale', label: 'Invoice' }))
-      .concat(duplicates(data.purchases || [], { doc: 'bill', party: 'sup', kind: 'purchase', label: 'Bill' }))
-      .concat(wrongDirection(data.sales || [], data.purchases || [], data.parties || []));
+      .concat(duplicates(remaining, { doc: 'inv', party: 'party', kind: 'sale', label: 'Invoice' }))
+      .concat(duplicates(purchases, { doc: 'bill', party: 'sup', kind: 'purchase', label: 'Bill' }))
+      .concat(wd);
     var rank = { certain: 0, warning: 1 };
     f.sort(function (a, b) { return (rank[a.severity] - rank[b.severity]) || (b.overstatedBy - a.overstatedBy); });
     return {
