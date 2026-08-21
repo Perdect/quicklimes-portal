@@ -180,6 +180,28 @@ function codeOf(page) {
      (odd.length ? '\n       ' + odd.join(', ') : ''), odd.length === 0);
 }
 
+/* ── 8. THE HEADER MUST EXIST BEFORE render() RUNS ───────────────────────
+   QLD.init(render) calls render() DURING script execution when the data is
+   already cached — before DOMContentLoaded. A header mounted only on that
+   event does not exist yet, so a render() that writes into it (every one of
+   these pages writes its subtitle) throws and aborts before filling the
+   page body. The header looked perfect and everything under it was gone.
+
+   So: the mount must be called synchronously, not only from a listener. */
+{
+  const late = [];
+  for (const p of pages) {
+    const html = src[p];
+    if (!/QLX\.heroHTML\(cfg\)/.test(html)) continue;
+    /* A bare go() call outside the listener — that is the synchronous mount. */
+    const sync = /\n\s*go\(\);/.test(html);
+    if (!sync) late.push(p);
+  }
+  ok('every shared header mounts synchronously, not only on DOMContentLoaded' +
+     (late.length ? '\n       waits for the event: ' + late.join(', ') : ''),
+     late.length === 0);
+}
+
 console.log('\n════ design system (one header, one stat row, everywhere) ════');
 console.log('  Pages scanned: ' + pages.length);
 console.log('  Passed: ' + pass + '   Failed: ' + fail);

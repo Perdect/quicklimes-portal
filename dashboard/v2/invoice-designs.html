@@ -108,7 +108,15 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
     host.innerHTML = QLX.heroHTML(cfg);
     QLX.wireHero(host, cfg);
   };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+  /* MOUNT SYNCHRONOUSLY. This waited for DOMContentLoaded, but QLD.init(render)
+     fires render() during script execution when the data is already cached —
+     BEFORE that event. render() then wrote to elements the header had not
+     created yet ($('#bkSub').textContent on a null), threw, and aborted before
+     filling the page body. The header looked perfect and everything under it
+     was missing. This script sits below its host in the document, so the host
+     already exists; the listener stays as a fallback and go() is idempotent. */
+  go();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go);
 })();
 
 QLShell.mount({ active: 'invoice-designs', title: 'Invoice Designs' });
