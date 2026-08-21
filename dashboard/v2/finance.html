@@ -391,30 +391,7 @@ function printReport(r) {
   <table><thead><tr>${r.headers.map((h, i) => `<th class="${i > 0 && typeof (r.rows[0] || [])[i] === 'number' ? 'r' : ''}">${esc(h)}</th>`).join('')}</tr></thead>
   <tbody>${r.rows.map(row => `<tr>${row.map(c => `<td class="${typeof c === 'number' ? 'r' : ''}">${money(c)}</td>`).join('')}</tr>`).join('')}</tbody>
   ${r.totals ? `<tfoot><tr>${r.totals.map(c => `<td class="${typeof c === 'number' ? 'r' : ''}">${money(c)}</td>`).join('')}</tr></tfoot>` : ''}</table>
-  <script>window.onload=function(){window.print()}<\/script><script>
-/* The app's shared header (QLX.heroHTML). The two action buttons keep the ids
-   this page's own code binds to, so their handlers are untouched. */
-(function () {
-  const go = () => {
-    const host = document.getElementById('finHero');
-    if (!host || host.dataset.on) return;
-    host.dataset.on = '1';
-    if (!window.QLX || !QLX.heroHTML) { console.warn('QLX not loaded — shared page header skipped'); return; }
-    const cfg = {
-      title: 'Finance + GST Portal',
-      sub: '<span id="finSub">Bank statements · outstanding · GST · CA documents</span>',
-      tools: [{ label: 'Re-classify', icon: '<path d="M21 12a9 9 0 1 1-2.6-6.4"/><polyline points="21 3 21 9 15 9"/>',
-                onClick: () => { const b = document.getElementById('finReclass'); if (b && b.onclick) b.onclick(); } }],
-      primary: { label: 'Upload statement', icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
-                 onClick: () => { const b = document.getElementById('finUploadBtn'); if (b && b.onclick) b.onclick(); } }
-    };
-    host.innerHTML = QLX.heroHTML(cfg);
-    QLX.wireHero(host, cfg);
-  };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
-})();
-</script>
-</body></html>`);
+  <script>window.onload=function(){window.print()}<\/script></body></html>`);
   w.document.close();
 }
 
@@ -507,6 +484,29 @@ $('#finReclass').onclick = () => { F.reclassifyAll(); toast('AI re-classified al
 window.__qlOnSwitchCompany = () => { refreshSub(); setTab(FIN.tab); };   // shell owns the switch
 window.__qlRefresh = () => { refreshSub(); setTab(FIN.tab); };
 Q.init(() => { refreshSub(); setTab(FIN.tab); });
+</script>
+<script>
+/* The app's shared header (QLX.heroHTML). The two action buttons keep the ids
+   this page's own code binds to, so their handlers are untouched. */
+(function () {
+  const go = () => {
+    const host = document.getElementById('finHero');
+    if (!host || host.dataset.on) return;
+    host.dataset.on = '1';
+    if (!window.QLX || !QLX.heroHTML) { console.warn('QLX not loaded — shared page header skipped'); return; }
+    const cfg = {
+      title: 'Finance + GST Portal',
+      sub: '<span id="finSub">Bank statements · outstanding · GST · CA documents</span>',
+      tools: [{ label: 'Re-classify', icon: '<path d="M21 12a9 9 0 1 1-2.6-6.4"/><polyline points="21 3 21 9 15 9"/>',
+                onClick: () => { const b = document.getElementById('finReclass'); if (b && b.onclick) b.onclick(); } }],
+      primary: { label: 'Upload statement', icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+                 onClick: () => { const b = document.getElementById('finUploadBtn'); if (b && b.onclick) b.onclick(); } }
+    };
+    host.innerHTML = QLX.heroHTML(cfg);
+    QLX.wireHero(host, cfg);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+})();
 </script>
 </body>
 </html>

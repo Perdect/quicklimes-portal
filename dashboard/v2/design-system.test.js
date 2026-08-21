@@ -25,7 +25,12 @@ let pass = 0, fail = 0; const bad = [];
 const ok = (m, c) => { if (c) pass++; else { fail++; bad.push(m); } };
 
 const DIR = __dirname;
-const pages = fs.readdirSync(DIR).filter(f => f.endsWith('.html') && !f.startsWith('_preview'));
+/* attendance.html is a deliberate 0-byte stub — the nav already marks it
+   "Soon" and routes it to SOON rather than to the file. An empty file is not
+   a page with a design problem, so it is not scanned. */
+const pages = fs.readdirSync(DIR).filter(f =>
+  f.endsWith('.html') && !f.startsWith('_preview') &&
+  fs.statSync(path.join(DIR, f)).size > 0);
 const read = f => fs.readFileSync(path.join(DIR, f), 'utf8');
 const src = {};
 for (const p of pages) src[p] = read(p);
@@ -124,6 +129,55 @@ function codeOf(page) {
   const qlx = fs.readFileSync(path.join(DIR, 'qlx.js'), 'utf8');
   ok('the shared chrome accepts a path body OR a complete <svg>',
      /function icon\(x\)/.test(qlx) && /\^\\s\*<svg\[\\s>\]/.test(qlx));
+}
+
+/* ── 6. EVERY PAGE'S INLINE SCRIPT STILL PARSES ──────────────────────────
+   finance.html has TWO </body> tags: the real one, and one inside a JS
+   template literal that builds a print-popup document. A mount block
+   inserted before the FIRST terminated the page's script mid-function, and
+   the rest of the JavaScript rendered onto the screen as text. The markup
+   looked fine, the design-system checks passed, and the page was ruined.
+
+   Parsing each inline block catches it in a second. */
+{
+  const broken = [];
+  for (const p of pages) {
+    const html = src[p];
+    const re = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g;
+    let m, n = 0;
+    while ((m = re.exec(html))) {
+      n++;
+      const code = m[1];
+      if (!code.trim()) continue;
+      try {
+        /* Parse only — never run. Wrapped in an async body so a top-level
+           await is legal, and so a page that legitimately uses one is not
+           reported as broken. */
+        new Function('return (async () => {' + code + '\n})');
+      } catch (e) {
+        broken.push(p + ' [block ' + n + ']: ' + e.message);
+      }
+    }
+  }
+  ok('every inline <script> on every page parses as JavaScript' +
+     (broken.length ? '\n       ' + broken.join('\n       ') : ''),
+     broken.length === 0);
+}
+
+/* ── 7. THE CLOSING </body> IS THE LAST THING ON THE PAGE ────────────────
+   The direct cause above. If a page's final </body> is not the real one,
+   anything appended to "the end of the body" lands inside a string. */
+{
+  const odd = [];
+  for (const p of pages) {
+    const html = src[p];
+    const last = html.lastIndexOf('</body>');
+    if (last < 0) { odd.push(p + ' (no </body>)'); continue; }
+    const after = html.slice(last + 7).replace(/\s|<\/html>/g, '');
+    if (after) odd.push(p + ' (content after the final </body>)');
+  }
+  ok('nothing follows the final </body> except </html>' +
+     (odd.length ? '\n       ' + odd.join(', ') : ''), odd.length === 0);
 }
 
 console.log('\n════ design system (one header, one stat row, everywhere) ════');
