@@ -188,6 +188,7 @@ function render() {
     const co = Q.co, k = Q.kpis(), s = Q.salesSummary(), prod = Q.production(), bal = Q.accountBalances(), pay = Q.paymentsSummary(), pl = Q.getPL(), gst = Q.gstSummary();
     root.innerHTML =
       filterBar(co) +
+      integrityCard() +
       kpiRow1() +
       heroRow() +
       flowWidget(prod) +
@@ -374,6 +375,75 @@ function partiesCard() {
     <div class="dx-parties" data-pane="sup" hidden>${rowsOf(sup)}</div></div>`;
 }
 
+
+/* ══════════ data integrity — what the books cannot see about themselves ══════════
+   Silent when the book is clean: a health widget that is always on screen
+   stops being read. It appears only when QLIntegrity has evidence, and it
+   leads with the number that matters — how much the books are overstated by
+   if every CERTAIN finding is real. */
+function integrityCard() {
+  const I = window.QLIntegrity; if (!I) return '';
+  const r = I.scan({ sales: Q.salesRows(), purchases: Q.purchaseRows(), parties: Q.partyRows() });
+  if (!r.findings.length) return '';
+  const certain = r.findings.filter(f => f.severity === 'certain');
+  const warn = r.findings.filter(f => f.severity === 'warning');
+  const head = certain.length
+    ? `<b>${fC(r.overstated)}</b> of the books looks wrong`
+    : `${warn.length} thing${warn.length === 1 ? '' : 's'} worth checking`;
+  const sub = [
+    certain.length ? certain.length + ' confirmed' : '',
+    warn.length ? warn.length + ' to check' : ''
+  ].filter(Boolean).join(' · ');
+  return `<div class="dx-card dx-integ${certain.length ? ' bad' : ''}">
+    <div class="dx-card-h"><div class="dx-card-t">Data check</div><span class="dx-card-sub">${esc(sub)}</span></div>
+    <div class="dx-integ-b"><div class="dx-integ-h">${head}</div>
+      <div class="dx-integ-s">${esc(certain.length ? certain[0].why : warn[0].why)}</div>
+      <button class="ql-btn ql-btn-primary" id="dxInteg">Review ${r.findings.length} finding${r.findings.length === 1 ? '' : 's'}</button>
+    </div></div>`;
+}
+function openIntegrity() {
+  const I = window.QLIntegrity;
+  const r = I.scan({ sales: Q.salesRows(), purchases: Q.purchaseRows(), parties: Q.partyRows() });
+  const card = (f, i) => {
+    const plan = I.fixPlan(f);
+    return `<div class="ig-f ${f.severity}">
+      <div class="ig-f-h"><span class="ig-sev ${f.severity}">${f.severity === 'certain' ? 'Confirmed' : 'Check this'}</span>
+        <b class="mono">${esc(f.doc || '(no number)')}</b><span class="ig-p">${esc(f.party)}</span></div>
+      <div class="ig-why">${esc(f.why)}</div>
+      ${f.overstatedBy ? `<div class="ig-amt">Overstates the books by <b>${fC(f.overstatedBy)}</b></div>` : ''}
+      ${plan.remove.length ? `<div class="ig-act">
+        <button class="ql-btn ql-btn-secondary ig-fix" data-f="${i}">Remove ${plan.remove.length} row${plan.remove.length === 1 ? '' : 's'}</button>
+        <span class="ig-plan">${esc(plan.why)}</span></div>` : ''}
+    </div>`;
+  };
+  QLShell.panel({
+    title: 'Data check', wide: true,
+    sub: r.certain + ' confirmed · ' + r.warnings + ' to check' + (r.overstated ? ' · ' + fC(r.overstated) + ' overstated' : ''),
+    body: `<div class="ig">
+      <div class="ig-note">Removals are reversible — rows go to Trash with a reason on the audit trail, and can be restored.</div>
+      ${r.findings.map(card).join('')}</div>`,
+    actions: [{ label: 'Close', onClick: () => QLShell.closeModal() }],
+    onMount: el => el.querySelectorAll('.ig-fix').forEach(b => b.onclick = () => {
+      const f = r.findings[+b.dataset.f], plan = I.fixPlan(f);
+      /* Raw indices, and soft-delete does not splice the array — so removing
+         several rows in one pass cannot make the later indices point at the
+         wrong record. Descending order anyway, because relying on that
+         invariant silently is how index bugs get written. */
+      const reason = f.type === 'duplicate'
+        ? 'Duplicate of ' + (f.doc || 'the same document') + ' — kept one copy'
+        : 'Supplier bill entered as a sale — already recorded in Purchases';
+      let n = 0;
+      plan.remove.slice().sort((x, y) => y - x).forEach(idx => {
+        const res = (plan.kind === 'purchase') ? Q.deletePurchase(idx, reason) : Q.deleteSale(idx, reason);
+        if (!res || res.ok !== false) n++;
+      });
+      QLShell.toast(n + ' row' + (n === 1 ? '' : 's') + ' moved to Trash', 'ok');
+      QLShell.closeModal();
+      if (window.__qlRefresh) window.__qlRefresh(); else location.reload();
+    })
+  });
+}
+
 /* ══════════ unified activity timeline ══════════ */
 function activityWidget() {
   const ev = (Q.activity ? Q.activity() : []);
@@ -421,6 +491,7 @@ function wire() {
   const root = document.getElementById('dxRoot'); if (!root) return;
   const mo = document.getElementById('dxMonth'); if (mo) mo.onclick = e => { e.stopPropagation(); openDashMonthMenu(mo); };
   const ex = document.getElementById('dxExport'); if (ex) ex.onclick = () => exportMonthReport();
+  const ig = document.getElementById('dxInteg'); if (ig) ig.onclick = () => openIntegrity();
   root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
   /* Was guarded against double-firing inside the FAB menu; with the FAB gone every
      [data-go] is a plain navigation. */

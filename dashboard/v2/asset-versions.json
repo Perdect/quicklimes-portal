@@ -116,12 +116,16 @@
     "sha": "1ff0028f4f98"
   },
   "dash.css": {
-    "v": "d9r",
-    "sha": "08436c33d9b1"
+    "v": "d9ru",
+    "sha": "dafb16523922"
+  },
+  "integrity-core.js": {
+    "v": "ig1",
+    "sha": "750fd330760b"
   },
   "dashboard.js": {
-    "v": "m22r",
-    "sha": "79835aefaca2"
+    "v": "m22ru",
+    "sha": "e855baa20c22"
   },
   "lead-parse.js": {
     "v": "lp1",
