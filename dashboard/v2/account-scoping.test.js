@@ -90,6 +90,16 @@ const data = strip(read('data.js'));
      /removeItem\(PHOTO_KEY_LEGACY\)/.test(shell) && /removeItem\('dm_profile_pic'\)/.test(shell));
 }
 
+/* ── 7. THE PHOTO APPEARS ON THE FIRST LOAD, NOT THE SECOND ─────────────
+   mount() paints the avatar from localStorage; on the first load after
+   signing in that is empty, and the cloud pull that fills it runs later. */
+{
+  ok('the cloud pull repaints the avatar as soon as it has the photo',
+     /QLShell\.refreshAvatarPhoto\(\)/.test(data));
+  ok('  and the shell exposes that hook',
+     /paintWorkspace, refreshAvatarPhoto,/.test(shell) && /function refreshAvatarPhoto\(\)/.test(shell));
+}
+
 console.log('\n════ account scoping (one person, one account, one photo) ════');
 console.log('  Passed: ' + pass + '   Failed: ' + fail);
 bad.forEach(b => console.log('    ✗ ' + b));

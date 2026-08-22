@@ -540,6 +540,10 @@
       try {
         if (cd.profile_pic) localStorage.setItem(picKey(), cd.profile_pic);
         else localStorage.removeItem(picKey());
+        /* Paint it NOW. The shell drew the avatar from localStorage before this
+           pull ran, so on the first load after signing in the photo would
+           otherwise not appear until the next navigation. */
+        if (window.QLShell && QLShell.refreshAvatarPhoto) QLShell.refreshAvatarPhoto();
       } catch (_) {}
       return true;
     } catch (e) { console.warn('v2 cloud pull failed', e); return false; }

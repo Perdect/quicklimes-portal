@@ -799,6 +799,13 @@
     });
   }
 
+  /* Called by data.js the moment a cloud pull writes this account's photo.
+     mount() paints the avatar from localStorage, which on the FIRST load after
+     signing in is empty — the pull that fills it happens later, so the photo
+     appeared only on the next navigation. */
+  function refreshAvatarPhoto() {
+    try { applyAvatarPhoto(localStorage.getItem(photoKey()) || null); } catch (_) {}
+  }
   function applyAvatarPhoto(url) {
     document.querySelectorAll('[data-avatar]').forEach(el => {
       if (url) { el.style.setProperty('--ql-photo', `url('${url}')`); el.classList.add('has-photo'); }
@@ -2511,7 +2518,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     registerAssistIntent, can, permMatrix: () => PERMS, currentRole,
     closePhotoModal() { $('photoBack').classList.remove('open'); },
     savePhoto() {}, removePhoto() {},
-    paintWorkspace,
+    paintWorkspace, refreshAvatarPhoto,
     setBreadcrumb(label) { const c = document.querySelector('.tb-crumb-active'); if (c) c.textContent = label; },
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
     // form modals + row action menus
