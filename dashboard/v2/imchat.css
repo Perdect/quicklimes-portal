@@ -163,9 +163,16 @@
   .qc.conv .qc-conv { display: flex; }
   .qc-msgs { padding: 12px; }
   .qc-bub { max-width: 86%; }
-  .qc-icon { padding: 10px; }          /* 44px touch targets */
-  .qc-f { padding: 8px 13px; }
-  .qc-row { padding: 13px 14px; }
+  /* REAL 44px touch targets. The previous rules said 44 in a comment and
+     produced 38 and 35 — measured in a 386px viewport, not guessed. An icon
+     is 18px, so the padding alone never gets there; min-height does. */
+  .qc-icon { padding: 13px; min-width: 44px; min-height: 44px; }
+  .qc-f { padding: 0 14px; min-height: 44px; display: inline-flex; align-items: center; }
+  .qc-row { padding: 13px 14px; min-height: 64px; }
+  .qc-send { width: 44px; height: 44px; }
+  .qc-note-t { min-height: 44px; padding: 0 13px; }
+  .qc-act { width: 34px; height: 34px; }   /* inline with the bubble, not a primary control */
+  .qc-comp textarea { min-height: 44px; }
 }
 
 /* ── phase 2: reply, reactions, delete, in-thread search ─────────────────── */
