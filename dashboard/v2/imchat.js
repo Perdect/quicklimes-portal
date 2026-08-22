@@ -253,7 +253,7 @@
       <button class="qc-act" data-emoji="${m.id}" title="React">🙂</button>
       <button class="qc-act ${m.pinned_at ? 'on' : ''}" data-pin="${m.id}" title="${m.pinned_at ? 'Unpin' : 'Pin'}">${ic('pin')}</button>
       <button class="qc-act" data-fwd="${m.id}" title="Forward">${ic('fwd')}</button>
-      <button class="qc-act" data-unread="${m.id}" title="Mark unread from here">${ic('note')}</button>
+      ${!mine ? `<button class="qc-act" data-unread="${m.id}" title="Mark unread from here">${ic('note')}</button>` : ''}
       ${mine ? `<button class="qc-act" data-del="${m.id}" title="Delete for everyone">${ic('trash')}</button>` : ''}
     </div>`;
 
@@ -412,10 +412,21 @@
       ${row('Industry', m.industry)}${row('Location', m.city || m.address)}
       ${row('Phone', m.phone)}${row('Rating', m.rating)}${row('Lead status', m.status)}
       ${row('Conversation', kindLabel(t.kind))}
-      ${links.length ? `<div class="qc-d-a">${links.join('')}</div>` : ''}
+      <div class="qc-d-a">${links.join('')}
+        <button class="qc-d-b" id="qcArchive">Archive conversation</button></div>
       ${!Object.keys(m).length ? '<div class="qc-d-none">No business details were captured when this conversation was opened.</div>' : ''}
     </div>`;
     setTimeout(() => {
+      const ab = document.getElementById('qcArchive');
+      if (ab) ab.onclick = async () => {
+        if (!confirm('Archive this conversation? It leaves the list; the history is kept.')) return;
+        const r = await api({ action: 'archive', thread_id: S.threadId });
+        if (!r.ok) { QLShell.toast('Could not archive', 'err'); return; }
+        S.threadId = null; S.details = false;
+        document.getElementById('qlIm').classList.remove('conv');
+        await loadThreads(); paintConv();
+        QLShell.toast('Archived', 'ok');
+      };
       document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
         const [what, id] = b.dataset.go.split('|');
         if (what === 'lead') location.href = 'discover.html';
@@ -517,6 +528,11 @@
       })
     });
   }
+  /* Offered only on messages you did NOT write. Unread counts other people's
+     messages by definition, so marking your own would move the read marker
+     correctly and change nothing you can see — a button that appears to do
+     nothing. Verified live: the marker moved 13 -> 12 and the badge stayed 0,
+     because every message in that thread was mine. */
   async function markUnreadFrom(id) {
     const r = await api({ action: 'unread', thread_id: S.threadId, message_id: id });
     if (!r.ok) { QLShell.toast('Could not mark unread', 'err'); return; }

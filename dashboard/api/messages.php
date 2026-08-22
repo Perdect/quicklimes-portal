@@ -172,7 +172,7 @@ if ($action === 'open') {
 
 /* Everything below acts on one thread and requires membership. */
 $threadId = (int)($b['thread_id'] ?? 0);
-if (in_array($action, ['messages', 'send', 'read', 'members', 'pins', 'unread'], true)) {
+if (in_array($action, ['messages', 'send', 'read', 'members', 'pins', 'unread', 'archive'], true)) {
   if ($threadId <= 0) ql_out(['ok' => false, 'error' => 'no_thread'], 400);
   if (!ql_thread_row($db, $plantId, $threadId)) ql_out(['ok' => false, 'error' => 'not_found'], 404);
   if (!ql_is_member($db, $threadId, $me)) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
@@ -298,6 +298,17 @@ if ($action === 'react') {
     $i = $db->prepare("INSERT IGNORE INTO chat_reactions (message_id, user_id, emoji, at) VALUES (?,?,?,?)");
     $i->execute([$mid, $me, $emoji, $now]);
   }
+  ql_out(['ok' => true]);
+}
+
+/* ARCHIVE — hide a conversation from the list without destroying its history.
+   The thread list already filters archived=0. Any member may archive for the
+   whole thread: these are shared conversations, and a per-person hide would
+   need a column on chat_members and a story about what the others see. */
+if ($action === 'archive') {
+  if ($threadId <= 0 || !ql_is_member($db, $threadId, $me)) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
+  $st = $db->prepare("UPDATE chat_threads SET archived=? WHERE id=? AND plant_id=?");
+  $st->execute([empty($b['off']) ? 1 : 0, $threadId, $plantId]);
   ql_out(['ok' => true]);
 }
 

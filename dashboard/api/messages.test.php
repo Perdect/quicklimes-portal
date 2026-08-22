@@ -45,10 +45,10 @@ ok(strpos($code, 'function ql_is_member') !== false, 'ql_is_member exists');
    thread-scoped action must be inside the gate. */
 preg_match('~in_array\(\$action, \[([^\]]*)\], true\)\s*\)\s*\{\s*\n\s*if \(\$threadId~', $code, $g);
 $gated = $g ? array_map(function ($x) { return trim($x, " '"); }, explode(',', $g[1])) : [];
-foreach (['messages', 'send', 'read', 'members', 'pins', 'unread'] as $a) {
+foreach (['messages', 'send', 'read', 'members', 'pins', 'unread', 'archive'] as $a) {
   ok(in_array($a, $gated, true), "  '$a' goes through the membership gate");
 }
-ok(count($gated) >= 6, 'the membership gate covers every thread-scoped action (' . count($gated) . ')');
+ok(count($gated) >= 7, 'the membership gate covers every thread-scoped action (' . count($gated) . ')');
 ok(preg_match('~ql_is_member\(\$db, \$threadId, \$me\)\) ql_out\(\[\'ok\' => false, \'error\' => \'Forbidden\'~', $code) === 1,
   '  and a non-member is Forbidden (verified live: B could not read thread 1)');
 
@@ -110,6 +110,10 @@ ok(preg_match('~UPDATE chat_members SET last_read_id=\?.*?WHERE thread_id=\? AND
   'mark-unread is its own action, because read() only ever moves the marker forward');
 ok(strpos($code, 'max(0, $mid - 1)') !== false,
   '  and it lands just BEFORE the chosen message, so that message is the first unread');
+
+ok(strpos($code, 'UPDATE chat_threads SET archived=?') !== false,
+  'a conversation can be archived — hidden from the list, history intact');
+ok(strpos($code, 't.archived=0') !== false, '  and the list filters archived threads out');
 
 echo "\n=== the owner is a person, not nobody ===\n";
 ok(strpos($code, "\$me = 'owner:' . \$plantId;") !== false,
