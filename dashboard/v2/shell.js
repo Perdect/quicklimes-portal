@@ -342,6 +342,12 @@
     </button>
     <button class="tb-action tb-ai" id="tbAi" title="AI Assistant / व्यापार AI सहायक" onclick="QLShell.openAssistant()" aria-label="Open the AI Business Assistant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.5L19.5 9l-5.6 1.5L12 16l-1.9-5.5L4.5 9l5.6-1.5z"/><circle cx="18" cy="18" r="1.4"/><circle cx="5" cy="17" r="1"/></svg></button>
     <button class="tb-action tb-lang" id="tbLang" title="भाषा / Language" onclick="QLShell.toggleLang()" aria-label="Switch language"></button>
+    <!-- Internal chat. Global by design: a conversation is one click from
+         wherever the user is, and closing it returns them to the same page. -->
+    <button class="tb-action tb-chat" id="tbChat" title="Chat" onclick="window.QLIM && QLIM.toggle()" aria-label="Open QuickLimes chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>
+      <span class="tb-badge" id="qlImBadge" style="display:none"></span>
+    </button>
     <button class="tb-action tb-bell" title="Notifications" onclick="QLShell.openNotifications()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       <span class="tb-badge" id="tbNotifBadge" hidden>0</span>

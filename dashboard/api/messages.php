@@ -1,0 +1,339 @@
+<?php
+/* ═══════════════════════════════════════════════════════════════════════
+   /api/messages — QuickLimes' OWN chat.
+
+   Not /api/chat. That one mirrors an external WhatsApp channel through Whapi;
+   this is the firm's internal communication and is the source of truth for it.
+   Both can eventually write into the same thread — chat_messages carries a
+   `source` column for exactly that — but the internal system does not depend
+   on WhatsApp being connected, configured, or reachable.
+
+   POST { plant_id, company_id, token, action, … }
+     threads                                  -> { ok, threads:[…], unread }
+     open      { kind, subject_key, title, subtitle, meta } -> { ok, thread }
+     messages  { thread_id, before_id?, since_id? }         -> { ok, messages:[…] }
+     send      { thread_id, kind, body, card?, file? }      -> { ok, message }
+     read      { thread_id, last_id }         -> { ok }
+     react     { message_id, emoji, off? }    -> { ok }
+     remove    { message_id }                 -> { ok }        (own, soft)
+     users                                    -> { ok, users:[…] }
+     members   { thread_id, add[], remove[] } -> { ok, members:[…] }
+
+   WHY POLLING, NOT WEBSOCKETS: LiteSpeed + PHP on shared hosting cannot hold
+   an open socket. `since_id` makes the poll cheap — it returns only what is
+   new, and the client only polls the thread it is looking at. This is the same
+   decision chat.php already made for the same reason; introducing a second
+   realtime technology for this one feature would be the wrong trade.
+   ═══════════════════════════════════════════════════════════════════════ */
+require __DIR__ . '/db.php';
+ql_cors();
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') ql_out(['ok' => false, 'error' => 'POST only'], 405);
+
+$b       = ql_body();
+$plantId = (string)($b['plant_id'] ?? '');
+$ctx     = ql_token_ctx($plantId);
+if (!$ctx) ql_out(['ok' => false, 'error' => 'Unauthorized'], 401);
+
+/* Tenant key from the TOKEN, never the body — the same rule every other
+   endpoint here follows, so no later line can be tricked into another firm. */
+$plantId = (string)$ctx['plant'];
+$coId    = (string)($b['company_id'] ?? '');
+$me      = (string)($ctx['user'] ?? '');
+$role    = (string)($ctx['role'] ?? 'sales');
+
+/* Every signed-in user of the firm may hold a conversation. Chat is not a
+   privileged module: what is GUARDED is the records shared inside it, checked
+   per record type below and again when the record itself is opened. */
+if ($me === '') {
+  /* An owner token minted before per-user login carries no user id. Chat is
+     per-person by nature, so rather than attribute messages to nobody, say so. */
+  ql_out(['ok' => false, 'error' => 'no_user', 'message' => 'Sign in as a user to use chat.'], 403);
+}
+
+ql_ensure_tables();
+$db  = ql_db();
+$now = gmdate('Y-m-d H:i:s');
+$action = (string)($b['action'] ?? 'threads');
+
+/* ── which ERP records may this role SHARE, and may a viewer OPEN one ──────
+   A card carries a safe summary, never a database row. Opening the record
+   still goes through that module's own capability-checked endpoint, so a chat
+   message can never become a way around permissions — it is a pointer, and
+   the pointer is checked when followed. */
+function ql_card_cap($type) {
+  $map = [
+    'invoice' => 'sales', 'quotation' => 'sales', 'collection' => 'sales',
+    'customer' => 'parties', 'supplier' => 'parties', 'lead' => 'sales', 'business' => 'sales',
+    'bill' => 'purchase', 'payment' => 'finance', 'report' => 'reports'
+  ];
+  return $map[$type] ?? null;
+}
+
+function ql_thread_row($db, $plantId, $id) {
+  $st = $db->prepare("SELECT * FROM chat_threads WHERE id=? AND plant_id=? LIMIT 1");
+  $st->execute([$id, $plantId]);
+  return $st->fetch(PDO::FETCH_ASSOC) ?: null;
+}
+/* Membership is the access rule for a thread. Being in the same firm is not
+   enough — a private DM between two colleagues is not readable by a third. */
+function ql_is_member($db, $threadId, $uid) {
+  $st = $db->prepare("SELECT 1 FROM chat_members WHERE thread_id=? AND user_id=? LIMIT 1");
+  $st->execute([$threadId, $uid]);
+  return (bool)$st->fetchColumn();
+}
+function ql_touch_thread($db, $threadId, $body, $by, $now) {
+  $st = $db->prepare("UPDATE chat_threads SET last_at=?, last_body=?, last_by=? WHERE id=?");
+  $st->execute([$now, mb_substr((string)$body, 0, 250), $by, $threadId]);
+}
+
+/* ── THREADS: everything I am a member of ─────────────────────────────── */
+if ($action === 'threads') {
+  $st = $db->prepare(
+    "SELECT t.*, m.last_read_id, m.muted,
+            (SELECT COUNT(*) FROM chat_messages x
+              WHERE x.thread_id=t.id AND x.id>m.last_read_id
+                AND x.user_id<>? AND x.deleted_at IS NULL) AS unread
+       FROM chat_threads t
+       JOIN chat_members m ON m.thread_id=t.id AND m.user_id=?
+      WHERE t.plant_id=? AND t.company_id=? AND t.archived=0
+      ORDER BY COALESCE(t.last_at, t.created_at) DESC
+      LIMIT 200");
+  $st->execute([$me, $me, $plantId, $coId]);
+  $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+  $total = 0;
+  foreach ($rows as &$r) {
+    $r['id'] = (int)$r['id']; $r['unread'] = (int)$r['unread'];
+    $r['meta'] = $r['meta'] ? json_decode($r['meta'], true) : null;
+    $total += $r['unread'];
+  }
+  ql_out(['ok' => true, 'threads' => $rows, 'unread' => $total]);
+}
+
+/* ── OPEN: get-or-create by SUBJECT ───────────────────────────────────────
+   §8: "Never create duplicate conversations every time Message is clicked."
+   That is enforced by UNIQUE(plant_id, company_id, kind, subject_key) — an
+   INSERT IGNORE followed by a SELECT, so two clicks racing produce one row.
+   A client-side "does it exist?" check would not. */
+if ($action === 'open') {
+  $kind = (string)($b['kind'] ?? 'dm');
+  if (!in_array($kind, ['dm', 'group', 'lead', 'customer', 'supplier', 'business'], true)) {
+    ql_out(['ok' => false, 'error' => 'bad_kind'], 400);
+  }
+  $subject = trim((string)($b['subject_key'] ?? ''));
+  $members = (array)($b['members'] ?? []);
+
+  if ($kind === 'dm') {
+    /* A DM's identity is the PAIR, sorted — so A→B and B→A are one thread. */
+    $other = (string)($b['user_id'] ?? '');
+    if ($other === '' || $other === $me) ql_out(['ok' => false, 'error' => 'bad_user'], 400);
+    $pair = [$me, $other]; sort($pair);
+    $subject = implode('|', $pair);
+    $members = $pair;
+  }
+  if ($subject === '') ql_out(['ok' => false, 'error' => 'no_subject'], 400);
+
+  $title    = mb_substr(trim((string)($b['title'] ?? '')), 0, 180);
+  $subtitle = mb_substr(trim((string)($b['subtitle'] ?? '')), 0, 180);
+  $meta     = isset($b['meta']) && is_array($b['meta']) ? json_encode($b['meta']) : null;
+
+  $ins = $db->prepare(
+    "INSERT IGNORE INTO chat_threads (plant_id, company_id, kind, subject_key, title, subtitle, meta, created_by, created_at, last_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?)");
+  $ins->execute([$plantId, $coId, $kind, $subject, $title, $subtitle, $meta, $me, $now, $now]);
+
+  $st = $db->prepare("SELECT * FROM chat_threads WHERE plant_id=? AND company_id=? AND kind=? AND subject_key=? LIMIT 1");
+  $st->execute([$plantId, $coId, $kind, $subject]);
+  $t = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$t) ql_out(['ok' => false, 'error' => 'open_failed'], 500);
+
+  /* Keep the display fields fresh — a lead's name or city can change after the
+     thread was first opened, and the conversation should not keep the old one. */
+  if ($title !== '' && ($t['title'] !== $title || $t['subtitle'] !== $subtitle)) {
+    $u = $db->prepare("UPDATE chat_threads SET title=?, subtitle=?, meta=COALESCE(?, meta) WHERE id=?");
+    $u->execute([$title, $subtitle, $meta, $t['id']]);
+    $t['title'] = $title; $t['subtitle'] = $subtitle;
+  }
+
+  $add = array_values(array_unique(array_filter(array_merge([$me], array_map('strval', $members)))));
+  $mi = $db->prepare("INSERT IGNORE INTO chat_members (thread_id, user_id, role, joined_at) VALUES (?,?,?,?)");
+  foreach ($add as $uid) $mi->execute([$t['id'], $uid, $uid === $t['created_by'] ? 'admin' : 'member', $now]);
+
+  $t['id'] = (int)$t['id'];
+  $t['meta'] = $t['meta'] ? json_decode($t['meta'], true) : null;
+  ql_out(['ok' => true, 'thread' => $t]);
+}
+
+/* Everything below acts on one thread and requires membership. */
+$threadId = (int)($b['thread_id'] ?? 0);
+if (in_array($action, ['messages', 'send', 'read', 'members'], true)) {
+  if ($threadId <= 0) ql_out(['ok' => false, 'error' => 'no_thread'], 400);
+  if (!ql_thread_row($db, $plantId, $threadId)) ql_out(['ok' => false, 'error' => 'not_found'], 404);
+  if (!ql_is_member($db, $threadId, $me)) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
+}
+
+/* ── MESSAGES: cursor paging both ways ────────────────────────────────────
+   `before_id` walks backwards through history a page at a time; `since_id` is
+   the realtime poll. Neither ever loads a whole conversation — §21. */
+if ($action === 'messages') {
+  $limit  = max(1, min(100, (int)($b['limit'] ?? 40)));
+  $before = (int)($b['before_id'] ?? 0);
+  $since  = (int)($b['since_id'] ?? 0);
+
+  if ($since > 0) {
+    $st = $db->prepare("SELECT * FROM chat_messages WHERE thread_id=? AND plant_id=? AND id>? ORDER BY id ASC LIMIT ?");
+    $st->bindValue(1, $threadId, PDO::PARAM_INT); $st->bindValue(2, $plantId);
+    $st->bindValue(3, $since, PDO::PARAM_INT); $st->bindValue(4, $limit, PDO::PARAM_INT);
+  } else {
+    $sql = "SELECT * FROM chat_messages WHERE thread_id=? AND plant_id=?" . ($before > 0 ? " AND id<?" : "") . " ORDER BY id DESC LIMIT ?";
+    $st = $db->prepare($sql);
+    $i = 1; $st->bindValue($i++, $threadId, PDO::PARAM_INT); $st->bindValue($i++, $plantId);
+    if ($before > 0) $st->bindValue($i++, $before, PDO::PARAM_INT);
+    $st->bindValue($i, $limit, PDO::PARAM_INT);
+  }
+  $st->execute();
+  $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+  if ($since <= 0) $rows = array_reverse($rows);
+
+  $ids = array_map(function ($r) { return (int)$r['id']; }, $rows);
+  $reacts = [];
+  if ($ids) {
+    $in = implode(',', array_fill(0, count($ids), '?'));
+    $rs = $db->prepare("SELECT message_id, user_id, emoji FROM chat_reactions WHERE message_id IN ($in)");
+    $rs->execute($ids);
+    foreach ($rs->fetchAll(PDO::FETCH_ASSOC) as $r) $reacts[(int)$r['message_id']][] = $r;
+  }
+  foreach ($rows as &$r) {
+    $r['id'] = (int)$r['id']; $r['thread_id'] = (int)$r['thread_id'];
+    $r['card_json'] = $r['card_json'] ? json_decode($r['card_json'], true) : null;
+    $r['reactions'] = $reacts[$r['id']] ?? [];
+    /* A deleted message keeps its place in the thread so replies still make
+       sense, but its content never leaves the server. */
+    if ($r['deleted_at']) { $r['body'] = null; $r['card_json'] = null; $r['file_id'] = null; }
+  }
+  ql_out(['ok' => true, 'messages' => $rows, 'has_more' => count($rows) === $limit && $since <= 0]);
+}
+
+/* ── SEND ─────────────────────────────────────────────────────────────── */
+if ($action === 'send') {
+  $kind = (string)($b['kind'] ?? 'text');
+  if (!in_array($kind, ['text', 'note', 'card', 'file'], true)) ql_out(['ok' => false, 'error' => 'bad_kind'], 400);
+  $body = trim((string)($b['body'] ?? ''));
+  $card = is_array($b['card'] ?? null) ? $b['card'] : null;
+  $file = is_array($b['file'] ?? null) ? $b['file'] : null;
+
+  if ($kind === 'card') {
+    $type = (string)($card['type'] ?? '');
+    $cap  = ql_card_cap($type);
+    if (!$cap) ql_out(['ok' => false, 'error' => 'bad_card_type'], 400);
+    /* The SENDER must be allowed to see the record they are sharing. The
+       viewer is checked again when they open it — a card is a pointer, and
+       both ends of the pointer are guarded. */
+    if (!ql_role_can($role, $cap)) ql_out(['ok' => false, 'error' => 'Forbidden', 'need' => $cap], 403);
+  }
+  if ($kind === 'text' && $body === '') ql_out(['ok' => false, 'error' => 'empty'], 400);
+  if ($kind === 'note' && $body === '') ql_out(['ok' => false, 'error' => 'empty'], 400);
+
+  $st = $db->prepare(
+    "INSERT INTO chat_messages
+      (plant_id, company_id, thread_id, user_id, kind, source, body, card_type, card_id, card_json,
+       file_id, file_name, file_mime, file_size, reply_to, created_at)
+     VALUES (?,?,?,?,?, 'internal', ?,?,?,?,?,?,?,?,?,?)");
+  $st->execute([
+    $plantId, $coId, $threadId, $me, $kind,
+    $body !== '' ? mb_substr($body, 0, 8000) : null,
+    $card ? mb_substr((string)($card['type'] ?? ''), 0, 24) : null,
+    $card ? mb_substr((string)($card['id'] ?? ''), 0, 190) : null,
+    $card ? json_encode($card) : null,
+    $file ? mb_substr((string)($file['id'] ?? ''), 0, 64) : null,
+    $file ? mb_substr((string)($file['name'] ?? ''), 0, 190) : null,
+    $file ? mb_substr((string)($file['mime'] ?? ''), 0, 80) : null,
+    $file ? (int)($file['size'] ?? 0) : null,
+    ((int)($b['reply_to'] ?? 0)) ?: null,
+    $now
+  ]);
+  $id = (int)$db->lastInsertId();
+
+  /* An internal note is NOT the conversation's last message. It is a private
+     annotation; letting it become the thread preview is how a note ends up
+     read as something that was said to the customer. */
+  if ($kind !== 'note') {
+    $preview = $kind === 'card' ? ('Shared ' . (string)($card['type'] ?? 'record'))
+             : ($kind === 'file' ? ('📎 ' . (string)($file['name'] ?? 'file')) : $body);
+    ql_touch_thread($db, $threadId, $preview, $me, $now);
+  }
+  /* Sending marks it read for the sender — nobody has unread messages from
+     themselves. */
+  $mr = $db->prepare("UPDATE chat_members SET last_read_id=? WHERE thread_id=? AND user_id=? AND last_read_id<?");
+  $mr->execute([$id, $threadId, $me, $id]);
+
+  ql_out(['ok' => true, 'id' => $id, 'at' => $now]);
+}
+
+if ($action === 'read') {
+  $last = (int)($b['last_id'] ?? 0);
+  $st = $db->prepare("UPDATE chat_members SET last_read_id=? WHERE thread_id=? AND user_id=? AND last_read_id<?");
+  $st->execute([$last, $threadId, $me, $last]);
+  ql_out(['ok' => true]);
+}
+
+if ($action === 'react') {
+  $mid = (int)($b['message_id'] ?? 0);
+  $emoji = mb_substr(trim((string)($b['emoji'] ?? '')), 0, 8);
+  if ($mid <= 0 || $emoji === '') ql_out(['ok' => false, 'error' => 'bad_input'], 400);
+  $st = $db->prepare("SELECT thread_id FROM chat_messages WHERE id=? AND plant_id=? LIMIT 1");
+  $st->execute([$mid, $plantId]);
+  $tid = (int)$st->fetchColumn();
+  if (!$tid || !ql_is_member($db, $tid, $me)) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
+  if (!empty($b['off'])) {
+    $d = $db->prepare("DELETE FROM chat_reactions WHERE message_id=? AND user_id=? AND emoji=?");
+    $d->execute([$mid, $me, $emoji]);
+  } else {
+    $i = $db->prepare("INSERT IGNORE INTO chat_reactions (message_id, user_id, emoji, at) VALUES (?,?,?,?)");
+    $i->execute([$mid, $me, $emoji, $now]);
+  }
+  ql_out(['ok' => true]);
+}
+
+/* Own messages only. Soft — the row stays so replies above it still resolve,
+   but the content is cleared on read. */
+if ($action === 'remove') {
+  $mid = (int)($b['message_id'] ?? 0);
+  $st = $db->prepare("UPDATE chat_messages SET deleted_at=? WHERE id=? AND plant_id=? AND user_id=? AND deleted_at IS NULL");
+  $st->execute([$now, $mid, $plantId, $me]);
+  ql_out(['ok' => true, 'removed' => $st->rowCount() > 0]);
+}
+
+/* The firm's people, for starting a DM or building a group. Phone and role
+   only — no password material, no cross-plant rows. */
+if ($action === 'users') {
+  $st = $db->prepare("SELECT id, name, phone, role FROM users WHERE plant_id=? AND active=1 ORDER BY name");
+  $st->execute([$plantId]);
+  ql_out(['ok' => true, 'users' => $st->fetchAll(PDO::FETCH_ASSOC) ?: [], 'me' => $me]);
+}
+
+if ($action === 'members') {
+  $t = ql_thread_row($db, $plantId, $threadId);
+  $addl = array_filter(array_map('strval', (array)($b['add'] ?? [])));
+  $reml = array_filter(array_map('strval', (array)($b['remove'] ?? [])));
+  if ($addl || $reml) {
+    /* Only a thread admin changes the membership of a group. A DM's pair is
+       fixed by its subject_key and cannot be added to at all. */
+    if ($t['kind'] === 'dm') ql_out(['ok' => false, 'error' => 'dm_fixed'], 400);
+    $st = $db->prepare("SELECT role FROM chat_members WHERE thread_id=? AND user_id=? LIMIT 1");
+    $st->execute([$threadId, $me]);
+    if ((string)$st->fetchColumn() !== 'admin') ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
+    $ai = $db->prepare("INSERT IGNORE INTO chat_members (thread_id, user_id, role, joined_at) VALUES (?,?, 'member', ?)");
+    foreach ($addl as $u) $ai->execute([$threadId, $u, $now]);
+    $rd = $db->prepare("DELETE FROM chat_members WHERE thread_id=? AND user_id=? AND role<>'admin'");
+    foreach ($reml as $u) $rd->execute([$threadId, $u]);
+  }
+  $st = $db->prepare(
+    "SELECT m.user_id, m.role, u.name, u.phone
+       FROM chat_members m LEFT JOIN users u ON u.id=m.user_id
+      WHERE m.thread_id=?");
+  $st->execute([$threadId]);
+  ql_out(['ok' => true, 'members' => $st->fetchAll(PDO::FETCH_ASSOC) ?: []]);
+}
+
+ql_out(['ok' => false, 'error' => 'unknown_action'], 400);

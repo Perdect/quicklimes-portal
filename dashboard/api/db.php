@@ -712,6 +712,88 @@ function ql_ensure_tables() {
     UNIQUE KEY uq_file (plant_id, company_id, file_hash),
     KEY k_inv (plant_id, company_id, inv_key)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  /* ═══════════════════════════════════════════════════════════════════
+     INTERNAL CHAT — QuickLimes' own conversations.
+
+     Deliberately NOT the wa_chats/wa_messages pair. Those mirror an external
+     WhatsApp channel through Whapi; these are the firm's own messages and are
+     the source of truth for communication history. If a WhatsApp bridge is
+     added later it writes INTO chat_messages with source='whatsapp', so one
+     thread can carry both and the history stays in one place.
+
+     A thread is identified by its SUBJECT, not by its title: subject_key is
+     unique per (plant, company, kind), so "open a chat for this lead" can be
+     an INSERT … ON DUPLICATE KEY and the database itself makes duplicate
+     conversations impossible. Checking for an existing thread in the client
+     and inserting if absent is a race, and the race shows up as two threads
+     for one customer.
+     ═══════════════════════════════════════════════════════════════════ */
+  $db->exec("CREATE TABLE IF NOT EXISTS chat_threads (
+    id           BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    plant_id     VARCHAR(64)  NOT NULL,
+    company_id   VARCHAR(96)  NOT NULL DEFAULT '',
+    kind         VARCHAR(16)  NOT NULL DEFAULT 'dm',   -- dm|group|lead|customer|supplier|business
+    subject_key  VARCHAR(190) NOT NULL,                -- stable identity of what this is about
+    title        VARCHAR(190) NOT NULL DEFAULT '',
+    subtitle     VARCHAR(190) NOT NULL DEFAULT '',     -- e.g. 'Sugar Mills · Maharashtra'
+    meta         MEDIUMTEXT   DEFAULT NULL,            -- JSON: phone, website, city, lead id…
+    created_by   VARCHAR(64)  NOT NULL DEFAULT '',
+    created_at   DATETIME     NOT NULL,
+    last_at      DATETIME     DEFAULT NULL,
+    last_body    VARCHAR(255) DEFAULT NULL,
+    last_by      VARCHAR(64)  DEFAULT NULL,
+    archived     TINYINT(1)   NOT NULL DEFAULT 0,
+    UNIQUE KEY uq_subject (plant_id, company_id, kind, subject_key),
+    KEY idx_recent (plant_id, company_id, last_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  $db->exec("CREATE TABLE IF NOT EXISTS chat_members (
+    thread_id    BIGINT       NOT NULL,
+    user_id      VARCHAR(64)  NOT NULL,
+    role         VARCHAR(12)  NOT NULL DEFAULT 'member',   -- member|admin
+    joined_at    DATETIME     NOT NULL,
+    last_read_id BIGINT       NOT NULL DEFAULT 0,
+    muted        TINYINT(1)   NOT NULL DEFAULT 0,
+    PRIMARY KEY (thread_id, user_id),
+    KEY idx_mine (user_id, thread_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  /* `kind` separates a customer-facing message from an INTERNAL NOTE. They are
+     different rows with different kinds, never a flag on the same thing — a
+     note that could be mistaken for an outgoing message is the one failure
+     this table must make structurally impossible. */
+  $db->exec("CREATE TABLE IF NOT EXISTS chat_messages (
+    id           BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    plant_id     VARCHAR(64)  NOT NULL,
+    company_id   VARCHAR(96)  NOT NULL DEFAULT '',
+    thread_id    BIGINT       NOT NULL,
+    user_id      VARCHAR(64)  NOT NULL DEFAULT '',
+    kind         VARCHAR(12)  NOT NULL DEFAULT 'text',   -- text|note|card|file|system
+    source       VARCHAR(12)  NOT NULL DEFAULT 'internal', -- internal|whatsapp (future bridge)
+    body         TEXT,
+    card_type    VARCHAR(24)  DEFAULT NULL,             -- invoice|bill|lead|customer|payment…
+    card_id      VARCHAR(190) DEFAULT NULL,
+    card_json    MEDIUMTEXT   DEFAULT NULL,             -- the SAFE summary shown on the card
+    file_id      VARCHAR(64)  DEFAULT NULL,             -- files.php doc id
+    file_name    VARCHAR(190) DEFAULT NULL,
+    file_mime    VARCHAR(80)  DEFAULT NULL,
+    file_size    BIGINT       DEFAULT NULL,
+    reply_to     BIGINT       DEFAULT NULL,
+    created_at   DATETIME     NOT NULL,
+    edited_at    DATETIME     DEFAULT NULL,
+    deleted_at   DATETIME     DEFAULT NULL,
+    KEY idx_thread (plant_id, thread_id, id),
+    KEY idx_search (plant_id, company_id, thread_id, deleted_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  $db->exec("CREATE TABLE IF NOT EXISTS chat_reactions (
+    message_id   BIGINT       NOT NULL,
+    user_id      VARCHAR(64)  NOT NULL,
+    emoji        VARCHAR(16)  NOT NULL,
+    at           DATETIME     NOT NULL,
+    PRIMARY KEY (message_id, user_id, emoji)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 
 /* ── What one sale row still owes. PURE (no DB), so it can be tested, and
@@ -1042,8 +1124,8 @@ function ql_company_remove($db, $ctx, $in) {
   $primaryId = $acct[0];
 
   // Tables scoped per company (company_id) and per account (plant_id).
-  $coTables    = ['bank_txns', 'bank_accounts', 'wa_chats', 'wa_messages', 'party_master', 'party_aliases', 'doc_corrections', 'imported_docs'];
-  $plantTables = ['bank_txns', 'bank_accounts', 'wa_chats', 'wa_messages', 'party_master', 'party_aliases', 'doc_corrections', 'imported_docs',
+  $coTables    = ['bank_txns', 'bank_accounts', 'wa_chats', 'wa_messages', 'party_master', 'party_aliases', 'doc_corrections', 'imported_docs', 'chat_threads', 'chat_messages'];
+  $plantTables = ['bank_txns', 'bank_accounts', 'wa_chats', 'wa_messages', 'party_master', 'party_aliases', 'doc_corrections', 'imported_docs', 'chat_threads', 'chat_messages',
                   'crm_companies', 'crm_contacts', 'crm_leads', 'crm_activities', 'jobs', 'users'];
 
   /* ── Case 1: a secondary company ── */

@@ -182,7 +182,16 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/LA\s*=\s*window\.LeadActions/.test(bare), 'discover.js binds LeadActions');
   ok(/data-assess=/.test(bare) && /data-msg=/.test(bare), 'each candidate row offers Assess and Message');
   ok(/function openAssess\(/.test(bare) && /LA\.assess\(/.test(bare), 'Assess opens a briefing from LA.assess (local rules)');
-  ok(/function openMessage\(r\) \{ openStudio/.test(bare), 'Message opens the Outreach Studio composer');
+  /* MESSAGE now opens QuickLimes' own conversation about the business, not an
+     outreach draft that ends at wa.me. The AI composer is not gone — it is the
+     "Draft outreach" action — and both are pinned so neither can quietly
+     disappear again. */
+  ok(/function openMessage\(r\) \{[\s\S]{0,400}QLIM\.openFor\(/.test(bare),
+     'Message opens the INTERNAL QuickLimes conversation (QLIM.openFor)');
+  ok(/kind: 'business'/.test(bare) && /placeId:/.test(bare),
+     '  and passes the business identity, so the same business reopens the same thread');
+  ok(/function openOutreachDraft\(r\) \{ openStudio/.test(bare),
+     '  the AI Outreach Studio is still reachable as Draft outreach');
   // We never auto-send — the Studio opens WhatsApp/email for the user to send,
   // and the WhatsApp recipient goes through wa-core (never a hand-rolled wa.me).
   ok(/WA\.waLink\(/.test(bare) && /mailto:/.test(bare), '  it hands off to WhatsApp (via wa-core) / email; the user sends');
@@ -354,7 +363,7 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/'improve'.*'shorten'.*'personalize'.*'professional'/.test(bare.replace(/\n/g, ' ')) || (/improve/.test(bare) && /shorten/.test(bare) && /professional/.test(bare)), '  Improve/Shorten/Personalize/Professional refiners');
   ok(/os-back/.test(html) && /os-modal/.test(html), '  the Outreach Studio modal is styled');
   ok(/WA\.waLink\(/.test(bare), '  WhatsApp send goes through wa-core (owns the recipient)');
-  ok(/function openMessage\(r\) \{ openStudio\(r\)/.test(bare), '  the Message action opens the Studio');
+  ok(/openOutreachDraft\(r\)/.test(bare), '  the Studio is opened by openOutreachDraft, wired to Draft outreach');
 }
 
 /* ── Proposal generator (branded, print/PDF) ── */

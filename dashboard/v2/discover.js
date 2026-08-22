@@ -860,7 +860,7 @@ function paintTable() {
        opened Google Maps was cost without a decision behind it. The full
        address is still on the row, and "Open in Maps" is one copy away; there
        is deliberately no map link left anywhere in this module. */
-    const acts = (LA ? `<button class="lr-b assess" data-assess="${r.id}" title="Why they buy lime">${IC_SPARK}Assess</button><button class="lr-b msg" data-msg="${r.id}" title="Draft outreach">${IC_SEND}Message</button>` : '');
+    const acts = (LA ? `<button class="lr-b assess" data-assess="${r.id}" title="Why they buy lime">${IC_SPARK}Assess</button><button class="lr-b msg" data-msg="${r.id}" title="Open a QuickLimes conversation about this business">${IC_SEND}Message</button>` : '');
     const promo = r.status === 'promoted'
       ? '<span class="lr-inpipe">In pipeline</span>'
       : `<button class="lr-b pri" data-promote="${r.id}" title="Promote to pipeline">${IC_USERPLUS}Promote</button>`;
@@ -950,7 +950,7 @@ function openLeadDrawer(r) {
       </div>
       <div class="cd-sec"><div class="cd-sec-t">Actions</div>
         <div class="cd-cta">
-          ${LA ? '<button class="ql-btn ql-btn-secondary" id="cdAssess">' + IC_SPARK + 'Assess</button><button class="ql-btn ql-btn-secondary" id="cdMsg">' + IC_MAIL + 'Message</button><button class="ql-btn ql-btn-secondary" id="cdQuote">' + IC_DOC + 'Quote</button><button class="ql-btn ql-btn-secondary" id="cdProposal">' + IC_DOC + 'Proposal</button><button class="ql-btn ql-btn-secondary" id="cdOnboard">' + IC_LINK + 'Onboarding link</button>' : ''}
+          ${LA ? '<button class="ql-btn ql-btn-secondary" id="cdAssess">' + IC_SPARK + 'Assess</button><button class="ql-btn ql-btn-secondary" id="cdMsg">' + IC_MAIL + 'Message</button><button class="ql-btn ql-btn-secondary" id="cdDraft">' + IC_SEND + 'Draft outreach</button><button class="ql-btn ql-btn-secondary" id="cdQuote">' + IC_DOC + 'Quote</button><button class="ql-btn ql-btn-secondary" id="cdProposal">' + IC_DOC + 'Proposal</button><button class="ql-btn ql-btn-secondary" id="cdOnboard">' + IC_LINK + 'Onboarding link</button>' : ''}
           ${waOk ? '<button class="ql-btn ql-btn-secondary" id="cdWa">WhatsApp</button>' : ''}
           ${r.phone ? `<a class="ql-btn ql-btn-secondary" href="tel:${esc(r.phone)}" style="justify-content:center">Call</a>` : ''}
           ${r.status !== 'promoted' ? '<button class="ql-btn ql-btn-primary" id="cdPromote">Promote to pipeline</button>' : '<div class="lc-dup" style="color:#15803d;background:#dcfce7;align-self:center">In your pipeline</div>'}
@@ -990,6 +990,7 @@ function openLeadDrawer(r) {
   const wire = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
   wire('cdAssess', () => openAssess(r));
   wire('cdMsg', () => openMessage(r));
+  wire('cdDraft', () => openOutreachDraft(r));
   wire('cdQuote', () => openQuote(r));
   wire('cdProposal', () => openProposal(r));
   wire('cdOnboard', () => openOnboardLink(r));
@@ -1194,7 +1195,7 @@ async function openAssess(r) {
       : 'Built from your Market Intelligence playbook — local rules, no AI key needed. Add an Anthropic key in Settings to upgrade this to live Claude analysis.';
   }
   QLShell.panel({ title: 'Assess — ' + r.name, sub, body: assessBody(points, approach, note),
-    actions: [{ label: 'Draft a message', primary: true, onClick: () => { QLShell.closeModal(); openMessage(r); } }] });
+    actions: [{ label: 'Draft a message', primary: true, onClick: () => { QLShell.closeModal(); openOutreachDraft(r); } }] });
 }
 
 /* Message — a ready outreach draft the user reviews, then sends themselves via
@@ -1298,7 +1299,34 @@ function openStudio(r) {
   });
   regen();
 }
-function openMessage(r) { openStudio(r); }
+/* MESSAGE now opens QuickLimes' OWN conversation for this business, not an
+   outreach draft that ends at wa.me. The conversation is identified by the
+   business's place id, so clicking Message twice opens the SAME thread — the
+   server has a unique index on that key, so even two fast clicks cannot make
+   two conversations.
+
+   The AI outreach composer is not lost: it is still available as "Draft" from
+   the row menu, for the user who wants a first message written for them. What
+   changed is which one is the primary action. */
+function openMessage(r) {
+  if (!r) return;
+  if (!window.QLIM || !window.QLChatCore) { openStudio(r); return; }
+  QLIM.openFor({
+    kind: 'business',
+    id: r.id || r.place_id || '',
+    name: r.name || '',
+    industry: r.industry_label || r.industry || '',
+    city: r.city || r.state || '',
+    meta: {
+      phone: r.phone || '', website: r.website || '', address: r.address || '',
+      city: r.city || '', industry: r.industry_label || r.industry || '',
+      rating: r.rating || '', placeId: r.place_id || r.id || '', source: r.source || 'discover',
+      leadId: r.crm_lead_id || r.lead_id || ''
+    }
+  });
+}
+/* The old behaviour, kept and reachable. */
+function openOutreachDraft(r) { openStudio(r); }
 
 async function promote(id) {
   const r = await api({ action: 'promote', id });

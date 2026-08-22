@@ -35,6 +35,10 @@
     "v": "f25ar",
     "sha": "1e9268c00adf"
   },
+  "imchat.css": {
+    "v": "im3",
+    "sha": "167550bab6e4"
+  },
   "ql-api.js": {
     "v": "a5",
     "sha": "cde317cbde9b"
@@ -68,8 +72,16 @@
     "sha": "14462b5adbf8"
   },
   "shell.js": {
-    "v": "m68s",
-    "sha": "eb65c33b309c"
+    "v": "m68sa",
+    "sha": "c48873dc43b2"
+  },
+  "chat-core.js": {
+    "v": "cc2",
+    "sha": "7e2924c2613c"
+  },
+  "imchat.js": {
+    "v": "im2",
+    "sha": "efdd7ed30a8c"
   },
   "mobile.js": {
     "v": "m16",
@@ -160,8 +172,8 @@
     "sha": "d6c5374f43d7"
   },
   "discover.js": {
-    "v": "d52",
-    "sha": "d25382a09f9f"
+    "v": "d53",
+    "sha": "0a74a74ad504"
   },
   "intercompany.js": {
     "v": "ic1",
