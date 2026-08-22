@@ -213,3 +213,15 @@
 
 /* On touch there is no hover, so the actions are always visible. */
 @media (max-width: 860px) { .qc-acts { opacity: 1; } }
+
+/* A deleted message must not keep its outgoing colour — `.qc-m.me .qc-bub`
+   outranked `.qc-bub.gone`, so a removed message still read as a live blue
+   bubble from you. */
+.qc-m.me .qc-bub.gone, .qc-m .qc-bub.gone {
+  background: var(--ql-bg-elevated); border: 1px dashed var(--ql-border);
+  color: var(--ql-text-muted); font-style: italic; }
+.qc-m.me .qc-bub.gone .qc-meta { color: var(--ql-text-muted); }
+
+/* A short conversation should sit ON the composer, not hang from the top of
+   an empty pane. This pushes the first block down only when there is room. */
+.qc-msgs > :first-child { margin-top: auto; }
