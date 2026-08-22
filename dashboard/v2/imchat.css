@@ -245,3 +245,19 @@
 .qc-pin-i:hover { background: var(--ql-warning-50); }
 .qc-pins-n { font-size: var(--ql-text-xs); font-weight: 800; color: var(--ql-warning-700); flex: none; }
 .qc-act.on { background: var(--ql-warning-50); border-color: var(--ql-warning-500); color: var(--ql-warning-700); }
+
+/* ── "internal to your team" banner ──────────────────────────────────────
+   Shown on every lead / customer / supplier conversation, not only the empty
+   one: the warning must not vanish the moment somebody types a message. */
+.qc-internal { display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+  background: var(--ql-bg-elevated); border-bottom: 1px solid var(--ql-border);
+  font-size: var(--ql-text-xs); color: var(--ql-text-secondary); }
+.qc-internal > svg { width: 14px; height: 14px; flex: none; color: var(--ql-text-muted); }
+.qc-internal span { flex: 1 1 auto; }
+.qc-internal b { color: var(--ql-text); }
+.qc-reach { margin-top: 12px; font-size: var(--ql-text-xs); color: var(--ql-text-muted); }
+.qc-reach a { color: var(--ql-brand-600); font-weight: 600; }
+.qc-members { display: flex; flex-direction: column; gap: 6px; }
+.qc-mem { display: flex; justify-content: space-between; gap: 12px; padding: 8px 11px;
+  border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); font-size: var(--ql-text-sm); }
+.qc-mem span { color: var(--ql-text-muted); font-size: var(--ql-text-xs); }

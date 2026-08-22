@@ -296,8 +296,24 @@
       g.messages.forEach(m => { body += msgHTML(m, prev); prev = m; });
     });
     if (!S.messages.length) {
-      body = `<div class="qc-empty qc-center"><div class="t">No messages yet</div>
-        <div>Say hello, or share a quotation.</div></div>`;
+      /* WHO CAN ACTUALLY SEE THIS. A lead or business conversation has only
+         your own team in it — the company itself is not a QuickLimes user and
+         cannot receive an internal message. The old copy said "Say hello, or
+         share a quotation", which reads as if it reaches them. It does not,
+         and a person acting on that would think they had contacted a customer
+         when nobody had been contacted at all. */
+      const external = ['business', 'lead', 'customer', 'supplier'].indexOf(t.kind) >= 0;
+      body = external
+        ? `<div class="qc-empty qc-center"><div class="t">Your team's notes on ${esc(t.title)}</div>
+            <div>This is an <b>internal</b> conversation. ${esc(t.title)} cannot see it — they are not a
+            QuickLimes user. Use it to keep the discussion, decisions and documents about this
+            ${esc(kindLabel(t.kind).toLowerCase())} in one place.</div>
+            <div class="qc-reach">To actually reach them${meta(t).phone ? ' on ' + esc(meta(t).phone) : ''}, use
+              ${meta(t).phone ? `<a href="tel:${esc(meta(t).phone)}">phone</a>` : 'their phone'}
+              ${meta(t).website ? `or <a href="${esc(meta(t).website)}" target="_blank" rel="noopener noreferrer">their website</a>` : ''}
+              — then record what happened here.</div></div>`
+        : `<div class="qc-empty qc-center"><div class="t">No messages yet</div>
+            <div>Say hello — ${esc(t.title)} will see this in their QuickLimes.</div></div>`;
     }
     host.innerHTML = `
       <div class="qc-conv-h">
@@ -308,6 +324,10 @@
         <button class="qc-icon" id="qcInfo" title="Conversation details">${ic('info')}</button>
         <button class="qc-icon" id="qcClose2" title="Close">${ic('x')}</button>
       </div>
+      ${['business', 'lead', 'customer', 'supplier'].indexOf(t.kind) >= 0
+        ? `<div class="qc-internal">${ic('note')}<span><b>Internal to your team.</b>
+            ${esc(t.title)} cannot see this conversation.</span>
+            <button class="qc-d-b" id="qcAddPeople">Add colleagues</button></div>` : ''}
       ${S.pins && S.pins.length ? `<div class="qc-pins">${ic('pin')}
         <div class="qc-pins-b">${S.pins.map(pn => `<button class="qc-pin-i" data-gopin="${pn.id}">
           ${esc((pn.body || (pn.card_json ? 'Shared ' + pn.card_json.type : pn.file_name) || 'Pinned').slice(0, 70))}</button>`).join('')}</div>
@@ -353,6 +373,7 @@
       inp.oninput = () => { inp.style.height = 'auto'; inp.style.height = Math.min(120, inp.scrollHeight) + 'px'; };
       inp.focus();
     }
+    if ($('qcAddPeople')) $('qcAddPeople').onclick = () => addPeople();
     if ($('qcFind')) $('qcFind').onclick = () => { S.finding = !S.finding; if (!S.finding) S.find = ''; paintConv(); };
     if ($('qcFindX')) $('qcFindX').onclick = () => { S.finding = false; S.find = ''; paintConv(); };
     if ($('qcReplyX')) $('qcReplyX').onclick = () => { S.replyTo = null; paintConv(); };
@@ -396,6 +417,7 @@
     });
     document.getElementById('qlIm').classList.add('conv');
   }
+  function meta(t) { return (t && t.meta) || {}; }
   function kindLabel(k) {
     return ({ dm: 'Direct message', group: 'Group', lead: 'Lead', customer: 'Customer',
               supplier: 'Supplier', business: 'Business' })[k] || '';
@@ -659,6 +681,41 @@
     const url = URL.createObjectURL(new Blob([arr], { type: r.mime || 'application/octet-stream' }));
     const a = document.createElement('a'); a.href = url; a.download = name || 'file'; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  /* Who else from the firm can see this conversation. Without this a lead
+     thread was a private diary: only its creator was ever a member, so the
+     team could not actually discuss the lead together. */
+  async function addPeople() {
+    const [u, cur] = await Promise.all([api({ action: 'users' }), api({ action: 'members', thread_id: S.threadId })]);
+    if (!u.ok || !cur.ok) { QLShell.toast('Could not load members', 'err'); return; }
+    S.users = u.users || []; S.me = u.me || S.me;
+    const inThread = new Set((cur.members || []).map(m => m.user_id));
+    const others = S.users.filter(x => !inThread.has(x.id));
+    const nameOfId = id => (S.users.find(x => x.id === id) || {}).name || id;
+    QLShell.panel({
+      title: 'Who can see this conversation',
+      sub: (cur.members || []).length + ' from your team',
+      body: `<div class="qc-members">${(cur.members || []).map(m =>
+          `<div class="qc-mem"><b>${esc(m.name || nameOfId(m.user_id))}</b><span>${esc(m.role)}</span></div>`).join('')}</div>
+        ${others.length ? `<div class="qc-sec-t" style="margin:14px 0 8px;font-weight:700">Add</div>
+        <div class="qc-pick">${others.map(x =>
+          `<label class="qc-pick-b" style="display:flex;gap:10px;align-items:center;cursor:pointer">
+            <input type="checkbox" value="${esc(x.id)}" class="qc-am">
+            <span><b>${esc(x.name || x.phone)}</b><small>${esc(x.role)}</small></span></label>`).join('')}</div>`
+          : '<div class="qc-d-none" style="margin-top:12px">Everyone on your account is already here.</div>'}`,
+      actions: [
+        { label: 'Close', onClick: () => QLShell.closeModal() },
+        { label: 'Add', primary: true, onClick: async el => {
+            const picked = [...el.querySelectorAll('.qc-am:checked')].map(x => x.value);
+            if (!picked.length) { QLShell.toast('Nobody selected'); return; }
+            QLShell.closeModal();
+            const r = await api({ action: 'members', thread_id: S.threadId, add: picked });
+            QLShell.toast(r.ok ? 'Added' : (r.error === 'Forbidden' ? 'Only a thread admin can add people' : 'Could not add'), r.ok ? 'ok' : 'err');
+            if (r.ok) paintConv();
+          } }
+      ]
+    });
   }
 
   /* ── create a group ───────────────────────────────────────────────────── */
