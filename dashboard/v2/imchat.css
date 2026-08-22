@@ -167,3 +167,49 @@
   .qc-f { padding: 8px 13px; }
   .qc-row { padding: 13px 14px; }
 }
+
+/* ── phase 2: reply, reactions, delete, in-thread search ─────────────────── */
+.qc-m { align-items: flex-end; gap: 4px; }
+.qc-acts { display: flex; gap: 2px; opacity: 0; transition: opacity .12s; flex: none; }
+.qc-m:hover .qc-acts { opacity: 1; }
+.qc-m.me .qc-acts { order: -1; }
+.qc-act { border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-text-muted);
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  cursor: pointer; padding: 0; font-size: var(--ql-text-xs); line-height: 1; }
+.qc-act:hover { background: var(--ql-bg-elevated); color: var(--ql-text); }
+.qc-act svg { width: 12px; height: 12px; }
+
+/* The quoted message a reply answers. */
+.qc-quote { border-left: 3px solid var(--ql-brand-400); background: rgba(15, 23, 42, .05);
+  border-radius: var(--ql-radius-sm); padding: 5px 8px; margin-bottom: 5px; font-size: var(--ql-text-xs); }
+.qc-m.me .qc-quote { background: rgba(255, 255, 255, .16); border-left-color: rgba(255, 255, 255, .6); }
+.qc-quote b { display: block; font-weight: 800; }
+.qc-quote span { opacity: .85; }
+
+.qc-reacts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.qc-react { border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-text);
+  border-radius: var(--ql-radius-pill); padding: 1px 7px; font-size: var(--ql-text-xs);
+  font-weight: 700; cursor: pointer; line-height: 1.6; }
+.qc-react.on { border-color: var(--ql-brand-500); background: var(--ql-brand-50); color: var(--ql-brand-700); }
+.qc-emo { display: flex; gap: 8px; flex-wrap: wrap; }
+.qc-emo-b { border: 1px solid var(--ql-border); background: var(--ql-card); border-radius: var(--ql-radius-md);
+  font-size: var(--ql-text-2xl); padding: 8px 12px; cursor: pointer; line-height: 1; }
+.qc-emo-b:hover { background: var(--ql-bg-elevated); }
+
+.qc-find { display: flex; align-items: center; gap: 8px; padding: 9px 14px;
+  border-bottom: 1px solid var(--ql-border); background: var(--ql-bg-elevated); }
+.qc-find svg { width: 15px; height: 15px; color: var(--ql-text-muted); flex: none; }
+.qc-find input { flex: 1 1 auto; border: 0; background: none; font: inherit;
+  font-size: var(--ql-text-sm); color: var(--ql-text); outline: none; }
+.qc-find-n { font-size: var(--ql-text-xs); color: var(--ql-text-muted); flex: none; }
+.qc-m.hit .qc-bub { outline: 2px solid var(--ql-warning-500); outline-offset: 1px; }
+
+.qc-replying { display: flex; align-items: center; gap: 10px; padding: 7px 10px; margin-bottom: 8px;
+  background: var(--ql-bg-elevated); border-left: 3px solid var(--ql-brand-500);
+  border-radius: var(--ql-radius-sm); font-size: var(--ql-text-xs); }
+.qc-replying > div { flex: 1 1 auto; min-width: 0; }
+.qc-replying b { display: block; color: var(--ql-brand-700); }
+.qc-replying span { color: var(--ql-text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* On touch there is no hover, so the actions are always visible. */
+@media (max-width: 860px) { .qc-acts { opacity: 1; } }

@@ -33,7 +33,8 @@
   const S = {
     open: false, threads: [], threadId: null, messages: [], hasMore: false,
     filter: 'all', q: '', me: '', role: 'sales', users: [], noteMode: false,
-    loading: false, error: '', pollTimer: null, lastId: 0, unread: 0, details: false
+    loading: false, error: '', pollTimer: null, lastId: 0, unread: 0, details: false,
+    replyTo: null, find: '', finding: false
   };
 
   /* ── api ──────────────────────────────────────────────────────────────── */
@@ -55,7 +56,9 @@
     back: '<polyline points="15 18 9 12 15 6"/>',
     note: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
     info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
-    doc: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'
+    doc: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+    reply: '<polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
+    trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'
   };
   const ic = (k, cls) => `<svg class="${cls || ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICO[k] || ''}</svg>`;
 
@@ -76,6 +79,7 @@
 
   function open() {
     mount();
+    askNotifyOnce();
     S.open = true;
     document.getElementById('qlImBack').classList.add('on');
     document.getElementById('qlIm').classList.add('on');
@@ -85,7 +89,11 @@
     S.open = false;
     const b = document.getElementById('qlImBack'), c = document.getElementById('qlIm');
     if (b) b.classList.remove('on');
-    if (c) c.classList.remove('on');
+    if (c) { c.classList.remove('on'); c.classList.remove('conv'); }
+    /* `conv` is the MOBILE one-pane-at-a-time switch. Leaving it set meant the
+       next open jumped straight back into the last conversation with the chat
+       list hidden — and if that thread had gone, an empty pane with no way
+       back. The drawer always reopens on the list; openThread puts it back. */
     stopPoll();
   }
 
@@ -144,7 +152,19 @@
     host.querySelectorAll('[data-t]').forEach(b => b.onclick = () => openThread(+b.dataset.t));
     const q = document.getElementById('qcQ');
     if (q) q.oninput = e => { S.q = e.target.value; paintList(); q.focus(); };
-    const nb = document.getElementById('qcNew'); if (nb) nb.onclick = newDirect;
+    const nb = document.getElementById('qcNew');
+    if (nb) nb.onclick = () => QLShell.panel({
+      title: 'New conversation',
+      body: `<div class="qc-att">
+        <button class="qc-att-b" data-n="dm">💬 Message a colleague</button>
+        <button class="qc-att-b" data-n="group">👥 Create a group <small>Sales Team, Accounts Team…</small></button>
+      </div>`,
+      actions: [{ label: 'Cancel', onClick: () => QLShell.closeModal() }],
+      onMount: el => el.querySelectorAll('[data-n]').forEach(b => b.onclick = () => {
+        const k = b.dataset.n; QLShell.closeModal();
+        if (k === 'dm') newDirect(); else newGroup();
+      })
+    });
     const cb = document.getElementById('qcClose1'); if (cb) cb.onclick = close;
   }
 
@@ -204,8 +224,37 @@
     const run = C.isRun(prev, m);
     const who = (!mine && !run) ? `<div class="qc-who">${esc(nameOf(m.user_id))}</div>` : '';
     const ticks = mine ? ' <span class="qc-tick">✓✓</span>' : '';
-    return `<div class="qc-m ${mine ? 'me' : ''} ${run ? 'run' : ''}" data-mid="${m.id}">
-      <div class="qc-bub">${who}${inner}<div class="qc-meta">${esc(C.timeLabel(m.created_at))}${ticks}</div></div></div>`;
+
+    /* A reply shows what it answers. The quoted text is looked up in the
+       messages already loaded; if that message is older than the current page
+       we say so rather than render a blank quote. */
+    let quote = '';
+    if (m.reply_to) {
+      const src = S.messages.find(x => +x.id === +m.reply_to);
+      quote = `<div class="qc-quote"><b>${esc(src ? nameOf(src.user_id) : 'Earlier message')}</b>
+        <span>${esc(src ? (src.body || '(attachment)') : 'Scroll up to load it').slice(0, 90)}</span></div>`;
+    }
+
+    /* Reactions, grouped by emoji with a count. Mine is highlighted so a
+       second click reads as "remove mine", which is what it does. */
+    const byEmoji = {};
+    (m.reactions || []).forEach(r => { (byEmoji[r.emoji] = byEmoji[r.emoji] || []).push(r.user_id); });
+    const reacts = Object.keys(byEmoji).length
+      ? `<div class="qc-reacts">${Object.keys(byEmoji).map(e =>
+          `<button class="qc-react ${byEmoji[e].indexOf(S.me) >= 0 ? 'on' : ''}" data-react="${m.id}|${esc(e)}"
+             title="${esc(byEmoji[e].map(nameOf).join(', '))}">${esc(e)} ${byEmoji[e].length}</button>`).join('')}</div>`
+      : '';
+
+    const acts = `<div class="qc-acts">
+      <button class="qc-act" data-reply="${m.id}" title="Reply">${ic('reply')}</button>
+      <button class="qc-act" data-emoji="${m.id}" title="React">🙂</button>
+      ${mine ? `<button class="qc-act" data-del="${m.id}" title="Delete for everyone">${ic('trash')}</button>` : ''}
+    </div>`;
+
+    const hit = S.find && new RegExp(S.find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(m.body || '');
+    return `<div class="qc-m ${mine ? 'me' : ''} ${run ? 'run' : ''} ${hit ? 'hit' : ''}" data-mid="${m.id}">
+      <div class="qc-bub">${quote}${who}${inner}<div class="qc-meta">${esc(C.timeLabel(m.created_at))}${ticks}</div>${reacts}</div>
+      ${acts}</div>`;
   }
   function fmtSize(n) {
     n = +n || 0;
@@ -249,15 +298,24 @@
         <button class="qc-icon qc-only-mob" id="qcBack">${ic('back')}</button>
         ${avatar(t.title, 'sm')}
         <div class="qc-conv-t"><b>${esc(t.title)}</b><small>${esc(t.subtitle || kindLabel(t.kind))}</small></div>
+        <button class="qc-icon" id="qcFind" title="Search in this conversation">${ic('search')}</button>
         <button class="qc-icon" id="qcInfo" title="Conversation details">${ic('info')}</button>
         <button class="qc-icon" id="qcClose2" title="Close">${ic('x')}</button>
       </div>
+      ${S.finding ? `<div class="qc-find">${ic('search')}
+        <input id="qcFindIn" placeholder="Search in this conversation" value="${esc(S.find)}">
+        <span class="qc-find-n" id="qcFindN"></span>
+        <button class="qc-icon" id="qcFindX">${ic('x')}</button></div>` : ''}
       ${S.details ? detailsHTML(t) : ''}
       <div class="qc-msgs" id="qcMsgs">
         ${S.hasMore ? '<button class="qc-more" id="qcMore">Load earlier messages</button>' : ''}
         ${body}
       </div>
       <div class="qc-comp">
+        ${S.replyTo ? `<div class="qc-replying">
+          <div><b>Replying to ${esc(nameOf((S.messages.find(x => +x.id === +S.replyTo) || {}).user_id))}</b>
+          <span>${esc(((S.messages.find(x => +x.id === +S.replyTo) || {}).body || '(attachment)')).slice(0, 80)}</span></div>
+          <button class="qc-icon" id="qcReplyX" title="Cancel reply">${ic('x')}</button></div>` : ''}
         <div class="qc-comp-r">
           <button class="qc-icon" id="qcAttach" title="Attach or share a record">${ic('plus')}</button>
           <button class="qc-note-t ${S.noteMode ? 'on' : ''}" id="qcNote" title="Internal note — not sent to the customer">${ic('note')}Note</button>
@@ -268,7 +326,11 @@
       </div>`;
 
     const $ = id => document.getElementById(id);
-    if ($('qcBack')) $('qcBack').onclick = () => { S.threadId = null; paintConv(); document.getElementById('qlIm').classList.remove('conv'); };
+    if ($('qcBack')) $('qcBack').onclick = () => {
+      S.threadId = null; stopPoll();
+      document.getElementById('qlIm').classList.remove('conv');
+      paintConv(); paintList();
+    };
     if ($('qcClose2')) $('qcClose2').onclick = close;
     if ($('qcInfo')) $('qcInfo').onclick = () => { S.details = !S.details; paintConv(); };
     if ($('qcNote')) $('qcNote').onclick = () => { S.noteMode = !S.noteMode; paintConv(); $('qcIn').focus(); };
@@ -281,6 +343,33 @@
       inp.oninput = () => { inp.style.height = 'auto'; inp.style.height = Math.min(120, inp.scrollHeight) + 'px'; };
       inp.focus();
     }
+    if ($('qcFind')) $('qcFind').onclick = () => { S.finding = !S.finding; if (!S.finding) S.find = ''; paintConv(); };
+    if ($('qcFindX')) $('qcFindX').onclick = () => { S.finding = false; S.find = ''; paintConv(); };
+    if ($('qcReplyX')) $('qcReplyX').onclick = () => { S.replyTo = null; paintConv(); };
+    const fi = $('qcFindIn');
+    if (fi) {
+      fi.oninput = e => {
+        S.find = e.target.value;
+        /* Repaint only the matches rather than the whole thread on every
+           keystroke — the bubbles are already in the DOM. */
+        let n = 0;
+        host.querySelectorAll('.qc-m').forEach(el => {
+          const txt = (el.innerText || '');
+          const on = S.find && txt.toLowerCase().indexOf(S.find.toLowerCase()) >= 0;
+          el.classList.toggle('hit', !!on); if (on) n++;
+        });
+        const c = $('qcFindN'); if (c) c.textContent = S.find ? (n + ' found') : '';
+        const first = host.querySelector('.qc-m.hit'); if (first) first.scrollIntoView({ block: 'center' });
+      };
+      fi.focus();
+    }
+    host.querySelectorAll('[data-reply]').forEach(b => b.onclick = () => { S.replyTo = +b.dataset.reply; paintConv(); });
+    host.querySelectorAll('[data-del]').forEach(b => b.onclick = () => removeMsg(+b.dataset.del));
+    host.querySelectorAll('[data-react]').forEach(b => b.onclick = () => {
+      const [id, emoji] = b.dataset.react.split('|');
+      toggleReact(+id, emoji, b.classList.contains('on'));
+    });
+    host.querySelectorAll('[data-emoji]').forEach(b => b.onclick = () => emojiPicker(+b.dataset.emoji));
     host.querySelectorAll('[data-card]').forEach(b => b.onclick = () => {
       const [type, id] = b.dataset.card.split('|'); openRecord(type, id);
     });
@@ -338,7 +427,9 @@
     const tmp = { id: 'tmp' + Date.now(), user_id: S.me, kind, body,
       created_at: new Date().toISOString().slice(0, 19).replace('T', ' ') };
     S.messages.push(tmp); paintConv(); scrollEnd();
-    const r = await api({ action: 'send', thread_id: S.threadId, kind, body });
+    const replyTo = S.replyTo; S.replyTo = null;
+    tmp.reply_to = replyTo || null;
+    const r = await api({ action: 'send', thread_id: S.threadId, kind, body, reply_to: replyTo || 0 });
     if (!r.ok) {
       S.messages = S.messages.filter(m => m.id !== tmp.id);
       paintConv();
@@ -349,6 +440,34 @@
     const t = thread();
     if (t && kind !== 'note') { t.last_body = body; t.last_at = r.at; }
     paintList();
+  }
+
+  const QUICK = ['👍', '✅', '🙏', '🔥', '❓', '😀'];
+  function emojiPicker(id) {
+    QLShell.panel({ title: 'React', body: `<div class="qc-emo">${QUICK.map(e =>
+      `<button class="qc-emo-b" data-e="${e}">${e}</button>`).join('')}</div>`,
+      actions: [{ label: 'Cancel', onClick: () => QLShell.closeModal() }],
+      onMount: el => el.querySelectorAll('[data-e]').forEach(b => b.onclick = () => {
+        QLShell.closeModal(); toggleReact(id, b.dataset.e, false);
+      }) });
+  }
+  async function toggleReact(id, emoji, off) {
+    const m = S.messages.find(x => +x.id === +id); if (!m) return;
+    m.reactions = m.reactions || [];
+    /* Optimistic, then reconciled by the poll — a reaction that waits for a
+       round trip feels unresponsive for what is a one-tap gesture. */
+    if (off) m.reactions = m.reactions.filter(r => !(r.user_id === S.me && r.emoji === emoji));
+    else if (!m.reactions.some(r => r.user_id === S.me && r.emoji === emoji)) m.reactions.push({ user_id: S.me, emoji });
+    paintConv();
+    await api({ action: 'react', message_id: id, emoji, off: !!off });
+  }
+  async function removeMsg(id) {
+    if (!confirm('Delete this message for everyone?')) return;
+    const r = await api({ action: 'remove', message_id: id });
+    if (!r.ok || !r.removed) { QLShell.toast('Could not delete that message', 'err'); return; }
+    const m = S.messages.find(x => +x.id === +id);
+    if (m) { m.deleted_at = '1'; m.body = null; m.card_json = null; }
+    paintConv();
   }
 
   function scrollEnd() {
@@ -461,6 +580,39 @@
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
 
+  /* ── create a group ───────────────────────────────────────────────────── */
+  async function newGroup() {
+    const r = await api({ action: 'users' });
+    if (!r.ok) { QLShell.toast('Could not load your team', 'err'); return; }
+    S.users = r.users || []; S.me = r.me || S.me;
+    const others = S.users.filter(u => u.id !== S.me);
+    QLShell.panel({
+      title: 'New group', sub: 'Sales Team, Accounts Team, Management…',
+      body: `<input class="qlf-input" id="qcGName" placeholder="Group name" style="width:100%;margin-bottom:12px">
+        <div class="qc-pick">${others.map(u =>
+          `<label class="qc-pick-b" style="display:flex;gap:10px;align-items:center;cursor:pointer">
+            <input type="checkbox" value="${esc(u.id)}" class="qc-gm">
+            <span><b>${esc(u.name || u.phone)}</b><small>${esc(u.role)}</small></span></label>`).join('')}</div>`,
+      actions: [
+        { label: 'Cancel', onClick: () => QLShell.closeModal() },
+        { label: 'Create', primary: true, onClick: async el => {
+            const name = (document.getElementById('qcGName') || {}).value || '';
+            const picked = [...el.querySelectorAll('.qc-gm:checked')].map(x => x.value);
+            if (!name.trim()) { QLShell.toast('Give the group a name'); return; }
+            if (!picked.length) { QLShell.toast('Pick at least one member'); return; }
+            QLShell.closeModal();
+            /* The subject key is the name — so "Sales Team" is one group, not a
+               new one each time somebody creates it again. */
+            const t = await api({ action: 'open', kind: 'group',
+              subject_key: 'group:' + name.trim().toUpperCase(), title: name.trim(),
+              subtitle: (picked.length + 1) + ' members', members: picked });
+            if (!t.ok) { QLShell.toast('Could not create the group', 'err'); return; }
+            await loadThreads(); openThread(t.thread.id);
+          } }
+      ]
+    });
+  }
+
   /* ── start a direct message ───────────────────────────────────────────── */
   async function newDirect() {
     const r = await api({ action: 'users' });
@@ -506,13 +658,63 @@
     b.style.display = S.unread ? '' : 'none';
   }
 
+  /* ── NOTIFICATIONS ───────────────────────────────────────────────────────
+     A short synthesised blip — no asset to ship and nothing for an ad blocker
+     to refuse. Deliberately quiet and deliberately rate-limited: one sound per
+     poll however many messages arrived, because six pings in a row is how a
+     notification gets muted permanently. */
+  let _ac = null, _lastPing = 0;
+  function ping() {
+    const now = Date.now(); if (now - _lastPing < 4000) return; _lastPing = now;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      _ac = _ac || new AC();
+      const o = _ac.createOscillator(), g = _ac.createGain();
+      o.connect(g); g.connect(_ac.destination);
+      o.frequency.value = 760; g.gain.value = 0.04;
+      o.start(); o.stop(_ac.currentTime + 0.09);
+    } catch (_) {}
+  }
+  /* Desktop notification only if the user already granted it. Asking on page
+     load is the prompt everybody denies; chat asks the first time YOU open it. */
+  function desktopNote(title, body, threadId) {
+    try {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      const n = new Notification(title, { body: body, tag: 'qlim-' + threadId });
+      n.onclick = () => { window.focus(); open(); openThread(threadId); n.close(); };
+    } catch (_) {}
+  }
+  function askNotifyOnce() {
+    try {
+      if (!('Notification' in window) || Notification.permission !== 'default') return;
+      if (localStorage.getItem('ql_im_asked')) return;
+      localStorage.setItem('ql_im_asked', '1');
+      Notification.requestPermission();
+    } catch (_) {}
+  }
+
   /* Unread poll while the drawer is CLOSED, so the header badge is live
      without holding a conversation open. Cheap: one query, no message bodies. */
+  let _seenUnread = null;
   async function pollUnread() {
     const p = JSON.parse(localStorage.getItem('ql_plant') || '{}');
     if (!p.id || !p.token) return;
     const r = await api({ action: 'threads' });
-    if (r && r.ok) { S.threads = r.threads || []; S.unread = r.unread || 0; badge(); }
+    if (!r || !r.ok) return;
+    const before = _seenUnread;
+    S.threads = r.threads || []; S.unread = r.unread || 0; badge();
+    /* Announce only a RISE, and only after a first baseline — otherwise the
+       first poll of every page load would announce mail you already read. */
+    if (before != null && S.unread > before) {
+      const t = S.threads.find(x => (x.unread || 0) > 0);
+      const n = S.unread - before;
+      ping();
+      if (t) {
+        QLShell.toast(n + ' new message' + (n === 1 ? '' : 's') + ' · ' + t.title, 'ok');
+        desktopNote(t.title, C.previewOf(t), t.id);
+      }
+    }
+    _seenUnread = S.unread;
   }
 
   window.QLIM = {
