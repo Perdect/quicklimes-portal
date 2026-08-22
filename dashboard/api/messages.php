@@ -45,10 +45,16 @@ $role    = (string)($ctx['role'] ?? 'sales');
 /* Every signed-in user of the firm may hold a conversation. Chat is not a
    privileged module: what is GUARDED is the records shared inside it, checked
    per record type below and again when the record itself is opened. */
+/* An owner token minted before per-user login carries no user id. The owner is
+   still a real person, so rather than refuse — which locks the account holder
+   out of their own chat — give them a STABLE identity derived from the plant.
+   'owner:<plant>' is attributable, survives re-login, and can never collide
+   with a users.id (those are generated without a colon). What is never done is
+   attributing a message to nobody. */
+$isOwnerSeat = false;
 if ($me === '') {
-  /* An owner token minted before per-user login carries no user id. Chat is
-     per-person by nature, so rather than attribute messages to nobody, say so. */
-  ql_out(['ok' => false, 'error' => 'no_user', 'message' => 'Sign in as a user to use chat.'], 403);
+  $me = 'owner:' . $plantId;
+  $isOwnerSeat = true;
 }
 
 ql_ensure_tables();
@@ -309,7 +315,21 @@ if ($action === 'remove') {
 if ($action === 'users') {
   $st = $db->prepare("SELECT id, name, phone, role FROM users WHERE plant_id=? AND active=1 ORDER BY name");
   $st->execute([$plantId]);
-  ql_out(['ok' => true, 'users' => $st->fetchAll(PDO::FETCH_ASSOC) ?: [], 'me' => $me]);
+  $users = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+  /* The owner seat is a real person with no users row. Include it so their
+     name resolves on their own messages instead of reading "Someone". */
+  $on = $db->prepare("SELECT owner_name, plant_name, owner_phone FROM plants WHERE id=? LIMIT 1");
+  $on->execute([$plantId]);
+  $pl = $on->fetch(PDO::FETCH_ASSOC) ?: [];
+  $ownerId = 'owner:' . $plantId;
+  $already = false;
+  foreach ($users as $u) if ($u['id'] === $ownerId) $already = true;
+  if (!$already) {
+    array_unshift($users, ['id' => $ownerId,
+      'name' => ($pl['owner_name'] ?: ($pl['plant_name'] ?: 'Owner')),
+      'phone' => (string)($pl['owner_phone'] ?? ''), 'role' => 'owner']);
+  }
+  ql_out(['ok' => true, 'users' => $users, 'me' => $me, 'owner_seat' => $isOwnerSeat]);
 }
 
 if ($action === 'members') {
