@@ -45,7 +45,22 @@ const strip = s => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/
 
 const files = fs.readdirSync(__dirname)
   .filter(f => /\.(js|html)$/.test(f) && !/\.test\.js$/.test(f));
-const SRC = new Map(files.map(f => [f, strip(fs.readFileSync(path.join(__dirname, f), 'utf8'))]));
+/* A page's code may be inline OR in a sibling .js — the Monthly Register moved
+   its logic to monthreg.js, and reading only the .html reported a picker-less
+   page that in fact has one. Same gap version-sync had with unprefixed assets:
+   the check was right, its reach was short. A page entry now carries its own
+   markup PLUS its sibling script. */
+const SRC = new Map(files.map(f => {
+  let text = fs.readFileSync(path.join(__dirname, f), 'utf8');
+  /* shell.html is excluded: its sibling IS shell.js, the picker's own
+     implementation, and folding that in would report the shared picker as a
+     rogue second copy of itself. */
+  if (f.endsWith('.html') && f !== 'shell.html') {
+    const sib = path.join(__dirname, f.replace(/\.html$/, '.js'));
+    if (fs.existsSync(sib)) text += '\n' + fs.readFileSync(sib, 'utf8');
+  }
+  return [f, strip(text)];
+}));
 
 console.log('\n═══ month picker · exactly one of it ═══\n');
 
@@ -148,7 +163,8 @@ console.log('\n═══ month picker · exactly one of it ═══\n');
     'dashboard.js': 'the Dashboard',
     'reconcile.js': 'Bank Reconciliation',
     'inventory.html': 'Inventory',
-    'purchasedash.html': 'the Purchase Dashboard'
+    'purchasedash.html': 'the Purchase Dashboard',
+    'monthreg.html': 'the Monthly Register'
   };
   for (const [f, what] of Object.entries(wired)) {
     ok(/QLShell\.monthPicker\s*\(/.test(SRC.get(f) || ''),
@@ -171,7 +187,13 @@ const QLX_SCOPED = {
 };
 const HTML_SCOPED = {
   'gst.html': 'GST Summary', 'pl.html': 'Profit & Loss',
-  'chunna.html': 'Chunna Sales', 'monthreg.html': 'Monthly Register'
+  'chunna.html': 'Chunna Sales'
+  /* monthreg is NOT here. QLShell.periodFilter owns the month AND the year, and
+     the Monthly Register's year is owned by its financial-year selector — an FY
+     runs April→March, which the calendar's year cannot express. So it drives
+     QLShell.monthPicker directly, exactly as Inventory does, and is asserted in
+     section 4 with the other direct callers. A page must appear in exactly one
+     list; this is that choice, made deliberately. */
 };
 {
   for (const [f, what] of Object.entries(QLX_SCOPED)) {
@@ -228,13 +250,21 @@ const HTML_SCOPED = {
     'gst.html': /gstSummary\(\s*PF\.period\(\)\s*\)/,
     'pl.html': /getPL\(\s*PF\.period\(\)\s*\)/,
     'chunna.html': /chunnaSummary\(\s*PF\.period\(\)\s*\)/,
-    'monthreg.html': /monthlyRegister\(\s*per\s*\)/
+    /* The Monthly Register was rebuilt around an FY-aware engine, so the old
+       `monthlyRegister(per)` call is gone. The PROPERTY is unchanged and is
+       what matters: the picked period must reach the numbers. Here that means
+       the financial year scopes the register, and the picked month scopes what
+       is totalled from it. */
+    'monthreg.html': /register\(\s*sales\s*,\s*purchases\s*,\s*\{\s*fy:\s*FY\s*\}\s*\)/
   };
   for (const [f, re] of Object.entries(feeds)) {
     ok(re.test(SRC.get(f) || ''),
       f + ': renders the picker but never passes the picked period to its data call — the numbers ' +
       'would not move. This is the "built, not wired" failure the whole change exists to avoid.');
   }
+  ok(/MONTH\s*\?\s*reg\.filter\(/.test(SRC.get('monthreg.html') || ''),
+    'monthreg.html: the picked MONTH must narrow what is totalled — otherwise the calendar moves the ' +
+    'highlight and leaves every figure on the page unchanged.');
 
   /* (d) An equality test cannot read a YEAR. `slice(0,7) === period` matches
      NOTHING for '2026', so the year button would EMPTY the page instead of

@@ -377,7 +377,12 @@
     const views = showViews ? CFG.views.map(v => `<button class="qx-view ${S.view === v ? 'active' : ''}" data-view="${v}" title="${v[0].toUpperCase() + v.slice(1)} view">${svg(IC[v === 'analytics' ? 'an' : v] || IC.table)}</button>`).join('') : '';
     const gbActive = S.groupBy && S.groupBy !== 'none';
     const grpBtn = (CFG.groupBy && CFG.groupBy.length) ? `<button class="qx-tool ${gbActive ? 'on' : ''}" id="qxGroupBtn">${svg(IC.group)} Group</button>` : '';
-    const colBtn = (CFG.columns && S.view === 'table') ? `<button class="qx-tool" id="qxColBtn">${svg(IC.cols)} Columns</button>` : '';
+    /* `columnPicker: false` opts a register out of the Columns control. The
+       Sales Register asked for it: its columns are the ones an invoice
+       actually has, so a picker there is a control that only ever makes the
+       view worse. Other registers keep it. */
+    const colBtn = (CFG.columns && CFG.columnPicker !== false && S.view === 'table')
+      ? `<button class="qx-tool" id="qxColBtn">${svg(IC.cols)} Columns</button>` : '';
     const advActive = Object.keys(S.adv).some(k => S.adv[k] && S.adv[k] !== 'all');
     const filBtn = (CFG.filters && CFG.filters.length) || CFG.dateRange ? `<button class="qx-tool ${advActive ? 'on' : ''}" id="qxFilBtn">${svg(IC.filter)} Filters</button>` : '';
     const resetBtn = anyFilter() ? `<button class="qx-tool" id="qxReset">${svg(IC.x)} Reset</button>` : '';

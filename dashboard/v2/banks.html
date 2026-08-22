@@ -24,14 +24,44 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cora"><link rel="stylesheet" href="./qlx.css?v=m22">
 <link rel="stylesheet" href="./mobile.css?v=m16">
 <style>
-  .bk-total { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; border-radius: 16px; padding: 20px 24px; margin-bottom: var(--ql-space-5); }
-  .bk-total .t-main .l { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: #93b6f8; font-weight: 700; }
-  .bk-total .t-main .v { font-size: 30px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 3px; }
-  .bk-total .t-kv { border-left: 1px solid rgba(255,255,255,.14); padding-left: 22px; }
-  .bk-total .t-kv .l { font-size: 11px; color: #94a3b8; }
-  .bk-total .t-kv .v { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
-  .bk-total .t-kv .v.in { color: #4ade80; } .bk-total .t-kv .v.out { color: #f87171; }
-  .bk-note { font-size: 11.5px; color: #94a3b8; width: 100%; }
+  /* The dark gradient slab that used to sit here is gone. It was the only
+     dark surface in the app, on a page surrounded by fifteen light ones, and
+     it hardcoded seven colours that no token owned. The headline is now the
+     shared QLX stat row. */
+  .bk-note-row { font-size: var(--ql-text-sm); color: var(--ql-text-muted); line-height: 1.6;
+    margin: -4px 0 var(--ql-space-4); }
+  .bk-note-row b { color: var(--ql-text); font-weight: 700; }
+  .bk-note-row a { color: var(--ql-brand-600); font-weight: 600; text-decoration: none; }
+  .bk-note-row a:hover { text-decoration: underline; }
+
+  /* ── panels that fill the page below the cards ─────────────────────────── */
+  .bk-panel { border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg);
+    background: var(--ql-card); margin-top: var(--ql-space-4); overflow: hidden; }
+  .bk-panel-h { padding: 14px 16px; border-bottom: 1px solid var(--ql-divider); }
+  .bk-panel-t { font-size: var(--ql-text-md); font-weight: 700; color: var(--ql-text); }
+  .bk-panel-s { font-size: var(--ql-text-sm); color: var(--ql-text-muted); margin-top: 2px; }
+  .bk-panel-s a { color: var(--ql-brand-600); font-weight: 600; text-decoration: none; }
+  .bk-panel-s a:hover { text-decoration: underline; }
+  .bk-tblwrap { overflow-x: auto; }
+  table.bk-tbl { width: 100%; border-collapse: collapse; font-size: var(--ql-text-sm); }
+  table.bk-tbl th { text-align: left; font-size: var(--ql-text-xs); font-weight: 700;
+    color: var(--ql-text-secondary); text-transform: uppercase; letter-spacing: .04em;
+    padding: 9px 16px; border-bottom: 1px solid var(--ql-border); white-space: nowrap; }
+  table.bk-tbl th.num, table.bk-tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.bk-tbl td { padding: 11px 16px; border-bottom: 1px solid var(--ql-divider);
+    height: 44px; box-sizing: border-box; white-space: nowrap; }
+  table.bk-tbl tbody tr:last-child td { border-bottom: 0; }
+  table.bk-tbl tbody tr:hover td { background: var(--ql-bg-elevated); }
+  .bk-m { font-weight: 700; color: var(--ql-text); }
+  .bk-in { color: var(--ql-success-700); }
+  .bk-out { color: var(--ql-danger-600); }
+  .bk-mut { color: var(--ql-text-muted); }
+  .bk-nar { color: var(--ql-text-secondary); max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+  /* Two stacked bars — in above, out below — so a month reads at a glance. */
+  .bk-bars { display: flex; flex-direction: column; gap: 3px; min-width: 90px; }
+  .bk-bars i { display: block; height: 7px; border-radius: 3px; min-width: 2px; }
+  .bk-bars i.in { background: var(--ql-success-500); }
+  .bk-bars i.out { background: var(--ql-danger-500); }
   .bk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
   .bk-card { background: var(--ql-surface, #fff); border: 1px solid var(--ql-border); border-radius: 16px; padding: 18px; cursor: pointer; transition: box-shadow .15s, transform .15s, border-color .15s; display: flex; flex-direction: column; gap: 12px; }
   .bk-card:hover { border-color: var(--ql-brand-300, #93b6f8); box-shadow: var(--ql-shadow-md, 0 6px 18px rgba(15,23,42,.08)); transform: translateY(-1px); }
@@ -56,7 +86,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .bk-pill.ok { background: #dcfce7; color: #15803d; }
   .bk-pill.drift { background: #ffedd5; color: #c2410c; }
   .bk-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 56px 20px; text-align: center; color: var(--ql-text-secondary); }
-  @media (max-width: 640px) { .bk-total { gap: 14px; padding: 16px; } .bk-total .t-kv { border: none; padding-left: 0; } }
 </style>
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
@@ -114,7 +143,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./wa-core.js?v=w3"></script>
 
 <script src="./shell.js?v=m68s"></script>
-<script src="./qlx.js?v=m20prgd"></script>
+<script src="./qlx.js?v=m20prgda"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 /* ── PAGE HEADER ────────────────────────────────────────────────────────────
@@ -169,16 +198,36 @@ function render() {
     $('#bkAddEmpty').onclick = addAccount;
     return;
   }
-  const o = RC.accountOverview(QLD.recon.txns || [], accounts);
+  const txns = QLD.recon.txns || [];
+  const o = RC.accountOverview(txns, accounts);
   const byId = {}; o.accounts.forEach(r => { byId[r.id] = r; });
-
   const t = o.total;
-  const totalHTML = `<div class="bk-total">
-    <div class="t-main"><div class="l">Total across all banks</div><div class="v">${fC(t.balance)}</div></div>
-    ${t.ym ? `<div class="t-kv"><div class="l">Money in · ${esc(monLabel(t.ym))}</div><div class="v in">+${fC(t.monthIn)}</div></div>
-    <div class="t-kv"><div class="l">Money out · ${esc(monLabel(t.ym))}</div><div class="v out">−${fC(t.monthOut)}</div></div>` : ''}
-    ${t.internalMoved ? `<div class="t-kv"><div class="l">Moved between own accounts</div><div class="v">${fC(t.internalMoved)}</div></div>` : ''}
-    <div class="bk-note">Flows exclude transfers between your own accounts — moving money bank-to-bank never counts as income or expense.${t.unassigned ? ` <b>${t.unassigned}</b> transaction${t.unassigned === 1 ? '' : 's'} not assigned to any account yet — assign them from Bank Reconciliation.` : ''}</div>
+
+  /* ── HEADLINE ────────────────────────────────────────────────────────────
+     This was a heavy dark slab — the only one in the app, on a page that sits
+     next to fifteen light ones. It is now the SHARED stat row every other
+     page uses (QLX.statsHTML), so Banks reads as part of the product rather
+     than a separate screen. Same four numbers, same source. */
+  const negTotal = (t.balance || 0) < 0;
+  const stats = QLX.statsHTML([
+    { label: 'Total across all banks', value: fC(t.balance),
+      sub: negTotal ? 'overdrawn' : 'in hand · ' + accounts.length + ' account' + (accounts.length === 1 ? '' : 's'),
+      tint: negTotal ? 'red' : 'green',
+      icon: '<line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/>' },
+    { label: 'Money in', value: t.ym ? '+' + fC(t.monthIn) : '—', sub: t.ym ? monLabel(t.ym) : 'no statement imported',
+      tint: 'green', icon: '<path d="M12 3v14"/><polyline points="6 11 12 17 18 11"/><path d="M4 21h16"/>' },
+    { label: 'Money out', value: t.ym ? '−' + fC(t.monthOut) : '—', sub: t.ym ? monLabel(t.ym) : 'no statement imported',
+      tint: 'amber', icon: '<path d="M12 21V7"/><polyline points="6 13 12 7 18 13"/><path d="M4 3h16"/>' },
+    { label: 'Needs review', value: o.accounts.reduce((a, r) => a + r.toReview, 0),
+      sub: t.unassigned ? t.unassigned + ' unassigned to an account' : 'lines the matcher could not settle',
+      tint: 'indigo', icon: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>' }
+  ]);
+
+  const note = `<div class="bk-note-row">
+    Flows exclude transfers between your own accounts — moving money bank-to-bank is never income or expense.
+    ${t.internalMoved ? `<b>${fC(t.internalMoved)}</b> moved internally${t.ym ? ' in ' + esc(monLabel(t.ym)) : ''}.` : ''}
+    ${t.unassigned ? `<b>${t.unassigned}</b> transaction${t.unassigned === 1 ? '' : 's'} not assigned to any account yet —
+      <a href="reconcile.html">assign them from Bank Reconciliation</a>.` : ''}
   </div>`;
 
   const card = a => {
@@ -203,7 +252,60 @@ function render() {
     </div>`;
   };
 
-  $('#bkBody').innerHTML = totalHTML + `<div class="bk-grid">${accounts.map(card).join('')}</div>`;
+  /* ── MONTH-BY-MONTH FLOWS ────────────────────────────────────────────────
+     The page used to stop after two cards and leave two-thirds of the screen
+     empty. This fills it with the thing the cards only hint at: how money
+     actually moved, month by month, per account. Built from the SAME imported
+     statement lines — nothing new is stored and nothing is estimated.
+     Self-transfer legs are excluded, exactly as the headline flows are. */
+  const ymOf = d => String(d || '').slice(0, 7);
+  const flowRows = (() => {
+    const by = {};
+    txns.forEach(x => {
+      if (RC.isSelfLeg && RC.isSelfLeg(x)) return;
+      const m = ymOf(x.date); if (!/^\d{4}-\d{2}$/.test(m)) return;
+      const g = by[m] || (by[m] = { ym: m, in: 0, out: 0, n: 0 });
+      g.in += (+x.credit || 0); g.out += (+x.debit || 0); g.n++;
+    });
+    return Object.values(by).sort((a, b) => b.ym.localeCompare(a.ym)).slice(0, 12);
+  })();
+  const maxFlow = flowRows.reduce((m, r) => Math.max(m, r.in, r.out), 0) || 1;
+  const flowsHTML = flowRows.length ? `<div class="bk-panel">
+      <div class="bk-panel-h"><div class="bk-panel-t">Money in and out, by month</div>
+        <div class="bk-panel-s">Across every account · self-transfers excluded</div></div>
+      <div class="bk-tblwrap"><table class="bk-tbl">
+        <thead><tr><th>Month</th><th class="num">In</th><th class="num">Out</th><th class="num">Net</th>
+          <th style="width:34%">Relative size</th><th class="num">Lines</th></tr></thead>
+        <tbody>${flowRows.map(r => {
+          const net = r.in - r.out;
+          return `<tr><td class="bk-m">${esc(monLabel(r.ym))}</td>
+            <td class="num bk-in">+${fC(r.in)}</td>
+            <td class="num bk-out">−${fC(r.out)}</td>
+            <td class="num ${net >= 0 ? 'bk-in' : 'bk-out'}" style="font-weight:700">${net >= 0 ? '+' : '−'}${fC(Math.abs(net))}</td>
+            <td><div class="bk-bars">
+              <i class="in" style="width:${(r.in / maxFlow * 100).toFixed(1)}%"></i>
+              <i class="out" style="width:${(r.out / maxFlow * 100).toFixed(1)}%"></i></div></td>
+            <td class="num bk-mut">${r.n}</td></tr>`;
+        }).join('')}</tbody></table></div>
+    </div>` : '';
+
+  /* Latest lines, so the page ends on something current rather than on air. */
+  const recent = txns.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 8);
+  const accName = id => { const a = accounts.find(x => x.id === id); return a ? a.label : 'Unassigned'; };
+  const recentHTML = recent.length ? `<div class="bk-panel">
+      <div class="bk-panel-h"><div class="bk-panel-t">Latest statement lines</div>
+        <div class="bk-panel-s">Newest first · <a href="reconcile.html">open Bank Reconciliation</a></div></div>
+      <div class="bk-tblwrap"><table class="bk-tbl">
+        <thead><tr><th>Date</th><th>Account</th><th>Narration</th><th class="num">In</th><th class="num">Out</th></tr></thead>
+        <tbody>${recent.map(x => `<tr>
+          <td class="bk-mut">${esc(dLabel(x.date))}</td>
+          <td>${esc(accName(x.accountId))}</td>
+          <td class="bk-nar">${esc((x.clean || x.raw || x.desc || '—')).slice(0, 70)}</td>
+          <td class="num bk-in">${x.credit ? '+' + fC(x.credit) : ''}</td>
+          <td class="num bk-out">${x.debit ? '−' + fC(x.debit) : ''}</td></tr>`).join('')}</tbody></table></div>
+    </div>` : '';
+
+  $('#bkBody').innerHTML = stats + note + `<div class="bk-grid">${accounts.map(card).join('')}</div>` + flowsHTML + recentHTML;
   document.querySelectorAll('[data-acc]').forEach(c => {
     const go = () => { location.href = 'reconcile.html?acc=' + encodeURIComponent(c.dataset.acc); };
     c.onclick = go;

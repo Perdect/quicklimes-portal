@@ -25,7 +25,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cora"><link rel="stylesheet" href="./qlx.css?v=m22">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cora"><link rel="stylesheet" href="./qlx.css?v=m22"><link rel="stylesheet" href="./monthreg.css?v=mr2">
 <link rel="stylesheet" href="./mobile.css?v=m16">
 <!-- iOS launch images: without these iOS paints WHITE while the app boots.
      background_color in the manifest is Android-only. -->
@@ -54,15 +54,25 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 </head>
 <body class="ql-v2">
 <div id="ql-page">
-  <div class="dash">
+  <div class="dash qx qx-a-blue">
     <div id="mrHero"></div>
-    </div>
-    <div id="mrKpis"></div>
-    <div class="card" style="gap:var(--ql-space-4)">
-      <div class="sr-table-wrap"><table class="sr"><thead><tr id="mrHead"></tr></thead><tbody id="mrBody"></tbody><tfoot id="mrFoot"></tfoot></table></div>
-    </div>
+    <div id="mrBar"></div>
+    <div id="mrBody"></div>
   </div>
 </div>
+
+<!-- Month drill-down. Lives outside #ql-page so the drawer overlays the shell. -->
+<div class="mr-dd-back" id="mrDDBack"></div>
+<aside class="mr-dd" id="mrDD" role="dialog" aria-label="Month detail">
+  <div class="mr-dd-h">
+    <div style="flex:1 1 auto"><h2 id="mrDDTitle"></h2><div class="sub" id="mrDDSub"></div></div>
+    <button class="mr-dd-x" id="mrDDX" aria-label="Close">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="mr-dd-tabs" id="mrDDTabs"></div>
+  <div class="mr-dd-b" id="mrDDBody"></div>
+</aside>
 <script src="ql-api.js?v=a5"></script>
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
@@ -72,84 +82,9 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./i18n.js?v=h8"></script>
 <script src="./wa-core.js?v=w3"></script>
 <script src="./shell.js?v=m68s"></script>
-<script src="./qlx.js?v=m20prgd"></script>
+<script src="./qlx.js?v=m20prgda"></script>
 <script src="./mobile.js?v=m16"></script>
-<script>
-QLShell.mount({ active: 'monthreg', title: 'Monthly Register' });
-
-/* The picker, on the page that is literally a list of months.
-   YEAR is the option that earns its place here — "Whole year 2026" leaves the
-   twelve rows this table is FOR. Picking a single month legitimately leaves one
-   row: the register is a list of months and he asked for one of them, so the
-   totals row (which takes the same period) then totals that row and nothing
-   else. */
-let PF = null, HERO = null;
-const DL_ICON = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>';
-const PLUS_ICON = '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>';
-
-/* The month-by-month table, as a file — the same rows the table shows. */
-function exportMonthReg() {
-  const per = PF ? PF.label() : 'All time';
-  const rows = QLD.monthlyRegister(PF ? PF.period() : null);
-  QLShell.exportCSV('monthly_register_' + String(QLD.co.short || '').replace(/\s+/g, '_') + '_' + per.replace(/\s+/g, '_'),
-    ['Month', 'Invoices', 'Bills', 'Qty (T)', 'Sales', 'Purchases', 'Gross Profit'],
-    rows.map(m => [m.label, m.invoices, m.bills, m.qty, m.salesTotal, m.purchaseTax, m.profit]));
-}
-const mrHave = () => new Set(QLD.monthlyRegister().map(m => m.ym));
-function render() {
-  /* The app's shared header (QLX.heroHTML), rendered ONCE — before
-     periodFilter mounts, because periodFilter prepends its month button into
-     #mrActions. Re-rendering the header each refresh would throw that button
-     away, and `actionsId` is what keeps that container id alive. */
-  if (!HERO) {
-    HERO = { title: 'Monthly Register', actionsId: 'mrActions',
-      sub: '<span id="mrSub"></span>',
-      tools: [{ label: 'Export', icon: DL_ICON, onClick: () => exportMonthReg() }] };
-    document.getElementById('mrHero').innerHTML = QLX.heroHTML(HERO);
-    QLX.wireHero(document.getElementById('mrHero'), HERO);
-  }
-  if (!PF) PF = QLShell.periodFilter('mrActions', { id: 'mrMonthBtn', have: mrHave, prepend: true, onChange: () => render() });
-  const per = PF.period();
-  const co = QLD.co, rows = QLD.monthlyRegister(per), tot = QLD.monthlyRegisterTotals(per);
-  const K = [
-    { label: 'Months', v: rows.length, meta: 'with activity', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' },
-    { label: 'Total Sales', v: QLD.fC(tot.salesTotal), meta: tot.invoices + ' invoices', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>' },
-    { label: 'Total Purchases', v: QLD.fC(tot.purchaseTax), meta: tot.bills + ' bills', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' },
-    { label: 'Gross Profit', v: QLD.fC(tot.profit), meta: QLD.fmt(tot.qty, 1) + ' T sold', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M5 12l7-7 7 7"/></svg>' }
-  ];
-  /* The SHARED stat row (QLX.statsHTML) — the same component the registers
-     use. The K array above is untouched: only its shape is adapted here, so
-     every figure on this page is still computed by the code that always
-     computed it. */
-  document.getElementById('mrKpis').innerHTML = QLX.statsHTML(
-    K.map(k => ({ label: k.label, value: k.v, sub: k.meta, icon: k.ic, tint: QLX.tint(k.bg) })));
-  document.getElementById('mrSub').textContent = `${co.short} · ${PF.label()} · ${rows.length} months · ${QLD.fC(tot.profit)} gross profit`;
-  const COLS = ['Month', 'Invoices', 'Bills', 'Qty (T)', 'Sales', 'Purchases', 'Gross Profit'];
-  document.getElementById('mrHead').innerHTML = COLS.map((c, i) => `<th class="${i >= 1 ? 'sr-num' : ''}">${c}</th>`).join('');
-  document.getElementById('mrBody').innerHTML = rows.length ? rows.map(m => `
-    <tr>
-      <td style="font-weight:700;color:var(--ql-text)">${m.label}</td>
-      <td class="sr-num">${m.invoices}</td>
-      <td class="sr-num">${m.bills}</td>
-      <td class="sr-num pt-muted">${QLD.fmt(m.qty, 1)}</td>
-      <td class="sr-num" style="font-weight:600">${QLD.fC(m.salesTotal)}</td>
-      <td class="sr-num pt-muted">${QLD.fC(m.purchaseTax)}</td>
-      <td class="sr-num" style="font-weight:700;color:${m.profit >= 0 ? 'var(--ql-success-700)' : 'var(--ql-danger-600)'}">${QLD.fC(m.profit)}</td>
-    </tr>`).join('') : `<tr><td colspan="7"><div class="sr-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg><div style="font-weight:600;color:var(--ql-text-secondary)">No sales or purchases yet</div></div></td></tr>`;
-  document.getElementById('mrFoot').innerHTML = rows.length ? `<tr style="border-top:2px solid var(--ql-border-strong)">
-      <td style="font-weight:800;color:var(--ql-text)">Total</td>
-      <td class="sr-num" style="font-weight:700">${tot.invoices}</td>
-      <td class="sr-num" style="font-weight:700">${tot.bills}</td>
-      <td class="sr-num" style="font-weight:700">${QLD.fmt(tot.qty, 1)}</td>
-      <td class="sr-num" style="font-weight:800">${QLD.fC(tot.salesTotal)}</td>
-      <td class="sr-num" style="font-weight:700">${QLD.fC(tot.purchaseTax)}</td>
-      <td class="sr-num" style="font-weight:800;color:${tot.profit >= 0 ? 'var(--ql-success-700)' : 'var(--ql-danger-600)'}">${QLD.fC(tot.profit)}</td>
-    </tr>` : '';
-  QLShell.paintWorkspace();
-}
-window.__qlOnSwitchCompany = () => render();   // shell owns the switch
-window.__qlRefresh = render;
-QLD.init(render);
-</script>
+<script src="./monthreg-core.js?v=mrc2"></script>
+<script src="./monthreg.js?v=mr2"></script>
 </body>
 </html>

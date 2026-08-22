@@ -76,8 +76,8 @@
     "sha": "106ad4847e8d"
   },
   "qlx.js": {
-    "v": "m20prgd",
-    "sha": "44573fec1882"
+    "v": "m20prgda",
+    "sha": "40dbe87b44a6"
   },
   "cashbook.js": {
     "v": "m4d",
@@ -219,6 +219,18 @@
     "v": "b2",
     "sha": "563e1a0f3090"
   },
+  "monthreg.css": {
+    "v": "mr2",
+    "sha": "af4cb7e83e9e"
+  },
+  "monthreg-core.js": {
+    "v": "mrc2",
+    "sha": "706ee799123d"
+  },
+  "monthreg.js": {
+    "v": "mr2",
+    "sha": "b64c286aadc6"
+  },
   "pbill.css": {
     "v": "p7",
     "sha": "9a162479e41b"
@@ -280,8 +292,8 @@
     "sha": "dcda51cabb2f"
   },
   "sales.js": {
-    "v": "m321pcd",
-    "sha": "321e8548bc82"
+    "v": "m321pcda",
+    "sha": "542ba8bd8e51"
   },
   "selfcheck.js": {
     "v": "s2",
