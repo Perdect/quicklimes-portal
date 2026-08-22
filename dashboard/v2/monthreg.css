@@ -36,10 +36,17 @@
 .mr-sec:not([open]) .mr-sec-b { display: none; }
 
 /* ── compact metric grid (secondary KPIs) ───────────────────────────────── */
+/* The 1px gap used to be the BORDER colour showing through, which meant an
+   incomplete last row rendered as a grey slab beside the final cell — eight
+   metrics across a seven-wide grid put "Net GST" alone next to a block of
+   grey. The container is card-coloured now and the hairlines are drawn as
+   cell borders, so a short row simply ends. */
 .mr-mini { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1px; background: var(--ql-border); border: 1px solid var(--ql-border);
+  gap: 0; background: var(--ql-card); border: 1px solid var(--ql-border);
   border-radius: var(--ql-radius-lg); overflow: hidden; margin-bottom: var(--ql-space-4); }
-.mr-mini > div { background: var(--ql-card); padding: 12px 14px; min-height: 72px; }
+.mr-mini > div { background: var(--ql-card); padding: 12px 14px; min-height: 72px;
+  border-right: 1px solid var(--ql-divider); border-top: 1px solid var(--ql-divider); }
+.mr-mini > div:last-child { border-right: 0; }
 .mr-mini .l { font-size: var(--ql-text-xs); color: var(--ql-text-secondary); font-weight: 600;
   text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
 .mr-mini .v { font-size: var(--ql-text-lg); font-weight: 700; color: var(--ql-text);
