@@ -9,7 +9,14 @@
 /* ── ACCENT SYSTEM ──────────────────────────────────────────────────────
    Each module gets a subtle accent while sharing one design system.
    JS sets .qx-a-<name> on the root; every accent-aware bit reads --qx-*. */
-.qx {
+/* :root AS WELL AS .qx. These were scoped to .qx only, which was fine while
+   the chrome lived exclusively inside a mounted register. Now that any page can
+   render the shared header, a page without the .qx wrapper got NO accent at
+   all — and .qx-btn-primary is `background: var(--qx-grad); color:#fff`, so the
+   primary action rendered as white text on nothing. On Banks, "Import
+   statement" was invisible. Defaulting at :root means the button is always
+   legible; .qx-a-* still overrides per module. */
+:root, .qx {
   --qx: var(--ql-brand-600); --qx-ink: var(--ql-brand-700); --qx-soft: #eff4ff; --qx-soft2: #dbe8ff;
   --qx-grad: linear-gradient(135deg, var(--ql-brand-500), var(--ql-brand-600));
   --qx-glow: rgba(37, 99, 235, .18);

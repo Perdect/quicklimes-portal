@@ -206,6 +206,34 @@ function codeOf(page) {
      late.length === 0);
 }
 
+/* ── 9. THE PRIMARY BUTTON MUST BE VISIBLE ───────────────────────────────
+   .qx-btn-primary is `background: var(--qx-grad); color: #fff`. The accent
+   variables were defined only under `.qx`, which held while the chrome lived
+   inside a mounted register — but any page can render the shared header now,
+   and a page without that wrapper got NO accent, so its primary action was
+   white text on nothing. On Banks, "Import statement" was invisible: present
+   in the DOM, correct in the markup, unreadable on screen. */
+{
+  const qlx = fs.readFileSync(path.join(DIR, 'qlx.css'), 'utf8');
+  ok('the accent variables default at :root, so a primary button is never colourless',
+     /:root,\s*\.qx\s*\{[^}]*--qx-grad:/.test(qlx));
+
+  /* Belt and braces: a page that renders the chrome should still carry the
+     accent wrapper, so a module accent (.qx-a-green etc.) has something to
+     attach to. */
+  const missing = [];
+  for (const p of pages) {
+    const code = codeOf(p);
+    if (!/QLX\.(heroHTML|statsHTML)\s*\(/.test(code)) continue;
+    /* The wrapper may be built in the sibling script (ledger renders its whole
+       page from JS), so check the page's full code, not just its markup. */
+    if (!/class="[^"]*\bqx\b[^"]*"/.test(code)) missing.push(p);
+  }
+  ok('every page rendering QLX chrome carries the accent wrapper' +
+     (missing.length ? '\n       missing .qx: ' + missing.join(', ') : ''),
+     missing.length === 0);
+}
+
 console.log('\n════ design system (one header, one stat row, everywhere) ════');
 console.log('  Pages scanned: ' + pages.length);
 console.log('  Passed: ' + pass + '   Failed: ' + fail);

@@ -422,7 +422,7 @@ function render() {
     primary: { label: p.type === 'supplier' ? 'Record payment' : 'Record receipt',
                icon: ICO.plus, onClick: () => recordReceipt(p) }
   };
-  main.innerHTML = `<div class="dash lgp">
+  main.innerHTML = `<div class="dash lgp qx qx-a-blue">
     <div id="lgHero"></div>
     <div class="lgp-cards">
       ${card('Opening balance', drcr(L.openingForRange), '', FROM ? 'as on ' + Q.fDS(FROM) : 'start of ledger')}
