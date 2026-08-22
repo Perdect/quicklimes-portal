@@ -156,6 +156,34 @@ ok(strpos($hook, "return 0;") !== false && strpos($hook, 'catch (Throwable $e)')
 ok(strpos($hook, "'wa:' . \$phone") !== false,
   '  authored by the counterparty, which can never collide with a users.id');
 
+echo "\n=== presence and mentions ===\n";
+ok(strpos($dbc, 'CREATE TABLE IF NOT EXISTS chat_presence') !== false,
+  'presence is one row per person, stamped by their own poll');
+ok(strpos($code, "\$action === 'presence'") !== false && strpos($code, 'user_id<>?') !== false,
+  'presence reports OTHER people, not yourself');
+ok(strpos($code, '(int)$r[\'ago\'] <= 90') !== false,
+  'online expires after 90s — a stale claim is worse than none');
+ok(strpos($code, '(int)$r[\'typing_ago\'] <= 8') !== false,
+  'typing expires after 8s, so a closed tab stops claiming to type');
+/* Section 13: never fake availability for a company that is not a user.
+   The only thing that ever writes a presence row is an authenticated caller
+   stamping ITSELF ($me), so there is no path by which a business — which has
+   no login — acquires a status. */
+ok(preg_match('~INSERT INTO chat_presence[\s\S]{0,400}?execute\(\[\$plantId, \$me,~', $code) === 1,
+  'the only presence row anyone can write is their OWN, so a business can never acquire a status');
+ok(strpos($code, 'chat_presence') !== false
+   && preg_match('~INSERT INTO chat_presence[\s\S]{0,400}?\$phone~', $code) !== 1,
+  '  and nothing writes presence from a phone number');
+
+ok(strpos($dbc, 'mentions     VARCHAR(500)') !== false, 'mentions live on the message');
+ok(strpos($code, 'SELECT user_id FROM chat_members WHERE thread_id=? AND user_id IN') !== false,
+  'a mention is validated against the thread MEMBERS — you cannot notify someone into a thread they are refused');
+ok(strpos($code, "\$mentions = ',' . implode(',', \$okIds) . ',';") !== false,
+  '  stored comma-wrapped, so LIKE cannot match a partial id');
+ok(strpos($code, 'y.mentions LIKE ?') !== false && strpos($code, "'%,' . \$me . ',%'") !== false,
+  'the thread list reports unread mentions separately from unread messages');
+
+
 echo "\n=== the owner is a person, not nobody ===\n";
 ok(strpos($code, "\$me = 'owner:' . \$plantId;") !== false,
   'an owner token with no user id gets a stable attributable identity');

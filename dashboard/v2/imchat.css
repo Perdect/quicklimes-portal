@@ -290,3 +290,24 @@
 .qc-wa-note { font-size: var(--ql-text-xs); color: var(--ql-text-muted); margin-top: 12px; line-height: 1.6; }
 .qc-wa-status { margin-top: 12px; padding: 9px 11px; border-radius: var(--ql-radius-md);
   background: var(--ql-bg-elevated); font-size: var(--ql-text-xs); font-weight: 600; color: var(--ql-text); }
+
+/* ── presence (QuickLimes users only — never faked for a business) ───────── */
+.qc-online { color: var(--ql-success-700); font-weight: 700; }
+.qc-online::before { content: '●'; margin: 0 4px 0 6px; }
+.qc-lastseen { margin-left: 6px; }
+.qc-typing { color: var(--ql-brand-600); font-weight: 600; margin-left: 6px; }
+
+/* ── mentions ────────────────────────────────────────────────────────────── */
+.qc-mention { position: absolute; bottom: 100%; left: 0; margin-bottom: 6px; z-index: 6;
+  background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md);
+  box-shadow: var(--ql-shadow-lg); overflow: hidden; min-width: 220px; max-height: 240px; overflow-y: auto; }
+.qc-mention button { display: block; width: 100%; text-align: left; border: 0; background: none;
+  padding: 9px 12px; cursor: pointer; font: inherit; font-size: var(--ql-text-sm); }
+.qc-mention button:hover { background: var(--ql-bg-elevated); }
+.qc-mention small { display: block; color: var(--ql-text-muted); font-size: var(--ql-text-xs); }
+.qc-comp-r { position: relative; }
+.qc-me-at { background: var(--ql-warning-100); color: var(--ql-warning-700); font-weight: 700;
+  border-radius: var(--ql-radius-xs); padding: 0 3px; }
+.qc-m.me .qc-me-at { background: rgba(255, 255, 255, .25); color: #fff; }
+.qc-at { background: var(--ql-warning-500); color: #fff; font-weight: 800; font-size: var(--ql-text-xs);
+  border-radius: 50%; width: 18px; height: 18px; display: inline-grid; place-items: center; flex: none; }

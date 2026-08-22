@@ -791,6 +791,10 @@ function ql_ensure_tables() {
     /* The provider's id when this left by WhatsApp — so the webhook's echo of
        our own message updates this row instead of printing it twice. */
     wa_id        VARCHAR(128) DEFAULT NULL,
+    /* Who was @mentioned, as a comma-wrapped id list. A join table would be
+       tidier and would also mean a second write on the hot send path, for a
+       feature whose whole job is highlighting one line for one person. */
+    mentions     VARCHAR(500) DEFAULT NULL,
     created_at   DATETIME     NOT NULL,
     edited_at    DATETIME     DEFAULT NULL,
     deleted_at   DATETIME     DEFAULT NULL,
@@ -803,11 +807,29 @@ function ql_ensure_tables() {
      the table. Same idiom the plants and discovered tables use: try it, ignore
      the duplicate-column error. */
   foreach (['pinned_at DATETIME DEFAULT NULL', 'pinned_by VARCHAR(64) DEFAULT NULL',
-            'wa_id VARCHAR(128) DEFAULT NULL'] as $col) {
+            'wa_id VARCHAR(128) DEFAULT NULL',
+            'mentions VARCHAR(500) DEFAULT NULL'] as $col) {
     try { $db->exec("ALTER TABLE chat_messages ADD COLUMN $col"); } catch (Throwable $e) { /* already there */ }
   }
   try { $db->exec("ALTER TABLE chat_threads ADD COLUMN phone_key VARCHAR(24) DEFAULT NULL"); } catch (Throwable $e) { /* already there */ }
   try { $db->exec("ALTER TABLE chat_threads ADD KEY idx_phone (plant_id, phone_key)"); } catch (Throwable $e) { /* already there */ }
+
+  /* PRESENCE — for QuickLimes users only. An external business is never given
+     a fake "online": section 13 is explicit, and inventing availability for a
+     company that is not even a user of this app would be a lie the UI tells
+     every time it is opened.
+
+     One row per person, stamped when they poll. `typing_in` is a thread id
+     with the same stamp: typing IS presence, so it needs no second table and
+     it expires the same way. */
+  $db->exec("CREATE TABLE IF NOT EXISTS chat_presence (
+    plant_id   VARCHAR(64) NOT NULL,
+    user_id    VARCHAR(64) NOT NULL,
+    seen_at    DATETIME    NOT NULL,
+    typing_in  BIGINT      DEFAULT NULL,
+    typing_at  DATETIME    DEFAULT NULL,
+    PRIMARY KEY (plant_id, user_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
   $db->exec("CREATE TABLE IF NOT EXISTS chat_reactions (
     message_id   BIGINT       NOT NULL,

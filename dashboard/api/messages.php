@@ -138,23 +138,55 @@ if ($action === 'wa_connect') {
           'status' => (string)($h['status'] ?? '')]);
 }
 
+/* ── PRESENCE ─────────────────────────────────────────────────────────────
+   Stamped by the client's own poll, so it costs one small write on a request
+   that was happening anyway. Reported ONLY for QuickLimes users: an external
+   business never gets a fabricated "online", because it is not a user of this
+   app and saying otherwise would be a lie repeated on every open. */
+if ($action === 'presence') {
+  $typing = (int)($b['typing_in'] ?? 0);
+  $db->prepare("INSERT INTO chat_presence (plant_id, user_id, seen_at, typing_in, typing_at)
+                VALUES (?,?,?,?,?)
+                ON DUPLICATE KEY UPDATE seen_at=VALUES(seen_at), typing_in=VALUES(typing_in), typing_at=VALUES(typing_at)")
+     ->execute([$plantId, $me, $now, $typing ?: null, $typing ? $now : null]);
+
+  /* 90 seconds for "online" and 8 for "typing" — both are how long the claim
+     stays true after the last poll, and a stale claim is worse than none. */
+  $st = $db->prepare("SELECT user_id, seen_at, typing_in,
+      TIMESTAMPDIFF(SECOND, seen_at, ?) AS ago,
+      TIMESTAMPDIFF(SECOND, COALESCE(typing_at, seen_at), ?) AS typing_ago
+      FROM chat_presence WHERE plant_id=? AND user_id<>?");
+  $st->execute([$now, $now, $plantId, $me]);
+  $out = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    $out[] = ['user_id' => $r['user_id'], 'online' => ((int)$r['ago'] <= 90),
+              'ago' => (int)$r['ago'],
+              'typing_in' => ((int)$r['typing_ago'] <= 8) ? (int)$r['typing_in'] : null];
+  }
+  ql_out(['ok' => true, 'presence' => $out]);
+}
+
 /* ── THREADS: everything I am a member of ─────────────────────────────── */
 if ($action === 'threads') {
   $st = $db->prepare(
     "SELECT t.*, m.last_read_id, m.muted,
             (SELECT COUNT(*) FROM chat_messages x
               WHERE x.thread_id=t.id AND x.id>m.last_read_id
-                AND x.user_id<>? AND x.deleted_at IS NULL) AS unread
+                AND x.user_id<>? AND x.deleted_at IS NULL) AS unread,
+            (SELECT COUNT(*) FROM chat_messages y
+              WHERE y.thread_id=t.id AND y.id>m.last_read_id AND y.user_id<>?
+                AND y.deleted_at IS NULL AND y.mentions LIKE ?) AS mentions_unread
        FROM chat_threads t
        JOIN chat_members m ON m.thread_id=t.id AND m.user_id=?
       WHERE t.plant_id=? AND t.company_id=? AND t.archived=0
       ORDER BY COALESCE(t.last_at, t.created_at) DESC
       LIMIT 200");
-  $st->execute([$me, $me, $plantId, $coId]);
+  $st->execute([$me, $me, '%,' . $me . ',%', $me, $plantId, $coId]);
   $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
   $total = 0;
   foreach ($rows as &$r) {
     $r['id'] = (int)$r['id']; $r['unread'] = (int)$r['unread'];
+    $r['mentions_unread'] = (int)$r['mentions_unread'];
     $r['meta'] = $r['meta'] ? json_decode($r['meta'], true) : null;
     $total += $r['unread'];
   }
@@ -292,6 +324,19 @@ if ($action === 'send') {
   if ($kind === 'text' && $body === '') ql_out(['ok' => false, 'error' => 'empty'], 400);
   if ($kind === 'note' && $body === '') ql_out(['ok' => false, 'error' => 'empty'], 400);
 
+  /* Mentions are validated against the thread's MEMBERS, not against the
+     firm: @-ing somebody who cannot see the conversation would notify them
+     about a thread they are then refused entry to. */
+  $mentions = null;
+  $want = array_filter(array_map('strval', (array)($b['mentions'] ?? [])));
+  if ($want) {
+    $in = implode(',', array_fill(0, count($want), '?'));
+    $mq = $db->prepare("SELECT user_id FROM chat_members WHERE thread_id=? AND user_id IN ($in)");
+    $mq->execute(array_merge([$threadId], $want));
+    $okIds = array_column($mq->fetchAll(PDO::FETCH_ASSOC), 'user_id');
+    if ($okIds) $mentions = ',' . implode(',', $okIds) . ',';
+  }
+
   /* CHANNEL. 'internal' stays inside QuickLimes; 'whatsapp' also leaves by the
      connected channel and is recorded on the same row, so one thread carries
      both and the history stays in one place. A note is never sendable
@@ -326,8 +371,8 @@ if ($action === 'send') {
   $st = $db->prepare(
     "INSERT INTO chat_messages
       (plant_id, company_id, thread_id, user_id, kind, source, body, card_type, card_id, card_json,
-       file_id, file_name, file_mime, file_size, reply_to, created_at, wa_id)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+       file_id, file_name, file_mime, file_size, reply_to, created_at, wa_id, mentions)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
   $st->execute([
     $plantId, $coId, $threadId, $me, $kind,
     $channel === 'whatsapp' ? 'whatsapp' : 'internal',
@@ -340,7 +385,7 @@ if ($action === 'send') {
     $file ? mb_substr((string)($file['mime'] ?? ''), 0, 80) : null,
     $file ? (int)($file['size'] ?? 0) : null,
     ((int)($b['reply_to'] ?? 0)) ?: null,
-    $now, $waId
+    $now, $waId, $mentions
   ]);
   $id = (int)$db->lastInsertId();
 

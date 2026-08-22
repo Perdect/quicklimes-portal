@@ -34,7 +34,7 @@
     open: false, threads: [], threadId: null, messages: [], hasMore: false,
     filter: 'all', q: '', me: '', role: 'sales', users: [], noteMode: false,
     loading: false, error: '', pollTimer: null, lastId: 0, unread: 0, details: false, pins: [],
-    replyTo: null, find: '', finding: false, channel: 'internal', wa: null
+    replyTo: null, find: '', finding: false, channel: 'internal', wa: null, presence: [], mentionOpen: false
   };
 
   /* ── api ──────────────────────────────────────────────────────────────── */
@@ -136,6 +136,7 @@
             <div class="qc-row-1"><span class="qc-row-n">${esc(t.title)}</span>
               <span class="qc-row-t">${esc(C.timeLabel(t.last_at))}</span></div>
             <div class="qc-row-2"><span class="qc-row-p">${esc(C.previewOf(t))}</span>
+              ${t.mentions_unread ? '<span class="qc-at" title="You were mentioned">@</span>' : ''}
               ${t.unread ? `<span class="qc-badge">${t.unread}</span>` : ''}</div>
           </div>
         </button>`).join('')
@@ -223,7 +224,14 @@
       inner = `<a class="qc-file" href="#" data-file="${esc(m.file_id)}|${esc(m.file_name)}">
         ${ic('doc')}<span><b>${esc(m.file_name)}</b><small>${fmtSize(m.file_size)}</small></span></a>`;
     } else {
-      inner = `<div class="qc-txt">${linkify(m.body)}</div>`;
+      let txt = linkify(m.body);
+      /* My own name, marked. A mention nobody can see is not a mention. */
+      const meName = (S.users.find(u => u.id === S.me) || {}).name || '';
+      const first = meName.split(' ')[0];
+      if (first && m.mentions && String(m.mentions).indexOf(',' + S.me + ',') >= 0) {
+        txt = txt.replace(new RegExp('@' + first, 'gi'), '<span class="qc-me-at">@' + esc(first) + '</span>');
+      }
+      inner = `<div class="qc-txt">${txt}</div>`;
     }
     const run = C.isRun(prev, m);
     const who = (!mine && !run) ? `<div class="qc-who">${esc(nameOf(m.user_id))}</div>` : '';
@@ -332,7 +340,8 @@
       <div class="qc-conv-h">
         <button class="qc-icon qc-only-mob" id="qcBack">${ic('back')}</button>
         ${avatar(t.title, 'sm')}
-        <div class="qc-conv-t"><b>${esc(t.title)}</b><small>${esc(t.subtitle || kindLabel(t.kind))}</small></div>
+        <div class="qc-conv-t"><b>${esc(t.title)}</b>
+          <small>${esc(t.subtitle || kindLabel(t.kind))}<span id="qcPresence"></span></small></div>
         <button class="qc-icon" id="qcFind" title="Search in this conversation">${ic('search')}</button>
         <button class="qc-icon" id="qcInfo" title="Conversation details">${ic('info')}</button>
         <button class="qc-icon" id="qcClose2" title="Close">${ic('x')}</button>
@@ -394,8 +403,15 @@
     if ($('qcAttach')) $('qcAttach').onclick = attachMenu;
     const inp = $('qcIn');
     if (inp) {
-      inp.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
-      inp.oninput = () => { inp.style.height = 'auto'; inp.style.height = Math.min(120, inp.scrollHeight) + 'px'; };
+      inp.onkeydown = e => {
+        if (e.key === 'Enter' && !e.shiftKey && !S.mentionOpen) { e.preventDefault(); send(); }
+        if (e.key === 'Escape' && S.mentionOpen) { closeMentions(); }
+      };
+      inp.oninput = () => {
+        inp.style.height = 'auto'; inp.style.height = Math.min(120, inp.scrollHeight) + 'px';
+        S.typingAt = Date.now();
+        maybeMentions(inp);
+      };
       inp.focus();
     }
     if ($('qcAddPeople')) $('qcAddPeople').onclick = () => addPeople();
@@ -516,7 +532,9 @@
     S.messages.push(tmp); paintConv(); scrollEnd();
     const replyTo = S.replyTo; S.replyTo = null;
     tmp.reply_to = replyTo || null;
-    const r = await api({ action: 'send', thread_id: S.threadId, kind, body, reply_to: replyTo || 0, channel });
+    const mentions = (S.pendingMentions || []).filter(id => body.indexOf('@') >= 0);
+    S.pendingMentions = [];
+    const r = await api({ action: 'send', thread_id: S.threadId, kind, body, reply_to: replyTo || 0, channel, mentions });
     tmp.source = channel === 'whatsapp' ? 'whatsapp' : 'internal';
     if (!r.ok) {
       S.messages = S.messages.filter(m => m.id !== tmp.id);
@@ -528,6 +546,40 @@
     const t = thread();
     if (t && kind !== 'note') { t.last_body = body; t.last_at = r.at; }
     paintList();
+  }
+
+  /* @mention. Only in threads with other members — @-ing into a lead
+     conversation you are alone in has nobody to reach. */
+  function mentionCandidates() {
+    const t = thread();
+    if (!t || (t.kind !== 'group' && t.kind !== 'dm')) return [];
+    return S.users.filter(u => u.id !== S.me);
+  }
+  function maybeMentions(inp) {
+    const upto = inp.value.slice(0, inp.selectionStart || inp.value.length);
+    const m = /@([\w]*)$/.exec(upto);
+    if (!m) { closeMentions(); return; }
+    const q = m[1].toLowerCase();
+    const list = mentionCandidates().filter(u => !q || (u.name || '').toLowerCase().indexOf(q) >= 0);
+    if (!list.length) { closeMentions(); return; }
+    let box = document.getElementById('qcMention');
+    if (!box) {
+      box = document.createElement('div'); box.className = 'qc-mention'; box.id = 'qcMention';
+      inp.parentElement.appendChild(box);
+    }
+    box.innerHTML = list.slice(0, 6).map(u =>
+      `<button data-m="${esc(u.id)}"><b>${esc(u.name || u.phone)}</b><small>${esc(u.role)}</small></button>`).join('');
+    box.querySelectorAll('[data-m]').forEach(b => b.onclick = () => {
+      const u = S.users.find(x => x.id === b.dataset.m);
+      inp.value = inp.value.replace(/@[\w]*$/, '@' + (u.name || '').split(' ')[0] + ' ');
+      S.pendingMentions = (S.pendingMentions || []).concat([u.id]);
+      closeMentions(); inp.focus();
+    });
+    S.mentionOpen = true;
+  }
+  function closeMentions() {
+    const b = document.getElementById('qcMention'); if (b) b.remove();
+    S.mentionOpen = false;
   }
 
   const QUICK = ['👍', '✅', '🙏', '🔥', '❓', '😀'];
@@ -610,6 +662,40 @@
     paintConv();
   }
 
+  /* Presence is drawn into the header in place rather than by repainting the
+     conversation — a full repaint every five seconds would fight the user's
+     scroll position and blur their typing. */
+  function paintPresence() {
+    const el = document.getElementById('qcPresence'); if (!el) return;
+    const t = thread(); if (!t) return;
+    if (t.kind !== 'dm' && t.kind !== 'group') { el.textContent = ''; return; }
+    const typing = S.presence.filter(p => p.typing_in === S.threadId);
+    if (typing.length) {
+      el.innerHTML = '<span class="qc-typing">' +
+        esc(typing.map(p => nameOf(p.user_id).split(' ')[0]).join(', ')) +
+        (typing.length === 1 ? ' is' : ' are') + ' typing…</span>';
+      return;
+    }
+    if (t.kind === 'dm') {
+      /* The other member of the pair — the subject key is the sorted pair. */
+      const other = String(t.subject_key || '').split('|').find(x => x && x !== S.me);
+      const p = S.presence.find(x => x.user_id === other);
+      if (!p) { el.textContent = ''; return; }
+      el.innerHTML = p.online ? '<span class="qc-online">Online</span>'
+        : '<span class="qc-lastseen">Last seen ' + esc(agoText(p.ago)) + '</span>';
+      return;
+    }
+    const on = S.presence.filter(p => p.online).length;
+    el.textContent = on ? on + ' online' : '';
+  }
+  function agoText(sec) {
+    sec = +sec || 0;
+    if (sec < 120) return 'a moment ago';
+    if (sec < 3600) return Math.round(sec / 60) + ' min ago';
+    if (sec < 86400) return Math.round(sec / 3600) + ' h ago';
+    return Math.round(sec / 86400) + ' d ago';
+  }
+
   function scrollEnd() {
     const m = document.getElementById('qcMsgs');
     if (m) m.scrollTop = m.scrollHeight;
@@ -620,6 +706,10 @@
     stopPoll();
     S.pollTimer = setInterval(async () => {
       if (!S.open || !S.threadId) return;
+      /* Presence rides the poll that was happening anyway — one extra small
+         write, no second timer, and it expires on its own if the tab dies. */
+      api({ action: 'presence', typing_in: S.typingAt && (Date.now() - S.typingAt < 8000) ? S.threadId : 0 })
+        .then(p => { if (p && p.ok) { S.presence = p.presence || []; paintPresence(); } });
       const r = await api({ action: 'messages', thread_id: S.threadId, since_id: S.lastId, limit: 50 });
       if (!r.ok || !r.messages || !r.messages.length) return;
       const fresh = r.messages.filter(m => !S.messages.some(x => x.id === m.id));
