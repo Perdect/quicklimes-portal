@@ -465,8 +465,13 @@ function paintDrill() {
                 ['customers', 'Customers'], ['suppliers', 'Suppliers'], ['gst', 'GST'], ['coll', 'Collections']];
   $('mrDDTabs').innerHTML = TABS.map(([k, l]) => `<button data-dtab="${k}" class="${DD.tab === k ? 'on' : ''}">${l}</button>`).join('');
 
+  /* Links AT the document, not merely at the register it lives in. QLX reads
+     ?find= at mount, so the row arrives already filtered — section 9's
+     "clicking an invoice should take the user to the actual invoice". */
+  const docHref = (r2, kind) => (kind === 'sale' ? 'sales.html' : 'purchase.html') +
+    '?find=' + encodeURIComponent(r2.inv || r2.bill || '');
   const docRow = (r2, kind) => `<tr>
-    <td><a class="mr-lnk" href="${kind === 'sale' ? 'sales.html' : 'purchase.html'}">${esc(r2.inv || r2.bill || '—')}</a></td>
+    <td><a class="mr-lnk" href="${docHref(r2, kind)}">${esc(r2.inv || r2.bill || '—')}</a></td>
     <td>${esc(Q.fDS(r2.date))}</td><td>${esc(r2.party || r2.sup || '—')}</td>
     <td class="num">${+r2.qty > 0 ? fT(r2.qty) : NA('No quantity on this document')}</td>
     <td class="num">${fC(r2.taxable)}</td><td class="num">${fC(r2.gst)}</td>

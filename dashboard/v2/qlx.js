@@ -84,6 +84,16 @@
   /* ══════════════════ MOUNT ══════════════════ */
   function mount(config) {
     CFG = config; S = freshState();
+    /* ?find=<text> pre-fills the search, so another page can link AT a
+       specific record rather than dumping the user on the register and asking
+       them to hunt for it. The Monthly Register's drill-down does this: click
+       an invoice there and you land here with that invoice already filtered.
+       Read once, at mount, and never written back — the URL is an entry point,
+       not a second source of truth for the toolbar. */
+    try {
+      const q = new URLSearchParams(location.search).get('find');
+      if (q) S.q = q;
+    } catch (_) {}
     _mounted = true;
     QLShell.mount({ active: CFG.active, title: CFG.title });
     const main = document.getElementById('ql-main');

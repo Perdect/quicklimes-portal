@@ -261,6 +261,20 @@ function codeOf(page) {
      (stray.length ? '\n       ' + stray.join(', ') : ''), stray.length === 0);
 }
 
+/* ── 11. A LINK TO A RECORD LANDS ON THE RECORD ──────────────────────────
+   The Monthly Register's drill-down linked invoices to sales.html — the
+   register, not the invoice — leaving the reader to hunt for the row they
+   had just clicked. QLX reads ?find= at mount so a caller can link AT a
+   document. */
+{
+  const qlx = fs.readFileSync(path.join(DIR, 'qlx.js'), 'utf8');
+  ok('QLX pre-fills its search from ?find=, so a page can link at a record',
+     /URLSearchParams\(location\.search\)\.get\('find'\)/.test(qlx) && /S\.q = q/.test(qlx));
+  const mr = fs.existsSync(path.join(DIR, 'monthreg.js')) ? fs.readFileSync(path.join(DIR, 'monthreg.js'), 'utf8') : '';
+  ok('  and the Monthly Register uses it for invoice and bill links',
+     /\?find=' \+ encodeURIComponent/.test(mr));
+}
+
 console.log('\n════ design system (one header, one stat row, everywhere) ════');
 console.log('  Pages scanned: ' + pages.length);
 console.log('  Passed: ' + pass + '   Failed: ' + fail);
