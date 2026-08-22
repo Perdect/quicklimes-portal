@@ -59,7 +59,7 @@
          tells the new account's backfill to skip bills it has never looked at. */
       if (/^ql_data_/.test(k) || /^ql_bill_aliases_/.test(k) || /^ql_qtyscan_/.test(k)) kill.push(k);
     }
-    kill.push('dm_active_co', 'dm_loans', 'dm_profile_pic', 'ql_notif_state');
+    kill.push('dm_active_co', 'dm_loans', 'dm_profile_pic', picKey(), 'ql_notif_state');
     kill.forEach(k => { try { localStorage.removeItem(k); } catch (_) {} });
   }
   // Cross-subdomain handoff (#auth=base64). A FRESH handoff ALWAYS wins over a
@@ -533,9 +533,29 @@
       if (!row || !cd) { if (!localN) clearState(); return true; }   // genuinely new/empty company
       clearState(); hydrate(cd);
       try { localStorage.setItem(COMPANIES[ACTIVE_CO].dataKey, JSON.stringify(cd)); } catch (_) {}
-      if (cd.profile_pic) { try { localStorage.setItem('dm_profile_pic', cd.profile_pic); } catch (_) {} }
+      /* The blob belongs to THIS account, so its photo is authoritative for
+         this account — and writing it to the scoped key is what repopulates
+         the right photo after the old global key is dropped. Cleared when the
+         blob has none, so a removed photo does not come back on the next pull. */
+      try {
+        if (cd.profile_pic) localStorage.setItem(picKey(), cd.profile_pic);
+        else localStorage.removeItem(picKey());
+      } catch (_) {}
       return true;
     } catch (e) { console.warn('v2 cloud pull failed', e); return false; }
+  }
+
+  /* ── THE PROFILE PHOTO KEY IS PER ACCOUNT ──────────────────────────────
+     This bridge used the browser-wide 'dm_profile_pic'. localStorage is per
+     ORIGIN, so pulling account A's blob wrote A's photo into a key account B
+     then read — a new client's account showed the previous owner's face.
+     The CLOUD copy was always correctly per-account; only this local bridge
+     was global, and it leaked across every account on the machine. */
+  function picKey() {
+    try {
+      const p = JSON.parse(localStorage.getItem('ql_plant') || '{}') || {};
+      return p.id ? 'dm_profile_pic:' + p.id : 'dm_profile_pic';
+    } catch (_) { return 'dm_profile_pic'; }
   }
 
   /* ── Persistence: WRITE (mirror of v1 saveLocal / saveToCloud) ───
@@ -558,7 +578,7 @@
       // invoice, which is the one thing the reminder engine exists to prevent.
       wa: S.WA || { cfg: {}, log: [] }
     };
-    if (includePic) b.profile_pic = localStorage.getItem('dm_profile_pic') || null;
+    if (includePic) b.profile_pic = localStorage.getItem(picKey()) || null;
     return b;
   }
   function saveLocal() {

@@ -720,7 +720,37 @@
   }
 
   /* ── Profile menu + photo (ported) ───────────────────────────── */
-  const PHOTO_KEY = 'ql_v2_profile_photo';
+/* ── THE PROFILE PHOTO IS PER ACCOUNT ────────────────────────────────────
+   It used to be one browser-wide key. localStorage is per ORIGIN, so every
+   account signed into the same browser shared one photo: sign into a new
+   client's account and you were looking at the previous owner's face as your
+   own profile picture. On a shared machine that shows one customer another
+   customer's photograph.
+
+   The key now carries the account id. The two legacy global keys are DELETED
+   rather than migrated: nothing records which account a globally-stored photo
+   belonged to, so adopting it into whichever account happens to load first
+   would be a guess — and the wrong guess puts the wrong face on a client's
+   account, which is the bug being fixed. Re-uploading once is the cheaper
+   mistake. */
+  const PHOTO_KEY_LEGACY = 'ql_v2_profile_photo';
+  function currentAccountId() {
+    try { return String((JSON.parse(localStorage.getItem('ql_plant') || '{}') || {}).id || ''); }
+    catch (_) { return ''; }
+  }
+  /* The SAME key data.js uses, so the shell and the cloud bridge cannot
+     disagree about where this account's photo lives. Two different scoped keys
+     would be the original bug wearing a fix's clothes. */
+  function photoKey() {
+    const id = currentAccountId();
+    return id ? 'dm_profile_pic:' + id : PHOTO_KEY_LEGACY;
+  }
+  (function dropGlobalPhoto() {
+    try {
+      localStorage.removeItem(PHOTO_KEY_LEGACY);
+      localStorage.removeItem('dm_profile_pic');
+    } catch (_) {}
+  })();
 
   /* THE PHOTO LIVES IN THE CLOUD, so removing it locally is not removing it.
      data.js:395 puts profile_pic in the saved blob (from dm_profile_pic), and
@@ -850,7 +880,7 @@
     $('pmChangePhoto').addEventListener('click', () => {
       m.classList.remove('open');
       $('photoBack').classList.add('open');
-      $('photoRemoveBtn').style.display = localStorage.getItem(PHOTO_KEY) ? '' : 'none';
+      $('photoRemoveBtn').style.display = localStorage.getItem(photoKey()) ? '' : 'none';
       $('photoEmpty').style.display = crop.img ? 'none' : 'flex';
       $('photoCropUI').style.display = crop.img ? 'flex' : 'none';
     });
@@ -871,12 +901,12 @@
       const out = document.createElement('canvas'); out.width = out.height = 200;
       out.getContext('2d').drawImage(canvas, 0, 0, 280, 280, 0, 0, 200, 200);
       const url = out.toDataURL('image/jpeg', 0.88);
-      localStorage.setItem(PHOTO_KEY, url); localStorage.setItem('dm_profile_pic', url);
+      localStorage.setItem(photoKey(), url);
       applyAvatarPhoto(url); $('photoBack').classList.remove('open');
       pushPhoto();
     };
     QLShell.removePhoto = function () {
-      localStorage.removeItem(PHOTO_KEY); localStorage.removeItem('dm_profile_pic');
+      localStorage.removeItem(photoKey());
       crop.img = null; applyAvatarPhoto(null); $('photoBack').classList.remove('open');
       pushPhoto();
     };
@@ -2543,8 +2573,11 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       // wire
       wireNav(); wireNavScroll(); wireWorkspace(); wirePalette(); wireProfile();
       // restore photo
-      const photo = localStorage.getItem('dm_profile_pic') || localStorage.getItem(PHOTO_KEY);
-      if (photo) applyAvatarPhoto(photo);
+      /* Always call it — with null when this account has no photo — so
+         switching accounts CLEARS the previous one instead of leaving it on
+         screen. `if (photo)` was half the bug: a new account never overwrote
+         what the old one had painted. */
+      applyAvatarPhoto(localStorage.getItem(photoKey()) || null);
       // breadcrumb
       if (opts.title) this.setBreadcrumb(opts.title);
       renderPalette('');

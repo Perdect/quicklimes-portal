@@ -34,7 +34,7 @@
     open: false, threads: [], threadId: null, messages: [], hasMore: false,
     filter: 'all', q: '', me: '', role: 'sales', users: [], noteMode: false,
     loading: false, error: '', pollTimer: null, lastId: 0, unread: 0, details: false, pins: [],
-    replyTo: null, find: '', finding: false
+    replyTo: null, find: '', finding: false, channel: 'internal', wa: null
   };
 
   /* ── api ──────────────────────────────────────────────────────────────── */
@@ -327,7 +327,10 @@
       ${['business', 'lead', 'customer', 'supplier'].indexOf(t.kind) >= 0
         ? `<div class="qc-internal">${ic('note')}<span><b>Internal to your team.</b>
             ${esc(t.title)} cannot see this conversation.</span>
-            <button class="qc-d-b" id="qcAddPeople">Add colleagues</button></div>` : ''}
+            <button class="qc-d-b" id="qcAddPeople">Add colleagues</button>
+            ${waReady()
+              ? `<span class="qc-wa-ok">WhatsApp connected</span>`
+              : `<button class="qc-d-b" id="qcWaConnect">Connect WhatsApp</button>`}</div>` : ''}
       ${S.pins && S.pins.length ? `<div class="qc-pins">${ic('pin')}
         <div class="qc-pins-b">${S.pins.map(pn => `<button class="qc-pin-i" data-gopin="${pn.id}">
           ${esc((pn.body || (pn.card_json ? 'Shared ' + pn.card_json.type : pn.file_name) || 'Pinned').slice(0, 70))}</button>`).join('')}</div>
@@ -346,11 +349,20 @@
           <div><b>Replying to ${esc(nameOf((S.messages.find(x => +x.id === +S.replyTo) || {}).user_id))}</b>
           <span>${esc(((S.messages.find(x => +x.id === +S.replyTo) || {}).body || '(attachment)')).slice(0, 80)}</span></div>
           <button class="qc-icon" id="qcReplyX" title="Cancel reply">${ic('x')}</button></div>` : ''}
+        ${external(t) ? `<div class="qc-chan">
+          <button class="qc-ch ${S.channel === 'internal' && !S.noteMode ? 'on' : ''}" data-ch="internal">Team only</button>
+          <button class="qc-ch wa ${S.channel === 'whatsapp' ? 'on' : ''}" data-ch="whatsapp"
+            ${waReady() ? '' : 'title="No WhatsApp channel connected yet"'}>WhatsApp${waReady() ? '' : ' ·  not connected'}</button>
+          <span class="qc-chan-w">${S.channel === 'whatsapp'
+            ? 'This message will be sent to ' + esc(meta(t).phone || 'their number') + ' on WhatsApp.'
+            : 'Only your team will see this.'}</span>
+        </div>` : ''}
         <div class="qc-comp-r">
           <button class="qc-icon" id="qcAttach" title="Attach or share a record">${ic('plus')}</button>
           <button class="qc-note-t ${S.noteMode ? 'on' : ''}" id="qcNote" title="Internal note — not sent to the customer">${ic('note')}Note</button>
-          <textarea id="qcIn" rows="1" placeholder="${S.noteMode ? 'Write an internal note…' : 'Type a message…'}"></textarea>
-          <button class="qc-send" id="qcSend" title="Send">${ic('send')}</button>
+          <textarea id="qcIn" rows="1" placeholder="${S.noteMode ? 'Write an internal note…'
+            : (S.channel === 'whatsapp' ? 'Message ' + esc(t.title) + ' on WhatsApp…' : 'Type a message…')}"></textarea>
+          <button class="qc-send ${S.channel === 'whatsapp' ? 'wa' : ''}" id="qcSend" title="Send">${ic('send')}</button>
         </div>
         ${S.noteMode ? '<div class="qc-note-hint">This will be saved as an internal note. It is never sent to the customer.</div>' : ''}
       </div>`;
@@ -374,6 +386,12 @@
       inp.focus();
     }
     if ($('qcAddPeople')) $('qcAddPeople').onclick = () => addPeople();
+    if ($('qcWaConnect')) $('qcWaConnect').onclick = () => connectWhatsApp();
+    host.querySelectorAll('[data-ch]').forEach(b => b.onclick = () => {
+      const want = b.dataset.ch;
+      if (want === 'whatsapp' && !waReady()) { connectWhatsApp(); return; }
+      S.channel = want; S.noteMode = false; paintConv();
+    });
     if ($('qcFind')) $('qcFind').onclick = () => { S.finding = !S.finding; if (!S.finding) S.find = ''; paintConv(); };
     if ($('qcFindX')) $('qcFindX').onclick = () => { S.finding = false; S.find = ''; paintConv(); };
     if ($('qcReplyX')) $('qcReplyX').onclick = () => { S.replyTo = null; paintConv(); };
@@ -418,6 +436,8 @@
     document.getElementById('qlIm').classList.add('conv');
   }
   function meta(t) { return (t && t.meta) || {}; }
+  function external(t) { return ['business', 'lead', 'customer', 'supplier'].indexOf(t && t.kind) >= 0; }
+  function waReady() { return !!(S.wa && S.wa.configured && S.wa.connected); }
   function kindLabel(k) {
     return ({ dm: 'Direct message', group: 'Group', lead: 'Lead', customer: 'Customer',
               supplier: 'Supplier', business: 'Business' })[k] || '';
@@ -472,6 +492,9 @@
     const body = inp.value.trim(); if (!body) return;
     inp.value = ''; inp.style.height = 'auto';
     const kind = S.noteMode ? 'note' : 'text';
+    /* A note is never sendable outward — selecting Note drops the channel back
+       to internal so the two controls can never disagree. */
+    const channel = (kind === 'note') ? 'internal' : S.channel;
     /* Optimistic: the message appears immediately with the id the server will
        confirm on the next poll. A chat that waits for a round trip before
        showing your own words feels broken even when it is working. */
@@ -480,11 +503,12 @@
     S.messages.push(tmp); paintConv(); scrollEnd();
     const replyTo = S.replyTo; S.replyTo = null;
     tmp.reply_to = replyTo || null;
-    const r = await api({ action: 'send', thread_id: S.threadId, kind, body, reply_to: replyTo || 0 });
+    const r = await api({ action: 'send', thread_id: S.threadId, kind, body, reply_to: replyTo || 0, channel });
+    tmp.source = channel === 'whatsapp' ? 'whatsapp' : 'internal';
     if (!r.ok) {
       S.messages = S.messages.filter(m => m.id !== tmp.id);
       paintConv();
-      QLShell.toast(r.error === 'Forbidden' ? 'You do not have permission to send that' : 'Message not sent', 'err');
+      QLShell.toast(r.message || (r.error === 'Forbidden' ? 'You do not have permission to send that' : 'Message not sent'), 'err');
       return;
     }
     tmp.id = r.id; S.lastId = Math.max(S.lastId, r.id);

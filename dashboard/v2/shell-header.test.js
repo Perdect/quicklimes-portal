@@ -158,8 +158,12 @@ function harness(opts) {
   const rm = (s.match(/QLShell\.removePhoto = function \(\) \{[\s\S]{0,300}?\};/) || [''])[0];
   const sv = (s.match(/QLShell\.savePhoto = function \(\) \{[\s\S]{0,600}?\};/) || [''])[0];
 
-  ok(/removeItem\(PHOTO_KEY\)/.test(rm) && /removeItem\('dm_profile_pic'\)/.test(rm),
-    'remove clears BOTH local keys (mount() reads dm_profile_pic first, so missing it re-shows the photo)');
+  /* The photo key is now PER ACCOUNT — a browser-wide key showed a new
+     client's account the previous owner's face. The property protected here is
+     unchanged: removing must clear the key mount() reads, or the photo comes
+     straight back on the next paint. */
+  ok(/removeItem\(photoKey\(\)\)/.test(rm),
+    'remove clears the key mount() reads — the SCOPED one, so the photo does not re-appear');
   ok(/pushPhoto\(\)/.test(rm),
     'THE FIX: remove PUSHES to the cloud — otherwise the blob keeps the photo and the next device pulls it back');
   ok(/pushPhoto\(\)/.test(sv),
@@ -168,10 +172,12 @@ function harness(opts) {
 
   /* Prove the cloud really is the source of truth we must update. */
   const d = fs.readFileSync(path.join(__dirname, 'data.js'), 'utf8');
-  ok(/if \(includePic\) b\.profile_pic = localStorage\.getItem\('dm_profile_pic'\) \|\| null;/.test(d),
-    'the saved blob takes profile_pic from dm_profile_pic — null once removed, so commit() erases it');
-  ok(/if \(cd\.profile_pic\) \{ try \{ localStorage\.setItem\('dm_profile_pic', cd\.profile_pic\); \} catch \(_\) \{\} \}/.test(d),
+  ok(/if \(includePic\) b\.profile_pic = localStorage\.getItem\(picKey\(\)\) \|\| null;/.test(d),
+    'the saved blob takes profile_pic from THIS account\'s key — null once removed, so commit() erases it');
+  ok(/localStorage\.setItem\(picKey\(\), cd\.profile_pic\)/.test(d),
     'and every cloud PULL writes it back — which is exactly why a local-only delete could never stick');
+  ok(/else localStorage\.removeItem\(picKey\(\)\)/.test(d),
+    '  a pull with NO photo clears it, so a removal cannot be undone by the next sync');
 }
 
 /* Runtime: removing must hit commit(), or it never leaves this device.

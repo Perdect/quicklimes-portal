@@ -56,8 +56,8 @@
     "sha": "2b271ee5c6b3"
   },
   "data.js": {
-    "v": "m52ca",
-    "sha": "a178194ff686"
+    "v": "m52caa",
+    "sha": "8d44b16599c1"
   },
   "party-link.js": {
     "v": "pl1p",
@@ -72,16 +72,16 @@
     "sha": "14462b5adbf8"
   },
   "shell.js": {
-    "v": "m68sa",
-    "sha": "c48873dc43b2"
+    "v": "m68saa",
+    "sha": "6071097efa6e"
   },
   "chat-core.js": {
     "v": "cc2",
     "sha": "7e2924c2613c"
   },
   "imchat.js": {
-    "v": "im7",
-    "sha": "1d60b3f95aed"
+    "v": "im8",
+    "sha": "47b83465f69b"
   },
   "mobile.js": {
     "v": "m16",
