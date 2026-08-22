@@ -305,9 +305,40 @@ if ($action === 'react') {
    but the content is cleared on read. */
 if ($action === 'remove') {
   $mid = (int)($b['message_id'] ?? 0);
+  /* Which thread, before the update — needed to refresh its preview. */
+  $tq = $db->prepare("SELECT thread_id FROM chat_messages WHERE id=? AND plant_id=? LIMIT 1");
+  $tq->execute([$mid, $plantId]);
+  $tid = (int)$tq->fetchColumn();
+
   $st = $db->prepare("UPDATE chat_messages SET deleted_at=? WHERE id=? AND plant_id=? AND user_id=? AND deleted_at IS NULL");
   $st->execute([$now, $mid, $plantId, $me]);
-  ql_out(['ok' => true, 'removed' => $st->rowCount() > 0]);
+  $done = $st->rowCount() > 0;
+
+  /* THE PREVIEW MUST NOT OUTLIVE THE MESSAGE. chat_threads.last_body is a
+     denormalised copy, so deleting the newest message left its text sitting
+     in the chat list — the one place a "deleted" message stayed readable.
+     Recompute from the newest surviving message, and blank it if none is
+     left. Internal notes are skipped here for the same reason they never
+     become a preview in the first place. */
+  if ($done && $tid) {
+    $lq = $db->prepare(
+      "SELECT kind, body, card_type, file_name, user_id, created_at
+         FROM chat_messages
+        WHERE thread_id=? AND plant_id=? AND deleted_at IS NULL AND kind<>'note'
+        ORDER BY id DESC LIMIT 1");
+    $lq->execute([$tid, $plantId]);
+    $l = $lq->fetch(PDO::FETCH_ASSOC);
+    if ($l) {
+      $prev = $l['kind'] === 'card' ? ('Shared ' . (string)$l['card_type'])
+            : ($l['kind'] === 'file' ? ('📎 ' . (string)$l['file_name']) : (string)$l['body']);
+      $u = $db->prepare("UPDATE chat_threads SET last_at=?, last_body=?, last_by=? WHERE id=?");
+      $u->execute([$l['created_at'], mb_substr($prev, 0, 250), $l['user_id'], $tid]);
+    } else {
+      $u = $db->prepare("UPDATE chat_threads SET last_body=NULL, last_by=NULL WHERE id=?");
+      $u->execute([$tid]);
+    }
+  }
+  ql_out(['ok' => true, 'removed' => $done]);
 }
 
 /* The firm's people, for starting a DM or building a group. Phone and role
