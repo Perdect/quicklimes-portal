@@ -34,7 +34,7 @@ $plantId = (string)$ctx['plant'];
 // on the same capability as the money it chases.
 if (!ql_role_can($ctx['role'], 'sales')) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
 
-$wa = ql_whapi();
+$wa = ql_whapi($plantId);
 $action = (string)($b['action'] ?? 'status');
 
 if ($wa['token'] === '') {

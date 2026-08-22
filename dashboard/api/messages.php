@@ -76,6 +76,21 @@ function ql_card_cap($type) {
   return $map[$type] ?? null;
 }
 
+/* A shared record, as text a person can read in WhatsApp. The interactive
+   card cannot travel outside QuickLimes, and sending a bare id would be
+   meaningless — so it becomes the same few allow-listed fields, written out. */
+function ql_card_text($card) {
+  if (!is_array($card)) return '';
+  $skip = ['type' => 1, 'id' => 1];
+  $lines = [strtoupper((string)($card['type'] ?? 'record')) . ' ' . (string)($card['ref'] ?? $card['name'] ?? $card['id'] ?? '')];
+  foreach ($card as $k => $v) {
+    if (isset($skip[$k]) || $v === '' || $v === null) continue;
+    if ($k === 'ref' || $k === 'name') continue;
+    $lines[] = ucfirst($k) . ': ' . (is_scalar($v) ? (string)$v : json_encode($v));
+  }
+  return implode("\n", $lines);
+}
+
 function ql_thread_row($db, $plantId, $id) {
   $st = $db->prepare("SELECT * FROM chat_threads WHERE id=? AND plant_id=? LIMIT 1");
   $st->execute([$id, $plantId]);
@@ -91,6 +106,36 @@ function ql_is_member($db, $threadId, $uid) {
 function ql_touch_thread($db, $threadId, $body, $by, $now) {
   $st = $db->prepare("UPDATE chat_threads SET last_at=?, last_body=?, last_by=? WHERE id=?");
   $st->execute([$now, mb_substr((string)$body, 0, 250), $by, $threadId]);
+}
+
+/* ── WHATSAPP CHANNEL ─────────────────────────────────────────────────────
+   The bridge section 24 anticipated. The internal thread stays the source of
+   truth; WhatsApp is one CHANNEL a message can leave by, recorded on the same
+   row via `source`. Nothing here is required for internal chat to work — with
+   no channel connected the rest of the system is unaffected, and this reports
+   that state plainly instead of failing at send time. */
+if ($action === 'wa_status') {
+  $wa = ql_whapi($plantId);
+  if ($wa['token'] === '') ql_out(['ok' => true, 'configured' => false, 'connected' => false]);
+  $h = ql_wa_health($wa['token']);
+  ql_out(['ok' => true, 'configured' => true, 'connected' => !empty($h['connected']),
+          'status' => (string)($h['status'] ?? ''), 'sender' => $wa['sender']]);
+}
+/* Owner/admin only: a channel token is an account-wide credential, not
+   something a sales seat should be able to point elsewhere. */
+if ($action === 'wa_connect') {
+  if (!in_array($role, ['owner', 'admin', 'partner'], true)) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
+  $tok = trim((string)($b['whapi_token'] ?? ''));
+  $snd = preg_replace('/\D/', '', (string)($b['whapi_sender'] ?? ''));
+  if ($tok !== '' && strlen($tok) < 20) ql_out(['ok' => false, 'error' => 'That does not look like a Whapi channel token']);
+  ql_save_plant_integration($plantId, 'whapi_token', $tok);
+  ql_save_plant_integration($plantId, 'whapi_sender', $snd);
+  /* Verify immediately rather than reporting success for a token that cannot
+     talk to anything — "saved" and "working" are different claims. */
+  if ($tok === '') ql_out(['ok' => true, 'configured' => false, 'connected' => false]);
+  $h = ql_wa_health($tok);
+  ql_out(['ok' => true, 'configured' => true, 'connected' => !empty($h['connected']),
+          'status' => (string)($h['status'] ?? '')]);
 }
 
 /* ── THREADS: everything I am a member of ─────────────────────────────── */
@@ -142,11 +187,18 @@ if ($action === 'open') {
   $title    = mb_substr(trim((string)($b['title'] ?? '')), 0, 180);
   $subtitle = mb_substr(trim((string)($b['subtitle'] ?? '')), 0, 180);
   $meta     = isset($b['meta']) && is_array($b['meta']) ? json_encode($b['meta']) : null;
+  /* Denormalised so an inbound WhatsApp message can find this thread by number
+     without scanning JSON. Normalised the same way wa-core does it: digits
+     only, and a bare 10-digit Indian number gains its country code — otherwise
+     "9829069545" and "919829069545" would be two different customers. */
+  $phoneKey = preg_replace('/\D/', '', (string)(($b['meta']['phone'] ?? '')));
+  if (strlen($phoneKey) === 10) $phoneKey = '91' . $phoneKey;
+  if ($phoneKey === '') $phoneKey = null;
 
   $ins = $db->prepare(
-    "INSERT IGNORE INTO chat_threads (plant_id, company_id, kind, subject_key, title, subtitle, meta, created_by, created_at, last_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?)");
-  $ins->execute([$plantId, $coId, $kind, $subject, $title, $subtitle, $meta, $me, $now, $now]);
+    "INSERT IGNORE INTO chat_threads (plant_id, company_id, kind, subject_key, title, subtitle, meta, phone_key, created_by, created_at, last_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)");
+  $ins->execute([$plantId, $coId, $kind, $subject, $title, $subtitle, $meta, $phoneKey, $me, $now, $now]);
 
   $st = $db->prepare("SELECT * FROM chat_threads WHERE plant_id=? AND company_id=? AND kind=? AND subject_key=? LIMIT 1");
   $st->execute([$plantId, $coId, $kind, $subject]);
@@ -156,8 +208,8 @@ if ($action === 'open') {
   /* Keep the display fields fresh — a lead's name or city can change after the
      thread was first opened, and the conversation should not keep the old one. */
   if ($title !== '' && ($t['title'] !== $title || $t['subtitle'] !== $subtitle)) {
-    $u = $db->prepare("UPDATE chat_threads SET title=?, subtitle=?, meta=COALESCE(?, meta) WHERE id=?");
-    $u->execute([$title, $subtitle, $meta, $t['id']]);
+    $u = $db->prepare("UPDATE chat_threads SET title=?, subtitle=?, meta=COALESCE(?, meta), phone_key=COALESCE(?, phone_key) WHERE id=?");
+    $u->execute([$title, $subtitle, $meta, $phoneKey, $t['id']]);
     $t['title'] = $title; $t['subtitle'] = $subtitle;
   }
 
@@ -240,13 +292,45 @@ if ($action === 'send') {
   if ($kind === 'text' && $body === '') ql_out(['ok' => false, 'error' => 'empty'], 400);
   if ($kind === 'note' && $body === '') ql_out(['ok' => false, 'error' => 'empty'], 400);
 
+  /* CHANNEL. 'internal' stays inside QuickLimes; 'whatsapp' also leaves by the
+     connected channel and is recorded on the same row, so one thread carries
+     both and the history stays in one place. A note is never sendable
+     outward — that is the whole point of a note. */
+  $channel = (string)($b['channel'] ?? 'internal');
+  $waId = null;
+  if ($channel === 'whatsapp') {
+    if ($kind === 'note') ql_out(['ok' => false, 'error' => 'note_not_sendable',
+      'message' => 'An internal note is never sent to the customer.'], 400);
+    $wa = ql_whapi($plantId);
+    if ($wa['token'] === '') ql_out(['ok' => false, 'error' => 'wa_not_configured',
+      'message' => 'No WhatsApp channel is connected yet.'], 400);
+    $t = ql_thread_row($db, $plantId, $threadId);
+    $meta = $t && $t['meta'] ? json_decode($t['meta'], true) : [];
+    $phone = preg_replace('/\D/', '', (string)($meta['phone'] ?? ''));
+    if (strlen($phone) === 10) $phone = '91' . $phone;          // India, same rule wa-core uses
+    if ($phone === '') ql_out(['ok' => false, 'error' => 'no_phone',
+      'message' => 'This conversation has no phone number to send to.'], 400);
+    $text = $kind === 'card'
+      ? trim(($body !== '' ? $body . "\n" : '') . ql_card_text($card))
+      : $body;
+    if ($text === '') ql_out(['ok' => false, 'error' => 'empty'], 400);
+    $r = ql_wa_send($wa['token'], $phone, $text);
+    /* If the provider refuses, NOTHING is stored. A message that shows in the
+       thread but never left is the worst outcome here — the user believes the
+       customer has been told. */
+    if (empty($r['ok'])) ql_out(['ok' => false, 'error' => 'wa_send_failed',
+      'message' => (string)($r['error'] ?? 'WhatsApp refused the message')], 502);
+    $waId = (string)($r['id'] ?? '');
+  }
+
   $st = $db->prepare(
     "INSERT INTO chat_messages
       (plant_id, company_id, thread_id, user_id, kind, source, body, card_type, card_id, card_json,
-       file_id, file_name, file_mime, file_size, reply_to, created_at)
-     VALUES (?,?,?,?,?, 'internal', ?,?,?,?,?,?,?,?,?,?)");
+       file_id, file_name, file_mime, file_size, reply_to, created_at, wa_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
   $st->execute([
     $plantId, $coId, $threadId, $me, $kind,
+    $channel === 'whatsapp' ? 'whatsapp' : 'internal',
     $body !== '' ? mb_substr($body, 0, 8000) : null,
     $card ? mb_substr((string)($card['type'] ?? ''), 0, 24) : null,
     $card ? mb_substr((string)($card['id'] ?? ''), 0, 190) : null,
@@ -256,7 +340,7 @@ if ($action === 'send') {
     $file ? mb_substr((string)($file['mime'] ?? ''), 0, 80) : null,
     $file ? (int)($file['size'] ?? 0) : null,
     ((int)($b['reply_to'] ?? 0)) ?: null,
-    $now
+    $now, $waId
   ]);
   $id = (int)$db->lastInsertId();
 

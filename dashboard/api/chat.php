@@ -34,7 +34,7 @@ if (!$ctx) ql_out(['ok' => false, 'error' => 'Unauthorized'], 401);
 $plantId = (string)$ctx['plant'];
 if (!ql_role_can($ctx['role'], 'sales')) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
 
-$wa = ql_whapi();
+$wa = ql_whapi($plantId);
 $action = (string)($b['action'] ?? 'chats');
 
 if ($wa['token'] === '' && in_array($action, ['qr', 'send', 'media'], true)) {

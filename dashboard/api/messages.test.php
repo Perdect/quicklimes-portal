@@ -115,6 +115,47 @@ ok(strpos($code, 'UPDATE chat_threads SET archived=?') !== false,
   'a conversation can be archived — hidden from the list, history intact');
 ok(strpos($code, 't.archived=0') !== false, '  and the list filters archived threads out');
 
+echo "\n=== the WhatsApp bridge ===\n";
+$hook = preg_replace('~/\*.*?\*/~s', '', file_get_contents(__DIR__ . '/wa-hook.php'));
+
+ok(strpos($dbc, 'function ql_whapi($plantId') !== false,
+  'the channel token can live per plant, so an owner connects one without editing a server file');
+ok(preg_match('~\$tok = \(string\)\(\$c\[.WHAPI_TOKEN.\] \?\? ..\);~', $dbc) === 1
+   && strpos($dbc, "if (\$tok === '' && \$plantId !== '')") !== false,
+  'config.php still WINS — a self-hosted operator is not silently overridden');
+ok(strpos($dbc, 'function ql_wa_health') !== false,
+  'the health check is one shared function, not inline in two endpoints');
+
+ok(preg_match('~in_array\(\$role, \[.owner., .admin., .partner.\], true\)\) ql_out~', $code) === 1,
+  'only an owner/admin may point the channel somewhere — it is an account-wide credential');
+ok(strpos($code, "\$h = ql_wa_health(\$tok);") !== false,
+  'saving a token VERIFIES it immediately — "saved" and "working" are different claims');
+
+ok(strpos($code, "if (\$kind === 'note') ql_out(['ok' => false, 'error' => 'note_not_sendable'") !== false,
+  'an internal note can NEVER be sent outward — that is the whole point of a note');
+ok(strpos($code, "'error' => 'wa_not_configured'") !== false && strpos($code, "'error' => 'no_phone'") !== false,
+  'a missing channel or number is refused with a reason, not a silent failure');
+ok(preg_match('~if \(empty\(\$r\[.ok.\]\)\) ql_out~', $code) === 1,
+  'if the provider refuses, NOTHING is stored — a message shown but never sent is the worst outcome');
+ok(strpos($code, 'function ql_card_text') !== false,
+  'a shared record becomes readable text for WhatsApp — the interactive card cannot travel');
+
+ok(strpos($dbc, 'phone_key    VARCHAR(24)') !== false && strpos($dbc, 'KEY idx_phone') !== false,
+  'the counterparty phone is denormalised and indexed, so an inbound message finds its thread');
+ok(strpos($code, "if (strlen(\$phoneKey) === 10) \$phoneKey = '91' . \$phoneKey;") !== false,
+  '  normalised the same way wa-core does, or 10- and 12-digit forms are two customers');
+
+ok(strpos($hook, 'function ql_wa_bridge_into_thread') !== false,
+  'inbound WhatsApp is bridged into the internal thread');
+ok(strpos($hook, 'SELECT id FROM chat_messages WHERE plant_id=? AND wa_id=?') !== false,
+  '  idempotent on wa_id, so a Whapi retry and our own echo do not print twice');
+ok(strpos($hook, "if (!\$tid) return 0;") !== false,
+  '  only into a thread that ALREADY exists — a webhook must not conjure conversations');
+ok(strpos($hook, "return 0;") !== false && strpos($hook, 'catch (Throwable $e)') !== false,
+  '  a bridge failure never 500s the webhook, or Whapi retries the batch forever');
+ok(strpos($hook, "'wa:' . \$phone") !== false,
+  '  authored by the counterparty, which can never collide with a users.id');
+
 echo "\n=== the owner is a person, not nobody ===\n";
 ok(strpos($code, "\$me = 'owner:' . \$plantId;") !== false,
   'an owner token with no user id gets a stable attributable identity');

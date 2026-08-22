@@ -744,8 +744,12 @@ function ql_ensure_tables() {
     last_body    VARCHAR(255) DEFAULT NULL,
     last_by      VARCHAR(64)  DEFAULT NULL,
     archived     TINYINT(1)   NOT NULL DEFAULT 0,
+    /* The counterparty's phone, denormalised from meta, so an inbound
+       WhatsApp message can find its thread without scanning JSON. */
+    phone_key    VARCHAR(24)  DEFAULT NULL,
     UNIQUE KEY uq_subject (plant_id, company_id, kind, subject_key),
-    KEY idx_recent (plant_id, company_id, last_at)
+    KEY idx_recent (plant_id, company_id, last_at),
+    KEY idx_phone (plant_id, phone_key)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
   $db->exec("CREATE TABLE IF NOT EXISTS chat_members (
@@ -784,6 +788,9 @@ function ql_ensure_tables() {
        message it points at; this cannot. */
     pinned_at    DATETIME     DEFAULT NULL,
     pinned_by    VARCHAR(64)  DEFAULT NULL,
+    /* The provider's id when this left by WhatsApp — so the webhook's echo of
+       our own message updates this row instead of printing it twice. */
+    wa_id        VARCHAR(128) DEFAULT NULL,
     created_at   DATETIME     NOT NULL,
     edited_at    DATETIME     DEFAULT NULL,
     deleted_at   DATETIME     DEFAULT NULL,
@@ -795,9 +802,12 @@ function ql_ensure_tables() {
      the pin columns have to be added separately for books that already have
      the table. Same idiom the plants and discovered tables use: try it, ignore
      the duplicate-column error. */
-  foreach (['pinned_at DATETIME DEFAULT NULL', 'pinned_by VARCHAR(64) DEFAULT NULL'] as $col) {
+  foreach (['pinned_at DATETIME DEFAULT NULL', 'pinned_by VARCHAR(64) DEFAULT NULL',
+            'wa_id VARCHAR(128) DEFAULT NULL'] as $col) {
     try { $db->exec("ALTER TABLE chat_messages ADD COLUMN $col"); } catch (Throwable $e) { /* already there */ }
   }
+  try { $db->exec("ALTER TABLE chat_threads ADD COLUMN phone_key VARCHAR(24) DEFAULT NULL"); } catch (Throwable $e) { /* already there */ }
+  try { $db->exec("ALTER TABLE chat_threads ADD KEY idx_phone (plant_id, phone_key)"); } catch (Throwable $e) { /* already there */ }
 
   $db->exec("CREATE TABLE IF NOT EXISTS chat_reactions (
     message_id   BIGINT       NOT NULL,
@@ -898,6 +908,27 @@ function ql_cron_secret() { $c = ql_config(); return (string)($c['CRON_SECRET'] 
 /* ── Whapi send — ONE implementation, used by both /api/wa (manual) and
    /api/cron (unattended). Two copies of a send path is how one of them
    quietly stops matching the other. Returns [ok, id|error]. */
+/* Is the channel authenticated? Extracted from chat.php's qr action, which
+   had this inline — two places asking the same question of the same provider
+   would drift, and the bridge needs the answer too.
+
+   Whapi does not document the health shape, so its vocabulary is not
+   hard-coded: anything that looks authenticated counts, and the raw status is
+   passed back for the UI to show rather than inventing one. */
+function ql_wa_health($token) {
+  if ((string)$token === '') return ['connected' => false, 'status' => '', 'http' => 0];
+  $ch = curl_init('https://gate.whapi.cloud/health');
+  curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20,
+    CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $token, 'Accept: application/json']]);
+  $raw = curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+  if ($code === 401 || $code === 403) return ['connected' => false, 'status' => 'token rejected', 'http' => $code];
+  $j = is_array(json_decode((string)$raw, true)) ? json_decode((string)$raw, true) : [];
+  $status = $j['status'] ?? ($j['channel']['status'] ?? null);
+  if (is_array($status)) $status = $status['text'] ?? json_encode($status);
+  $status = (string)($status ?? '');
+  return ['connected' => (bool)preg_match('/auth|connect|ready|online/i', $status), 'status' => $status, 'http' => $code];
+}
+
 function ql_wa_send($token, $to, $body) {
   $to = preg_replace('/\D/', '', (string)$to);
   if (strlen($to) < 10 || strlen($to) > 15) return ['ok' => false, 'error' => 'Bad recipient number'];
@@ -927,12 +958,45 @@ function ql_wa_send($token, $to, $body) {
 /* ── WhatsApp channel (Whapi) from config (server-side only; '' when unset) ──
    Same rule as the AI key: the token NEVER goes to the browser. The client
    asks /api/wa to send; it never sees or holds this value. */
-function ql_whapi() {
+/* WhatsApp provider credentials.
+
+   config.php WINS when it carries a token — that is the self-hosted route and
+   an operator who set it there should not have it silently overridden. When it
+   is blank the per-plant row is used instead, so the owner can connect their
+   own channel from inside the app without editing a file on the server. That
+   was the actual blocker: the token had nowhere to go but a gitignored PHP
+   file that the deploy deliberately never writes.
+
+   Stored beside the other integration credentials in app_data/ql_integrations,
+   the same place the Mapbox token already lives. */
+function ql_whapi($plantId = '') {
   $c = ql_config();
-  return [
-    'token'  => (string)($c['WHAPI_TOKEN'] ?? ''),
-    'sender' => (string)($c['WHAPI_SENDER'] ?? ''),
-  ];
+  $tok = (string)($c['WHAPI_TOKEN'] ?? '');
+  $snd = (string)($c['WHAPI_SENDER'] ?? '');
+  if ($tok === '' && $plantId !== '') {
+    $p = ql_plant_integrations($plantId);
+    $tok = (string)($p['whapi_token'] ?? '');
+    $snd = $snd !== '' ? $snd : (string)($p['whapi_sender'] ?? '');
+  }
+  return ['token' => $tok, 'sender' => $snd];
+}
+/* The per-plant integrations blob, or [] — never throws, so a caller can ask
+   before anything has been configured. */
+function ql_plant_integrations($plantId) {
+  try {
+    $st = ql_db()->prepare('SELECT data FROM app_data WHERE plant_id = ? AND data_id = ? LIMIT 1');
+    $st->execute([$plantId, 'ql_integrations']);
+    $raw = $st->fetchColumn();
+    $j = $raw ? json_decode($raw, true) : null;
+    return is_array($j) ? $j : [];
+  } catch (Throwable $e) { return []; }
+}
+function ql_save_plant_integration($plantId, $key, $value) {
+  $cur = ql_plant_integrations($plantId);
+  $cur[$key] = $value;
+  ql_db()->prepare('INSERT INTO app_data (plant_id, data_id, data) VALUES (?,?,?) ON DUPLICATE KEY UPDATE data = VALUES(data)')
+         ->execute([$plantId, 'ql_integrations', json_encode($cur)]);
+  return $cur;
 }
 
 /* ── AI key + model from config (server-side only; '' when unconfigured) ── */

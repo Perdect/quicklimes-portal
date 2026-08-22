@@ -47,8 +47,12 @@ $due->execute([$now]);
 $jobs = $due->fetchAll(PDO::FETCH_ASSOC);
 if (!$jobs) exit("cron: nothing due at $now\n");
 
-$wa = ql_whapi();
-if ($wa['token'] === '') exit("cron: no WhatsApp channel configured — " . count($jobs) . " job(s) left queued\n");
+/* Resolved PER JOB, not once. The token can now live per plant, and this
+   worker runs across every plant on the box — a single global lookup would
+   have sent one firm's reminders through another firm's channel, or (with
+   config.php empty) refused work for a plant that is perfectly well
+   configured. */
+$waFor = function ($pid) { static $c = []; return $c[$pid] ?? ($c[$pid] = ql_whapi($pid)); };
 
 $sent = 0; $stale = 0; $failed = 0; $log = [];
 
@@ -73,6 +77,8 @@ function ql_invoice_state($db, $plantId, $companyId, $invNo) {
 
 foreach ($jobs as $j) {
   $p = json_decode($j['payload'], true); $p = is_array($p) ? $p : [];
+  $wa = $waFor((string)$j['plant_id']);
+  if ($wa['token'] === '') { $log[] = "job {$j['id']}: plant has no WhatsApp channel — left queued"; continue; }
   $mark = function ($status, $err = null, $pid = null) use ($db, $j) {
     $db->prepare('UPDATE jobs SET status = ?, attempts = attempts + 1, last_error = ?, provider_id = ?, done_at = ? WHERE id = ?')
        ->execute([$status, $err, $pid, gmdate('Y-m-d H:i:s'), $j['id']]);

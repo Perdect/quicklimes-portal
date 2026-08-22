@@ -17,6 +17,50 @@
    ═══════════════════════════════════════════════════════════════ */
 require __DIR__ . '/db.php';
 
+/* One inbound WhatsApp message into its QuickLimes thread, if that thread
+   exists. Returns 1 when it wrote a row.
+
+   Idempotent on wa_id: Whapi retries, and our own outbound already carries the
+   provider id, so the echo of a message we sent UPDATES that row rather than
+   printing it a second time. */
+function ql_wa_bridge_into_thread($db, $plantId, $coId, $p) {
+  $phone = preg_replace('/\D/', '', (string)($p['from_phone'] ?? ''));
+  if (strlen($phone) === 10) $phone = '91' . $phone;
+  if ($phone === '' || !empty($p['is_group'])) return 0;
+  try {
+    $q = $db->prepare("SELECT id FROM chat_threads WHERE plant_id=? AND company_id=? AND phone_key=? ORDER BY id LIMIT 1");
+    $q->execute([$plantId, $coId, $phone]);
+    $tid = (int)$q->fetchColumn();
+    if (!$tid) return 0;
+
+    $waId = (string)($p['wa_id'] ?? '');
+    if ($waId !== '') {
+      $ex = $db->prepare("SELECT id FROM chat_messages WHERE plant_id=? AND wa_id=? LIMIT 1");
+      $ex->execute([$plantId, $waId]);
+      if ($ex->fetchColumn()) return 0;                       // already here (retry, or our own echo)
+    }
+    $body = (string)($p['body'] ?? '');
+    if ($body === '') $body = ql_wa_preview_text($p);
+    $ins = $db->prepare(
+      "INSERT INTO chat_messages (plant_id, company_id, thread_id, user_id, kind, source, body, created_at, wa_id)
+       VALUES (?,?,?,?,?, 'whatsapp', ?,?,?)");
+    /* Authored by the counterparty, not by any QuickLimes user. 'wa:<phone>'
+       can never collide with a users.id and reads as what it is. */
+    $ins->execute([$plantId, $coId, $tid, empty($p['from_me']) ? ('wa:' . $phone) : '', 'text',
+      mb_substr($body, 0, 8000), (string)($p['at'] ?? gmdate('Y-m-d H:i:s')), $waId ?: null]);
+
+    $db->prepare("UPDATE chat_threads SET last_at=?, last_body=?, last_by=? WHERE id=?")
+       ->execute([(string)($p['at'] ?? gmdate('Y-m-d H:i:s')), mb_substr($body, 0, 250),
+                  empty($p['from_me']) ? ('wa:' . $phone) : '', $tid]);
+    return 1;
+  } catch (Throwable $e) {
+    /* The inbox write above already succeeded. A bridge failure must never
+       make the webhook 500, or Whapi retries the whole batch forever. */
+    return 0;
+  }
+}
+
+
 header('Content-Type: application/json');
 
 $secret = ql_wa_hook_secret();
@@ -41,7 +85,7 @@ $db = ql_db();
    Ack with 200 so the provider stops retrying, and drop the payload. */
 if (!ql_plant_exists($plantId)) { exit(json_encode(['ok' => true, 'skipped' => 'unknown plant'])); }
 
-$n = 0; $st = 0;
+$n = 0; $st = 0; $bridged = 0;
 
 /* ── messages ── */
 if (!empty($body['messages']) && is_array($body['messages'])) {
@@ -71,6 +115,16 @@ if (!empty($body['messages']) && is_array($body['messages'])) {
       $p['from_name'], $p['at'], ql_wa_preview_text($p), $p['from_me'],
       (!$p['from_me'] && $fresh) ? 1 : 0]);
     $n++;
+
+    /* ── BRIDGE INTO THE INTERNAL THREAD ─────────────────────────────────
+       If this number already has a QuickLimes conversation, the reply lands
+       IN it — so one thread carries both the team's discussion and what the
+       customer actually said, and the history is in one place.
+
+       Only when a thread already exists: a webhook must not conjure
+       conversations for every number that ever messages the channel. The
+       wa_chats inbox above still receives everything regardless. */
+    $bridged += ql_wa_bridge_into_thread($db, $plantId, $coId, $p);
   }
 }
 
@@ -92,4 +146,4 @@ if (!empty($body['statuses']) && is_array($body['statuses'])) {
   }
 }
 
-echo json_encode(['ok' => true, 'messages' => $n, 'statuses' => $st]);
+echo json_encode(['ok' => true, 'messages' => $n, 'statuses' => $st, 'bridged' => $bridged]);

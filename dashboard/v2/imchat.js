@@ -82,6 +82,7 @@
   function open() {
     mount();
     askNotifyOnce();
+    if (S.wa === null) loadWaStatus().then(() => { if (S.threadId) paintConv(); });
     S.open = true;
     document.getElementById('qlImBack').classList.add('on');
     document.getElementById('qlIm').classList.add('on');
@@ -227,6 +228,12 @@
     const run = C.isRun(prev, m);
     const who = (!mine && !run) ? `<div class="qc-who">${esc(nameOf(m.user_id))}</div>` : '';
     const ticks = mine ? ' <span class="qc-tick">✓✓</span>' : '';
+    /* Which channel this went out by, on the message itself. Without it a
+       thread carrying both internal notes and real WhatsApp messages gives no
+       way to tell what the customer has actually seen. */
+    const src = m.source === 'whatsapp'
+      ? ' <span class="qc-src">WhatsApp</span>'
+      : (external(thread()) && m.kind !== 'note' ? ' <span class="qc-src int">Team</span>' : '');
 
     /* A reply shows what it answers. The quoted text is looked up in the
        messages already loaded; if that message is older than the current page
@@ -259,7 +266,7 @@
 
     const hit = S.find && new RegExp(S.find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(m.body || '');
     return `<div class="qc-m ${mine ? 'me' : ''} ${run ? 'run' : ''} ${hit ? 'hit' : ''}" data-mid="${m.id}">
-      <div class="qc-bub">${quote}${who}${inner}<div class="qc-meta">${esc(C.timeLabel(m.created_at))}${ticks}</div>${reacts}</div>
+      <div class="qc-bub">${quote}${who}${inner}<div class="qc-meta">${esc(C.timeLabel(m.created_at))}${ticks}${src}</div>${reacts}</div>
       ${acts}</div>`;
   }
   function fmtSize(n) {
@@ -267,6 +274,12 @@
     return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n > 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
   }
   function nameOf(uid) {
+    /* 'wa:<phone>' is the counterparty replying over WhatsApp — not a
+       QuickLimes user, and never to be shown as "Someone". */
+    if (typeof uid === 'string' && uid.indexOf('wa:') === 0) {
+      const t = thread();
+      return (t && t.title) || uid.slice(3);
+    }
     const u = S.users.find(x => x.id === uid);
     return u ? u.name : 'Someone';
   }
@@ -794,6 +807,63 @@
         if (!t.ok) { QLShell.toast('Could not open that chat', 'err'); return; }
         await loadThreads(); openThread(t.thread.id);
       })
+    });
+  }
+
+  /* ── WHATSAPP CHANNEL ────────────────────────────────────────────────────
+     The bridge is optional and additive: with no channel connected everything
+     else works unchanged, and the UI says so rather than failing at send. */
+  async function loadWaStatus() {
+    const r = await api({ action: 'wa_status' });
+    S.wa = (r && r.ok) ? r : { configured: false, connected: false };
+    return S.wa;
+  }
+  function connectWhatsApp() {
+    const owner = ['owner', 'admin', 'partner'].indexOf(S.role) >= 0;
+    if (!owner) {
+      QLShell.toast('Only the account owner can connect the WhatsApp channel', 'err');
+      return;
+    }
+    const st = S.wa || {};
+    QLShell.panel({
+      title: 'Connect WhatsApp', wide: false,
+      sub: st.configured ? (st.connected ? 'Connected' : 'Token saved, channel not paired') : 'Not connected',
+      body: `<div class="qc-wa">
+        <p>QuickLimes sends through a <b>Whapi</b> channel. Create one at
+          <a href="https://panel.whapi.cloud" target="_blank" rel="noopener noreferrer">panel.whapi.cloud</a>,
+          then paste its channel token here. The token is stored for this account and never
+          reaches the browser again.</p>
+        <label class="qc-wa-l">Channel token</label>
+        <input class="qlf-input" id="qcWaTok" placeholder="Paste the Whapi channel token" autocomplete="off">
+        <label class="qc-wa-l">Sending number <span>(optional, display only)</span></label>
+        <input class="qlf-input" id="qcWaNum" placeholder="e.g. 919460034743" autocomplete="off">
+        <div class="qc-wa-note">Once the token is saved you pair the phone by scanning a QR — that
+          happens inside QuickLimes, on the WhatsApp Inbox page. Nothing here opens WhatsApp Web.</div>
+        <div class="qc-wa-status" id="qcWaSt">${st.configured
+          ? (st.connected ? '✓ Channel authenticated' + (st.status ? ' · ' + esc(st.status) : '')
+                          : '! Token saved but the channel is not paired yet' + (st.status ? ' · ' + esc(st.status) : ''))
+          : 'No channel connected — WhatsApp sending is off.'}</div>
+      </div>`,
+      actions: [
+        { label: 'Close', onClick: () => QLShell.closeModal() },
+        { label: 'Save & check', primary: true, onClick: async () => {
+            const tok = (document.getElementById('qcWaTok') || {}).value || '';
+            const num = (document.getElementById('qcWaNum') || {}).value || '';
+            const el = document.getElementById('qcWaSt');
+            if (el) el.textContent = 'Checking with the provider…';
+            const r = await api({ action: 'wa_connect', whapi_token: tok.trim(), whapi_sender: num.trim() });
+            if (!r.ok) { if (el) el.textContent = r.error === 'Forbidden'
+              ? 'Only the account owner can do this.' : (r.error || 'Could not save'); return; }
+            S.wa = r;
+            /* "Saved" and "working" are different claims, so the provider is
+               asked immediately and the answer is what gets reported. */
+            if (el) el.textContent = r.connected
+              ? '✓ Connected' + (r.status ? ' · ' + r.status : '')
+              : (r.configured ? '! Saved, but the channel is not paired yet — scan the QR on the WhatsApp Inbox page'
+                              : 'Channel removed — WhatsApp sending is off.');
+            paintConv();
+          } }
+      ]
     });
   }
 

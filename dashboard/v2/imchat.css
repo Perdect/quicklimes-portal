@@ -261,3 +261,32 @@
 .qc-mem { display: flex; justify-content: space-between; gap: 12px; padding: 8px 11px;
   border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); font-size: var(--ql-text-sm); }
 .qc-mem span { color: var(--ql-text-muted); font-size: var(--ql-text-xs); }
+
+/* ── channel selector ────────────────────────────────────────────────────
+   Which way a message leaves is a decision with consequences, so it is an
+   explicit control above the composer rather than a hidden default. */
+.qc-chan { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.qc-ch { border: 1px solid var(--ql-border); background: var(--ql-card); color: var(--ql-text-secondary);
+  border-radius: var(--ql-radius-pill); padding: 5px 12px; font: inherit; font-size: var(--ql-text-xs);
+  font-weight: 700; cursor: pointer; }
+.qc-ch.on { background: var(--ql-brand-600); border-color: transparent; color: #fff; }
+.qc-ch.wa.on { background: var(--ql-success-600); }
+.qc-chan-w { font-size: var(--ql-text-xs); color: var(--ql-text-muted); flex: 1 1 auto; }
+.qc-send.wa { background: var(--ql-success-600); }
+.qc-send.wa:hover { background: var(--ql-success-700); }
+
+/* Which channel a message actually left by — a thread carries both. */
+.qc-src { font-size: var(--ql-text-xs); font-weight: 700; padding: 0 5px; border-radius: var(--ql-radius-xs);
+  background: var(--ql-success-600); color: #fff; margin-left: 4px; }
+.qc-src.int { background: transparent; color: inherit; opacity: .7; font-weight: 600; }
+.qc-wa-ok { font-size: var(--ql-text-xs); font-weight: 700; color: var(--ql-success-700); }
+
+.qc-wa p { font-size: var(--ql-text-sm); line-height: 1.6; color: var(--ql-text-secondary); margin: 0 0 14px; }
+.qc-wa a { color: var(--ql-brand-600); font-weight: 600; }
+.qc-wa-l { display: block; font-size: var(--ql-text-xs); font-weight: 700; color: var(--ql-text-secondary);
+  text-transform: uppercase; letter-spacing: .04em; margin: 12px 0 5px; }
+.qc-wa-l span { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--ql-text-muted); }
+.qc-wa input { width: 100%; }
+.qc-wa-note { font-size: var(--ql-text-xs); color: var(--ql-text-muted); margin-top: 12px; line-height: 1.6; }
+.qc-wa-status { margin-top: 12px; padding: 9px 11px; border-radius: var(--ql-radius-md);
+  background: var(--ql-bg-elevated); font-size: var(--ql-text-xs); font-weight: 600; color: var(--ql-text); }
