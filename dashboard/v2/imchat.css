@@ -232,3 +232,16 @@
 /* A short conversation should sit ON the composer, not hang from the top of
    an empty pane. This pushes the first block down only when there is room. */
 .qc-msgs > :first-child { margin-top: auto; }
+
+/* ── pinned strip ────────────────────────────────────────────────────────── */
+.qc-pins { display: flex; align-items: center; gap: 9px; padding: 8px 14px;
+  border-bottom: 1px solid var(--ql-border); background: var(--ql-warning-50); }
+.qc-pins > svg { width: 14px; height: 14px; color: var(--ql-warning-700); flex: none; }
+.qc-pins-b { flex: 1 1 auto; display: flex; gap: 8px; overflow-x: auto; }
+.qc-pin-i { flex: none; border: 1px solid var(--ql-warning-500); background: var(--ql-card);
+  color: var(--ql-text); border-radius: var(--ql-radius-pill); padding: 4px 11px;
+  font: inherit; font-size: var(--ql-text-xs); cursor: pointer; max-width: 260px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qc-pin-i:hover { background: var(--ql-warning-50); }
+.qc-pins-n { font-size: var(--ql-text-xs); font-weight: 800; color: var(--ql-warning-700); flex: none; }
+.qc-act.on { background: var(--ql-warning-50); border-color: var(--ql-warning-500); color: var(--ql-warning-700); }

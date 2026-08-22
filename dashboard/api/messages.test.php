@@ -40,8 +40,15 @@ echo "\n=== membership is the access rule, not being in the same firm ===\n";
 ok(strpos($code, 'JOIN chat_members m ON m.thread_id=t.id AND m.user_id=?') !== false,
   'the thread list is an INNER JOIN on membership — you cannot list a thread you are not in');
 ok(strpos($code, 'function ql_is_member') !== false, 'ql_is_member exists');
-ok(preg_match("~in_array\(\\\$action, \['messages', 'send', 'read', 'members'\], true\)~", $code) === 1,
-  'messages/send/read/members ALL go through the membership gate');
+/* Assert COVERAGE, not the exact list — the list grows as actions are added,
+   and a brittle exact match would just be edited away each time. Every
+   thread-scoped action must be inside the gate. */
+preg_match('~in_array\(\$action, \[([^\]]*)\], true\)\s*\)\s*\{\s*\n\s*if \(\$threadId~', $code, $g);
+$gated = $g ? array_map(function ($x) { return trim($x, " '"); }, explode(',', $g[1])) : [];
+foreach (['messages', 'send', 'read', 'members', 'pins', 'unread'] as $a) {
+  ok(in_array($a, $gated, true), "  '$a' goes through the membership gate");
+}
+ok(count($gated) >= 6, 'the membership gate covers every thread-scoped action (' . count($gated) . ')');
 ok(preg_match('~ql_is_member\(\$db, \$threadId, \$me\)\) ql_out\(\[\'ok\' => false, \'error\' => \'Forbidden\'~', $code) === 1,
   '  and a non-member is Forbidden (verified live: B could not read thread 1)');
 
@@ -91,6 +98,18 @@ ok(substr_count($code, 'plant_id=?') >= 4 || substr_count($code, 'plant_id=?') >
   'queries are scoped by plant_id');
 ok(strpos($dbc, "'chat_threads', 'chat_messages'") !== false,
   'the chat tables are registered for tenant scoping / company deletion');
+
+echo "\n=== pin, forward, mark-unread ===\n";
+ok(strpos($dbc, 'pinned_at DATETIME DEFAULT NULL') !== false,
+  'a pin lives ON the message, so it cannot outlive what it points at');
+ok(strpos($dbc, 'ALTER TABLE chat_messages ADD COLUMN') !== false,
+  'and existing books get the column — CREATE TABLE IF NOT EXISTS would leave them without it');
+ok(strpos($code, 'pinned_at IS NOT NULL AND deleted_at IS NULL') !== false,
+  'a deleted message is never listed as pinned');
+ok(preg_match('~UPDATE chat_members SET last_read_id=\?.*?WHERE thread_id=\? AND user_id=\?~s', $code) === 1,
+  'mark-unread is its own action, because read() only ever moves the marker forward');
+ok(strpos($code, 'max(0, $mid - 1)') !== false,
+  '  and it lands just BEFORE the chosen message, so that message is the first unread');
 
 echo "\n=== the owner is a person, not nobody ===\n";
 ok(strpos($code, "\$me = 'owner:' . \$plantId;") !== false,

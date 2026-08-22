@@ -780,12 +780,24 @@ function ql_ensure_tables() {
     file_mime    VARCHAR(80)  DEFAULT NULL,
     file_size    BIGINT       DEFAULT NULL,
     reply_to     BIGINT       DEFAULT NULL,
+    /* A pin lives ON the message. A separate pins table could outlive the
+       message it points at; this cannot. */
+    pinned_at    DATETIME     DEFAULT NULL,
+    pinned_by    VARCHAR(64)  DEFAULT NULL,
     created_at   DATETIME     NOT NULL,
     edited_at    DATETIME     DEFAULT NULL,
     deleted_at   DATETIME     DEFAULT NULL,
     KEY idx_thread (plant_id, thread_id, id),
     KEY idx_search (plant_id, company_id, thread_id, deleted_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  /* CREATE TABLE IF NOT EXISTS leaves an EXISTING chat_messages untouched, so
+     the pin columns have to be added separately for books that already have
+     the table. Same idiom the plants and discovered tables use: try it, ignore
+     the duplicate-column error. */
+  foreach (['pinned_at DATETIME DEFAULT NULL', 'pinned_by VARCHAR(64) DEFAULT NULL'] as $col) {
+    try { $db->exec("ALTER TABLE chat_messages ADD COLUMN $col"); } catch (Throwable $e) { /* already there */ }
+  }
 
   $db->exec("CREATE TABLE IF NOT EXISTS chat_reactions (
     message_id   BIGINT       NOT NULL,

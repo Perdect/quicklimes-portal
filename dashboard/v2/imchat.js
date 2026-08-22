@@ -33,7 +33,7 @@
   const S = {
     open: false, threads: [], threadId: null, messages: [], hasMore: false,
     filter: 'all', q: '', me: '', role: 'sales', users: [], noteMode: false,
-    loading: false, error: '', pollTimer: null, lastId: 0, unread: 0, details: false,
+    loading: false, error: '', pollTimer: null, lastId: 0, unread: 0, details: false, pins: [],
     replyTo: null, find: '', finding: false
   };
 
@@ -58,6 +58,8 @@
     info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
     doc: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
     reply: '<polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
+    pin: '<line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-1.7-5.1A2 2 0 0 1 17.6 10L19 5H5l1.4 5a2 2 0 0 1-.3 1.9z"/>',
+    fwd: '<polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/>',
     trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'
   };
   const ic = (k, cls) => `<svg class="${cls || ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICO[k] || ''}</svg>`;
@@ -170,13 +172,14 @@
 
   /* ── conversation ─────────────────────────────────────────────────────── */
   async function openThread(id) {
-    S.threadId = id; S.messages = []; S.lastId = 0; S.details = false;
+    S.threadId = id; S.messages = []; S.lastId = 0; S.details = false; S.pins = [];
     paintList(); paintConv();
     const r = await api({ action: 'messages', thread_id: id, limit: 40 });
     if (!r.ok) { S.error = r.error || 'Could not load messages'; paintConv(); return; }
     S.messages = r.messages || [];
     S.hasMore = !!r.has_more;
     S.lastId = S.messages.length ? S.messages[S.messages.length - 1].id : 0;
+    await loadPins();
     paintConv(); scrollEnd();
     markRead();
     startPoll();
@@ -248,6 +251,9 @@
     const acts = `<div class="qc-acts">
       <button class="qc-act" data-reply="${m.id}" title="Reply">${ic('reply')}</button>
       <button class="qc-act" data-emoji="${m.id}" title="React">🙂</button>
+      <button class="qc-act ${m.pinned_at ? 'on' : ''}" data-pin="${m.id}" title="${m.pinned_at ? 'Unpin' : 'Pin'}">${ic('pin')}</button>
+      <button class="qc-act" data-fwd="${m.id}" title="Forward">${ic('fwd')}</button>
+      <button class="qc-act" data-unread="${m.id}" title="Mark unread from here">${ic('note')}</button>
       ${mine ? `<button class="qc-act" data-del="${m.id}" title="Delete for everyone">${ic('trash')}</button>` : ''}
     </div>`;
 
@@ -302,6 +308,10 @@
         <button class="qc-icon" id="qcInfo" title="Conversation details">${ic('info')}</button>
         <button class="qc-icon" id="qcClose2" title="Close">${ic('x')}</button>
       </div>
+      ${S.pins && S.pins.length ? `<div class="qc-pins">${ic('pin')}
+        <div class="qc-pins-b">${S.pins.map(pn => `<button class="qc-pin-i" data-gopin="${pn.id}">
+          ${esc((pn.body || (pn.card_json ? 'Shared ' + pn.card_json.type : pn.file_name) || 'Pinned').slice(0, 70))}</button>`).join('')}</div>
+        <span class="qc-pins-n">${S.pins.length}</span></div>` : ''}
       ${S.finding ? `<div class="qc-find">${ic('search')}
         <input id="qcFindIn" placeholder="Search in this conversation" value="${esc(S.find)}">
         <span class="qc-find-n" id="qcFindN"></span>
@@ -364,6 +374,14 @@
       fi.focus();
     }
     host.querySelectorAll('[data-reply]').forEach(b => b.onclick = () => { S.replyTo = +b.dataset.reply; paintConv(); });
+    host.querySelectorAll('[data-pin]').forEach(b => b.onclick = () => togglePin(+b.dataset.pin, b.classList.contains('on')));
+    host.querySelectorAll('[data-fwd]').forEach(b => b.onclick = () => forwardMsg(+b.dataset.fwd));
+    host.querySelectorAll('[data-unread]').forEach(b => b.onclick = () => markUnreadFrom(+b.dataset.unread));
+    host.querySelectorAll('[data-gopin]').forEach(b => b.onclick = () => {
+      const el = host.querySelector('[data-mid="' + b.dataset.gopin + '"]');
+      if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 1600); }
+      else QLShell.toast('That message is further back — load earlier messages first');
+    });
     host.querySelectorAll('[data-del]').forEach(b => b.onclick = () => removeMsg(+b.dataset.del));
     host.querySelectorAll('[data-react]').forEach(b => b.onclick = () => {
       const [id, emoji] = b.dataset.react.split('|');
@@ -461,6 +479,53 @@
     paintConv();
     await api({ action: 'react', message_id: id, emoji, off: !!off });
   }
+  async function togglePin(id, off) {
+    const r = await api({ action: 'pin', thread_id: S.threadId, message_id: id, off: !!off });
+    if (!r.ok) { QLShell.toast('Could not pin that', 'err'); return; }
+    const m = S.messages.find(x => +x.id === +id); if (m) m.pinned_at = off ? null : '1';
+    await loadPins(); paintConv();
+  }
+  async function loadPins() {
+    const r = await api({ action: 'pins', thread_id: S.threadId });
+    S.pins = (r && r.ok) ? (r.pins || []) : [];
+  }
+  /* Forward = pick a thread, then re-send the same payload there. The copy is
+     a NEW message in the destination, authored by whoever forwarded it —
+     it does not pretend to still be from the original sender. */
+  async function forwardMsg(id) {
+    const m = S.messages.find(x => +x.id === +id); if (!m) return;
+    const list = S.threads.filter(t => t.id !== S.threadId);
+    if (!list.length) { QLShell.toast('No other conversation to forward to'); return; }
+    QLShell.panel({
+      title: 'Forward to', sub: (m.body || 'attachment').slice(0, 60),
+      body: `<div class="qc-pick">${list.map(t =>
+        `<button class="qc-pick-b" data-t="${t.id}"><b>${esc(t.title)}</b><small>${esc(t.subtitle || '')}</small></button>`).join('')}</div>`,
+      actions: [{ label: 'Cancel', onClick: () => QLShell.closeModal() }],
+      onMount: el => el.querySelectorAll('[data-t]').forEach(b => b.onclick = async () => {
+        QLShell.closeModal();
+        const payload = { action: 'send', thread_id: +b.dataset.t, kind: m.kind === 'note' ? 'text' : m.kind };
+        /* A forwarded internal NOTE becomes ordinary text in the destination:
+           a note is private to the conversation it was written in, and
+           carrying the note styling elsewhere would imply it was private
+           there too. */
+        if (m.body) payload.body = m.body;
+        if (m.card_json) payload.card = m.card_json;
+        if (m.file_id) payload.file = { id: m.file_id, name: m.file_name, mime: m.file_mime, size: m.file_size };
+        const r = await api(payload);
+        QLShell.toast(r.ok ? 'Forwarded' : 'Could not forward', r.ok ? 'ok' : 'err');
+        if (r.ok) loadThreads();
+      })
+    });
+  }
+  async function markUnreadFrom(id) {
+    const r = await api({ action: 'unread', thread_id: S.threadId, message_id: id });
+    if (!r.ok) { QLShell.toast('Could not mark unread', 'err'); return; }
+    stopPoll();
+    close();
+    await loadThreads();
+    QLShell.toast('Marked unread', 'ok');
+  }
+
   async function removeMsg(id) {
     if (!confirm('Delete this message for everyone?')) return;
     const r = await api({ action: 'remove', message_id: id });

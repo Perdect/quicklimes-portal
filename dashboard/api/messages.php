@@ -172,7 +172,7 @@ if ($action === 'open') {
 
 /* Everything below acts on one thread and requires membership. */
 $threadId = (int)($b['thread_id'] ?? 0);
-if (in_array($action, ['messages', 'send', 'read', 'members'], true)) {
+if (in_array($action, ['messages', 'send', 'read', 'members', 'pins', 'unread'], true)) {
   if ($threadId <= 0) ql_out(['ok' => false, 'error' => 'no_thread'], 400);
   if (!ql_thread_row($db, $plantId, $threadId)) ql_out(['ok' => false, 'error' => 'not_found'], 404);
   if (!ql_is_member($db, $threadId, $me)) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
@@ -298,6 +298,46 @@ if ($action === 'react') {
     $i = $db->prepare("INSERT IGNORE INTO chat_reactions (message_id, user_id, emoji, at) VALUES (?,?,?,?)");
     $i->execute([$mid, $me, $emoji, $now]);
   }
+  ql_out(['ok' => true]);
+}
+
+/* PIN — any member may pin; the thread's important messages are a shared
+   artefact, not a private bookmark. Pinning is idempotent. */
+if ($action === 'pin') {
+  $mid = (int)($b['message_id'] ?? 0);
+  $st = $db->prepare("SELECT thread_id FROM chat_messages WHERE id=? AND plant_id=? AND deleted_at IS NULL LIMIT 1");
+  $st->execute([$mid, $plantId]);
+  $tid = (int)$st->fetchColumn();
+  if (!$tid || !ql_is_member($db, $tid, $me)) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
+  if (!empty($b['off'])) {
+    $u = $db->prepare("UPDATE chat_messages SET pinned_at=NULL, pinned_by=NULL WHERE id=? AND plant_id=?");
+    $u->execute([$mid, $plantId]);
+  } else {
+    $u = $db->prepare("UPDATE chat_messages SET pinned_at=?, pinned_by=? WHERE id=? AND plant_id=?");
+    $u->execute([$now, $me, $mid, $plantId]);
+  }
+  ql_out(['ok' => true]);
+}
+
+/* The pinned messages of a thread, newest pin first. */
+if ($action === 'pins') {
+  if ($threadId <= 0 || !ql_is_member($db, $threadId, $me)) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
+  $st = $db->prepare("SELECT * FROM chat_messages WHERE thread_id=? AND plant_id=? AND pinned_at IS NOT NULL AND deleted_at IS NULL ORDER BY pinned_at DESC LIMIT 20");
+  $st->execute([$threadId, $plantId]);
+  $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+  foreach ($rows as &$r) { $r['id'] = (int)$r['id']; $r['card_json'] = $r['card_json'] ? json_decode($r['card_json'], true) : null; }
+  ql_out(['ok' => true, 'pins' => $rows]);
+}
+
+/* MARK UNREAD — walk the read marker BACK to just before this message, so the
+   thread reappears in Unread with a truthful count. `read` deliberately only
+   moves forward, so this is its own action rather than a smaller number
+   passed to that one. */
+if ($action === 'unread') {
+  $mid = (int)($b['message_id'] ?? 0);
+  if ($threadId <= 0 || !ql_is_member($db, $threadId, $me)) ql_out(['ok' => false, 'error' => 'Forbidden'], 403);
+  $st = $db->prepare("UPDATE chat_members SET last_read_id=? WHERE thread_id=? AND user_id=?");
+  $st->execute([max(0, $mid - 1), $threadId, $me]);
   ql_out(['ok' => true]);
 }
 
