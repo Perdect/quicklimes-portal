@@ -234,6 +234,33 @@ function codeOf(page) {
      missing.length === 0);
 }
 
+/* ── 10. THE MARKUP MUST NEST ────────────────────────────────────────────
+   The page-head migration left each page's ORIGINAL closing </div> behind,
+   one line under the new hero host. It closed .dash early, so everything
+   below the header fell OUT of the page container and inherited its 120px
+   bottom padding as a gap — a header, a band of white, then the content.
+   Ten pages shipped like that and every design check passed: the tags were
+   all present, just in the wrong order. Balance is what catches it. */
+{
+  const bad = [];
+  for (const p of pages) {
+    const html = src[p];
+    const b = html.indexOf('<body'), sc = html.indexOf('<script', b);
+    if (b < 0 || sc < 0) continue;
+    const markup = html.slice(b, sc).replace(/<!--[\s\S]*?-->/g, '');
+    const open = (markup.match(/<div\b/g) || []).length;
+    const close = (markup.match(/<\/div>/g) || []).length;
+    if (open !== close) bad.push(p + ' (' + open + ' <div> vs ' + close + ' </div>)');
+  }
+  ok('every page\'s static markup opens and closes the same number of <div>s' +
+     (bad.length ? '\n       ' + bad.join('\n       ') : ''), bad.length === 0);
+
+  /* The specific shape of the bug: a lone </div> directly under the hero host. */
+  const stray = pages.filter(p => /<div id="\w+Hero"><\/div>\n[ \t]*<\/div>/.test(src[p]));
+  ok('no page has a stray </div> immediately after its hero host' +
+     (stray.length ? '\n       ' + stray.join(', ') : ''), stray.length === 0);
+}
+
 console.log('\n════ design system (one header, one stat row, everywhere) ════');
 console.log('  Pages scanned: ' + pages.length);
 console.log('  Passed: ' + pass + '   Failed: ' + fail);
