@@ -262,7 +262,30 @@
       <div class="qx-stats">${Array.from({ length: 6 }).map(() => stat).join('')}</div>
       <div class="qx-panel"><div class="qx-tb">${sk('220px', '22px')}<div class="qx-tb-sp"></div>${sk('190px', '22px')}</div>${Array.from({ length: 6 }).map(() => row).join('')}</div>`;
   }
-  function refresh() { render(); if (S.openId != null && rowById(S.openId)) renderDetailBody(); else if (S.openId != null) closeDetail(); }
+  function refresh() { render(); if (S.openId != null && rowById(S.openId)) renderDetailBody(); else if (S.openId != null) closeDetail(); sizeGrid(); }
+
+  /* Size the ONE scroll container from real measurements. Releasing the cap
+     first, then measuring what sits above (sticky toolbar) and below (pager,
+     panel padding, page padding) the wrap in the document, gives:
+       maxHeight = viewport − toolbar − everything-below-the-wrap
+     so at maximum page scroll the panel exactly fills the screen. Desktop
+     only — mobile is cards-first and its table fallback scrolls the page
+     (the tfoot still reserves its own space there, so no row hides). */
+  function sizeGrid() {
+    const wrap = document.querySelector('#qxRoot .qx-grid-wrap, .qx-panel .qx-grid-wrap');
+    if (!wrap) return;
+    if (window.innerWidth < 769) { wrap.style.maxHeight = ''; return; }
+    wrap.style.maxHeight = 'none';
+    const doc = document.documentElement;
+    const tb = (wrap.closest('.qx-panel') || document).querySelector('.qx-tb');
+    const tbH = tb ? tb.offsetHeight : 0;
+    const wrapBottomAbs = wrap.getBoundingClientRect().bottom + window.scrollY;
+    const below = Math.max(0, doc.scrollHeight - wrapBottomAbs);
+    const max = Math.max(320, window.innerHeight - tbH - below);
+    wrap.style.maxHeight = max + 'px';
+  }
+  let _szT = null;
+  window.addEventListener('resize', () => { clearTimeout(_szT); _szT = setTimeout(sizeGrid, 120); });
 
   /* ── PAGE CHROME, USABLE WITHOUT MOUNTING ────────────────────────────────
      heroMarkup and statsMarkup are pure: config in, HTML out, no CFG, no S.
@@ -531,7 +554,11 @@
     const rows = pg.rows;
     const cols = visCols(), hasSel = !!CFG.bulkActions;
     const head = '<tr>' + (hasSel ? `<th class="qx-ck"><span class="qx-cbx ${allSel(rows) ? 'on' : ''}" id="qxAll">${svg(IC.check)}</span></th>` : '') +
-      cols.map(c => { const st = S.sort.key === c.key; return `<th class="${c.num ? 'num' : ''} ${c.sort ? 'sortable' : ''} ${st ? 'sorted' : ''}" ${c.sort ? `data-sort="${c.key}"` : ''}>${esc(c.label)}${c.sort ? `<span class="qx-sic">${st ? (S.sort.dir === 'asc' ? '↑' : '↓') : ''}</span>` : ''}</th>`; }).join('') + '</tr>';
+      cols.map(c => { const st = S.sort.key === c.key;
+        /* every column gets a floor so long party names cannot crush the money
+           columns into unreadability; a page can pass c.w to override */
+        const mw = c.w != null ? c.w : (c.cls === 'qx-sr' || c.key === 'sr' || c.cls === 'qx-act' || c.key === 'actions' ? 0 : c.num ? 110 : 120);
+        return `<th scope="col" class="${c.num ? 'num' : ''} ${c.sort ? 'sortable' : ''} ${st ? 'sorted' : ''}"${mw ? ` style="min-width:${mw}px"` : ''} ${c.sort ? `data-sort="${c.key}"` : ''}>${esc(c.label)}${c.sort ? `<span class="qx-sic">${st ? (S.sort.dir === 'asc' ? '↑' : '↓') : ''}</span>` : ''}</th>`; }).join('') + '</tr>';
     const groups = groupRows(rows);
     const span = cols.length + (hasSel ? 1 : 0);
     let body = '', sr = 0;
@@ -539,7 +566,7 @@
     groups.forEach((grp, gi) => {
       const grouped = grp.key !== '__all';
       const collapsed = S.collapsed.has(grp.key);
-      if (grouped) {
+      if (grouped && !(groups.length === 1 && S.month && S.month !== 'all')) {
         const g = grp.g, tot = grp.rows.reduce((a, r) => a + (CFG.groupSum ? CFG.groupSum(r) : 0), 0);
         body += `<tr class="qx-grp ${collapsed ? 'collapsed' : ''}" data-grp="${esc(grp.key)}"><td colspan="${span}"><div class="qx-grp-bar ${gi === 0 ? 'first' : ''}">
           <span class="qx-grp-chev">${svg(IC.chev)}</span>
@@ -560,8 +587,8 @@
        filters select, not for the twenty-five lines you happen to be looking
        at. A Grand Total that changes when you turn the page is worse than no
        total — it reads as authoritative and is wrong. */
-    const foot = CFG.footer ? footHTML(allRows) : '';
-    return `<div class="qx-grid-wrap"><table class="qx-grid"><thead>${head}</thead><tbody id="qxBody">${body}</tbody></table></div>${foot}${pagerHTML(pg)}`;
+    const foot = CFG.footer ? `<tfoot><tr><td class="qx-footcell" colspan="${span}">${footHTML(allRows)}</td></tr></tfoot>` : '';
+    return `<div class="qx-grid-wrap"><table class="qx-grid"><thead>${head}</thead><tbody id="qxBody">${body}</tbody>${foot}</table></div>${pagerHTML(pg)}`;
   }
   function footHTML(rows) {
     const cells = CFG.footer(rows) || [];

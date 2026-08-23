@@ -248,7 +248,7 @@
      .main > #qxRoot > .qx-panel and the panel would not honour flex-grow here —
      needs structural debugging, tracked separately. Opaque footer is the fix
      for the reported bleed-through.) */
-  .qx-grid-wrap { max-height: calc(100vh - 250px); overflow: auto; overscroll-behavior: contain; }
+  .qx-grid-wrap { max-height: calc(100vh - 250px); /* fallback until sizeGrid() measures */ overflow: auto; overscroll-behavior: contain; }
 }
 .qx-grid { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--ql-text-base); min-width: 900px; }
 .qx-grid thead th {
@@ -256,7 +256,7 @@
   text-align: left; font-size: var(--ql-text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
   color: var(--ql-text-muted); padding: 13px 16px; border-bottom: 1px solid var(--ql-border); white-space: nowrap; user-select: none;
 }
-.qx-grid th.num, .qx-grid td.num { text-align: right; }
+.qx-grid th.num, .qx-grid td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .qx-grid th.sortable { cursor: pointer; }
 .qx-grid th.sortable:hover { color: var(--ql-text-secondary); }
 .qx-grid th.sorted { color: var(--qx); }
@@ -342,11 +342,15 @@
 .qx-pg button:disabled { opacity: .4; cursor: default; }
 .qx-pg span { padding: 0 8px; font-weight: 600; }
 
-/* OPAQUE, not 75%-transparent. Transparent + sticky-bottom meant rows scrolled
-   THROUGH the totals bar — the "footer overlaps the row" bug. Solid card bg +
-   a z-index above the rows + a lift shadow so it reads as a distinct bar that
-   sits ON TOP cleanly. Uses var(--ql-card) so it adapts to dark on its own. */
-.qx-foot { display: flex; gap: 26px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--ql-border); background: var(--ql-card); position: sticky; bottom: 0; z-index: 6; box-shadow: 0 -2px 8px -4px rgba(15,23,42,.12); flex-wrap: wrap; }
+/* THE TOTALS FOOTER — a real <tfoot> inside the ONE scroll container.
+   Vertical: the cell is sticky-bottom in the SAME scrollport as the sticky
+   thead, so there is no second scroll system to fight and, being in normal
+   flow, it reserves its own height — the last row always scrolls fully into
+   view above it. Horizontal: it is table content, so it pans with the
+   columns; the strip inside pins left so the totals stay readable. OPAQUE
+   background, always: rows must never bleed through it. */
+.qx-grid tfoot td.qx-footcell { position: sticky; bottom: 0; z-index: 6; padding: 0; background: var(--ql-card); border-top: 1px solid var(--ql-border); box-shadow: 0 -2px 8px -4px rgba(15,23,42,.12); }
+.qx-foot { display: inline-flex; gap: 26px; align-items: center; padding: 12px 16px; flex-wrap: wrap; position: sticky; left: 0; max-width: 100%; background: var(--ql-card); }
 .qx-foot-c { display: flex; flex-direction: column; gap: 1px; }
 .qx-foot-c span { font-size: var(--ql-text-2xs); text-transform: uppercase; letter-spacing: .04em; color: var(--ql-text-muted); font-weight: 700; }
 .qx-foot-c b { font-size: var(--ql-text-md); font-weight: 800; color: var(--ql-text); font-variant-numeric: tabular-nums; }
