@@ -523,6 +523,18 @@ button { font-family: inherit; cursor: pointer; }
 .ql-mp-btn svg:last-child { width: 14px; height: 14px; color: var(--ql-text-muted); margin-left: -2px; }
 .ql-mp { position: fixed; z-index: var(--ql-z-dropdown, 200); background: var(--ql-card, #fff); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-3xl); box-shadow: var(--ql-shadow-lg); padding: 12px; width: 264px; animation: qlMpIn .13s var(--ql-ease-out, ease-out); }
 @keyframes qlMpIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.ql-mp-quick { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 10px; }
+.ql-mp-q { border: 1px solid transparent; background: transparent; border-radius: var(--ql-radius-md); padding: 6px 8px; font: inherit; font-size: var(--ql-text-xs); font-weight: 600; color: var(--ql-text-secondary); cursor: pointer; text-align: left; }
+.ql-mp-q:hover { background: var(--ql-neutral-100); color: var(--ql-text); }
+.ql-mp-q.on { background: var(--ql-brand-50); color: var(--ql-brand-700); border-color: var(--ql-brand-200, var(--ql-border)); }
+.ql-mp-div { height: 1px; background: var(--ql-divider); margin: 8px -4px 10px; }
+.ql-mp-cr { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.ql-mp-cr input { flex: 1; min-width: 0; font: inherit; font-size: var(--ql-text-xs); padding: 6px 7px; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); background: var(--ql-card); color: var(--ql-text); }
+.ql-mp-cr span { color: var(--ql-text-muted); }
+.ql-mp-cra { display: flex; gap: 6px; margin-top: 6px; }
+.ql-mp-cra .ql-mp-wide { flex: 1; margin-top: 0; }
+.ql-mp-apply { background: var(--ql-brand-600); color: #fff; border-color: var(--ql-brand-600); }
+.ql-mp-apply:hover { background: var(--ql-brand-700, var(--ql-brand-600)); }
 .ql-mp-yr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .ql-mp-yr span { font-size: var(--ql-text-md); font-weight: 700; color: var(--ql-text); font-variant-numeric: tabular-nums; }
 .ql-mp-nav { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-md); background: var(--ql-card); color: var(--ql-text-secondary); cursor: pointer; transition: background .15s, border-color .15s; }

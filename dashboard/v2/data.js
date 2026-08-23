@@ -1400,8 +1400,8 @@
      'r:month' is NOT 'YYYY-MM' of today: it is month-TO-DATE (1st → now),
      whereas the grid cell means the WHOLE month. Same for 'r:year' vs 'YYYY'.
      They are different questions and the owner can ask both. */
-  const RANGE_KEYS = ['today', 'yday', 'week', 'month', 'lastmon', 'quarter', 'year'];
-  const RANGE_LABEL = { today: 'Today', yday: 'Yesterday', week: 'This week', month: 'This month', lastmon: 'Last month', quarter: 'Quarter', year: 'Year' };
+  const RANGE_KEYS = ['today', 'yday', 'week', 'lastweek', 'month', 'lastmon', 'quarter', 'lastq', 'year', 'fy', 'lastfy'];
+  const RANGE_LABEL = { today: 'Today', yday: 'Yesterday', week: 'This week', lastweek: 'Last week', month: 'This month', lastmon: 'Last month', quarter: 'This quarter', lastq: 'Last quarter', year: 'This year', fy: 'This FY', lastfy: 'Last FY' };
   /* Local Y-M-D. NOT toISOString() — that converts to UTC and hands back
      yesterday for every IST evening, which moves every month/quarter/year edge
      by a day. reports.html learned this first; this is that line, shared. */
@@ -1434,7 +1434,13 @@
         case 'month': return { from: day(y, m, 1), to: isoOf(d) };
         case 'lastmon': return { from: day(y, m - 1, 1), to: day(y, m, 0) };       // day 0 = last day of prev month
         case 'quarter': return { from: day(y, Math.floor(m / 3) * 3, 1), to: isoOf(d) };
+        case 'lastweek': { const ws = weekStart(d); return { from: day(ws.getFullYear(), ws.getMonth(), ws.getDate() - 7), to: day(ws.getFullYear(), ws.getMonth(), ws.getDate() - 1) }; }
+        case 'lastq': { const qs = Math.floor(m / 3) * 3; return { from: day(y, qs - 3, 1), to: day(y, qs, 0) }; }
         case 'year': return { from: day(y, 0, 1), to: isoOf(d) };
+        /* INDIAN FINANCIAL YEAR: 1 April → 31 March, never the calendar year.
+           On 31 Mar 2026 "This FY" is still FY 2025-26; on 1 Apr it rolls. */
+        case 'fy': { const fyY = m >= 3 ? y : y - 1; return { from: day(fyY, 3, 1), to: isoOf(d) }; }
+        case 'lastfy': { const fyY = (m >= 3 ? y : y - 1) - 1; return { from: day(fyY, 3, 1), to: day(fyY + 1, 3, 0) }; }
         default: return none;                             // unknown key = never invent a span
       }
     }

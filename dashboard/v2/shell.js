@@ -1602,10 +1602,31 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     const m = document.createElement('div');
     m.className = 'ql-mp'; m._anchor = anchor;
     function paint() {
-      m.innerHTML = `<div class="ql-mp-yr"><button class="ql-mp-nav" data-yr="-1" aria-label="Previous year">${mpSvg('<polyline points="15 18 9 12 15 6"/>')}</button><span>${year}</span><button class="ql-mp-nav" data-yr="1" aria-label="Next year">${mpSvg('<polyline points="9 18 15 12 9 6"/>')}</button></div>
+      /* quick-select rail: the ranges people actually ask for, one tap each,
+         resolved by data.js rangeSpan — including the Indian FY. Opt out per
+         page with quick:false (a strictly month-based page has no honest
+         answer to "Today"). */
+      const QK = (cfg.quick !== false && window.QLD && QLD.rangeKeys) ? QLD.rangeKeys() : [];
+      const quick = QK.length ? `<div class="ql-mp-quick">${QK.map(k => `<button class="ql-mp-q${cur === 'r:' + k ? ' on' : ''}" data-ym="r:${k}">${esc(QLD.rangeLabel(k))}</button>`).join('')}</div><div class="ql-mp-div"></div>` : '';
+      /* custom range: two dd/mm/yyyy fields (the browser renders type=date in
+         the user's locale; the VALUE stays ISO). Apply emits 'c:from..to'. */
+      const cc = /^c:(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(String(cur));
+      const custom = cfg.custom !== false ? `<div class="ql-mp-div"></div><div class="ql-mp-cr">
+          <input type="date" id="qlMpFrom" value="${cc ? cc[1] : ''}" aria-label="From date"><span>→</span><input type="date" id="qlMpTo" value="${cc ? cc[2] : ''}" aria-label="To date"></div>
+        <div class="ql-mp-cra"><button class="ql-mp-wide ql-mp-apply" id="qlMpApply">Apply range</button><button class="ql-mp-wide" data-ym="all">Clear</button></div>` : '';
+      m.innerHTML = `${quick}<div class="ql-mp-yr"><button class="ql-mp-nav" data-yr="-1" aria-label="Previous year">${mpSvg('<polyline points="15 18 9 12 15 6"/>')}</button><span>${year}</span><button class="ql-mp-nav" data-yr="1" aria-label="Next year">${mpSvg('<polyline points="9 18 15 12 9 6"/>')}</button></div>
         <div class="ql-mp-grid">${MN.map((mn, i) => { const ym = year + '-' + String(i + 1).padStart(2, '0'); return `<button class="ql-mp-cell${cur === ym ? ' on' : ''}${have.has(ym) ? ' has' : ''}" data-ym="${ym}">${mn}</button>`; }).join('')}</div>
         ${cfg.years ? `<button class="ql-mp-wide${cur === String(year) ? ' on' : ''}" data-ym="${year}">Whole year ${year}</button>` : ''}
-        <button class="ql-mp-wide ql-mp-all${(!cur || cur === 'all') ? ' on' : ''}" data-ym="all">${esc(cfg.allLabel || 'All months')}</button>`;
+        <button class="ql-mp-wide ql-mp-all${(!cur || cur === 'all') ? ' on' : ''}" data-ym="all">${esc(cfg.allLabel || 'All months')}</button>${custom}`;
+      const ap = m.querySelector('#qlMpApply');
+      if (ap) ap.onclick = e => {
+        e.stopPropagation();
+        const f = m.querySelector('#qlMpFrom').value, t = m.querySelector('#qlMpTo').value;
+        if (!f || !t) return;                              // half-picked: stay open, never invent a span
+        closeMonthPicker(); if (cfg.onPick) cfg.onPick('c:' + f + '..' + t);
+      };
+      /* typing a date must not close the popup */
+      m.querySelectorAll('.ql-mp-cr input').forEach(i => i.onclick = e => e.stopPropagation());
       /* stopPropagation: paint() re-renders the menu, DETACHING the button just
          clicked; without it the click bubbles to the document close-handler,
          which sees a target no longer inside .ql-mp and shuts the picker — so
@@ -1675,6 +1696,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
         month: period,
         have: cfg.have ? (typeof cfg.have === 'function' ? cfg.have() : cfg.have) : [],
         years: cfg.years !== false, allLabel: cfg.allLabel,
+        quick: cfg.quick, custom: cfg.custom,
         onPick: p => {
           if (p === period) return;
           period = p;

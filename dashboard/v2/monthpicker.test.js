@@ -509,7 +509,7 @@ const P = dctx.P;
      The button is the only place he can see WHAT he is looking at. */
   const L = P.periodLabel;
   eq2('label: a named range says its name', L('r:week'), 'This week');
-  eq2('label: Quarter', L('r:quarter'), 'Quarter');
+  eq2('label: Quarter', L('r:quarter'), 'This quarter');
   eq2('label: a custom span reads as a span, with the year', L('c:2026-04-01..2026-06-30'), '01 Apr – 30 Jun 2026');
   eq2('label: a span ACROSS a year shows both years — "01 Dec – 31 Jan" would read as impossible', L('c:2025-12-01..2026-01-31'), '01 Dec 2025 – 31 Jan 2026');
   eq2('label: a one-day custom span is a date, not "x – x"', L('c:2026-04-01..2026-04-01'), '01 Apr 2026');

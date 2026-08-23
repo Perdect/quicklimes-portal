@@ -1,7 +1,7 @@
 {
   "shell.css": {
-    "v": "r11",
-    "sha": "d624183107dd"
+    "v": "r12",
+    "sha": "2e07aeb77619"
   },
   "pages.css": {
     "v": "m20cora",
@@ -56,8 +56,8 @@
     "sha": "2b271ee5c6b3"
   },
   "data.js": {
-    "v": "m52caaaaaa",
-    "sha": "c813d5b828df"
+    "v": "m52caaaaaaa",
+    "sha": "201e2df4c8f0"
   },
   "party-link.js": {
     "v": "pl1p",
@@ -72,8 +72,8 @@
     "sha": "14462b5adbf8"
   },
   "shell.js": {
-    "v": "m68saaaaaaa",
-    "sha": "a4b49b837ec7"
+    "v": "m68saaaaaaaa",
+    "sha": "e698f179363e"
   },
   "chat-core.js": {
     "v": "cc2",
@@ -228,8 +228,8 @@
     "sha": "901c12cfe254"
   },
   "ledger.js": {
-    "v": "lg3copqtaa",
-    "sha": "e5a9d75101ae"
+    "v": "lg3copqtaaa",
+    "sha": "51069ef886ef"
   },
   "loans.js": {
     "v": "b2",
@@ -244,8 +244,8 @@
     "sha": "706ee799123d"
   },
   "monthreg.js": {
-    "v": "mr3",
-    "sha": "a7eed11f213f"
+    "v": "mr4",
+    "sha": "7340dd073f58"
   },
   "pbill.css": {
     "v": "p7",

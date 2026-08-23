@@ -646,7 +646,7 @@ function wire(reg) {
     e.stopPropagation();
     QLShell.monthPicker(e.currentTarget, {
       month: MONTH || FY, have: new Set(reg.map(r => r.ym)),
-      years: false, allLabel: 'Whole year',
+      years: false, allLabel: 'Whole year', quick: false, custom: false,
       onPick: p => {
         MONTH = (p && /^\d{4}-\d{2}$/.test(p)) ? p : null;
         if (MONTH && Q.setUiMonth) Q.setUiMonth(MONTH);

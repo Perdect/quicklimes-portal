@@ -55,6 +55,16 @@ function resolveParty() {
   IDX = r.idx; BAD_ID = r.badId || ''; NOT_READY = !!r.notReady;
 }
 let FROM = '', TO = '';
+/* The universal date filter (§13): one grammar value; FROM/TO derive from it
+   through QLD.rangeSpan — the same resolver every other page uses. The local
+   chip row and its private FY arithmetic are gone. */
+let PERIOD = 'all';
+function setLedgerPeriod(v) {
+  PERIOD = v || 'all';
+  const sp = Q.rangeSpan(PERIOD);
+  FROM = sp.from || ''; TO = sp.to || '';
+  render();
+}
 
 /* ── RECORD A RECEIPT, AND SAY WHICH BILLS IT PAYS ──────────────────────
    Two steps on purpose. Step one is the money: how much, when, by what
@@ -204,19 +214,7 @@ function printStatement(L) {
 
 function card(label, val, col, sub) { return `<div class="lgp-card"><span>${esc(label)}</span><b${col ? ` style="color:${col}"` : ''}>${val}</b>${sub ? `<i style="display:block;font-size:11px;color:var(--ql-text-secondary);font-style:normal;margin-top:3px">${esc(sub)}</i>` : ''}</div>`; }
 
-/* ── Quick ranges — the dates people actually ask for, one tap each ── */
 const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-function fyStart(d) { const y = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; return y + '-04-01'; }
-function RANGES() {
-  const now = new Date(), m0 = new Date(now.getFullYear(), now.getMonth(), 1);
-  const pm = new Date(now.getFullYear(), now.getMonth() - 1, 1), pmEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-  return [
-    ['All time', '', ''],
-    ['This month', ymd(m0), ymd(now)],
-    ['Last month', ymd(pm), ymd(pmEnd)],
-    ['This FY', fyStart(now), ymd(now)]
-  ];
-}
 
 /* ── Insights from data the ledger ALREADY has (credit terms, ageing, advance,
    payment behaviour) — nothing invented, every line traceable to a row. ── */
@@ -435,9 +433,7 @@ function render() {
       <div class="lgp-ai-list">${ins.map(i => `<div class="lgp-ai-i ${i.t}"><b>${esc(i.h)}</b> — ${esc(i.s)}</div>`).join('')}</div>
     </div>` : ''}
     <div class="card lgp-filter">
-      ${RANGES().map(r => `<button class="lgp-chip ${FROM === r[1] && TO === r[2] ? 'on' : ''}" data-r="${esc(r[1])}|${esc(r[2])}">${esc(r[0])}</button>`).join('')}
-      <span class="lgp-sep"></span>
-      <input type="date" id="lgFrom" value="${FROM}" aria-label="From date"><span>→</span><input type="date" id="lgTo" value="${TO}" aria-label="To date">
+      ${QLShell.monthButton({ id: 'lgPeriodBtn', label: Q.periodLabel(PERIOD, 'All time'), title: 'Filter the statement by period' })}
       <span class="lgp-count">${L.rows.length} entr${L.rows.length === 1 ? 'y' : 'ies'} · <button class="lgp-chip" id="lgExp" style="margin-left:6px">⬇ Export</button></span>
     </div>
     <h2 class="lgp-h">Outstanding</h2>
@@ -459,9 +455,8 @@ function render() {
   document.querySelectorAll('.lgp-docbtn').forEach(b => b.onclick = () => {
     const [kind, id] = b.dataset.doc.split('|'); openPartyDoc(kind, id);
   });
-  if ($('lgFrom')) $('lgFrom').onchange = e => { FROM = e.target.value; render(); };
-  if ($('lgTo')) $('lgTo').onchange = e => { TO = e.target.value; render(); };
-  document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { const [f, t] = b.dataset.r.split('|'); FROM = f; TO = t; render(); });
+  const pb = $('lgPeriodBtn');
+  if (pb) pb.onclick = e => { e.stopPropagation(); QLShell.monthPicker(pb, { month: PERIOD, years: true, allLabel: 'All time', onPick: setLedgerPeriod }); };
   if ($('lgExp')) $('lgExp').onclick = () => exportLedger(L);
   /* The header is chrome — if qlx.js did not load, the ledger below must still
      be readable, so this warns rather than throwing. */
