@@ -27,7 +27,8 @@ const inPeriod = (d, p) => !p || p === 'all' || String(d || '').startsWith(p);
   const code = grab(qx, 'function monthOf(r)', '\n', 'qlx.js')
     + grab(qx, 'function latestMonth(rows)', '\n', 'qlx.js')
     + grab(qx, 'function rawRows()', 'function selfLatest() { const ms = [...selfMonths()].sort(); return ms.length ? ms[ms.length - 1] : \'all\'; }', 'qlx.js')
-    + '\n' + grab(qx, 'const rowInPeriod = r =>', '\n  }', 'qlx.js');
+    + '\n' + grab(qx, 'const dateOf = r =>', '\n', 'qlx.js')
+    + grab(qx, 'const rowInPeriod = r =>', '\n  }', 'qlx.js');
   const mk = (cfg, month) => {
     const ctx = { CFG: cfg, S: { month: month, monthInit: month != null }, QLD: { inPeriod, uiMonth: () => '2026-05' }, window: { QLD: { inPeriod, uiMonth: () => '2026-05' } } };
     vm.createContext(ctx);
@@ -47,6 +48,28 @@ const inPeriod = (d, p) => !p || p === 'all' || String(d || '').startsWith(p);
   /* classic mode still filters rows — the old behaviour must not have moved */
   const classic = mk({ monthFilter: true, data: () => DOCS, monthOf: r => r.date }, '2026-06');
   ok('classic mode still filters by row month', classic.allRows().length === 1);
+}
+
+/* ── 1b · SUB-MONTH RANGES: the engine filters by FULL date, never the
+   YYYY-MM truncation (which made every row of a month "overlap" any range
+   inside that month — a ten-day label over a whole-month table) ── */
+{
+  const qx = read("qlx.js");
+  const code = grab(qx, "function monthOf(r)", "\n", "qlx.js")
+    + grab(qx, "const dateOf = r =>", "\n", "qlx.js")
+    + grab(qx, "const rowInPeriod = r =>", "\n", "qlx.js");
+  const inP = (d, p) => {
+    if (!p || p === "all") return true;
+    if (/^c:/.test(p)) { const m = /^c:(.+)\.\.(.+)$/.exec(p); return d >= m[1] && d <= m[2]; }
+    return String(d).slice(0, p.length) === p;
+  };
+  const ctx = { CFG: { monthOf: r => r.date }, S: { month: "c:2026-06-10..2026-06-20" }, QLD: { inPeriod: inP } };
+  vm.createContext(ctx);
+  vm.runInContext(code + "this.rowInPeriod = rowInPeriod;", ctx);
+  ok("a 5 June row is OUTSIDE the 10–20 June range", !ctx.rowInPeriod({ date: "2026-06-05" }));
+  ok("a 15 June row is INSIDE it", ctx.rowInPeriod({ date: "2026-06-15" }));
+  ctx.S.month = "2026-06";
+  ok("month prefixes still match full dates", ctx.rowInPeriod({ date: "2026-06-05" }));
 }
 
 /* ── 2 · PAYABLES: bills of the period, aggregated per supplier ── */

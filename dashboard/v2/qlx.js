@@ -176,7 +176,13 @@
      world where allRows() has already thrown — while quietly reintroducing the
      exact broken comparison this line exists to delete. A dead wrong branch is
      still a wrong branch, and it is the copy nobody greps for. */
-  const rowInPeriod = r => QLD.inPeriod(monthOf(r), S.month);
+  /* FULL date, never the YYYY-MM truncation: against a month prefix both
+     behave identically, but against a sub-month range (c:10 Jun..20 Jun) the
+     truncated form made every June row "overlap" the range — the register
+     showed the whole month under a ten-day label. monthOf() stays for the
+     picker dots and the latest-month default, where a month IS the unit. */
+  const dateOf = r => ((CFG.monthOf ? CFG.monthOf(r) : r.date) || "");
+  const rowInPeriod = r => QLD.inPeriod(dateOf(r), S.month);
   /* monthFilter: 'self' — for registers whose rows are AGGREGATES (one row per
      supplier/customer built from many dated documents). Row-level monthOf
      filtering is the wrong layer there: a supplier "belongs" to every month a
