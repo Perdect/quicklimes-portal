@@ -22,12 +22,17 @@ function bucketOf(days) { return days > 60 ? 'critical' : days > 30 ? 'overdue' 
 const BUCKET = { recent: ['On time', '#ecfdf3', '#15803d'], overdue: ['Overdue', '#fef6ee', '#c2610c'], critical: ['Critical', '#fef2f2', '#dc2626'] };
 function agePill(r) { const b = BUCKET[r.bucket]; return `<span class="qx-pill" style="background:${b[1]};color:${b[2]}">${b[0]} · ${r.days}d</span>`; }
 
-/* Aggregate every unpaid purchase bill into one row per supplier. */
-function payRows() {
+/* Aggregate every unpaid purchase bill into one row per supplier.
+   `period` (a month '2026-06' or year '2026' from the toolbar) narrows to
+   bills DATED in that period — "what of June's buying is still unpaid".
+   Aging stays measured against today: a June bill is old because it is old,
+   not because June was picked. No period = the complete debt picture. */
+function payRows(period) {
   const byS = {}, phoneOf = {};
   Q.partyRows().forEach(p => { phoneOf[(p.name || '').toUpperCase()] = p.phone || ''; });
   Q.purchaseRows().forEach(s => {
     if (s.status === 'cancelled' || (s.outstanding || 0) <= 0) return;
+    if (period && !Q.inPeriod(s.date, period)) return;
     const k = s.sup || '—';
     (byS[k] = byS[k] || { sup: k, out: 0, bills: 0, oldest: s.date, last: s.date, emoji: s.emoji || '📦', invs: [] });
     byS[k].out += s.outstanding; byS[k].bills++; byS[k].invs.push(s);
@@ -101,17 +106,23 @@ function tabBills(r) {
 QLX.mount({
   active: 'payables', title: 'Payments Due', accent: 'blue', noun: 'supplier', nounPl: 'suppliers',
   icon: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>',
-  data: payRows, rowId: r => r.idx,
-  subtitle: () => { const c = payRows(), tot = c.reduce((a, r) => a + r.out, 0), od = c.filter(r => r.days > 30).length; return `<b>${esc(Q.co.short)}</b> · ${fC(tot)} to pay across ${c.length} supplier${c.length === 1 ? '' : 's'} · ${od} overdue`; },
+  data: () => payRows(QLX.month()), rowId: r => r.idx,
+  /* the month control scopes the BILLS, so the engine's row filter must not
+     re-filter the per-supplier aggregates — 'self' mode (see qlx.js) */
+  monthFilter: 'self', monthDefault: 'all',
+  monthsOf: () => [...new Set(Q.purchaseRows()
+    .filter(s => s.status !== 'cancelled' && (s.outstanding || 0) > 0)
+    .map(s => (s.date || '').slice(0, 7)).filter(m => m.length === 7))],
+  subtitle: () => { const m = QLX.month(), c = payRows(m), tot = c.reduce((a, r) => a + r.out, 0), od = c.filter(r => r.days > 30).length; return `<b>${esc(Q.co.short)}</b> · ${fC(tot)} to pay across ${c.length} supplier${c.length === 1 ? '' : 's'} · ${od} overdue${m ? ' · bills of ' + esc(Q.periodLabel(m)) : ''}`; },
   tools: [{ label: 'Export', icon: IC.dl, onClick: () => exportPay() }],
   stats: () => {
-    const c = payRows();
+    const m = QLX.month(), c = payRows(m);
     const tot = c.reduce((a, r) => a + r.out, 0);
     const od = c.filter(r => r.days > 30), odAmt = od.reduce((a, r) => a + r.out, 0);
     const crit = c.filter(r => r.days > 60), critAmt = crit.reduce((a, r) => a + r.out, 0);
     const oldest = c.reduce((m, r) => Math.max(m, r.days), 0);
     return [
-      { label: 'Total to pay', value: fC(tot), sub: c.length + ' suppliers', tint: 'blue', icon: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>' },
+      { label: 'Total to pay', value: fC(tot), sub: c.length + ' suppliers' + (m ? ' · ' + Q.periodLabel(m) + ' bills' : ''), tint: 'blue', icon: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>' },
       { label: 'Overdue > 30 days', value: fC(odAmt), sub: od.length + ' suppliers', tint: 'amber', icon: IC.clock || '<circle cx="12" cy="12" r="9"/>' },
       { label: 'Critical > 60 days', value: fC(critAmt), sub: crit.length + ' suppliers', tint: 'rose', icon: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
       { label: 'Oldest bill', value: oldest + ' days', sub: 'since bill date', tint: 'violet', icon: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>' }
@@ -158,4 +169,4 @@ QLX.mount({
 (function () { const h = (location.hash || '').slice(1); if (['overdue', 'critical', 'recent'].includes(h)) { const S = QLX.state(); S.quick = h; QLX.refresh(); } })();
 window.addEventListener('hashchange', () => { const h = (location.hash || '').slice(1); const S = QLX.state(); S.quick = ['overdue', 'critical', 'recent'].includes(h) ? h : 'all'; QLX.refresh(); });
 
-function exportPay() { const r = payRows(); QLShell.exportCSV('payables_' + (Q.co.short || 'list').replace(/\s+/g, '_'), ['Supplier', 'Open Bills', 'Oldest (days)', 'Last Bill', 'Payable'], r.map(x => [x.sup, x.bills, x.days, x.last, x.out])); toast('Exported ' + r.length + ' suppliers'); }
+function exportPay() { const m = QLX.month(), r = payRows(m); QLShell.exportCSV('payables_' + (Q.co.short || 'list').replace(/\s+/g, '_') + (m ? '_' + m : ''), ['Supplier', 'Open Bills', 'Oldest (days)', 'Last Bill', 'Payable'], r.map(x => [x.sup, x.bills, x.days, x.last, x.out])); toast('Exported ' + r.length + ' suppliers'); }

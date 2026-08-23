@@ -54,6 +54,7 @@ function load(state) {
 
   const cfg = {};
   const QLX = {
+    month: () => null,   // no period picked — the suite tests the complete-debt view
     esc: s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])),
     svg: () => '', icons: {}, toast: () => {}, refresh: () => {}, close: () => {},
     open: () => {}, state: () => ({}), actionsCell: () => '',

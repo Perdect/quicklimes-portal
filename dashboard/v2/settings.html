@@ -408,7 +408,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./shell.js?v=m68saaaaaaa"></script>
 <script src="./chat-core.js?v=cc2"></script>
 <script src="./imchat.js?v=im10"></script>
-<script src="./qlx.js?v=m20prgdaa"></script>
+<script src="./qlx.js?v=m20prgdaaa"></script>
 <script src="./replace-month.js?v=g9"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
@@ -1050,10 +1050,7 @@ function renderDemo() {
 /* Each section renders independently: on a brand-new company the local cache
    is empty and ONE section throwing used to kill the whole chain silently
    (QLD.init swallows the rejection) — the sections after it never painted. */
-QLD.init(() => {
-  [render, renderDM, renderBanks, renderCo, renderRm, renderDemo, openCompanyDeepLink]
-    .forEach(f => { try { f(); } catch (e) { console.warn('settings init: ' + (f.name || '?') + ' failed', e); } });
-});
+QLD.init(() => { const safe = f => { try { f(); } catch (e) { console.warn("settings init:", e); } }; safe(() => render()); safe(() => renderDM()); safe(() => renderBanks()); safe(() => renderCo()); safe(() => renderRm()); safe(() => renderDemo()); safe(() => openCompanyDeepLink()); });
 renderTeam();
 renderWa();
 </script>

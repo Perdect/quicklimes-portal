@@ -41,7 +41,12 @@ function refNow() {
 }
 // recomputed on every render (data.js can settle its rows after this script first runs)
 let NOW = refNow();
-function syncNow() { NOW = refNow(); }
+function periodEnd(period) {
+  if (/^\d{4}$/.test(period)) return new Date(+period, 11, 31);
+  const [y, m] = period.split('-').map(Number);
+  return new Date(y, m, 0);                       // last day of the month
+}
+function syncNow(period) { NOW = period ? periodEnd(period) : refNow(); }
 function dDays(d) { if (!d) return 99999; const t = new Date(d); return isNaN(t) ? 99999 : Math.max(0, Math.round((NOW - t) / 864e5)); }
 function relDays(n) { if (n >= 99999) return 'never'; if (n <= 0) return 'today'; if (n === 1) return 'yesterday'; if (n < 30) return n + 'd ago'; if (n < 60) return '1mo ago'; if (n < 365) return Math.round(n / 30) + 'mo ago'; return Math.round(n / 365) + 'y ago'; }
 
@@ -74,19 +79,27 @@ function buildResolver(parties) {
 }
 
 /* ═══════════ ENRICHMENT — turn each party into an intelligence record ═══════════ */
-function enriched() {
-  syncNow();
+function enriched(period) {
+  syncNow(period);
   const parties = Q.partyRows();
   const resolve = buildResolver(parties);
-  const salesBy = {}, purBy = {};
+  const salesBy = {}, purBy = {}, lifeBy = {};
   Q.salesRows().forEach(s => {
     const k = resolve(s.party, s.gstin); if (k < 0) return;
+    /* lifetime pass ALWAYS runs: the running balance and the "has this party
+       ever traded" question must not depend on the picked month */
+    const L = lifeBy[k] || (lifeBy[k] = { sAmt: 0, sPaid: 0, pAmt: 0, pPaid: 0, sN: 0 });
+    L.sAmt += s.total; L.sPaid += s.paid; L.sN++;
+    if (period && !Q.inPeriod(s.date, period)) return;
     const b = salesBy[k] || (salesBy[k] = { amt: 0, due: 0, paid: 0, n: 0, last: '', rows: [], overdue: 0 });
     b.amt += s.total; b.due += s.outstanding; b.paid += s.paid; b.n++; if (s.date > b.last) b.last = s.date; b.rows.push(s);
     if (s.outstanding > 0.5 && dDays(s.date) > 30) b.overdue += s.outstanding;
   });
   Q.purchaseRows().forEach(p => {
     const k = resolve(p.sup, p.gstin); if (k < 0) return;
+    const L = lifeBy[k] || (lifeBy[k] = { sAmt: 0, sPaid: 0, pAmt: 0, pPaid: 0, sN: 0 });
+    L.pAmt += p.total; L.pPaid += (p.paid || 0);
+    if (period && !Q.inPeriod(p.date, period)) return;
     const b = purBy[k] || (purBy[k] = { amt: 0, due: 0, paid: 0, n: 0, last: '', rows: [] });
     b.amt += p.total; b.due += p.outstanding; b.paid += (p.paid || 0); b.n++; if (p.date > b.last) b.last = p.date; b.rows.push(p);
   });
@@ -110,7 +123,7 @@ function enriched() {
     const share = s.amt / totalRev;
     const spark = monthly(s.rows, 6);
     let seg;
-    if (s.n === 0) seg = 'prospect';
+    if (s.n === 0) seg = (lifeBy[r.idx] && lifeBy[r.idx].sN > 0) ? 'dormant' : 'prospect';
     else if (s.overdue > 0 && s.overdue / s.amt > 0.12 && health < 62) seg = 'atrisk';
     else if (salesRec > 75) seg = 'dormant';
     else if (s.amt >= top20cut && health >= 64) seg = 'vip';
@@ -118,7 +131,8 @@ function enriched() {
     else seg = 'regular';
     // ── Running account (bank-ledger model): receivable-positive convention ──
     const opening = +r.opening || 0;
-    const currentBalance = opening + s.amt - s.paid - p.amt + p.paid + (Q.ledgerNet ? Q.ledgerNet(r.idx) : 0);  // + = they owe us, − = we owe them
+    const L = lifeBy[r.idx] || { sAmt: 0, sPaid: 0, pAmt: 0, pPaid: 0, sN: 0 };
+    const currentBalance = opening + L.sAmt - L.sPaid - L.pAmt + L.pPaid + (Q.ledgerNet ? Q.ledgerNet(r.idx) : 0);  // + = they owe us, − = we owe them · LIFETIME, whatever month is picked
     const advance = currentBalance < 0 ? -currentBalance : 0;
     const creditLimit = +r.creditLimit || 0;
     const creditUtil = creditLimit > 0 ? Math.max(0, currentBalance) / creditLimit : null;
@@ -209,7 +223,7 @@ function tabOverview(r) {
     <div class="crm-dhero-x">
       <div>${segPill(r)}</div>
       <div class="crm-dhero-m"><b style="color:${bc}">${drcr(r.currentBalance)}</b><span>current balance</span></div>
-      <div class="crm-dhero-sub">${fC(r.business)} lifetime · ${r.salesN} orders${r.advance > 0.5 ? ' · <span style="color:#16a34a">' + fC(Math.round(r.advance)) + ' advance</span>' : ''}</div>
+      <div class="crm-dhero-sub">${fC(r.business)} ${QLX.month() ? esc(Q.periodLabel(QLX.month())) : 'lifetime'} · ${r.salesN} orders${r.advance > 0.5 ? ' · <span style="color:#16a34a">' + fC(Math.round(r.advance)) + ' advance</span>' : ''}</div>
     </div></div>`;
   return hero +
     `<div class="qx-sec-h">Contact</div>
@@ -350,8 +364,12 @@ QLX.mount({
   active: isSup() ? 'suppliers' : isCust() ? 'customers' : 'parties',
   title: isSup() ? 'Suppliers' : 'Customer Intelligence', accent: 'blue', noun: 'customer', nounPl: 'customers',
   icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-  data: enriched, rowId: r => r.idx,
-  subtitle: () => { const rows = enriched(), cust = rows.filter(r => r.salesN > 0), active = cust.filter(r => r.salesRec <= 45).length; return `<b>${esc(Q.co.short)}</b> · ${cust.length} customers · ${active} active · AI health scoring live`; },
+  data: () => enriched(QLX.month()), rowId: r => r.idx,
+  monthFilter: 'self', monthDefault: 'all',
+  monthsOf: () => [...new Set(Q.salesRows().map(x => (x.date || '').slice(0, 7))
+    .concat(Q.purchaseRows().map(x => (x.date || '').slice(0, 7)))
+    .filter(m => m.length === 7))],
+  subtitle: () => { const m = QLX.month(), rows = enriched(m), cust = rows.filter(r => r.salesN > 0), active = cust.filter(r => r.salesRec <= 45).length; return `<b>${esc(Q.co.short)}</b> · ${cust.length} customers${m ? ' in ' + esc(Q.periodLabel(m)) : ''} · ${active} active · AI health scoring live`; },
   primary: { label: 'Add Party', icon: IC.plus, onClick: () => QLShell.openPartyForm() },
   emptySub: 'Add a customer or supplier to start tracking invoices, payments and ledgers.',
   tools: [
@@ -363,19 +381,20 @@ QLX.mount({
   views: ['table', 'cards', 'analytics'],
   banner: rows => bannerHTML(rows),
   stats: () => {
-    const rows = enriched(), cust = rows.filter(r => r.salesN > 0);
+    const m = QLX.month();
+    const rows = enriched(m), cust = rows.filter(r => r.salesN > 0);
     const active = cust.filter(r => r.salesRec <= 45).length;
     // portfolio receivable/overdue straight from the register (authoritative)
     let recv = 0, overdue = 0;
-    Q.salesRows().forEach(s => { if (s.status === 'cancelled' || s.outstanding <= 0.5) return; recv += s.outstanding; if (dDays(s.date) > 30) overdue += s.outstanding; });
+    Q.salesRows().forEach(s => { if (s.status === 'cancelled' || s.outstanding <= 0.5) return; if (m && !Q.inPeriod(s.date, m)) return; recv += s.outstanding; if (dDays(s.date) > 30) overdue += s.outstanding; });
     const overN = rows.filter(r => r.overdue > 0).length;
     const avgH = cust.length ? Math.round(cust.reduce((a, r) => a + r.health, 0) / cust.length) : 0;
     const atrisk = rows.filter(r => r.seg === 'atrisk').length;
     const mom2 = monthly(Q.salesRows(), 2); const mom = mom2[0] ? (mom2[1] - mom2[0]) / mom2[0] * 100 : null;
     return [
       { label: 'Customers', value: cust.length, sub: active + ' active', tint: 'blue', icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>' },
-      { label: 'Monthly Sales', value: fC(Math.round(mom2[1] || 0)), sub: 'vs last month', trend: mom, tint: 'green', icon: '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>' },
-      { label: 'Receivable', value: fC(recv), sub: overN + ' overdue · ' + fC(overdue), tint: 'amber', icon: IC.clock },
+      { label: m ? 'Sales · ' + Q.periodLabel(m) : 'Monthly Sales', value: fC(Math.round(mom2[1] || 0)), sub: 'vs previous month', trend: mom, tint: 'green', icon: '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>' },
+      { label: 'Receivable', value: fC(recv), sub: overN + ' overdue · ' + fC(overdue) + (m ? ' · ' + Q.periodLabel(m) + ' invoices' : ''), tint: 'amber', icon: IC.clock },
       { label: 'Avg Health', value: avgH + '/100', sub: 'portfolio health', tint: 'violet', icon: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>' },
       { label: 'At-risk', value: atrisk, sub: 'need attention', tint: 'rose', icon: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' }
     ];
@@ -434,7 +453,7 @@ QLX.mount({
     const segCount = {}; cust.forEach(r => segCount[r.seg] = (segCount[r.seg] || 0) + 1);
     const donut = Object.keys(segCount).map(k => ({ label: (SEG[k] || SEG.regular).label, value: segCount[k], display: String(segCount[k]), color: (SEG[k] || SEG.regular).dot }));
     const ag = [['0–30 days', 0, '#22c55e'], ['31–60 days', 0, '#f59e0b'], ['61–90 days', 0, '#f97316'], ['90+ days', 0, '#ef4444']];
-    Q.salesRows().forEach(s => { if (s.outstanding <= 0.5 || s.status === 'cancelled') return; const a = dDays(s.date); const i = a <= 30 ? 0 : a <= 60 ? 1 : a <= 90 ? 2 : 3; ag[i][1] += s.outstanding; });
+    Q.salesRows().forEach(s => { if (s.outstanding <= 0.5 || s.status === 'cancelled') return; const mm = QLX.month(); if (mm && !Q.inPeriod(s.date, mm)) return; const a = dDays(s.date); const i = a <= 30 ? 0 : a <= 60 ? 1 : a <= 90 ? 2 : 3; ag[i][1] += s.outstanding; });
     const agMax = Math.max(1, ...ag.map(x => x[1]));
     const trend = monthly(Q.salesRows(), 6);
     const extra = `<div class="qx-an-h">Receivable aging</div>
@@ -466,6 +485,6 @@ QLX.mount({
 window.addEventListener('hashchange', () => { const S = QLX.state(); S.adv.type = isSup() ? 'supplier' : isCust() ? 'customer' : ''; QLX.refresh(); });
 
 // global for inline onclick in the ledger tab
-window.PartiesLedger = { receipt(idx) { const r = enriched().find(x => x.idx === idx); if (r) recordReceipt(r); } };
+window.PartiesLedger = { receipt(idx) { const r = enriched(QLX.month()).find(x => x.idx === idx); if (r) recordReceipt(r); } };
 
-function exportParties() { const r = enriched(); QLShell.exportCSV('customers_' + (Q.co.short || 'list').replace(/\s+/g, '_'), ['Name', 'Type', 'Segment', 'Health', 'GSTIN', 'Phone', 'State', 'Orders', 'Business', 'Receivable', 'Overdue', 'LastOrder'], r.map(x => [x.name, x.type, (SEG[x.seg] || {}).label, x.salesN ? x.health : '', x.gstin, x.phone, x.state, x.salesN, Math.round(x.business), Math.round(x.salesDue), Math.round(x.overdue), x.salesLast])); toast('Exported ' + r.length + ' parties'); }
+function exportParties() { const m = QLX.month(), r = enriched(m); QLShell.exportCSV('customers_' + (Q.co.short || 'list').replace(/\s+/g, '_') + (m ? '_' + m : ''), ['Name', 'Type', 'Segment', 'Health', 'GSTIN', 'Phone', 'State', 'Orders', 'Business', 'Receivable', 'Overdue', 'LastOrder'], r.map(x => [x.name, x.type, (SEG[x.seg] || {}).label, x.salesN ? x.health : '', x.gstin, x.phone, x.state, x.salesN, Math.round(x.business), Math.round(x.salesDue), Math.round(x.overdue), x.salesLast])); toast('Exported ' + r.length + ' parties'); }

@@ -177,7 +177,26 @@
      exact broken comparison this line exists to delete. A dead wrong branch is
      still a wrong branch, and it is the copy nobody greps for. */
   const rowInPeriod = r => QLD.inPeriod(monthOf(r), S.month);
+  /* monthFilter: 'self' — for registers whose rows are AGGREGATES (one row per
+     supplier/customer built from many dated documents). Row-level monthOf
+     filtering is the wrong layer there: a supplier "belongs" to every month a
+     bill of theirs sits in. In self mode the page's data() reads QLX.month()
+     and scopes the UNDERLYING documents before aggregating; the engine still
+     owns the button, the picker, persistence and the empty-state wording.
+     CFG.monthsOf() supplies the document months (for the picker's dots and the
+     latest-month default), because rows can no longer answer that.
+     CFG.monthDefault: 'all' makes the COMPLETE view the landing view — a debt
+     page that woke up scoped to June would silently hide February's unpaid
+     bills, which is the one lie a payables page must never tell. */
   function allRows() {
+    if (CFG.monthFilter === 'self') {
+      if (!S.monthInit) {
+        S.month = CFG.monthDefault === 'all' ? 'all'
+          : ((window.QLD && QLD.uiMonth) ? QLD.uiMonth() : null) || selfLatest();
+        S.monthInit = true; S._saved = true;   // never auto-resnap an aggregate page
+      }
+      return (CFG.data ? CFG.data() : []) || [];
+    }
     let rows = (CFG.data ? CFG.data() : []) || [];
     if (!CFG.monthFilter) return rows;
     // Always default to the LATEST month that has data. Re-snap when a newer
@@ -199,6 +218,8 @@
     return rows;
   }
   function rawRows() { return (CFG.data ? CFG.data() : []) || []; }   // pre-month, for the picker
+  function selfMonths() { try { return CFG.monthsOf ? (CFG.monthsOf() || []) : []; } catch (_) { return []; } }
+  function selfLatest() { const ms = [...selfMonths()].sort(); return ms.length ? ms[ms.length - 1] : 'all'; }
   function rowId(r) { return CFG.rowId ? CFG.rowId(r) : (r.idx != null ? r.idx : r.id); }
   function rowById(id) { return allRows().find(r => String(rowId(r)) === String(id)); }
 
@@ -320,7 +341,8 @@
     closeMenu();
     QLShell.monthPicker(anchor, {
       month: S.month,
-      have: new Set(rawRows().map(monthOf).filter(Boolean)),
+      have: CFG.monthFilter === 'self' ? new Set(selfMonths())
+          : new Set(rawRows().map(monthOf).filter(Boolean)),
       /* "how can I filter month or year give option calendar fo all" — the year
          button, on every QLX register, not just Inventory. It is one option on
          the shared picker; opting out (CFG.years: false) is for a page whose

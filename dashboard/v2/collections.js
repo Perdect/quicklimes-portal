@@ -29,7 +29,9 @@ const BUCKET = { recent: ['On track', '#ecfdf3', '#15803d'], overdue: ['Overdue'
 function agePill(r) { const b = BUCKET[r.bucket]; return `<span class="qx-pill" style="background:${b[1]};color:${b[2]}">${b[0]} · ${r.days}d</span>`; }
 
 /* Aggregate every unpaid sales invoice into one row per customer. */
-function collectRows() {
+/* `period` narrows to invoices DATED in that month/year — "what of June's
+   sales is still uncollected". Aging stays vs today; no period = everything. */
+function collectRows(period) {
   /* One row per REAL customer, resolved by GSTIN — not per spelling.
      This is the highest-stakes grouping in the app: reminderMsg() turns each row
      into a WhatsApp message stating "₹X is pending against N invoices". Keying by
@@ -38,7 +40,8 @@ function collectRows() {
      The party index spans sales AND the party master together, so an invoice and
      the contact record resolve to the same key and the phone is found even when
      the two spell the name differently. */
-  const sales = Q.salesRows().filter(s => s.status !== 'cancelled' && (s.outstanding || 0) > 0);
+  const sales = Q.salesRows().filter(s => s.status !== 'cancelled' && (s.outstanding || 0) > 0 &&
+    (!period || Q.inPeriod(s.date, period)));
   const parties = Q.partyRows();
   const idx = QLParty.index(
     sales.map(s => ({ n: s.party, g: s.gstin })).concat(parties.map(p => ({ n: p.name, g: p.gstin }))),
@@ -127,8 +130,12 @@ function receivePayment(r) {
 QLX.mount({
   active: 'collections', title: 'Collections', accent: 'blue', noun: 'customer', nounPl: 'customers',
   icon: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>',
-  data: collectRows, rowId: r => r.idx,
-  subtitle: () => { const c = collectRows(), tot = c.reduce((a, r) => a + r.out, 0), od = c.filter(r => r.days > 30).length; return `<b>${esc(Q.co.short)}</b> · ${fC(tot)} to collect from ${c.length} customer${c.length === 1 ? '' : 's'} · ${od} overdue`; },
+  data: () => collectRows(QLX.month()), rowId: r => r.idx,
+  monthFilter: 'self', monthDefault: 'all',
+  monthsOf: () => [...new Set(Q.salesRows()
+    .filter(s => s.status !== 'cancelled' && (s.outstanding || 0) > 0)
+    .map(s => (s.date || '').slice(0, 7)).filter(m => m.length === 7))],
+  subtitle: () => { const m = QLX.month(), c = collectRows(m), tot = c.reduce((a, r) => a + r.out, 0), od = c.filter(r => r.days > 30).length; return `<b>${esc(Q.co.short)}</b> · ${fC(tot)} to collect from ${c.length} customer${c.length === 1 ? '' : 's'} · ${od} overdue${m ? ' · invoices of ' + esc(Q.periodLabel(m)) : ''}`; },
   // The count is the point: "Reminders" is a chore, "Reminders (7)" is a to-do.
   // Computed from the real plan, so it can never promise work that isn't there.
   tools: [
@@ -136,13 +143,13 @@ QLX.mount({
     { label: 'Export', icon: IC.dl, onClick: () => exportColl() }
   ],
   stats: () => {
-    const c = collectRows();
+    const m = QLX.month(), c = collectRows(m);
     const tot = c.reduce((a, r) => a + r.out, 0);
     const od = c.filter(r => r.days > 30), odAmt = od.reduce((a, r) => a + r.out, 0);
     const crit = c.filter(r => r.days > 60), critAmt = crit.reduce((a, r) => a + r.out, 0);
     const oldest = c.reduce((m, r) => Math.max(m, r.days), 0);
     return [
-      { label: 'Total to collect', value: fC(tot), sub: c.length + ' customers', tint: 'blue', icon: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>' },
+      { label: 'Total to collect', value: fC(tot), sub: c.length + ' customers' + (m ? ' · ' + Q.periodLabel(m) + ' invoices' : ''), tint: 'blue', icon: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>' },
       { label: 'Overdue > 30 days', value: fC(odAmt), sub: od.length + ' customers', tint: 'amber', icon: IC.clock || '<circle cx="12" cy="12" r="9"/>' },
       { label: 'Critical > 60 days', value: fC(critAmt), sub: crit.length + ' customers', tint: 'rose', icon: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
       { label: 'Oldest receivable', value: oldest + ' days', sub: 'since invoice', tint: 'violet', icon: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>' }
@@ -203,4 +210,4 @@ window.addEventListener('hashchange', () => { const h = (location.hash || '').sl
    ("who is due a nudge today"), driven by wa-core.js. */
 function openReminders() { if (window.QLWA) QLWA.open(); else toast('Reminder engine not loaded', 'err'); }
 
-function exportColl() { const r = collectRows(); QLShell.exportCSV('collections_' + (Q.co.short || 'list').replace(/\s+/g, '_'), ['Customer', 'Pending Bills', 'Oldest (days)', 'Last Sale', 'Outstanding'], r.map(x => [x.party, x.bills, x.days, x.last, x.out])); toast('Exported ' + r.length + ' customers'); }
+function exportColl() { const m = QLX.month(), r = collectRows(m); QLShell.exportCSV('collections_' + (Q.co.short || 'list').replace(/\s+/g, '_') + (m ? '_' + m : ''), ['Customer', 'Pending Bills', 'Oldest (days)', 'Last Sale', 'Outstanding'], r.map(x => [x.party, x.bills, x.days, x.last, x.out])); toast('Exported ' + r.length + ' customers'); }

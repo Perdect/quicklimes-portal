@@ -88,8 +88,8 @@
     "sha": "106ad4847e8d"
   },
   "qlx.js": {
-    "v": "m20prgdaa",
-    "sha": "772c0bd4904b"
+    "v": "m20prgdaaa",
+    "sha": "de7a92787aa3"
   },
   "cashbook.js": {
     "v": "m4d",
@@ -104,8 +104,8 @@
     "sha": "5fe01c9cd041"
   },
   "collections.js": {
-    "v": "c3cd",
-    "sha": "658aa014f4d8"
+    "v": "c3cda",
+    "sha": "57b1a4c3a89e"
   },
   "finance.css": {
     "v": "f5",
@@ -264,8 +264,12 @@
     "sha": "c80d58b5e4b0"
   },
   "parties.js": {
-    "v": "crm9cd",
-    "sha": "7bfc1be08139"
+    "v": "crm9cda",
+    "sha": "9c35602ec6f2"
+  },
+  "payables.js": {
+    "v": "pb2",
+    "sha": "b02b394ef4f9"
   },
   "payments.js": {
     "v": "m2dc",
