@@ -564,7 +564,7 @@
     /* §27 of the demo spec: dummy data must never look like real books. The
        badge keys off the COMPANY NAME (isDemoCo), not off the data — a demo
        company is a demo company even while empty. */
-    (function () {
+    (function () { try {
       let pill = document.getElementById('qlDemoPill');
       const demo = !!(Q.isDemoCo && Q.isDemoCo());
       if (!demo) { if (pill) pill.remove(); return; }
@@ -577,7 +577,7 @@
         const host = document.querySelector('#wsBtn .workspace-name');
         if (host) host.appendChild(pill);
       }
-    })();
+    } catch (_) { /* the pill is decoration — it must never break mount */ } })();
     const menu = $('wsMenu');
     if (!menu) { paintAvatarLetter(co); refreshNotifDot(); return; }
     menu.innerHTML = Object.values(Q.COMPANIES || {}).map((c, i) => `

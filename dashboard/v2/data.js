@@ -1949,10 +1949,10 @@
      actual accounts) can never be overwritten by a demo fill — not by a
      mis-click, not by a bug in a page. Regenerating = the §28 reset: same
      seed, same data, every time. */
-  function isDemoCo() { return /demo/i.test((co && (co.name || co.short)) || ''); }
+  function isDemoCo() { const c = COMPANIES[ACTIVE_CO]; return /demo/i.test((c && (c.name || c.short)) || ''); }
   function installDemo(seed) {
     if (!window.QLDemo) return { ok: false, err: 'demo-seed.js is not loaded on this page' };
-    if (!isDemoCo()) return { ok: false, err: 'Refused: "' + (co.name || co.short) + '" is not a demo company. Demo data only installs into a company whose name contains DEMO — your real books stay untouched.' };
+    if (!isDemoCo()) return { ok: false, err: 'Refused: "' + ((COMPANIES[ACTIVE_CO] || {}).short || 'this company') + '" is not a demo company. Demo data only installs into a company whose name contains DEMO — your real books stay untouched.' };
     const d = window.QLDemo.generate(seed);
     clearState();
     hydrate(d);
