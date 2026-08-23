@@ -57,6 +57,9 @@ const SAMPLE = {
   WORK_LOG: [{ d: 1 }], TDS: [{ t: 1 }], CHALLANS: [{ c: 1 }], PARTIES: [{ name: 'ARIF' }],
   CASHBOOK: [{ id: 'cb1' }], CHUNNA: [{ c: 1 }], PROD: [{ p: 1 }], AUDIT: [{ a: 1 }],
   REFUNDS: [{ r: 1 }], BANK_ACCOUNTS: [{ id: 'A1' }],
+  // Manufacturing expense — the costing system reads production cost from
+  // this store; losing it on reload silently zeroes every cost/T.
+  EXPENSES: [{ id: "EX1", date: "2026-06-12", group: "production", sub: "Electricity", amount: 12000, treatment: "direct-production" }],
   // Statement upload history — per bank account. Without it a bank card
   // cannot say when it was last updated and a re-upload cannot be detected.
   STATEMENTS: [{ id: 'ST1', accountId: 'A1', file: 'hdfc-jan.pdf', rows: 196, sha: 'abc' }],

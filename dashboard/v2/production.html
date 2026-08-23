@@ -2,12 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<script data-theme-boot>/* THEME BOOT — runs before the FIRST PAINT. The app shell applies the theme at
-   mount, which is far too late: the browser would paint the page light and then
-   flip, so a Light user on a dark Mac sees a white flash. Must stay in <head>,
-   above every stylesheet. (It used to guard the launch splash; the splash is
-   gone, the flash it prevents is not.) Resolves 'system' here too, so data-theme
-   is ALWAYS a literal light|dark and CSS never has to ask twice. */
+<script data-theme-boot>/* THEME BOOT — before first paint, above every stylesheet. */
 (function(){try{var t=localStorage.getItem('ql_theme')||'light';
 var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
 document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
@@ -27,86 +22,111 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cora"><link rel="stylesheet" href="./imchat.css?v=im10"><link rel="stylesheet" href="./qlx.css?v=m23">
 <link rel="stylesheet" href="./mobile.css?v=m16">
-<!-- iOS launch images: without these iOS paints WHITE while the app boots.
-     background_color in the manifest is Android-only. -->
-<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/375x667@2x.png">
-<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:736px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x736@3x.png">
-<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/375x812@3x.png">
-<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/414x896@2x.png">
-<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x896@3x.png">
-<link rel="apple-touch-startup-image" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/390x844@3x.png">
-<link rel="apple-touch-startup-image" media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/428x926@3x.png">
-<link rel="apple-touch-startup-image" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/393x852@3x.png">
-<link rel="apple-touch-startup-image" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/430x932@3x.png">
-<link rel="apple-touch-startup-image" media="(device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/402x874@3x.png">
-<link rel="apple-touch-startup-image" media="(device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/440x956@3x.png">
-<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/375x667@2x-dark.png">
-<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:414px) and (device-height:736px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x736@3x-dark.png">
-<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/375x812@3x-dark.png">
-<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="/v2/splash/414x896@2x-dark.png">
-<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/414x896@3x-dark.png">
-<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/390x844@3x-dark.png">
-<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/428x926@3x-dark.png">
-<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/393x852@3x-dark.png">
-<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/430x932@3x-dark.png">
-<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/402x874@3x-dark.png">
-<link rel="apple-touch-startup-image" media="(prefers-color-scheme:dark) and (device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="/v2/splash/440x956@3x-dark.png">
 </head>
 <body class="ql-v2">
 <style id="prd-css">
-/* Derived-table marks. Scoped to this page on purpose: pages.css is shared and this
-   vocabulary (a derived figure, a bill that never gave up its tonnage) exists nowhere
-   else yet. Uses tokens only, so dark mode follows without a second rule. */
+/* Month-first production dashboard. Tokens only; dark mode follows free. */
+.prd-mbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:var(--ql-space-4)}
+.prd-mnav{width:34px;height:34px;border-radius:9px;border:1px solid var(--ql-divider);background:var(--ql-card);color:var(--ql-text);display:grid;place-items:center;cursor:pointer}
+.prd-mnav:hover{border-color:var(--ql-brand-500)}
+.prd-now{font-size:12.5px;font-weight:600;color:var(--ql-brand-600);background:none;border:none;cursor:pointer;padding:6px 8px}
 .prd-note{font-size:12.5px;line-height:1.55;color:var(--ql-text-soft);background:var(--ql-surface-2,var(--ql-bg));border:1px solid var(--ql-divider);border-radius:10px;padding:10px 12px;margin-bottom:var(--ql-space-3)}
 .prd-note b{color:var(--ql-text)}
-.prd-dash{color:var(--ql-text-muted);cursor:help}
-.prd-warn{display:inline-grid;place-items:center;width:14px;height:14px;margin-left:5px;border-radius:50%;background:var(--ql-warning-50);color:var(--ql-warning-600);font-size:10px;font-weight:800;cursor:help;vertical-align:middle}
-.prd-meas{font-weight:700}
-.prd-sub{font-size:11px;color:var(--ql-text-muted);margin-top:1px}
-.prd-src{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;cursor:help;white-space:nowrap}
-.prd-src-d{background:var(--ql-brand-50);color:var(--ql-brand-600)}
-.prd-src-m{background:var(--ql-success-50);color:var(--ql-success-600)}
 .prd-gap{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;margin-bottom:var(--ql-space-3);border:1px solid var(--ql-warning-200,var(--ql-divider));background:var(--ql-warning-50);border-radius:10px}
 .prd-gap-ic{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--ql-warning-600);color:#fff;font-weight:800;font-size:12px}
 .prd-gap-t{font-weight:700;font-size:13px;color:var(--ql-text)}
 .prd-gap-s{font-size:12px;line-height:1.5;color:var(--ql-text-soft);margin-top:2px}
-.prd-gap .ql-btn{flex:none;margin-left:auto;align-self:center}
+.prd-dash{color:var(--ql-text-muted);cursor:help}
+.prd-warn{display:inline-grid;place-items:center;width:14px;height:14px;margin-left:5px;border-radius:50%;background:var(--ql-warning-50);color:var(--ql-warning-600);font-size:10px;font-weight:800;cursor:help;vertical-align:middle}
+.prd-seg{display:inline-flex;border:1px solid var(--ql-divider);border-radius:9px;overflow:hidden}
+.prd-seg button{border:none;background:var(--ql-card);color:var(--ql-text-soft);font-size:12px;font-weight:600;padding:6px 11px;cursor:pointer}
+.prd-seg button.on{background:var(--ql-brand-500);color:#fff}
+.prd-cost-line{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px dashed var(--ql-divider);cursor:pointer}
+.prd-cost-line:hover{background:var(--ql-surface-2,var(--ql-bg))}
+.prd-cost-line:last-child{border-bottom:none}
+.prd-cost-lbl{flex:1;min-width:0}.prd-cost-lbl b{font-size:13px}
+.prd-cost-src{font-size:11px;color:var(--ql-text-muted)}
+.prd-cost-amt{font-weight:700;font-size:13px;white-space:nowrap}
+.prd-cost-bar{height:5px;border-radius:3px;background:var(--ql-brand-500);opacity:.75;min-width:2px}
+.prd-pl td{padding:7px 8px}.prd-pl .sec td{font-weight:800;border-top:2px solid var(--ql-divider)}
+.prd-pos{color:var(--ql-success-600)}.prd-neg{color:var(--ql-danger-600,#dc2626)}
+.prd-delta{font-size:11.5px;font-weight:700}
+.prd-mini{font-size:11.5px;color:var(--ql-text-muted)}
 </style>
 <div id="ql-page">
   <div class="dash qx qx-a-blue">
     <div id="prdHero"></div>
+
+    <div class="prd-mbar">
+      <button class="prd-mnav" id="prdPrev" title="Previous month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <span id="prdMonthHost"></span>
+      <button class="prd-mnav" id="prdNext" title="Next month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      <button class="prd-now" id="prdNow">Current month</button>
+    </div>
+
     <div id="prdKpis"></div>
+    <div id="prdBanner"></div>
+
     <div class="row-2">
       <div class="card chart-wrap">
-        <div class="card-head"><div><h3 class="card-title">Dispatch trend</h3><div class="card-sub">Tonnes dispatched · last 7 months</div></div></div>
-        <div class="chart" id="prdChart"></div>
+        <div class="card-head"><div><h3 class="card-title">Daily production</h3><div class="card-sub" id="prdDailySub"></div></div>
+          <div class="prd-seg" id="prdDailySeg"><button data-k="total" class="on">Total</button><button data-k="quicklime">Quick Lime</button><button data-k="hydrated">Hydrated</button></div></div>
+        <div class="chart" id="prdDaily"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div><h3 class="card-title">Output by product</h3><div class="card-sub">Revenue by line · all time</div></div></div>
-        <table class="tbl"><thead><tr><th>Product</th><th class="num">Qty</th><th class="num">Avg ₹/T</th><th class="num">Revenue</th></tr></thead><tbody id="prdProducts"></tbody></table>
+        <div class="card-head"><div><h3 class="card-title">Manufacturing cost</h3><div class="card-sub" id="prdCostSub"></div></div></div>
+        <div id="prdCost"></div>
+      </div>
+    </div>
+
+    <div class="row-2" style="margin-top:var(--ql-space-4)">
+      <div class="card">
+        <div class="card-head"><div><h3 class="card-title">Profitability</h3><div class="card-sub" id="prdPLSub">Sales − COGS − expenses, from actual costing</div></div></div>
+        <div style="overflow-x:auto"><table class="tbl prd-pl"><tbody id="prdPL"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><h3 class="card-title">Yield &amp; raw material</h3><div class="card-sub">Production ÷ limestone consumed · stock movement</div></div></div>
+        <div id="prdYield"></div>
+        <div style="overflow-x:auto;margin-top:10px"><table class="tbl"><thead><tr><th>Material</th><th class="num">Opening</th><th class="num">Purchased</th><th class="num">Consumed</th><th class="num">Closing</th><th class="num">Month cost</th></tr></thead><tbody id="prdRM"></tbody></table></div>
       </div>
     </div>
 
     <div class="card" style="margin-top:var(--ql-space-4)">
-      <div class="card-head">
-        <div><h3 class="card-title">Material &amp; output by month</h3><div class="card-sub" id="prdRunSub">Read off the bills you already uploaded — intake from purchases, dispatch from invoices</div></div>
-        <button class="ql-btn ql-btn-primary" id="prdAdd">+ Record production</button>
-      </div>
-      <div id="prdGap"></div>
-      <div class="prd-note">
-        <b>These rows are derived from your bills, not measured on the floor.</b>
-        A purchase bill proves material <b>arrived</b>; an invoice proves lime <b>left the gate</b>. Neither one proves what was burnt and made on a given day —
-        so this table never claims an output figure, and a blank cell means the bills don't say. Record a run to override a month with measured numbers.
-      </div>
-      <div id="prdStats" class="qx-stats-inset"></div>
-      <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Month</th><th class="num">Limestone (T)</th><th class="num">Petcoke (T)</th><th class="num">Bags</th><th class="num">Quick Lime (T)</th><th class="num">Hydrated (T)</th><th class="num">Implied</th><th>Source</th></tr></thead><tbody id="prdDerived"></tbody></table></div>
+      <div class="card-head"><div><h3 class="card-title">Product summary</h3><div class="card-sub" id="prdProdSub"></div></div></div>
+      <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Metric</th><th class="num">Quick Lime</th><th class="num">Hydrated Lime</th><th class="num">Total</th></tr></thead><tbody id="prdProducts"></tbody></table></div>
     </div>
 
-    <div class="card" id="prdRunsCard" style="margin-top:var(--ql-space-4);display:none">
-      <div class="card-head">
-        <div><h3 class="card-title">Measured runs</h3><div class="card-sub">Recorded on site — the only source of true output. Each one overrides its month above.</div></div>
+    <div class="card chart-wrap" style="margin-top:var(--ql-space-4)">
+      <div class="card-head"><div><h3 class="card-title">12-month trend</h3><div class="card-sub">Is the factory improving? One metric at a time.</div></div>
+        <div class="prd-seg" id="prdTrendSeg"><button data-k="prodT" class="on">Production</button><button data-k="cost">Cost</button><button data-k="costT">Cost/T</button><button data-k="salesT">Sales T</button><button data-k="revenue">Revenue</button><button data-k="gp">Gross profit</button></div></div>
+      <div class="chart" id="prdTrend"></div>
+      <div style="overflow-x:auto;margin-top:12px"><table class="tbl"><thead><tr><th>Month</th><th class="num">Production</th><th class="num">Cost/T</th><th class="num">Sales</th><th class="num">Revenue</th><th class="num">Gross profit</th><th class="num">Margin</th></tr></thead><tbody id="prdMgmt"></tbody></table></div>
+    </div>
+
+    <div class="row-2" style="margin-top:var(--ql-space-4)">
+      <div class="card">
+        <div class="card-head"><div><h3 class="card-title" id="prdCmpTitle">Month comparison</h3><div class="card-sub">Selected month vs the one before</div></div></div>
+        <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Metric</th><th class="num" id="prdCmpA">—</th><th class="num" id="prdCmpB">—</th><th class="num">Change</th></tr></thead><tbody id="prdCmp"></tbody></table></div>
       </div>
-      <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Date</th><th>Kiln</th><th class="num">Limestone (T)</th><th class="num">Petcoke (T)</th><th class="num">Bags</th><th class="num">Quick Lime (T)</th><th class="num">Hydrated (T)</th><th class="num">Labour</th><th></th></tr></thead><tbody id="prdRuns"></tbody></table></div>
+      <div class="card">
+        <div class="card-head"><div><h3 class="card-title">Expenses of the month</h3><div class="card-sub">By category · share of production cost</div></div>
+          <a class="ql-btn ql-btn-ghost" href="expenses.html">Open Expenses →</a></div>
+        <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Category</th><th class="num">Amount</th><th class="num">% of prod. cost</th></tr></thead><tbody id="prdExp"></tbody></table></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:var(--ql-space-4)">
+      <div class="card-head"><div><h3 class="card-title">Customer profitability</h3><div class="card-sub" id="prdCustSub">Who actually makes the money — value − manufacturing − attributed selling cost</div></div></div>
+      <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Customer</th><th class="num">Qty (T)</th><th class="num">Revenue</th><th class="num">Cost</th><th class="num">Profit</th><th class="num">Margin</th></tr></thead><tbody id="prdCust"></tbody></table></div>
+    </div>
+
+    <div class="card" style="margin-top:var(--ql-space-4)">
+      <div class="card-head">
+        <div><h3 class="card-title">Production register</h3><div class="card-sub" id="prdRegSub"></div></div>
+        <button class="ql-btn ql-btn-primary" id="prdAdd">+ Record production</button>
+      </div>
+      <div id="prdRegNote"></div>
+      <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Date</th><th>Kiln</th><th class="num">Limestone (T)</th><th class="num">Petcoke (T)</th><th class="num">Bags</th><th class="num">Quick Lime (T)</th><th class="num">Hydrated (T)</th><th class="num">Yield</th><th></th></tr></thead><tbody id="prdRuns"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -114,184 +134,513 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./party-resolve.js?v=pr1"></script>
-<script src="./data.js?v=m52caaa"></script>
+<script src="./costing-core.js?v=ct2"></script>
+<script src="./data.js?v=m52caaaa"></script>
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./i18n.js?v=h8"></script>
 <script src="./wa-core.js?v=w3"></script>
-<script src="./shell.js?v=m68saaaaa"></script>
+<script src="./shell.js?v=m68saaaaaa"></script>
 <script src="./chat-core.js?v=cc2"></script>
 <script src="./imchat.js?v=im10"></script>
 <script src="./qlx.js?v=m20prgdaa"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
+'use strict';
 QLShell.mount({ active: 'ql-prod', title: 'Production' });
-function bars(series) {
-  const host = document.getElementById('prdChart'); if (!host) return;
-  const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim();
-  const data = series.map(d => ({ m: d.m, qty: d.qty || 0 }));
-  const W = 760, H = 240, P = { l: 40, r: 14, t: 14, b: 26 };
+const Q = window.QLD, C = window.QLCosting;
+const esc = s => (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fC = v => Q.fC(v), nT = v => Q.fmt(v || 0, 1);
+const fPct = v => v == null ? '—' : v.toFixed(1) + '%';
+const dash = t => `<span class="prd-dash" title="${esc(t)}">—</span>`;
+const MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const mLabel = ym => { const [y, m] = ym.split('-').map(Number); return MN[m - 1] + ' ' + y; };
+const mShort = ym => { const [y, m] = ym.split('-').map(Number); return MN[m - 1].slice(0, 3) + ' ' + String(y).slice(2); };
+const shiftYm = (ym, n) => { let [y, m] = ym.split('-').map(Number); m += n; while (m < 1) { m += 12; y--; } while (m > 12) { m -= 12; y++; } return y + '-' + String(m).padStart(2, '0'); };
+const nowYm = () => new Date().toISOString().slice(0, 7);
+
+/* ── STATE: the selected month IS the page's context (§1/§20). Defaults to
+   the current calendar month when it has data, else the latest month that
+   does — an empty "August" as the landing view would say the factory stopped
+   when really the books just haven't reached August. */
+let MONTH = null;
+let DAILY_METRIC = 'total', TREND_METRIC = 'prodT';
+function monthsWithData() {
+  const set = new Set();
+  Q.productionRows().forEach(r => r.date && set.add(r.date.slice(0, 7)));
+  Q.salesRows().forEach(r => r.date && set.add(r.date.slice(0, 7)));
+  Q.purchaseRows().forEach(r => r.date && set.add(r.date.slice(0, 7)));
+  Q.expenseRows().forEach(r => r.date && set.add(r.date.slice(0, 7)));
+  return set;
+}
+function defaultMonth() {
+  const have = monthsWithData(), now = nowYm();
+  if (have.has(now) || !have.size) return now;
+  return [...have].sort().pop();
+}
+
+/* inputs for the engine, straight off the live stores — ONE source */
+const inputsFor = ym => Q.costingInputs(ym);
+
+/* ═══ SVG charts (same idiom as the rest of the app: tokens, tooltips) ═══ */
+function cssv(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function barChart(hostId, data, opts) {
+  const host = document.getElementById(hostId); if (!host) return;
+  opts = opts || {};
+  if (!data.length || !data.some(d => d.v > 0)) {
+    host.innerHTML = `<div style="display:grid;place-items:center;height:200px;color:var(--ql-text-muted);font-size:13px;text-align:center;padding:0 20px">${esc(opts.empty || 'Nothing to chart')}</div>`;
+    return;
+  }
+  const W = 760, H = 240, P = { l: 46, r: 12, t: 14, b: 26 };
   const iW = W - P.l - P.r, iH = H - P.t - P.b;
-  const max = Math.max(1, ...data.map(d => d.qty)) * 1.15;
-  const bw = Math.min(38, iW / data.length * 0.55);
+  const max = Math.max(1e-9, ...data.map(d => d.v)) * 1.15;
+  const bw = Math.min(30, iW / data.length * 0.6);
   const x = i => P.l + iW / data.length * i + iW / data.length / 2;
-  const y = val => P.t + iH - (val / max) * iH;
-  const grid = [0, .25, .5, .75, 1].map(t => { const yp = P.t + iH - t * iH; return `<line x1="${P.l}" y1="${yp}" x2="${W - P.r}" y2="${yp}" stroke="${v('--ql-divider')}" stroke-dasharray="3 4"/><text x="${P.l - 7}" y="${yp + 4}" text-anchor="end" font-family="${v('--ql-font-sans')}" font-size="10" fill="${v('--ql-text-muted')}">${(max * t).toFixed(0)}</text>`; }).join('');
-  const rect = data.map((d, i) => `<rect x="${x(i) - bw / 2}" y="${y(d.qty)}" width="${bw}" height="${P.t + iH - y(d.qty)}" rx="4" fill="${v('--ql-brand-500')}"><title>${d.m}: ${d.qty.toFixed(1)} T</title></rect><text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-family="${v('--ql-font-sans')}" font-size="11" fill="${v('--ql-text-secondary')}">${d.m}</text>`).join('');
-  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Dispatch trend">${grid}${rect}</svg>`;
+  const y = v => P.t + iH - (v / max) * iH;
+  const fmtAx = opts.fmtAx || (v => v.toFixed(0));
+  const grid = [0, .25, .5, .75, 1].map(t => { const yp = P.t + iH - t * iH; return `<line x1="${P.l}" y1="${yp}" x2="${W - P.r}" y2="${yp}" stroke="${cssv('--ql-divider')}" stroke-dasharray="3 4"/><text x="${P.l - 7}" y="${yp + 4}" text-anchor="end" font-family="${cssv('--ql-font-sans')}" font-size="10" fill="${cssv('--ql-text-muted')}">${fmtAx(max * t)}</text>`; }).join('');
+  const step = Math.max(1, Math.ceil(data.length / 16));
+  const rect = data.map((d, i) => `<g${opts.onClickAttr ? ` data-di="${i}" style="cursor:pointer"` : ''}><rect x="${x(i) - bw / 2}" y="${y(d.v)}" width="${bw}" height="${Math.max(0, P.t + iH - y(d.v))}" rx="3" fill="${d.fill || cssv('--ql-brand-500')}"><title>${esc(d.tip || d.l + ': ' + d.v)}</title></rect>${i % step === 0 ? `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-family="${cssv('--ql-font-sans')}" font-size="10.5" fill="${cssv('--ql-text-secondary')}">${esc(d.l)}</text>` : ''}</g>`).join('');
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img">${grid}${rect}</svg>`;
+  if (opts.onBar) host.querySelectorAll('[data-di]').forEach(g => g.onclick = () => opts.onBar(data[+g.dataset.di], +g.dataset.di));
 }
+const lakh = v => v >= 100000 ? (v / 100000).toFixed(1) + 'L' : v >= 1000 ? (v / 1000).toFixed(0) + 'k' : String(Math.round(v));
+
+/* ═══ HERO + EXPORTS (§17) ═══ */
+const DL = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>';
 let HERO = null;
-const DL_ICON = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>';
-
-/* The production figures this page derives, as a file. */
-function exportProduction() {
-  const rows = (QLD.productionRows ? QLD.productionRows() : []);
-  QLShell.exportCSV('production_' + String(QLD.co.short || '').replace(/\s+/g, '_'),
-    ['Date', 'Kiln', 'Limestone (T)', 'Petcoke (T)', 'Bags', 'Quick lime (T)', 'Hydrated (T)', 'Output (T)', 'Labour', 'Note'],
-    rows.map(r => [r.date, r.kiln, r.limestone, r.petcoke, r.bags, r.quicklime, r.hydrated, r.output, r.labour, r.note]));
+function csvName(kind) { return kind + '_' + String(Q.co.short || '').replace(/\s+/g, '_') + '_' + MONTH; }
+function openExports() {
+  const btn = (k, lbl, sub) => `<button class="ql-btn ql-btn-secondary" data-ex="${k}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;margin-bottom:8px"><b>${lbl}</b><span style="font-size:11.5px;color:var(--ql-text-muted)">${sub}</span></button>`;
+  QLShell.panel({
+    title: 'Export — ' + mLabel(MONTH), sub: 'Every report carries the month and the calculation source',
+    body: btn('reg', 'Production register', 'every run of the month') +
+      btn('cost', 'Costing report', 'cost lines with their source bills/expenses, total, cost/T') +
+      btn('exp', 'Expense report', 'the month’s classified expenses') +
+      btn('rm', 'Raw material report', 'opening / purchased / consumed / closing per material') +
+      btn('pl', 'Profitability report', 'revenue → COGS → gross → net for the month') +
+      btn('mgmt', '12-month management report', 'production, cost/T, sales, revenue, GP by month'),
+    onMount(el) {
+      el.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { exportReport(b.dataset.ex); });
+    }
+  });
+}
+function exportReport(kind) {
+  const inp = inputsFor(MONTH), pc = C.productionCost(inp), pl = C.monthlyPL(inp);
+  if (kind === 'reg') {
+    const rows = Q.productionRows({ from: MONTH + '-01', to: MONTH + '-31' });
+    QLShell.exportCSV(csvName('production_register'), ['Date', 'Kiln', 'Limestone (T)', 'Petcoke (T)', 'Bags', 'Quick Lime (T)', 'Hydrated (T)', 'Output (T)', 'Note'],
+      rows.map(r => [r.date, r.kiln, r.limestone, r.petcoke, r.bags, r.quicklime, r.hydrated, r.output, r.note]));
+  } else if (kind === 'cost') {
+    QLShell.exportCSV(csvName('costing'), ['Line', 'Amount', 'Source', 'Detail', 'Method: ' + pc.method],
+      pc.lines.map(l => [l.label, l.amount, l.source, (l.detail || '') + (l.refs && l.refs.length ? ' [' + l.refs.join(' ') + ']' : ''), ''])
+        .concat([['TOTAL', pc.total, '', 'output ' + (pc.outputT || 0) + ' T', ''], ['COST PER TONNE', pc.perT == null ? 'n/a' : pc.perT, '', '', '']]));
+  } else if (kind === 'exp') {
+    const rows = Q.expenseRows({ from: MONTH + '-01', to: MONTH + '-31' });
+    QLShell.exportCSV(csvName('expenses'), ['Date', 'Group', 'Subcategory', 'Treatment', 'Paid to', 'Cost center', 'Amount'],
+      rows.map(r => [r.date, r.group, r.sub, r.treatment, r.vendor, r.costCenter, r.amount]));
+  } else if (kind === 'rm') {
+    QLShell.exportCSV(csvName('raw_material'), ['Material', 'Opening', 'Purchased', 'Consumed', 'Closing', 'Month cost', 'Note'],
+      C.rmMovement(inp).map(m => [m.group, m.opening == null ? 'n/a' : m.opening, m.purchased, m.consumed == null ? 'n/a' : m.consumed, m.closing == null ? 'n/a' : m.closing, m.cost, m.note || '']));
+  } else if (kind === 'pl') {
+    QLShell.exportCSV(csvName('profitability'), ['Line', 'Amount', 'Method: ' + pl.method],
+      [['Sales revenue', pl.salesValue, ''], ['Sales quantity (T)', pl.salesT, ''], ['COGS', pl.cogs == null ? 'n/a' : pl.cogs, ''],
+       ['Gross profit', pl.grossProfit == null ? 'n/a' : pl.grossProfit, ''], ['Gross margin %', pl.grossMargin == null ? 'n/a' : pl.grossMargin, ''],
+       ['Selling expenses', pl.sellingExp, ''], ['Admin/compliance/employee', pl.adminExp, ''], ['Finance expenses', pl.financeExp, ''],
+       ['Net profit', pl.netProfit == null ? 'n/a' : pl.netProfit, ''], ['Net margin %', pl.netMargin == null ? 'n/a' : pl.netMargin, '']]);
+  } else if (kind === 'mgmt') {
+    const rows = last12().map(m => [m.ym, m.pl.method === 'actual' ? m.pc.outputT : 'n/a', m.pc.perT == null ? 'n/a' : m.pc.perT, m.pl.salesT, m.pl.salesValue, m.pl.grossProfit == null ? 'n/a' : m.pl.grossProfit, m.pl.grossMargin == null ? 'n/a' : m.pl.grossMargin]);
+    QLShell.exportCSV(csvName('management_12mo'), ['Month', 'Production (T)', 'Cost/T', 'Sales (T)', 'Revenue', 'Gross profit', 'Margin %'], rows);
+  }
 }
 
+/* 12-month series, memoised per render (the whole page recomputes on render) */
+let _l12 = null;
+function last12() {
+  if (_l12) return _l12;
+  _l12 = [];
+  for (let i = 11; i >= 0; i--) {
+    const ym = shiftYm(MONTH, -i), inp = inputsFor(ym);
+    _l12.push({ ym, pc: C.productionCost(inp), pl: C.monthlyPL(inp) });
+  }
+  return _l12;
+}
+
+/* ═══ RENDER ═══ */
 function render() {
-  const co = QLD.co, pr = QLD.production();
-  const K = [
-    { label: 'Today', v: QLD.fmt(pr.today, 1) + ' T', meta: 'dispatched', bg: 'var(--ql-warning-50)', fg: 'var(--ql-warning-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>' },
-    { label: 'This Week', v: QLD.fmt(pr.week, 1) + ' T', meta: '7-day total', bg: 'var(--ql-brand-50)', fg: 'var(--ql-brand-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' },
-    { label: 'This Month', v: QLD.fmt(pr.month, 1) + ' T', meta: 'month to date', bg: 'var(--ql-success-50)', fg: 'var(--ql-success-600)', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V12M9 21V8M13 21V4M17 21V11M21 21V14"/></svg>' },
-    { label: 'Chunna (month)', v: QLD.fmt(pr.chunnaMonth, 1) + ' T', meta: 'powder sales', bg: '#F3E8FF', fg: '#7C3AED', ic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13V8h14v5a7 7 0 0 1-7 7Z"/><line x1="9" y1="3" x2="9" y2="6"/><line x1="13" y1="3" x2="13" y2="6"/></svg>' }
-  ];
-  /* The SHARED stat row — same component as the registers. K is untouched. */
-  document.getElementById('prdKpis').innerHTML = QLX.statsHTML(
-    K.map(k => ({ label: k.label, value: k.v, sub: k.meta, icon: k.ic, tint: QLX.tint(k.bg) })));
+  if (!MONTH) MONTH = defaultMonth();
+  _l12 = null;
+  const co = Q.co;
+  const inp = inputsFor(MONTH);
+  const pc = C.productionCost(inp), pl = C.monthlyPL(inp);
+  const rm = C.rmMovement(inp), ys = C.yieldStats(Q.costingInputs(MONTH).prodRuns, MONTH);
+  const runs = Q.productionRows({ from: MONTH + '-01', to: MONTH + '-31' });
+  const actual = pc.method === 'actual';
+
+  /* hero */
   if (!HERO) {
     HERO = { title: 'Production', sub: '<span id="prdSub"></span>',
-      tools: [{ label: 'Export', icon: DL_ICON, onClick: () => exportProduction() }] };
+      tools: [{ label: 'Export', icon: DL, onClick: openExports }] };
     document.getElementById('prdHero').innerHTML = QLX.heroHTML(HERO);
     QLX.wireHero(document.getElementById('prdHero'), HERO);
   }
-  document.getElementById('prdSub').textContent = `${co.short} · ${QLD.fmt(pr.month,1)} T this month`;
-  bars(QLD.monthSeries(7));
-  document.getElementById('prdProducts').innerHTML = QLD.topProducts().map(r => `
-    <tr><td><div class="tbl-prod"><div class="tbl-prod-ic">${r.icon}</div><div><div class="tbl-prod-name">${r.name}</div><div class="tbl-prod-sub">${r.sub}</div></div></div></td>
-    <td class="num">${r.qty}</td><td class="num">${r.avg}</td><td class="num">${r.rev}</td></tr>`).join('');
-  renderRuns();
+  document.getElementById('prdSub').textContent = co.short + ' · ' + mLabel(MONTH) +
+    (actual ? ' · ' + nT(pc.outputT) + ' T produced' : ' · no runs recorded');
+
+  /* month bar */
+  document.getElementById('prdMonthHost').innerHTML = QLShell.monthButton({ id: 'prdMonthBtn', label: mLabel(MONTH), title: 'Pick a month' });
+  const mb = document.getElementById('prdMonthBtn');
+  mb.onclick = () => QLShell.monthPicker(mb, { month: MONTH, have: monthsWithData(),
+    onPick: v => { if (v && v !== 'all') { MONTH = v.length === 4 ? v + '-01' : v; render(); } } });
+  document.getElementById('prdPrev').onclick = () => { MONTH = shiftYm(MONTH, -1); render(); };
+  document.getElementById('prdNext').onclick = () => { MONTH = shiftYm(MONTH, 1); render(); };
+  document.getElementById('prdNow').onclick = () => { MONTH = nowYm(); render(); };
+
+  /* KPI cards (§3): monthly manufacturing numbers, honest dashes when the
+     month has no runs — never a fabricated production figure off sales. */
+  const days = new Set(runs.map(r => r.date)).size;
+  const consumedT = runs.reduce((a, r) => a + r.limestone + r.petcoke, 0);
+  const IC = {
+    fac: '<path d="M2 20h20"/><path d="M4 20V9l6 4V9l6 4V6l4-2v16"/>',
+    cube: '<path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/>',
+    rupee: '<path d="M6 3h12M6 8h12M6 13l6 8M6 13h4a5 5 0 0 0 0-10"/>',
+    gauge: '<path d="M12 15l4-6"/><circle cx="12" cy="15" r="7"/>',
+    cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+    rock: '<path d="M3 16l4-9 5 3 4-6 5 12z"/><path d="M2 20h20"/>'
+  };
+  const kpi = [
+    { label: 'Total production', value: actual ? nT(pc.outputT) + ' T' : '—', sub: actual ? days + ' operating days' : 'no production runs this month', tint: 'blue', icon: IC.fac },
+    { label: 'Quick Lime', value: actual ? nT(pc.producedByProduct.quicklime) + ' T' : '—', sub: actual ? 'produced' : 'record runs to track', tint: 'teal', icon: IC.cube },
+    { label: 'Hydrated / Chunna', value: actual ? nT(pc.producedByProduct.hydrated) + ' T' : '—', sub: actual ? 'produced' : 'record runs to track', tint: 'violet', icon: IC.cube },
+    { label: 'Production cost', value: pc.total > 0 ? fC(pc.total) : '—', sub: pc.method === 'period' && pc.total > 0 ? 'period costing (no runs)' : pc.lines.length + ' cost lines', tint: 'amber', icon: IC.rupee },
+    { label: 'Cost / tonne', value: pc.perT != null ? fC(pc.perT) : '—', sub: pc.perT != null ? (actual ? 'actual, from runs' : 'period cost ÷ dispatched T') : 'needs output tonnage', tint: 'orange', icon: IC.rupee },
+    { label: 'Yield', value: ys.current != null ? ys.current.toFixed(1) + '%' : '—', sub: ys.current != null ? 'output ÷ limestone consumed' : 'needs production runs', tint: 'green', icon: IC.gauge },
+    { label: 'Raw material used', value: actual ? nT(consumedT) + ' T' : '—', sub: actual ? 'limestone + petcoke' : 'from runs', tint: 'slate', icon: IC.rock },
+    { label: 'Production days', value: actual ? days : '—', sub: actual ? 'days with a recorded run' : 'no runs recorded', tint: 'indigo', icon: IC.cal }
+  ];
+  document.getElementById('prdKpis').innerHTML = QLX.statsHTML(kpi);
+
+  /* honesty banner: period costing / warnings */
+  const b = [];
+  if (!actual && (pc.total > 0 || pl.salesValue > 0)) b.push(`<div class="prd-gap"><div class="prd-gap-ic">!</div><div>
+    <div class="prd-gap-t">No production runs recorded for ${esc(mLabel(MONTH))}</div>
+    <div class="prd-gap-s">Costing falls back to <b>period mode</b>: the month's material purchases stand in for consumption and dispatched tonnes for output — the same rule the P&amp;L has always used. Production, yield and stock figures stay blank because nothing measured them. Record runs below and this page upgrades to actual costing on its own.</div></div></div>`);
+  pc.warnings.forEach(w => { if (!/PERIOD costing/.test(w)) b.push(`<div class="prd-gap"><div class="prd-gap-ic">!</div><div><div class="prd-gap-s">${esc(w)}</div></div></div>`); });
+  document.getElementById('prdBanner').innerHTML = b.join('');
+
+  renderDaily(runs);
+  renderCost(pc);
+  renderPL(pl, pc);
+  renderYieldRM(ys, rm, actual);
+  renderProducts(inp, pc, runs);
+  renderTrend();
+  renderCompare();
+  renderExpenses(pc);
+  renderCustomers();
+  renderRegister(runs);
   QLShell.paintWorkspace();
 }
-const fC = v => QLD.fC(v), nT = v => QLD.fmt(v || 0, 1);
-const esc = s => (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-/* One cell of the derived table. The whole honesty of this page lives here, so it is
-   worth being explicit about the three states it can be in:
-     · a number  — real, and its title lists the exact bills it was added up from;
-     · '—' quiet — there were no bills of that kind that month, nothing to report;
-     · '—' flagged — there WERE bills, but not one of them carries a quantity. That is
-       not "zero tonnes", it is "your bills don't say", and it is the single most
-       useful thing this page can tell him, so it gets a marker instead of a shrug. */
-function dcell(c, dec) {
-  const dash = t => `<span class="prd-dash" title="${esc(t)}">—</span>`;
-  if (!c) return dash('Not derived');
-  if (c.v == null) {
-    // "1 limestone bills" reads like a bug even when the number is right.
-    const nBills = c.bills + ' ' + (c.bills === 1 ? (c.label || 'bill').replace(/s$/, '') : (c.label || 'bills'));
-    if (!c.bills) return dash('No ' + (c.label || 'bills') + ' this month — nothing to read');
-    return dash(nBills + ' this month, but ' + (c.bills === 1 ? 'it does not carry' : 'none carry') + ' a readable quantity. The tonnage is on the PDFs — it was never read off them. Open the Purchase register and it reads them off the bills on its own.')
-      + `<span class="prd-warn" title="${esc(nBills + ' with no quantity')}">!</span>`;
-  }
-  const lines = c.refs.slice(0, 12).map(r => `${r.ref || '—'}${r.date ? ' · ' + r.date : ''}${r.party ? ' · ' + r.party : ''} → ${QLD.fmt(r.qty, dec)}`);
-  if (c.refs.length > 12) lines.push('…and ' + (c.refs.length - 12) + ' more');
-  const tip = (c.measured ? 'Measured on site\n' : 'Added up from ' + c.read + ' bill' + (c.read === 1 ? '' : 's') + ':\n') + lines.join('\n')
-    + (c.missing ? '\n\n' + c.missing + ' more bill' + (c.missing === 1 ? '' : 's') + ' with no readable quantity — NOT counted, so this figure is a floor, not a total.' : '');
-  return `<span class="${c.measured ? 'prd-meas' : ''}" title="${esc(tip)}">${QLD.fmt(c.v, dec)}</span>`
-    + (c.missing ? `<span class="prd-warn" title="${esc(c.missing + ' bill(s) with no quantity are missing from this figure')}">!</span>` : '');
+/* §5 — daily bars within the month; click a day for its runs */
+function renderDaily(runs) {
+  const seg = document.getElementById('prdDailySeg');
+  seg.querySelectorAll('button').forEach(bt => { bt.classList.toggle('on', bt.dataset.k === DAILY_METRIC); bt.onclick = () => { DAILY_METRIC = bt.dataset.k; render(); }; });
+  const byDay = {};
+  runs.forEach(r => { const d = byDay[r.date] || (byDay[r.date] = { ql: 0, hy: 0, lime: 0, pet: 0, runs: [] }); d.ql += r.quicklime; d.hy += r.hydrated; d.lime += r.limestone; d.pet += r.petcoke; d.runs.push(r); });
+  const days = Object.keys(byDay).sort();
+  const data = days.map(d => {
+    const x = byDay[d];
+    const v = DAILY_METRIC === 'quicklime' ? x.ql : DAILY_METRIC === 'hydrated' ? x.hy : x.ql + x.hy;
+    const yieldPct = x.lime > 0 ? ((x.ql + x.hy) / x.lime * 100).toFixed(1) + '%' : '—';
+    return { l: +d.slice(8) + ' ' + mShort(MONTH).slice(0, 3), v: Math.round(v * 10) / 10, day: d,
+      tip: d + '\nQuick Lime ' + nT(x.ql) + ' T · Hydrated ' + nT(x.hy) + ' T\nLimestone ' + nT(x.lime) + ' T · Petcoke ' + nT(x.pet) + ' T\nYield ' + yieldPct + '\n(click for details)' };
+  });
+  document.getElementById('prdDailySub').textContent = days.length ? days.length + ' operating days in ' + mLabel(MONTH) : mLabel(MONTH);
+  barChart('prdDaily', data, { empty: 'No production runs in ' + mLabel(MONTH) + ' — record one from the register below.', onClickAttr: true,
+    onBar: d => openDay(d.day, byDay[d.day]) });
+}
+function openDay(date, x) {
+  const inp = inputsFor(MONTH), pc = C.productionCost(inp);
+  const out = x.ql + x.hy;
+  const cost = pc.perT != null ? out * pc.perT : null;
+  QLShell.panel({ title: 'Production — ' + date, sub: x.runs.length + ' run(s)',
+    body: `<table class="tbl"><tbody>
+      <tr><td>Quick Lime</td><td class="num"><b>${nT(x.ql)} T</b></td></tr>
+      <tr><td>Hydrated</td><td class="num"><b>${nT(x.hy)} T</b></td></tr>
+      <tr><td>Limestone consumed</td><td class="num">${nT(x.lime)} T</td></tr>
+      <tr><td>Petcoke consumed</td><td class="num">${nT(x.pet)} T</td></tr>
+      <tr><td>Yield</td><td class="num">${x.lime > 0 ? ((out / x.lime) * 100).toFixed(1) + '%' : '—'}</td></tr>
+      <tr><td>Cost (at month's ₹${pc.perT != null ? Math.round(pc.perT).toLocaleString('en-IN') : '—'}/T)</td><td class="num">${cost != null ? fC(cost) : '—'}</td></tr>
+      </tbody></table>
+      <div class="prd-mini" style="margin-top:8px">Day cost applies the month's average cost per tonne — per-day expenses are not tracked separately.</div>
+      ${x.runs.map(r => `<div class="prd-note" style="margin-top:8px"><b>${esc(r.kiln || 'Unassigned kiln')}</b> · limestone ${nT(r.limestone)} T · petcoke ${nT(r.petcoke)} T · QL ${nT(r.quicklime)} T · Hyd ${nT(r.hydrated)} T${r.note ? ' · ' + esc(r.note) : ''}</div>`).join('')}` });
 }
 
-function renderRuns() {
-  const der = QLD.productionDerived(), gaps = QLD.derivedQtyGaps();
-  const rows = QLD.productionRows(), st = QLD.prodStats();
+/* §7 — cost lines with full traceability (§19 costing spec / §24 demo spec) */
+function renderCost(pc) {
+  document.getElementById('prdCostSub').innerHTML = pc.total > 0
+    ? `${pc.method === 'actual' ? 'Actual' : 'Period'} costing · total <b>${fC(pc.total)}</b>${pc.perT != null ? ' · <b>' + fC(pc.perT) + '/T</b>' : ''}`
+    : 'No cost recorded for ' + mLabel(MONTH);
+  const host = document.getElementById('prdCost');
+  if (!pc.lines.length) { host.innerHTML = `<div class="prd-mini" style="padding:20px;text-align:center">No purchases or production expenses in this month.</div>`; return; }
+  const max = Math.max(...pc.lines.map(l => l.amount));
+  host.innerHTML = pc.lines.map((l, i) => `<div class="prd-cost-line" data-li="${i}" title="Click for the source records">
+      <div class="prd-cost-lbl"><b>${esc(l.label)}</b><div class="prd-cost-src">${esc(l.detail || l.source)}</div>
+      <div class="prd-cost-bar" style="width:${Math.max(2, l.amount / max * 100)}%"></div></div>
+      <div class="prd-cost-amt">${fC(l.amount)}<div class="prd-mini" style="text-align:right">${pc.total > 0 ? (l.amount / pc.total * 100).toFixed(0) + '%' : ''}</div></div>
+    </div>`).join('');
+  host.querySelectorAll('[data-li]').forEach(el => el.onclick = () => {
+    const l = pc.lines[+el.dataset.li];
+    const links = (l.refs || []).map(r => l.source === 'purchases'
+      ? `<a href="purchase.html?find=${encodeURIComponent(r)}" class="ql-btn ql-btn-ghost" style="margin:2px">${esc(r)}</a>`
+      : l.source === 'expense'
+        ? `<a href="expenses.html?find=${encodeURIComponent(r)}" class="ql-btn ql-btn-ghost" style="margin:2px">${esc(r)}</a>`
+        : `<span class="ql-btn ql-btn-ghost" style="margin:2px">${esc(r)}</span>`).join('');
+    QLShell.panel({ title: l.label, sub: fC(l.amount) + ' · source: ' + l.source,
+      body: `<div class="prd-note">${esc(l.detail || '')}</div>` +
+        (links ? `<div style="margin-top:8px"><div class="prd-mini" style="margin-bottom:6px">Source records — click to open in the register:</div>${links}</div>`
+               : `<div class="prd-mini">No individual source records (derived figure).</div>`) });
+  });
+}
 
-  /* Say it loudly, with his own numbers. A feature that is blocked on data must
-     announce that it is blocked — not quietly render a table of dashes and let him
-     conclude the app is broken. */
-  const g = document.getElementById('prdGap');
-  const pm = gaps.purchase.missing, sm = gaps.sales.missing;
-  g.innerHTML = (pm || sm) ? `<div class="prd-gap">
-    <div class="prd-gap-ic">!</div>
-    <div><div class="prd-gap-t">${pm ? pm + ' of ' + gaps.purchase.total + ' material bills ' + (pm === 1 ? 'has' : 'have') + ' no quantity' : ''}${pm && sm ? ' · ' : ''}${sm ? sm + ' of ' + gaps.sales.total + ' invoices ' + (sm === 1 ? 'has' : 'have') + ' no quantity' : ''}</div>
-    <div class="prd-gap-s">Those bills are left out of the figures below — they are not counted as zero. ${gaps.purchase.fixable ? '<b>' + gaps.purchase.fixable + '</b> of them still ' + (gaps.purchase.fixable === 1 ? 'has' : 'have') + ' the original PDF attached, so the tonnage can be read straight off the paper — open the Purchase register and it does that on its own, then come back.' : 'Add the quantity on each bill to bring it into these totals.'}</div></div>
-    ${gaps.purchase.fixable ? '<a class="ql-btn ql-btn-ghost" href="/v2/purchase">Open Purchase register →</a>' : ''}
-  </div>` : '';
+/* §11 — the P&L, never Sales − Purchases */
+function renderPL(pl, pc) {
+  const money = (v, cls) => v == null ? dash('Needs the month’s cost per tonne — record runs or costs first.') : `<b class="${cls || ''}">${fC(v)}</b>`;
+  const rows = [
+    ['Sales revenue', money(pl.salesValue), nT(pl.salesT) + ' T dispatched'],
+    ['Cost of goods sold', money(pl.cogs), pl.method === 'actual' ? 'dispatched T × actual cost/T' : 'period production cost'],
+    ['<b>Gross profit</b>', money(pl.grossProfit, pl.grossProfit >= 0 ? 'prd-pos' : 'prd-neg'), pl.grossMargin != null ? fPct(pl.grossMargin) + ' margin' : ''],
+    ['Selling & distribution', money(-pl.sellingExp || 0), 'commission · freight · loading'],
+    ['Admin, staff & compliance', money(-pl.adminExp || 0), ''],
+    ['Finance costs', money(-pl.financeExp || 0), 'interest · charges'],
+    ['<b>Net profit</b>', money(pl.netProfit, pl.netProfit >= 0 ? 'prd-pos' : 'prd-neg'), pl.netMargin != null ? fPct(pl.netMargin) + ' margin' : '']
+  ];
+  document.getElementById('prdPL').innerHTML = rows.map((r, i) => `<tr class="${i === 2 || i === 6 ? 'sec' : ''}"><td>${r[0]}<div class="prd-mini">${r[2]}</div></td><td class="num">${r[1]}</td></tr>`).join('');
+  document.getElementById('prdPLSub').innerHTML = pl.method === 'actual'
+    ? `Produced ${nT(pl.producedT)} T · sold ${nT(pl.salesT)} T · finished stock ${pl.stockChangeT >= 0 ? '+' : ''}${nT(pl.stockChangeT)} T`
+    : esc(pl.stockNote || 'Sales − COGS − expenses');
+}
 
-  /* The inner strip has no icons by design (it sits inside a card, where a
-     second row of coloured chips would compete with the card's own heading).
-     Same component, icon omitted. */
-  const stat = (lb, v, m) => ({ label: lb, value: v, sub: m, tint: 'blue', icon: '' });
-  const sum = k => der.reduce((a, r) => a + (r[k].v || 0), 0);
-  const any = k => der.some(r => r[k].v != null);
-  const hasOut = any('quicklime') || any('hydrated');
-  const totIn = sum('limestone'), totOut = sum('quicklime') + sum('hydrated');
-  /* Never a yield. Output ÷ intake is a ratio of two real numbers and nothing more —
-     he can dispatch stock he burnt last month — which is why it is not allowed to be
-     called a yield anywhere on this page. Both sides must be real or it stays blank. */
-  const ratio = (any('limestone') && totIn > 0 && hasOut) ? (totOut / totIn * 100).toFixed(0) + '%' : '—';
-  document.getElementById('prdStats').innerHTML = QLX.statsHTML([
-    stat('Limestone in', any('limestone') ? nT(totIn) + ' T' : '—', any('limestone') ? 'from purchase bills' : 'no quantity on any bill'),
-    stat('Petcoke in', any('petcoke') ? nT(sum('petcoke')) + ' T' : '—', any('petcoke') ? 'from purchase bills' : 'no quantity on any bill'),
-    stat('Lime dispatched', hasOut ? nT(totOut) + ' T' : '—', 'from your invoices'),
-    stat('Implied ratio', ratio, 'dispatch ÷ intake · not a yield')
-  ]);
-
-  const tb = document.getElementById('prdDerived');
-  if (!der.length) {
-    tb.innerHTML = `<tr><td colspan="8"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:36px 20px;text-align:center">
-      <div style="width:54px;height:54px;border-radius:15px;display:grid;place-items:center;background:#e9f9ee;font-size:25px;margin-bottom:4px">🏭</div>
-      <div style="font-weight:700;color:var(--ql-text)">No bills yet</div>
-      <div style="color:var(--ql-text-soft);font-size:13px;max-width:380px">Upload a purchase bill or raise an invoice and this table fills itself — limestone and petcoke in, lime out, month by month. Or record a run to enter measured figures.</div>
-      <button class="ql-btn ql-btn-primary" onclick="document.getElementById('prdAdd').click()" style="margin-top:10px">+ Record production</button>
-    </div></td></tr>`;
+/* §9 + §8 — yield stats and RM movement */
+function renderYieldRM(ys, rm, actual) {
+  const yh = document.getElementById('prdYield');
+  if (ys.current == null) {
+    yh.innerHTML = `<div class="prd-mini">Yield needs production runs — output ÷ limestone consumed cannot be computed from bills alone.</div>`;
   } else {
-    tb.innerHTML = der.map(r => {
-      const badge = r.source === 'measured'
-        ? `<span class="prd-src prd-src-m" title="${esc('Measured on site: ' + (r.overrode || []).join(', ') + ' come from ' + r.runs + ' recorded run(s) and override what the bills implied for ' + r.label + '. Remaining columns are still from the bills.')}">Measured</span>`
-        : `<span class="prd-src prd-src-d" title="Every figure in this row was added up from your uploaded bills. Nothing here was measured or estimated.">From bills</span>`;
-      return `<tr>
-      <td><div style="font-weight:600">${esc(r.label)}</div>${r.source === 'measured' ? `<div class="prd-sub">overrides the bills for this month</div>` : ''}</td>
-      <td class="num">${dcell(r.limestone, 1)}</td><td class="num">${dcell(r.petcoke, 1)}</td><td class="num">${dcell(r.bags, 0)}</td>
-      <td class="num">${dcell(r.quicklime, 1)}</td><td class="num">${dcell(r.hydrated, 1)}</td>
-      <td class="num">${r.implied == null ? `<span class="prd-dash" title="Needs a real intake AND a real dispatch figure for this month. One side is missing, so there is nothing honest to divide.">—</span>` : `<span title="${esc('Dispatch ÷ limestone intake for ' + r.label + '. This is what the paperwork implies, NOT a measured yield — lime dispatched this month may have been burnt last month.')}">${r.implied.toFixed(0)}%</span>`}</td>
-      <td>${badge}</td></tr>`;
-    }).join('');
+    const d = ys.delta;
+    yh.innerHTML = `<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline">
+      <div><span style="font-size:26px;font-weight:800">${ys.current.toFixed(1)}%</span> <span class="prd-mini">${esc(mLabel(MONTH))}</span></div>
+      ${ys.previous != null ? `<div><b>${ys.previous.toFixed(1)}%</b> <span class="prd-mini">${esc(mShort(ys.prevYm))}</span> <span class="prd-delta ${d >= 0 ? 'prd-pos' : 'prd-neg'}">${d >= 0 ? '+' : ''}${d.toFixed(1)} pts</span></div>` : ''}
+      ${ys.avg12 != null ? `<div><b>${ys.avg12.toFixed(1)}%</b> <span class="prd-mini">12-mo avg</span></div>` : ''}
+      ${ys.best ? `<div><b>${ys.best.y.toFixed(1)}%</b> <span class="prd-mini">best (${esc(mShort(ys.best.ym))})</span></div>` : ''}
+      ${ys.worst ? `<div><b>${ys.worst.y.toFixed(1)}%</b> <span class="prd-mini">worst (${esc(mShort(ys.worst.ym))})</span></div>` : ''}
+    </div>`;
   }
-
-  // The measured runs keep their own table: it is the only place true output lives,
-  // and the only place a run can be deleted from.
-  document.getElementById('prdRunsCard').style.display = rows.length ? '' : 'none';
-  const rt = document.getElementById('prdRuns');
-  rt.innerHTML = rows.map(r => `<tr>
-    <td>${r.date || '—'}</td><td>${r.kiln ? esc(r.kiln) : '<span class="prd-dash" title="This run was recorded before kilns were tracked, or the kiln was left blank.">Unassigned</span>'}</td><td class="num">${r.limestone ? nT(r.limestone) : '—'}</td><td class="num">${r.petcoke ? nT(r.petcoke) : '—'}</td>
-    <td class="num">${r.bags ? r.bags.toLocaleString('en-IN') : '—'}</td><td class="num">${r.quicklime ? nT(r.quicklime) : '—'}</td>
-    <td class="num">${r.hydrated ? nT(r.hydrated) : '—'}</td><td class="num">${r.labour ? fC(r.labour) : '—'}</td>
-    <td class="num"><button class="ql-btn ql-btn-ghost" data-del="${r.idx}" title="Delete">✕</button></td></tr>`).join('');
-  rt.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { QLShell.confirmDelete({ title: 'Move production run to Trash?', desc: 'This production run will move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { QLD.deleteProduction(+b.dataset.del, reason); render(); } }); });
+  const NAMES = { limestone: 'Limestone (T)', petcoke: 'Petcoke (T)', packaging: 'Bags (nos)' };
+  document.getElementById('prdRM').innerHTML = rm.map(m => {
+    const c = (v, dec) => v == null ? dash(m.note || 'not computable') : Q.fmt(v, dec == null ? 1 : dec);
+    const dec = m.group === 'packaging' ? 0 : 1;
+    return `<tr><td><b>${NAMES[m.group]}</b>${m.note ? `<span class="prd-warn" title="${esc(m.note)}">!</span>` : ''}</td>
+      <td class="num">${c(m.opening, dec)}</td><td class="num">${Q.fmt(m.purchased, dec)}${m.purchasedMissing ? `<span class="prd-warn" title="${m.purchasedMissing} bill(s) carry no quantity — this figure is a floor.">!</span>` : ''}</td>
+      <td class="num">${c(m.consumed, dec)}</td><td class="num">${c(m.closing, dec)}</td><td class="num">${fC(m.cost)}</td></tr>`;
+  }).join('');
 }
+
+/* §4 — the per-product summary table */
+function renderProducts(inp, pc, runs) {
+  const tb = document.getElementById('prdProducts');
+  if (pc.method !== 'actual') {
+    document.getElementById('prdProdSub').textContent = mLabel(MONTH) + ' — needs production runs';
+    tb.innerHTML = `<tr><td colspan="4"><div class="prd-mini" style="padding:14px;text-align:center">Per-product figures need production runs — the run records which product was made.</div></td></tr>`;
+    return;
+  }
+  const pp = C.productProfit(inp, 'qty');
+  const sold = { quicklime: 0, hydrated: 0 };
+  Q.salesRows().forEach(s => { if ((s.date || '').slice(0, 7) === MONTH && sold[s.product] != null) sold[s.product] += s.qty; });
+  const soldKnown = sold.quicklime + sold.hydrated > 0;
+  const dQl = new Set(runs.filter(r => r.quicklime > 0).map(r => r.date)).size;
+  const dHy = new Set(runs.filter(r => r.hydrated > 0).map(r => r.date)).size;
+  const q = pc.producedByProduct.quicklime || 0, h = pc.producedByProduct.hydrated || 0, tot = q + h;
+  const limeTot = runs.reduce((a, r) => a + r.limestone, 0);
+  const rmQ = tot > 0 ? limeTot * q / tot : 0, rmH = tot > 0 ? limeTot * h / tot : 0;
+  const cQ = pp.ok && pp.products.quicklime ? pp.products.quicklime : null;
+  const cH = pp.ok && pp.products.hydrated ? pp.products.hydrated : null;
+  document.getElementById('prdProdSub').textContent = mLabel(MONTH) + ' · overhead split ' + (pp.ok ? pp.note.replace(/^.*overhead by /, 'by ') : 'n/a');
+  const r = (label, a, b, c2, tip) => `<tr><td>${label}${tip ? `<span class="prd-warn" title="${esc(tip)}">i</span>` : ''}</td><td class="num">${a}</td><td class="num">${b}</td><td class="num">${c2}</td></tr>`;
+  tb.innerHTML =
+    r('<b>Production</b>', nT(q) + ' T', nT(h) + ' T', '<b>' + nT(tot) + ' T</b>') +
+    r('Sold', soldKnown ? nT(sold.quicklime) + ' T' : dash('Sales invoices do not record the product — new invoices can.'), soldKnown ? nT(sold.hydrated) + ' T' : dash('Sales invoices do not record the product.'), soldKnown ? nT(sold.quicklime + sold.hydrated) + ' T' : nT(Q.salesRows().filter(s => (s.date || '').slice(0, 7) === MONTH).reduce((a, s) => a + s.qty, 0)) + ' T') +
+    r('Raw material (attributed)', nT(rmQ) + ' T', nT(rmH) + ' T', nT(limeTot) + ' T', 'Limestone is consumed by the kiln, not per product — attributed by output share.') +
+    r('Production days', dQl, dHy, new Set(runs.map(x => x.date)).size) +
+    r('Cost / tonne', cQ ? fC(cQ.perT) : '—', cH ? fC(cH.perT) : '—', pc.perT != null ? fC(pc.perT) : '—') +
+    r('Yield', limeTot > 0 ? (tot / limeTot * 100).toFixed(1) + '%' : '—', '—', limeTot > 0 ? (tot / limeTot * 100).toFixed(1) + '%' : '—', 'One kiln feed serves both products — yield is meaningful for the total, not per product.') +
+    (soldKnown ? (function () {
+      const rev = { quicklime: 0, hydrated: 0 };
+      Q.salesRows().forEach(s => { if ((s.date || '').slice(0, 7) === MONTH && rev[s.product] != null) rev[s.product] += s.taxable; });
+      const avg = k => sold[k] > 0 ? rev[k] / sold[k] : null;
+      const pT = k => { const c2 = k === 'quicklime' ? cQ : cH; return avg(k) != null && c2 ? avg(k) - c2.perT : null; };
+      const mg = k => avg(k) != null && pT(k) != null ? (pT(k) / avg(k) * 100) : null;
+      const f = v => v == null ? '—' : fC(v);
+      return r('Avg selling rate / T', f(avg('quicklime')), f(avg('hydrated')), '') +
+        r('Profit / T (before selling exp.)', f(pT('quicklime')), f(pT('hydrated')), '', 'Selling rate − manufacturing cost/T. Selling, admin and finance expenses sit below, in Profitability.') +
+        r('Margin', mg('quicklime') == null ? '—' : mg('quicklime').toFixed(1) + '%', mg('hydrated') == null ? '—' : mg('hydrated').toFixed(1) + '%', '');
+    })() : '');
+}
+
+/* §6 + §16 — trend chart + management table */
+function renderTrend() {
+  const seg = document.getElementById('prdTrendSeg');
+  seg.querySelectorAll('button').forEach(bt => { bt.classList.toggle('on', bt.dataset.k === TREND_METRIC); bt.onclick = () => { TREND_METRIC = bt.dataset.k; render(); }; });
+  const M = last12();
+  const get = m => {
+    if (TREND_METRIC === 'prodT') return m.pl.method === 'actual' ? m.pc.outputT : null;
+    if (TREND_METRIC === 'cost') return m.pc.total || null;
+    if (TREND_METRIC === 'costT') return m.pc.perT;
+    if (TREND_METRIC === 'salesT') return m.pl.salesT || null;
+    if (TREND_METRIC === 'revenue') return m.pl.salesValue || null;
+    return m.pl.grossProfit;
+  };
+  const isMoney = ['cost', 'costT', 'revenue', 'gp'].includes(TREND_METRIC);
+  const data = M.map(m => { const v = get(m); return { l: mShort(m.ym), v: v == null ? 0 : Math.round(v * 10) / 10,
+    fill: m.ym === MONTH ? cssv('--ql-brand-600') : undefined,
+    tip: mLabel(m.ym) + ': ' + (v == null ? 'no data' : isMoney ? '₹' + Math.round(v).toLocaleString('en-IN') : nT(v) + ' T') }; });
+  barChart('prdTrend', data, { empty: 'No history yet.', fmtAx: isMoney ? lakh : (v => v.toFixed(0)) });
+  document.getElementById('prdMgmt').innerHTML = M.filter(m => m.pc.total > 0 || m.pl.salesValue > 0).map(m => `<tr style="${m.ym === MONTH ? 'font-weight:700' : ''}">
+    <td>${mShort(m.ym)}</td>
+    <td class="num">${m.pl.method === 'actual' ? nT(m.pc.outputT) + ' T' : dash('no runs — period costing')}</td>
+    <td class="num">${m.pc.perT != null ? fC(m.pc.perT) : '—'}</td>
+    <td class="num">${nT(m.pl.salesT)} T</td>
+    <td class="num">${fC(m.pl.salesValue)}</td>
+    <td class="num">${m.pl.grossProfit != null ? fC(m.pl.grossProfit) : '—'}</td>
+    <td class="num">${fPct(m.pl.grossMargin)}</td></tr>`).join('') ||
+    '<tr><td colspan="7"><div class="prd-mini" style="padding:14px;text-align:center">No months with data yet.</div></td></tr>';
+}
+
+/* §15 — month vs previous month */
+function renderCompare() {
+  const prev = shiftYm(MONTH, -1);
+  const a = { pc: C.productionCost(inputsFor(MONTH)), pl: C.monthlyPL(inputsFor(MONTH)) };
+  const b = { pc: C.productionCost(inputsFor(prev)), pl: C.monthlyPL(inputsFor(prev)) };
+  document.getElementById('prdCmpTitle').textContent = mShort(MONTH) + ' vs ' + mShort(prev);
+  document.getElementById('prdCmpA').textContent = mShort(MONTH);
+  document.getElementById('prdCmpB').textContent = mShort(prev);
+  const ysA = C.yieldStats(inputsFor(MONTH).prodRuns, MONTH), ysB = C.yieldStats(inputsFor(prev).prodRuns, prev);
+  const rows = [
+    ['Production (T)', a.pl.method === 'actual' ? a.pc.outputT : null, b.pl.method === 'actual' ? b.pc.outputT : null, 'T', 1],
+    ['Yield (%)', ysA.current, ysB.current, 'pts', 0],
+    ['Production cost', a.pc.total || null, b.pc.total || null, '%', 2],
+    ['Cost / tonne', a.pc.perT, b.pc.perT, '%', 2],
+    ['Sales (T)', a.pl.salesT || null, b.pl.salesT || null, '%', 1],
+    ['Revenue', a.pl.salesValue || null, b.pl.salesValue || null, '%', 2],
+    ['COGS', a.pl.cogs, b.pl.cogs, '%', 2],
+    ['Gross profit', a.pl.grossProfit, b.pl.grossProfit, '%', 2],
+    ['Net profit', a.pl.netProfit, b.pl.netProfit, '%', 2]
+  ];
+  document.getElementById('prdCmp').innerHTML = rows.map(r => {
+    const [label, va, vb, unit, kind] = r;
+    const f = v => v == null ? '—' : kind === 2 ? fC(v) : kind === 1 ? nT(v) + (unit === 'T' ? ' T' : '') : v.toFixed(1) + '%';
+    let delta = '—';
+    if (va != null && vb != null) {
+      if (unit === 'pts') { const d = va - vb; delta = `<span class="prd-delta ${d >= 0 ? 'prd-pos' : 'prd-neg'}">${d >= 0 ? '+' : ''}${d.toFixed(1)} pts</span>`; }
+      else if (vb !== 0) { const d = (va - vb) / Math.abs(vb) * 100; const goodDown = /cost|COGS/i.test(label); const good = goodDown ? d <= 0 : d >= 0;
+        delta = `<span class="prd-delta ${good ? 'prd-pos' : 'prd-neg'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}%</span>`; }
+    }
+    return `<tr><td>${label}</td><td class="num">${f(va)}</td><td class="num">${f(vb)}</td><td class="num">${delta}</td></tr>`;
+  }).join('');
+}
+
+/* §12 — expense summary with share of production cost */
+function renderExpenses(pc) {
+  const rows = Q.expenseRows({ from: MONTH + '-01', to: MONTH + '-31' });
+  const byG = {};
+  rows.forEach(r => { byG[r.group] = (byG[r.group] || 0) + r.amount; });
+  const order = Object.entries(byG).sort((x, y) => y[1] - x[1]);
+  document.getElementById('prdExp').innerHTML = order.length ? order.map(([g, v]) => {
+    const lbl = (C.GROUPS[g] || { label: g }).label;
+    const inCost = ['direct-production', 'factory-overhead'].includes((C.GROUPS[g] || {}).treatment);
+    return `<tr style="cursor:pointer" onclick="location.href='expenses.html'"><td>${esc(lbl)}<div class="prd-mini">${inCost ? 'inside cost/T' : 'below gross profit'}</div></td>
+      <td class="num"><b>${fC(v)}</b></td>
+      <td class="num">${inCost && pc.total > 0 ? (v / pc.total * 100).toFixed(1) + '%' : '<span class="prd-mini">n/a</span>'}</td></tr>`;
+  }).join('') : `<tr><td colspan="3"><div class="prd-mini" style="padding:14px;text-align:center">No classified expenses this month — <a href="expenses.html">record them on the Expenses page</a> and the cost per tonne becomes complete.</div></td></tr>`;
+}
+
+/* §22 (demo spec) — customer profitability for the month. Each invoice gets
+   the engine's profit; customers are summed. When the month has no cost/T the
+   table says WHY instead of ranking customers by revenue and calling it profit. */
+function renderCustomers() {
+  const tb = document.getElementById('prdCust');
+  const inp = inputsFor(MONTH);
+  const sales = Q.salesRows().filter(s => (s.date || '').slice(0, 7) === MONTH && s.status !== 'cancelled');
+  if (!sales.length) { tb.innerHTML = '<tr><td colspan="6"><div class="prd-mini" style="padding:14px;text-align:center">No sales in ' + esc(mLabel(MONTH)) + '.</div></td></tr>'; return; }
+  const probe = C.invoiceProfit({ date: MONTH + '-15', qty: 1, taxable: 1 }, inp);
+  if (!probe.ok) { tb.innerHTML = '<tr><td colspan="6"><div class="prd-mini" style="padding:14px;text-align:center">' + esc(probe.error) + ' — customer profit needs the month&#39;s cost per tonne.</div></td></tr>'; return; }
+  const by = {};
+  sales.forEach(s => {
+    const ip = C.invoiceProfit({ date: s.date, qty: s.qty, taxable: s.taxable }, inp);
+    if (!ip.ok) return;
+    const b = by[s.party] || (by[s.party] = { qty: 0, rev: 0, cost: 0, profit: 0, n: 0 });
+    b.qty += ip.qty; b.rev += ip.value; b.cost += ip.totalCost; b.profit += ip.profit; b.n++;
+  });
+  tb.innerHTML = Object.entries(by).sort((a, b) => b[1].profit - a[1].profit).map(([name, v]) =>
+    '<tr style="cursor:pointer" onclick="location.href=\'sales.html?find=' + encodeURIComponent(name) + '\'">' +
+    '<td><b>' + esc(name) + '</b><div class="prd-mini">' + v.n + ' invoice' + (v.n === 1 ? '' : 's') + '</div></td>' +
+    '<td class="num">' + nT(v.qty) + '</td><td class="num">' + fC(v.rev) + '</td><td class="num">' + fC(v.cost) + '</td>' +
+    '<td class="num"><b class="' + (v.profit >= 0 ? 'prd-pos' : 'prd-neg') + '">' + fC(v.profit) + '</b></td>' +
+    '<td class="num">' + (v.rev > 0 ? (v.profit / v.rev * 100).toFixed(1) + '%' : '—') + '</td></tr>').join('');
+  document.getElementById('prdCustSub').textContent = mLabel(MONTH) + ' · click a customer to open their invoices · ' + probe.method + ' costing';
+}
+
+/* §13 — the month's run register with edit / duplicate / delete */
 const PROD_SPECS = [
   { k: 'date', label: 'Date', type: 'date', req: true },
-  /* Two kilns run in partnership: a run has to say which one burnt it, or the
-     asset that produced the tonnage cannot be identified later. Free text (not
-     a fixed list) so a third kiln never needs a code change. */
   { k: 'kiln', label: 'Kiln', ph: 'Kiln 1 / Kiln 2' },
   { k: 'limestone', label: 'Limestone consumed (T)', type: 'number', ph: '0' },
   { k: 'petcoke', label: 'Petcoke consumed (T)', type: 'number', ph: '0' },
   { k: 'bags', label: 'Bags used', type: 'number', ph: '0' },
   { k: 'quicklime', label: 'Quick lime produced (T)', type: 'number', ph: '0' },
   { k: 'hydrated', label: 'Hydrated lime produced (T)', type: 'number', ph: '0' },
-  { k: 'labour', label: 'Labour cost (₹)', type: 'number', ph: '0' },
   { k: 'note', label: 'Note', full: true }
 ];
-document.addEventListener('click', e => {
-  if (e.target.closest('#prdAdd')) {
-    QLShell.openForm({ title: 'Record production', sub: 'Daily consumption & output', specs: PROD_SPECS, saveLabel: 'Save run',
-      initial: { date: new Date().toISOString().slice(0, 10) }, onSave(v) { QLD.addProduction(v); render(); } });
-  }
-});
-window.__qlOnSwitchCompany = () => render();   // shell owns the switch
+function renderRegister(runs) {
+  document.getElementById('prdRegSub').textContent = runs.length
+    ? runs.length + ' runs in ' + mLabel(MONTH)
+    : 'No runs in ' + mLabel(MONTH);
+  document.getElementById('prdRegNote').innerHTML = runs.length ? '' :
+    `<div class="prd-note"><b>Record what the kiln actually did.</b> A run says what was burnt (limestone, petcoke) and what came out (Quick Lime, Hydrated) on one day. It is the only source of true production, yield, stock and actual cost/T — bills alone cannot say what happened on the floor.</div>`;
+  const tb = document.getElementById('prdRuns');
+  tb.innerHTML = runs.map(r => {
+    const y = r.limestone > 0 ? ((r.quicklime + r.hydrated) / r.limestone * 100).toFixed(0) + '%' : '—';
+    return `<tr>
+    <td>${r.date}</td><td>${r.kiln ? esc(r.kiln) : '<span class="prd-dash">Unassigned</span>'}</td>
+    <td class="num">${r.limestone ? nT(r.limestone) : '—'}</td><td class="num">${r.petcoke ? nT(r.petcoke) : '—'}</td>
+    <td class="num">${r.bags ? r.bags.toLocaleString('en-IN') : '—'}</td>
+    <td class="num">${r.quicklime ? nT(r.quicklime) : '—'}</td><td class="num">${r.hydrated ? nT(r.hydrated) : '—'}</td>
+    <td class="num">${y}</td>
+    <td class="num" style="white-space:nowrap">
+      <button class="ql-btn ql-btn-ghost" data-edit="${r.idx}" title="Edit">✎</button>
+      <button class="ql-btn ql-btn-ghost" data-dup="${r.idx}" title="Duplicate to a new date">⧉</button>
+      <button class="ql-btn ql-btn-ghost" data-del="${r.idx}" title="Delete">✕</button></td></tr>`;
+  }).join('') || '';
+  tb.querySelectorAll('[data-edit]').forEach(bt => bt.onclick = () => {
+    const r = Q.productionRows().find(x => x.idx === +bt.dataset.edit);
+    QLShell.openForm({ title: 'Edit production run', sub: r.date, specs: PROD_SPECS, saveLabel: 'Save changes',
+      initial: r, onSave(v) { Q.updateProduction(r.idx, v); render(); } });
+  });
+  tb.querySelectorAll('[data-dup]').forEach(bt => bt.onclick = () => {
+    const r = Q.productionRows().find(x => x.idx === +bt.dataset.dup);
+    QLShell.openForm({ title: 'Duplicate run', sub: 'Copies ' + r.date + ' — set the new date', specs: PROD_SPECS, saveLabel: 'Save run',
+      initial: { ...r, date: new Date().toISOString().slice(0, 10) }, onSave(v) { Q.addProduction(v); render(); } });
+  });
+  tb.querySelectorAll('[data-del]').forEach(bt => bt.onclick = () => QLShell.confirmDelete({
+    title: 'Move production run to Trash?', desc: 'The run moves to Trash (restorable for 90 days). Monthly totals, yield, stock and cost/T recalculate immediately.',
+    confirmLabel: 'Move to Trash', onConfirm: reason => { Q.deleteProduction(+bt.dataset.del, reason); render(); } }));
+}
+document.getElementById('prdAdd').onclick = () => {
+  const def = MONTH === nowYm() ? new Date().toISOString().slice(0, 10) : MONTH + '-01';
+  QLShell.openForm({ title: 'Record production', sub: 'Daily consumption & output', specs: PROD_SPECS, saveLabel: 'Save run',
+    initial: { date: def }, onSave(v) { Q.addProduction(v); render(); } });
+};
+
+window.__qlOnSwitchCompany = () => { MONTH = null; render(); };
 window.__qlRefresh = render;
 QLD.init(render);
 </script>

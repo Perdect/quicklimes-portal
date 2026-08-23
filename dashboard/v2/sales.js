@@ -356,10 +356,29 @@ QLX.mount({
       { label: 'Overview', icon: IC.file, render: tabOverview },
       { label: 'Invoice', icon: IC.doc2, render: r => `<div class="qx-inv-bar"><button class="qx-btn qx-btn-sm" onclick="printInvByIdx(${r.idx})">${svg(IC.print)} Print</button></div><iframe class="qx-inv-frame" srcdoc="${esc((function(){try{return QLShell.getInvoiceHTML(r.idx)}catch(_){return salesBillHTML(r)}})())}" title="invoice"></iframe>` },
       { label: 'Documents', icon: IC.dl, count: (r.attach || []).length || null, render: tabDocs, onMount: wireDocs },
-      { label: 'Payments', icon: IC.clock, render: tabPayments, onMount: wirePayments }
+      { label: 'Payments', icon: IC.clock, render: tabPayments, onMount: wirePayments },
+      { label: 'Profit', icon: IC.trend || IC.clock, render: tabProfit }
     ]
   })
 });
+
+/* Invoice profitability (costing engine §10): sale value − its tonnes at the
+   month's manufacturing cost/T − attributed selling cost. Every figure names
+   its method; a month with no costing says so instead of inventing margins. */
+function tabProfit(r) {
+  const C = window.QLCosting;
+  if (!C) return '<div class="qx-empty-tab">Costing engine not loaded.</div>';
+  const ip = C.invoiceProfit({ date: r.date, qty: r.qty, taxable: r.taxable }, Q.costingInputs((r.date || '').slice(0, 7)));
+  if (!ip.ok) return '<div class="qx-empty-tab" style="padding:18px;line-height:1.6">' + esc(ip.error) + '<br><span style="font-size:12px;color:var(--ql-text-muted)">Record production runs and expenses for ' + esc(ip.ym || 'this month') + ' on the Production page and this tab fills itself.</span></div>';
+  const row = (l, v, sub) => '<tr><td>' + l + (sub ? '<div style="font-size:11px;color:var(--ql-text-muted)">' + esc(sub) + '</div>' : '') + '</td><td class="num"><b>' + v + '</b></td></tr>';
+  const good = ip.profit >= 0;
+  return '<table class="tbl"><tbody>'
+    + row('Invoice value (taxable)', fC(ip.value), fmt(ip.qty, 2) + ' T @ ' + fC(ip.ratePerT) + '/T')
+    + row('Manufacturing cost', '\u2212' + fC(ip.mfgCost), fmt(ip.qty, 2) + ' T \u00d7 ' + fC(ip.mfgPerT) + '/T (' + ip.method + ' costing, ' + ip.ym + ')')
+    + row('Selling cost (attributed)', '\u2212' + fC(ip.sellingCost), ip.sellingNote || 'no selling expenses recorded')
+    + row('<b>Profit</b>', '<span style="color:var(' + (good ? '--ql-success-600' : '--ql-danger-600') + ')">' + fC(ip.profit) + '</span>', fC(ip.profitPerT) + '/T \u00b7 ' + (ip.margin == null ? '\u2014' : ip.margin.toFixed(1) + '% margin'))
+    + '</tbody></table><div style="font-size:11.5px;color:var(--ql-text-muted);padding:8px 2px">Costs come from the month\u2019s actual production costing \u2014 open the Production page for the full breakdown.</div>';
+}
 
 /* handle #new (GST Invoice sidebar link) + #pending/#paid/#cash (Collections) */
 (function () {

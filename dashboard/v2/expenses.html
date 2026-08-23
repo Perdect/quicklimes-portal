@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — runs before the FIRST PAINT. Must stay in <head>, above every
+   stylesheet, so a Light user on a dark Mac never sees a flash. */
+(function(){try{var t=localStorage.getItem('ql_theme')||'light';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Expenses — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="manifest" href="/v2/app.webmanifest">
+<link rel="apple-touch-icon" href="/v2/pwa-apple.png?v=g1">
+<link rel="icon" type="image/png" sizes="32x32" href="/v2/favicon-32.png?v=g1">
+<link rel="icon" type="image/png" sizes="16x16" href="/v2/favicon-16.png?v=g1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Gotan Lime">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cora"><link rel="stylesheet" href="./imchat.css?v=im10"><link rel="stylesheet" href="./qlx.css?v=m23">
+<link rel="stylesheet" href="./mobile.css?v=m16">
+</head>
+<body class="ql-v2">
+<style id="ex-css">
+/* Treatment badges — the word that decides WHERE the money lands in
+   profitability. Tokens only, so dark mode follows. */
+.ex-tr{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;cursor:help}
+.ex-tr-direct{background:var(--ql-brand-50);color:var(--ql-brand-600)}
+.ex-tr-ovh{background:var(--ql-warning-50);color:var(--ql-warning-600)}
+.ex-tr-below{background:var(--ql-surface-2,var(--ql-bg));color:var(--ql-text-soft);border:1px solid var(--ql-divider)}
+.ex-rec{font-size:10.5px;color:var(--ql-text-muted)}
+</style>
+<div id="ql-page"><div class="dash qx qx-a-violet"><div id="qlxRoot"></div></div></div>
+<script src="ql-api.js?v=a5"></script>
+<script src="./party-identity.js?v=m27"></script>
+<script src="./import-guard.js?v=m28"></script>
+<script src="./party-resolve.js?v=pr1"></script>
+<script src="./costing-core.js?v=ct2"></script>
+<script src="./data.js?v=m52caaaa"></script>
+<script src="./party-link.js?v=pl1p"></script>
+<script src="./chat-core.js?v=cc2"></script>
+<script src="./i18n.js?v=h8"></script>
+<script src="./wa-core.js?v=w3"></script>
+<script src="./shell.js?v=m68saaaaaa"></script>
+<script src="./qlx.js?v=m20prgdaa"></script>
+<script src="./imchat.js?v=im10"></script>
+<script src="./mobile.js?v=m16"></script>
+<script>
+'use strict';
+const Q = window.QLD, C = window.QLCosting;
+const esc = s => (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fC = v => Q.fC(v);
+const IC_EXP = '<path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>';
+
+/* Treatment → where the rupee lands. One vocabulary, shared with costing. */
+const TR = {
+  'direct-production': { label: 'Direct production', cls: 'ex-tr-direct', tip: 'Part of manufacturing cost — raises this month\'s cost per tonne directly.' },
+  'factory-overhead':  { label: 'Factory overhead',  cls: 'ex-tr-ovh',    tip: 'Allocated onto the month\'s production — raises cost per tonne through allocation.' },
+  'selling':           { label: 'Selling',           cls: 'ex-tr-below',  tip: 'Below gross profit — never inside cost per tonne.' },
+  'admin':             { label: 'Admin',             cls: 'ex-tr-below',  tip: 'Below gross profit — never inside cost per tonne.' },
+  'employee':          { label: 'Employee',          cls: 'ex-tr-below',  tip: 'Below gross profit — never inside cost per tonne.' },
+  'compliance':        { label: 'Compliance',        cls: 'ex-tr-below',  tip: 'Below gross profit — never inside cost per tonne.' },
+  'finance':           { label: 'Finance',           cls: 'ex-tr-below',  tip: 'Below gross profit — never inside cost per tonne.' }
+};
+const trBadge = t => { const d = TR[t] || TR.admin; return `<span class="ex-tr ${d.cls}" title="${esc(d.tip)}">${d.label}</span>`; };
+const groupLabel = g => (C.GROUPS[g] || { label: g }).label;
+
+/* Sub-category options for one group. The starred (viaPurchases) subs are IN
+   the list — hiding them would leave "where do I put limestone?" unanswered —
+   but labelled, and the engine refuses them with the explanation on save. */
+function subOpts(g) {
+  return (C.SUBS[g] || []).map(raw => {
+    const via = raw.slice(-1) === '*', name = via ? raw.slice(0, -1) : raw;
+    return [name, name + (via ? ' — recorded via Purchase Register' : '')];
+  });
+}
+const COST_CENTERS = [['', '—'], ['Kiln 1', 'Kiln 1'], ['Kiln 2', 'Kiln 2'], ['Factory', 'Factory'],
+  ['Office', 'Office'], ['Vehicles', 'Vehicles'], ['General', 'General']];
+
+function formSpecs(init) {
+  const g0 = (init && init.group) || 'production';
+  return [
+    { k: 'date', label: 'Date', type: 'date', req: true },
+    { k: 'amount', label: 'Amount (₹)', type: 'number', req: true, reqNonZero: true, ph: '0' },
+    { k: 'group', label: 'Category group', type: 'select', opts: Object.keys(C.GROUPS).map(k => [k, C.GROUPS[k].label]) },
+    { k: 'sub', label: 'Subcategory', type: 'select', opts: subOpts(g0) },
+    { k: 'vendor', label: 'Paid to', ph: 'Vendor / person' },
+    { k: 'mode', label: 'Mode', type: 'select', opts: [['cash', 'Cash'], ['bank', 'Bank'], ['upi', 'UPI'], ['credit', 'On credit']] },
+    { k: 'costCenter', label: 'Cost center', type: 'select', opts: COST_CENTERS },
+    { k: 'recurring', label: 'Recurring', type: 'select', opts: [['', 'One-time'], ['monthly', 'Repeats monthly']] },
+    { k: 'note', label: 'Note', type: 'textarea', full: true }
+  ];
+}
+/* The sub list must follow the group live, or "Factory → Electricity" is
+   un-enterable. Rewired on every open. */
+function wireDependentSub() {
+  const g = document.getElementById('qf_group'), s = document.getElementById('qf_sub');
+  if (!g || !s) return;
+  g.onchange = () => { s.innerHTML = subOpts(g.value).map(o => `<option value="${esc(o[0])}">${esc(o[1])}</option>`).join(''); };
+}
+function openExpenseForm(initial, onDone) {
+  const editing = initial && initial.idx != null;
+  QLShell.openForm({
+    title: editing ? 'Edit expense' : 'Record expense',
+    sub: 'Classified — the category decides where it lands in profitability',
+    specs: formSpecs(initial), saveLabel: editing ? 'Save changes' : 'Save expense',
+    initial: Object.assign({ date: new Date().toISOString().slice(0, 10), group: 'production' }, initial || {}),
+    onRender: wireDependentSub,
+    onSave(v) {
+      v.recurring = v.recurring === 'monthly';
+      const r = editing ? Q.updateExpense(initial.idx, v) : Q.addExpense(v);
+      if (!r.ok) { QLShell.toast(r.error, 'err'); return false; }   // stays open — the refusal IS the feature
+      QLX.refresh();
+    }
+  });
+}
+/* "Repeats monthly" is a duplicate-forward, not a robot: one click posts the
+   same expense dated one month on. Nothing is ever created silently. */
+function nextMonthDate(d) {
+  const [y, m, day] = d.split('-').map(Number);
+  const ny = m === 12 ? y + 1 : y, nm = m === 12 ? 1 : m + 1;
+  const last = new Date(ny, nm, 0).getDate();
+  return `${ny}-${String(nm).padStart(2, '0')}-${String(Math.min(day, last)).padStart(2, '0')}`;
+}
+
+QLX.mount({
+  paginate: true, perPage: 25,
+  active: 'expenses', title: 'Expenses', accent: 'violet', noun: 'expense', nounPl: 'expenses',
+  icon: IC_EXP,
+  data: () => Q.expenseRows(), rowId: r => r.idx, dateField: r => r.date,
+  monthFilter: true, monthOf: r => r.date, emptyLabel: 'expenses',
+  emptySub: 'Record electricity, labour, maintenance, salaries — every classified expense feeds the month\'s production cost and profit. Limestone, petcoke and bags stay in the Purchase Register.',
+  subtitle: () => {
+    const rows = Q.expenseRows();
+    const t = rows.reduce((a, r) => a + r.amount, 0);
+    return `<b>${esc(Q.co.short)}</b> · ${rows.length} entries · ${fC(t)}`;
+  },
+  tools: [
+    { label: 'Export', icon: QLX.icons.dl, onClick: () => {
+        const rows = QLX.rows();
+        QLShell.exportCSV('expenses_' + (Q.co.short || '').replace(/\s+/g, '_') + (QLX.month() ? '_' + QLX.month() : ''),
+          ['Date', 'Group', 'Subcategory', 'Treatment', 'Paid to', 'Cost center', 'Mode', 'Recurring', 'Amount', 'Note'],
+          rows.map(r => [r.date, groupLabel(r.group), r.sub, r.treatment, r.vendor, r.costCenter, r.mode, r.recurring ? 'monthly' : '', r.amount, r.note]));
+      } },
+    { label: 'Costing', icon: '<path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-8"/>',
+      onClick: () => { location.href = 'production.html'; } }
+  ],
+  primary: { label: 'Record expense', onClick: () => openExpenseForm(null) },
+  stats: rows => {
+    const sum = f => rows.filter(f).reduce((a, r) => a + r.amount, 0);
+    const total = sum(() => true);
+    const direct = sum(r => r.treatment === 'direct-production');
+    const ovh = sum(r => r.treatment === 'factory-overhead');
+    const below = total - direct - ovh;
+    /* variance vs the month before the picked one — null base stays '—' */
+    const ym = QLX.month();
+    let varTxt = 'pick a month to compare';
+    if (ym) {
+      const [y, m] = ym.split('-').map(Number);
+      const prev = (m === 1 ? (y - 1) + '-12' : y + '-' + String(m - 1).padStart(2, '0'));
+      const pTot = Q.expenseRows().filter(r => (r.date || '').slice(0, 7) === prev).reduce((a, r) => a + r.amount, 0);
+      varTxt = pTot > 0 ? (total >= pTot ? '+' : '') + ((total - pTot) / pTot * 100).toFixed(1) + '% vs ' + prev : 'no entries in ' + prev + ' to compare';
+    }
+    const byG = {};
+    rows.forEach(r => { byG[r.group] = (byG[r.group] || 0) + r.amount; });
+    const top = Object.entries(byG).sort((a, b) => b[1] - a[1])[0];
+    return [
+      { label: 'Total', value: fC(total), sub: rows.length + ' entries · ' + varTxt, tint: 'violet', icon: IC_EXP },
+      { label: 'Direct production', value: fC(direct), sub: 'inside cost per tonne', tint: 'blue',
+        icon: '<path d="M2 20h20"/><path d="M5 20V9l7-5 7 5v11"/>' },
+      { label: 'Factory overhead', value: fC(ovh), sub: 'allocated onto production', tint: 'amber',
+        icon: '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 1 1-14 0 7 7 0 0 1 14 0z"/>' },
+      { label: 'Below gross profit', value: fC(below), sub: 'selling · admin · finance', tint: 'slate',
+        icon: '<path d="M3 3v18h18"/><path d="M7 13l4 4 8-9"/>' },
+      { label: 'Top category', value: top ? groupLabel(top[0]) : '—', sub: top ? fC(top[1]) : 'nothing recorded', tint: 'green',
+        icon: '<path d="M12 3v18"/><path d="M5 10l7-7 7 7"/>' }
+    ];
+  },
+  quickFilters: [
+    { key: 'all', label: 'All', test: () => true },
+    { key: 'direct', label: 'Direct production', test: r => r.treatment === 'direct-production' },
+    { key: 'ovh', label: 'Factory overhead', test: r => r.treatment === 'factory-overhead' },
+    { key: 'below', label: 'Below GP', test: r => !['direct-production', 'factory-overhead'].includes(r.treatment) },
+    { key: 'rec', label: 'Recurring', test: r => r.recurring }
+  ],
+  search: (r, q) => (r.vendor + ' ' + r.sub + ' ' + groupLabel(r.group) + ' ' + r.costCenter + ' ' + r.note).toLowerCase().includes(q),
+  filters: [
+    { key: 'group', label: 'Group', options: () => Object.keys(C.GROUPS).map(k => [k, C.GROUPS[k].label]), test: (r, v) => r.group === v },
+    { key: 'mode', label: 'Mode', options: () => [['cash', 'Cash'], ['bank', 'Bank'], ['upi', 'UPI'], ['credit', 'On credit']], test: (r, v) => r.mode === v },
+    { key: 'cc', label: 'Cost center', options: () => COST_CENTERS.filter(o => o[0]), test: (r, v) => r.costCenter === v }
+  ],
+  groupBy: [
+    { key: 'group', label: 'Category', of: r => groupLabel(r.group), title: r => esc(groupLabel(r.group)), dot: () => 'var(--qx)' },
+    { key: 'cc', label: 'Cost center', of: r => r.costCenter || 'Unassigned', title: r => esc(r.costCenter || 'Unassigned'), dot: () => 'var(--qx)' },
+    { key: 'month', label: 'Month', of: r => (r.date || '').slice(0, 7), title: r => Q.monthLabel(r.date, { blank: 'No date' }), dot: () => 'var(--qx)' }
+  ],
+  groupSum: r => r.amount,
+  columns: [
+    { label: 'Date', v: r => r.date || '—' },
+    { label: 'Category', v: r => `<div style="font-weight:600">${esc(r.sub || groupLabel(r.group))}</div><div style="font-size:11.5px;color:var(--ql-text-muted)">${esc(groupLabel(r.group))}${r.recurring ? ' · <span class="ex-rec">↻ monthly</span>' : ''}</div>` },
+    { label: 'Paid to', v: r => esc(r.vendor) || '<span style="color:var(--ql-text-muted)">—</span>' },
+    { label: 'Cost center', v: r => esc(r.costCenter) || '<span style="color:var(--ql-text-muted)">—</span>' },
+    { label: 'Lands in', v: r => trBadge(r.treatment) },
+    { label: 'Mode', v: r => ({ cash: 'Cash', bank: 'Bank', upi: 'UPI', credit: 'Credit' })[r.mode] || esc(r.mode) },
+    { label: 'Amount', num: true, v: r => `<b>${fC(r.amount)}</b>` }
+  ],
+  card: r => ({
+    id: r.idx, title: esc(r.sub || groupLabel(r.group)), amount: fC(r.amount),
+    party: r.vendor || groupLabel(r.group), partySub: (r.date || '') + ' · ' + groupLabel(r.group),
+    rows: [['Lands in', (TR[r.treatment] || TR.admin).label], ['Mode', r.mode], ['Amount', fC(r.amount)]]
+  }),
+  rowActions: r => [
+    { tt: 'Edit', icon: QLX.icons.edit, onClick: x => openExpenseForm(x) }
+  ],
+  rowMenu: r => [
+    { label: 'Edit', icon: QLX.icons.edit, onClick: x => openExpenseForm(x) },
+    ...(r.recurring ? [{ label: 'Repeat next month', icon: QLX.icons.copy || QLX.icons.edit, onClick: x => {
+        const d = nextMonthDate(x.date);
+        const res = Q.addExpense({ date: d, group: x.group, sub: x.sub, amount: x.amount, vendor: x.vendor,
+          mode: x.mode, costCenter: x.costCenter, recurring: true, note: x.note });
+        if (!res.ok) { QLShell.toast(res.error, 'err'); return; }
+        QLShell.toast('Repeated for ' + d, 'ok'); QLX.refresh();
+      } }] : []),
+    { label: 'Delete', icon: QLX.icons.trash, danger: true, onClick: x =>
+      QLShell.confirmDelete({ title: 'Move expense to Trash?',
+        desc: 'This expense will move to Trash and can be restored for 90 days. The month\'s production cost recalculates immediately.',
+        confirmLabel: 'Move to Trash',
+        onConfirm: reason => { Q.deleteExpense(x.idx, reason); QLX.refresh(); } }) }
+  ]
+});
+window.__qlOnSwitchCompany = () => QLX.refresh();
+window.__qlRefresh = () => QLX.refresh();
+</script>
+</body>
+</html>

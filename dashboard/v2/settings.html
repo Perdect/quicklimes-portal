@@ -197,6 +197,22 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
       <div id="coList" style="margin-top:var(--ql-space-4)"></div>
     </div>
 
+    <!-- DEMO DATA (§28 of the demo spec). The generator writes ONLY into a
+         company whose name says DEMO — installDemo() refuses anything else,
+         so this card can exist on every account without ever endangering the
+         real books. -->
+    <div class="card" id="demoCard" style="margin-bottom:var(--ql-space-5)">
+      <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M5 8l2.5 2.5"/><path d="M19 8l-2.5 2.5"/><rect x="4" y="12" width="16" height="8" rx="2"/></svg></span>
+        <div>
+          <h3 class="ft-title">Demo data</h3>
+          <div class="ft-note" id="demoNote">Loading…</div>
+        </div>
+        <button class="ql-btn ql-btn-secondary" id="demoGen" style="flex:none">Generate</button>
+      </div>
+      <div id="demoInfo" style="margin-top:var(--ql-space-3)"></div>
+    </div>
+
     <!-- DATA HEALTH. He asked "If you cannot test from here, who will test??" —
          a fair question I had no good answer to. My tests prove the code against
          fixtures I invent; they cannot see HIS 26 bills. This runs in HIS browser,
@@ -383,12 +399,13 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./sources-core.js?v=g9"></script>
 <script src="./month-apply.js?v=g9"></script>
 <script src="./party-resolve.js?v=pr1"></script>
-<script src="./data.js?v=m52caaa"></script>
+<script src="./demo-seed.js?v=ds2"></script>
+<script src="./data.js?v=m52caaaa"></script>
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./recon-core.js?v=rc5a"></script>
 <script src="./wa-core.js?v=w3"></script>
 
-<script src="./shell.js?v=m68saaaaa"></script>
+<script src="./shell.js?v=m68saaaaaa"></script>
 <script src="./chat-core.js?v=cc2"></script>
 <script src="./imchat.js?v=im10"></script>
 <script src="./qlx.js?v=m20prgdaa"></script>
@@ -503,7 +520,7 @@ function render() {
 /* Sticky section nav — one tap jumps to any section (no long scrolling), with a
    smooth scroll, an active pill, and a brief flash on the target. Rebuilt each
    render so it reflects which cards are actually visible (Team is owner-only). */
-const SET_SECTIONS = [['coCard', 'Company'], ['dhCard', 'Data health'], ['healthCard', 'App health'], ['langCard', 'Language'], ['themeCard', 'Appearance'], ['ftCard', 'Features'], ['teamCard', 'Team'], ['waCard', 'WhatsApp'], ['bankCard', 'Banks'], ['rmCard', 'Replace month'], ['dmCard', 'Data'], ['dzCard', 'Danger']];
+const SET_SECTIONS = [['coCard', 'Company'], ['dhCard', 'Data health'], ['healthCard', 'App health'], ['langCard', 'Language'], ['themeCard', 'Appearance'], ['ftCard', 'Features'], ['teamCard', 'Team'], ['waCard', 'WhatsApp'], ['bankCard', 'Banks'], ['rmCard', 'Replace month'], ['demoCard', 'Demo data'], ['dmCard', 'Data'], ['dzCard', 'Danger']];
 let _setSpy;
 function setActiveChip(id) {
   document.querySelectorAll('#setNav .set-chip').forEach(c => c.classList.toggle('active', c.dataset.sec === id));
@@ -1002,7 +1019,35 @@ function openCompanyDeepLink() {
   if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
   if (c) editCo(c);
 }
-QLD.init(() => { render(); renderDM(); renderBanks(); renderCo(); renderRm(); openCompanyDeepLink(); });
+function renderDemo() {
+  const isDemo = QLD.isDemoCo && QLD.isDemoCo();
+  const note = $('#demoNote'), info = $('#demoInfo'), btn = $('#demoGen');
+  if (!note) return;
+  if (isDemo) {
+    const n = { sales: QLD.salesRows().length, purchases: QLD.purchaseRows().length,
+      prod: QLD.productionRows().length, expenses: QLD.expenseRows ? QLD.expenseRows().length : 0 };
+    note.innerHTML = 'This is a <b>demo company</b>. Generate fills it with a realistic Quick Lime factory: Apr–Jun 2026 — purchases → production → expenses → sales, all reconciled. Generating again <b>replaces</b> the demo set with the identical deterministic data (that IS the reset).';
+    info.innerHTML = n.sales || n.prod ? '<div class="ft-note">Currently holds: <b>' + n.sales + '</b> invoices · <b>' + n.purchases + '</b> purchase bills · <b>' + n.prod + '</b> production runs · <b>' + n.expenses + '</b> expenses.</div>' : '<div class="ft-note">Empty — generate to fill it.</div>';
+    btn.textContent = n.sales || n.prod ? 'Reset demo data' : 'Generate demo data';
+    btn.onclick = () => QLShell.confirmDelete({ reason: false,
+      title: (n.sales ? 'Reset' : 'Generate') + ' demo data?',
+      desc: 'Everything in THIS demo company is replaced by the deterministic demo set (seed ' + (window.QLDemo ? QLDemo.ASSUMPTIONS.seed : '?') + '). Your real companies are not touched.',
+      confirmLabel: n.sales ? 'Reset' : 'Generate',
+      onConfirm() {
+        const r = QLD.installDemo();
+        if (!r.ok) { toast(r.err); return; }
+        toast('Demo data installed — ' + r.counts.sales + ' invoices, ' + r.counts.purchases + ' bills, ' + r.counts.prod + ' runs, ' + r.counts.expenses + ' expenses');
+        renderDemo(); renderDM();
+      }
+    });
+  } else {
+    note.innerHTML = 'Demo data lives in a <b>separate company</b> so your real books stay untouched. Create a company whose name contains <b>DEMO</b> (e.g. “Gotan Lime DEMO”) from <b>Company profile → Add company</b>, switch to it, and this button activates.';
+    info.innerHTML = '';
+    btn.textContent = 'Needs a demo company';
+    btn.onclick = () => toast('Create and switch to a company whose name contains DEMO first — the generator refuses to write anywhere else.');
+  }
+}
+QLD.init(() => { render(); renderDM(); renderBanks(); renderCo(); renderRm(); renderDemo(); openCompanyDeepLink(); });
 renderTeam();
 renderWa();
 </script>

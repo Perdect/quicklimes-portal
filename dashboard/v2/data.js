@@ -319,7 +319,7 @@
   /* ── State ───────────────────────────────────────────────────── */
   const S = {
     SALES: [], PURCHASES: [], WORKERS: [], WORK_LOG: [], ATT: {},
-    TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: [], PROD: [], AUDIT: [], REFUNDS: [],
+    TDS: [], CHALLANS: [], PARTIES: [], CASHBOOK: [], LOANS: [], CHUNNA: [], PROD: [], AUDIT: [], REFUNDS: [], EXPENSES: [],
     FINANCE: null,
     RECON: { txns: [] },      // bank-statement reconciliation (per company)
     BANK_ACCOUNTS: [],        // first-class bank accounts within THIS firm (multi-bank)
@@ -435,7 +435,7 @@
   function clearState() {
     S.SALES.length = 0; S.PURCHASES.length = 0; S.WORKERS.length = 0; S.WORK_LOG.length = 0;
     S.TDS.length = 0; S.CHALLANS.length = 0; S.PARTIES.length = 0; S.CASHBOOK.length = 0;
-    S.LOANS.length = 0; S.CHUNNA.length = 0; S.PROD.length = 0; S.AUDIT.length = 0; S.REFUNDS.length = 0;
+    S.LOANS.length = 0; S.CHUNNA.length = 0; S.PROD.length = 0; S.AUDIT.length = 0; S.REFUNDS.length = 0; S.EXPENSES.length = 0;
     Object.keys(S.ATT).forEach(k => delete S.ATT[k]);
     S.FINANCE = defaultFinance();
     S.RECON = { txns: [] };
@@ -462,6 +462,7 @@
     if (d.prod)      S.PROD.push(...d.prod);
     if (d.audit)     S.AUDIT.push(...d.audit);
     if (d.refunds)   S.REFUNDS.push(...d.refunds);
+    if (d.expenses)  S.EXPENSES.push(...d.expenses);
     if (d.finance)   S.FINANCE = normalizeFinance(d.finance);
     if (d.reconcile && Array.isArray(d.reconcile.txns)) S.RECON = d.reconcile;
     if (Array.isArray(d.bankAccounts)) S.BANK_ACCOUNTS.push(...d.bankAccounts);
@@ -572,7 +573,8 @@
     const b = {
       sales: S.SALES, purchases: S.PURCHASES, workers: S.WORKERS, workLog: S.WORK_LOG,
       att: S.ATT, tds: S.TDS, challans: S.CHALLANS, parties: S.PARTIES,
-      cashbook: S.CASHBOOK, chunna: S.CHUNNA, prod: S.PROD, audit: S.AUDIT, refunds: S.REFUNDS, finance: S.FINANCE || defaultFinance(),
+      cashbook: S.CASHBOOK, chunna: S.CHUNNA, prod: S.PROD, audit: S.AUDIT, refunds: S.REFUNDS,
+      expenses: S.EXPENSES, finance: S.FINANCE || defaultFinance(),
       reconcile: S.RECON || { txns: [] },
       bankAccounts: S.BANK_ACCOUNTS,
       statements: S.STATEMENTS,
@@ -966,6 +968,7 @@
     party:      { arr: () => S.PARTIES,   label: 'Party',          ref: r => r.name, party: r => r.name,         amount: () => 0,           date: () => '' },
     payment:    { arr: () => S.CASHBOOK,  label: 'Payment / entry', ref: r => r.ref || r.id, party: r => r.party, amount: r => +r.amount || 0, date: r => r.date },
     chunna:     { arr: () => S.CHUNNA,    label: 'Chunna sale',    ref: r => r.id,   party: r => r.customer,     amount: r => +r.total || 0, date: r => r.date },
+    expense:    { arr: () => S.EXPENSES,  label: "Expense",        ref: r => r.sub || r.group, party: r => r.vendor || "", amount: r => +r.amount || 0, date: r => r.date },
     production: { arr: () => S.PROD,      label: 'Production run', ref: r => r.date, party: () => '',            amount: r => +r.labour || 0, date: r => r.date },
     tds:        { arr: () => S.TDS,       label: 'TDS entry',      ref: r => r.id,   party: r => r.party,        amount: r => +r.tds || 0,  date: r => r.date },
     worker:     { arr: () => S.WORKERS,   label: 'Worker',         ref: r => r.name, party: r => r.name,         amount: () => 0,           date: () => '' }
@@ -1881,6 +1884,84 @@
     commit();
   }
   function deleteChunna(i, reason) { return softDelete('chunna', i, reason); }
+
+  /* ── Expenses (manufacturing costing store) ────────────────────────────
+     Classification lives in costing-core.js (QLCosting) — ONE master, shared
+     by the entry form, this gate and the tests. The gate is what makes §17
+     real: limestone/petcoke/bags arrive as PURCHASE BILLS and QLCosting
+     refuses them here, so the same money cannot enter the books twice. */
+  function addExpense(e) {
+    const C = window.QLCosting;
+    if (!C) return { ok: false, error: "Costing engine not loaded — reload the page" };
+    const v = C.classify(e);
+    if (!v.ok) return v;
+    S.EXPENSES.push({
+      id: "EX" + idStamp(), date: e.date, group: e.group, sub: e.sub || "",
+      amount: +(+e.amount).toFixed(2),
+      vendor: (e.vendor || "").toString().trim().slice(0, 80),
+      mode: e.mode || "cash",
+      costCenter: (e.costCenter || "").toString().trim().slice(0, 40),
+      treatment: v.treatment,               // frozen at entry: recats later never rewrite history
+      recurring: !!e.recurring,
+      note: (e.note || "").toString().slice(0, 200)
+    });
+    commit();
+    return { ok: true, id: S.EXPENSES[S.EXPENSES.length - 1].id };
+  }
+  function updateExpense(i, e) {
+    const C = window.QLCosting, cur = S.EXPENSES[i];
+    if (!cur) return { ok: false, error: "No such expense" };
+    const next = Object.assign({}, cur, e);
+    const v = C ? C.classify(next) : { ok: true, treatment: cur.treatment };
+    if (!v.ok) return v;
+    ["date", "group", "sub", "vendor", "mode", "costCenter", "note"].forEach(k => { if (e[k] != null) cur[k] = next[k]; });
+    if (e.amount != null) cur.amount = +(+e.amount).toFixed(2);
+    if (e.recurring != null) cur.recurring = !!e.recurring;
+    cur.treatment = v.treatment;
+    commit();
+    return { ok: true };
+  }
+  function deleteExpense(i, reason) { return softDelete("expense", i, reason); }
+  function expenseRows(period) {
+    return withIdx(S.EXPENSES).map(([e, i]) => ({
+      idx: i, id: e.id, date: e.date, group: e.group, sub: e.sub || "",
+      amount: +e.amount || 0, vendor: e.vendor || "", mode: e.mode || "cash",
+      costCenter: e.costCenter || "", treatment: e.treatment || "",
+      recurring: !!e.recurring, note: e.note || ""
+    })).filter(r => inPeriod(r.date, period))
+      .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  }
+  /* Everything the costing engine needs for one call, straight off the live
+     stores. cashbookLabour feeds the §17 labour rule (expense entries take
+     over from the cash book, never both). */
+  function costingInputs(ym) {
+    return {
+      ym,
+      purchases: S.PURCHASES, sales: S.SALES, prodRuns: S.PROD, expenses: S.EXPENSES,
+      cashbookLabour: labourPaid({ from: ym + "-01", to: ym + "-31" })
+    };
+  }
+
+  /* ── Demo data (development / demo company ONLY) ───────────────────────
+     installDemo() fills the ACTIVE company with the deterministic demo set
+     from demo-seed.js. THE GUARD IS THE FEATURE: it refuses unless the active
+     company's name says DEMO, so the user's real books (this app carries his
+     actual accounts) can never be overwritten by a demo fill — not by a
+     mis-click, not by a bug in a page. Regenerating = the §28 reset: same
+     seed, same data, every time. */
+  function isDemoCo() { return /demo/i.test((co && (co.name || co.short)) || ''); }
+  function installDemo(seed) {
+    if (!window.QLDemo) return { ok: false, err: 'demo-seed.js is not loaded on this page' };
+    if (!isDemoCo()) return { ok: false, err: 'Refused: "' + (co.name || co.short) + '" is not a demo company. Demo data only installs into a company whose name contains DEMO — your real books stay untouched.' };
+    const d = window.QLDemo.generate(seed);
+    clearState();
+    hydrate(d);
+    S.DEMO_META = d.demo || null;
+    commit();
+    logAudit('demo-install', 'system', { name: 'Demo data' }, { reason: 'Deterministic demo set installed (seed ' + (d.demo && d.demo.seed) + ') — ' + S.SALES.length + ' invoices, ' + S.PURCHASES.length + ' bills, ' + S.PROD.length + ' runs, ' + S.EXPENSES.length + ' expenses' });
+    return { ok: true, counts: { sales: S.SALES.length, purchases: S.PURCHASES.length,
+      prod: S.PROD.length, expenses: S.EXPENSES.length, parties: S.PARTIES.length, cashbook: S.CASHBOOK.length } };
+  }
 
   /* ── Production (daily manufacturing entries) ──────────────────────────
      A run records what was CONSUMED (limestone, petcoke, bags) and what was
@@ -2939,6 +3020,8 @@
     addWorker, updateWorker, deleteWorker,
     addCashEntry, deleteCashEntry,
     addChunna, deleteChunna,
+    expenseRows, addExpense, updateExpense, deleteExpense, costingInputs,
+    isDemoCo, installDemo,
     setAtt, cycleAtt, markAllAtt,
     addTds, updateTds, deleteTds,
 

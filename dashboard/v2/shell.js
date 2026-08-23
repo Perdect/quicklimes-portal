@@ -223,7 +223,10 @@
       { id: 'banks',    label: 'Banks',                    href: 'banks.html', icon: I.bank },
       { id: 'reconcile', label: 'Bank Reconciliation',     href: 'reconcile.html', icon: I.bank },
       { id: 'refunds',  label: 'GST Refunds',              href: 'refunds.html', icon: I.receipt },
-      { id: 'cashbook', label: 'Expenses',                 href: 'cashbook.html', icon: I.card },
+      /* The classified expense register (costing) is 'Expenses'; the cash
+         book keeps its own name — two different books, two different links. */
+      { id: 'expenses', label: 'Expenses',                 href: 'expenses.html', icon: I.card },
+      { id: 'cashbook', label: 'Cash Book',                href: 'cashbook.html', icon: I.card },
       { id: 'loans',    label: 'Partner Ledger / Loans',   href: 'loans.html',    icon: I.receipt },
       { id: 'gst',      label: 'GST Filing', href: 'gst.html', icon: I.receipt, feat: 'advfinance' },
       { id: 'tds',      label: 'TDS',        href: 'tds.html', icon: I.receipt, feat: 'advfinance' },
@@ -558,6 +561,23 @@
        see paintAvatarLetter: never leave an invented letter standing. The profile
        avatars still resolve person → firm → neutral dot.) */
     if (wsMeta) wsMeta.textContent = 'Business Operations System';
+    /* §27 of the demo spec: dummy data must never look like real books. The
+       badge keys off the COMPANY NAME (isDemoCo), not off the data — a demo
+       company is a demo company even while empty. */
+    (function () {
+      let pill = document.getElementById('qlDemoPill');
+      const demo = !!(Q.isDemoCo && Q.isDemoCo());
+      if (!demo) { if (pill) pill.remove(); return; }
+      if (!pill) {
+        pill = document.createElement('span');
+        pill.id = 'qlDemoPill';
+        pill.textContent = 'DEMO DATA';
+        pill.title = 'This company holds generated demo data for testing. Your real firms are separate and untouched.';
+        pill.style.cssText = 'display:inline-block;margin-left:8px;padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:800;letter-spacing:.06em;background:var(--ql-warning-50);color:var(--ql-warning-600);border:1px solid var(--ql-divider);vertical-align:middle;white-space:nowrap';
+        const host = document.querySelector('#wsBtn .workspace-name');
+        if (host) host.appendChild(pill);
+      }
+    })();
     const menu = $('wsMenu');
     if (!menu) { paintAvatarLetter(co); refreshNotifDot(); return; }
     menu.innerHTML = Object.values(Q.COMPANIES || {}).map((c, i) => `

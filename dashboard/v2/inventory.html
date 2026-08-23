@@ -64,11 +64,12 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./party-resolve.js?v=pr1"></script>
-<script src="./data.js?v=m52caaa"></script>
+<script src="./costing-core.js?v=ct2"></script>
+<script src="./data.js?v=m52caaaa"></script>
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./i18n.js?v=h8"></script>
 <script src="./wa-core.js?v=w3"></script>
-<script src="./shell.js?v=m68saaaaa"></script>
+<script src="./shell.js?v=m68saaaaaa"></script>
 <script src="./chat-core.js?v=cc2"></script>
 <script src="./imchat.js?v=im10"></script>
 <script src="./qlx.js?v=m20prgdaa"></script>
@@ -552,6 +553,54 @@ function barHTML() {
   </div></div>`;
 }
 
+/* ── §20: monthly stock MOVEMENT (opening + in − out = closing) ─────────
+   Only for a picked calendar month — "all time" has no opening. Raw material
+   comes from QLCosting.rmMovement (purchases in, runs out); finished goods
+   from runs in, invoices out. Un-computable cells explain themselves. */
+function movementHTML() {
+  if (!/^\d{4}-\d{2}$/.test(PERIOD) || !window.QLCosting) return '';
+  const inp = QLD.costingInputs(PERIOD);
+  const rm = QLCosting.rmMovement(inp);
+  const rates = QLCosting.materialRates(inp.purchases, PERIOD);
+  const dashT = t => '<span class="prd-dash" title="' + esc(t) + '" style="color:var(--ql-text-muted);cursor:help">\u2014</span>';
+  const NAMES = { limestone: 'Limestone (T)', petcoke: 'Petcoke (T)', packaging: 'Bags (nos)' };
+  const rmRows = rm.map(m => {
+    const dec = m.group === 'packaging' ? 0 : 1;
+    const c = v => v == null ? dashT(m.note || 'needs production runs') : QLD.fmt(v, dec);
+    const rate = rates[m.group] && rates[m.group].rate != null ? fC(rates[m.group].rate) : '\u2014';
+    return '<tr><td><b>' + NAMES[m.group] + '</b></td><td class="num">' + c(m.opening) + '</td><td class="num">' + QLD.fmt(m.purchased, dec) +
+      (m.purchasedMissing ? '<span title="' + m.purchasedMissing + ' bill(s) carry no quantity \u2014 floor, not total" style="color:var(--ql-warning-600);cursor:help"> !</span>' : '') +
+      '</td><td class="num">' + c(m.consumed) + '</td><td class="num">' + c(m.closing) + '</td><td class="num">' + rate + '</td></tr>';
+  }).join('');
+  /* finished goods per product: cumulative history gives opening/closing */
+  const runs = (QLD.productionRows ? QLD.productionRows() : []);
+  const sales = QLD.salesRows();
+  const anyRuns = runs.length > 0;
+  const start = PERIOD + '-01';
+  const soldKnown = sales.some(s => s.product);
+  const fgRow = (key, label) => {
+    if (!anyRuns) return '<tr><td><b>' + label + '</b></td><td class="num" colspan="5">' + dashT('Finished-goods stock needs production runs \u2014 nothing records what was produced.') + '</td></tr>';
+    const prodBefore = runs.filter(r => (r.date || '') < start).reduce((a, r) => a + r[key], 0);
+    const prodIn = runs.filter(r => (r.date || '').slice(0, 7) === PERIOD).reduce((a, r) => a + r[key], 0);
+    const soldOf = f => sales.filter(s => s.product === key && f(s)).reduce((a, s) => a + s.qty, 0);
+    if (!soldKnown) {
+      return '<tr><td><b>' + label + '</b></td><td class="num">' + dashT('Sales invoices do not record the product, so per-product sold/closing cannot be split.') +
+        '</td><td class="num">' + QLD.fmt(prodIn, 1) + '</td><td class="num">' + dashT('product not on invoices') + '</td><td class="num">' + dashT('product not on invoices') + '</td><td class="num">\u2014</td></tr>';
+    }
+    const opening = prodBefore - soldOf(s => (s.date || '') < start);
+    const sold = soldOf(s => (s.date || '').slice(0, 7) === PERIOD);
+    const pc = QLCosting.productionCost(inp);
+    const perT = pc.perT != null ? fC(pc.perT) : '\u2014';
+    return '<tr><td><b>' + label + '</b></td><td class="num">' + QLD.fmt(opening, 1) + '</td><td class="num">' + QLD.fmt(prodIn, 1) +
+      '</td><td class="num">' + QLD.fmt(sold, 1) + '</td><td class="num">' + QLD.fmt(opening + prodIn - sold, 1) + '</td><td class="num">' + perT + '</td></tr>';
+  };
+  return '<div class="inv-sec-h">Stock movement \u2014 ' + esc(periodLabel(PERIOD)) + ' <span class="hint">opening + in \u2212 out = closing \u00b7 reconciles with Production</span></div>' +
+    '<div class="qx-panel inv-panel" style="padding:12px;overflow-x:auto"><table class="tbl"><thead><tr><th>Raw material</th><th class="num">Opening</th><th class="num">Purchased</th><th class="num">Consumed</th><th class="num">Closing</th><th class="num">Avg cost</th></tr></thead>' +
+    '<tbody>' + rmRows + '</tbody></table>' +
+    '<table class="tbl" style="margin-top:14px"><thead><tr><th>Finished goods</th><th class="num">Opening</th><th class="num">Produced</th><th class="num">Sold</th><th class="num">Closing</th><th class="num">Cost/T</th></tr></thead>' +
+    '<tbody>' + fgRow('quicklime', 'Quick Lime (T)') + fgRow('hydrated', 'Hydrated Lime (T)') + '</tbody></table></div>';
+}
+
 function render() {
   const P = QLD.purchaseRows(), S = QLD.salesRows(), R = QLD.productionRows ? QLD.productionRows() : [];
   const M = invModel(P, S, R, PERIOD);
@@ -584,7 +633,8 @@ function render() {
     ${M.fg ? `<div class="inv-grid">${cardHTML(M.fg, 'sales')}</div>`
       : emptyHTML('plant', PERIOD === 'all' ? 'No dispatches yet' : 'No dispatches in ' + periodLabel(PERIOD),
           PERIOD === 'all' ? 'Raise a sales invoice to track finished-goods movement.' : 'Try a different period.',
-          'invoice', '+ New invoice')}`;
+          'invoice', '+ New invoice')}
+    ${movementHTML()}`;
 }
 
 window.__qlOnSwitchCompany = () => { closeMenu(); render(); };
