@@ -119,10 +119,23 @@ function harness(seed) {
   ok(!/href="#soon"/.test(html), 'THE BUG: no sidebar item links to the dead #soon anchor — a click cannot put #soon in the address bar or jump the page');
   eq('  and there are zero of them, not merely fewer', (html.match(/#soon/g) || []).length, 0);
 
-  /* They must still be VISIBLE — hiding them loses the roadmap the badge conveys. */
-  ok(/Stock Management/.test(html), 'a Soon item is still listed (the badge is the point — it is coming)');
-  ok(/is-soon/.test(html), '  rendered inert, with a class that marks it unavailable');
-  ok(/aria-disabled="true"/.test(html), '  and announced as disabled to a screen reader');
+  /* FLIPPED, deliberately. These two used to require an inert is-soon item
+     with aria-disabled, because six modules were parked and a dead link is
+     worse than an honest badge. Every module now lands on a real page —
+     Attendance and Dispatch were built, the rest resolve to the pages that
+     already answer them — so the pin is now the absence: nothing renders
+     inert. The MACHINERY (is-soon, aria-disabled) stays in shell.js for the
+     next genuinely unfinished module; what must not exist is a CURRENT item
+     using it. */
+  ok(/Stock Management/.test(html), 'Stock Management is still listed — now as a live link (Inventory computes stock)');
+  ok(!/is-soon/.test(html), 'no sidebar item renders inert any more — every module is a real page');
+  ok(!/aria-disabled="true"/.test(html), '  and none is announced as disabled to a screen reader');
+  /* Dispatch renders here because its section's feature is on by default.
+     Attendance sits in the People section, which this harness (no
+     localStorage) has off — its live link is pinned in nav-targets.test.js,
+     which reads the nav CONFIG rather than one feature-gated render. */
+  ok(/href="dispatch\.html"/.test(html),
+    '  Dispatch is an ordinary link to its built page');
 
   /* A real page must still be a real link — do not disable the whole sidebar. */
   ok(/<a class="sb-link[^"]*" href="reconcile\.html"/.test(html) || /href="[a-z-]+\.html"/.test(html),

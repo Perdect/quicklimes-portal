@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — runs before the FIRST PAINT. The app shell applies the theme at
+   mount, which is far too late: the browser would paint the page light and then
+   flip, so a Light user on a dark Mac sees a white flash. Must stay in <head>,
+   above every stylesheet. (It used to guard the launch splash; the splash is
+   gone, the flash it prevents is not.) Resolves 'system' here too, so data-theme
+   is ALWAYS a literal light|dark and CSS never has to ask twice. */
+(function(){try{var t=localStorage.getItem('ql_theme')||'light';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dispatch — QuickLimes</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cora"><link rel="stylesheet" href="./imchat.css?v=im10"><link rel="stylesheet" href="./qlx.css?v=m23">
+<link rel="stylesheet" href="./mobile.css?v=m16">
+</head>
+<body class="ql-v2">
+<div id="ql-page"></div>
+<script src="ql-api.js?v=a5"></script>
+<script src="./party-identity.js?v=m27"></script>
+<script src="./import-guard.js?v=m28"></script>
+<script src="./party-resolve.js?v=pr1"></script>
+<script src="./data.js?v=m52caaa"></script>
+<script src="./party-link.js?v=pl1p"></script>
+<script src="./chat-core.js?v=cc2"></script>
+<script src="./i18n.js?v=h8"></script>
+<script src="./wa-core.js?v=w3"></script>
+<script src="./shell.js?v=m68saaaaa"></script>
+<script src="./qlx.js?v=m20prgdaa"></script>
+<script src="./imchat.js?v=im10"></script>
+<script src="./mobile.js?v=m16"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   DISPATCH — every truck that left the gate.
+
+   DERIVED, not a new store. Every sales invoice already carries the vehicle,
+   the tonnage and the date — 153 of 153 in the live book — so the dispatch
+   register is those same rows viewed by MOVEMENT rather than by money. A
+   separate dispatch store would be a second copy of the same facts, and the
+   two copies would disagree within a month.
+
+   A row here IS the invoice: opening it, editing it or deleting it happens in
+   the Sales Register, which owns those rows. This page adds the questions the
+   Sales Register does not answer: which vehicles, how many trips each, how
+   many tonnes per trip.
+
+   Mounted through QLX like every other register, so search, filters, the
+   month picker, grouping, pagination and export are the shared ones.
+   ═══════════════════════════════════════════════════════════════════════ */
+const Q = window.QLD;
+const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fC = v => Q.fC(v);
+const fDS = d => Q.fDS(d);
+const fmt = (n, d) => (+n || 0).toLocaleString('en-IN', { maximumFractionDigits: d == null ? 1 : d });
+
+/* One dispatch row per invoice that MOVED something: an invoice with no
+   vehicle and no quantity is billing, not movement, and is left to the Sales
+   Register rather than padded in here with dashes. */
+function dispatchRows() {
+  return Q.salesRows()
+    .filter(r => (r.veh || '').trim() || +r.qty > 0)
+    .map(r => ({
+      idx: r.idx, inv: r.inv, date: r.date, party: r.party, gstin: r.gstin,
+      veh: (r.veh || '').trim().toUpperCase(), qty: +r.qty || 0,
+      taxable: +r.taxable || 0, status: r.status
+    }));
+}
+
+const IC_TRUCK = '<path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>';
+
+QLX.mount({
+  paginate: true, perPage: 25,
+  active: 'dispatch', title: 'Dispatch', accent: 'teal', noun: 'trip', nounPl: 'trips',
+  icon: IC_TRUCK,
+  data: dispatchRows, rowId: r => r.idx, dateField: r => r.date,
+  monthFilter: true, monthOf: r => r.date, emptyLabel: 'dispatch',
+  emptySub: 'Trips appear here from sales invoices — record the vehicle number on the invoice and it shows as a dispatch.',
+  subtitle: () => {
+    const rows = dispatchRows();
+    const veh = new Set(rows.map(r => r.veh).filter(Boolean));
+    return `<b>${esc(Q.co.short)}</b> · ${rows.length} trips · ${veh.size} vehicles`;
+  },
+  tools: [
+    { label: 'Export', icon: QLX.icons.dl, onClick: () => {
+        const rows = QLX.rows();
+        QLShell.exportCSV('dispatch_' + (Q.co.short || '').replace(/\s+/g, '_') + (QLX.month() ? '_' + QLX.month() : ''),
+          ['Date', 'Vehicle', 'Invoice', 'Customer', 'Qty (T)', 'Value', 'Status'],
+          rows.map(r => [r.date, r.veh || '', r.inv, r.party, r.qty, r.taxable, r.status]));
+      } },
+    { label: 'Sales Register', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+      onClick: () => { location.href = 'sales.html'; } }
+  ],
+  /* Month-scoped, like every register: `rows` is the picked month. The tonnage
+     never pretends — an invoice with a vehicle but no quantity is counted as a
+     trip and excluded from the tonnes, and the card says how many such. */
+  stats: rows => {
+    const qty = rows.reduce((a, r) => a + r.qty, 0);
+    const withQty = rows.filter(r => r.qty > 0).length;
+    const veh = [...new Set(rows.map(r => r.veh).filter(Boolean))];
+    const perTrip = withQty ? qty / withQty : null;
+    const byVeh = {};
+    rows.forEach(r => { if (r.veh) byVeh[r.veh] = (byVeh[r.veh] || 0) + 1; });
+    const busiest = Object.entries(byVeh).sort((a, b) => b[1] - a[1])[0];
+    return [
+      { label: 'Trips', value: rows.length, sub: rows.length - withQty ? (rows.length - withQty) + ' with no tonnage recorded' : 'all with tonnage', tint: 'blue', icon: IC_TRUCK },
+      { label: 'Dispatched', value: fmt(qty, 1) + ' T', sub: withQty + ' trips carried a quantity', tint: 'green',
+        icon: '<path d="M12 21V7"/><polyline points="6 13 12 7 18 13"/><path d="M4 3h16"/>' },
+      { label: 'Vehicles', value: veh.length || '—', sub: veh.length ? 'distinct trucks' : 'no vehicle recorded', tint: 'indigo',
+        icon: '<circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/><path d="M2 5h12v12H2z"/>' },
+      { label: 'Avg load', value: perTrip == null ? '—' : fmt(perTrip, 1) + ' T', sub: perTrip == null ? 'needs a recorded tonnage' : 'per loaded trip', tint: 'amber',
+        icon: '<path d="M12 3v18"/><path d="M5 10l7-7 7 7"/>' },
+      { label: 'Busiest truck', value: busiest ? busiest[0] : '—', sub: busiest ? busiest[1] + ' trips' : 'no vehicle recorded', tint: 'violet', icon: IC_TRUCK }
+    ];
+  },
+  quickFilters: [
+    { key: 'all', label: 'All', test: () => true },
+    { key: 'noveh', label: 'No vehicle', test: r => !r.veh },
+    { key: 'noqty', label: 'No tonnage', test: r => !(r.qty > 0) }
+  ],
+  search: (r, q) => (r.veh + ' ' + r.inv + ' ' + r.party).toLowerCase().includes(q),
+  filters: [
+    { key: 'veh', label: 'Vehicle', options: rows => [...new Set(rows.map(r => r.veh).filter(Boolean))].sort().map(v => [v, v]), test: (r, v) => r.veh === v },
+    { key: 'party', label: 'Customer', options: rows => [...new Set(rows.map(r => r.party))].filter(Boolean).sort().map(p => [p, p]), test: (r, v) => r.party === v }
+  ],
+  groupBy: [
+    { key: 'veh', label: 'Vehicle', of: r => r.veh || 'No vehicle', title: r => esc(r.veh || 'No vehicle'), dot: () => 'var(--qx)' },
+    { key: 'party', label: 'Customer', of: r => r.party, title: r => esc(r.party), dot: () => 'var(--qx)' },
+    { key: 'month', label: 'Month', of: r => (r.date || '').slice(0, 7), title: r => Q.monthLabel(r.date, { blank: 'No date' }), dot: () => 'var(--qx)' }
+  ],
+  groupByDefault: 'veh', groupSum: r => r.qty,
+  sortDefault: { key: 'date', dir: 'desc' },
+  columns: [
+    { key: 'sr', label: '#', cell: (r, sr) => `<span class="qx-sr">${sr}</span>`, cls: 'qx-sr' },
+    { key: 'date', label: 'Date', sort: true, cell: r => `<span class="qx-mut">${fDS(r.date)}</span>` },
+    { key: 'veh', label: 'Vehicle', sort: true, cell: r => r.veh
+        ? `<span class="qx-ref">🚚 ${esc(r.veh)}</span>`
+        : '<span class="qx-dash" title="No vehicle number on this invoice — add it in the Sales Register">—</span>' },
+    { key: 'inv', label: 'Invoice', sort: true,
+      cell: r => `<a class="qx-ref" href="sales.html?find=${encodeURIComponent(r.inv || '')}">${esc(r.inv || '—')}</a>` },
+    { key: 'party', label: 'Customer', sort: true, cell: r => esc(r.party || '—') },
+    { key: 'qty', label: 'Qty (T)', sort: true, num: true,
+      cell: r => r.qty > 0 ? `<span class="qx-num">${fmt(r.qty, 2)}</span>`
+                           : '<span class="qx-dash" title="No tonnage recorded on this invoice">—</span>' },
+    { key: 'taxable', label: 'Value', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` }
+  ],
+  /* The row belongs to the Sales Register; the card says so instead of
+     offering edits this page does not own. */
+  detail: r => ({
+    title: r.veh ? '🚚 ' + r.veh : 'No vehicle recorded',
+    sub: fDS(r.date) + ' · ' + (r.party || '—'),
+    tabs: [{ label: 'Trip', html: `
+      <div class="qx-kv"><span>Invoice</span><b><a href="sales.html?find=${encodeURIComponent(r.inv || '')}">${esc(r.inv || '—')}</a></b></div>
+      <div class="qx-kv"><span>Date</span><b>${fDS(r.date)}</b></div>
+      <div class="qx-kv"><span>Customer</span><b>${esc(r.party || '—')}</b></div>
+      <div class="qx-kv"><span>Vehicle</span><b>${r.veh ? esc(r.veh) : '— not recorded'}</b></div>
+      <div class="qx-kv"><span>Quantity</span><b>${r.qty > 0 ? fmt(r.qty, 2) + ' T' : '— not recorded'}</b></div>
+      <div class="qx-kv qx-kv-tot"><span>Value (taxable)</span><b>${fC(r.taxable)}</b></div>
+      <div style="margin-top:14px;font-size:var(--ql-text-xs);color:var(--ql-text-muted)">This trip IS the invoice —
+        edit the vehicle or tonnage on the invoice in the Sales Register and this register follows.</div>` }]
+  }),
+  card: r => ({ id: r.idx, title: (r.veh ? '🚚 ' + esc(r.veh) : 'No vehicle'), amount: fmt(r.qty, 1) + ' T',
+    party: r.party, partySub: fDS(r.date) + ' · ' + (r.inv || '—'),
+    rows: [['Invoice', esc(r.inv || '—')], ['Quantity', fmt(r.qty, 2) + ' T'], ['Value', fC(r.taxable)]] })
+});
+</script>
+</body>
+</html>

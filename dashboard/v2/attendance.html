@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — runs before the FIRST PAINT. The app shell applies the theme at
+   mount, which is far too late: the browser would paint the page light and then
+   flip, so a Light user on a dark Mac sees a white flash. Must stay in <head>,
+   above every stylesheet. (It used to guard the launch splash; the splash is
+   gone, the flash it prevents is not.) Resolves 'system' here too, so data-theme
+   is ALWAYS a literal light|dark and CSS never has to ask twice. */
+(function(){try{var t=localStorage.getItem('ql_theme')||'light';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Attendance — QuickLimes</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r11"><link rel="stylesheet" href="./pages.css?v=m20cora"><link rel="stylesheet" href="./imchat.css?v=im10"><link rel="stylesheet" href="./qlx.css?v=m23">
+<link rel="stylesheet" href="./mobile.css?v=m16">
+<style>
+/* ── the attendance grid ──────────────────────────────────────────────────
+   One row per worker, one cell per day. A cell CYCLES on tap (P→A→H→L→P…)
+   because marking a month of attendance must be fast enough to actually
+   happen — a dropdown per day is how the register stays blank. */
+.at-wrap { overflow-x: auto; border: 1px solid var(--ql-border); border-radius: var(--ql-radius-lg); background: var(--ql-card); }
+table.at { border-collapse: separate; border-spacing: 0; width: 100%; font-size: var(--ql-text-sm); }
+table.at th, table.at td { border-bottom: 1px solid var(--ql-divider); padding: 0; text-align: center; }
+table.at thead th { position: sticky; top: 0; background: var(--ql-bg-elevated); z-index: 2;
+  font-size: var(--ql-text-xs); font-weight: 700; color: var(--ql-text-secondary); padding: 8px 4px; }
+table.at thead th small { display: block; font-weight: 500; color: var(--ql-text-muted); }
+table.at th.at-w, table.at td.at-w { position: sticky; left: 0; background: var(--ql-card); z-index: 3;
+  text-align: left; padding: 10px 14px; border-right: 1px solid var(--ql-border); min-width: 170px; }
+table.at thead th.at-w { background: var(--ql-bg-elevated); z-index: 4; }
+.at-nm { font-weight: 700; color: var(--ql-text); }
+.at-nm small { display: block; font-weight: 500; color: var(--ql-text-muted); font-size: var(--ql-text-xs); }
+.at-c { width: 34px; height: 40px; border: 0; background: none; font: inherit; font-size: var(--ql-text-xs);
+  font-weight: 800; cursor: pointer; border-radius: var(--ql-radius-xs); margin: 2px; line-height: 1; }
+.at-c.P { color: var(--ql-success-700); background: var(--ql-success-50); }
+.at-c.A { color: var(--ql-danger-700); background: var(--ql-danger-50); }
+.at-c.H { color: var(--ql-warning-700); background: var(--ql-warning-100); }
+.at-c.L { color: var(--ql-brand-700); background: var(--ql-brand-50); }
+.at-c.S { color: var(--ql-text-muted); background: var(--ql-bg-elevated); }
+.at-c:hover { outline: 2px solid var(--ql-border-strong); }
+td.at-sun { background: var(--ql-bg-elevated); }
+.at-sum { font-variant-numeric: tabular-nums; font-size: var(--ql-text-xs); padding: 0 10px !important; white-space: nowrap; }
+.at-sum b { color: var(--ql-success-700); }
+.at-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 14px 2px; font-size: var(--ql-text-xs); color: var(--ql-text-secondary); }
+.at-legend i { font-style: normal; font-weight: 800; padding: 2px 7px; border-radius: var(--ql-radius-xs); margin-right: 4px; }
+.at-note { font-size: var(--ql-text-sm); color: var(--ql-text-muted); line-height: 1.6; margin: 14px 2px 0; }
+.at-empty { padding: 56px 24px; text-align: center; color: var(--ql-text-muted); }
+.at-empty .t { font-size: var(--ql-text-lg); font-weight: 700; color: var(--ql-text); margin-bottom: 6px; }
+@media (max-width: 768px) { .at-c { width: 40px; height: 44px; } table.at th.at-w, table.at td.at-w { min-width: 130px; } }
+</style>
+</head>
+<body class="ql-v2">
+<div id="ql-page">
+  <div class="dash qx qx-a-blue">
+    <div id="atHero"></div>
+    <div id="atStats"></div>
+    <div id="atBody"></div>
+  </div>
+</div>
+<script src="ql-api.js?v=a5"></script>
+<script src="./party-identity.js?v=m27"></script>
+<script src="./import-guard.js?v=m28"></script>
+<script src="./party-resolve.js?v=pr1"></script>
+<script src="./data.js?v=m52caaa"></script>
+<script src="./party-link.js?v=pl1p"></script>
+<script src="./chat-core.js?v=cc2"></script>
+<script src="./i18n.js?v=h8"></script>
+<script src="./wa-core.js?v=w3"></script>
+<script src="./shell.js?v=m68saaaaa"></script>
+<script src="./qlx.js?v=m20prgdaa"></script>
+<script src="./imchat.js?v=im10"></script>
+<script src="./mobile.js?v=m16"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   ATTENDANCE — the marking grid.
+
+   The ENGINE was already in data.js — attendanceData(), setAtt(), cycleAtt(),
+   markAllAtt(), all exported and unit-shaped — and cW() has computed wages
+   from S.ATT since v1. Only this page was missing: attendance.html shipped as
+   a 0-byte stub and the nav said "Soon". So the one thing wages depend on had
+   no way to be entered.
+
+   WHAT THIS PAGE DOES NOT PRETEND: S.ATT is day-keyed inside a SINGLE
+   unlabelled month grid (ATT[workerId][17]) — the same model v1 used and the
+   model the wage calculation reads. There is no month axis in the store, so
+   this page shows THE CURRENT MONTH ONLY and says so, rather than offering a
+   month picker over marks that cannot answer for any other month. Giving it
+   history means migrating the store AND cW() together; until then a picker
+   would relabel the same marks as any month you chose — a register that lies.
+   ═══════════════════════════════════════════════════════════════════════ */
+QLShell.mount({ active: 'attendance', title: 'Attendance' });
+const Q = window.QLD;
+const $ = id => document.getElementById(id);
+const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+let HERO = null;
+function paintHero(sub) {
+  if (!window.QLX || !QLX.heroHTML) { console.warn('QLX not loaded — shared page header skipped'); return; }
+  if (HERO) { const el = document.getElementById('atSub'); if (el) el.textContent = sub; return; }
+  HERO = {
+    title: 'Attendance', sub: '<span id="atSub">' + esc(sub) + '</span>',
+    tools: [
+      { label: 'All present today', icon: '<polyline points="20 6 9 17 4 12"/>', onClick: () => allToday('P') },
+      { label: 'Workers', icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>', onClick: () => { location.href = 'labour.html'; } }
+    ]
+  };
+  const host = $('atHero');
+  host.innerHTML = QLX.heroHTML(HERO);
+  QLX.wireHero(host, HERO);
+}
+
+function allToday(status) {
+  const today = new Date().getDate();
+  Q.markAllAtt(status, [today]);
+  QLShell.toast('Everyone marked present for today', 'ok');
+  render();
+}
+
+const CYCLE = { P: 'A', A: 'H', H: 'L', L: 'P', S: 'P' };
+const LABEL = { P: 'Present', A: 'Absent', H: 'Half day', L: 'Leave', S: 'Sunday' };
+
+function render() {
+  const A = Q.attendanceData();
+  paintHero(`${Q.co.short} · ${A.monthLabel} · ${A.rows.length} worker${A.rows.length === 1 ? '' : 's'}`);
+
+  /* KPIs from the same rows the grid shows — the same wage figures cW()
+     produces, not a second calculation. */
+  const today = new Date().getDate();
+  const presentToday = A.rows.filter(r => { const c = r.cells.find(x => x.d === today); return c && (c.status === 'P' || c.status === 'H'); }).length;
+  const wages = Q.labourRows ? Q.labourRows() : [];
+  const wageTotal = wages.reduce((a, w) => a + (+w.net || 0), 0);
+  $('atStats').innerHTML = QLX.statsHTML([
+    { label: 'Workers', value: A.rows.length, sub: 'on the roll', tint: 'blue',
+      icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>' },
+    { label: 'Present today', value: A.rows.length ? presentToday + ' / ' + A.rows.length : '—',
+      sub: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), tint: 'green',
+      icon: '<polyline points="20 6 9 17 4 12"/>' },
+    { label: 'Days marked', value: A.rows.reduce((a, r) => a + r.present + r.absent + r.leave, 0) || '—',
+      sub: A.monthLabel, tint: 'indigo',
+      icon: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/>' },
+    { label: 'Net wages', value: wages.length ? Q.fC(wageTotal) : '—',
+      sub: 'this month, from these marks', tint: 'amber',
+      icon: '<path d="M6 3h12"/><path d="M6 8h12"/><path d="M6 13h4a5 5 0 0 0 0-10"/><path d="m6 13 8 8"/>' }
+  ]);
+
+  if (!A.rows.length) {
+    $('atBody').innerHTML = `<div class="at-wrap"><div class="at-empty">
+      <div class="t">No workers yet</div>
+      <div>Add your workers on the Labour page and their attendance grid appears here.</div>
+      <a class="ql-btn ql-btn-primary" href="labour.html" style="margin-top:14px">Open Labour</a></div></div>`;
+    return;
+  }
+
+  const head = `<tr><th class="at-w">Worker</th>${A.days.map(d =>
+    `<th class="${d.isSun ? 'at-sun' : ''}"${d.d === today ? ' style="color:var(--ql-brand-700)"' : ''}>${d.d}<small>${d.dl}</small></th>`).join('')}
+    <th>Summary</th></tr>`;
+  const body = A.rows.map(r => `<tr>
+    <td class="at-w"><span class="at-nm">${esc(r.name)}<small>${esc(r.desig)}</small></span></td>
+    ${r.cells.map(c => `<td class="${c.isSun ? 'at-sun' : ''}">
+      <button class="at-c ${c.status}" data-w="${esc(r.id)}" data-d="${c.d}" data-s="${c.status}"
+        title="${esc(r.name)} · ${c.d} — ${LABEL[c.status] || c.status}. Tap to change.">${c.status}</button></td>`).join('')}
+    <td class="at-sum"><b>${r.present}</b>P · ${r.absent}A · ${r.leave}L</td></tr>`).join('');
+
+  $('atBody').innerHTML = `
+    <div class="at-wrap"><table class="at"><thead>${head}</thead><tbody>${body}</tbody></table></div>
+    <div class="at-legend">
+      <span><i class="at-c P">P</i>Present</span><span><i class="at-c A">A</i>Absent</span>
+      <span><i class="at-c H">H</i>Half day</span><span><i class="at-c L">L</i>Leave</span>
+      <span><i class="at-c S">S</i>Sunday</span>
+      <span style="margin-left:auto">Tap a cell to cycle P → A → H → L</span>
+    </div>
+    <div class="at-note"><b>${esc(A.monthLabel)} only.</b> Attendance is kept for the current month — the same
+      grid wages are computed from, exactly as the Labour page pays them. An unmarked weekday counts as
+      Present and a Sunday as off, so you only need to touch the exceptions.</div>`;
+
+  $('atBody').querySelectorAll('.at-c[data-w]').forEach(b => b.onclick = () => {
+    const next = CYCLE[b.dataset.s] || 'P';
+    Q.setAtt(b.dataset.w, +b.dataset.d, next);
+    render();
+  });
+}
+
+window.__qlOnSwitchCompany = () => render();
+window.__qlRefresh = render;
+Q.init(render);
+</script>
+</body>
+</html>

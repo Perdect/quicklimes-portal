@@ -55,10 +55,23 @@ for (const it of items) {
   ok(nonEmpty, `"${it.label}" → ${it.href} is non-empty (not a 0-byte stub)`);
 }
 
-/* The specific regression, named so a future edit has to break it on purpose. */
+/* This assertion has flipped, on purpose. It used to pin Attendance as SOON
+   because attendance.html was a 0-byte stub and a live link to a blank page
+   is worse than a Soon badge. The page is now built (the marking grid over
+   the same S.ATT the wages read), so the pin is the opposite: nothing in the
+   nav may be parked on Soon any more, because every module now lands on a
+   real page. If a future module is genuinely unfinished, park it on SOON and
+   update this to name it — do not ship a live link to a stub. */
+const soonItems = items.filter(i => i.soon || i.href === SOON || i.href === '#soon');
+ok(soonItems.length === 0,
+  'no nav item is parked on Soon — every module lands on a real page' +
+  (soonItems.length ? ' (still parked: ' + soonItems.map(i => i.label).join(', ') + ')' : ''));
 const att = items.find(i => i.id === 'attendance');
-ok(att && (att.href === SOON || att.href === '#soon') && att.soon,
-  'Attendance is marked soon (not a live link to the empty attendance.html)');
+ok(att && att.href === 'attendance.html',
+  'Attendance is a live link to the built attendance page');
+const disp = items.find(i => i.id === 'dispatch');
+ok(disp && disp.href === 'dispatch.html',
+  'Dispatch is a live link to the built dispatch register');
 
 console.log(fail ? `\n❌ FAILED — ${fail} (${deadEnds} dead-end links)\n`
                  : `\n✅ PASSED — ${pass} checks; no nav item leads to a blank page\n`);

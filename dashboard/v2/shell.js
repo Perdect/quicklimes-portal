@@ -110,6 +110,13 @@
   };
 
   /* ── Navigation registry — single source of truth ───────────── */
+  /* SOON is retired: every module in the nav now lands on a real page.
+     Attendance and Dispatch are their own pages; Kiln Management, Daily
+     Production and Production Analytics are the Production page (runs carry
+     the kiln, the chart is the analytics); Stock Management is Inventory
+     (closing stock is computed there); Business Analytics is the Monthly
+     Register (the financial-intelligence rebuild). Kept as a constant so an
+     unfinished module can be parked again without reinventing the pattern. */
   const SOON = '#soon';
   /* ── Feature flags (managed from Settings → Feature Management) ───
      Hide/show whole modules without deleting anything. Persisted in
@@ -225,28 +232,28 @@
     { type: 'group', label: 'Production', feat: 'production', items: [
       { id: 'ql-prod',  label: 'Quick Lime Production', href: 'production.html', icon: I.clock },
       { id: 'chunna',   label: 'Chunna Production',     href: 'chunna.html', icon: I.flame },
-      { id: 'kiln',     label: 'Kiln Management',       href: SOON, icon: I.bars, soon: true },
-      { id: 'daily',    label: 'Daily Production',      href: SOON, icon: I.cal, soon: true }
+      { id: 'kiln',     label: 'Kiln Management',       href: 'production.html', icon: I.bars },
+      { id: 'daily',    label: 'Daily Production',      href: 'production.html', icon: I.cal }
     ]},
     { type: 'group', label: 'Inventory', feat: 'inventory', items: [
       { id: 'inventory', label: 'Overview',         href: 'inventory.html', icon: I.box },
-      { id: 'stock',    label: 'Stock Management',  href: SOON, icon: I.layers, soon: true },
-      { id: 'dispatch', label: 'Dispatch',          href: SOON, icon: I.truck, soon: true }
+      { id: 'stock',    label: 'Stock Management',  href: 'inventory.html', icon: I.layers },
+      { id: 'dispatch', label: 'Dispatch',          href: 'dispatch.html', icon: I.truck }
     ]},
     { type: 'group', label: 'People', feat: 'people', items: [
       { id: 'parties',    label: 'All Parties', href: 'parties.html', icon: I.users },
       { id: 'labour',     label: 'Labour',      href: 'labour.html',  icon: I.users },
-      /* attendance.html is a 0-byte stub — never built. It was wired as a live
-         link, so clicking it landed on a blank page with no way back but the
-         browser button. Marked `soon` (like Kiln/Stock/Dispatch) until the page
-         exists. Guarded by nav-targets.test.js. */
-      { id: 'attendance', label: 'Attendance',  href: SOON, icon: I.check, soon: true }
+      /* Built now: the marking grid over the same S.ATT the wages read.
+         (It shipped for months as a 0-byte stub parked on `soon` — the
+         guard in nav-targets.test.js has flipped from pinning the parking
+         to pinning the live link.) */
+      { id: 'attendance', label: 'Attendance',  href: 'attendance.html', icon: I.check }
     ]},
     { type: 'group', label: 'Reports', feat: 'reports', items: [
       { id: 'group',   label: 'Group Overview',       href: 'group.html', icon: I.pulse },
       { id: 'reports', label: 'Reports Hub',          href: 'reports.html', icon: I.dl },
-      { id: 'biz-an',  label: 'Business Analytics',   href: SOON, icon: I.pulse, soon: true },
-      { id: 'prod-an', label: 'Production Analytics', href: SOON, icon: I.pulse, soon: true }
+      { id: 'biz-an',  label: 'Business Analytics',   href: 'monthreg.html', icon: I.pulse },
+      { id: 'prod-an', label: 'Production Analytics', href: 'production.html', icon: I.pulse }
     ]},
     { type: 'solo', id: 'ai', label: 'AI Assistant', href: 'ai.html', icon: I.pulse, feat: 'ai' },
     { type: 'solo', id: 'settings', label: 'Settings', href: 'settings.html', icon: I.gear, feat: 'settings', soloTop: true }
