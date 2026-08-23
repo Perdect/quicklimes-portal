@@ -133,7 +133,11 @@ QLX.mount({
     { key: 'party', label: 'Customer', of: r => r.party, title: r => esc(r.party), dot: () => 'var(--qx)' },
     { key: 'month', label: 'Month', of: r => (r.date || '').slice(0, 7), title: r => Q.monthLabel(r.date, { blank: 'No date' }), dot: () => 'var(--qx)' }
   ],
-  groupByDefault: 'veh', groupSum: r => r.qty,
+  /* groupSum is rendered through fC() — it is a MONEY hook. Summing qty here
+     printed "Total ₹41" on a 41-tonne group: tonnage wearing a rupee sign.
+     The group total is therefore the group's VALUE; per-trip tonnage is its
+     own column and the tonnes headline is in the stat cards. */
+  groupByDefault: 'veh', groupSum: r => r.taxable,
   sortDefault: { key: 'date', dir: 'desc' },
   columns: [
     { key: 'sr', label: '#', cell: (r, sr) => `<span class="qx-sr">${sr}</span>`, cls: 'qx-sr' },

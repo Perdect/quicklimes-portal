@@ -140,8 +140,13 @@ function render() {
     { label: 'Present today', value: A.rows.length ? presentToday + ' / ' + A.rows.length : '—',
       sub: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), tint: 'green',
       icon: '<polyline points="20 6 9 17 4 12"/>' },
-    { label: 'Days marked', value: A.rows.reduce((a, r) => a + r.present + r.absent + r.leave, 0) || '—',
-      sub: A.monthLabel, tint: 'indigo',
+    /* REAL marks only — what somebody actually tapped. The grid's cells
+       default an unmarked weekday to P for DISPLAY, and counting those
+       defaults claimed "52 days marked" on a store that held zero. "Nobody
+       has marked anything" and "everyone was present" are different facts. */
+    { label: 'Days marked', value: (() => { const at = Q.state.ATT || {};
+        return Object.keys(at).reduce((a, w) => a + Object.keys(at[w] || {}).length, 0) || '—'; })(),
+      sub: A.monthLabel + ' · explicit marks', tint: 'indigo',
       icon: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/>' },
     { label: 'Net wages', value: wages.length ? Q.fC(wageTotal) : '—',
       sub: 'this month, from these marks', tint: 'amber',
