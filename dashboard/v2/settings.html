@@ -1047,7 +1047,13 @@ function renderDemo() {
     btn.onclick = () => toast('Create and switch to a company whose name contains DEMO first — the generator refuses to write anywhere else.');
   }
 }
-QLD.init(() => { render(); renderDM(); renderBanks(); renderCo(); renderRm(); renderDemo(); openCompanyDeepLink(); });
+/* Each section renders independently: on a brand-new company the local cache
+   is empty and ONE section throwing used to kill the whole chain silently
+   (QLD.init swallows the rejection) — the sections after it never painted. */
+QLD.init(() => {
+  [render, renderDM, renderBanks, renderCo, renderRm, renderDemo, openCompanyDeepLink]
+    .forEach(f => { try { f(); } catch (e) { console.warn('settings init: ' + (f.name || '?') + ' failed', e); } });
+});
 renderTeam();
 renderWa();
 </script>
