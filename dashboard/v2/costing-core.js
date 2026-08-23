@@ -241,7 +241,8 @@
     return {
       ym: ym, method: method, lines: lines, warnings: warnings,
       total: total, outputT: outputT,
-      perT: outputT > 0 ? R2(total / outputT) : null,
+      /* zero recorded cost over real tonnage is NOT \u20b90/T \u2014 it is \u201cno cost recorded\u201d */
+      perT: outputT > 0 && total > 0 ? R2(total / outputT) : null,
       producedByProduct: producedByProduct,
       overheadTotal: ovhTotal
     };
