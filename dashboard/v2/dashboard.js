@@ -47,13 +47,16 @@ function dailySales(n) {
   for (let i = n - 1; i >= 0; i--) { const d = new Date(now); d.setDate(d.getDate() - i); const iso = d.toISOString().slice(0, 10); out.push(rows.filter(r => r.date === iso).reduce((a, r) => a + r.total, 0)); }
   return out;
 }
-function gstByMonth(n) {
+function gstByMonth(n, end) {
   const rows = Q.salesRows(), map = {};
   rows.forEach(r => { const ym = (r.date || '').slice(0, 7); if (ym) map[ym] = (map[ym] || 0) + (r.gst || 0); });
-  return Q.monthSeries(n).map(d => map[d.ym] || 0);
+  return Q.monthSeries(n, end).map(d => map[d.ym] || 0);
 }
-function matTons(g) { return Q.purchaseRows().filter(r => r.group === g).reduce((a, r) => a + (r.qty || 0), 0); }
-function matAmt(g) { const x = Q.purchaseByGroup().find(v => v.key === g); return x ? x.total : 0; }
+/* the dashboard's picked period, as data.js inPeriod understands it */
+function dashPeriod() { return (typeof dashMonth === 'string' && dashMonth && dashMonth !== 'all') ? dashMonth : null; }
+function inDashP(d) { const p = dashPeriod(); return !p || Q.inPeriod(d, p); }
+function matTons(g) { return Q.purchaseRows().filter(r => r.group === g && inDashP(r.date)).reduce((a, r) => a + (r.qty || 0), 0); }
+function matAmt(g) { return Q.purchaseRows().filter(r => r.group === g && inDashP(r.date)).reduce((a, r) => a + (r.taxable || r.total || 0), 0); }
 
 /* ── month filter (matches the Sales/Purchase registers) ── */
 function availMonths() {
@@ -192,7 +195,7 @@ function render() {
       kpiRow1() +
       heroRow() +
       flowWidget(prod) +
-      kpiRow2(pl, s) +
+      kpiRow2() +
       midRow(gst, bal, pay) +
       activityWidget();
     root.dataset.ready = '1';
@@ -226,7 +229,8 @@ function kpi(o) {
 }
 function kpiRow1() {
   const M = monthMetrics(), lbl = dashMonthLabel();
-  const rev = Q.monthSeries(6).map(d => d.sales), pur = Q.monthSeries(6).map(d => d.purchases), qty = Q.monthSeries(6).map(d => d.qty);
+  const sparkEnd = (typeof dashMonth === 'string' && /^\d{4}-\d{2}$/.test(dashMonth)) ? dashMonth : (Q.latestDataYm ? Q.latestDataYm() : undefined);
+  const rev = Q.monthSeries(6, sparkEnd).map(d => d.sales), pur = Q.monthSeries(6, sparkEnd).map(d => d.purchases), qty = Q.monthSeries(6, sparkEnd).map(d => d.qty);
   return `<div class="dx-kpis">
     ${kpi({ tint: 'blue', ic: I.receipt, label: 'Sales · ' + lbl, val: fC(M.salesTax), raw: M.salesTax, pre: '₹', meta: M.invoices + ' invoices', spark: spark(rev, '#2563eb') })}
     ${kpi({ tint: 'green', ic: I.wallet, label: 'Collected', val: fC(M.collected), raw: M.collected, pre: '₹', meta: 'money received' })}
@@ -239,19 +243,28 @@ function kpiRow1() {
 
 /* ══════════ Hero — tabbed analytics + AI insights ══════════ */
 const TABS = [
-  { k: 'revenue', label: 'Revenue', color: '#2563eb', fmt: fC, series: n => Q.monthSeries(n).map(d => d.sales) },
-  { k: 'profit', label: 'Profit', color: '#16a34a', fmt: fC, series: n => Q.monthSeries(n).map(d => d.profit) },
-  { k: 'production', label: 'Production', color: '#6366f1', fmt: v => fmt(v, 1) + ' T', series: n => Q.monthSeries(n).map(d => d.qty) },
-  { k: 'purchases', label: 'Purchases', color: '#f59e0b', fmt: fC, series: n => Q.monthSeries(n).map(d => d.purchases) },
-  { k: 'gst', label: 'GST', color: '#0891b2', fmt: fC, series: n => gstByMonth(n) }
+  { k: 'revenue', label: 'Revenue', color: '#2563eb', fmt: fC, series: (n, end) => Q.monthSeries(n, end).map(d => d.sales) },
+  { k: 'profit', label: 'Profit', color: '#16a34a', fmt: fC, series: (n, end) => Q.monthSeries(n, end).map(d => d.profit) },
+  { k: 'production', label: 'Production', color: '#6366f1', fmt: v => fmt(v, 1) + ' T', series: (n, end) => Q.monthSeries(n, end).map(d => d.qty) },
+  { k: 'purchases', label: 'Purchases', color: '#f59e0b', fmt: fC, series: (n, end) => Q.monthSeries(n, end).map(d => d.purchases) },
+  { k: 'gst', label: 'GST', color: '#0891b2', fmt: fC, series: (n, end) => gstByMonth(n, end) }
 ];
 function heroRow() { return `<div class="dx-hero">${analyticsCard()}${aiCard()}</div>`; }
 function analyticsCard() {
   const t = TABS.find(x => x.k === tab) || TABS[0], n = 6;
-  const labels = Q.monthSeries(n).map(d => d.m), vals = t.series(n);
-  const prevVals = compare ? t.series(n * 2).slice(0, n) : null;
+  /* End the chart at the PICKED month; with no pick, at the latest month that
+     HAS data. Bills arrive in month-end batches here, so the wall-clock month
+     is empty for most of its life — plotting it as ₹0 painted a cliff and a
+     "↓100%" every month until the upload, which describes the upload rhythm,
+     not the business. */
+  const nowYm = new Date().toISOString().slice(0, 7);
+  const endYm = (typeof dashMonth === 'string' && /^\d{4}-\d{2}$/.test(dashMonth)) ? dashMonth
+    : (Q.latestDataYm ? Q.latestDataYm() : undefined);
+  const labels = Q.monthSeries(n, endYm).map(d => d.m), vals = t.series(n, endYm);
+  const prevVals = compare ? t.series(n * 2, endYm).slice(0, n) : null;
   const total = vals.reduce((a, b) => a + b, 0), last = vals[vals.length - 1] || 0, prev = vals[vals.length - 2] || 0;
   const g = prev > 0 ? (last - prev) / prev * 100 : null;
+  const spanLbl = (!endYm || endYm === nowYm) ? 'last 6 months' : '6 months to ' + (Q.periodLabel ? Q.periodLabel(endYm) : endYm);
   const tabs = TABS.map(x => `<button class="dx-tab ${x.k === tab ? 'on' : ''}" data-tab="${x.k}">${x.label}</button>`).join('');
   return `<div class="dx-card dx-analytics">
     <div class="dx-ac-h">
@@ -262,7 +275,7 @@ function analyticsCard() {
       </div>
     </div>
     <div class="dx-ac-head">
-      <div><div class="dx-ac-l">${t.label} · last 6 months</div><div class="dx-ac-v">${t.fmt(total)}</div></div>
+      <div><div class="dx-ac-l">${t.label} · ${spanLbl}</div><div class="dx-ac-v">${t.fmt(total)}</div></div>
       ${g != null ? `<div class="dx-ac-g">${growth(g)}<span class="dx-ac-gs">vs previous</span></div>` : ''}
     </div>
     ${metricChart(labels, vals, prevVals, t)}
@@ -283,7 +296,7 @@ function metricChart(labels, vals, prevVals, t) {
 }
 function aiCard() {
   const ins = [];
-  (Q.insights ? Q.insights() : []).forEach(x => ins.push({ tone: x.tone, ic: x.icon === 'up' || x.icon === 'trend' ? '📈' : x.icon === 'down' ? '📉' : x.icon === 'alert' ? '⚠️' : x.icon === 'bill' ? '🧾' : '💡', t: x.t, s: x.s, go: x.page }));
+  (Q.insights ? Q.insights(typeof dashMonth === 'string' && /^\d{4}-\d{2}$/.test(dashMonth) ? dashMonth : null) : []).forEach(x => ins.push({ tone: x.tone, ic: x.icon === 'up' || x.icon === 'trend' ? '📈' : x.icon === 'down' ? '📉' : x.icon === 'alert' ? '⚠️' : x.icon === 'bill' ? '🧾' : '💡', t: x.t, s: x.s, go: x.page }));
   (Q.paymentsInsights ? Q.paymentsInsights() : []).forEach(x => ins.push({ tone: x.tone === 'bad' ? 'danger' : x.tone === 'warn' ? 'warning' : x.tone === 'ok' ? 'success' : 'info', ic: x.icon || '💡', t: x.text, s: '' }));
   const TONE = { success: 'g', danger: 'r', warning: 'a', info: 'b' };
   const rows = ins.slice(0, 5).map(x => `<button class="dx-ins" ${x.go ? `data-go="${x.go}"` : ''}><span class="dx-ins-ic t-${TONE[x.tone] || 'v'}">${x.ic}</span><span class="dx-ins-x"><span class="dx-ins-t">${esc(x.t)}</span>${x.s ? `<span class="dx-ins-s">${esc(x.s)}</span>` : ''}</span><span class="dx-ins-ch">${svg(I.chevR)}</span></button>`).join('')
@@ -297,12 +310,15 @@ function aiCard() {
 
 /* ══════════ Manufacturing flow timeline ══════════ */
 function flowWidget(prod) {
-  const limeT = matTons('limestone'), monthT = prod.month, todayT = prod.today;
+  const p = dashPeriod();
+  const limeT = matTons('limestone');
+  const monthT = p ? Q.salesRows().filter(r => r.status !== 'cancelled' && inDashP(r.date)).reduce((a, r) => a + (r.qty || 0), 0) : prod.month;
+  const todayT = prod.today;
   const stages = [
     { e: '🪨', n: 'Limestone', t: limeT ? fmt(limeT, 0) + ' T' : '—', m: fC(matAmt('limestone')), st: limeT ? 'ok' : 'idle' },
     { e: '⛏️', n: 'Crusher', t: limeT ? fmt(limeT, 0) + ' T' : '—', m: 'feed', st: limeT ? 'ok' : 'idle' },
     { e: '🔥', n: 'Kiln', t: monthT ? 'Active' : '—', m: fmt(monthT, 0) + ' T', st: monthT ? 'run' : 'idle' },
-    { e: '💧', n: 'Hydration', t: monthT ? fmt(monthT, 0) + ' T' : '—', m: 'hydrated', st: monthT ? 'ok' : 'idle' },
+    { e: '💧', n: 'Hydration', t: monthT ? fmt(monthT, 0) + ' T' : '—', m: p ? 'dispatched' : 'hydrated', st: monthT ? 'ok' : 'idle' },
     { e: '📦', n: 'Packing', t: fmt(monthT, 0) + ' T', m: 'bagged', st: monthT ? 'ok' : 'idle' },
     { e: '🚚', n: 'Dispatch', t: fmt(todayT, 1) + ' T', m: 'today', st: todayT ? 'run' : 'idle' }
   ];
@@ -321,15 +337,25 @@ function mkpi(o) {
     ${pct != null ? `<div class="dx-mk-bar"><div class="dx-mk-fill" style="width:${pct}%;background:${o.color}"></div></div><div class="dx-mk-s">${pct}% of ${o.targetLabel}</div>` : `<div class="dx-mk-s">${o.sub || ''}</div>`}
   </div>`;
 }
-function kpiRow2(pl, s) {
+function kpiRow2() {
+  const p = dashPeriod(), pLbl = p ? (Q.periodLabel ? Q.periodLabel(p) : p) : 'all time';
+  const pl = Q.getPL(p || undefined);
   const limeT = matTons('limestone'), petT = matTons('petcoke');
-  const costPerTon = s.qty ? pl.cogs / s.qty : 0;
-  const yieldPct = limeT ? Math.min(100, s.qty / limeT * 100) : null;
-  return `<div class="dx-sec-t">Manufacturing performance</div><div class="dx-mks">
-    ${mkpi({ e: '🪨', n: 'Limestone', val: limeT ? fmt(limeT, 0) + ' T' : fC(matAmt('limestone')), sub: fC(matAmt('limestone')) + ' spent' })}
-    ${mkpi({ e: '🔥', n: 'Petcoke', val: petT ? fmt(petT, 1) + ' T' : fC(matAmt('petcoke')), sub: fC(matAmt('petcoke')) + ' spent' })}
-    ${mkpi({ e: '⚪', n: 'Production', val: fmt(s.qty, 1) + ' T', sub: 'Quick Lime, total' })}
-    ${mkpi({ e: '🏭', n: 'Yield', val: yieldPct != null ? yieldPct.toFixed(0) + '%' : '—', color: '#6366f1', cur: yieldPct || 0, target: 100, targetLabel: 'limestone' })}
+  const runs = (Q.productionRows ? Q.productionRows() : []).filter(r => inDashP(r.date));
+  const runsOut = runs.reduce((a, r) => a + r.quicklime + r.hydrated, 0);
+  const runsLime = runs.reduce((a, r) => a + r.limestone, 0);
+  const dispatched = Q.salesRows().filter(r => r.status !== 'cancelled' && inDashP(r.date)).reduce((a, r) => a + (r.qty || 0), 0);
+  const outT = runsOut > 0 ? runsOut : dispatched;
+  const costPerTon = outT ? pl.cogs / outT : 0;
+  /* yield only from measured runs — dispatch ÷ purchases is not a yield */
+  const yieldPct = runsOut > 0 && runsLime > 0 ? runsOut / runsLime * 100 : null;
+  return `<div class="dx-sec-t">Manufacturing performance · ${esc(pLbl)}</div><div class="dx-mks">
+    ${mkpi({ e: '🪨', n: 'Limestone', val: limeT ? fmt(limeT, 0) + ' T' : '—', sub: fC(matAmt('limestone')) + ' spent' })}
+    ${mkpi({ e: '🔥', n: 'Petcoke', val: petT ? fmt(petT, 1) + ' T' : '—', sub: fC(matAmt('petcoke')) + ' spent' })}
+    ${mkpi({ e: '⚪', n: runsOut > 0 ? 'Production' : 'Dispatched', val: fmt(outT, 1) + ' T', sub: runsOut > 0 ? 'from production runs' : 'from invoices — no runs recorded' })}
+    ${mkpi(yieldPct != null
+      ? { e: '🏭', n: 'Yield', val: yieldPct.toFixed(1) + '%', color: '#6366f1', cur: yieldPct, target: 100, targetLabel: 'limestone consumed' }
+      : { e: '🏭', n: 'Yield', val: '—', sub: 'needs production runs' })}
     ${mkpi({ e: '🧮', n: 'Cost / Ton', val: costPerTon ? fC(costPerTon) : '—', sub: 'material cost' })}
     ${mkpi({ e: '📈', n: 'Gross Margin', val: pl.gpm.toFixed(1) + '%', sub: fC(pl.gp) + ' gross profit' })}
   </div>`;

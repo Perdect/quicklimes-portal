@@ -45,6 +45,11 @@ function payRows(period) {
   }).sort((a, b) => b.out - a.out);
 }
 
+/* Money actions never inherit the view's period (see collections.js). */
+function fullRow(r) {
+  if (!QLX.month()) return r;
+  return payRows(null).find(x => x.sup === r.sup) || r;
+}
 /* Apply a paid amount oldest-bill-first across a supplier's open bills. */
 function applyPayment(r, amount, method) {
   let remaining = amount, applied = 0;
@@ -55,7 +60,8 @@ function applyPayment(r, amount, method) {
   });
   return applied;
 }
-function payBill(r) {
+function payBill(rr) {
+  const r = fullRow(rr);   // pay against ALL open bills, not the month's slice
   let back = document.getElementById('payBillBack');
   if (!back) { back = document.createElement('div'); back.id = 'payBillBack'; document.body.appendChild(back); }
   back.setAttribute('style', 'position:fixed;inset:0;z-index:4000;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px)');
@@ -94,7 +100,7 @@ function tabBills(r) {
     ${!r.phone ? '<span class="qx-mut" style="font-size:12px">No phone on file — add it in Suppliers.</span>' : ''}</div>`;
   const bills = r.invs.slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''))
     .map(s => `<div class="qx-kv"><span>${esc(s.bill || '—')} · ${Q.fDS(s.date)}${s.status === 'partial' ? ' · <span style="color:#b45309">partial</span>' : ''}</span><b style="color:var(--ql-danger-600)">${fC(s.outstanding)}</b></div>`).join('');
-  return `<div class="qx-sec-h">Supplier</div>
+  return `${QLX.month() ? '<div style="font-size:11.5px;color:var(--ql-text-muted);padding:4px 0 8px">Showing ' + esc(Q.periodLabel(QLX.month())) + ' bills only — Pay bill settles the complete account.</div>' : ''}<div class="qx-sec-h">Supplier</div>
     <div style="font-weight:700;font-size:15px">${r.emoji} ${esc(r.sup)}</div>
     <div class="qx-mut" style="font-size:12.5px;margin-top:4px">${agePill(r)}</div>
     ${comm}

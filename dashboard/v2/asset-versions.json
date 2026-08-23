@@ -56,8 +56,8 @@
     "sha": "2b271ee5c6b3"
   },
   "data.js": {
-    "v": "m52caaaaa",
-    "sha": "e0a77286ad83"
+    "v": "m52caaaaaa",
+    "sha": "c813d5b828df"
   },
   "party-link.js": {
     "v": "pl1p",
@@ -104,8 +104,8 @@
     "sha": "5fe01c9cd041"
   },
   "collections.js": {
-    "v": "c3cda",
-    "sha": "57b1a4c3a89e"
+    "v": "c3cdaa",
+    "sha": "d888a6e9832f"
   },
   "finance.css": {
     "v": "f5",
@@ -140,8 +140,8 @@
     "sha": "1167e90257fb"
   },
   "dashboard.js": {
-    "v": "m22ru",
-    "sha": "e855baa20c22"
+    "v": "m22rua",
+    "sha": "d53388f1b366"
   },
   "lead-parse.js": {
     "v": "lp1",
@@ -264,12 +264,12 @@
     "sha": "c80d58b5e4b0"
   },
   "parties.js": {
-    "v": "crm9cda",
-    "sha": "9c35602ec6f2"
+    "v": "crm9cdaa",
+    "sha": "7d9487fd33d3"
   },
   "payables.js": {
-    "v": "pb2",
-    "sha": "b02b394ef4f9"
+    "v": "pb3",
+    "sha": "2a6444b924e8"
   },
   "payments.js": {
     "v": "m2dc",

@@ -1152,14 +1152,37 @@
     };
   }
 
-  function insights() {
+  /* Latest month with any sales/purchase activity. The current calendar month
+     with NOTHING in it is "bills not uploaded yet" (he batches uploads at
+     month end), never "zero revenue" — so trend maths anchors here. */
+  function latestDataYm() {
+    let mx = '';
+    S.SALES.forEach(s => { if (notCancelled(s) && (s.date || '') > mx) mx = s.date; });
+    S.PURCHASES.forEach(p => { if (notCancelled(p) && (p.date || '') > mx) mx = p.date; });
+    return mx ? mx.slice(0, 7) : new Date().toISOString().slice(0, 7);
+  }
+
+  function insights(pickYm) {
     const out = [];
-    const ser = monthSeries(2);
+    const nowYm = new Date().toISOString().slice(0, 7);
+    /* the dashboard's picked month wins; otherwise the latest month WITH data
+       (bills arrive in month-end batches — an empty wall-clock month is "not
+       uploaded yet", never "zero sales") */
+    const picked = /^\d{4}-\d{2}$/.test(String(pickYm || '')) ? pickYm : null;
+    const anchor = picked || latestDataYm();
+    const ser = monthSeries(2, anchor);
+    /* the label must say WHICH month the number describes */
+    const curLbl = anchor === nowYm ? 'this month' : (periodLabel ? periodLabel(anchor) : anchor);
+    if (!picked && anchor !== nowYm) out.push({
+      tone: 'info', icon: 'bill',
+      t: `No ${periodLabel ? periodLabel(nowYm) : nowYm} bills recorded yet.`,
+      s: `Figures below show ${curLbl} — bills are usually uploaded at month end.`
+    });
     const sMoM = mom(ser[1].sales, ser[0].sales);
     if (sMoM != null) out.push({
       tone: sMoM >= 0 ? 'success' : 'danger', icon: sMoM >= 0 ? 'up' : 'down',
-      t: `Sales ${sMoM >= 0 ? 'up' : 'down'} ${Math.abs(sMoM).toFixed(1)}% vs last month.`,
-      s: `${fL(ser[1].sales)} this month vs ${fL(ser[0].sales)} previous.`
+      t: `Sales ${sMoM >= 0 ? 'up' : 'down'} ${Math.abs(sMoM).toFixed(1)}% vs the month before.`,
+      s: `${fL(ser[1].sales)} ${curLbl} vs ${fL(ser[0].sales)} previous.`
     });
     const coll = collections().rows[0];
     if (coll && coll.days > 30) out.push({
@@ -1175,7 +1198,7 @@
     });
     if (ser[1].profit > 0) out.push({
       tone: 'info', icon: 'trend',
-      t: `Estimated gross profit this month: ${fL(ser[1].profit)}.`,
+      t: `Estimated gross profit ${curLbl === 'this month' ? 'this month' : 'in ' + curLbl}: ${fL(ser[1].profit)}.`,
       s: ser[0].profit > 0 ? `${ser[1].profit >= ser[0].profit ? '+' : ''}${fL(ser[1].profit - ser[0].profit)} vs last month.` : 'Based on sales minus purchases.'
     });
     return out.slice(0, 4);
@@ -2750,8 +2773,8 @@
     if (g.net > 0) out.push({ tone: 'warning', icon: '🏛️', title: `Pay GST ${fC(g.net)} before the 20th`, detail: 'File GSTR-3B to stay compliant.', action: { label: 'GST', page: 'gst.html' } });
     const pendPur = S.PURCHASES.filter(p => (p.status || 'pending') === 'pending');
     if (pendPur.length) { const t = pendPur.reduce((a, p) => a + cP(p).tot, 0); out.push({ tone: 'info', icon: '🧾', title: `${fC(t)} due to suppliers`, detail: `${pendPur.length} bill${pendPur.length > 1 ? 's' : ''} pending payment.`, action: { label: 'Purchases', page: 'purchase.html' } }); }
-    const ser = monthSeries(2);
-    if (ser[1] && ser[0] && ser[0].sales > 0) { const mom = (ser[1].sales - ser[0].sales) / ser[0].sales * 100; if (mom < -10) out.push({ tone: 'danger', icon: '📉', title: `Sales down ${Math.abs(mom).toFixed(0)}% this month`, detail: `${fL(ser[1].sales)} vs ${fL(ser[0].sales)} last month — push dispatch & follow up orders.`, action: { label: 'Sales', page: 'sales.html' } }); }
+    const ser = monthSeries(2, latestDataYm());   // never MoM against an empty not-yet-uploaded month
+    if (ser[1] && ser[0] && ser[0].sales > 0) { const mom = (ser[1].sales - ser[0].sales) / ser[0].sales * 100; if (mom < -10) out.push({ tone: 'danger', icon: '📉', title: `Sales down ${Math.abs(mom).toFixed(0)}% in ${periodLabel ? periodLabel(ser[1].ym) : ser[1].ym}`, detail: `${fL(ser[1].sales)} vs ${fL(ser[0].sales)} the month before — push dispatch & follow up orders.`, action: { label: 'Sales', page: 'sales.html' } }); }
     const overdueLoan = loanRows().find(l => l.nextDays != null && l.nextDays >= -7 && l.outstanding > 0);
     if (overdueLoan) out.push({ tone: 'warning', icon: '🏦', title: `Loan EMI ${fC(overdueLoan.nextAmt)} due`, detail: `${overdueLoan.name} · ${fDS(overdueLoan.nextDue)}`, action: { label: 'Loans', page: 'loans.html' } });
     const cb = cashbookBalances(); if (cb.total < 50000) out.push({ tone: 'warning', icon: '💵', title: `Cash balance low: ${fC(cb.total)}`, detail: 'Prioritise collections to ease cash flow.', action: { label: 'Cash Book', page: 'cashbook.html' } });
@@ -2986,6 +3009,7 @@
     paymentMethods: PAY_METHODS, paymentTypes: PAY_TYPES, methodToMode,
     labourRows, labourSummary, cashbookRows, cashbookBalances,
     loanRows, loanSummary, gstSummary,
+    latestDataYm,
     getPL, chunnaRows, chunnaSummary, attendanceData,
     productionRows, prodStats, addProduction, updateProduction, deleteProduction,
     productionDerived, derivedQtyGaps, tonnesOf, countOf,

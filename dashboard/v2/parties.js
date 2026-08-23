@@ -18,8 +18,12 @@ function waLink(phone, text) {
   if (window.WACore) return WACore.waLink(phone, text);
   return 'https://wa.me/?text=' + encodeURIComponent(text || '');
 }
-/* Compose the WhatsApp message from real data: pending amount + oldest overdue invoice. */
-function waReminder(r) {
+/* Compose the WhatsApp message from real data: pending amount + oldest overdue
+   invoice. ALWAYS the complete account: with a month picked the register rows
+   are period-scoped, and a reminder that quotes June's slice as "outstanding
+   on your account" is a false statement to a real customer. */
+function waReminder(rr) {
+  const r = (window.QLX && QLX.month && QLX.month() && rr) ? (enriched(null).find(x => x.idx === rr.idx) || rr) : rr;
   const co = Q.co.short || Q.co.name || 'us';
   if (r && r.salesDue > 0.5) {
     const oldest = (r.invoices || []).filter(s => s.outstanding > 0.5).sort((a, b) => (a.date || '').localeCompare(b.date || ''))[0];
@@ -127,7 +131,7 @@ function enriched(period) {
     else if (s.overdue > 0 && s.overdue / s.amt > 0.12 && health < 62) seg = 'atrisk';
     else if (salesRec > 75) seg = 'dormant';
     else if (s.amt >= top20cut && health >= 64) seg = 'vip';
-    else if (s.n <= 1 && salesRec <= 45) seg = 'new';
+    else if (s.n <= 1 && salesRec <= 45 && (lifeBy[r.idx] ? lifeBy[r.idx].sN : s.n) <= 1) seg = 'new';
     else seg = 'regular';
     // ── Running account (bank-ledger model): receivable-positive convention ──
     const opening = +r.opening || 0;
@@ -188,17 +192,25 @@ function monLabel(i, n) { const d = new Date(NOW.getFullYear(), NOW.getMonth() -
 function insights(rows) {
   const cust = rows.filter(r => r.salesN > 0);
   const out = [];
+  const p = (window.QLX && QLX.month && QLX.month()) || null;
+  const revLbl = p ? (Q.periodLabel ? Q.periodLabel(p) : p) + ' revenue' : 'all revenue';
   if (cust.length) {
     const top = cust.slice().sort((a, b) => b.salesAmt - a.salesAmt)[0];
-    out.push({ ic: '🏆', tone: 'blue', t: `${top.name} is your top customer`, d: `${fC(top.salesAmt)} · ${Math.round(top.share * 100)}% of all revenue across ${top.salesN} orders.` });
+    out.push({ ic: '🏆', tone: 'blue', t: `${top.name} is your top customer${p ? ' in ' + (Q.periodLabel ? Q.periodLabel(p) : p) : ''}`, d: `${fC(top.salesAmt)} · ${Math.round(top.share * 100)}% of ${revLbl} across ${top.salesN} orders.` });
   }
-  const over = cust.filter(r => r.overdue > 0).sort((a, b) => b.overdue - a.overdue);
-  if (over.length) { const sum = over.reduce((a, r) => a + r.overdue, 0); out.push({ ic: '⏰', tone: 'rose', t: `${over.length} customer${over.length > 1 ? 's' : ''} overdue >30 days`, d: `${fC(sum)} to collect — ${over[0].name} owes the most (${fC(over[0].overdue)}).` }); }
+  if (p) return out.slice(0, 3).concat(overdueInsight(cust)).slice(0, 3);
+  out.push(...overdueInsight(cust));
   const dorm = cust.filter(r => r.seg === 'dormant').sort((a, b) => b.salesAmt - a.salesAmt);
   if (dorm.length) { const sum = dorm.reduce((a, r) => a + r.salesAmt, 0); out.push({ ic: '😴', tone: 'slate', t: `${dorm.length} dormant customer${dorm.length > 1 ? 's' : ''} to win back`, d: `No orders in 75+ days · ${fC(sum)} of past business — ${dorm[0].name} was the biggest.` }); }
   const vip = cust.filter(r => r.seg === 'vip'); if (vip.length) { const ah = Math.round(vip.reduce((a, r) => a + r.health, 0) / vip.length); out.push({ ic: '⭐', tone: 'amber', t: `${vip.length} VIP customer${vip.length > 1 ? 's' : ''}`, d: `Avg health ${ah}/100 — your most valuable, reliable buyers. Protect these.` }); }
   const fresh = cust.filter(r => r.seg === 'new'); if (fresh.length) out.push({ ic: '🌱', tone: 'green', t: `${fresh.length} new customer${fresh.length > 1 ? 's' : ''}`, d: `Recently acquired — a follow-up now builds the repeat habit.` });
   return out.slice(0, 3);
+}
+function overdueInsight(cust) {
+  const over = cust.filter(r => r.overdue > 0).sort((a, b) => b.overdue - a.overdue);
+  if (!over.length) return [];
+  const sum = over.reduce((a, r) => a + r.overdue, 0);
+  return [{ ic: '⏰', tone: 'rose', t: `${over.length} customer${over.length > 1 ? 's' : ''} overdue >30 days`, d: `${fC(sum)} to collect — ${over[0].name} owes the most (${fC(over[0].overdue)}).` }];
 }
 function bannerHTML(all) {
   const cards = insights(all); if (!cards.length) return '';
@@ -209,16 +221,28 @@ function bannerHTML(all) {
 }
 
 /* ═══════════ drawer tabs ═══════════ */
+/* The drawer speaks ACCOUNT language ("current balance", "fully paid up",
+   "Total sales") — a period-scoped row under those labels is a false
+   statement, so every tab resolves the complete row first. */
+function fullRowP(r) {
+  return (window.QLX && QLX.month && QLX.month() && r) ? (enriched(null).find(x => x.idx === r.idx) || r) : r;
+}
+function scopeNote() {
+  return (window.QLX && QLX.month && QLX.month())
+    ? '<div style="font-size:11.5px;color:var(--ql-text-muted);padding:2px 0 8px">Account view — all months. The table behind is showing ' + esc(Q.periodLabel(QLX.month())) + ' only.</div>'
+    : '';
+}
 function kv(l, v) { return `<div class="qx-kv"><span>${l}</span><b>${v}</b></div>`; }
 function statusPill(st) { const m = { paid: ['#dcfce7', '#166534'], cash: ['#dcfce7', '#166534'], partial: ['#fef9c3', '#854d0e'], pending: ['#fee2e2', '#991b1b'], cancelled: ['#f1f5f9', '#64748b'] }; const c = m[st] || m.pending; const lbl = (st || 'pending'); return `<span class="crm-st" style="background:${c[0]};color:${c[1]}">${esc(lbl[0].toUpperCase() + lbl.slice(1))}</span>`; }
 
 function tabOverview(r) {
+  r = fullRowP(r);
   const comm = `<div class="qx-comm">
     ${r.phone ? `<a class="wa" href="${waLink(r.phone, waReminder(r))}" target="_blank">${svg(IC.wa)} WhatsApp</a>` : ''}
     ${r.phone ? `<a class="call" href="tel:${esc(r.phone)}">${svg(IC.call)} Call</a>` : ''}
     ${!r.phone ? '<span class="qx-mut" style="font-size:12px">No phone on file — add it to enable contact.</span>' : ''}</div>`;
   const bc = r.currentBalance > 0.5 ? 'var(--ql-danger-600)' : r.currentBalance < -0.5 ? '#16a34a' : 'var(--ql-text)';
-  const hero = `<div class="crm-dhero">
+  const hero = scopeNote() + `<div class="crm-dhero">
     ${healthRing(r.health)}
     <div class="crm-dhero-x">
       <div>${segPill(r)}</div>
@@ -236,6 +260,7 @@ function tabOverview(r) {
 }
 
 function tabHealth(r) {
+  r = fullRowP(r);
   if (!r.salesN) return `<div class="qx-empty" style="padding:30px">No sales history yet — health score needs orders to score.</div>`;
   const comp = [
     ['Payment behaviour', r.hc.pay, 40, `${Math.round(r.collRate * 100)}% of billed value collected`],
@@ -250,6 +275,7 @@ function tabHealth(r) {
 }
 
 function tabPayments(r) {
+  r = fullRowP(r);
   if (!r.salesN) return `<div class="qx-empty" style="padding:30px">No invoices yet.</div>`;
   const buckets = [['0–30 days', 0, '#22c55e'], ['31–60 days', 0, '#f59e0b'], ['61–90 days', 0, '#f97316'], ['90+ days', 0, '#ef4444']];
   r.invoices.forEach(s => { if (s.outstanding <= 0.5) return; const a = dDays(s.date); const i = a <= 30 ? 0 : a <= 60 ? 1 : a <= 90 ? 2 : 3; buckets[i][1] += s.outstanding; });
@@ -268,6 +294,7 @@ function tabPayments(r) {
 }
 
 function tabOrders(r) {
+  r = fullRowP(r);
   if (!r.invoices.length) return `<div class="qx-empty" style="padding:30px">No orders on record.</div>`;
   const bars = monthly(r.invoices, 6);
   const chart = bars.some(v => v > 0) ? `<div class="qx-sec-h">Last 6 months</div>${miniBars(bars, bars.map((_, i) => monLabel(i, 6)))}` : '';
@@ -390,10 +417,17 @@ QLX.mount({
     const overN = rows.filter(r => r.overdue > 0).length;
     const avgH = cust.length ? Math.round(cust.reduce((a, r) => a + r.health, 0) / cust.length) : 0;
     const atrisk = rows.filter(r => r.seg === 'atrisk').length;
-    const mom2 = monthly(Q.salesRows(), 2); const mom = mom2[0] ? (mom2[1] - mom2[0]) / mom2[0] * 100 : null;
+    const isYear = /^\d{4}$/.test(String(m || ''));
+    let curSales, mom;
+    if (isYear) {
+      const yr = y => Q.salesRows().filter(s => (s.date || '').slice(0, 4) === String(y) && s.status !== 'cancelled').reduce((a, s) => a + s.total, 0);
+      curSales = yr(m); const pv = yr(+m - 1); mom = pv > 0 ? (curSales - pv) / pv * 100 : null;
+    } else {
+      const mom2 = monthly(Q.salesRows(), 2); curSales = mom2[1] || 0; mom = mom2[0] ? (mom2[1] - mom2[0]) / mom2[0] * 100 : null;
+    }
     return [
       { label: 'Customers', value: cust.length, sub: active + ' active', tint: 'blue', icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>' },
-      { label: m ? 'Sales · ' + Q.periodLabel(m) : 'Monthly Sales', value: fC(Math.round(mom2[1] || 0)), sub: 'vs previous month', trend: mom, tint: 'green', icon: '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>' },
+      { label: m ? 'Sales · ' + Q.periodLabel(m) : 'Monthly Sales', value: fC(Math.round(curSales || 0)), sub: isYear ? 'vs previous year' : 'vs previous month', trend: mom, tint: 'green', icon: '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>' },
       { label: 'Receivable', value: fC(recv), sub: overN + ' overdue · ' + fC(overdue) + (m ? ' · ' + Q.periodLabel(m) + ' invoices' : ''), tint: 'amber', icon: IC.clock },
       { label: 'Avg Health', value: avgH + '/100', sub: 'portfolio health', tint: 'violet', icon: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>' },
       { label: 'At-risk', value: atrisk, sub: 'need attention', tint: 'rose', icon: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' }
@@ -427,7 +461,7 @@ QLX.mount({
     { key: 'health', label: 'Health', sort: true, num: true, cell: r => r.salesN ? healthBar(r.health) : '<span class="qx-mut">—</span>' },
     { key: 'salesAmt', label: 'Business', sort: true, num: true, cell: r => `<span class="qx-num qx-strong">${fC(r.business)}</span>` },
     { key: 'salesDue', label: 'Receivable', sort: true, num: true, cell: r => r.salesDue ? `<span class="qx-num" style="color:var(--ql-danger-600);font-weight:600">${fC(r.salesDue)}${r.overdue ? ' <i class="crm-flag" title="overdue">!</i>' : ''}</span>` : '<span class="qx-mut">—</span>' },
-    { key: 'salesN', label: 'Orders', sort: true, num: true, cell: r => r.salesN ? `<span class="qx-num">${r.salesN}</span><span class="crm-mut" style="display:block;font-size:11px">${relDays(r.salesRec)}</span>` : '<span class="qx-mut">—</span>' },
+    { key: 'salesN', label: 'Orders', sort: true, num: true, cell: r => r.salesN ? `<span class="qx-num">${r.salesN}</span><span class="crm-mut" style="display:block;font-size:11px"${QLX.month() ? ' title="as at end of ' + esc(Q.periodLabel(QLX.month())) + '"' : ''}>${relDays(r.salesRec)}</span>` : '<span class="qx-mut">—</span>' },
     { key: 'trend', label: 'Trend', cell: r => r.salesN ? sparkSVG(r.spark, 84, 26, avColor(r.name)) : '<span class="qx-mut">—</span>' },
     { key: 'actions', label: '', cell: r => QLX.actionsCell(r), cls: 'qx-act' }
   ],
@@ -440,13 +474,13 @@ QLX.mount({
     { label: 'Open profile', icon: IC.eye, onClick: r => QLX.open(r.idx) },
     { label: 'Edit', icon: IC.edit, onClick: r => QLShell.openPartyForm(r.idx) },
     ...(r.phone ? [{ label: 'Call', icon: IC.call, onClick: r => location.href = 'tel:' + r.phone }] : []),
-    ...(r.salesDue ? [{ label: 'Send reminder', icon: IC.wa, onClick: r => window.open(waLink(r.phone, `Dear ${r.name}, a gentle reminder — ${fC(r.salesDue)} is pending on your account. Thank you.`), '_blank') }] : []),
+        ...(r.salesDue ? [{ label: 'Send reminder', icon: IC.wa, onClick: r => window.open(waLink(r.phone, waReminder(r)), '_blank') }] : []),
     { divider: true },
     { label: 'Archive', icon: IC.file, onClick: r => { Q.archiveRecord('party', r.idx, true); toast('Party archived — see Settings → Data Management → Archived'); QLX.refresh(); } },
     { label: 'Delete', icon: IC.trash, cls: 'del', onClick: r => { QLShell.confirmDelete({ title: 'Move party to Trash?', desc: r.name + ' will move to Trash and can be restored for 90 days. Their invoices and bills are not deleted.', confirmLabel: 'Move to Trash', onConfirm: reason => { Q.deleteParty(r.idx, reason); toast('Moved to Trash'); QLX.refresh(); } }); } }
   ],
   card: r => ({ id: r.name, title: esc(r.name), amount: fC(r.business), party: r.name, partySub: (SEG[r.seg] || SEG.regular).label + (r.salesN ? ' · health ' + r.health : ''), status: segPill(r), rows: [['Health', r.salesN ? healthBar(r.health) : '—'], ['Receivable', r.salesDue ? fC(r.salesDue) : '—'], ['Orders', r.salesN || '—']] }),
-  footer: rows => { const b = rows.reduce((a, r) => a + r.business, 0), d = rows.reduce((a, r) => a + r.salesDue, 0); return [{ label: 'Customers', value: rows.length }, { label: 'Total Business', value: fC(b), strong: true }, { label: 'Receivable', value: fC(d) }]; },
+  footer: rows => { const m = QLX.month(); const b = rows.reduce((a, r) => a + r.business, 0), d = rows.reduce((a, r) => a + r.salesDue, 0); return [{ label: 'Customers', value: rows.length }, { label: m ? 'Business · ' + Q.periodLabel(m) : 'Total Business', value: fC(b), strong: true }, { label: 'Receivable', value: fC(d) }]; },
   analytics: rows => {
     const cust = rows.filter(r => r.salesN > 0);
     const bars = cust.slice().sort((a, b) => b.salesAmt - a.salesAmt).slice(0, 8).map(r => ({ label: r.name, value: r.salesAmt, display: fC(r.salesAmt), color: avColor(r.name) }));
@@ -461,7 +495,7 @@ QLX.mount({
       <div class="qx-an-h" style="margin-top:16px">Monthly sales — last 6 months</div>${miniBars(trend, trend.map((_, i) => monLabel(i, 6)))}`;
     return { barsTitle: 'Top customers by revenue', bars, donutTitle: 'Segment mix', donut, donutCenter: cust.length + '<span style="font-size:9px;display:block;font-weight:600;color:var(--ql-text-secondary)">customers</span>', extra };
   },
-  detail: r => ({
+  detail: r => ((r = fullRowP(r)), {
     eyebrow: (SEG[r.seg] || SEG.regular).label + (r.type === 'supplier' ? ' · Supplier' : r.type === 'both' ? ' · Customer & Supplier' : ' · Customer'),
     title: esc(r.name), sub: (r.gstin ? 'GSTIN ' + esc(r.gstin) : 'No GSTIN') + (r.phone ? ' · ' + esc(r.phone) : ''),
     actions: [

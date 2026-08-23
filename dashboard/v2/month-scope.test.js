@@ -100,6 +100,32 @@ const inPeriod = (d, p) => !p || p === 'all' || String(d || '').startsWith(p);
      ctx.collectRows('2026-06').find(r => r.party === 'ARIF').bills === 1);
 }
 
+/* ── 3b · MONEY ACTIONS: the reminder quotes the WHOLE account, never the slice ── */
+{
+  const src = read("collections.js");
+  const ctx = {
+    Q: { inPeriod, co: { short: "Gotan" }, salesRows: () => [
+        { party: "ARIF", gstin: "G1", date: "2026-06-10", outstanding: 700, status: "pending" },
+        { party: "ARIF", gstin: "G1", date: "2026-04-01", outstanding: 900, status: "partial" }
+      ], partyRows: () => [] },
+    QLParty: { index: () => ({ keyOf: n => n, labelOf: k => k, gstinFor: () => "" }) },
+    QLX: { month: () => "2026-06" }                              // a month IS picked
+  };
+  const vm2 = require("vm"); vm2.createContext(ctx);
+  vm2.runInContext(grab(src, "function ageOf(", "\n", "collections.js")
+    + "function bucketOf(days) { return days > 60 ? \"critical\" : days > 30 ? \"overdue\" : \"recent\"; }\n"
+    + "function fmtPlain(n) { return Math.round(n || 0).toLocaleString(\"en-IN\"); }\n"
+    + grab(src, "/* Aggregate every unpaid sales invoice", ".sort((a, b) => b.out - a.out);\n}", "collections.js")
+    + "\n" + grab(src, "function fullRow(r)", "function reminderMsg(rr) {", "collections.js")
+    + "  const r = fullRow(rr);\n" + grab(src, "  return `Dear ", ";\n}", "collections.js")
+    + "\nthis.reminderMsg = reminderMsg; this.fullRow = fullRow; this.collectRows = collectRows;", ctx);
+  const juneRow = ctx.collectRows("2026-06")[0];
+  ok("the June view shows the June slice (700)", juneRow.out === 700);
+  const msg = ctx.reminderMsg(juneRow);
+  ok("but the reminder quotes the COMPLETE debt (1,600), never the slice", /1,600/.test(msg) && !/(^|[^,\d])700/.test(msg));
+  ok("  across both invoices", /2 invoices/.test(msg));
+}
+
 /* ── 4 · CUSTOMER INTELLIGENCE: scoped business, LIFETIME balance ── */
 {
   const src = read('parties.js');

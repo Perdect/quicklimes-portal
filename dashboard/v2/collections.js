@@ -64,7 +64,17 @@ function collectRows(period) {
   }).sort((a, b) => b.out - a.out);
 }
 
-function reminderMsg(r) {
+/* MONEY ACTIONS NEVER INHERIT THE VIEW'S PERIOD. A June-scoped row says what
+   June still owes; a reminder built from it would tell a real customer that
+   PART of their debt is the whole of it, and a receive dialog would prefill a
+   partial amount. Every reminder/receipt path resolves the party's COMPLETE
+   row first. The table stays scoped — only the actions reach for everything. */
+function fullRow(r) {
+  if (!QLX.month()) return r;
+  return collectRows(null).find(x => x.key === r.key) || r;
+}
+function reminderMsg(rr) {
+  const r = fullRow(rr);
   return `Dear ${r.party}, a gentle reminder from ${Q.co.short || 'us'}: ₹${fmtPlain(r.out)} is pending against ${r.bills} invoice${r.bills > 1 ? 's' : ''} (oldest ${r.days} days). Kindly arrange the payment at your earliest convenience. Thank you.`;
 }
 
@@ -76,7 +86,7 @@ function tabBills(r) {
     ${!r.phone ? '<span class="qx-mut" style="font-size:12px">No phone on file — add it in All Parties to enable reminders.</span>' : ''}</div>`;
   const bills = r.invs.slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''))
     .map(s => `<div class="qx-kv"><span>${esc(s.inv || '—')} · ${Q.fDS(s.date)}${s.status === 'partial' ? ' · <span style="color:#b45309">partial</span>' : ''}</span><b style="color:var(--ql-danger-600)">${fC(s.outstanding)}</b></div>`).join('');
-  return `<div class="qx-sec-h">Customer</div>
+  return `${QLX.month() ? '<div style="font-size:11.5px;color:var(--ql-text-muted);padding:4px 0 8px">Showing ' + esc(Q.periodLabel(QLX.month())) + ' invoices only — reminders and receipts always use the complete account.</div>' : ''}<div class="qx-sec-h">Customer</div>
     <div style="font-weight:700;font-size:15px">${esc(r.party)}</div>
     <div class="qx-mut" style="font-size:12.5px;margin-top:4px">${agePill(r)}</div>
     ${comm}
@@ -96,7 +106,8 @@ function applyReceipt(r, amount, method) {
   });
   return applied;
 }
-function receivePayment(r) {
+function receivePayment(rr) {
+  const r = fullRow(rr);   // receive against the whole account, not the month's slice
   let back = document.getElementById('collPayBack');
   if (!back) { back = document.createElement('div'); back.id = 'collPayBack'; document.body.appendChild(back); }
   back.setAttribute('style', 'position:fixed;inset:0;z-index:4000;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px)');
