@@ -63,13 +63,20 @@ function ql_wa_bridge_into_thread($db, $plantId, $coId, $p) {
 
 header('Content-Type: application/json');
 
-$secret = ql_wa_hook_secret();
-if ($secret === '') { http_response_code(503); exit(json_encode(['ok' => false, 'error' => 'WA_HOOK_SECRET not set'])); }
-if (!hash_equals($secret, (string)($_GET['key'] ?? ''))) { http_response_code(403); exit(json_encode(['ok' => false, 'error' => 'bad key'])); }
-
 $plantId = (string)($_GET['p'] ?? '');
 $coId    = (string)($_GET['c'] ?? '');
 if ($plantId === '') { http_response_code(400); exit(json_encode(['ok' => false, 'error' => 'missing plant'])); }
+
+/* Config secret wins when the operator set one; otherwise the per-plant secret
+   that wa_connect generated when the channel was linked. Neither ⇒ fail CLOSED:
+   this is an unauthenticated public URL. */
+$secret = ql_wa_hook_secret();
+if ($secret === '') {
+  $ints = ql_plant_integrations($plantId);
+  $secret = (string)($ints['wa_hook_secret'] ?? '');
+}
+if ($secret === '') { http_response_code(503); exit(json_encode(['ok' => false, 'error' => 'webhook secret not configured'])); }
+if (!hash_equals($secret, (string)($_GET['key'] ?? ''))) { http_response_code(403); exit(json_encode(['ok' => false, 'error' => 'bad key'])); }
 
 $raw  = file_get_contents('php://input');
 $body = json_decode($raw, true);

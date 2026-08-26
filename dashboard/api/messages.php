@@ -134,8 +134,21 @@ if ($action === 'wa_connect') {
      talk to anything — "saved" and "working" are different claims. */
   if ($tok === '') ql_out(['ok' => true, 'configured' => false, 'connected' => false]);
   $h = ql_wa_health($tok);
+  /* Incoming replies: mint a per-plant hook secret once, then register the
+     webhook ON the channel through Whapi's API — the user never opens Whapi's
+     settings page. "Registered" is reported only when Whapi said 2xx. */
+  $ints = ql_plant_integrations($plantId);
+  $hookSecret = (string)($ints['wa_hook_secret'] ?? '');
+  if ($hookSecret === '') {
+    $hookSecret = bin2hex(random_bytes(24));
+    ql_save_plant_integration($plantId, 'wa_hook_secret', $hookSecret);
+  }
+  $hookUrl = 'https://app.quicklimes.com/api/wa-hook.php?key=' . $hookSecret
+           . '&p=' . rawurlencode($plantId) . '&c=' . rawurlencode($coId);
+  $wh = ql_wa_set_webhook($tok, $hookUrl);
   ql_out(['ok' => true, 'configured' => true, 'connected' => !empty($h['connected']),
-          'status' => (string)($h['status'] ?? '')]);
+          'status' => (string)($h['status'] ?? ''),
+          'webhook_registered' => !empty($wh['ok']), 'webhook_url' => $hookUrl]);
 }
 
 /* ── PRESENCE ─────────────────────────────────────────────────────────────

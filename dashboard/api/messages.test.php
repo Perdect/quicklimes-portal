@@ -190,5 +190,22 @@ ok(strpos($code, "\$me = 'owner:' . \$plantId;") !== false,
 ok(strpos($code, '$isOwnerSeat = true;') !== false && strpos($code, "'owner_seat' => \$isOwnerSeat") !== false,
   'and the client is told, so it can label that seat');
 
+echo "\n=== WhatsApp connect finishes the WHOLE job (no manual webhook step) ===\n";
+ok(strpos($code, "ql_save_plant_integration(\$plantId, 'wa_hook_secret', \$hookSecret)") !== false,
+  'wa_connect mints a per-plant hook secret');
+ok(strpos($code, 'ql_wa_set_webhook($tok, $hookUrl)') !== false,
+  'wa_connect registers the webhook on the channel via Whapi\'s API');
+ok(strpos($code, "'webhook_registered' => !empty(\$wh['ok'])") !== false,
+  'and reports registered ONLY on a 2xx from Whapi — saved and working are different claims');
+ok(strpos($code, 'rawurlencode($coId)') !== false,
+  'the hook URL carries the REQUEST\'s company id, not an undefined variable');
+ok(strpos($dbc, 'function ql_wa_set_webhook') !== false && strpos($dbc, 'gate.whapi.cloud/settings') !== false,
+  'db.php carries the PATCH /settings call (verified against Whapi docs)');
+$hook = file_get_contents(__DIR__ . '/wa-hook.php');
+ok(strpos($hook, "wa_hook_secret") !== false && substr_count($hook, 'hash_equals') >= 1,
+  'wa-hook accepts the per-plant secret, still via hash_equals');
+ok(strpos($hook, "webhook secret not configured") !== false,
+  'and still fails CLOSED when no secret exists anywhere');
+
 echo $fail ? "\n❌ FAILED — $fail\n" : "\n✅ PASSED — the chat contract holds\n";
 exit($fail ? 1 : 0);

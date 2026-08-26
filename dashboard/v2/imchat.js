@@ -947,10 +947,17 @@
             S.wa = r;
             /* "Saved" and "working" are different claims, so the provider is
                asked immediately and the answer is what gets reported. */
-            if (el) el.textContent = r.connected
-              ? '✓ Connected' + (r.status ? ' · ' + r.status : '')
-              : (r.configured ? '! Saved, but the channel is not paired yet — scan the QR on the WhatsApp Inbox page'
-                              : 'Channel removed — WhatsApp sending is off.');
+            if (el) {
+              const base = r.connected
+                ? '✓ Connected' + (r.status ? ' · ' + r.status : '')
+                : (r.configured ? '! Saved, but the channel is not paired yet — scan the QR on the WhatsApp Inbox page'
+                                : 'Channel removed — WhatsApp sending is off.');
+              const hook = !r.configured ? ''
+                : r.webhook_registered ? '\nIncoming replies: webhook registered on the channel automatically ✓'
+                : (r.webhook_url ? '\nIncoming replies: could not auto-register — paste this URL into the Whapi channel settings (events: messages + statuses, mode body):\n' + r.webhook_url : '');
+              el.textContent = base + hook;
+              el.style.whiteSpace = 'pre-wrap';
+            }
             paintConv();
           } }
       ]

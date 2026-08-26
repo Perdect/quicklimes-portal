@@ -101,6 +101,7 @@ $EXPECTED = [
   'parties'      => 'parties',    // customer + supplier contact book
   'finance'      => 'finance',
   'cashbook'     => 'finance',    // every rupee in and out
+  'expenses'     => 'finance',    // classified manufacturing expenses: salaries, interest — finance eyes only
   'loans'        => 'finance',    // the firm's borrowings
   'bankAccounts' => 'finance',    // account numbers + IFSC
   'refunds'      => 'finance',

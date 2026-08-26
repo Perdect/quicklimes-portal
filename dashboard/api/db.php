@@ -308,6 +308,9 @@ function ql_blob_caps() {
     'purchases' => 'purchase',
     'parties' => 'parties',
     'finance' => 'finance', 'cashbook' => 'finance', 'loans' => 'finance',
+    /* classified manufacturing expenses = finance data: salaries and interest
+       must not be readable by a sales/dispatch seat */
+    'expenses' => 'finance',
     'reconcile' => 'recon',
     'tds' => 'gst', 'challans' => 'gst',
     'workers' => 'labour', 'workLog' => 'labour', 'att' => 'labour',
@@ -991,6 +994,23 @@ function ql_wa_send($token, $to, $body) {
 
    Stored beside the other integration credentials in app_data/ql_integrations,
    the same place the Mapbox token already lives. */
+/* Register OUR webhook on the channel so incoming messages flow without the
+   user ever opening Whapi's settings. Verified against Whapi's documentation:
+   PATCH /settings with a webhooks array (messages + statuses, mode=body). */
+function ql_wa_set_webhook($token, $url) {
+  if ((string)$token === '' || (string)$url === '') return ['ok' => false, 'http' => 0];
+  $payload = json_encode(['webhooks' => [[
+    'mode' => 'body', 'url' => $url,
+    'events' => [['type' => 'messages', 'method' => 'post'], ['type' => 'statuses', 'method' => 'post']],
+  ]]]);
+  $ch = curl_init('https://gate.whapi.cloud/settings');
+  curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20,
+    CURLOPT_CUSTOMREQUEST => 'PATCH', CURLOPT_POSTFIELDS => $payload,
+    CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $token, 'Accept: application/json', 'Content-Type: application/json']]);
+  curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+  return ['ok' => $code >= 200 && $code < 300, 'http' => $code];
+}
+
 function ql_whapi($plantId = '') {
   $c = ql_config();
   $tok = (string)($c['WHAPI_TOKEN'] ?? '');
