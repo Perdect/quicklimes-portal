@@ -1035,13 +1035,25 @@ function leadPricing(r) {
 
 /* The shared document shell — the same .pr-* design the proposal uses, so the
    quote reads as the same professional letterhead. Takes the ready-made body. */
-function prShell(id, seller, sub, metaTitle, metaSub, rightBtns, bodyHTML) {
+function prShell(id, seller, sub, metaTitle, metaSub, rightBtns, bodyHTML, metaRows) {
   const back = document.createElement('div');
   back.className = 'pr-back'; back.id = 'prBack';
+  const co = (Q && Q.co) || {};
+  /* the identity line a real letterhead carries: GSTIN · works · phone */
+  const idBits = [co.gstin ? 'GSTIN ' + co.gstin : '', co.address || co.station || co.city || '', co.phone ? '☎ ' + co.phone : '']
+    .filter(Boolean).map(esc).join('<span class="pr-dot">·</span>');
+  const mono = esc((seller || 'G').trim().charAt(0).toUpperCase());
+  const panel = metaRows && metaRows.length
+    ? `<div class="pr-panel"><div class="pr-panel-t">${esc(metaTitle)}</div>${metaRows.map(r => `<div class="pr-panel-r"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div>`
+    : `<div class="pr-meta">${esc(metaTitle)}${metaSub ? `<span class="pr-meta-s">${esc(metaSub)}</span>` : ''}</div>`;
   back.innerHTML = `<div class="pr-bar"><button class="pr-close" id="prClose">← Back to lead</button><div class="pr-bar-r">${rightBtns}</div></div>
     <div class="pr-doc" id="prDoc">
-      <div class="pr-head"><div><div class="pr-brand">${esc(seller)}</div><div class="pr-brand-s">${esc(sub)}</div></div>
-        <div class="pr-meta">${esc(metaTitle)}${metaSub ? `<span class="pr-meta-s">${esc(metaSub)}</span>` : ''}</div></div>
+      <div class="pr-head">
+        <div class="pr-brand-w"><div class="pr-mono">${mono}</div>
+          <div><div class="pr-brand">${esc(seller)}</div><div class="pr-brand-s">${esc(sub)}</div>
+          ${idBits ? `<div class="pr-id">${idBits}</div>` : ''}</div></div>
+        ${panel}
+      </div>
       <hr class="pr-hr">
       ${bodyHTML}
     </div>`;
@@ -1066,24 +1078,41 @@ function openQuote(r) {
   const priceRows = P.hasGeo
     ? `<tr><td>Ex-works (${esc(P.prod.label)})</td><td>${fmt(P.exworks)}/MT</td></tr>
         <tr><td>Freight — ${esc(P.origin.name.split(',')[0])} → ${esc(city)} (~${P.km.toLocaleString('en-IN')} km, est.)</td><td>${fmt(P.freight)}/MT</td></tr>
-        <tr class="pr-tot"><td>Delivered price</td><td>${fmt(P.delivered)}/MT + GST</td></tr>`
+        <tr class="pr-tot"><td>Delivered price</td><td>${fmt(P.delivered)} / MT <span class="pr-tot-gst">+ GST</span></td></tr>`
     : `<tr><td>Ex-works (${esc(P.prod.label)})</td><td>${fmt(P.exworks)}/MT</td></tr>
         <tr><td>Freight to ${esc(city)}</td><td>on address confirmation</td></tr>
         <tr class="pr-tot"><td>Delivered price</td><td>ex-works + freight + GST</td></tr>`;
   const vol = (P.tpm > 0 && P.delivered)
     ? `<div class="pr-earn"><div><div class="pr-earn-l">Estimated monthly supply value at ${P.tpm} MT/month</div><div class="pr-earn-s">Delivered ${fmt(P.delivered)}/MT × ${P.tpm} MT (indicative)</div></div><div class="pr-earn-v">${fmt(P.delivered * P.tpm)}</div></div>`
     : '';
-  const body = `<h1 class="pr-h1">Price Quotation${r.name ? ' for ' + esc(r.name) : ''}</h1>
-    <p class="pr-lede">Thank you for your enquiry. Our delivered price for ${esc(P.prod.label)} to ${esc(city)} is below — freight included. This quotation is valid for 7 days.</p>
+  const validStr = new Date(Date.now() + 7 * 864e5).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+  /* a stable, human document number: date + the lead's own digits */
+  const qno = 'Q-' + new Date().toISOString().slice(2, 10).replace(/-/g, '') + '-' + ((String(r.id || r.phone || '').replace(/\D/g, '').slice(-3)) || '001');
+  const body = `
+    <div class="pr-to"><div class="pr-to-l">Prepared for</div>
+      <div class="pr-to-n">${esc(r.name || 'Your organisation')}</div>
+      ${[r.city, r.phone].filter(Boolean).length ? `<div class="pr-to-s">${[r.city, r.phone].filter(Boolean).map(esc).join(' · ')}</div>` : ''}</div>
+    <p class="pr-lede">Thank you for your enquiry. Our delivered price for <b>${esc(P.prod.label)}</b> to ${esc(city)} is below — freight included.</p>
     <h2 class="pr-h2">Delivered pricing</h2>
-    <table class="pr-tbl"><tr><th>Item</th><th>Rate</th></tr>${priceRows}</table>
+    <table class="pr-tbl"><tr><th>Item</th><th>Rate (₹/MT)</th></tr>${priceRows}</table>
     ${vol}
     <p class="pr-fine">${P.hasGeo ? 'Freight is a road-distance estimate; the exact figure is confirmed against your delivery point and load size.' : 'Share your exact delivery point and we will confirm a delivered ₹/MT within the day.'}</p>
     <h2 class="pr-h2">Terms</h2>
-    <ul class="pr-ul"><li>GST extra as applicable (${Math.round(P.gst * 100)}%)</li><li>Minimum order by vehicle load; dispatch schedule agreed on confirmation</li><li>Payment terms as mutually agreed</li><li>Prices subject to change after the validity period</li></ul>
-    <p class="pr-sign">${esc(seller)}${co.phone ? ' · ' + esc(co.phone) : ''}</p>`;
+    <ul class="pr-ul pr-ul-2">
+      <li>GST extra as applicable (${Math.round(P.gst * 100)}%)</li>
+      <li>Valid until ${esc(validStr)}; prices subject to change after</li>
+      <li>Minimum order by vehicle load</li>
+      <li>Dispatch schedule agreed on confirmation</li>
+      <li>Payment terms as mutually agreed</li>
+      <li>Test certificate accompanies every dispatch</li>
+    </ul>
+    <div class="pr-signrow">
+      <div class="pr-contact"><div class="pr-contact-l">Questions / confirmation</div><div class="pr-contact-v">${co.phone ? '☎ ' + esc(co.phone) : esc(seller)}</div></div>
+      <div class="pr-sig"><div class="pr-sig-for">For ${esc(seller)}</div><div class="pr-sig-space"></div><div class="pr-sig-line">Authorised Signatory</div></div>
+    </div>`;
   const btns = `<button class="ql-btn ql-btn-secondary" id="qtWa">${IC_SEND || ''}Send on WhatsApp</button><button class="ql-btn ql-btn-primary" id="prPrint">${IC_PRINT}Print / Save PDF</button>`;
-  prShell('prBack', seller, 'Quick Lime · Hydrated Lime · Limestone — ' + (co.city || 'Gotan, Rajasthan'), 'Price Quotation', dateStr, btns, body);
+  prShell('prBack', seller, 'Quick Lime · Hydrated Lime · Limestone — ' + (co.city || 'Gotan, Rajasthan'), 'PRICE QUOTATION', dateStr, btns, body,
+    [['Quotation No', qno], ['Date', dateStr], ['Valid until', validStr]]);
   const wa = document.getElementById('qtWa');
   if (wa) wa.addEventListener('click', () => {
     const line = P.hasGeo
