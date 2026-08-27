@@ -819,10 +819,16 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
      so without this the bar sits in the layout permanently while its .hidden
      property reads true — visible on screen, invisible to the code. */
   .dc-float[hidden] { display: none; }
-  .dc-float { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 10px;
-    background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 14px;
-    padding: 9px 12px; margin-bottom: var(--ql-space-4);
-    box-shadow: 0 6px 20px rgba(15,23,42,.08); }
+  /* Docked BAR, not a hovering pill. The scrollport (.main) has --ql-space-6
+     padding, so top:0 pinned the pill 24px below the visual top and rows
+     scrolled through the see-through band above it — "header is not proper
+     design". Negative top pins it flush with the scrollport edge; negative
+     side margins bleed it across the padding so nothing shows around it. */
+  .dc-float { position: sticky; top: calc(-1 * var(--ql-space-6, 24px)); z-index: 40; display: flex; align-items: center; gap: 10px;
+    background: var(--ql-card); border: 0; border-bottom: 1px solid var(--ql-border); border-radius: 0;
+    padding: 10px var(--ql-space-6, 24px);
+    margin: 0 calc(-1 * var(--ql-space-6, 24px)) var(--ql-space-4);
+    box-shadow: 0 8px 18px -12px rgba(15,23,42,.15); }
   [data-theme="dark"] .dc-float { box-shadow: 0 6px 20px rgba(0,0,0,.4); }
   .dc-float-ic { display: inline-flex; color: var(--ql-text-muted); flex: none; }
   .dc-float-ic svg { width: 16px; height: 16px; }

@@ -125,6 +125,12 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/id="dcHero"/.test(html) && /id="dcStats"/.test(html), '  the SYSTEM chrome hosts exist (QLX hero + stat row)');
   ok(/QLX\.heroHTML\(DC_HERO\)/.test(bare) && /QLX\.statsHTML\(/.test(bare), '  and discover.js renders them through the SHARED chrome, not a copy');
   ok(/class="dash qx qx-a-blue"/.test(html), '  the page carries the accent class every migrated page has');
+  /* The compact search bar DOCKS flush with the scrollport edge — top:0 left a
+     see-through 24px band (the .main padding) with rows scrolling through it. */
+  ok(/\.dc-float \{ position: sticky; top: calc\(-1 \* var\(--ql-space-6/.test(html),
+    '  the floating search bar pins FLUSH with the scrollport top, not 24px into it');
+  ok(/margin: 0 calc\(-1 \* var\(--ql-space-6/.test(html) && /border-radius: 0;/.test(html.slice(html.indexOf('.dc-float {'), html.indexOf('.dc-float {') + 700)),
+    '  and bleeds across the padding as a docked bar, not a hovering pill');
   ok(html.split('<div class="dash').length === 2 && (html.slice(html.indexOf('<div id="ql-page">'), html.indexOf('<script src=')).split('<div').length === html.slice(html.indexOf('<div id="ql-page">'), html.indexOf('<script src=')).split('</div>').length), '  and the markup is still balanced (no stray </div> closing .dash early)');
   ok(/id="dcSecTabs"/.test(html) && /data-sec="copilot"/.test(html) && /data-sec="markets"/.test(html) && /data-sec="leads"/.test(html), 'three progressive-disclosure sections (Copilot / Markets / Leads)');
   ok(/id="secCopilot" hidden/.test(html) && /id="secMarkets" hidden/.test(html), '  Copilot & Markets start hidden — Leads is first + the default visible section');
