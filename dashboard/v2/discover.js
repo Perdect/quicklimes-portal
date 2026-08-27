@@ -648,34 +648,51 @@ function openInsights() {
   return pane;
 }
 
+/* The page wears the SAME header and stat row as every register — QLX chrome,
+   not a bespoke strip. The old #dcSum bar is retired (kept in markup for
+   nothing to 404 on, permanently hidden). */
+let DC_HERO = null;
+function paintHero() {
+  const host = document.getElementById('dcHero'); if (!host || !window.QLX) return;
+  if (!DC_HERO) {
+    DC_HERO = {
+      title: 'Lead Discovery', sub: '<span id="dcHeroSub"></span>',
+      tools: [
+        { label: 'AI summary', icon: '<path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/>', onClick: () => openInsights() },
+        { label: 'Export CSV', icon: QLX.icons.dl, onClick: () => exportRows(visibleRows(), TAB) }
+      ]
+    };
+    host.innerHTML = QLX.heroHTML(DC_HERO);
+    QLX.wireHero(host, DC_HERO);
+  }
+  const sub = document.getElementById('dcHeroSub');
+  if (sub) {
+    const st = ROWS.length ? summaryStats() : null;
+    const ago = st ? agoText(st.newest) : '';
+    sub.innerHTML = ROWS.length
+      ? `<b>${esc((window.QLD && QLD.co && QLD.co.short) || '')}</b> · ${ROWS.length} businesses · <b>${st.pct}%</b> reachable${ago ? ' · updated ' + esc(ago) : ''}`
+      : 'Find buyers on the live map — search an industry and a place above.';
+  }
+}
 function paintKpis() {
-  const host = document.getElementById('dcSum'); if (!host) return;
-  if (!ROWS.length) { host.hidden = true; host.innerHTML = ''; return; }
+  paintHero();
+  const legacy = document.getElementById('dcSum');
+  if (legacy) { legacy.hidden = true; legacy.innerHTML = ''; }
+  const host = document.getElementById('dcStats'); if (!host || !window.QLX) return;
+  if (!ROWS.length) { host.innerHTML = ''; return; }
   const st = summaryStats();
-  const n = (v, l, cls) => `<span class="ds-n ${cls || ''}"><b>${v}</b>${l}</span>`;
-  const ago = agoText(st.newest);
-  host.hidden = false;
-  host.innerHTML = `
-    <div class="ds-counts">
-      ${n(COUNTS.new || 0, 'new')}
-      ${n(COUNTS.promoted || 0, 'promoted', 'g')}
-      ${n(COUNTS.duplicate || 0, 'duplicate', 'a')}
-      ${n(ROWS.length, 'total', 'm')}
-    </div>
-    <div class="ds-reach" title="Counted from the rows on this page">
-      <span class="ds-bar"><i style="width:${st.pct}%"></i></span>
-      <span class="ds-reach-t"><b>${st.pct}%</b> reachable</span>
-      <span class="ds-ch">${IC_PHONE}${st.withPhone}</span>
-      <span class="ds-ch">${IC_MAIL}${st.withEmail}</span>
-      <span class="ds-ch">${IC_WEB}${st.withWeb}</span>
-    </div>
-    ${ago ? `<span class="ds-ago">${IC_CLOCK}updated ${esc(ago)}</span>` : ''}
-    <button class="ds-act" id="dsInsight" type="button" title="What this search found">${IC_SPARK}AI summary</button>
-    <button class="ds-act" id="dsExport" type="button" title="Export the rows this view is showing">${IC_DOC}Export CSV</button>`;
-  const ex = document.getElementById('dsExport');
-  if (ex) ex.onclick = () => exportRows(visibleRows(), TAB);
-  const ins = document.getElementById('dsInsight');
-  if (ins) ins.onclick = () => openInsights();
+  host.innerHTML = QLX.statsHTML([
+    { label: 'New leads', value: COUNTS.new || 0, sub: (COUNTS.duplicate || 0) + ' duplicates screened out', tint: 'blue',
+      icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>' },
+    { label: 'Promoted', value: COUNTS.promoted || 0, sub: 'moved into the pipeline', tint: 'green',
+      icon: '<path d="M12 19V5"/><polyline points="5 12 12 5 19 12"/>' },
+    { label: 'Reachable', value: st.pct + '%', sub: 'of ' + ROWS.length + ' businesses', tint: 'violet',
+      icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>' },
+    { label: 'Phone numbers', value: st.withPhone, sub: st.withEmail + ' emails on file', tint: 'teal',
+      icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72"/>' },
+    { label: 'Websites', value: st.withWeb, sub: 'linked businesses', tint: 'amber',
+      icon: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>' }
+  ]);
 }
 
 /* Per-lead economics — real, only when we have the lead's coordinates (OSM rows

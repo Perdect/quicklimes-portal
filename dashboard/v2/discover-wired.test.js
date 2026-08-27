@@ -118,8 +118,14 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
 
 /* ── Phase 1: AI-first compact layout (hero · sections · copilot) ── */
 {
-  ok(!/id="dcHero"/.test(html) && !/dc-hero-actions/.test(html), 'the hero block is gone (removed on request) — search leads the page');
-  ok(html.split('<div class="dash"').length === 2 && (html.slice(html.indexOf('<div id="ql-page">'), html.indexOf('<script src=')).split('<div').length === html.slice(html.indexOf('<div id="ql-page">'), html.indexOf('<script src=')).split('</div>').length), '  and the markup is still balanced (no stray </div> closing .dash early)');
+  /* The bulky bespoke hero stays gone — but the page now wears the SAME slim
+     QLX header + stat row as every other page ("I want to redesign complete",
+     2026-08-26). Search still leads the content below it. */
+  ok(!/dc-hero-actions/.test(html), 'the old bespoke hero stays gone');
+  ok(/id="dcHero"/.test(html) && /id="dcStats"/.test(html), '  the SYSTEM chrome hosts exist (QLX hero + stat row)');
+  ok(/QLX\.heroHTML\(DC_HERO\)/.test(bare) && /QLX\.statsHTML\(/.test(bare), '  and discover.js renders them through the SHARED chrome, not a copy');
+  ok(/class="dash qx qx-a-blue"/.test(html), '  the page carries the accent class every migrated page has');
+  ok(html.split('<div class="dash').length === 2 && (html.slice(html.indexOf('<div id="ql-page">'), html.indexOf('<script src=')).split('<div').length === html.slice(html.indexOf('<div id="ql-page">'), html.indexOf('<script src=')).split('</div>').length), '  and the markup is still balanced (no stray </div> closing .dash early)');
   ok(/id="dcSecTabs"/.test(html) && /data-sec="copilot"/.test(html) && /data-sec="markets"/.test(html) && /data-sec="leads"/.test(html), 'three progressive-disclosure sections (Copilot / Markets / Leads)');
   ok(/id="secCopilot" hidden/.test(html) && /id="secMarkets" hidden/.test(html), '  Copilot & Markets start hidden — Leads is first + the default visible section');
   ok(/id="dcFilters" hidden/.test(html) && /dc-row\[hidden\] \{ display: none/.test(html), '  advanced filters collapse by default (and the [hidden] grid rule is restored)');

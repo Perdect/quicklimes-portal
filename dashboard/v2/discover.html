@@ -195,7 +195,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .dc-stat.est { border-style: dashed; }
 
   /* Search hero — the one intelligent input, bigger and lifted */
-  .dc-search-hero { padding: 16px 18px; box-shadow: var(--ql-shadow-sm, 0 1px 2px rgba(16,24,40,.06)); }
+  .dc-search-hero { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: var(--ql-radius-2xl); box-shadow: var(--ql-shadow-xs); padding: 16px 18px; padding: 16px 18px; box-shadow: var(--ql-shadow-sm, 0 1px 2px rgba(16,24,40,.06)); }
   .dc-search-hero .dc-ai { border-radius: var(--ql-radius-xl); padding: 4px 4px 4px 14px; box-shadow: 0 1px 0 rgba(16,24,40,.02) inset; }
   .dc-search-hero .dc-ai input { font-size: 15px; padding: 12px 8px; }
   .dc-search-hero .dc-ai .dc-ai-ic { color: var(--ql-brand-600, #2563eb); }
@@ -207,11 +207,11 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .dc-row[hidden] { display: none; }
 
   /* Section tabs — segmented control */
-  .dc-sectabs { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: var(--ql-space-4); border-radius: 999px; border: 1px solid var(--ql-border); background: var(--ql-bg); }
-  .dc-sectab { display: inline-flex; align-items: center; gap: 7px; font: 700 12.5px var(--ql-font-sans); color: var(--ql-text-secondary); background: none; border: 0; border-radius: 999px; padding: 8px 15px; cursor: pointer; transition: color .14s, background .14s; }
+  .dc-sectabs { display: inline-flex; gap: 2px; padding: 4px; margin-bottom: var(--ql-space-4); border-radius: var(--ql-radius-2xl); border: 1px solid var(--ql-border); background: var(--ql-card); box-shadow: var(--ql-shadow-xs); }
+  .dc-sectab { display: inline-flex; align-items: center; gap: 7px; height: 40px; font: 600 var(--ql-text-base) var(--ql-font-sans); color: var(--ql-text-secondary); background: none; border: 0; border-radius: var(--ql-radius-xl); padding: 0 14px; cursor: pointer; transition: color .14s, background .14s; }
   .dc-sectab svg { width: 15px; height: 15px; }
-  .dc-sectab:hover { color: var(--ql-text); }
-  .dc-sectab.active { color: var(--ql-bg-elevated); background: var(--ql-text); }
+  .dc-sectab:hover { background: var(--ql-neutral-100); color: var(--ql-text); }
+  .dc-sectab.active { color: var(--qx-ink); background: var(--qx-soft); }
   .dc-sectab-n { font: 800 10.5px var(--ql-font-sans); background: color-mix(in srgb, currentColor 18%, transparent); border-radius: 999px; padding: 1px 6px; }
   .dc-sec { animation: dcSecIn .22s ease-out; }
   @media (prefers-reduced-motion: no-preference) { @keyframes dcSecIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } } }
@@ -839,8 +839,10 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 </head>
 <body class="ql-v2">
 <div id="ql-page">
-  <div class="dash">
+  <div class="dash qx qx-a-blue">
 
+    <div id="dcHero"></div>
+    <div id="dcStats"></div>
     <div id="dcNotice"></div>
 
     <!-- ═══ AI SEARCH — the one intelligent input; filters auto-fill from it ═══ -->
@@ -1105,6 +1107,6 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./freight-core.js?v=f1"></script>
 <script src="./freight.js?v=f2"></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d54"></script>
+<script src="./discover.js?v=d55"></script>
 </body>
 </html>
