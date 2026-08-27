@@ -79,6 +79,17 @@ const css = strip(read('qlx.css'));
      /grouped && !\(groups\.length === 1 && S\.month && S\.month !== 'all'\)/.test(js));
 }
 
+/* ── 8 · the toolbar pins FLUSH with the pane edge on desktop ── */
+{
+  const shell = strip(read("shell.css"));
+  ok("the pane padding is a named variable sticky children reference",
+     /--ql-main-pad: var\(--ql-space-6\)/.test(shell) && /padding: var\(--ql-main-pad\)/.test(shell));
+  ok("the register toolbar pins at the NEGATIVE pane pad on desktop — no exposed band above it",
+     /@media \(min-width: 769px\) \{\s*\.qx-tb \{ top: calc\(-1 \* var\(--ql-main-pad/.test(css));
+  ok("  while mobile (body scroll) keeps top: 0",
+     /\.qx-tb \{ position: sticky; top: 0;/.test(css));
+}
+
 console.log('\n════ table layout (one scroll container, one sticky system) ════');
 console.log('  Passed: ' + pass + '   Failed: ' + fail);
 bad.forEach(b => console.log('    ✗ ' + b));

@@ -21,8 +21,8 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r12"><link rel="stylesheet" href="./pages.css?v=m20cora"><link rel="stylesheet" href="./imchat.css?v=im10">
-<link rel="stylesheet" href="./qlx.css?v=m24">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r13"><link rel="stylesheet" href="./pages.css?v=m20cora"><link rel="stylesheet" href="./imchat.css?v=im10">
+<link rel="stylesheet" href="./qlx.css?v=m25">
 <link rel="stylesheet" href="./mobile.css?v=m16">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 
@@ -824,11 +824,12 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
      scrolled through the see-through band above it — "header is not proper
      design". Negative top pins it flush with the scrollport edge; negative
      side margins bleed it across the padding so nothing shows around it. */
-  .dc-float { position: sticky; top: calc(-1 * var(--ql-space-6, 24px)); z-index: 40; display: flex; align-items: center; gap: 10px;
+  .dc-float { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 10px;
     background: var(--ql-card); border: 0; border-bottom: 1px solid var(--ql-border); border-radius: 0;
     padding: 10px var(--ql-space-6, 24px);
     margin: 0 calc(-1 * var(--ql-space-6, 24px)) var(--ql-space-4);
     box-shadow: 0 8px 18px -12px rgba(15,23,42,.15); }
+  @media (min-width: 769px) { .dc-float { top: calc(-1 * var(--ql-main-pad, var(--ql-space-6, 24px))); } }
   [data-theme="dark"] .dc-float { box-shadow: 0 6px 20px rgba(0,0,0,.4); }
   .dc-float-ic { display: inline-flex; color: var(--ql-text-muted); flex: none; }
   .dc-float-ic svg { width: 16px; height: 16px; }

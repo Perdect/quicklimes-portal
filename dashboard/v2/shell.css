@@ -469,7 +469,11 @@ button { font-family: inherit; cursor: pointer; }
   grid-area: main;
   background: var(--ql-bg);
   overflow-y: auto;
-  padding: var(--ql-space-6);
+  /* Named so sticky children can pin FLUSH with the pane's visual top:
+     sticky top:0 pins at the PADDING-BOX top — 24px down — and content
+     scrolls through the exposed band above ("text above the header"). */
+  --ql-main-pad: var(--ql-space-6);
+  padding: var(--ql-main-pad);
 }
 .placeholder {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
