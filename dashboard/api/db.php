@@ -580,6 +580,44 @@ function ql_ensure_tables() {
     KEY idx_next (plant_id, company_id, next_action_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+  /* ── Public lime rates (quicklimes.com/lime-rates) ─────────────────────
+     ONE authoritative rates row per product; the site renders whatever is
+     published here — never an invented number. History is append-only: what
+     was true on a date stays true on that date. */
+  $db->exec("CREATE TABLE IF NOT EXISTS lime_rates (
+    id            INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    plant_id      VARCHAR(64)  NOT NULL DEFAULT '',
+    slug          VARCHAR(64)  NOT NULL,
+    name          VARCHAR(120) NOT NULL,
+    grade         VARCHAR(80)  NOT NULL DEFAULT 'Industrial Grade',
+    unit          VARCHAR(24)  NOT NULL DEFAULT 'MT',
+    rate          DECIMAL(12,2) DEFAULT NULL,
+    currency      VARCHAR(8)   NOT NULL DEFAULT 'INR',
+    moq           VARCHAR(64)  NOT NULL DEFAULT '',
+    location      VARCHAR(120) NOT NULL DEFAULT '',
+    notes         TEXT,
+    seo_title     VARCHAR(200) NOT NULL DEFAULT '',
+    seo_desc      VARCHAR(300) NOT NULL DEFAULT '',
+    published     TINYINT      NOT NULL DEFAULT 0,
+    effective_from DATE        DEFAULT NULL,
+    updated_at    DATETIME     DEFAULT NULL,
+    UNIQUE KEY uq_slug (slug)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  $db->exec("CREATE TABLE IF NOT EXISTS lime_rate_history (
+    id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    slug        VARCHAR(64)  NOT NULL,
+    rate        DECIMAL(12,2) NOT NULL,
+    unit        VARCHAR(24)  NOT NULL DEFAULT 'MT',
+    recorded_at DATETIME     NOT NULL,
+    KEY idx_slug (slug, id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  /* seed the four products UNPUBLISHED and rate-less — the site says
+     "on request" until a human publishes a real number */
+  foreach ([['quick-lime', 'Quick Lime'], ['quick-lime-powder', 'Quick Lime Powder'],
+            ['hydrated-lime', 'Hydrated Lime'], ['chuna', 'Chuna (Lime)']] as $sp) {
+    $db->prepare("INSERT IGNORE INTO lime_rates (slug, name) VALUES (?, ?)")->execute($sp);
+  }
+
   /* One timeline per company. The WhatsApp log writes here too, so "what have
      we ever said to this customer" has a single answer. */
   $db->exec("CREATE TABLE IF NOT EXISTS crm_activities (

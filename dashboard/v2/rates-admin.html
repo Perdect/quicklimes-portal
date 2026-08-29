@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<script data-theme-boot>/* THEME BOOT — before first paint, above every stylesheet. */
+(function(){try{var t=localStorage.getItem('ql_theme')||'light';
+var d=t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Website Rates — QuickLimes v2</title>
+<meta name="theme-color" content="#2563EB">
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=g2">
+<link rel="manifest" href="/v2/app.webmanifest">
+<link rel="apple-touch-icon" href="/v2/pwa-apple.png?v=g2">
+<link rel="icon" type="image/png" sizes="32x32" href="/v2/favicon-32.png?v=g2">
+<link rel="icon" type="image/png" sizes="16x16" href="/v2/favicon-16.png?v=g2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="QuickLimes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r13"><link rel="stylesheet" href="./pages.css?v=m20cora"><link rel="stylesheet" href="./imchat.css?v=im10"><link rel="stylesheet" href="./qlx.css?v=m25">
+<link rel="stylesheet" href="./mobile.css?v=m16">
+</head>
+<body class="ql-v2">
+<style id="wr-css">
+.wr-pub{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
+.wr-pub-on{background:var(--ql-success-50);color:var(--ql-success-600)}
+.wr-pub-off{background:var(--ql-surface-2,var(--ql-bg));color:var(--ql-text-muted);border:1px solid var(--ql-divider)}
+.wr-note{font-size:12.5px;line-height:1.55;color:var(--ql-text-soft);background:var(--ql-surface-2,var(--ql-bg));border:1px solid var(--ql-divider);border-radius:10px;padding:10px 12px;margin-bottom:var(--ql-space-3)}
+.wr-note b{color:var(--ql-text)}
+</style>
+<div id="ql-page">
+  <div class="dash qx qx-a-blue">
+    <div id="wrHero"></div>
+    <div class="wr-note"><b>These rates publish to quicklimes.com/lime-rates and the product pages.</b>
+      A product with no published rate shows as “On request” on the website — the site never invents a number.
+      Changing a rate appends to the public rate history; history is never rewritten.</div>
+    <div class="card">
+      <div class="card-head"><div><h3 class="card-title">Lime rate management</h3><div class="card-sub" id="wrSub">Loading…</div></div>
+        <button class="ql-btn ql-btn-primary" id="wrAdd">+ Add product</button></div>
+      <div style="overflow-x:auto"><table class="tbl"><thead><tr>
+        <th>Product</th><th>Grade</th><th class="num">Rate</th><th>Unit</th><th>MOQ</th><th>Updated</th><th>Status</th><th></th>
+      </tr></thead><tbody id="wrBody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+<script src="ql-api.js?v=a5"></script>
+<script src="./party-identity.js?v=m27"></script>
+<script src="./import-guard.js?v=m28"></script>
+<script src="./party-resolve.js?v=pr1"></script>
+<script src="./data.js?v=m52caaaaaaa"></script>
+<script src="./party-link.js?v=pl1p"></script>
+<script src="./i18n.js?v=h8"></script>
+<script src="./wa-core.js?v=w3"></script>
+<script src="./shell.js?v=m68saaaaaaaaa"></script>
+<script src="./chat-core.js?v=cc2"></script>
+<script src="./imchat.js?v=im11"></script>
+<script src="./qlx.js?v=m20prgdaaaaa"></script>
+<script src="./mobile.js?v=m16"></script>
+<script>
+'use strict';
+QLShell.mount({ active: 'webrates', title: 'Website Rates' });
+const esc = s => (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fINR = v => v == null || v === '' ? '—' : '₹' + (+v).toLocaleString('en-IN');
+function tok() { try { return (JSON.parse(localStorage.getItem('ql_plant') || 'null') || {}).token || ''; } catch (_) { return ''; } }
+async function api(body) {
+  const r = await fetch('/api/rates.php', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ token: tok() }, body)) });
+  return r.json();
+}
+
+let HERO = null, ROWS = [];
+function paintHero() {
+  if (HERO) return;
+  HERO = { title: 'Website Rates', sub: '<span id="wrHeroSub">Public lime rates on quicklimes.com</span>',
+    tools: [{ label: 'View live page', icon: QLX.icons.eye, onClick: () => window.open('https://quicklimes.com/lime-rates', '_blank') }] };
+  document.getElementById('wrHero').innerHTML = QLX.heroHTML(HERO);
+  QLX.wireHero(document.getElementById('wrHero'), HERO);
+}
+
+const SPECS = ed => [
+  { k: 'name', label: 'Product name', req: true },
+  { k: 'slug', label: 'URL slug', ph: 'quick-lime', req: true, ...(ed ? { type: 'html', html: '' } : {}) },
+  { k: 'grade', label: 'Grade / quality' },
+  { k: 'rate', label: 'Indicative rate (₹) — leave empty for “On request”', type: 'number' },
+  { k: 'unit', label: 'Unit', type: 'select', opts: [['MT', 'Per MT'], ['ton', 'Per ton'], ['bag', 'Per bag'], ['kg', 'Per kg']] },
+  { k: 'moq', label: 'Minimum order quantity', ph: 'e.g. 1 truckload (≈25 MT)' },
+  { k: 'location', label: 'Ex-works location', ph: 'Merta City, Nagaur, Rajasthan' },
+  { k: 'effective_from', label: 'Effective from', type: 'date' },
+  { k: 'seo_title', label: 'SEO title (optional)', full: true },
+  { k: 'seo_desc', label: 'Meta description (optional)', type: 'textarea', full: true },
+  { k: 'notes', label: 'Notes (internal + shown on site where used)', type: 'textarea', full: true }
+];
+function openEdit(r) {
+  const editing = !!r;
+  QLShell.openForm({
+    title: editing ? 'Edit ' + r.name : 'Add product',
+    sub: 'Saved rates publish to the website only after you press Publish',
+    specs: SPECS(editing).filter(f => !(editing && f.k === 'slug' && false)),
+    saveLabel: editing ? 'Save' : 'Add',
+    initial: r || { unit: 'MT', grade: 'Industrial Grade', location: 'Merta City, Nagaur, Rajasthan' },
+    onSave: async v => {
+      if (editing) v.slug = r.slug;
+      const res = await api({ action: 'save', product: v });
+      if (!res.ok) { QLShell.toast(res.error || 'Could not save', 'err'); return false; }
+      QLShell.toast('Saved' + (v.rate ? ' — rate recorded in history' : ''), 'ok');
+      load();
+    }
+  });
+}
+async function togglePub(r) {
+  const res = await api({ action: r.published == 1 ? 'unpublish' : 'publish', slug: r.slug });
+  if (!res.ok) { QLShell.toast(res.error || 'Failed', 'err'); return; }
+  QLShell.toast(r.published == 1 ? r.name + ' hidden from the website' : r.name + ' is now live on quicklimes.com', 'ok');
+  load();
+}
+async function showHistory(r) {
+  const res = await api({ action: 'history', slug: r.slug });
+  const rows = (res.history || []).map(h => `<div class="qx-kv"><span>${esc(new Date(h.recorded_at + 'Z').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }))}</span><b>${fINR(h.rate)}/${esc(h.unit)}</b></div>`).join('')
+    || '<p style="color:var(--ql-text-muted);font-size:13px">No rate changes recorded yet.</p>';
+  QLShell.panel({ title: r.name + ' — rate history', sub: 'Append-only public record',
+    body: rows, actions: [{ label: 'Close', onClick: () => QLShell.closeModal() }] });
+}
+async function load() {
+  paintHero();
+  const res = await api({ action: 'list' });
+  const tb = document.getElementById('wrBody');
+  if (!res.ok) {
+    document.getElementById('wrSub').textContent = res.error === 'Forbidden' ? 'Owner access only' : (res.error || 'Could not load');
+    tb.innerHTML = '';
+    return;
+  }
+  ROWS = res.products || [];
+  const live = ROWS.filter(r => r.published == 1).length;
+  document.getElementById('wrSub').textContent = ROWS.length + ' products · ' + live + ' live on the website';
+  tb.innerHTML = ROWS.map(r => `<tr>
+    <td><b>${esc(r.name)}</b><div style="font-size:11.5px;color:var(--ql-text-muted)">/${esc(r.slug)}</div></td>
+    <td>${esc(r.grade)}</td>
+    <td class="num"><b>${fINR(r.rate)}</b></td>
+    <td>${esc(r.unit)}</td>
+    <td>${esc(r.moq) || '—'}</td>
+    <td>${r.updated_at ? esc(new Date(r.updated_at + 'Z').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })) : '—'}</td>
+    <td><span class="wr-pub ${r.published == 1 ? 'wr-pub-on' : 'wr-pub-off'}">${r.published == 1 ? 'Live' : 'Hidden'}</span></td>
+    <td class="num" style="white-space:nowrap">
+      <button class="ql-btn ql-btn-ghost" data-edit="${esc(r.slug)}">Edit</button>
+      <button class="ql-btn ql-btn-ghost" data-hist="${esc(r.slug)}" title="Rate history">🕘</button>
+      <button class="ql-btn ${r.published == 1 ? 'ql-btn-secondary' : 'ql-btn-primary'}" data-pub="${esc(r.slug)}">${r.published == 1 ? 'Unpublish' : 'Publish'}</button>
+    </td></tr>`).join('');
+  tb.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openEdit(ROWS.find(x => x.slug === b.dataset.edit)));
+  tb.querySelectorAll('[data-pub]').forEach(b => b.onclick = () => togglePub(ROWS.find(x => x.slug === b.dataset.pub)));
+  tb.querySelectorAll('[data-hist]').forEach(b => b.onclick = () => showHistory(ROWS.find(x => x.slug === b.dataset.hist)));
+}
+document.getElementById('wrAdd').onclick = () => openEdit(null);
+window.__qlOnSwitchCompany = load;
+window.__qlRefresh = load;
+QLD.init(load);
+</script>
+</body>
+</html>

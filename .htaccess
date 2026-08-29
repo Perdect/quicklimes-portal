@@ -29,6 +29,12 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.html -f
 RewriteRule ^(.+)$ $1.html [L]
 
+# ── Clean URLs for the server-rendered lime-rate pages: /foo serves /foo.php ──
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.+)$ $1.php [L]
+
 # ── Cache static assets a bit, but not HTML (always fresh) ──
 <IfModule mod_expires.c>
   ExpiresActive On

@@ -48,6 +48,15 @@ jobs:
           # Favicon at site root so the browser tab and link previews resolve it
           cp icon.svg                deploy/icon.svg
           cp site.webmanifest        deploy/site.webmanifest
+          # Lime products & rate pages (server-rendered PHP; rates come from MySQL)
+          cp rates-lib.php           deploy/rates-lib.php
+          cp rates.css               deploy/rates.css
+          cp lime-rates.php          deploy/lime-rates.php
+          cp quick-lime-rate.php     deploy/quick-lime-rate.php
+          cp quick-lime-powder-rate.php deploy/quick-lime-powder-rate.php
+          cp hydrated-lime-rate.php  deploy/hydrated-lime-rate.php
+          cp chuna-rate.php          deploy/chuna-rate.php
+          cp quick-lime-rate-rajasthan.php deploy/quick-lime-rate-rajasthan.php
           cp .htaccess               deploy/.htaccess
           cp -r assets               deploy/assets
 

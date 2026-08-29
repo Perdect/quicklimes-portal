@@ -256,7 +256,8 @@
       { id: 'group',   label: 'Group Overview',       href: 'group.html', icon: I.pulse },
       { id: 'reports', label: 'Reports Hub',          href: 'reports.html', icon: I.dl },
       { id: 'biz-an',  label: 'Business Analytics',   href: 'monthreg.html', icon: I.pulse },
-      { id: 'prod-an', label: 'Production Analytics', href: 'production.html', icon: I.pulse }
+      { id: 'prod-an', label: 'Production Analytics', href: 'production.html', icon: I.pulse },
+      { id: 'webrates', label: 'Website Rates',        href: 'rates-admin.html', icon: I.receipt }
     ]},
     { type: 'solo', id: 'ai', label: 'AI Assistant', href: 'ai.html', icon: I.pulse, feat: 'ai' },
     { type: 'solo', id: 'settings', label: 'Settings', href: 'settings.html', icon: I.gear, feat: 'settings', soloTop: true }
