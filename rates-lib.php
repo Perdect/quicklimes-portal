@@ -183,7 +183,7 @@ function ql_enquiry_form($product) {
   $waHref = 'https://wa.me/' . QL_WA . '?text=' . rawurlencode('Hello, I would like a price for ' . $product . '.');
 
   $head = <<<'HTML'
-<form class="rt-form" id="quote" novalidate onsubmit="return qlEnq(this)">
+<form class="rt-form" id="quote" novalidate onsubmit="qlEnq(this);return false">
   <div class="rt-form-head">
     <span class="rt-form-tag">Free quote</span>
     <h3>Request a quotation</h3>
@@ -246,30 +246,44 @@ HTML;
 
   $js = <<<'HTML'
 <script>
-async function qlEnq(f){
-  var m=f.querySelector(".rt-form-msg"),b=f.querySelector(".rt-submit");
-  var nm=f.querySelector('[name="name"]'),ph=f.querySelector('[name="phone"]');
-  [nm,ph].forEach(function(el){el.classList.remove("rt-bad")});
-  m.textContent="";
-  if(!nm.value.trim()){nm.classList.add("rt-bad");m.textContent="Please tell us your name.";nm.focus();return false}
-  if(ph.value.replace(/\D/g,"").length<10){ph.classList.add("rt-bad");m.textContent="Please enter a 10-digit mobile number so we can call you back.";ph.focus();return false}
-  m.style.color="var(--mut)";m.textContent="Sending…";b.disabled=true;
-  try{
-    var d={action:"enquiry"};new FormData(f).forEach(function(v,k){d[k]=v});
-    var r=await fetch("https://app.quicklimes.com/api/rates.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});
-    var j=await r.json();
-    if(j.ok){
-      var done=f.querySelector(".rt-form-done");
-      done.querySelector(".rt-done-num").textContent=ph.value.trim();
-      f.querySelector(".rt-form-head").hidden=true;
-      f.querySelector(".rt-form-body").hidden=true;
-      done.hidden=false;done.focus();
-      return false;
-    }
-    m.style.color="";m.textContent=j.error||"Could not send — please WhatsApp or call us.";
-  }catch(e){m.style.color="";m.textContent="Could not send — please WhatsApp or call us."}
-  b.disabled=false;return false
-}
+  /* qlEnq must NOT be async: an async function returns a Promise, every Promise is
+     truthy, and a truthy onsubmit handler does not cancel the native submit — the
+     form reloaded the page on every real click and the enquiry was lost. The async
+     work happens in qlEnqGo; this wrapper returns a plain false. */
+  function qlEnq(f){ qlEnqGo(f); return false }
+  function qlTen(v){
+    var x=(v||"").replace(/\D/g,"");
+    if(x.length>10&&x.slice(0,2)==="91") x=x.slice(2);
+    if(x.length===11&&x.charAt(0)==="0") x=x.slice(1);
+    return x
+  }
+  async function qlEnqGo(f){
+    var m=f.querySelector(".rt-form-msg"),b=f.querySelector(".rt-submit");
+    var nm=f.querySelector('[name="name"]'),ph=f.querySelector('[name="phone"]');
+    [nm,ph].forEach(function(el){el.classList.remove("rt-bad")});
+    m.style.color="";m.textContent="";
+    if(!nm.value.trim()){nm.classList.add("rt-bad");m.textContent="Please tell us your name.";nm.focus();return}
+    var tel=qlTen(ph.value);
+    if(tel.length<10){ph.classList.add("rt-bad");m.textContent="Please enter a 10-digit mobile number so we can call you back.";ph.focus();return}
+    m.style.color="var(--mut)";m.textContent="Sending…";b.disabled=true;
+    try{
+      var d={action:"enquiry"};new FormData(f).forEach(function(v,k){d[k]=v});
+      d.phone=tel;
+      if(/^\d+(\.\d+)?$/.test((d.qty||"").trim())) d.qty=d.qty.trim()+" MT";
+      var r=await fetch("https://app.quicklimes.com/api/rates.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});
+      var j=await r.json();
+      if(j.ok){
+        var done=f.querySelector(".rt-form-done");
+        done.querySelector(".rt-done-num").textContent=tel.length===10?tel.slice(0,5)+" "+tel.slice(5):tel;
+        f.querySelector(".rt-form-head").hidden=true;
+        f.querySelector(".rt-form-body").hidden=true;
+        done.hidden=false;done.focus();
+        return;
+      }
+      m.style.color="";m.textContent=j.error||"Could not send — please WhatsApp or call us.";
+    }catch(e){m.style.color="";m.textContent="Could not send — please WhatsApp or call us."}
+    b.disabled=false;
+  }
 </script>
 HTML;
 

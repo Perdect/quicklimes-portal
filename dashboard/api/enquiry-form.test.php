@@ -80,6 +80,21 @@ ok('the form posts to the rates API on the app origin',
    strpos($form, 'https://app.quicklimes.com/api/rates.php') !== false);
 ok('the form declares action:"enquiry"', preg_match('/action\s*:\s*"enquiry"/', $form) === 1);
 
+/* 6b ── the submit handler must CANCEL the native submit.
+       Found live 2026-08-30: qlEnq was declared `async`, so it returned a Promise;
+       every Promise is truthy, and `onsubmit="return <truthy>"` does not cancel
+       anything. Pressing Send reloaded the page with the answers in the query
+       string and the enquiry never reached the CRM — while a test that called the
+       function directly still passed. Both halves are pinned here. */
+preg_match('/onsubmit="([^"]*)"/', $form, $os);
+ok('the form has an onsubmit handler', !empty($os[1]));
+ok('onsubmit returns a literal false, so the browser cancels the native submit',
+   preg_match('/\breturn\s+false\b/', $os[1] ?? '') === 1);
+ok('onsubmit does NOT return the handler call itself (an async one returns a truthy Promise)',
+   preg_match('/\breturn\s+qlEnq\s*\(/', $os[1] ?? '') !== 1);
+preg_match('/(?:^|\s)(async\s+)?function\s+qlEnq\s*\(/m', $form, $fn);
+ok('qlEnq — the function named in onsubmit — is not async', empty(trim($fn[1] ?? '')));
+
 /* 7 ── accessibility floor: every visible control is labelled and the result is announced */
 ok('the result message is announced to screen readers (aria-live)', strpos($form, 'aria-live') !== false);
 $visible = array_diff($fields, ['website']);
