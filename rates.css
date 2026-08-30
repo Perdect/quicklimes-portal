@@ -94,15 +94,79 @@ img{max-width:100%}
 .rt-btn-wa{background:var(--wa);color:#fff}
 .rt-btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}
 .rt-btn-sm{padding:.4rem .85rem;font-size:.82rem;background:var(--blue-50);color:var(--blue-700)}
-.rt-form{background:#fff;color:var(--ink);border-radius:var(--r);padding:22px;margin-top:22px}
-.rt-form h3{font:600 1.1rem var(--d1);margin-bottom:14px}
-.rt-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin-bottom:14px}
-@media(max-width:640px){.rt-form-grid{grid-template-columns:1fr}}
-.rt-form label{display:flex;flex-direction:column;gap:5px;font-size:.82rem;font-weight:600;color:var(--ink-2)}
-.rt-form input,.rt-form select,.rt-form textarea{font:400 .95rem var(--d2);padding:.6rem .7rem;border:1px solid var(--line);border-radius:9px;background:#FAFBFE}
+/* enquiry form — every field selector is scoped to .rt-f (the label wrapper) so
+   the product radios and the honeypot never inherit text-input chrome */
+.rt-form{background:var(--card);color:var(--ink);border-radius:20px;margin-top:26px;overflow:hidden;
+  border:1px solid var(--line);box-shadow:0 1px 2px rgba(15,23,42,.05),0 14px 38px -14px rgba(15,23,42,.3)}
+.rt-form-head{padding:24px 24px 0}
+.rt-form-tag{display:inline-block;font:700 .7rem/1 var(--d2);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--blue-700);background:var(--blue-50);padding:6px 10px;border-radius:999px;margin-bottom:12px}
+.rt-form-head h3{font:700 1.45rem/1.2 var(--d1);letter-spacing:-.02em;margin:0}
+.rt-form-head p{margin:8px 0 0;color:var(--mut);font-size:.95rem;line-height:1.55;max-width:52ch}
+.rt-form-body{padding:20px 24px 24px}
+/* product picker: radios as tap targets, not a dropdown */
+.rt-chips{border:0;padding:0;margin:0 0 18px;min-width:0}
+.rt-chips legend{font:600 .8rem var(--d2);color:var(--ink-2);padding:0;margin-bottom:9px}
+.rt-chip-row{display:flex;flex-wrap:wrap;gap:8px}
+.rt-chip{position:relative;display:flex}
+.rt-chip input{position:absolute;opacity:0;width:0;height:0;margin:0}
+.rt-chip span{display:flex;align-items:center;min-height:44px;padding:0 1.05rem;border:1.5px solid var(--line);
+  border-radius:999px;font:600 .88rem var(--d2);color:var(--ink-2);background:#fff;cursor:pointer;
+  transition:background .15s,border-color .15s,color .15s}
+.rt-chip span:hover{border-color:#B9C6DC}
+.rt-chip input:checked+span{background:var(--blue);border-color:var(--blue);color:#fff}
+.rt-chip input:focus-visible+span{outline:3px solid rgba(37,99,235,.35);outline-offset:2px}
+.rt-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
 .rt-form-full{grid-column:1/-1}
-.rt-form-msg{margin-left:12px;font-size:.9rem;color:var(--ink-2)}
-.rt-hp{position:absolute;left:-9999px;height:0;width:0;opacity:0}
+.rt-f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.rt-lab{display:flex;align-items:center;gap:7px;font:600 .8rem var(--d2);color:var(--ink-2)}
+.rt-req,.rt-opt{font:700 .64rem/1 var(--d2);font-style:normal;letter-spacing:.05em;text-transform:uppercase;
+  padding:3px 6px;border-radius:5px}
+.rt-req{color:var(--blue-700);background:var(--blue-50)}
+.rt-opt{color:var(--mut);background:rgba(15,23,42,.055)}
+.rt-f input,.rt-f textarea{width:100%;min-height:48px;font:400 .98rem var(--d2);color:var(--ink);
+  padding:.78rem .85rem;border:1.5px solid var(--line);border-radius:12px;background:#fff;
+  transition:border-color .15s,box-shadow .15s}
+.rt-f textarea{min-height:100px;resize:vertical;line-height:1.55}
+.rt-f input::placeholder,.rt-f textarea::placeholder{color:#93A3BC}
+.rt-f input:hover,.rt-f textarea:hover{border-color:#B9C6DC}
+.rt-f input:focus,.rt-f textarea:focus{outline:0;border-color:var(--blue);box-shadow:0 0 0 4px rgba(37,99,235,.14)}
+.rt-f .rt-bad,.rt-f .rt-bad:focus{border-color:#DC2626;box-shadow:0 0 0 4px rgba(220,38,38,.13)}
+.rt-form-foot{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:20px}
+.rt-submit{min-height:52px;padding:0 1.9rem;border:0;border-radius:12px;background:var(--blue);color:#fff;
+  font:700 1rem var(--d2);cursor:pointer;box-shadow:0 8px 18px -8px rgba(37,99,235,.85);
+  transition:background .15s,transform .15s,box-shadow .15s}
+.rt-submit:hover{background:var(--blue-700);transform:translateY(-1px)}
+.rt-submit:disabled{opacity:.62;cursor:progress;transform:none;box-shadow:none}
+.rt-alt{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 1.15rem;
+  border:1.5px solid var(--line);border-radius:12px;color:var(--ink-2);font:600 .92rem var(--d2);
+  text-decoration:none;transition:border-color .15s,color .15s}
+.rt-alt:hover{border-color:var(--wa);color:var(--wa)}
+.rt-alt svg{width:19px;height:19px;fill:var(--wa)}
+.rt-form-msg{margin:12px 0 0;font-size:.9rem;line-height:1.5;color:#DC2626;min-height:1.35em}
+.rt-form-note{margin:12px 0 0;font-size:.79rem;line-height:1.5;color:var(--mut)}
+/* success state — replaces the fields, so there is nothing left to re-submit */
+.rt-form-done{padding:36px 24px 38px;text-align:center}
+.rt-form-done:focus{outline:0}
+.rt-done-tick{width:58px;height:58px;margin:0 auto 15px;border-radius:50%;background:rgba(22,163,74,.11);
+  display:flex;align-items:center;justify-content:center}
+.rt-done-tick svg{width:29px;height:29px;fill:none;stroke:var(--ok);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.rt-form-done h3{font:700 1.35rem var(--d1);letter-spacing:-.01em;margin:0 0 9px}
+.rt-form-done p{max-width:44ch;margin:0 auto 6px;color:var(--mut);font-size:.95rem;line-height:1.6}
+.rt-form-done b{color:var(--ink);font-weight:700}
+.rt-form-done .rt-btn{margin-top:18px}
+.rt-form .rt-hp{position:absolute;left:-9999px;height:0;width:0;opacity:0}
+@media(max-width:640px){
+  .rt-form{border-radius:16px;margin-top:20px}
+  .rt-form-head{padding:20px 16px 0}
+  .rt-form-head h3{font-size:1.26rem}
+  .rt-form-body{padding:16px}
+  .rt-form-grid{grid-template-columns:1fr}
+  .rt-chip{flex:1 1 auto}
+  .rt-chip span{width:100%;justify-content:center}
+  .rt-submit,.rt-alt{width:100%}
+  .rt-form-done{padding:30px 16px 32px}
+}
 
 /* footer + sticky WA */
 .rt-foot{border-top:1px solid var(--line);margin-top:0;padding:34px 0;background:#fff}

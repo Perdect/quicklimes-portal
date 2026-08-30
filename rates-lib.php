@@ -99,7 +99,7 @@ function ql_head($t) {
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/rates.css">
+<link rel="stylesheet" href="/rates.css?v=2">
 ' . $ldJson . '</head><body>';
 }
 function ql_nav($active) {
@@ -169,36 +169,111 @@ function ql_cta_block($product) {
 </div></section>';
 }
 function ql_enquiry_form($product) {
-  return '<form class="rt-form" id="quote" onsubmit="return qlEnq(this)">
+  /* Company and Email were removed on 2026-08-30: this buyer sells by phone and
+     WhatsApp, and both fields were optional noise that unbalanced the grid. The
+     API still accepts them, so a page cached before today keeps working. */
+  $opts = ['Quick Lime', 'Quick Lime Powder', 'Hydrated Lime', 'Chuna (Lime)'];
+  if (!in_array($product, $opts, true)) $product = $opts[0];
+  $chips = '';
+  foreach ($opts as $o) {
+    $v = e($o);
+    $chips .= '<label class="rt-chip"><input type="radio" name="product" value="' . $v . '"'
+            . ($o === $product ? ' checked' : '') . '><span>' . $v . '</span></label>';
+  }
+  $waHref = 'https://wa.me/' . QL_WA . '?text=' . rawurlencode('Hello, I would like a price for ' . $product . '.');
+
+  $head = <<<'HTML'
+<form class="rt-form" id="quote" novalidate onsubmit="return qlEnq(this)">
+  <div class="rt-form-head">
+    <span class="rt-form-tag">Free quote</span>
     <h3>Request a quotation</h3>
+    <p>Tell us how much you need and where it has to reach. We reply with a firm rate for your quantity, usually the same working day.</p>
+  </div>
+  <div class="rt-form-body">
+    <fieldset class="rt-chips">
+      <legend>Which product?</legend>
+      <div class="rt-chip-row">
+HTML;
+
+  $fields = <<<'HTML'
+      </div>
+    </fieldset>
     <div class="rt-form-grid">
-      <label>Name*<input name="name" required maxlength="120"></label>
-      <label>Company<input name="company" maxlength="160"></label>
-      <label>Phone / WhatsApp*<input name="phone" required inputmode="tel" maxlength="16"></label>
-      <label>Email<input name="email" type="email" maxlength="160"></label>
-      <label>Product<select name="product">
-        <option' . ($product === 'Quick Lime' ? ' selected' : '') . '>Quick Lime</option>
-        <option' . ($product === 'Quick Lime Powder' ? ' selected' : '') . '>Quick Lime Powder</option>
-        <option' . ($product === 'Hydrated Lime' ? ' selected' : '') . '>Hydrated Lime</option>
-        <option' . ($product === 'Chuna (Lime)' ? ' selected' : '') . '>Chuna (Lime)</option></select></label>
-      <label>Quantity<input name="qty" placeholder="e.g. 25 MT" maxlength="40"></label>
-      <label>Delivery location<input name="location" placeholder="City / district, state" maxlength="160"></label>
-      <label class="rt-form-full">Requirement<textarea name="requirement" rows="3" maxlength="1000" placeholder="Grade, packaging, delivery schedule…"></textarea></label>
+      <label class="rt-f">
+        <span class="rt-lab">Name <i class="rt-req">required</i></span>
+        <input name="name" required maxlength="120" autocomplete="name" placeholder="Your name">
+      </label>
+      <label class="rt-f">
+        <span class="rt-lab">Phone / WhatsApp <i class="rt-req">required</i></span>
+        <input name="phone" required inputmode="tel" autocomplete="tel" maxlength="16" placeholder="10-digit mobile number">
+      </label>
+      <label class="rt-f">
+        <span class="rt-lab">Quantity <i class="rt-opt">optional</i></span>
+        <input name="qty" maxlength="40" placeholder="e.g. 25 MT">
+      </label>
+      <label class="rt-f">
+        <span class="rt-lab">Delivery location <i class="rt-opt">optional</i></span>
+        <input name="location" maxlength="160" autocomplete="address-level2" placeholder="City / district, state">
+      </label>
+      <label class="rt-f rt-form-full">
+        <span class="rt-lab">Requirement <i class="rt-opt">optional</i></span>
+        <textarea name="requirement" rows="3" maxlength="1000" placeholder="Grade, packaging, delivery schedule, GST state…"></textarea>
+      </label>
       <input name="website" tabindex="-1" autocomplete="off" class="rt-hp" aria-hidden="true">
     </div>
-    <button class="rt-btn rt-btn-primary" type="submit">Send enquiry</button>
-    <span class="rt-form-msg" aria-live="polite"></span>
-  </form>
-  <script>
-  async function qlEnq(f){var m=f.querySelector(".rt-form-msg"),b=f.querySelector("button");m.textContent="Sending…";b.disabled=true;
-    try{var d={action:"enquiry"};new FormData(f).forEach(function(v,k){d[k]=v});
-      var r=await fetch("https://app.quicklimes.com/api/rates.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});
-      var j=await r.json();
-      m.textContent=j.ok?"Thank you — our sales team will contact you shortly.":(j.error||"Could not send — please WhatsApp or call us.");
-      if(j.ok)f.reset();
-    }catch(e){m.textContent="Could not send — please WhatsApp or call us."}
-    b.disabled=false;return false}
-  </script>';
+    <div class="rt-form-foot">
+      <button class="rt-submit" type="submit">Send enquiry</button>
+HTML;
+
+  $wa = '<a class="rt-alt" href="' . $waHref . '" target="_blank" rel="noopener">'
+      . '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm5.8 14.13c-.25.69-1.44 1.32-1.99 1.37-.53.05-1.02.23-3.44-.72-2.9-1.14-4.74-4.1-4.88-4.29-.14-.19-1.16-1.55-1.16-2.96 0-1.41.74-2.1 1-2.39.26-.29.57-.36.76-.36h.55c.18 0 .42-.07.65.5.25.6.84 2.07.91 2.22.07.14.12.31.02.5-.1.19-.15.31-.29.48-.14.17-.3.38-.43.51-.14.14-.29.3-.13.58.17.29.74 1.22 1.59 1.98 1.09.97 2.01 1.28 2.3 1.42.29.14.45.12.62-.07.17-.19.71-.83.9-1.12.19-.29.38-.24.64-.14.26.1 1.65.78 1.93.92.29.14.48.21.55.33.07.12.07.69-.18 1.37z"/></svg>'
+      . 'WhatsApp instead</a>';
+
+  $tail = <<<'HTML'
+
+    </div>
+    <p class="rt-form-msg" role="status" aria-live="polite"></p>
+    <p class="rt-form-note">We use your number only to send this quotation and to follow it up. No newsletters, no sharing with anyone else.</p>
+  </div>
+  <div class="rt-form-done" hidden tabindex="-1">
+    <div class="rt-done-tick" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+    <h3>Enquiry received</h3>
+    <p>Thank you. Our sales team will call you on <b class="rt-done-num"></b> with a firm rate — usually within a few working hours.</p>
+HTML;
+
+  $done = '<a class="rt-btn rt-btn-wa" href="' . $waHref . '" target="_blank" rel="noopener">Message us on WhatsApp</a>'
+        . '</div></form>';
+
+  $js = <<<'HTML'
+<script>
+async function qlEnq(f){
+  var m=f.querySelector(".rt-form-msg"),b=f.querySelector(".rt-submit");
+  var nm=f.querySelector('[name="name"]'),ph=f.querySelector('[name="phone"]');
+  [nm,ph].forEach(function(el){el.classList.remove("rt-bad")});
+  m.textContent="";
+  if(!nm.value.trim()){nm.classList.add("rt-bad");m.textContent="Please tell us your name.";nm.focus();return false}
+  if(ph.value.replace(/\D/g,"").length<10){ph.classList.add("rt-bad");m.textContent="Please enter a 10-digit mobile number so we can call you back.";ph.focus();return false}
+  m.style.color="var(--mut)";m.textContent="Sending…";b.disabled=true;
+  try{
+    var d={action:"enquiry"};new FormData(f).forEach(function(v,k){d[k]=v});
+    var r=await fetch("https://app.quicklimes.com/api/rates.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});
+    var j=await r.json();
+    if(j.ok){
+      var done=f.querySelector(".rt-form-done");
+      done.querySelector(".rt-done-num").textContent=ph.value.trim();
+      f.querySelector(".rt-form-head").hidden=true;
+      f.querySelector(".rt-form-body").hidden=true;
+      done.hidden=false;done.focus();
+      return false;
+    }
+    m.style.color="";m.textContent=j.error||"Could not send — please WhatsApp or call us.";
+  }catch(e){m.style.color="";m.textContent="Could not send — please WhatsApp or call us."}
+  b.disabled=false;return false
+}
+</script>
+HTML;
+
+  return $head . $chips . $fields . $wa . $tail . $done . $js;
 }
 function ql_trust() {
   echo '<section class="rt-trust"><div class="rt-wrap rt-trust-grid">
