@@ -218,6 +218,8 @@ function ql_footer() {
   <p class="rt-foot-note">© ' . date('Y') . ' ' . e(QL_FIRM) . '. Rates on this site are indicative and exclusive of GST; final quotations depend on quantity, specification and delivery location.</p>
 </div></footer>
 <a class="rt-sticky-wa" href="' . e(ql_wa_link('Hello Deshwali Minerals, I want today\'s lime rate.')) . '" aria-label="WhatsApp sales">WhatsApp</a>
+<script>/* owner shortcut: visible only in a browser signed into the portal */
+try{if((JSON.parse(localStorage.getItem("ql_plant")||"null")||{}).token){var qlmr=document.createElement("a");qlmr.href="/rates-manage";qlmr.textContent="✎ Manage rates";qlmr.setAttribute("style","position:fixed;left:18px;bottom:18px;z-index:60;background:#0B1220;color:#fff;font:600 .82rem Inter,sans-serif;border-radius:999px;padding:.6rem 1rem;text-decoration:none");document.body.appendChild(qlmr);}}catch(e){}</script>
 </body></html>';
 }
 
