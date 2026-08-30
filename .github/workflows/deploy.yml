@@ -57,6 +57,7 @@ jobs:
           cp hydrated-lime-rate.php  deploy/hydrated-lime-rate.php
           cp chuna-rate.php          deploy/chuna-rate.php
           cp quick-lime-rate-rajasthan.php deploy/quick-lime-rate-rajasthan.php
+          cp rates-manage.php        deploy/rates-manage.php
           cp .htaccess               deploy/.htaccess
           cp -r assets               deploy/assets
 
