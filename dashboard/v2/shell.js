@@ -1406,7 +1406,8 @@
       const r = await gstinLookup(x); if (my !== seq) return;
       const fill = (k, v) => { const el = document.getElementById('qf_' + k); if (el && v && !String(el.value || '').trim()) el.value = v; };
       if (r.valid) {
-        fill('state', r.state);
+        if (g.value !== r.gstin) g.value = r.gstin;                        // cleaned, as registered
+        const st = document.getElementById('qf_state'); if (st && r.state) st.value = r.state;   // a fact off the GSTIN — set, not filled
         if (r.party) { fill('name', r.party.name); fill('address', r.party.address); fill('phone', r.party.phone); }
         const m = r.remote; if (m && m.lookup === 'ok') { fill('name', m.trade || m.name); fill('address', m.address); }
       }

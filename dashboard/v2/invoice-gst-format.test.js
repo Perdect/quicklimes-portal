@@ -146,6 +146,16 @@ ok('three tables share one 7-column colgroup (goods, taxes+total)',
    (html.match(/<colgroup><col style="width:34px">/g) || []).length === 2);
 ok('the Amount column keeps its left rule through subtotal, tax rows and total', (html.match(/class="r amt"/g) || []).length === 4);
 
+/* 10b ── the live preview must be a standards-mode document.
+   A src-less iframe is about:blank = quirks mode, where tables ignore the
+   inherited font size and render at 16px: the goods table came out huge in the
+   GST Invoice preview (seen 12-09-2026) while the printed sheet was right. The
+   page must load the first paint through srcdoc (doctype) and patch in place
+   only a CSS1Compat document; the template also asks tables to inherit. */
+const invPage = fs.readFileSync(path.join(__dirname, 'invoice.js'), 'utf8');
+ok('invoice.js patches the preview in place ONLY when compatMode is CSS1Compat', /doc\.compatMode === 'CSS1Compat'/.test(invPage));
+ok('the template makes tables inherit font-size (quirks-proof)', html.includes('font-size:inherit;font-family:inherit'));
+
 /* 11 ── a firm with no tel / terms of its own still renders (Gotan through this design) */
 const GOTAN = Object.assign({}, SALE, { seller: { name: 'GOTAN LIME INDUSTRIES', gstin: '08BNAPM0488E1Z3', phone: '9460767676', msme: 'UDYAM-RJ -25-0061325', address: 'GOTAN', bank: 'BANK OF BARODA', ifsc: 'BARB0MERTAC', accNo: '33580500001254', bankBranch: 'MERTA CITY' } });
 const g = T.render(GOTAN, { template: 'gst' });

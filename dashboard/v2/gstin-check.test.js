@@ -52,6 +52,13 @@ ok('every openForm — internal callers included — wires the GSTIN auto-fill',
 ok('the form wiring fills only EMPTY fields (never overwrites typing)', /if \(el && v && !String\(el\.value \|\| ''\)\.trim\(\)\) el\.value = v;/.test(shell));
 ok('the invoice form wires i_bgst to the assist', /if \(e\.target\.id === 'i_bgst'\) gstinAssist\(e\.target\.value\);/.test(inv));
 ok('the invoice assist fills only EMPTY fields too', /if \(f && v && !String\(f\.value \|\| ''\)\.trim\(\)\) f\.value = v;/.test(inv));
+/* State is a FACT off the GSTIN, so it is set, not filled — the invoice form
+   arrives with the seller's state pre-filled, and a 27 GSTIN was printing
+   "Rajasthan (08)" (seen live 12-09-2026). The box is also cleaned. */
+ok('the invoice assist SETS the State from the GSTIN (overrides the pre-fill)', /const st = document\.getElementById\('i_bstate'\); if \(st && r\.state\) st\.value = r\.state;/.test(inv));
+ok('the invoice assist cleans the GSTIN in the box', /if \(el\.value !== r\.gstin\) el\.value = r\.gstin;/.test(inv));
+ok('the form wiring SETS qf_state from the GSTIN too', /const st = document\.getElementById\('qf_state'\); if \(st && r\.state\) st\.value = r\.state;/.test(shell));
+ok('the form wiring cleans the GSTIN in the box', /if \(g\.value !== r\.gstin\) g\.value = r\.gstin;/.test(shell));
 ok('the lookup posts the session token to /api/gstin.php', /fetch\('\/api\/gstin\.php'/.test(shell) && /token: tok, gstin: x/.test(shell));
 ok('the hint is honest when no lookup key is configured', /needs a GST lookup key \(not configured yet\)/.test(shell));
 ok('the hint names a mistyped GSTIN', /Check digit does not match/.test(shell));

@@ -72,8 +72,8 @@
     "sha": "14462b5adbf8"
   },
   "shell.js": {
-    "v": "m68saaaaaaaaaaaaa",
-    "sha": "e1260a155bf0"
+    "v": "m68saaaaaaaaaaaaaa",
+    "sha": "7985423a89ac"
   },
   "chat-core.js": {
     "v": "cc2",
@@ -208,12 +208,12 @@
     "sha": "3f43f33c9bb3"
   },
   "invoice-templates.js": {
-    "v": "t6",
-    "sha": "c389cf816263"
+    "v": "t7",
+    "sha": "121f34cca5a1"
   },
   "invoice.js": {
-    "v": "tpl3",
-    "sha": "a49b697226f4"
+    "v": "tpl4",
+    "sha": "5bc877a63221"
   },
   "labour.js": {
     "v": "m2",

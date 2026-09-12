@@ -42,8 +42,16 @@ function previewDoc() { const f = document.getElementById('invFrame'); return f 
 function updatePreview() {
   const html = QLShell.renderInvoice(buildData());
   const doc = previewDoc();
+  /* Only patch a STANDARDS-MODE document. A src-less iframe starts as an
+     about:blank document in quirks mode (compatMode 'BackCompat'), and patching
+     it in place never gives it a doctype — so it stays quirky forever, and in
+     quirks mode tables ignore the inherited font size and jump to the browser's
+     16px. That is why the goods table came out huge in the preview while the
+     printed sheet (which loads with its doctype) was right. The first paint
+     goes through srcdoc, which carries the doctype; every keystroke after that
+     patches in place as before. */
   try {
-    if (doc && doc.documentElement) {
+    if (doc && doc.documentElement && doc.compatMode === 'CSS1Compat') {
       doc.documentElement.innerHTML = html.replace(/^[\s\S]*?<html[^>]*>/i, '').replace(/<\/html>\s*$/i, '');
       return;
     }
@@ -180,7 +188,12 @@ async function gstinAssist(val) {
   const r = await QLShell.gstinLookup(x); if (my !== _gstinSeq) return;
   const fill = (id, v) => { const f = document.getElementById(id); if (f && v && !String(f.value || '').trim()) f.value = v; };
   if (r.valid) {
-    fill('i_bstate', r.state);
+    /* The GSTIN is cleaned in the box (no spaces, upper case) so it prints the
+       way it is registered; and the State is SET, not merely filled — it is a
+       fact read off the GSTIN's first two digits, and the box arrives pre-filled
+       with the seller's own state, which is wrong for any out-of-state buyer. */
+    if (el.value !== r.gstin) el.value = r.gstin;
+    const st = document.getElementById('i_bstate'); if (st && r.state) st.value = r.state;
     if (r.party) { fill('i_bname', r.party.name); fill('i_baddr', r.party.address); fill('i_bphone', r.party.phone); }
     const m = r.remote; if (m && m.lookup === 'ok') { fill('i_bname', m.trade || m.name); fill('i_baddr', m.address); }
   }
