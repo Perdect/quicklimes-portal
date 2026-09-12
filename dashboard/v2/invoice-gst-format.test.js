@@ -61,7 +61,8 @@ ok('a lone paisa amount still reads', amountInWords(0.05) === 'Rupees Zero and P
 const tpl = T.TEMPLATES.find(t => t.id === 'gst');
 ok('the gst template is registered', !!tpl);
 ok('it declares despatch:true (Transport / Station / GR-RR print)', !!(tpl && tpl.despatch));
-ok('classic is still TEMPLATES[0], the fallback for an unknown id', T.TEMPLATES[0].id === 'classic');
+ok('gst is TEMPLATES[0] — the default and the fallback for an unknown id (classic retired 2026-09-12)', T.TEMPLATES[0].id === 'gst' && T.get('classic').id === 'gst');
+ok('no template is named classic any more', !T.TEMPLATES.some(t => t.id === 'classic'));
 
 const html = T.render(SALE, { template: 'gst' });
 const has = (n, s) => ok(n + ' — "' + s + '"', html.includes(s));

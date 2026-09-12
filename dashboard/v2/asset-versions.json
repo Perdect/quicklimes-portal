@@ -71,9 +71,13 @@
     "v": "w3",
     "sha": "14462b5adbf8"
   },
+  "invoice-templates.js": {
+    "v": "t9",
+    "sha": "e773959bb3d9"
+  },
   "shell.js": {
-    "v": "m68saaaaaaaaaaaaaa",
-    "sha": "7985423a89ac"
+    "v": "m68saaaaaaaaaaaaaaa",
+    "sha": "24b290ccfb1d"
   },
   "chat-core.js": {
     "v": "cc2",
@@ -206,10 +210,6 @@
   "inventory.css": {
     "v": "i5",
     "sha": "3f43f33c9bb3"
-  },
-  "invoice-templates.js": {
-    "v": "t8",
-    "sha": "619a8d8a8d39"
   },
   "invoice.js": {
     "v": "tpl5",

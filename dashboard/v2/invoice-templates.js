@@ -12,10 +12,12 @@
    every template, in both intra- and inter-state modes, and fails if a single
    required field goes missing. That test is the point of this file.
 
-   THE DEFAULT DOES NOT CHANGE. `classic` is the bordered format Gotan already
-   issues — the one its customers and its CA recognise. A design system that
-   silently restyles every future invoice the day it ships is a surprise, not a
-   feature. Nothing moves until the user picks another template.
+   THE DEFAULT IS `gst` — the firm's own Tally/Busy print format, built line for
+   line from the invoice it actually issues (see the gst() comment). The old
+   `classic` design, a loose rendering of Gotan's paper, was removed on
+   2026-09-12 at the owner's instruction ("very bad design"); both firms now
+   print the same format from their own profile data, and gst is TEMPLATES[0],
+   the fallback for any unknown or retired id.
 
    No React, no build step: each template is a function (d, cfg) -> HTML string,
    printable to A4 as-is. `d` is QLD.invoiceData(idx) — see the contract below.
@@ -53,7 +55,7 @@
      renders. Colours/fonts are presentation. The FIELDS are not customisable —
      see the rule at the top. */
   var DEFAULT_CFG = {
-    template: 'classic',
+    template: 'gst',
     accent: '#2563EB',
     font: "Arial, 'Helvetica Neue', sans-serif",
     logo: '',                    // dataURL
@@ -197,57 +199,6 @@
 
   function doc(f, title, css, body) {
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice ' + esc(f.inv) + ' — ' + esc(f.s.short || f.s.name) + '</title><style>' + PRINT + css + '</style></head><body>' + body + '</body></html>';
-  }
-
-  /* ══════════════ V4 · classic — the format Gotan already issues ══════════════
-     Kept byte-compatible in look with what customers receive today. It is the
-     default precisely because it is unremarkable: nobody's invoice changes the
-     day this system ships. */
-  function classic(d, cfg) {
-    var f = facts(d, cfg), s = f.s, b = f.b;
-    var css = "body{font-family:" + f.cfg.font + ";color:#000;font-size:11.5px;line-height:1.35;padding:20px;background:#fff}"
-      + ".inv{max-width:820px;margin:0 auto;border:1.5px solid #000}.row{display:flex}.b-b{border-bottom:1px solid #000}.b-r{border-right:1px solid #000}.pad{padding:6px 10px}"
-      + ".ihd{position:relative;text-align:center;padding:10px 12px 8px}.orig{position:absolute;top:6px;right:10px;font-style:italic;font-size:11px}"
-      + ".gi{font-weight:700;font-size:12px}.cn{font-weight:700;font-size:26px;letter-spacing:.5px;margin:2px 0}.ca{font-size:11px}.cg{font-weight:700;margin-top:3px}"
-      + ".meta{width:50%}.meta .l{display:flex;justify-content:space-between;gap:8px;padding:1px 0}.meta .l b{font-weight:700}"
-      + ".pcol{width:50%;padding:8px 10px;min-height:64px}.pi{font-style:italic;font-weight:700;margin-bottom:3px}.pn{font-weight:700}"
-      + "table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:4px 6px;font-size:11px}th{font-weight:700;text-align:center}td.r{text-align:right}td.c{text-align:center}"
-      + ".items td{height:22px}.spacer td{border-top:none;border-bottom:none;height:110px}"
-      + ".tl{display:flex;justify-content:space-between;gap:20px;padding:1px 10px}.gt{display:flex;justify-content:space-between;font-weight:700;font-size:13px;padding:5px 10px}"
-      + ".decl{text-align:center;padding:6px 10px}.decl u{font-weight:700}.decl ol{margin:3px auto;padding-left:0;list-style:none;font-size:10.5px}"
-      + ".bank{padding:6px 10px;font-size:10.5px}.sign{text-align:right;padding:18px 10px 6px;font-size:11px}.qr{text-align:center}.qrc{font-size:9px}";
-    var body = '<div class="inv">'
-      + '<div class="ihd b-b"><div class="orig">Original Copy</div><div class="gi">GST INVOICE</div>'
-      + (f.logo ? '<div style="position:absolute;top:8px;left:12px">' + logoImg(f, 62) + '</div>' : '')
-      + '<div class="cn">' + esc(s.name) + '</div><div class="ca">' + esc(s.address || '') + '</div>'
-      + '<div class="cg">GSTIN : ' + esc(s.gstin || '') + '</div>'
-      + (s.email ? '<div style="font-size:10.5px">email : ' + esc(s.email) + '</div>' : '')
-      + '<div class="gi" style="margin-top:3px">MANUFACTURES OF QUICK LIME AND HYDRATED LIME</div></div>'
-      + '<div class="row b-b"><div class="meta pad b-r">'
-      + '<div class="l"><span>Invoice No.</span><b>: ' + esc(f.inv) + '</b></div>'
-      + '<div class="l"><span>Dated</span><b>: ' + esc(f.date) + '</b></div>'
-      + '<div class="l"><span>Place of Supply</span><b>: ' + esc(f.pos) + '</b></div>'
-      + '<div class="l"><span>Reverse Charge</span><b>: ' + esc(f.rcm) + '</b></div></div>'
-      + '<div class="meta pad">'
-      + '<div class="l"><span>Vehicle No.</span><b>: ' + esc(f.veh) + '</b></div>'
-      + '<div class="l"><span>E-Way Bill No.</span><b>: ' + esc(f.eway) + '</b></div></div></div>'
-      + '<div class="row b-b"><div class="pcol b-r"><div class="pi">Billed to :</div><div class="pn">' + esc(b.name) + '</div>' + (b.address ? '<div>' + esc(b.address) + '</div>' : '') + '<div style="margin-top:6px">GSTIN / UIN&nbsp;&nbsp;: <b>' + esc(b.gstin || '—') + '</b></div></div>'
-      + '<div class="pcol"><div class="pi">Shipped to :</div><div class="pn">' + esc(b.name) + '</div>' + (b.address ? '<div>' + esc(b.address) + '</div>' : '') + '<div style="margin-top:6px">GSTIN / UIN&nbsp;&nbsp;: <b>' + esc(b.gstin || '—') + '</b></div></div></div>'
-      + '<table class="items"><tr><th style="width:34px">S.N.</th><th>Description of Goods</th><th style="width:70px">HSN/SAC<br>Code</th><th style="width:52px">Qty.</th><th style="width:52px">Unit</th><th style="width:70px">Price</th><th style="width:92px">Amount(₹)</th></tr>'
-      + '<tr><td class="c">1</td><td>' + esc(f.product) + '</td><td class="c">' + esc(f.hsn) + '</td><td class="r">' + f.qty + '</td><td class="c">' + esc(f.unit) + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr>'
-      + '<tr class="spacer"><td class="b-r"></td><td></td><td></td><td></td><td></td><td></td><td class="r" style="vertical-align:bottom">' + f.taxable + '</td></tr></table>'
-      + '<div class="b-b">' + taxRows(f, 'tl') + '</div>'
-      + '<div class="gt b-b"><span>Grand Total&nbsp;&nbsp;' + qtyTotalEl(f) + '</span><span>₹ ' + f.grand + '</span></div>'
-      + '<table><tr><th>HSN/SAC</th><th>Tax Rate</th><th>Taxable Amt.</th>' + taxSumHead(f) + '<th>Total Tax</th></tr>'
-      + '<tr><td class="c">' + esc(f.hsn) + '</td><td class="c">' + f.gstR + '%</td><td class="c">' + f.taxable + '</td>' + taxSumCells(f) + '<td class="c">' + f.totalTax + '</td></tr></table>'
-      + '<div class="pad b-b"><b>' + esc(f.words) + '</b></div>'
-      + (f.cfg.showDeclaration ? '<div class="decl b-b"><u>Declaration</u><ol>' + f.terms.map(function (t, i) { return '<li>' + (i + 1) + '. ' + esc(t) + '</li>'; }).join('') + '</ol></div>' : '')
-      + (bankBlock(f) ? '<div class="bank b-b">' + bankBlock(f) + '</div>' : '')
-      + '<div class="row">' + (qrBlock(f) ? '<div class="pad" style="width:120px">' + qrBlock(f) + '</div>' : '')
-      + '<div style="flex:1">' + (f.cfg.footerNote ? '<div class="pad" style="font-size:10.5px">' + esc(f.cfg.footerNote) + '</div>' : '')
-      + (f.cfg.showSignature ? '<div class="sign">for <b>' + esc(f.signatory) + '</b><div style="margin-top:26px">Authorised Signatory</div></div>' : '') + '</div></div>'
-      + '</div>';
-    return doc(f, 'classic', css, body);
   }
 
   /* ══════════ gst — the firm's own print format, line for line ══════════
@@ -524,9 +475,7 @@
   function compact(d, cfg) { return proDoc(d, cfg, { id: 'compact', pad: 24, fs: 10.5, cell: 6, rad: 4, logo: 38, ink: 'accent' }); }
 
   var TEMPLATES = [
-    { id: 'classic', name: 'Classic (current)', category: 'In use now', accentable: false,
-      desc: 'The bordered format you issue today. Your customers and your CA already recognise it.', render: classic },
-    { id: 'gst',     name: 'GST Invoice (print format)', category: 'Exact match', accentable: false, despatch: true,
+    { id: 'gst',     name: 'GST Invoice (print format)', category: 'In use now', accentable: false, despatch: true,
       desc: 'Your billing software\'s format, line for line — logo, Tel., Transport / Station / GR-RR, party contact lines, Terms & Conditions, Receiver\'s Signature.', render: gst },
     { id: 'modern',  name: 'Modern',           category: 'Recommended', accentable: true,
       desc: 'What Zoho Books and Tally Prime print. Clean structure, one accent colour, no decoration.', render: modern },

@@ -1345,7 +1345,7 @@
      follows the user to another device, but that needs a key added to blob()/
      hydrate()/clearState() AND to ql_blob_caps() (the whitelist that fails OPEN),
      so it is a deliberate next step rather than a smuggled one.
-     Defaults to 'classic' — the format Gotan already issues. Nothing restyles
+     Defaults to the firm's own format (gst, the Tally print). Nothing restyles
      until someone picks. */
   /* ── GSTIN → auto-fill ──
      Type the 15 characters and the form fills itself the way the big platforms
@@ -1427,7 +1427,7 @@
     const known = x => !!(T && x && T.TEMPLATES.some(t => t.id === x));
     /* A firm may name its own format on its profile (Deshwali's invoiceTemplate
        is the exact-print 'gst'), so its invoices come out right on every device.
-       Gotan names none and keeps 'classic' — the default does not change.
+       Gotan names none and gets the same print format from its own profile.
 
        Precedence, and why:
          '!id'      an EXPLICIT pick made in the design picker — always wins.
@@ -1436,12 +1436,16 @@
                     'classic' is what every browser carried by default, not a
                     decision against the firm's own format — the firm's wins.
                     Any other bare id was a real choice and stays.
-         nothing    the firm's declared format, else 'classic'. */
+         nothing    the firm's declared format, else the first registered. */
     const own = (window.QLD && window.QLD.co && window.QLD.co.invoiceTemplate) || '';
-    if (id.charAt(0) === '!') { const x = id.slice(1); return known(x) ? x : (known(own) ? own : 'classic'); }
-    if (id === 'classic' && known(own)) return own;
+    /* The last resort is whatever the engine registers FIRST (the firm's print
+       format), never a name spelled here — 'classic' was retired 2026-09-12 and a
+       hard-coded fallback would have rendered nothing. */
+    const def = (T && T.TEMPLATES[0]) ? T.TEMPLATES[0].id : 'gst';
+    if (id.charAt(0) === '!') { const x = id.slice(1); return known(x) ? x : (known(own) ? own : def); }
+    if (id === 'classic' && known(own)) return own;   // the retired default, left behind on old browsers
     if (known(id)) return id;
-    return known(own) ? own : 'classic';
+    return known(own) ? own : def;
   }
 
   function invoiceHTML(d) {

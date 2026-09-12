@@ -166,8 +166,14 @@ for (const t of T.TEMPLATES) {
 
 /* The default must remain the format Gotan already issues. Changing it silently
    restyles every future invoice — that is a decision for the user, not a deploy. */
-ok(T.DEFAULT_CFG.template === 'classic', 'default template is no longer "classic" — this would restyle live invoices without anyone choosing it');
-ok(T.TEMPLATES[0].id === 'classic', 'classic is no longer first in the gallery');
+/* The default and the fallback are the firm's own print format. `classic` was
+   retired on 2026-09-12 at the owner's explicit instruction ("remove classic
+   current this is very bad design") — this guard used to pin classic so an
+   ACCIDENTAL restyle of live invoices would fail here; it now pins gst so an
+   accidental return of the old design fails instead. */
+ok(T.DEFAULT_CFG.template === 'gst', 'default template is not the print format (gst)');
+ok(T.TEMPLATES[0].id === 'gst', 'the print format (gst) is not first in the gallery — it is the fallback for retired ids');
+ok(!T.TEMPLATES.some(t => t.id === 'classic'), 'the retired classic design is back in the gallery');
 
 /* A QR that scans to nothing is worse than no QR. */
 const noQr = T.render(SALE, { template: 'modern', showQR: true, qrData: '' });

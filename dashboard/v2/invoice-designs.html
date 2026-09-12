@@ -86,10 +86,10 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./data.js?v=m52caaaaaaaaaa"></script>
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./i18n.js?v=h8"></script>
-<script src="./invoice-templates.js?v=t8"></script>
+<script src="./invoice-templates.js?v=t9"></script>
 <script src="./wa-core.js?v=w3"></script>
 
-<script src="./shell.js?v=m68saaaaaaaaaaaaaa"></script>
+<script src="./shell.js?v=m68saaaaaaaaaaaaaaa"></script>
 <script src="./chat-core.js?v=cc2"></script>
 <script src="./imchat.js?v=im11"></script>
 <script src="./qlx.js?v=m20prgdaaaaa"></script>
@@ -124,7 +124,7 @@ QLShell.mount({ active: 'invoice-designs', title: 'Invoice Designs' });
 const $ = s => document.querySelector(s);
 const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-let CUR = (window.QLShell && QLShell.invoiceTemplate) ? QLShell.invoiceTemplate() : 'classic', ACCENT = '#2563EB', SALE_IDX = -1;   // open on the design this firm actually uses   // -1 = the sample; set to a real invoice on first render
+let CUR = (window.QLShell && QLShell.invoiceTemplate) ? QLShell.invoiceTemplate() : 'gst', ACCENT = '#2563EB', SALE_IDX = -1;   // open on the design this firm actually uses   // -1 = the sample; set to a real invoice on first render
 
 /* Preview against a REAL invoice wherever possible. A design review done on
    invented data tells you the design is pretty, not that it fits YOUR invoice —
@@ -187,7 +187,7 @@ function render() {
 
   const tabs = T.map(t => `<button class="id-tab${t.id === CUR ? ' on' : ''}" data-id="${t.id}" onclick="pick('${t.id}')">
       <b>${esc(t.name)}</b><span>${esc(t.desc)}</span>
-      ${t.id === 'classic' ? '<span class="badge">In use now</span>' : ''}</button>`).join('');
+      ${t.id === ((window.QLShell && QLShell.invoiceTemplate) ? QLShell.invoiceTemplate() : 'gst') ? '<span class="badge">In use now</span>' : ''}</button>`).join('');
 
   const invOpts = '<option value="-1"' + (SALE_IDX === -1 ? ' selected' : '') + '>Sample invoice (10,000 Tonne)</option>'
     + sales.slice(0, 40).map((s, i) =>
