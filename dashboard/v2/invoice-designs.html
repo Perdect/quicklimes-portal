@@ -83,13 +83,13 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./party-identity.js?v=m27"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./party-resolve.js?v=pr1"></script>
-<script src="./data.js?v=m52caaaaaaa"></script>
+<script src="./data.js?v=m52caaaaaaaa"></script>
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./i18n.js?v=h8"></script>
-<script src="./invoice-templates.js?v=t3"></script>
+<script src="./invoice-templates.js?v=t4"></script>
 <script src="./wa-core.js?v=w3"></script>
 
-<script src="./shell.js?v=m68saaaaaaaaa"></script>
+<script src="./shell.js?v=m68saaaaaaaaaa"></script>
 <script src="./chat-core.js?v=cc2"></script>
 <script src="./imchat.js?v=im11"></script>
 <script src="./qlx.js?v=m20prgdaaaaa"></script>
@@ -124,7 +124,7 @@ QLShell.mount({ active: 'invoice-designs', title: 'Invoice Designs' });
 const $ = s => document.querySelector(s);
 const esc = s => (s == null ? '' : s).toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-let CUR = 'classic', ACCENT = '#2563EB', SALE_IDX = -1;   // -1 = the sample; set to a real invoice on first render
+let CUR = (window.QLShell && QLShell.invoiceTemplate) ? QLShell.invoiceTemplate() : 'classic', ACCENT = '#2563EB', SALE_IDX = -1;   // open on the design this firm actually uses   // -1 = the sample; set to a real invoice on first render
 
 /* Preview against a REAL invoice wherever possible. A design review done on
    invented data tells you the design is pretty, not that it fits YOUR invoice —

@@ -126,10 +126,24 @@
   const HSN = '25221000';   // Quick Lime / Hydrated Lime
   const SELLER_BY_GSTIN = {
     '08NLIPS9801K1Z5': {
-      address: 'Ground Floor, Kali Talai, Near Hafiz Sahab Ki Dragha, Merta City, Nagaur, Rajasthan - 341510',
+      /* Two lines, broken where the firm's own invoice breaks them (a \n the print
+         format honours; every other consumer sees a space). */
+      address: 'GROUND FLOOR, KALI TALAI\nNEAR HAFIZ SAHAB KI DRAGHA, MERTA CITY, DISTRICT-NAGAUR',
       state: 'Rajasthan (08)', pin: '341510', gstin: '08NLIPS9801K1Z5', phone: '9610099006',
       bank: 'HDFC Bank', bankBranch: 'Merta City', accNo: '50200089605146', ifsc: 'HDFC0002670',
-      product: 'Manufactures of Quick Lime and Hydrated Lime.', tan: 'JDPM00000D', jurisdiction: 'MERTA CITY'
+      product: 'Manufactures of Quick Lime and Hydrated Lime.', tan: 'JDPM00000D', jurisdiction: 'MERTA CITY',
+      /* Straight off the invoice the firm actually issues (no. 36 of 01-08-2026).
+         tel   — printed as "Tel. :" under the GSTIN; two numbers, as on paper.
+         terms — its Terms & Conditions, verbatim, so the app's print matches the
+                 paper the customer already holds.
+         invoiceTemplate — the exact-print format is its default design.
+         roundOff:false  — that invoice totals 83,991.60, not 83,992: the firm
+                 does not round to the rupee, and its GSTR-1 carries the paise. */
+      tel: '9460034743,9610099006', logo: '/v2/deshwali-logo.png',
+      terms: ['Goods once sold will not be taken back.',
+              'Interest @ 18% p.a. will be charged if the payment is not made with in the 30days.',
+              "Subject to 'MERTA CITY' Jurisdiction only."],
+      invoiceTemplate: 'gst', roundOff: false
     },
     '08BNAPM0488E1Z3': {
       address: 'TALANPUR ROAD ,SH 86B,, CHANDRA TYRE RETREADING GOTAN, DISTRICT -NAGAUR',
@@ -162,7 +176,8 @@
       phone: p.contact_phone || seller.phone || (QL_PLANT.owner_phone || ''), email: seller.email || '', station: seller.station || p.city || '',
       bank: seller.bank || '', bankBranch: seller.bankBranch || '', accNo: seller.accNo || '', ifsc: seller.ifsc || '',
       bank2: seller.bank2 || '', bankBranch2: seller.bankBranch2 || '', accNo2: seller.accNo2 || '', ifsc2: seller.ifsc2 || '',
-      product: seller.product || '', msme: seller.msme || '', logo: seller.logo || '', jurisdiction: seller.jurisdiction || '', hsn: HSN,
+      product: seller.product || '', msme: seller.msme || '', logo: seller.logo || '', jurisdiction: seller.jurisdiction || '',
+      tel: seller.tel || '', terms: seller.terms || [], invoiceTemplate: seller.invoiceTemplate || '', roundOff: seller.roundOff !== false, hsn: HSN,
       isPrimary: !p.parent_plant_id,
       dataKey: 'ql_data_' + p.id
     };
@@ -1285,6 +1300,12 @@
   // Resolve a party's GSTIN when the invoice didn't store one — look it up from the
   // saved party record, then from our own linked firms (fixes e.g. Deshwali Minerals
   // showing a blank GSTIN when the sale was booked without it).
+  /* GST state codes — the first two digits of every GSTIN. A sale imported from a
+     scanned bill often has no State on record, but its buyer's GSTIN always says
+     which state it is; the invoice prints "State : Rajasthan (08)" from that. */
+  const GST_STATES = { '01': 'Jammu & Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh', '05': 'Uttarakhand', '06': 'Haryana', '07': 'Delhi', '08': 'Rajasthan', '09': 'Uttar Pradesh', '10': 'Bihar', '11': 'Sikkim', '12': 'Arunachal Pradesh', '13': 'Nagaland', '14': 'Manipur', '15': 'Mizoram', '16': 'Tripura', '17': 'Meghalaya', '18': 'Assam', '19': 'West Bengal', '20': 'Jharkhand', '21': 'Odisha', '22': 'Chhattisgarh', '23': 'Madhya Pradesh', '24': 'Gujarat', '25': 'Daman & Diu', '26': 'Dadra & Nagar Haveli and Daman & Diu', '27': 'Maharashtra', '28': 'Andhra Pradesh', '29': 'Karnataka', '30': 'Goa', '31': 'Lakshadweep', '32': 'Kerala', '33': 'Tamil Nadu', '34': 'Puducherry', '35': 'Andaman & Nicobar', '36': 'Telangana', '37': 'Andhra Pradesh', '38': 'Ladakh', '97': 'Other Territory' };
+  function stateOfGstin(g) { const c = String(g || '').trim().slice(0, 2); return GST_STATES[c] ? GST_STATES[c] + ' (' + c + ')' : ''; }
+  function partyPhone(name) { const p = S.PARTIES.find(x => (x.name || '').toUpperCase() === (name || '').trim().toUpperCase()); return p ? (p.phone || '') : ''; }
   function partyGstin(name) {
     if (!name || name === '—') return '';
     const n = String(name).trim().toUpperCase();
@@ -2603,13 +2624,16 @@
 
   /* ── Amount in words (Indian numbering — ported from v1 wn) ──── */
   function amountInWords(n) {
-    n = Math.round(n);
+    /* Work in paise so 83991.60 is 8399160 exactly, never 83991.5999…; a whole
+       amount still yields paise 0 and the wording every caller relied on. */
+    let paise = Math.round((+n || 0) * 100);
+    n = Math.floor(paise / 100); paise = paise % 100;
     const o = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
     const t = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
     const h = x => { let s = ''; if (x > 99) { s += o[Math.floor(x / 100)] + ' Hundred '; x %= 100; } if (x > 19) s += t[Math.floor(x / 10)] + ' ' + o[x % 10]; else s += o[x]; return s.trim(); };
     let s = '', cr = Math.floor(n / 10000000), lk = Math.floor((n % 10000000) / 100000), th = Math.floor((n % 100000) / 1000), hu = n % 1000;
     if (cr) s += h(cr) + ' Crore '; if (lk) s += h(lk) + ' Lakh '; if (th) s += h(th) + ' Thousand '; if (hu) s += h(hu);
-    return 'Rupees ' + (s.trim() || 'Zero') + ' Only';
+    return 'Rupees ' + (s.trim() || 'Zero') + (paise ? ' and Paisa ' + h(paise) : '') + ' Only';
   }
 
   /* ── Invoice data for a sale (everything a tax invoice needs) ── */
@@ -2621,15 +2645,19 @@
     const cgst = taxable * rate / 200, sgst = taxable * rate / 200, total = taxable + cgst + sgst;
     const bg = s.gstin || partyGstin(s.party);   // resolve buyer GSTIN (sale record, else the party) for inter-state detection
     const interState = bg && bg.length >= 2 && bg.slice(0, 2) !== '08';   // seller is 08 (Rajasthan)
+    /* Rounding to the rupee is a policy, not arithmetic. Gotan rounds; Deshwali's
+       own invoices carry the paise (83,991.60) and so does its GSTR-1 — printing
+       83,992 here would disagree with the return already filed. */
+    const grand = seller.roundOff === false ? Math.round(total * 100) / 100 : Math.round(total);
     return {
       seller, hsn: s.hsn || seller.hsn || HSN,
-      buyer: { name: s.party || '', gstin: s.gstin || '', address: s.addr || '', state: s.state || '' },
+      buyer: { name: s.party || '', gstin: s.gstin || '', address: s.addr || '', state: s.state || stateOfGstin(bg), phone: partyPhone(s.party), email: '' },
       inv: s.inv, date: s.date, product: s.product || 'Quick Lime', qty: s.qty || 0, rate: s.rate || 0,
       unit: s.unit || 'Tonne', veh: s.veh || '', eway: s.eway || '', gstR: rate,
       transport: s.transport || '', station: s.station || '', grrr: s.grrr || '',
       taxable, cgst, sgst, igst: interState ? cgst + sgst : 0, interState,
-      total, roundOff: Math.round(total) - total, grand: Math.round(total),
-      words: amountInWords(Math.round(total))
+      total, roundOff: grand - total, grand,
+      words: amountInWords(grand)
     };
   }
 
@@ -3023,7 +3051,7 @@
     // ── Soft-delete / Trash / Archive / Audit (recoverable deletion) ──
     softDelete, restoreRecord, purgeRecord, voidRecord, archiveRecord, archiveRows, archiveCount, trashRows, trashCount, auditRows, logAudit, backupJSON, trashModules: () => Object.keys(TRASHABLE),
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
-    invoiceData, amountInWords,
+    invoiceData, amountInWords, stateOfGstin, partyPhone,
     notifications, getRenewals, addRenewal, removeRenewal, recommendations,
     REPORT_TYPES, buildReport, getGroups, saveGroups, getSchedules, saveSchedules,
 

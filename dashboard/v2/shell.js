@@ -1352,7 +1352,13 @@
     let id = '';
     try { id = localStorage.getItem(invoiceTemplateKey()) || ''; } catch (_) {}
     // An unknown id (renamed/removed template) must fall back, never render blank.
-    return (T && T.TEMPLATES.some(t => t.id === id)) ? id : 'classic';
+    if (T && T.TEMPLATES.some(t => t.id === id)) return id;
+    /* Nothing picked on this device: a firm may name its own format on its
+       profile (Deshwali's invoiceTemplate is the exact-print 'gst'), so its
+       invoices come out right on every device without a per-browser choice.
+       Gotan names none and keeps 'classic' — the default does not change. */
+    const own = (window.QLD && window.QLD.co && window.QLD.co.invoiceTemplate) || '';
+    return (T && own && T.TEMPLATES.some(t => t.id === own)) ? own : 'classic';
   }
 
   function invoiceHTML(d) {

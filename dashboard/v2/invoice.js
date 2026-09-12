@@ -21,15 +21,16 @@ function buildData() {
   const taxable = qty * rate, cgst = taxable * gstR / 200, sgst = cgst, total = taxable + cgst + sgst;
   const bgst = g('i_bgst').trim().toUpperCase();
   const interState = bgst && bgst.length >= 2 && bgst.slice(0, 2) !== '08';
+  const grand = (Q.co && Q.co.roundOff === false) ? Math.round(total * 100) / 100 : Math.round(total);   // mirrors invoiceData
   return {
     seller: Q.co, noBar: true, hsn: g('i_hsn') || '25221000',
-    buyer: { name: g('i_bname'), gstin: bgst, address: g('i_baddr'), state: g('i_bstate') },
+    buyer: { name: g('i_bname'), gstin: bgst, address: g('i_baddr'), state: g('i_bstate') || Q.stateOfGstin(bgst), phone: g('i_bphone'), email: '' },
     inv: g('i_no'), date: g('i_date'), product: g('i_product') || 'Quick Lime',
     qty, rate, unit: g('i_unit') || 'Tonne', gstR,
-    veh: g('i_veh'), eway: g('i_eway'), transport: g('i_trans') || 'By Road', station: g('i_stn'), grrr: g('i_grrr'),
+    veh: g('i_veh'), eway: g('i_eway'), transport: g('i_trans'), station: g('i_stn'), grrr: g('i_grrr'),
     taxable, cgst, sgst, igst: interState ? cgst + sgst : 0, interState,
-    total, roundOff: Math.round(total) - total, grand: Math.round(total),
-    words: Q.amountInWords(Math.round(total))
+    total, roundOff: grand - total, grand,
+    words: Q.amountInWords(grand)
   };
 }
 /* Live preview. Resetting the iframe's srcdoc reloads it, and the reloading
@@ -69,19 +70,24 @@ function formHTML() {
       ${field('i_pos', 'Place of Supply', { val: co.state || '' })}
       ${field('i_rc', 'Reverse Charge', { opts: [['N', 'N'], ['Y', 'Y']], val: 'N' })}
     </div>
-    <!-- Despatch. Transport / Station / GR-RR were dropped from the printed
-         invoice, so asking for them here would be a form collecting data nobody
-         will ever see. Vehicle No. and E-Way Bill still print, so they stay. -->
+    <!-- Despatch. The exact-print format ("GST Invoice (print format)") carries
+         Transport, Station and GR/RR exactly as the firm's billing software does;
+         the Classic design still prints only Vehicle No. and E-Way Bill. Either
+         way the sale record stores all five, so nothing typed here is lost. -->
     <div class="if-sec">Despatch</div>
     <div class="if-grid">
+      ${field('i_trans', 'Transport', { val: 'Self', ph: 'Self / By Road' })}
       ${field('i_veh', 'Vehicle No.', { up: 1, ph: 'RJ19 GG 5115' })}
+      ${field('i_stn', 'Station', { ph: 'Destination' })}
       ${field('i_eway', 'E-Way Bill No.', {})}
+      ${field('i_grrr', 'GR/RR No.', {})}
     </div>
     <div class="if-sec">Billed to / Shipped to</div>
     <div class="if-grid">
       ${field('i_bname', 'Customer name', { full: true, up: 1, list: 'i_parties', ph: 'Start typing…' })}
       ${field('i_bgst', 'GSTIN / UIN', { up: 1, ph: '08XXXXX0000X1ZX' })}
       ${field('i_bstate', 'State', { val: co.state || '' })}
+      ${field('i_bphone', 'Mobile', { ph: 'Party mobile no.' })}
       ${field('i_baddr', 'Address', { full: true, ph: 'Khasara / village / district' })}
     </div>
     <div class="if-sec">Item</div>
@@ -162,7 +168,7 @@ function onInput(e) {
   // when a known customer is picked, auto-fill GSTIN / address / state
   if (e.target.id === 'i_bname') {
     const p = Q.partyRows().find(x => (x.name || '').toUpperCase() === e.target.value.trim().toUpperCase());
-    if (p) { const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; }; set('i_bgst', p.gstin); set('i_baddr', p.address); set('i_bstate', p.state); }
+    if (p) { const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; }; set('i_bgst', p.gstin); set('i_baddr', p.address); set('i_bstate', p.state); set('i_bphone', p.phone); }
   }
   schedulePreview();
 }

@@ -56,8 +56,8 @@
     "sha": "2b271ee5c6b3"
   },
   "data.js": {
-    "v": "m52caaaaaaa",
-    "sha": "201e2df4c8f0"
+    "v": "m52caaaaaaaa",
+    "sha": "42038b95eadc"
   },
   "party-link.js": {
     "v": "pl1p",
@@ -72,8 +72,8 @@
     "sha": "14462b5adbf8"
   },
   "shell.js": {
-    "v": "m68saaaaaaaaa",
-    "sha": "a8d52718d0f9"
+    "v": "m68saaaaaaaaaa",
+    "sha": "50eb459027e8"
   },
   "chat-core.js": {
     "v": "cc2",
@@ -208,12 +208,12 @@
     "sha": "3f43f33c9bb3"
   },
   "invoice-templates.js": {
-    "v": "t3",
-    "sha": "f963b5df09ab"
+    "v": "t4",
+    "sha": "e744d265cd74"
   },
   "invoice.js": {
-    "v": "tpl1",
-    "sha": "fed83f3a06b1"
+    "v": "tpl2",
+    "sha": "919b581f7000"
   },
   "labour.js": {
     "v": "m2",

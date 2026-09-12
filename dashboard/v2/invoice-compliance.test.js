@@ -106,7 +106,17 @@ for (const t of T.TEMPLATES) {
       label + ' — the quantity total is missing from the totals block');
     ok(!/class="qtytot/.test(html.split('<tbody>')[1] ? html.split('<tbody>')[1].split('</tbody>')[0] : ''),
       label + ' — the quantity total is marked on the LINE ITEM, not the totals block');
-    ok(!/Transport|Station|GR\/RR/.test(html), label + ' — transport/station/GR-RR still printing (asked to be removed)');
+    /* Despatch. Gotan asked for Transport / Station / GR-RR to go; Deshwali's own
+       print format carries all three (its invoice no. 36 of 01-08-2026 does). A
+       template DECLARES which it is with `despatch`, and either way it must keep
+       its word — the fixture holds the data for both, so a template that ignores
+       its own declaration fails here, not in front of a customer. */
+    if (t.despatch) {
+      ok(/Transport[\s\S]{0,80}By Road/.test(html) && /Station[\s\S]{0,80}GOTAN/.test(html) && /GR\/RR No\.[\s\S]{0,80}GR-99/.test(html),
+        label + ' — declares despatch:true but Transport / Station / GR-RR are not all printing with their values');
+    } else {
+      ok(!/Transport|Station|GR\/RR/.test(html), label + ' — transport/station/GR-RR still printing (asked to be removed)');
+    }
 
     // Kept on purpose when transport went.
     ok(html.includes('RJ21GA1234'), label + ' — Vehicle No. lost (it was meant to stay)');
