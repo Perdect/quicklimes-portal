@@ -63,6 +63,19 @@ ok('the lookup posts the session token to /api/gstin.php', /fetch\('\/api\/gstin
 ok('the hint is honest when no lookup key is configured', /needs a GST lookup key \(not configured yet\)/.test(shell));
 ok('the hint names a mistyped GSTIN', /Check digit does not match/.test(shell));
 
+/* reconcileState — the print-side guard. Lifted from data.js alongside the table. */
+const r0 = src.indexOf('  function cleanGstin(g)'), r1 = src.indexOf('\n', src.indexOf('function stateOfGstin', r0)) + 1;
+const R = new Function(src.slice(s0, src.indexOf('\n', src.indexOf('};', s0)) + 1) + src.slice(r0, r1) + '\nreturn { reconcileState, cleanGstin };')();
+ok("a stored state that agrees with the GSTIN is kept",              R.reconcileState('Rajasthan (08)', '08BPLPS6684F1Z6') === 'Rajasthan (08)');
+ok("a stored state that CONTRADICTS the GSTIN yields to the GSTIN",  R.reconcileState('Rajasthan (08)', '27CMVPC2808M1ZK') === 'Maharashtra (27)');
+ok("…even when the stored GSTIN has spaces",                         R.reconcileState('Rajasthan (08)', '27CMV PC280 8M1ZK') === 'Maharashtra (27)');
+ok("no stored state → the GSTIN's",                                  R.reconcileState('', '27CMVPC2808M1ZK') === 'Maharashtra (27)');
+ok("no GSTIN → the stored state stands",                             R.reconcileState('Rajasthan (08)', '') === 'Rajasthan (08)');
+ok("an unknown code keeps the stored state rather than blanking it", R.reconcileState('Rajasthan (08)', '99XXXXX0000X1ZX') === 'Rajasthan (08)');
+ok("cleanGstin strips spaces and upper-cases",                       R.cleanGstin(' 27cmv pc280 8m1zk ') === '27CMVPC2808M1ZK');
+ok("invoiceData prints the buyer through reconcileState + cleanGstin", /gstin: cleanGstin\(s\.gstin\), address: s\.addr \|\| '', state: reconcileState\(s\.state, bg\)/.test(src));
+ok("the invoice form strips spaces from the GSTIN before it is saved", /const bgst = g\('i_bgst'\)\.toUpperCase\(\)\.replace\(\/\[\^A-Z0-9\]\/g, ''\);/.test(inv));
+
 console.log('\n═══ GSTIN check digit · State · auto-fill wiring ═══\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' GSTIN TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');

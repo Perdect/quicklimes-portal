@@ -1304,6 +1304,15 @@
      scanned bill often has no State on record, but its buyer's GSTIN always says
      which state it is; the invoice prints "State : Rajasthan (08)" from that. */
   const GST_STATES = { '01': 'Jammu & Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh', '05': 'Uttarakhand', '06': 'Haryana', '07': 'Delhi', '08': 'Rajasthan', '09': 'Uttar Pradesh', '10': 'Bihar', '11': 'Sikkim', '12': 'Arunachal Pradesh', '13': 'Nagaland', '14': 'Manipur', '15': 'Mizoram', '16': 'Tripura', '17': 'Meghalaya', '18': 'Assam', '19': 'West Bengal', '20': 'Jharkhand', '21': 'Odisha', '22': 'Chhattisgarh', '23': 'Madhya Pradesh', '24': 'Gujarat', '25': 'Daman & Diu', '26': 'Dadra & Nagar Haveli and Daman & Diu', '27': 'Maharashtra', '28': 'Andhra Pradesh', '29': 'Karnataka', '30': 'Goa', '31': 'Lakshadweep', '32': 'Kerala', '33': 'Tamil Nadu', '34': 'Puducherry', '35': 'Andaman & Nicobar', '36': 'Telangana', '37': 'Andhra Pradesh', '38': 'Ladakh', '97': 'Other Territory' };
+  function cleanGstin(g) { return String(g || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+  function reconcileState(stored, gstin) {
+    const g = cleanGstin(gstin), code = g.length >= 2 ? g.slice(0, 2) : '';
+    const fromG = code ? stateOfGstin(g) : '';
+    const st = String(stored || '').trim();
+    if (!st) return fromG;
+    if (!fromG) return st;                                   // no usable GSTIN: the record stands
+    return st.indexOf('(' + code + ')') >= 0 ? st : fromG;   // agree → keep; disagree → the GSTIN is the fact
+  }
   function stateOfGstin(g) { const c = String(g || '').trim().slice(0, 2); return GST_STATES[c] ? GST_STATES[c] + ' (' + c + ')' : ''; }
   function partyPhone(name) { const p = S.PARTIES.find(x => (x.name || '').toUpperCase() === (name || '').trim().toUpperCase()); return p ? (p.phone || '') : ''; }
   function partyGstin(name) {
@@ -2651,7 +2660,12 @@
     const grand = seller.roundOff === false ? Math.round(total * 100) / 100 : Math.round(total);
     return {
       seller, hsn: s.hsn || seller.hsn || HSN,
-      buyer: { name: s.party || '', gstin: s.gstin || '', address: s.addr || '', state: s.state || stateOfGstin(bg), phone: partyPhone(s.party), email: '' },
+      /* The State printed under "Billed to" is a fact read off the GSTIN's first
+         two digits. A stored state that names a DIFFERENT code is a data error
+         (the form used to pre-fill the seller's own state and keep it), and a
+         tax invoice must not print it: the GSTIN wins whenever the two disagree.
+         The GSTIN itself prints in its registered form — no spaces. */
+      buyer: { name: s.party || '', gstin: cleanGstin(s.gstin), address: s.addr || '', state: reconcileState(s.state, bg), phone: partyPhone(s.party), email: '' },
       inv: s.inv, date: s.date, product: s.product || 'Quick Lime', qty: s.qty || 0, rate: s.rate || 0,
       unit: s.unit || 'Tonne', veh: s.veh || '', eway: s.eway || '', gstR: rate,
       transport: s.transport || '', station: s.station || '', grrr: s.grrr || '',
@@ -3051,7 +3065,7 @@
     // ── Soft-delete / Trash / Archive / Audit (recoverable deletion) ──
     softDelete, restoreRecord, purgeRecord, voidRecord, archiveRecord, archiveRows, archiveCount, trashRows, trashCount, auditRows, logAudit, backupJSON, trashModules: () => Object.keys(TRASHABLE),
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
-    invoiceData, amountInWords, stateOfGstin, partyPhone,
+    invoiceData, amountInWords, stateOfGstin, partyPhone, reconcileState, cleanGstin,
     notifications, getRenewals, addRenewal, removeRenewal, recommendations,
     REPORT_TYPES, buildReport, getGroups, saveGroups, getSchedules, saveSchedules,
 

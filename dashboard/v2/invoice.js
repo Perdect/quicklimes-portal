@@ -19,7 +19,7 @@ function nextInvNo() {
 function buildData() {
   const qty = +g('i_qty') || 0, rate = +g('i_rate') || 0, gstR = +g('i_gst') || 5;
   const taxable = qty * rate, cgst = taxable * gstR / 200, sgst = cgst, total = taxable + cgst + sgst;
-  const bgst = g('i_bgst').trim().toUpperCase();
+  const bgst = g('i_bgst').toUpperCase().replace(/[^A-Z0-9]/g, '');   // registered form, never with spaces
   const interState = bgst && bgst.length >= 2 && bgst.slice(0, 2) !== '08';
   const grand = (Q.co && Q.co.roundOff === false) ? Math.round(total * 100) / 100 : Math.round(total);   // mirrors invoiceData
   return {
