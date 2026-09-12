@@ -19,7 +19,7 @@ const ok = (n, c) => { if (c) pass++; else { fail++; fails.push(n); } };
 const k0 = src.indexOf('  function invoiceTemplateKey()');
 const k1 = src.indexOf('\n  }', src.indexOf('  function invoiceTemplateId()')) + 4;
 ok('both resolver functions found in shell.js', k0 > 0 && k1 > k0);
-const TEMPLATES = ['gst', 'modern', 'mono', 'compact'].map(id => ({ id }));   // classic retired 2026-09-12; gst is first = the fallback
+const TEMPLATES = ['gst', 'modern', 'business'].map(id => ({ id }));   // classic retired 2026-09-12; gst is first = the fallback
 function resolve(stored, own) {
   const store = {}; if (stored != null) store['ql_inv_tpl_co1'] = stored;
   const window = { QLD: { co: { key: 'co1', invoiceTemplate: own } }, InvoiceTemplates: { TEMPLATES } };
@@ -33,7 +33,8 @@ ok("LEGACY bare 'classic', firm declares gst → the firm's gst",     resolve('c
 ok("LEGACY bare 'classic' (retired), firm declares nothing → gst",   resolve('classic', '') === 'gst');
 ok("LEGACY bare 'modern' was a real choice → modern, even for gst", resolve('modern', 'gst') === 'modern');
 ok("EXPLICIT '!classic' is now an unknown id → the firm's format",  resolve('!classic', 'gst') === 'gst');
-ok("EXPLICIT '!mono' → mono",                                       resolve('!mono', 'gst') === 'mono');
+ok("EXPLICIT '!business' → business",                               resolve('!business', 'gst') === 'business');
+ok("EXPLICIT '!compact' (retired) → the firm's format",              resolve('!compact', 'gst') === 'gst');
 ok("an unknown explicit id falls back to the firm's format",        resolve('!retired', 'gst') === 'gst');
 ok("an unknown explicit id with no firm format falls back to gst",  resolve('!retired', '') === 'gst');
 ok("an unknown legacy id falls back to the firm's format",          resolve('retired', 'gst') === 'gst');

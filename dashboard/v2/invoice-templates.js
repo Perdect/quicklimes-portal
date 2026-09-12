@@ -314,175 +314,146 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════════
-     THE THREE NON-CLASSIC DESIGNS — professional, not decorative.
+     THE TWO COLOUR DESIGNS — modelled on the bill templates the owner sent
+     (12-09-2026): the Zoho-style "Modern" and "Business" quotation layouts.
+     He rejected the previous Modern / Monochrome / Compact outright.
 
-     Brief, in the user's words: "professional, not fancy", built to what Zoho
-     Books and Tally Prime actually print. What that ruled OUT, and why:
+       modern   — a tinted header band with a light title, the firm on the
+                  right, a solid-colour item table with zebra rows, totals on
+                  the right with the total in the accent, a tinted footer with
+                  terms, bank details and a contact line.
+       business — a centred coloured title, the logo top-left with invoice #
+                  and date on the right, two tinted "Invoice by / Invoice to"
+                  boxes, a Place of supply strip, the same item table, terms on
+                  the left and totals on the right.
 
-       gradients, glass panels, skewed colour slabs, a company name rotated 90°
-       up the page edge, tri-colour footer bars
-
-     Those were graphic-design moves on a document that is, in the end, a legal
-     demand for money. Decoration on an invoice does not read as premium — it
-     reads as less trustworthy, and no CA or cement buyer wants a nameplate
-     printed sideways. The craft has to show up as STRUCTURE instead:
-
-       - one restrained accent, used only on the table header and the total
-       - real typographic hierarchy (size and weight, not colour and shapes)
-       - generous, consistent spacing; everything on a shared grid
-       - hairline rules, never heavy boxes-within-boxes
-       - the total is the loudest thing on the page, because it is the point
-
-     The three differ in DENSITY and INK, not in ornament — a real choice for a
-     real reason, rather than three costumes:
-       modern  — the default recommendation; accent header, roomy, screen + PDF
-       mono    — identical structure, zero colour; safe on any office laser
-       compact — Tally-grade density; fits long invoices on one page
-     ══════════════════════════════════════════════════════════════════════ */
-
-  /* Shared skeleton. All three professional templates are the same DOCUMENT with
-     different density/ink, so they share one builder — three near-copies would be
-     three chances to drift apart, and the compliance test would only tell us
-     after the fact. `k` carries the knobs each variant actually differs on. */
-  function proDoc(d, cfg, k) {
-    var f = facts(d, cfg), s = f.s, b = f.b;
-    var a = k.ink === 'none' ? '#111827' : f.cfg.accent;
-    var P = k.pad, FS = k.fs;
-
-    var css = "body{font-family:" + f.cfg.font + ";color:#111827;font-size:" + FS + "px;line-height:1.45;padding:0;background:#fff}"
-      + ".sheet{max-width:820px;margin:0 auto;padding:" + P + "px}"
-      /* Header: logo, company, then the invoice's own identity as a small titled
-         block on the right — the shape every accounting package prints. */
-      + ".hd{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:" + (P * .55) + "px;border-bottom:2px solid " + a + "}"
-      + ".co{display:flex;gap:13px;align-items:flex-start;min-width:0}"
-      + ".co h1{font-size:" + (FS + 6.5) + "px;font-weight:700;letter-spacing:-.2px;line-height:1.2;color:#111827}"
-      + ".co .tag{font-size:" + (FS - 2.5) + "px;color:#6B7280;margin-top:2px;font-weight:600;letter-spacing:.02em}"
-      + ".co .ad{font-size:" + (FS - 1.5) + "px;color:#4B5563;margin-top:5px;line-height:1.45;max-width:330px}"
-      + ".co .gs{font-size:" + (FS - 1) + "px;color:#111827;margin-top:4px;font-weight:600}"
-      + ".ttl{text-align:right;flex:none}"
-      + ".ttl .w{font-size:" + (FS + 4) + "px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:" + a + "}"
-      + ".ttl table{border-collapse:collapse;margin-top:7px;margin-left:auto}"
-      + ".ttl td{font-size:" + (FS - 1) + "px;padding:2px 0 2px 14px;text-align:right;white-space:nowrap}"
-      + ".ttl td:first-child{color:#6B7280;padding-left:0;text-align:left}"
-      + ".ttl td b{font-weight:700}"
-      /* Parties: two columns separated by whitespace and a hairline, not by boxes. */
-      + ".pp{display:grid;grid-template-columns:1fr 1fr;gap:" + (P * .8) + "px;padding:" + (P * .55) + "px 0;border-bottom:1px solid #E5E7EB}"
-      + ".pp h4{font-size:" + (FS - 3) + "px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:#9CA3AF;margin-bottom:6px}"
-      + ".pp .nm{font-size:" + (FS + 1.5) + "px;font-weight:700;color:#111827}"
-      + ".pp .ln{font-size:" + (FS - 1) + "px;color:#4B5563;margin-top:2px;line-height:1.45}"
-      + ".kv{display:flex;justify-content:space-between;gap:12px;font-size:" + (FS - 1) + "px;padding:1.5px 0}"
-      + ".kv span{color:#6B7280}.kv b{font-weight:600;color:#111827;text-align:right}"
-      /* Items: the accent earns its keep once, here. */
-      + ".itm{width:100%;border-collapse:collapse;margin-top:" + (P * .55) + "px}"
-      + ".itm thead th{background:" + a + ";color:#fff;font-size:" + (FS - 2.5) + "px;font-weight:700;letter-spacing:.06em;"
-      +   "text-transform:uppercase;padding:" + k.cell + "px 9px;text-align:left}"
-      + ".itm tbody td{padding:" + (k.cell + 3) + "px 9px;border-bottom:1px solid #E5E7EB;font-size:" + FS + "px;vertical-align:top}"
-      + ".itm tbody td.d{font-weight:600}"
-      + ".r{text-align:right}.c{text-align:center}"
-      /* Money: HSN summary left (Rule 46), totals right. The total is the loudest
-         thing on the sheet — everything else is quieter than it on purpose. */
-      + ".money{display:grid;grid-template-columns:minmax(0,1fr) 268px;gap:" + (P * .8) + "px;padding-top:" + (P * .55) + "px;align-items:start}"
-      + ".band{width:100%;border-collapse:collapse;font-size:" + (FS - 2.5) + "px}"
-      + ".band th{background:#F9FAFB;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:.05em;"
-      +   "padding:5px 7px;text-align:left;border:1px solid #E5E7EB;white-space:nowrap}"
-      + ".band td{padding:5px 7px;border:1px solid #E5E7EB;color:#374151}"
-      + ".tl{display:flex;justify-content:space-between;padding:4px 0;font-size:" + FS + "px}"
-      + ".tl span{color:#6B7280}.tl b{font-weight:600}"
-      + ".gt{display:flex;justify-content:space-between;align-items:baseline;margin-top:7px;padding:9px 12px;"
-      +   "background:" + (k.ink === 'none' ? '#111827' : a) + ";color:#fff;border-radius:" + k.rad + "px}"
-      + ".gt .l{font-size:" + (FS - 2.5) + "px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.92}"
-      + ".gt .v{font-size:" + (FS + 6) + "px;font-weight:700;letter-spacing:-.3px}"
-      + ".gtq{text-align:right;font-size:" + (FS - 2) + "px;color:#6B7280;margin-top:4px}"
-      + ".words{margin-top:" + (P * .5) + "px;padding-top:" + (P * .4) + "px;border-top:1px solid #E5E7EB;font-size:" + (FS - 1) + "px;color:#374151}"
-      + ".words b{font-weight:600}"
-      + ".ft{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:" + (P * .8) + "px;margin-top:" + (P * .5) + "px;"
-      +   "padding-top:" + (P * .5) + "px;border-top:1px solid #E5E7EB;align-items:start}"
-      + ".ft .t{font-size:" + (FS - 2.5) + "px;color:#6B7280;line-height:1.65}"
-      + ".ft .t b{color:#374151}"
-      + ".sg{text-align:center}.sg .sfor{font-size:" + (FS - 1) + "px;color:#374151}"
-      + ".sg .sline{border-bottom:1px solid #9CA3AF;margin:38px 0 5px}"
-      + ".sg .scap{font-size:" + (FS - 2.5) + "px;color:#6B7280}"
-      + ".qr{text-align:center;margin-bottom:8px}.qrc{font-size:" + (FS - 3) + "px;color:#6B7280}"
-      /* The sheet is designed for 820px of A4. It is also shown in the GST Invoice
-         page's preview pane, which is roughly half that, and on phones. There,
-         minmax(0,1fr) does its job too well: the left track shrinks BELOW the
-         rate-band table's own width and the table spills across the totals column
-         — the two overlapped and became unreadable. Below the width where the
-         two-column money zone stops fitting, stack instead. Print is unaffected:
-         @page is A4, always wider than this breakpoint. */
-      + "@media screen and (max-width:700px){"
-      +   ".money{grid-template-columns:1fr;gap:14px}"
-      +   ".ft{grid-template-columns:1fr;gap:14px}"
-      +   ".pp{grid-template-columns:1fr;gap:14px}"
-      +   ".hd{flex-direction:column;gap:14px}.ttl{text-align:left}.ttl table{margin-left:0}"
-      +   ".ttl td{padding-left:0;padding-right:14px;text-align:left}"
-      +   ".band{display:block;overflow-x:auto;white-space:nowrap}"
-      + "}";
-
-    var body = '<div class="sheet"><div class="hd">'
-      + '<div class="co">' + (f.logo ? logoImg(f, k.logo) : '')
-      + '<div><h1>' + esc(s.name) + '</h1>'
-      + (f.tagline ? '<div class="tag">' + esc(f.tagline) + '</div>' : '')
-      + '<div class="ad">' + esc(s.address || '') + '</div>'
-      + '<div class="gs">GSTIN ' + esc(s.gstin || '') + '</div>'
-      + ((s.phone || s.email) ? '<div class="ad" style="margin-top:2px">' + esc([s.phone, s.email].filter(Boolean).join('  ·  ')) + '</div>' : '')
-      + '</div></div>'
-      + '<div class="ttl"><div class="w">Tax Invoice</div><table>'
-      + '<tr><td>Invoice no.</td><td><b>' + esc(f.inv) + '</b></td></tr>'
-      + '<tr><td>Date</td><td><b>' + esc(f.date) + '</b></td></tr>'
-      + '<tr><td>Place of supply</td><td><b>' + esc(f.pos) + '</b></td></tr>'
-      + '<tr><td>Reverse charge</td><td><b>' + esc(f.rcm) + '</b></td></tr>'
-      + '</table></div></div>'
-      + '<div class="pp"><div><h4>Bill to</h4><div class="nm">' + esc(b.name) + '</div>'
-      + (b.address ? '<div class="ln">' + esc(b.address) + '</div>' : '')
-      + '<div class="ln"><b>GSTIN ' + esc(b.gstin || '—') + '</b></div></div>'
-      + '<div><h4>Details</h4>'
-      + (f.veh ? '<div class="kv"><span>Vehicle no.</span><b>' + esc(f.veh) + '</b></div>' : '')
-      + (f.eway ? '<div class="kv"><span>E-Way Bill no.</span><b>' + esc(f.eway) + '</b></div>' : '')
-      /* No HSN row here: the code already prints in the line item AND in the
-         rate-band summary below. Three copies of one number is the duplication we
-         deleted from the summary rail — a "details" block should hold what is not
-         already on the page, not repeat what is. */
-      + (f.msme ? '<div class="kv"><span>MSME</span><b>' + esc(f.msme) + '</b></div>' : '')
-      + '</div></div>'
-      + '<table class="itm"><thead><tr><th style="width:30px">#</th><th>Description of goods</th><th style="width:82px">HSN/SAC</th>'
-      + '<th class="r" style="width:96px">Qty</th><th class="r" style="width:74px">Rate</th><th class="r" style="width:104px">Amount (₹)</th></tr></thead>'
-      + '<tbody><tr><td>1</td><td class="d">' + esc(f.product) + '</td><td>' + esc(f.hsn) + '</td>'
-      + '<td class="r">' + f.qty + ' ' + esc(f.unit) + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr></tbody></table>'
-      + '<div class="money"><div>' + bandTable(f, 'band') + '</div>'
-      + '<div><div class="tl"><span>Taxable value</span><b>' + f.taxable + '</b></div>' + taxRows(f, 'tl')
+     Both are ACCENTABLE: every colour is derived from cfg.accent (the gallery's
+     colour picker), so the purple / green / orange variants in the reference
+     are one click, not four templates. Both carry every Rule 46 field and the
+     branding the compliance test demands; neither prints Transport / Station /
+     GR-RR (despatch:false) — those belong to the print format. */
+  function tint(hex, aa) {
+    return /^#[0-9a-fA-F]{6}$/.test(hex) ? hex + aa : 'rgba(37,99,235,' + (parseInt(aa, 16) / 255).toFixed(2) + ')';
+  }
+  function itemTable(f) {
+    return '<table class="itm"><thead><tr><th style="width:28px">#</th><th>Item description</th><th style="width:78px">HSN/SAC</th>'
+      + '<th class="r" style="width:96px">Qty</th><th class="r" style="width:84px">Rate</th><th class="r" style="width:104px">Amount</th></tr></thead>'
+      + '<tbody><tr><td>1.</td><td><b>' + esc(f.product) + '</b></td><td>' + esc(f.hsn) + '</td><td class="r">' + f.qty + ' ' + esc(f.unit) + '</td>'
+      + '<td class="r">₹ ' + f.rate + '</td><td class="r">₹ ' + f.taxable + '</td></tr></tbody></table>';
+  }
+  function totalsBlock(f) {
+    return '<div class="tl"><span>Sub total</span><span>₹ ' + f.taxable + '</span></div>' + taxRows(f, 'tl')
       + '<div class="gt"><span class="l">Total</span><span class="v">₹ ' + f.grand + '</span></div>'
-      + '<div class="gtq">' + qtyTotalEl(f) + '</div></div></div>'
-      + '<div class="words">Amount in words: <b>' + esc(f.words) + '</b></div>'
-      + '<div class="ft"><div class="t">' + (bankBlock(f) ? bankBlock(f) + '<br><br>' : '')
-      + (f.cfg.showDeclaration ? '<b>Declaration</b><br>' + f.terms.map(function (t, i) { return (i + 1) + '. ' + esc(t); }).join('<br>') : '')
-      + (f.cfg.footerNote ? '<br><br>' + esc(f.cfg.footerNote) : '') + '</div>'
-      + '<div>' + qrBlock(f) + signBlock(f, 'sg') + '</div></div></div>';
+      + '<div class="gtq">' + qtyTotalEl(f) + '</div>'
+      + '<div class="wd">Invoice total (in words)<b>' + esc(f.words) + '</b></div>';
+  }
+  function termsBlock(f) {
+    var s = f.s;
+    return (f.cfg.showDeclaration && f.terms.length ? '<h5>Terms and conditions</h5><ol>' + f.terms.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ol>' : '')
+      + (bankBlock(f) ? '<div class="bk">' + bankBlock(f) + '</div>' : '')
+      + (f.tel ? '<div class="ct">For any enquiries, call us on <b>' + esc(f.tel) + '</b>' + (s.email ? ' or email <b>' + esc(s.email) + '</b>' : '') + '</div>' : '')
+      + (f.cfg.footerNote ? '<div class="ct">' + esc(f.cfg.footerNote) + '</div>' : '');
+  }
+  var COMMON = ".r{text-align:right}"
+    + ".itm{width:100%;border-collapse:collapse}.itm th{color:#fff;font-size:9.5px;font-weight:600;letter-spacing:.04em;text-align:left;padding:8px 10px}"
+    + ".itm th:first-child{border-radius:4px 0 0 4px}.itm th:last-child{border-radius:0 4px 4px 0}"
+    + ".itm td{padding:9px 10px;font-size:11px}"
+    + ".band2{width:100%;border-collapse:collapse;font-size:9.5px}.band2 th{color:#6B7280;font-weight:600;text-align:left;padding:4px 6px}.band2 td{padding:4px 6px;color:#374151}"
+    + ".tl{display:flex;justify-content:space-between;font-size:11px;padding:4px 0}.tl span{color:#6B7280}.tl span+span{font-weight:600;color:#111827}"
+    + ".gt{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid #D1D5DB;margin-top:6px;padding-top:9px}.gt .l{font-size:12px;font-weight:700;color:#111827}.gt .v{font-size:16px;font-weight:700}"
+    + ".gtq{text-align:right;font-size:10px;color:#6B7280;margin-top:3px}"
+    + ".wd{margin-top:12px;font-size:10px;color:#6B7280}.wd b{display:block;font-size:11.5px;color:#111827;margin-top:2px;font-weight:700}"
+    + "h5{font-size:10.5px;font-weight:700;margin:0 0 5px}ol{margin:0 0 12px;padding-left:16px;font-size:10px;color:#4B5563;line-height:1.55}"
+    + ".bk,.ct{font-size:10px;color:#4B5563;margin-bottom:8px}.ct b,.bk b{color:#111827}"
+    + ".sg{text-align:center}.sg .sfor{font-size:10.5px;color:#374151}.sg .sline{border-bottom:1px solid #9CA3AF;margin:34px 0 5px}.sg .scap{font-size:9.5px;color:#6B7280}"
+    + ".qr{text-align:center;margin-bottom:8px}.qrc{font-size:9px;color:#6B7280}";
 
-    return doc(f, k.id, css, body);
+  function modern(d, cfg) {
+    var f = facts(d, cfg), s = f.s, b = f.b, a = f.cfg.accent || '#2563EB';
+    var band = tint(a, '14'), zebra = tint(a, '0A'), rule = tint(a, '33');
+    var css = "body{font-family:" + f.cfg.font + ";color:#1F2937;font-size:11px;line-height:1.5;padding:0;background:#fff}"
+      + ".sheet{max-width:820px;margin:0 auto;background:#fff}"
+      + ".band{background:" + band + ";padding:30px 36px 26px;display:flex;justify-content:space-between;align-items:flex-start;gap:24px}"
+      + ".ttl{font-size:30px;font-weight:300;color:" + a + ";letter-spacing:-.01em;line-height:1.1}"
+      + ".ttl small{display:block;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#6B7280;margin-top:8px}"
+      + ".by{display:flex;gap:16px;align-items:flex-start;justify-content:flex-end;text-align:right}"
+      + ".by .k{font-size:9px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em}.by .n{font-size:13px;font-weight:700;color:#111827;margin-top:2px}.by .l{font-size:10px;color:#4B5563;max-width:320px}.by .l b{color:#111827}"
+      + ".sec{padding:22px 36px 0;display:grid;grid-template-columns:1fr 1fr;gap:28px}"
+      + ".lab{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:" + a + ";border-left:2px solid " + a + ";padding-left:6px;margin-bottom:6px}"
+      + ".nm{font-size:12.5px;font-weight:700;color:#111827}.ln{font-size:10.5px;color:#4B5563;margin-top:2px}.ln b{color:#111827}"
+      + ".kv{display:grid;grid-template-columns:110px 1fr;gap:3px 10px;font-size:10.5px}.kv span{color:#6B7280}.kv b{color:#111827;font-weight:600}"
+      + ".itmw{padding:20px 36px 0}.itm th{background:" + a + "}.itm td{border-bottom:1px solid " + rule + "}.itm tr:nth-child(even) td{background:" + zebra + "}"
+      + ".money{padding:18px 36px 0;display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:28px;align-items:start}.band2 th{border-bottom:1px solid " + rule + "}"
+      + ".gt .v{color:" + a + "}"
+      + ".foot{background:" + band + ";margin-top:26px;padding:22px 36px 26px;display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:28px;align-items:end}.foot h5{color:#111827}"
+      + COMMON
+      + "@media screen and (max-width:700px){.sec,.money,.foot{grid-template-columns:1fr}.band{flex-direction:column}.by{text-align:left;justify-content:flex-start}}";
+    var body = '<div class="sheet">'
+      + '<div class="band"><div><div class="ttl">Tax Invoice<small>' + (f.interState ? 'Inter-state supply · IGST' : 'Intra-state supply · CGST + SGST') + '</small></div></div>'
+      + '<div class="by"><div><div class="k">Invoice by</div><div class="n">' + esc(s.name) + '</div><div class="l">' + esc(s.address || '') + '</div>'
+      + (f.tagline ? '<div class="l">' + esc(f.tagline) + '</div>' : '')
+      + '<div class="l"><b>GSTIN ' + esc(s.gstin || '') + '</b>' + (f.msme ? ' · MSME ' + esc(f.msme) : '') + '</div>'
+      + ((f.tel || s.email) ? '<div class="l">' + esc([f.tel, s.email].filter(Boolean).join(' · ')) + '</div>' : '') + '</div>'
+      + (f.logo ? logoImg(f, 46) : '') + '</div></div>'
+      + '<div class="sec"><div><div class="lab">Billed to</div><div class="nm">' + esc(b.name) + '</div>'
+      + (b.address ? '<div class="ln">' + esc(b.address) + '</div>' : '')
+      + '<div class="ln"><b>GSTIN ' + esc(b.gstin || '—') + '</b>' + (f.bState ? ' · ' + esc(f.bState) : '') + '</div>'
+      + (f.bPhone ? '<div class="ln">' + esc(f.bPhone) + '</div>' : '') + '</div>'
+      + '<div><div class="lab">Invoice details</div><div class="kv">'
+      + '<span>Invoice #</span><b>' + esc(f.inv) + '</b><span>Invoice date</span><b>' + esc(f.date) + '</b>'
+      + '<span>Place of supply</span><b>' + esc(f.pos) + '</b><span>Reverse charge</span><b>' + esc(f.rcm) + '</b>'
+      + (f.veh ? '<span>Vehicle no.</span><b>' + esc(f.veh) + '</b>' : '') + (f.eway ? '<span>E-Way Bill no.</span><b>' + esc(f.eway) + '</b>' : '')
+      + '</div></div></div>'
+      + '<div class="itmw">' + itemTable(f) + '</div>'
+      + '<div class="money"><div>' + bandTable(f, 'band2') + '</div><div>' + totalsBlock(f) + '</div></div>'
+      + '<div class="foot"><div>' + termsBlock(f) + '</div><div>' + qrBlock(f) + signBlock(f, 'sg') + '</div></div></div>';
+    return doc(f, 'modern', css, body);
   }
 
-  /* modern — the recommendation. Roomy, one accent, reads well on screen and PDF. */
-  function modern(d, cfg) { return proDoc(d, cfg, { id: 'modern', pad: 34, fs: 11.5, cell: 9, rad: 8, logo: 46, ink: 'accent' }); }
-
-  /* mono — same document, no colour at all. A cheap office laser renders a mid
-     blue as muddy grey; this one is designed for that printer instead of fighting
-     it, so it looks intentional in black and white rather than drained. */
-  function mono(d, cfg) { return proDoc(d, cfg, { id: 'mono', pad: 34, fs: 11.5, cell: 9, rad: 0, logo: 44, ink: 'none' }); }
-
-  /* compact — Tally-grade density. Same structure, tighter everything, for firms
-     that want the whole invoice on one page without a second sheet. */
-  function compact(d, cfg) { return proDoc(d, cfg, { id: 'compact', pad: 24, fs: 10.5, cell: 6, rad: 4, logo: 38, ink: 'accent' }); }
+  function business(d, cfg) {
+    var f = facts(d, cfg), s = f.s, b = f.b, a = f.cfg.accent || '#2563EB';
+    var box = tint(a, '12'), zebra = tint(a, '0A'), rule = tint(a, '33');
+    var pan = (s.gstin || '').length === 15 ? s.gstin.slice(2, 12) : '';
+    var css = "body{font-family:" + f.cfg.font + ";color:#1F2937;font-size:11px;line-height:1.5;padding:0;background:#fff}"
+      + ".sheet{max-width:820px;margin:0 auto;padding:30px 36px 34px}"
+      + ".ttl{text-align:center;font-size:20px;font-weight:700;color:" + a + ";letter-spacing:.02em;margin-bottom:16px}"
+      + ".top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}"
+      + ".top .co{display:flex;gap:12px;align-items:center}.top .co .n{font-size:15px;font-weight:800;color:#111827;letter-spacing:-.01em}.top .co .t{font-size:9.5px;color:#6B7280;text-transform:uppercase;letter-spacing:.06em}"
+      + ".top .kv{display:grid;grid-template-columns:auto auto;gap:2px 14px;font-size:10.5px;text-align:right}.top .kv span{color:#6B7280}.top .kv b{color:#111827}"
+      + ".boxes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}"
+      + ".box{background:" + box + ";border-radius:6px;padding:12px 14px}.box h5{color:" + a + "}"
+      + ".box .n{font-size:12px;font-weight:700;color:#111827}.box .l{font-size:10px;color:#4B5563;margin-top:2px}.box .l b{color:#111827}"
+      + ".strip{display:flex;justify-content:flex-end;gap:26px;font-size:10px;color:#6B7280;padding:10px 4px 0}.strip b{color:#111827;margin-left:6px}"
+      + ".itmw{margin-top:12px}.itm th{background:" + a + "}.itm td{border-bottom:1px solid " + rule + "}.itm tr:nth-child(even) td{background:" + zebra + "}"
+      + ".bot{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:30px;margin-top:20px;align-items:start}.bot h5{color:" + a + "}"
+      + ".band2{margin:0 0 14px}.band2 th{border-bottom:1px solid " + rule + "}.gt .v{color:" + a + "}.sg{margin-top:28px}"
+      + COMMON
+      + "@media screen and (max-width:700px){.boxes,.bot{grid-template-columns:1fr}.top{flex-direction:column}.top .kv{text-align:left}.strip{justify-content:flex-start;flex-wrap:wrap}}";
+    var body = '<div class="sheet"><div class="ttl">TAX INVOICE</div>'
+      + '<div class="top"><div class="co">' + (f.logo ? logoImg(f, 46) : '') + '<div><div class="n">' + esc(s.name) + '</div>' + (f.tagline ? '<div class="t">' + esc(f.tagline) + '</div>' : '') + '</div></div>'
+      + '<div class="kv"><span>Invoice #</span><b>' + esc(f.inv) + '</b><span>Invoice date</span><b>' + esc(f.date) + '</b>'
+      + (f.veh ? '<span>Vehicle no.</span><b>' + esc(f.veh) + '</b>' : '') + (f.eway ? '<span>E-Way Bill no.</span><b>' + esc(f.eway) + '</b>' : '') + '</div></div>'
+      + '<div class="boxes"><div class="box"><h5>Invoice by</h5><div class="n">' + esc(s.name) + '</div><div class="l">' + esc(s.address || '') + '</div>'
+      + '<div class="l"><b>GSTIN</b> ' + esc(s.gstin || '') + (pan ? ' &nbsp; <b>PAN</b> ' + esc(pan) : '') + '</div>'
+      + (f.msme ? '<div class="l"><b>MSME</b> ' + esc(f.msme) + '</div>' : '')
+      + ((f.tel || s.email) ? '<div class="l">' + esc([f.tel, s.email].filter(Boolean).join(' · ')) + '</div>' : '') + '</div>'
+      + '<div class="box"><h5>Invoice to</h5><div class="n">' + esc(b.name) + '</div>' + (b.address ? '<div class="l">' + esc(b.address) + '</div>' : '')
+      + '<div class="l"><b>GSTIN</b> ' + esc(b.gstin || '—') + (f.bState ? ' &nbsp; <b>State</b> ' + esc(f.bState) : '') + '</div>'
+      + (f.bPhone ? '<div class="l">' + esc(f.bPhone) + '</div>' : '') + '</div></div>'
+      + '<div class="strip"><span>Place of supply<b>' + esc(f.pos) + '</b></span><span>Reverse charge<b>' + esc(f.rcm) + '</b></span></div>'
+      + '<div class="itmw">' + itemTable(f) + '</div>'
+      + '<div class="bot"><div>' + bandTable(f, 'band2') + termsBlock(f) + '</div>'
+      + '<div>' + totalsBlock(f) + qrBlock(f) + signBlock(f, 'sg') + '</div></div></div>';
+    return doc(f, 'business', css, body);
+  }
 
   var TEMPLATES = [
     { id: 'gst',     name: 'GST Invoice (print format)', category: 'In use now', accentable: false, despatch: true,
       desc: 'Your billing software\'s format, line for line — logo, Tel., Transport / Station / GR-RR, party contact lines, Terms & Conditions, Receiver\'s Signature.', render: gst },
-    { id: 'modern',  name: 'Modern',           category: 'Recommended', accentable: true,
-      desc: 'What Zoho Books and Tally Prime print. Clean structure, one accent colour, no decoration.', render: modern },
-    { id: 'mono',    name: 'Monochrome',       category: 'Any printer', accentable: false,
-      desc: 'The same document with no colour at all. Designed for a plain office laser.', render: mono },
-    { id: 'compact', name: 'Compact',          category: 'Dense', accentable: true,
-      desc: 'Tally-grade density. Same structure, tighter — keeps long invoices on one page.', render: compact }
+    { id: 'modern',   name: 'Modern',   category: 'Colour', accentable: true,
+      desc: 'A tinted header band, a solid-colour item table and a tinted footer — the modern bill layout you sent. Pick the colour.', render: modern },
+    { id: 'business', name: 'Business', category: 'Colour', accentable: true,
+      desc: 'A centred title, your logo top-left, tinted “Invoice by / Invoice to” boxes and a solid-colour item table. Pick the colour.', render: business }
   ];
 
   function get(id) { for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].id === id) return TEMPLATES[i]; return TEMPLATES[0]; }
