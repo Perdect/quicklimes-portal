@@ -116,6 +116,7 @@
          print format shows them; the others read what they always read. */
       transport: d.transport || '', station: d.station || '', grrr: d.grrr || '',
       tel: s.tel || s.phone || '',
+      iec: s.iec || '', cin: s.cin || '', lut: s.lut || '', pan: (String(s.gstin || '').length === 15 ? String(s.gstin).slice(2, 12) : ''),
       bPhone: b.phone || '', bEmail: b.email || '', bState: b.state || '',
       signatory: cfg.signatory || s.name || '',
       /* The default declaration is what Gotan's paper invoice actually prints —
@@ -447,13 +448,110 @@
     return doc(f, 'business', css, body);
   }
 
+  /* ══════════ detailed — the full-detail layout of the printed sample ══════════
+     Modelled on the supplier e-invoice the owner photographed (12-09-2026):
+     GSTIN / PAN top-left, contact top-right, the firm's name in the accent with
+     the tagline under it, ORIGINAL COPY, a two-column MSME / invoice / transport
+     block, buyer AND consignee blocks with Name / Address / State / PAN / GSTIN,
+     a tall goods table with the logo watermarked behind it, a tax stack on the
+     right (taxable, CGST, SGST, IGST, GST amount, amount after tax, round off,
+     total, reverse charge), the amount in words, terms, "For: firm" with the
+     signatory, and REGD. ADDRESS in the footer.
+
+     HONEST BY CONSTRUCTION. The sample carries an IRN, an acknowledgement and a
+     QR because the supplier generates e-invoices on the government IRP. This
+     design prints that block ONLY when the sale record actually carries irn /
+     ackNo / ackDt — never a placeholder, never a decorative QR — and the
+     signature area is a place to sign, not a "Signature valid" tick. */
+  function detailed(d, cfg) {
+    var f = facts(d, cfg), s = f.s, b = f.b, a = f.cfg.accent || '#1D4ED8';
+    var pan = function (g) { g = String(g || ''); return g.length === 15 ? g.slice(2, 12) : ''; };
+    var dash = '&ndash;';
+    var css = "body{font-family:" + f.cfg.font + ";color:#111;font-size:10.5px;line-height:1.35;padding:20px;background:#fff}"
+      + ".inv{max-width:820px;margin:0 auto;border:1px solid #000;position:relative}.bb{border-bottom:1px solid #000}.br{border-right:1px solid #000}.row{display:flex}"
+      + ".top{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 10px 4px;gap:10px}"
+      + ".ids{font-size:9.5px;line-height:1.5;color:#222;min-width:170px}.ids b{display:inline-block;width:42px;font-weight:400;color:#555}"
+      + ".ctc{font-size:9.5px;line-height:1.5;text-align:right;min-width:170px;color:#222}"
+      + ".mid{text-align:center;flex:1}.co{display:flex;align-items:center;justify-content:center;gap:12px}"
+      + ".cn{font-size:22px;font-weight:800;color:" + a + ";letter-spacing:.02em;text-transform:uppercase;line-height:1.1}"
+      + ".tg{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#333;margin-top:4px}"
+      + ".orig{text-align:right;padding:0 10px 2px;font-size:10px;font-weight:700;letter-spacing:.04em}"
+      + ".ttl{text-align:center;padding:2px 0 6px}.ttl span{display:inline-block;font-weight:800;font-size:12.5px;letter-spacing:.04em;border-bottom:1.5px solid #000}"
+      + ".meta{width:50%;padding:6px 8px}.kv{display:flex;padding:1.5px 0;font-size:10.5px}.kv .k{width:118px;flex:none;font-weight:700;color:#222}.kv .c{width:12px;flex:none}.kv .v{flex:1;min-width:0;word-break:break-word}"
+      + ".ph{font-size:9.5px;font-weight:700;text-align:center;padding:3px;background:#f3f4f6;letter-spacing:.03em}"
+      + ".pc{width:50%;padding:5px 8px 6px}.pc .kv .k{width:64px;font-weight:400;color:#444}.pc .kv .v{font-weight:600}"
+      + "table{width:100%;border-collapse:collapse;table-layout:fixed}"
+      + ".it th{border-right:1px solid #000;border-bottom:1px solid #000;padding:5px 5px;font-weight:800;font-size:10px;text-align:center;vertical-align:middle;line-height:1.2;background:#fff;position:relative;z-index:1}"
+      + ".it td{border-right:1px solid #000;padding:5px;vertical-align:top;position:relative;z-index:1}.it th:last-child,.it td:last-child{border-right:0}"
+      + ".it .sp td{height:210px;padding:0}.r{text-align:right}.c{text-align:center}"
+      + ".wm{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:0}"
+      + ".body{position:relative}"
+      + ".low{display:flex}.left{width:56%;padding:0}.right{width:44%}"
+      + ".rm{padding:5px 8px;min-height:22px;font-size:10px}.rm b{color:#444}"
+      + ".irn{padding:6px 8px;font-size:10px;line-height:1.45}.irn b{font-weight:800}.irn .qr{display:inline-block;vertical-align:top;margin-left:10px}"
+      + ".hs{padding:5px 8px}.hs table{width:auto}.hs th{font-weight:700;text-decoration:underline;text-align:left;padding:1px 8px 1px 0;font-size:9px;white-space:nowrap}.hs td{padding:1px 8px 1px 0;font-size:9.5px}"
+      + ".tx{width:100%}.tx td{border-bottom:1px solid #000;padding:3.5px 6px;font-size:10.5px}.tx td:first-child{font-weight:700;border-right:1px solid #000;width:62%}.tx td:last-child{text-align:right;font-weight:700}"
+      + ".tx tr.tot td{font-size:12px;font-weight:800}"
+      + ".wd{padding:5px 8px;font-size:10.5px}.wd b{font-weight:800;margin-right:4px}"
+      + ".ft{display:flex}.tc{width:62%;padding:6px 8px;font-size:9.5px;line-height:1.5}.tc b{display:block;font-size:10px;margin-bottom:2px}.tc ul{margin:0;padding-left:12px}"
+      + ".sg{width:38%;padding:6px 8px;text-align:center;display:flex;flex-direction:column;justify-content:space-between}.sg .for{font-weight:800;font-size:11px}.sg .as{font-weight:700;font-size:10.5px;margin-top:40px}"
+      + ".ra{padding:5px 10px;font-size:10px;line-height:1.5}.ra b{display:inline-block;width:118px;color:" + a + ";font-weight:800}"
+      + ".qrc{font-size:8px;color:#555}";
+    var kv = function (k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="c">:</span><span class="v">' + esc(v) + '</span></div>'; };
+    var party = function (title, cls) {
+      return '<div class="pc' + (cls ? ' ' + cls : '') + '"><div class="ph">' + title + '</div>'
+        + kv('Name', b.name) + kv('Address', b.address || '') + kv('State', f.bState) + kv('PAN No', pan(b.gstin)) + kv('GSTIN', b.gstin || '') + '</div>';
+    };
+    var eInv = (d.irn || d.ackNo || d.ackDt)
+      ? '<div class="irn bb"><b>IRN:</b> ' + esc(d.irn || '') + '<br><b>Ack No:</b> ' + esc(d.ackNo || '') + ' &nbsp; <b>Ack Dt:</b> ' + esc(d.ackDt || '')
+        + (d.qrData ? '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(d.qrData) + '" alt="e-invoice QR" style="width:88px;height:88px"><div class="qrc">e-Invoice QR</div></div>' : '') + '</div>'
+      : '';
+    var roundOff = Math.round(((+d.grand || 0) - (+d.total || 0)) * 100) / 100;
+    var taxStack = '<table class="tx">'
+      + '<tr><td>Total Taxable Value</td><td>' + f.taxable + '</td></tr>'
+      + '<tr><td>ADD: CGST' + (f.interState ? '' : ' @ ' + f.halfR + ' %') + '</td><td>' + (f.interState ? dash : f.cgst) + '</td></tr>'
+      + '<tr><td>ADD: SGST' + (f.interState ? '' : ' @ ' + f.halfR + ' %') + '</td><td>' + (f.interState ? dash : f.sgst) + '</td></tr>'
+      + '<tr><td>ADD: IGST' + (f.interState ? ' @ ' + f.gstR + ' %' : '') + '</td><td>' + (f.interState ? f.igst : dash) + '</td></tr>'
+      + '<tr><td>GST Tax Amount</td><td>' + f.totalTax + '</td></tr>'
+      + '<tr><td>Amount After Tax</td><td>' + fmt(d.total) + '</td></tr>'
+      + (roundOff ? '<tr><td>Round Off</td><td>' + (roundOff > 0 ? '+' : '') + fmt(roundOff) + '</td></tr>' : '')
+      + '<tr class="tot"><td>Total Amount</td><td>&#8377; ' + f.grand + '</td></tr>'
+      + '<tr><td>Total Quantity</td><td>' + qtyTotalEl(f) + '</td></tr>'
+      + '<tr><td>GST Reverse Charge</td><td>' + esc(f.rcm) + '</td></tr></table>';
+    var body = '<div class="inv">'
+      + '<div class="top"><div class="ids"><b>GSTIN</b>: ' + esc(s.gstin || '') + (f.cin ? '<br><b>CIN</b>: ' + esc(f.cin) : '') + (f.pan ? '<br><b>PAN</b>: ' + esc(f.pan) : '') + (f.iec ? '<br><b>IEC</b>: ' + esc(f.iec) : '') + '</div>'
+      + '<div class="mid"><div class="co">' + (f.logo ? logoImg(f, 54) : '') + '<div><div class="cn">' + esc(s.name) + '</div>' + (f.tagline ? '<div class="tg">' + esc(f.tagline) + '</div>' : '') + '</div></div></div>'
+      + '<div class="ctc">' + (f.tel ? '+91 ' + esc(f.tel) : '') + (s.email ? '<br>' + esc(s.email) : '') + '</div></div>'
+      + '<div class="orig">ORIGINAL COPY</div>'
+      + '<div class="ttl bb"><span>' + (eInv ? 'TAX E-INVOICE' : 'TAX INVOICE') + '</span></div>'
+      + '<div class="row bb"><div class="meta br">' + (f.msme ? kv('MSME No.', f.msme) : '') + kv('Invoice No', f.inv) + kv('Invoice Date', f.date) + kv('Eway Bill No.', f.eway) + '</div>'
+      + '<div class="meta">' + (d.po ? kv('PO No.', d.po) : '') + kv('Transport mode', f.transport) + kv('GR/RR No.', f.grrr) + kv('Station', f.station) + kv('Place of Supply', f.pos) + kv('Vehicle No.', f.veh) + '</div></div>'
+      + '<div class="row bb">' + party('Details of Buyer (Billed to)', 'br') + party('Details of Consignee (Shipped to)', '') + '</div>'
+      + '<div class="body">' + (f.logo ? '<div class="wm">' + logoImg(f, 240, 'opacity:.07;max-width:420px') + '</div>' : '')
+      + '<table class="it"><colgroup><col style="width:44px"><col style="width:78px"><col><col style="width:88px"><col style="width:84px"><col style="width:104px"></colgroup>'
+      + '<tr><th>S.No.</th><th>HSN CODE</th><th>DESCRIPTION OF GOODS</th><th>QTY<br>(' + esc(f.unit || '') + ')</th><th>RATE<br>(P.' + esc(f.unit || '') + ')</th><th>AMOUNT</th></tr>'
+      + '<tr><td class="c">1.</td><td class="c">' + esc(f.hsn) + '</td><td><b>' + esc(f.product) + '</b></td><td class="r">' + f.qty + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr>'
+      + '<tr class="sp"><td></td><td></td><td></td><td></td><td></td><td></td></tr></table></div>'
+      + '<div class="low bb"><div class="left br"><div class="rm bb"><b>Remarks :</b></div>' + eInv + '<div class="hs">' + bandTable(f, '') + '</div></div>'
+      + '<div class="right">' + taxStack + '</div></div>'
+      + '<div class="wd bb"><b>AMOUNT IN WORDS:</b> ' + esc(f.words) + '</div>'
+      + '<div class="ft bb"><div class="tc br"><b>TERMS &amp; CONDITIONS:</b>' + (f.cfg.showDeclaration && f.terms.length ? '<ul>' + f.terms.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '<li>E.&amp; O.E.</li></ul>' : '')
+      + (bankBlock(f) ? '<div style="margin-top:4px">' + bankBlock(f) + '</div>' : '') + (f.cfg.footerNote ? '<div style="margin-top:4px">' + esc(f.cfg.footerNote) + '</div>' : '') + '</div>'
+      + '<div class="sg">' + (f.cfg.showSignature ? '<div class="for">For: ' + esc(f.signatory) + '</div>' + qrBlock(f) + '<div class="as">Authorised Signatory</div>' : qrBlock(f)) + '</div></div>'
+      + '<div class="ra"><b>REGD. ADDRESS</b>: ' + esc(String(s.address || '').replace(/\n/g, ', ')) + (s.unitAddress ? '<br><b>UNIT ADDRESS</b>: ' + esc(s.unitAddress) : '') + '</div>'
+      + '</div>';
+    return doc(f, 'detailed', css, body);
+  }
+
   var TEMPLATES = [
     { id: 'gst',     name: 'GST Invoice (print format)', category: 'In use now', accentable: false, despatch: true,
       desc: 'Your billing software\'s format, line for line — logo, Tel., Transport / Station / GR-RR, party contact lines, Terms & Conditions, Receiver\'s Signature.', render: gst },
     { id: 'modern',   name: 'Modern',   category: 'Colour', accentable: true,
       desc: 'A tinted header band, a solid-colour item table and a tinted footer — the modern bill layout you sent. Pick the colour.', render: modern },
     { id: 'business', name: 'Business', category: 'Colour', accentable: true,
-      desc: 'A centred title, your logo top-left, tinted “Invoice by / Invoice to” boxes and a solid-colour item table. Pick the colour.', render: business }
+      desc: 'A centred title, your logo top-left, tinted “Invoice by / Invoice to” boxes and a solid-colour item table. Pick the colour.', render: business },
+    { id: 'detailed', name: 'Detailed', category: 'Full detail', accentable: true, despatch: true,
+      desc: 'The full-detail layout of the sample you sent: GSTIN / PAN header, MSME, transport block, buyer and consignee, watermark, tax stack, terms, address footer. IRN / QR print only once an e-invoice exists.', render: detailed }
   ];
 
   function get(id) { for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].id === id) return TEMPLATES[i]; return TEMPLATES[0]; }

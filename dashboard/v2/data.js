@@ -143,7 +143,11 @@
       terms: ['Goods once sold will not be taken back.',
               'Interest @ 18% p.a. will be charged if the payment is not made with in the 30days.',
               "Subject to 'MERTA CITY' Jurisdiction only."],
-      invoiceTemplate: 'gst', roundOff: false
+      invoiceTemplate: 'gst', roundOff: false,
+      /* From the IEC certificate (DGFT, issued 29-08-2026: proprietorship, IEC =
+         PAN) and the firm's own export invoice EI/2026-27/01. A proprietorship
+         has no CIN — the header prints one only for a firm that carries `cin`. */
+      iec: 'NLIPS9801K', lut: 'AD080826023319U', email: 'deshwaliminerals@gmail.com', upi: '8875020202@hdfcbank'
     },
     '08BNAPM0488E1Z3': {
       address: 'TALANPUR ROAD ,SH 86B,, CHANDRA TYRE RETREADING GOTAN, DISTRICT -NAGAUR',
@@ -177,7 +181,8 @@
       bank: seller.bank || '', bankBranch: seller.bankBranch || '', accNo: seller.accNo || '', ifsc: seller.ifsc || '',
       bank2: seller.bank2 || '', bankBranch2: seller.bankBranch2 || '', accNo2: seller.accNo2 || '', ifsc2: seller.ifsc2 || '',
       product: seller.product || '', msme: seller.msme || '', logo: seller.logo || '', jurisdiction: seller.jurisdiction || '',
-      tel: seller.tel || '', terms: seller.terms || [], invoiceTemplate: seller.invoiceTemplate || '', roundOff: seller.roundOff !== false, hsn: HSN,
+      tel: seller.tel || '', terms: seller.terms || [], invoiceTemplate: seller.invoiceTemplate || '', roundOff: seller.roundOff !== false,
+      iec: seller.iec || '', lut: seller.lut || '', cin: seller.cin || '', upi: seller.upi || '', hsn: HSN,
       isPrimary: !p.parent_plant_id,
       dataKey: 'ql_data_' + p.id
     };

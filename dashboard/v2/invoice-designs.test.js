@@ -17,10 +17,10 @@ const D = { seller: { name: 'DESHWALI MINERALS', address: 'Merta City', gstin: '
   hsn: '25221000', inv: '36', date: '2026-08-01', product: 'Quick Lime', qty: 16.16, rate: 4950, unit: 'Tonne', veh: 'RJ37GA1987', eway: '791656947547', gstR: 5,
   taxable: 79992, cgst: 1999.8, sgst: 1999.8, igst: 0, interState: false, total: 83991.6, roundOff: 0, grand: 83991.6, words: 'Rupees Eighty Three Thousand Nine Hundred Ninety One and Paisa Sixty Only' };
 
-ok('registry is exactly gst, modern, business', T.TEMPLATES.map(t => t.id).join(',') === 'gst,modern,business');
+ok('registry is exactly gst, modern, business, detailed', T.TEMPLATES.map(t => t.id).join(',') === 'gst,modern,business,detailed');
 ok('the rejected designs are gone', !T.TEMPLATES.some(t => /mono|compact|classic/.test(t.id)));
-ok('modern and business are accentable (the colour picker applies)', T.TEMPLATES.filter(t => t.accentable).map(t => t.id).join(',') === 'modern,business');
-ok('neither colour design prints the despatch block', !T.TEMPLATES.filter(t => t.id !== 'gst').some(t => t.despatch));
+ok('modern, business and detailed are accentable (the colour picker applies)', T.TEMPLATES.filter(t => t.accentable).map(t => t.id).join(',') === 'modern,business,detailed');
+ok('modern and business do not print the despatch block; detailed does (it is the full-detail layout)', !T.TEMPLATES.filter(t => /modern|business/.test(t.id)).some(t => t.despatch) && T.get('detailed').despatch === true);
 
 for (const id of ['modern', 'business']) {
   const purple = T.render(D, { template: id, accent: '#7C3AED' }), blue = T.render(D, { template: id });
@@ -42,6 +42,30 @@ ok('modern: tinted footer band', /class="foot"/.test(m) && /\.foot\{background:#
 ok('business: centred TAX INVOICE title', b.includes('<div class="ttl">TAX INVOICE</div>'));
 ok('business: "Invoice by" and "Invoice to" tinted boxes with PAN', b.includes('>Invoice by<') && b.includes('>Invoice to<') && b.includes('<b>PAN</b> NLIPS9801K'));
 ok('business: Place of supply strip', b.includes('Place of supply<b>Rajasthan (08)</b>'));
+
+/* detailed — the photographed sample, honestly */
+const DT = Object.assign({}, D, { transport: 'Self', station: 'TEH PIPAR CITY', grrr: '' });
+const x = T.render(DT, { template: 'detailed' });
+ok('detailed: GSTIN and PAN top-left', x.includes('<b>GSTIN</b>: 08NLIPS9801K1Z5') && x.includes('<b>PAN</b>: NLIPS9801K'));
+ok('detailed: contact top-right', x.includes('+91 8875020202, 9460767676'));
+const xx = T.render(Object.assign({}, DT, { seller: Object.assign({}, D.seller, { iec: 'NLIPS9801K' }) }), { template: 'detailed' });
+ok('detailed: IEC line under PAN when the firm has one; no CIN line for a proprietorship', xx.includes('<b>PAN</b>: NLIPS9801K<br><b>IEC</b>: NLIPS9801K') && !xx.includes('<b>CIN</b>'));
+ok('detailed: a firm with a CIN gets the CIN line', T.render(Object.assign({}, DT, { seller: Object.assign({}, D.seller, { cin: 'U17299RJ2022PTC081212' }) }), { template: 'detailed' }).includes('<b>CIN</b>: U17299RJ2022PTC081212'));
+ok('detailed: firm name in the accent (the engine default), ORIGINAL COPY, TAX INVOICE title', x.includes('.cn{font-size:22px;font-weight:800;color:#2563EB') && x.includes('ORIGINAL COPY') && x.includes('<span>TAX INVOICE</span>'));
+ok('detailed: a picked accent colours the firm name', T.render(DT, { template: 'detailed', accent: '#7C3AED' }).includes('.cn{font-size:22px;font-weight:800;color:#7C3AED'));
+ok('detailed: transport block with Transport mode / GR/RR / Station / Place of Supply / Vehicle', ['Transport mode', 'GR/RR No.', 'Station', 'Place of Supply', 'Vehicle No.'].every(k => x.includes(k)));
+ok('detailed: buyer AND consignee blocks with PAN from the GSTIN', x.includes('Details of Buyer (Billed to)') && x.includes('Details of Consignee (Shipped to)') && x.split('<span class="v">BPLPS6684F</span>').length - 1 === 2);
+ok('detailed: watermark logo behind the goods', /class="wm"><img src="[^"]*deshwali-logo\.png"[^>]*opacity:\.07/.test(x));
+ok('detailed: tax stack — taxable, CGST, SGST, IGST as a dash, GST amount, after tax, total, reverse charge', ['Total Taxable Value', 'ADD: CGST @ 2.50 %', 'ADD: SGST @ 2.50 %', 'ADD: IGST</td><td>&ndash;', 'GST Tax Amount', 'Amount After Tax', 'Total Amount', 'GST Reverse Charge'].every(k => x.includes(k)));
+ok('detailed: no round-off row when the firm does not round', !x.includes('Round Off'));
+ok('detailed: AMOUNT IN WORDS and REGD. ADDRESS', x.includes('<b>AMOUNT IN WORDS:</b> ' + D.words) && x.includes('<b>REGD. ADDRESS</b>: Merta City'));
+ok('detailed: NO IRN / QR / "Signature valid" when no e-invoice exists', !/IRN:|Ack No|qrserver|Signature valid|Digitally Signed/.test(x) && x.includes('TAX INVOICE') && !x.includes('E-INVOICE'));
+const xe = T.render(Object.assign({}, DT, { irn: 'abc123', ackNo: '1726', ackDt: '02-09-2026', qrData: 'x' }), { template: 'detailed' });
+ok('detailed: with a real IRN the title becomes TAX E-INVOICE and the IRN / Ack / QR block prints', xe.includes('TAX E-INVOICE') && xe.includes('<b>IRN:</b> abc123') && xe.includes('e-invoice QR'));
+const xr = T.render(Object.assign({}, DT, { total: 101849.6, grand: 101850 }), { template: 'detailed' });
+ok('detailed: a rounding firm gets a Round Off row', xr.includes('Round Off') && xr.includes('+0.40'));
+const xi = T.render(Object.assign({}, DT, { interState: true, cgst: 0, sgst: 0, igst: 3999.6, buyer: Object.assign({}, D.buyer, { gstin: '27CMVPC2808M1ZK', state: 'Maharashtra (27)' }) }), { template: 'detailed' });
+ok('detailed inter-state: IGST carries the rate, CGST / SGST are dashes', xi.includes('ADD: IGST @ 5.00 %') && xi.includes('ADD: CGST</td><td>&ndash;') && xi.includes('ADD: SGST</td><td>&ndash;'));
 
 console.log('\n═══ the two colour designs ═══\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));
