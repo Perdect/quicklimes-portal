@@ -817,6 +817,17 @@
     commit();
     return { ok: true };
   }
+  /* ── Quality analysis report per dispatch: stored ON the sale, printed by
+     InvoiceTemplates.qaReport. Only parameters with a value are ever printed. */
+  function setSaleQA(i, qa) { if (!S.SALES[i]) return; S.SALES[i] = { ...S.SALES[i], qa: qa || null }; commit(); }
+  function qaData(i) {
+    const s = S.SALES[i]; if (!s) return null;
+    const seller = COMPANIES[ACTIVE_CO], qa = s.qa || {};
+    const params = (qa.params || []).filter(p => p && String(p.value == null ? '' : p.value).trim() !== '');
+    return { seller, buyer: { name: s.party || '', address: s.addr || '' }, inv: s.inv || '', date: s.date || '', veh: s.veh || '',
+             product: s.product || 'Quick Lime', title: qa.title || ((s.product || 'Quick Lime') + ' Analysis Report'),
+             params, chemist: qa.chemist || '', reportDate: qa.date || s.date || '', po: qa.po || '', poDate: qa.poDate || '', remarks: qa.remarks || '' };
+  }
   function updateSale(i, e) { if (S.SALES[i]) { S.SALES[i] = { ...S.SALES[i], ...e }; if (e.party) upsertParty(e.party, e.gstin, '', e.addr || '', e.state || '', 'customer'); commit(); } }
   function deleteSale(i, reason) { return softDelete('sales', i, reason); }
   function setSaleStatus(i, st, pay) { if (S.SALES[i]) { Object.assign(S.SALES[i], { status: st }, pay || {}); commit(); } }
@@ -3071,6 +3082,7 @@
     softDelete, restoreRecord, purgeRecord, voidRecord, archiveRecord, archiveRows, archiveCount, trashRows, trashCount, auditRows, logAudit, backupJSON, trashModules: () => Object.keys(TRASHABLE),
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
     invoiceData, amountInWords, stateOfGstin, partyPhone, reconcileState, cleanGstin,
+    setSaleQA, qaData,
     notifications, getRenewals, addRenewal, removeRenewal, recommendations,
     REPORT_TYPES, buildReport, getGroups, saveGroups, getSchedules, saveSchedules,
 

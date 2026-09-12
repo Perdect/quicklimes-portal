@@ -354,7 +354,7 @@ QLX.mount({
     ],
     tabs: [
       { label: 'Overview', icon: IC.file, render: tabOverview },
-      { label: 'Invoice', icon: IC.doc2, render: r => `<div class="qx-inv-bar"><button class="qx-btn qx-btn-sm" onclick="printInvByIdx(${r.idx})">${svg(IC.print)} Print</button></div><iframe class="qx-inv-frame" srcdoc="${esc((function(){try{return QLShell.getInvoiceHTML(r.idx)}catch(_){return salesBillHTML(r)}})())}" title="invoice"></iframe>` },
+      { label: 'Invoice', icon: IC.doc2, render: r => `<div class="qx-inv-bar"><button class="qx-btn qx-btn-sm" onclick="printInvByIdx(${r.idx})">${svg(IC.print)} Print</button> <button class="qx-btn qx-btn-sm" onclick="QLShell.printQA(${r.idx})">${svg(IC.doc2)} Quality report</button></div><iframe class="qx-inv-frame" srcdoc="${esc((function(){try{return QLShell.getInvoiceHTML(r.idx)}catch(_){return salesBillHTML(r)}})())}" title="invoice"></iframe>` },
       { label: 'Documents', icon: IC.dl, count: (r.attach || []).length || null, render: tabDocs, onMount: wireDocs },
       { label: 'Payments', icon: IC.clock, render: tabPayments, onMount: wirePayments },
       { label: 'Profit', icon: IC.trend || IC.clock, render: tabProfit }

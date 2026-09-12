@@ -543,6 +543,63 @@
     return doc(f, 'detailed', css, body);
   }
 
+  /* ══════════ qaReport — the certificate of analysis for one dispatch ══════════
+     Modelled on the supplier's "Burnt Lime 0-3 MM Analysis Report" the owner
+     photographed (12-09-2026): the firm's letterhead, "To," the buyer, the bill
+     number and date, truck and PO on the right, the product's analysis title,
+     a Particulars / Result table with the logo watermarked behind it, "For
+     FIRM", the chemist's signature space, the date, and the registered address.
+
+     NOT an invoice template — it is not in TEMPLATES and the compliance suite
+     does not apply. It prints ONLY the parameters that carry a result; with
+     none it returns '' and the caller opens the results form instead. A
+     certificate with invented numbers is worse than no certificate. */
+  function qaReport(d, cfg) {
+    var c = cfgOf(cfg), s = d.seller || {}, b = d.buyer || {}, a = c.accent || '#2563EB';
+    var params = (d.params || []).filter(function (p) { return p && String(p.value == null ? '' : p.value).trim() !== ''; });
+    if (!params.length) return '';
+    var f = { logo: c.showLogo === false ? '' : (c.logo || s.logo || ''), s: s };
+    var tel = s.tel || s.phone || '';
+    var dot = function (iso) { return fdate(iso).replace(/-/g, '.'); };
+    var css = "body{font-family:Verdana,Geneva,Tahoma,Arial,sans-serif;color:#111;font-size:11px;line-height:1.45;padding:20px;background:#fff}"
+      + ".sheet{max-width:820px;margin:0 auto;position:relative;min-height:1040px;padding:0 0 60px}"
+      + ".lh{display:flex;align-items:center;gap:16px;border-bottom:2px solid " + a + ";padding-bottom:10px}"
+      + ".lh .mid{flex:1;text-align:center}.lh .cn{font-size:22px;font-weight:800;color:" + a + ";text-transform:uppercase;letter-spacing:.04em;line-height:1.15}"
+      + ".lh .tg{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#333;margin-top:4px}"
+      + ".lh .ct{font-size:9.5px;text-align:right;color:#333;line-height:1.5;min-width:150px}"
+      + ".meta{display:flex;margin-top:26px;border:1px solid #000}.to{width:50%;padding:8px 10px;border-right:1px solid #000}.ref{width:50%;padding:8px 10px}"
+      + ".to .t{font-size:10.5px}.to .n{font-weight:700;font-size:12px;margin-top:2px}.to .ad{margin-top:2px;white-space:pre-line}"
+      + ".ref div{padding:2px 0}.ref b{font-weight:700}.ref .dt{float:right}"
+      + ".ttl{text-align:center;font-weight:800;font-size:15px;margin:18px 0 8px;letter-spacing:.02em}"
+      + ".tw{position:relative}.wm{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:0}"
+      + ".qa{width:100%;border-collapse:collapse;position:relative;z-index:1}.qa th,.qa td{border:1px solid #000;padding:9px 12px;font-size:12px}"
+      + ".qa th{font-weight:800;text-align:center;background:rgba(255,255,255,.85)}.qa td.p{text-align:center;font-weight:700;width:46%}.qa td.v{font-weight:600;background:rgba(255,255,255,.6)}"
+      + ".rm{margin-top:10px;font-size:10.5px}.rm b{margin-right:6px}"
+      + ".for{text-align:right;margin-top:30px;font-size:12px}.for b{font-weight:800}"
+      + ".sig{height:78px}.chem{text-align:right;font-size:12px;font-weight:700}.chem small{display:block;font-weight:400;font-size:10.5px;color:#333}.dt2{text-align:right;margin-top:8px;font-size:11px}.dt2 b{font-weight:800}"
+      + ".ft{position:absolute;left:0;right:0;bottom:0;border-top:1px solid #000;padding-top:6px;font-size:9.5px;line-height:1.55}.ft b{display:inline-block;width:110px;color:" + a + ";font-weight:800}"
+      + "@page{margin:0}@media print{body{padding:10mm}}";
+    var body = '<div class="sheet">'
+      + '<div class="lh">' + (f.logo ? logoImg(f, 64) : '') + '<div class="mid"><div class="cn">' + esc(s.name) + '</div>' + (s.product ? '<div class="tg">' + esc(s.product) + '</div>' : '') + '</div>'
+      + '<div class="ct">' + (tel ? 'Contact : +91 ' + esc(tel) : '') + (s.email ? '<br>e-mail : ' + esc(s.email) : '') + '</div></div>'
+      + '<div class="meta"><div class="to"><div class="t">To,</div><div class="n">' + esc(b.name) + '</div>' + (b.address ? '<div class="ad">' + esc(b.address) + '</div>' : '') + '</div>'
+      + '<div class="ref"><div><b>Bill No.:</b> ' + esc(d.inv) + '<span class="dt"><b>Dt.:</b> ' + esc(fdate(d.date)) + '</span></div>'
+      + '<div><b>Truck No.:</b> ' + esc(d.veh || '') + '</div>'
+      + (d.po ? '<div><b>P.O. No.:</b> ' + esc(d.po) + (d.poDate ? '<span class="dt"><b>Dt.:</b> ' + esc(fdate(d.poDate)) + '</span>' : '') + '</div>' : '') + '</div></div>'
+      + '<div class="ttl">' + esc(d.title || (d.product + ' Analysis Report')) + '</div>'
+      + '<div class="tw">' + (f.logo ? '<div class="wm">' + logoImg(f, 260, 'opacity:.08;max-width:460px') + '</div>' : '')
+      + '<table class="qa"><tr><th style="width:46%">Particulars</th><th>Result</th></tr>'
+      + params.map(function (p) { return '<tr><td class="p">' + esc(p.label) + '</td><td class="v">' + esc(String(p.value).trim()) + (p.unit ? ' ' + esc(p.unit) : '') + '</td></tr>'; }).join('')
+      + '</table></div>'
+      + (d.remarks ? '<div class="rm"><b>Remarks:</b>' + esc(d.remarks) + '</div>' : '')
+      + '<div class="for">For <b>' + esc(s.name) + '</b></div><div class="sig"></div>'
+      + '<div class="chem">Chief Chemist' + (d.chemist ? '<small>' + esc(d.chemist) + '</small>' : '') + '</div>'
+      + '<div class="dt2">Date: <b>' + esc(dot(d.reportDate || d.date)) + '</b></div>'
+      + '<div class="ft"><b>REGD. ADDRESS</b>: ' + esc(String(s.address || '').replace(/\n/g, ', ')) + (s.unitAddress ? '<br><b>UNIT ADDRESS</b>: ' + esc(s.unitAddress) : '') + '</div>'
+      + '</div>';
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(d.title || 'Analysis Report') + ' — ' + esc(s.short || s.name || '') + '</title><style>' + PRINT + css + '</style></head><body>' + body + '</body></html>';
+  }
+
   var TEMPLATES = [
     { id: 'gst',     name: 'GST Invoice (print format)', category: 'In use now', accentable: false, despatch: true,
       desc: 'Your billing software\'s format, line for line — logo, Tel., Transport / Station / GR-RR, party contact lines, Terms & Conditions, Receiver\'s Signature.', render: gst },
@@ -560,7 +617,7 @@
     return get(c.template).render(d, c);
   }
 
-  var API = { TEMPLATES: TEMPLATES, DEFAULT_CFG: DEFAULT_CFG, cfgOf: cfgOf, get: get, render: render, facts: facts };
+  var API = { TEMPLATES: TEMPLATES, DEFAULT_CFG: DEFAULT_CFG, cfgOf: cfgOf, get: get, render: render, facts: facts, qaReport: qaReport };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.InvoiceTemplates = API;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1595,6 +1595,47 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     w.document.close();
   }
 
+  /* ── Quality analysis report (certificate of analysis) per dispatch ──
+     The parameter set follows the product (quick lime vs hydrated lime); every
+     value starts EMPTY and only what the lab reported is saved and printed. */
+  const QA_SETS = {
+    hydrated: [['Ca(OH)2', '%'], ['CaO', '%'], ['SiO2', '%'], ['Moisture', '%'], ['Residue on 325 mesh', '%']],
+    lime:     [['CaO', '%'], ['MgO', '%'], ['SiO2', '%'], ['LOI', '%'], ['Reactivity', '']]
+  };
+  function qaSetFor(product) { return /hydrat|chuna/i.test(product || '') ? QA_SETS.hydrated : QA_SETS.lime; }
+  function openQAForm(idx, andPrint) {
+    const Q = window.QLD, s = Q && Q.state.SALES[idx]; if (!s) return;
+    const qa = s.qa || {}, set = qaSetFor(s.product), have = {};
+    (qa.params || []).forEach(p => { have[p.label] = p; });
+    const specs = [{ type: 'section', label: 'Lab results — leave blank whatever was not tested' }];
+    const init = { title: qa.title || ((s.product || 'Quick Lime') + ' Analysis Report'), chemist: qa.chemist || '', date: qa.date || s.date || '', po: qa.po || '', poDate: qa.poDate || '', remarks: qa.remarks || '' };
+    set.forEach(([label, unit], i) => { specs.push({ k: 'p' + i, label: label + (unit ? ' (' + unit + ')' : '') }); init['p' + i] = have[label] ? have[label].value : ''; });
+    specs.push({ k: 'xl', label: 'Other parameter' }, { k: 'xv', label: 'Its result' });
+    const extra = (qa.params || []).find(p => !set.some(([l]) => l === p.label)); if (extra) { init.xl = extra.label; init.xv = extra.value; }
+    specs.push({ type: 'section', label: 'Report' },
+      { k: 'title', label: 'Report title', full: true },
+      { k: 'po', label: 'P.O. No.' }, { k: 'poDate', label: 'P.O. date', type: 'date' },
+      { k: 'chemist', label: 'Chief Chemist (name)' }, { k: 'date', label: 'Report date', type: 'date' },
+      { k: 'remarks', label: 'Remarks', type: 'textarea', full: true });
+    openForm({ title: 'Quality analysis report', sub: (s.party || '') + ' · Bill ' + (s.inv || ''), specs, initial: init, saveLabel: andPrint ? 'Save & print' : 'Save',
+      onSave(v) {
+        const params = set.map(([label, unit], i) => ({ label, value: String(v['p' + i] || '').trim(), unit })).filter(p => p.value !== '');
+        if (String(v.xl || '').trim() && String(v.xv || '').trim()) params.push({ label: String(v.xl).trim(), value: String(v.xv).trim(), unit: '' });
+        if (!params.length) { toast('Enter at least one lab result', 'err'); return false; }
+        Q.setSaleQA(idx, { title: v.title, params, chemist: v.chemist, date: v.date, po: v.po, poDate: v.poDate, remarks: v.remarks });
+        toast('Quality report saved', 'ok');
+        if (andPrint) printQA(idx, true);
+      } });
+  }
+  function qaHTML(idx) { const T = window.InvoiceTemplates, d = window.QLD && window.QLD.qaData ? window.QLD.qaData(idx) : null; return (T && T.qaReport && d) ? T.qaReport(d, {}) : ''; }
+  /* No results yet → the form, not a blank certificate. */
+  function printQA(idx, skipForm) {
+    const html = qaHTML(idx);
+    if (!html) { if (skipForm) toast('No lab results to print'); else { toast('Enter the lab results first'); openQAForm(idx, true); } return; }
+    const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups to print the report'); return; }
+    w.document.write(html); w.document.close();
+  }
+
   /* ── Row action menu (table kebabs) ──────────────────────────── */
   const RICO = {
     edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>',
@@ -1612,7 +1653,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
       confirmDelete({ title: 'Move ' + what + ' to Trash?', desc: (extra ? extra + ' — ' : '') + 'It will be removed from active records and kept for 90 days. Restore anytime from Settings → Data Management → Trash.',
         onConfirm(reason) { fn(reason); refresh('Moved to Trash'); } });
     } });
-    if (type === 'sale') { const r = Q.state.SALES[idx]; const it = [{ label: 'Print invoice', icon: RICO.print, onClick: () => printInvoice(idx) }, { label: 'Edit invoice', icon: RICO.edit, onClick: () => openSaleForm(idx) }]; if ((r.status || 'pending') !== 'paid') it.push({ label: 'Mark paid', icon: RICO.pay, onClick: () => openPaymentForm('sale', idx) }); it.push(del('invoice ' + (r.inv || ''), reason => Q.deleteSale(idx, reason), (r.party || '') + (r.date ? ' · ' + r.date : ''))); return it; }
+    if (type === 'sale') { const r = Q.state.SALES[idx]; const it = [{ label: 'Print invoice', icon: RICO.print, onClick: () => printInvoice(idx) }, { label: 'Quality report', icon: RICO.print, onClick: () => printQA(idx) }, { label: 'Edit invoice', icon: RICO.edit, onClick: () => openSaleForm(idx) }]; if ((r.status || 'pending') !== 'paid') it.push({ label: 'Mark paid', icon: RICO.pay, onClick: () => openPaymentForm('sale', idx) }); it.push(del('invoice ' + (r.inv || ''), reason => Q.deleteSale(idx, reason), (r.party || '') + (r.date ? ' · ' + r.date : ''))); return it; }
     if (type === 'purchase') { const r = Q.state.PURCHASES[idx]; const it = [{ label: 'Edit bill', icon: RICO.edit, onClick: () => openPurchaseForm(idx) }]; if ((r.status || 'pending') !== 'paid') it.push({ label: 'Mark paid', icon: RICO.pay, onClick: () => openPaymentForm('purchase', idx) }); it.push(del('bill ' + (r.bill || ''), reason => Q.deletePurchase(idx, reason), r.sup || r.name || '')); return it; }
     if (type === 'party') { const r = Q.state.PARTIES[idx]; return [{ label: 'Edit party', icon: RICO.edit, onClick: () => openPartyForm(idx) }, del('party ' + (r.name || ''), reason => Q.deleteParty(idx, reason))]; }
     if (type === 'worker') { const r = Q.state.WORKERS[idx]; return [{ label: 'Edit worker', icon: RICO.edit, onClick: () => openWorkerForm(idx) }, del('worker ' + (r.name || ''), reason => Q.deleteWorker(idx, reason))]; }
@@ -2666,7 +2707,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
     // form modals + row action menus
     closeModal, openForm, gstinLookup, gstinHint, panel, confirmDelete, addCompany: addCompanyFlow, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
-    rowMenu, printInvoice, exportCSV, csvCell, csvRow, downloadCSV,
+    rowMenu, printInvoice, printQA, openQAForm, qaHTML, exportCSV, csvCell, csvRow, downloadCSV,
     // THE month picker — every page's calendar. See monthPicker() above.
     monthButton, monthPicker, closeMonthPicker, periodFilter,
     _comboFilter, _comboFocus, _comboBlur, _comboPick, _comboKey,
