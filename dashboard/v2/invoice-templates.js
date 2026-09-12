@@ -272,7 +272,7 @@
     var css = "body{font-family:" + FONT + ";color:#000;font-size:10.5px;line-height:1.35;padding:20px;background:#fff}"
       + ".inv{max-width:820px;margin:0 auto;border:1px solid #000}.row{display:flex}.bb{border-bottom:1px solid #000}.br{border-right:1px solid #000}"
       + ".hd{position:relative;text-align:center;padding:9px 130px 7px}"
-      + ".orig{position:absolute;top:5px;right:10px;font-style:italic;font-size:10.5px}.lg{position:absolute;top:12px;left:16px}"
+      + ".orig{position:absolute;top:5px;right:10px;font-style:italic;font-size:10.5px}.lg{position:absolute;top:16px;left:18px}"
       + ".gi{display:inline-block;font-weight:700;font-size:11px;border-bottom:1px solid #000;line-height:1.1;padding-bottom:1px}"
       + ".cn{font-weight:700;font-size:25px;letter-spacing:.3px;line-height:1.15;margin-top:3px}"
       + ".ad{font-size:11px;text-transform:uppercase;line-height:1.3;margin-top:1px}"
@@ -318,7 +318,7 @@
       : '';
 
     var body = '<div class="inv">'
-      + '<div class="hd bb"><div class="orig">Original Copy</div>' + (f.logo ? '<div class="lg">' + logoImg(f, 86) + '</div>' : '')
+      + '<div class="hd bb"><div class="orig">Original Copy</div>' + (f.logo ? '<div class="lg">' + logoImg(f, 64) + '</div>' : '')
       + '<div><span class="gi">GST INVOICE</span></div><div class="cn">' + esc(s.name) + '</div>'
       + '<div class="ad">' + String(s.address || '').split(/\n/).map(esc).join('<br>') + '</div>'
       + '<div class="gs">GSTIN : ' + esc(s.gstin || '') + '</div>'
