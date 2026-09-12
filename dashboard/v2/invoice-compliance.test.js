@@ -164,8 +164,6 @@ for (const t of T.TEMPLATES) {
   ok(!html.includes('<script>alert(1)</script>'), t.id + ' — buyer name is injected UNESCAPED (XSS into the invoice)');
 }
 
-/* The default must remain the format Gotan already issues. Changing it silently
-   restyles every future invoice — that is a decision for the user, not a deploy. */
 /* The default and the fallback are the firm's own print format. `classic` was
    retired on 2026-09-12 at the owner's explicit instruction ("remove classic
    current this is very bad design") — this guard used to pin classic so an
