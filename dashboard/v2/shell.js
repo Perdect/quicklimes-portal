@@ -1352,13 +1352,24 @@
     let id = '';
     try { id = localStorage.getItem(invoiceTemplateKey()) || ''; } catch (_) {}
     // An unknown id (renamed/removed template) must fall back, never render blank.
-    if (T && T.TEMPLATES.some(t => t.id === id)) return id;
-    /* Nothing picked on this device: a firm may name its own format on its
-       profile (Deshwali's invoiceTemplate is the exact-print 'gst'), so its
-       invoices come out right on every device without a per-browser choice.
-       Gotan names none and keeps 'classic' — the default does not change. */
+    const known = x => !!(T && x && T.TEMPLATES.some(t => t.id === x));
+    /* A firm may name its own format on its profile (Deshwali's invoiceTemplate
+       is the exact-print 'gst'), so its invoices come out right on every device.
+       Gotan names none and keeps 'classic' — the default does not change.
+
+       Precedence, and why:
+         '!id'      an EXPLICIT pick made in the design picker — always wins.
+         'id'       a legacy value from before picks were marked. 'classic' was
+                    the only default that ever existed, so a stored bare
+                    'classic' is what every browser carried by default, not a
+                    decision against the firm's own format — the firm's wins.
+                    Any other bare id was a real choice and stays.
+         nothing    the firm's declared format, else 'classic'. */
     const own = (window.QLD && window.QLD.co && window.QLD.co.invoiceTemplate) || '';
-    return (T && own && T.TEMPLATES.some(t => t.id === own)) ? own : 'classic';
+    if (id.charAt(0) === '!') { const x = id.slice(1); return known(x) ? x : (known(own) ? own : 'classic'); }
+    if (id === 'classic' && known(own)) return own;
+    if (known(id)) return id;
+    return known(own) ? own : 'classic';
   }
 
   function invoiceHTML(d) {
@@ -2600,7 +2611,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     setInvoiceTemplate(id) {
       const T = window.InvoiceTemplates;
       if (!T || !T.TEMPLATES.some(t => t.id === id)) return false;
-      try { localStorage.setItem(invoiceTemplateKey(), id); } catch (_) {}
+      try { localStorage.setItem(invoiceTemplateKey(), '!' + id); } catch (_) {}   // '!' = an explicit pick, see invoiceTemplateId
       return true;
     },
 
