@@ -30,7 +30,7 @@ const SALE = {
   seller: {
     name: 'DESHWALI MINERALS', short: 'Deshwali Minerals',
     address: 'GROUND FLOOR, KALI TALAI\nNEAR HAFIZ SAHAB KI DRAGHA, MERTA CITY, DISTRICT-NAGAUR',
-    state: 'Rajasthan (08)', gstin: '08NLIPS9801K1Z5', phone: '9460767676', tel: '9460034743,9610099006',
+    state: 'Rajasthan (08)', gstin: '08NLIPS9801K1Z5', phone: '9460767676', tel: '8875020202, 9460767676',
     product: 'Manufactures of Quick Lime and Hydrated Lime.', logo: '/v2/deshwali-logo.png', jurisdiction: 'MERTA CITY',
     bank: 'HDFC Bank', bankBranch: 'Merta City', accNo: '50200089605146', ifsc: 'HDFC0002670',
     terms: ['Goods once sold will not be taken back.',
@@ -73,7 +73,9 @@ has('copy marker', 'Original Copy');
 has('the logo', '/v2/deshwali-logo.png');
 has('firm name', 'DESHWALI MINERALS');
 has('GSTIN line', 'GSTIN : 08NLIPS9801K1Z5');
-has('Tel. line with both numbers, as printed', 'Tel. : 9460034743,9610099006');
+has('Tel. line with both numbers the owner asked for', 'Tel. : 8875020202, 9460767676');
+ok('the seed in data.js carries the same Tel. line', /tel: '8875020202, 9460767676'/.test(src));
+ok('the logo is an absolute URL when rendered in a browser (self-contained sheet)', (function () { global.location = { origin: 'https://app.quicklimes.com' }; const h = T.render(SALE, { template: 'gst' }); delete global.location; return h.includes('src="https://app.quicklimes.com/v2/deshwali-logo.png"'); })());
 has('tagline', 'Manufactures of Quick Lime and Hydrated Lime.');
 has('address breaks where the paper breaks it', 'GROUND FLOOR, KALI TALAI<br>NEAR HAFIZ SAHAB KI DRAGHA, MERTA CITY, DISTRICT-NAGAUR');
 ok('the subtotal sits in the totals table under the rule, in the Amount column', /<tr class="st">(<td><\/td>){6}<td class="r amt">79,992\.00<\/td>/.test(html));

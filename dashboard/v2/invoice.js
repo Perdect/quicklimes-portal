@@ -164,7 +164,31 @@ function render() {
   updatePreview();
   QLShell.paintWorkspace && QLShell.paintWorkspace();
 }
+/* GSTIN → fill. Type the 15 characters: the State from the code, the name /
+   address / mobile from a customer we already know, or from the GST lookup when
+   a key is configured (QLShell.gstinLookup). Never overwrites what was typed;
+   flags a wrong check digit under the field instead of letting it print. */
+let _gstinSeq = 0;
+async function gstinAssist(val) {
+  const el = document.getElementById('i_bgst'); if (!el) return;
+  let hint = document.getElementById('i_bgst_hint');
+  if (!hint) { hint = document.createElement('div'); hint.id = 'i_bgst_hint'; hint.style.cssText = 'font-size:11.5px;line-height:1.35;margin-top:4px;min-height:1.2em;color:var(--ql-text-muted)'; el.parentNode.appendChild(hint); }
+  const x = window.QLParty ? QLParty.normGstin(val) : String(val || '').toUpperCase();
+  hint.style.color = 'var(--ql-text-muted)'; hint.textContent = '';
+  if (x.length !== 15 || !QLShell.gstinLookup) return;
+  const my = ++_gstinSeq; hint.textContent = 'Checking GSTIN…';
+  const r = await QLShell.gstinLookup(x); if (my !== _gstinSeq) return;
+  const fill = (id, v) => { const f = document.getElementById(id); if (f && v && !String(f.value || '').trim()) f.value = v; };
+  if (r.valid) {
+    fill('i_bstate', r.state);
+    if (r.party) { fill('i_bname', r.party.name); fill('i_baddr', r.party.address); fill('i_bphone', r.party.phone); }
+    const m = r.remote; if (m && m.lookup === 'ok') { fill('i_bname', m.trade || m.name); fill('i_baddr', m.address); }
+  }
+  const h = QLShell.gstinHint(r); hint.textContent = h.text; hint.style.color = h.tone === 'bad' ? 'var(--ql-danger-600)' : 'var(--ql-text-muted)';
+  schedulePreview();
+}
 function onInput(e) {
+  if (e.target.id === 'i_bgst') gstinAssist(e.target.value);
   // when a known customer is picked, auto-fill GSTIN / address / state
   if (e.target.id === 'i_bname') {
     const p = Q.partyRows().find(x => (x.name || '').toUpperCase() === e.target.value.trim().toUpperCase());

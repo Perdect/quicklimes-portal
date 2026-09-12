@@ -119,7 +119,23 @@
     return order.map(function (k) { return out[k]; });
   }
 
-  var API = { normGstin: normGstin, normName: normName, index: index, group: group };
+  /* GSTIN check digit. The 15th character is a mod-36 checksum over the first
+     14 (weights 1,2,1,2…; each product's base-36 digits are summed), so a
+     GSTIN that LOOKS right with one mistyped character fails here — at the
+     field, not on a filed return. Verified against the firm's own GSTINs. */
+  var B36 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  function gstinCheck(g) {
+    var x = normGstin(g);
+    if (x.length !== 15) return { ok: false, reason: 'length', gstin: x };
+    var sc = +x.slice(0, 2);
+    if (!/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/.test(x) || sc < 1 || (sc > 38 && sc !== 97)) return { ok: false, reason: 'format', gstin: x };
+    var s = 0;
+    for (var i = 0; i < 14; i++) { var v = B36.indexOf(x.charAt(i)), p = v * (i % 2 ? 2 : 1); s += Math.floor(p / 36) + (p % 36); }
+    var ok = B36.charAt((36 - (s % 36)) % 36) === x.charAt(14);
+    return { ok: ok, reason: ok ? '' : 'checksum', gstin: x, pan: x.slice(2, 12), stateCode: x.slice(0, 2) };
+  }
+
+  var API = { normGstin: normGstin, normName: normName, index: index, group: group, gstinCheck: gstinCheck };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.QLParty = API;
 })(typeof window !== 'undefined' ? window : globalThis);

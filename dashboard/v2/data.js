@@ -139,7 +139,7 @@
          invoiceTemplate — the exact-print format is its default design.
          roundOff:false  — that invoice totals 83,991.60, not 83,992: the firm
                  does not round to the rupee, and its GSTR-1 carries the paise. */
-      tel: '9460034743,9610099006', logo: '/v2/deshwali-logo.png',
+      tel: '8875020202, 9460767676', logo: '/v2/deshwali-logo.png',   // as the owner asked, 12-09-2026
       terms: ['Goods once sold will not be taken back.',
               'Interest @ 18% p.a. will be charged if the payment is not made with in the 30days.',
               "Subject to 'MERTA CITY' Jurisdiction only."],

@@ -1343,6 +1343,73 @@
      so it is a deliberate next step rather than a smuggled one.
      Defaults to 'classic' — the format Gotan already issues. Nothing restyles
      until someone picks. */
+  /* ── GSTIN → auto-fill ──
+     Type the 15 characters and the form fills itself the way the big platforms
+     do, from three sources in order: the State from the code (always), the
+     name / address / phone of a customer we already know (our own records),
+     and the registered name / address from the GST lookup when a key is
+     configured on the server (api/gstin.php). The check digit is verified
+     first, so a mistyped GSTIN is flagged at the field. Nothing already typed
+     is overwritten. */
+  async function gstinLookup(g) {
+    const P = window.QLParty || null;
+    const x = P ? P.normGstin(g) : String(g || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const chk = (P && P.gstinCheck) ? P.gstinCheck(x) : { ok: x.length === 15, reason: x.length === 15 ? '' : 'length' };
+    const Q = window.QLD || null;
+    const state = (Q && Q.stateOfGstin) ? Q.stateOfGstin(x) : '';
+    let party = null;
+    if (chk.ok && Q && Q.partyRows) { try { party = Q.partyRows().find(p => (P ? P.normGstin(p.gstin) : String(p.gstin || '').toUpperCase()) === x) || null; } catch (_) { party = null; } }
+    let remote = null;
+    if (chk.ok) {
+      try {
+        let tok = ''; try { tok = (JSON.parse(localStorage.getItem('ql_plant') || 'null') || {}).token || ''; } catch (_) {}
+        const r = await fetch('/api/gstin.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tok, gstin: x }) });
+        remote = await r.json();
+      } catch (_) { remote = null; }
+    }
+    return { gstin: x, valid: !!chk.ok, reason: chk.reason || '', state, party, remote };
+  }
+  /* One sentence under the field, honest about which source answered. */
+  function gstinHint(r) {
+    if (!r.valid) {
+      if (r.reason === 'checksum') return { tone: 'bad', text: '✗ Check digit does not match — one character is probably mistyped' };
+      if (r.reason === 'format')   return { tone: 'bad', text: '✗ Not a GSTIN: 2 digits, 5 letters, 4 digits, a letter, a digit, Z, a character' };
+      return { tone: 'muted', text: '' };
+    }
+    const m = r.remote || {};
+    const who = r.party ? r.party.name + ' — already your customer'
+      : m.lookup === 'ok' ? ((m.trade || m.name) + (m.status ? ' · ' + m.status : ''))
+      : m.lookup === 'unconfigured' ? 'name & address auto-fill needs a GST lookup key (not configured yet)'
+      : m.lookup === 'not_found' ? 'not found on the GST lookup'
+      : m.lookup === 'error' ? 'GST lookup unavailable right now' : '';
+    return { tone: 'ok', text: '✓ ' + [r.state, who].filter(Boolean).join(' · ') };
+  }
+  /* Any openForm with a GSTIN field gets the behaviour — the customer form, the
+     importers — without each page wiring it. Fills qf_name / qf_address /
+     qf_state / qf_phone only where they are empty. */
+  function wireGstinAutofill() {
+    const g = document.getElementById('qf_gstin'); if (!g || g.dataset.gstinWired) return;
+    g.dataset.gstinWired = '1';
+    const hint = document.createElement('div'); hint.className = 'qlf-hint';
+    hint.style.cssText = 'font-size:11.5px;line-height:1.35;margin-top:4px;min-height:1.2em;color:var(--ql-text-muted)';
+    g.insertAdjacentElement('afterend', hint);
+    let seq = 0;
+    g.addEventListener('input', async () => {
+      const x = (window.QLParty ? QLParty.normGstin(g.value) : g.value.toUpperCase());
+      hint.style.color = 'var(--ql-text-muted)'; hint.textContent = '';
+      if (x.length !== 15) return;
+      const my = ++seq; hint.textContent = 'Checking GSTIN…';
+      const r = await gstinLookup(x); if (my !== seq) return;
+      const fill = (k, v) => { const el = document.getElementById('qf_' + k); if (el && v && !String(el.value || '').trim()) el.value = v; };
+      if (r.valid) {
+        fill('state', r.state);
+        if (r.party) { fill('name', r.party.name); fill('address', r.party.address); fill('phone', r.party.phone); }
+        const m = r.remote; if (m && m.lookup === 'ok') { fill('name', m.trade || m.name); fill('address', m.address); }
+      }
+      const h = gstinHint(r); hint.textContent = h.text; hint.style.color = h.tone === 'bad' ? 'var(--ql-danger-600)' : 'var(--ql-text-muted)';
+    });
+  }
+
   function invoiceTemplateKey() {
     const co = (window.QLD && window.QLD.co && window.QLD.co.key) || 'default';
     return 'ql_inv_tpl_' + co;
@@ -2589,7 +2656,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     setBreadcrumb(label) { const c = document.querySelector('.tb-crumb-active'); if (c) c.textContent = label; },
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
     // form modals + row action menus
-    closeModal, openForm, panel, confirmDelete, addCompany: addCompanyFlow, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
+    closeModal, openForm(cfg) { const r = openForm(cfg); try { wireGstinAutofill(); } catch (_) {} return r; }, gstinLookup, gstinHint, panel, confirmDelete, addCompany: addCompanyFlow, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
     rowMenu, printInvoice, exportCSV, csvCell, csvRow, downloadCSV,
     // THE month picker — every page's calendar. See monthPicker() above.
     monthButton, monthPicker, closeMonthPicker, periodFilter,

@@ -44,8 +44,8 @@
     "sha": "cde317cbde9b"
   },
   "party-identity.js": {
-    "v": "m27",
-    "sha": "a3eec586e482"
+    "v": "m28",
+    "sha": "60ecd103f2be"
   },
   "import-guard.js": {
     "v": "m28",
@@ -56,8 +56,8 @@
     "sha": "2b271ee5c6b3"
   },
   "data.js": {
-    "v": "m52caaaaaaaa",
-    "sha": "42038b95eadc"
+    "v": "m52caaaaaaaaa",
+    "sha": "220d28cdeebc"
   },
   "party-link.js": {
     "v": "pl1p",
@@ -72,8 +72,8 @@
     "sha": "14462b5adbf8"
   },
   "shell.js": {
-    "v": "m68saaaaaaaaaaa",
-    "sha": "55b69b8a5e1a"
+    "v": "m68saaaaaaaaaaaa",
+    "sha": "2a722ddad91e"
   },
   "chat-core.js": {
     "v": "cc2",
@@ -208,12 +208,12 @@
     "sha": "3f43f33c9bb3"
   },
   "invoice-templates.js": {
-    "v": "t4",
-    "sha": "e744d265cd74"
+    "v": "t5",
+    "sha": "9444f0fade58"
   },
   "invoice.js": {
-    "v": "tpl2",
-    "sha": "919b581f7000"
+    "v": "tpl3",
+    "sha": "a49b697226f4"
   },
   "labour.js": {
     "v": "m2",
