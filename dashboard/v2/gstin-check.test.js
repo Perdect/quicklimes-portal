@@ -48,7 +48,7 @@ ok('JS and PHP state tables are identical (' + jsPairs.length + ' codes)', jsPai
 const shell = fs.readFileSync(path.join(__dirname, 'shell.js'), 'utf8');
 const inv = fs.readFileSync(path.join(__dirname, 'invoice.js'), 'utf8');
 ok('QLShell exports gstinLookup and gstinHint', /\bgstinLookup, gstinHint,/.test(shell));
-ok('every openForm wires the GSTIN auto-fill', /openForm\(cfg\) \{ const r = openForm\(cfg\); try \{ wireGstinAutofill\(\); \}/.test(shell));
+ok('every openForm — internal callers included — wires the GSTIN auto-fill', /function openForm\(cfg\) \{ const r = openFormInner\(cfg\); try \{ wireGstinAutofill\(\); \}/.test(shell) && !/openForm\(cfg\) \{ const r = openForm\(cfg\)/.test(shell));
 ok('the form wiring fills only EMPTY fields (never overwrites typing)', /if \(el && v && !String\(el\.value \|\| ''\)\.trim\(\)\) el\.value = v;/.test(shell));
 ok('the invoice form wires i_bgst to the assist', /if \(e\.target\.id === 'i_bgst'\) gstinAssist\(e\.target\.value\);/.test(inv));
 ok('the invoice assist fills only EMPTY fields too', /if \(f && v && !String\(f\.value \|\| ''\)\.trim\(\)\) f\.value = v;/.test(inv));

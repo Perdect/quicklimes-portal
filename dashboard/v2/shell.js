@@ -1003,7 +1003,11 @@
     }
     return out;
   }
-  function openForm(cfg) {
+  /* Every openForm — called from inside the shell or through QLShell — passes
+     here, so a GSTIN field is wired wherever one appears. Wrapping only the
+     export missed openPartyForm & co., which call the inner function directly. */
+  function openForm(cfg) { const r = openFormInner(cfg); try { wireGstinAutofill(); } catch (_) {} return r; }
+  function openFormInner(cfg) {
     const specs = cfg.specs, init = cfg.initial || {};
     const grid = specs.map(f => fieldHTML(f, init[f.k])).join('');
     $('qlModal').classList.toggle('wide', !!cfg.wide);
@@ -2656,7 +2660,7 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     setBreadcrumb(label) { const c = document.querySelector('.tb-crumb-active'); if (c) c.textContent = label; },
     setNotifDot(on) { const d = $('tbNotifDot'); if (d) d.style.display = on ? '' : 'none'; },
     // form modals + row action menus
-    closeModal, openForm(cfg) { const r = openForm(cfg); try { wireGstinAutofill(); } catch (_) {} return r; }, gstinLookup, gstinHint, panel, confirmDelete, addCompany: addCompanyFlow, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
+    closeModal, openForm, gstinLookup, gstinHint, panel, confirmDelete, addCompany: addCompanyFlow, openSaleForm, openPurchaseForm, openPartyForm, openWorkerForm, openCashForm, openChunnaForm, openTdsForm, openPaymentForm,
     rowMenu, printInvoice, exportCSV, csvCell, csvRow, downloadCSV,
     // THE month picker — every page's calendar. See monthPicker() above.
     monthButton, monthPicker, closeMonthPicker, periodFilter,
