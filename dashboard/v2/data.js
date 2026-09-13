@@ -147,7 +147,10 @@
       /* From the IEC certificate (DGFT, issued 29-08-2026: proprietorship, IEC =
          PAN) and the firm's own export invoice EI/2026-27/01. A proprietorship
          has no CIN — the header prints one only for a firm that carries `cin`. */
-      iec: 'NLIPS9801K', lut: 'AD080826023319U', email: 'deshwaliminerals@gmail.com', upi: '8875020202@hdfcbank'
+      iec: 'NLIPS9801K', lut: 'AD080826023319U', email: 'deshwaliminerals@gmail.com', upi: '8875020202@hdfcbank',
+      /* The kiln at Borunda — printed on every bill as UNIT ADDRESS next to the
+         registered office (owner, 13-09-2026, verbatim). */
+      unitAddress: 'Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'
     },
     '08BNAPM0488E1Z3': {
       address: 'TALANPUR ROAD ,SH 86B,, CHANDRA TYRE RETREADING GOTAN, DISTRICT -NAGAUR',
@@ -182,7 +185,7 @@
       bank2: seller.bank2 || '', bankBranch2: seller.bankBranch2 || '', accNo2: seller.accNo2 || '', ifsc2: seller.ifsc2 || '',
       product: seller.product || '', msme: seller.msme || '', logo: seller.logo || '', jurisdiction: seller.jurisdiction || '',
       tel: seller.tel || '', terms: seller.terms || [], invoiceTemplate: seller.invoiceTemplate || '', roundOff: seller.roundOff !== false,
-      iec: seller.iec || '', lut: seller.lut || '', cin: seller.cin || '', upi: seller.upi || '', hsn: HSN,
+      iec: seller.iec || '', lut: seller.lut || '', cin: seller.cin || '', upi: seller.upi || '', unitAddress: seller.unitAddress || '', hsn: HSN,
       isPrimary: !p.parent_plant_id,
       dataKey: 'ql_data_' + p.id
     };

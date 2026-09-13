@@ -56,8 +56,8 @@
     "sha": "2b271ee5c6b3"
   },
   "data.js": {
-    "v": "m52caaaaaaaaaaaa",
-    "sha": "a793274aeeda"
+    "v": "m52caaaaaaaaaaaaa",
+    "sha": "ff7159ef8b65"
   },
   "party-link.js": {
     "v": "pl1p",
@@ -72,8 +72,8 @@
     "sha": "14462b5adbf8"
   },
   "invoice-templates.js": {
-    "v": "t12",
-    "sha": "2956057e7437"
+    "v": "t14",
+    "sha": "c79ae81cde10"
   },
   "shell.js": {
     "v": "m68saaaaaaaaaaaaaaaa",

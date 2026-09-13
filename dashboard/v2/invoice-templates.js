@@ -116,7 +116,7 @@
          print format shows them; the others read what they always read. */
       transport: d.transport || '', station: d.station || '', grrr: d.grrr || '',
       tel: s.tel || s.phone || '',
-      iec: s.iec || '', cin: s.cin || '', lut: s.lut || '', pan: (String(s.gstin || '').length === 15 ? String(s.gstin).slice(2, 12) : ''),
+      iec: s.iec || '', cin: s.cin || '', lut: s.lut || '', unitAddr: s.unitAddress || '', pan: (String(s.gstin || '').length === 15 ? String(s.gstin).slice(2, 12) : ''),
       bPhone: b.phone || '', bEmail: b.email || '', bState: b.state || '',
       signatory: cfg.signatory || s.name || '',
       /* The default declaration is what Gotan's paper invoice actually prints —
@@ -249,7 +249,8 @@
       + ".sg{width:56%;display:flex;flex-direction:column}.rs{padding:5px 6px;font-weight:700;font-size:9.5px;border-bottom:1px solid #000;min-height:44px}"
       + ".sf{flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:8px 8px 6px}"
       + ".sf .for{text-align:right;font-weight:700;font-size:12.5px}.sf .as{text-align:right;font-weight:700;font-size:12px;margin-top:38px}"
-      + ".qr{text-align:left}.qrc{font-size:9px}";
+      + ".qr{text-align:left}.qrc{font-size:9px}"
+      + ".ua{border-top:1px solid #000;padding:5px 8px;font-size:9.5px;line-height:1.5}.ua b{display:inline-block;width:104px;font-weight:700}";
 
     var kv = function (k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="c">:</span><span class="v">' + esc(v) + '</span></div>'; };
     var COLS = '<colgroup><col style="width:34px"><col><col style="width:72px"><col style="width:58px"><col style="width:54px"><col style="width:78px"><col style="width:98px"></colgroup>';
@@ -294,6 +295,7 @@
       + (f.cfg.footerNote ? '<div style="margin-top:6px;font-size:10px">' + esc(f.cfg.footerNote) + '</div>' : '') + '</div>'
       + '<div class="sg"><div class="rs">Receiver\'s Signature &nbsp;&nbsp;:</div><div class="sf">' + qrBlock(f)
       + (f.cfg.showSignature ? '<div class="for">for ' + esc(f.signatory) + '</div><div class="as">Authorised Signatory</div>' : '') + '</div></div></div>'
+      + (f.unitAddr ? '<div class="ua"><b>REGD. ADDRESS</b> : ' + esc(String(s.address || '').replace(/\n/g, ', ')) + '<br><b>UNIT ADDRESS</b> : ' + esc(f.unitAddr) + '</div>' : '')
       + '</div>';
     return doc(f, 'gst', css + '@page{margin:0}@media print{body{padding:10mm}}@media screen and (max-width:760px){.hd{padding:9px 84px 7px 104px}.lg img{height:52px!important}.cn{font-size:21px}.ad,.tg{font-size:10px}}', body);
   }
@@ -393,6 +395,7 @@
       + '<div class="band"><div><div class="ttl">Tax Invoice<small>' + (f.interState ? 'Inter-state supply · IGST' : 'Intra-state supply · CGST + SGST') + '</small></div></div>'
       + '<div class="by"><div><div class="k">Invoice by</div><div class="n">' + esc(s.name) + '</div><div class="l">' + esc(s.address || '') + '</div>'
       + (f.tagline ? '<div class="l">' + esc(f.tagline) + '</div>' : '')
+      + (f.unitAddr ? '<div class="l">Unit: ' + esc(f.unitAddr) + '</div>' : '')
       + '<div class="l"><b>GSTIN ' + esc(s.gstin || '') + '</b>' + (f.msme ? ' · MSME ' + esc(f.msme) : '') + '</div>'
       + ((f.tel || s.email) ? '<div class="l">' + esc([f.tel, s.email].filter(Boolean).join(' · ')) + '</div>' : '') + '</div>'
       + (f.logo ? logoImg(f, 46) : '') + '</div></div>'
@@ -435,6 +438,7 @@
       + '<div class="kv"><span>Invoice #</span><b>' + esc(f.inv) + '</b><span>Invoice date</span><b>' + esc(f.date) + '</b>'
       + (f.veh ? '<span>Vehicle no.</span><b>' + esc(f.veh) + '</b>' : '') + (f.eway ? '<span>E-Way Bill no.</span><b>' + esc(f.eway) + '</b>' : '') + '</div></div>'
       + '<div class="boxes"><div class="box"><h5>Invoice by</h5><div class="n">' + esc(s.name) + '</div><div class="l">' + esc(s.address || '') + '</div>'
+      + (f.unitAddr ? '<div class="l"><b>Unit</b> ' + esc(f.unitAddr) + '</div>' : '')
       + '<div class="l"><b>GSTIN</b> ' + esc(s.gstin || '') + (pan ? ' &nbsp; <b>PAN</b> ' + esc(pan) : '') + '</div>'
       + (f.msme ? '<div class="l"><b>MSME</b> ' + esc(f.msme) + '</div>' : '')
       + ((f.tel || s.email) ? '<div class="l">' + esc([f.tel, s.email].filter(Boolean).join(' · ')) + '</div>' : '') + '</div>'

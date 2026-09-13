@@ -157,6 +157,12 @@ const invPage = fs.readFileSync(path.join(__dirname, 'invoice.js'), 'utf8');
 ok('invoice.js patches the preview in place ONLY when compatMode is CSS1Compat', /doc\.compatMode === 'CSS1Compat'/.test(invPage));
 ok('the template makes tables inherit font-size (quirks-proof)', html.includes('font-size:inherit;font-family:inherit'));
 
+/* 10c ── the unit (kiln) address, on every bill, next to the registered one */
+const xu = T.render(Object.assign({}, SALE, { seller: Object.assign({}, SALE.seller, { unitAddress: 'Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601' }) }), { template: 'gst' });
+ok('gst: REGD. ADDRESS and UNIT ADDRESS strip when the firm has a unit address', xu.includes('<b>REGD. ADDRESS</b> : GROUND FLOOR, KALI TALAI, NEAR HAFIZ SAHAB KI DRAGHA, MERTA CITY, DISTRICT-NAGAUR<br><b>UNIT ADDRESS</b> : Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'));
+ok('gst: no strip for a firm without one (the paper stays as it is)', !html.includes('UNIT ADDRESS') && !html.includes('REGD. ADDRESS'));
+ok('the seed carries the unit address verbatim', /unitAddress: 'Khasra No\.1787\/7, Borunda, Jodhpur, Rajasthan, 342601'/.test(src));
+
 /* 11 ── a firm with no tel / terms of its own still renders (Gotan through this design) */
 const GOTAN = Object.assign({}, SALE, { seller: { name: 'GOTAN LIME INDUSTRIES', gstin: '08BNAPM0488E1Z3', phone: '9460767676', msme: 'UDYAM-RJ -25-0061325', address: 'GOTAN', bank: 'BANK OF BARODA', ifsc: 'BARB0MERTAC', accNo: '33580500001254', bankBranch: 'MERTA CITY' } });
 const g = T.render(GOTAN, { template: 'gst' });

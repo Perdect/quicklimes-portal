@@ -31,6 +31,7 @@ ok('a parameter WITHOUT a result is not printed (MgO)', !h.includes('MgO'));
 ok('watermark logo behind the table', /class="wm"><img src="[^"]*deshwali-logo\.png"[^>]*opacity:\.08/.test(h));
 has('For FIRM', 'For <b>DESHWALI MINERALS</b>'); has('Chief Chemist', 'Chief Chemist'); has('date dd.mm.yyyy', 'Date: <b>02.09.2026</b>');
 has('REGD. ADDRESS footer', '<b>REGD. ADDRESS</b>: GROUND FLOOR, KALI TALAI, NEAR HAFIZ SAHAB KI DRAGHA, MERTA CITY, DISTRICT-NAGAUR');
+ok('UNIT ADDRESS in the footer when the firm has one', T.qaReport(Object.assign({}, D, { seller: Object.assign({}, D.seller, { unitAddress: 'Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601' }) }), {}).includes('<b>UNIT ADDRESS</b>: Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'));
 ok('no invented values: nothing but the four results appears in the table', (h.match(/<td class="v">/g) || []).length === 4);
 ok('with NO results the renderer returns empty (the app opens the form instead)', T.qaReport(Object.assign({}, D, { params: [{ label: 'CaO', value: '', unit: '%' }] }), {}) === '' && T.qaReport(Object.assign({}, D, { params: [] }), {}) === '');
 ok('the chemist name prints under the title when given', T.qaReport(Object.assign({}, D, { chemist: 'A. Sharma' }), {}).includes('Chief Chemist<small>A. Sharma</small>'));

@@ -67,6 +67,13 @@ ok('detailed: a rounding firm gets a Round Off row', xr.includes('Round Off') &&
 const xi = T.render(Object.assign({}, DT, { interState: true, cgst: 0, sgst: 0, igst: 3999.6, buyer: Object.assign({}, D.buyer, { gstin: '27CMVPC2808M1ZK', state: 'Maharashtra (27)' }) }), { template: 'detailed' });
 ok('detailed inter-state: IGST carries the rate, CGST / SGST are dashes', xi.includes('ADD: IGST @ 5.00 %') && xi.includes('ADD: CGST</td><td>&ndash;') && xi.includes('ADD: SGST</td><td>&ndash;'));
 
+/* the unit address rides along in every design */
+const DU = Object.assign({}, DT, { seller: Object.assign({}, D.seller, { unitAddress: 'Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601' }) });
+ok('modern: Unit line in the firm block', T.render(DU, { template: 'modern' }).includes('Unit: Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'));
+ok('business: Unit line in the Invoice-by box', T.render(DU, { template: 'business' }).includes('<b>Unit</b> Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'));
+ok('detailed: UNIT ADDRESS in the footer', T.render(DU, { template: 'detailed' }).includes('<b>UNIT ADDRESS</b>: Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'));
+ok('no design prints a Unit line when the firm has none', !['modern', 'business', 'detailed'].some(id => /Unit|UNIT ADDRESS/.test(T.render(DT, { template: id }))));
+
 console.log('\n═══ the two colour designs ═══\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' DESIGN TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');
