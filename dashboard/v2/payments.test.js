@@ -72,7 +72,7 @@ vm.runInContext([
   grabLine('  let _seq = 0;').trim(),
   grabLine('function idStamp()'),
   grabLine('function fmtISO(d)'),
-  grabLine('const cS = s =>'), grabLine('const cP = p =>'),
+  grabLine('const saleTaxable = s =>'), grabLine('const saleGstRate = s =>'), grabLine('const cS = s =>'), grabLine('const cP = p =>'),
   grabLine('function cleanSup(p)'),
   grabLine('function methodToMode(m)'), grabLine('function modeToMethod(m)'),
   /* the shared "live money" predicate — a trashed/cancelled payment must leave the

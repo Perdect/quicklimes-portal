@@ -1596,7 +1596,10 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     if (!d) { toast('Invoice not found'); return; }
     const w = window.open('', '_blank');
     if (!w) { toast('Allow pop-ups to print the invoice'); return; }
-    w.document.write(invoiceHTML(d));
+    /* Through the design engine — the row menu used to write the legacy
+       invoiceHTML() here, so "Print invoice" ignored the chosen design while
+       every other path honoured it (found by review, 13-09-2026). */
+    w.document.write((window.QLShell && window.QLShell.renderInvoice) ? window.QLShell.renderInvoice(d) : invoiceHTML(d));
     w.document.close();
   }
 

@@ -26,6 +26,7 @@ for (const f of pages) {
 ok('the sweep actually covered the app (' + withShell + ' shell pages)', withShell >= 30);
 ok('sales.html — the page the owner printed from — is among them', pages.includes('sales.html'));
 const shell = fs.readFileSync(path.join(__dirname, 'shell.js'), 'utf8');
+ok('printInvoice (the row menu) goes through the design engine, not the legacy layout', /w\.document\.write\(\(window\.QLShell && window\.QLShell\.renderInvoice\) \? window\.QLShell\.renderInvoice\(d\) : invoiceHTML\(d\)\);/.test(shell));
 ok('renderInvoice still has its fallback (a page with no engine prints SOMETHING, not nothing)', /if \(!T\) return invoiceHTML\(d\);/.test(shell));
 console.log('\n═══ invoice engine on every page ═══\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));

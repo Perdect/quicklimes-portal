@@ -356,7 +356,7 @@ vm.runInContext([
   grab('function monthLabel(ym, opts)', '\n  }'),
   grab('function periodLabel(p, allLabel)', '\n  }'),
   grab('const notCancelled = x =>', '\n'),
-  grab('const cS = s =>', '\n'), grab('const cP = p =>', '\n'),
+  grab('const saleTaxable = s =>', '\n'), grab('const saleGstRate = s =>', '\n'), grab('const cS = s =>', '\n'), grab('const cP = p =>', '\n'),
   grab('const saleInter =', '\n'),
   grab('const totS =', '\n'), grab('const totP =', '\n'),
   grab('function gstSummary(period)', '\n  }'),

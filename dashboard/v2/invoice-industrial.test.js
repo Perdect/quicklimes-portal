@@ -51,6 +51,8 @@ ok('an explicit consignee replaces the fallback', hs.includes('Site Store, Beawa
 ok('core columns only when no grade / packing / bags exist', !/Grade \/ Specification|>Packing<|No\. of Bags/.test(h) && h.includes('Qty (Tonne)') && h.includes('Rate / Tonne') && h.includes('Taxable Value (₹)'));
 ok('single line printed from the sale record', h.includes('<td>25221000</td><td><b>Quick Lime</b></td>') && h.includes('<td class="r">16.16</td><td class="r">4,950.00</td><td class="r">79,992.00</td>'));
 const hm = R({ items: [{ hsn: '25221000', product: 'Quick Lime Powder', grade: 'Industrial Grade', packing: '50 KG Bags', bags: 400, qty: 20, unit: 'MT', rate: 5000, taxable: 100000 }, { hsn: '25221000', product: 'Quick Lime Lumps', qty: 10, unit: 'MT', rate: 4800, taxable: 48000 }] });
+ok('the Qty / Rate headers take the unit from the items, not the sale line', hm.includes('Qty (MT)') && hm.includes('Rate / MT'));
+ok('Product Description is floored at 150px so it stays the widest text column', hm.includes('<th style="min-width:150px">Product Description</th>'));
 ok('multi-line items with the optional columns appearing because a row has them', hm.includes('Grade / Specification') && hm.includes('>Packing<') && hm.includes('No. of Bags') && hm.includes('Quick Lime Powder') && hm.includes('Quick Lime Lumps') && hm.includes('<td>Industrial Grade</td>') && hm.includes('<td class="r">400</td>'));
 ok('thead repeats on every printed page', h.includes('.it thead{display:table-header-group}'));
 
@@ -74,13 +76,24 @@ ok('amount in words as "Indian Rupees … Only"', h.includes('<b>Indian Rupees E
 ok('no IRN / Ack / QR / e-invoice status without an IRN', !/IRN|Ack No|E-Invoice Status|qrserver|e-Invoice QR/.test(h));
 const he = R({ irn: 'abc123', ackNo: '1726', ackDt: '02-09-2026', qrData: 'signed' });
 ok('with a real IRN: status, IRN, Ack, QR area', he.includes('IRN generated') && he.includes('<b>abc123</b>') && he.includes('e-Invoice QR'));
+ok('the IRN, Ack No. and Ack Date print exactly ONCE (header carries only the status)', he.split('abc123').length - 1 === 1 && he.split('<span style="min-width:100px">Ack No.</span>').length - 1 === 1 && !/<span>IRN<\/span>/.test(he));
+(function () {
+  const CH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  if (!fs.existsSync(CH)) { ok('SKIPPED (no Chrome here): one-line e-invoice prints on one page', true); return; }
+  const os = require('os'), cp = require('child_process'), tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ind-'));
+  const pages = htmlStr => { const hp = path.join(tmp, 'x.html'), pp = path.join(tmp, 'x.pdf'); fs.writeFileSync(hp, htmlStr); cp.execFileSync(CH, ['--headless=new', '--disable-gpu', '--no-pdf-header-footer', '--print-to-pdf=' + pp, 'file://' + hp], { stdio: 'ignore' }); return (fs.readFileSync(pp, 'latin1').match(/\/Type\s*\/Page[^s]/g) || []).length; };
+  ok('a one-line invoice with IRN + Ack prints on ONE A4 page', pages(R({ irn: 'a'.repeat(64), ackNo: '172621081606743', ackDt: '02-09-2026' })) === 1);
+  ok('a one-line invoice with IRN + QR + spec + charges prints on at most two pages', pages(R({ irn: 'a'.repeat(64), ackNo: '1', ackDt: '02-09-2026', qrData: 'x', charges: [{ label: 'Freight', amount: 1000 }], qa: { params: [{ label: 'CaO', value: '86', unit: '%' }] } })) <= 2);
+})();
 ok('no export block on a domestic invoice', !/Export Details|Shipping Bill|Incoterms/.test(h));
 const hx = R({ type: 'export', export: { lut: 'AD080826023319U', country: 'Nepal', currency: 'INR', incoterms: 'EXW', declaration: 'Supply meant for export under LUT without payment of IGST.' } });
+ok('export invoice: no CGST / SGST rows — a single zero-rated IGST line', hx.includes('<td>IGST — zero-rated export under LUT</td>') && !/CGST|SGST/.test(hx));
 ok('export invoice: title, block with only the given fields, declaration', hx.includes('EXPORT TAX INVOICE') && hx.includes('<span>LUT No.</span><b>AD080826023319U</b>') && hx.includes('<b>Nepal</b>') && hx.includes('<b>EXW</b>') && !/Shipping Bill|Port of Loading|Container/.test(hx) && hx.includes('Supply meant for export under LUT without payment of IGST.'));
 
 /* bank, terms, authorisation, footer */
 ok('bank details from the profile, account name = the firm', h.includes('<span style="min-width:110px">Account Name</span><b>DESHWALI MINERALS</b>') || h.includes('<span>Account Name</span><b>DESHWALI MINERALS</b>'));
 ok('bank rows present, UPI included', /Bank Name<\/span><b>HDFC Bank/.test(h) && /Account Number<\/span><b>50200089605146/.test(h) && /IFSC<\/span><b>HDFC0002670/.test(h) && /UPI<\/span><b>8875020202@hdfcbank/.test(h));
+ok('no Bank Details HEADING either for a firm with no bank on file', !R({ seller: Object.assign({}, seller, { bank: '', accNo: '', ifsc: '', bankBranch: '', upi: '' }) }).includes('Bank Details'));
 ok('no bank block rows for a firm with no bank on file', !/Bank Name|Account Number/.test(R({ seller: Object.assign({}, seller, { bank: '', accNo: '', ifsc: '', bankBranch: '', upi: '' }) })));
 ok('the five default terms from the brief (not the Tally paper terms)', h.includes('<li>Subject to Nagaur, Rajasthan jurisdiction.</li>') && h.includes('<li>Goods once sold are subject to the agreed terms and conditions.</li>') && !h.includes('Tally term one'));
 ok('terms editable: cfg.terms replaces them', R({}, { terms: ['Custom one', 'Custom two'] }).includes('<li>Custom two</li>') && !R({}, { terms: ['Custom one'] }).includes('Subject to Nagaur'));

@@ -24,24 +24,24 @@ ok('modern and business do not print the despatch block; detailed does (it is th
 
 for (const id of ['modern', 'business']) {
   const purple = T.render(D, { template: id, accent: '#7C3AED' }), blue = T.render(D, { template: id });
-  ok(id + ': the picked accent reaches the item-table header', purple.includes('.itm th{background:#7C3AED}'));
-  ok(id + ': the tinted surfaces derive from the accent (8-digit hex)', purple.includes('#7C3AED14') || purple.includes('#7C3AED12'));
-  ok(id + ': the total is set in the accent', purple.includes('.gt .v{color:#7C3AED}'));
-  ok(id + ': default accent is the app blue', blue.includes('.itm th{background:#2563EB}'));
-  ok(id + ': item table with zebra rows', purple.includes('.itm tr:nth-child(even) td{background:#7C3AED0A}'));
-  ok(id + ': "Invoice total (in words)" block', purple.includes('Invoice total (in words)') && purple.includes(D.words));
-  ok(id + ': Terms and conditions, bank and the contact line', purple.includes('Terms and conditions') && purple.includes('Bank Details') && purple.includes('For any enquiries, call us on <b>8875020202, 9460767676</b>'));
+  ok(id + ': the picked accent reaches the item-table header', purple.includes(id === 'modern' ? '.itm th{background:#7C3AED;' : '.itm th{background:#7C3AED22;'));
+  ok(id + ': the tinted surfaces derive from the accent (8-digit hex)', purple.includes('#7C3AED14') || purple.includes('#7C3AED22'));
+  ok(id + ': the total is set in the accent', purple.includes(id === 'modern' ? '.gt .v{font-size:17px;font-weight:700;color:#7C3AED}' : '.tb tr.tot td{background:#7C3AED;'));
+  ok(id + ': default accent is the app blue', blue.includes('#2563EB'));
+  ok(id + ': zebra rows on modern; fully ruled rows on business', id === 'modern' ? purple.includes('.itm tr:nth-child(even) td{background:#7C3AED0A}') : purple.includes('.itm td{padding:10px 12px;font-size:10.5px;border:1px solid #D1D5DB'));
+  ok(id + ': the words block', /Invoice Total (\(in words\)|In Words:)/.test(purple) && purple.includes(D.words));
+  ok(id + ': Terms and Conditions, bank in the notes, and the enquiries line', purple.includes('Terms and Conditions') && purple.includes('Bank Details') && purple.includes('For any enquiries, call us on <b>8875020202, 9460767676</b>'));
   ok(id + ': logo, GSTIN, HSN, vehicle, e-way present', ['/v2/deshwali-logo.png', '08NLIPS9801K1Z5', '25221000', 'RJ37GA1987', '791656947547'].every(s => purple.includes(s)));
   ok(id + ': quantity total marked', /class="qtytot[^"]*">16\.16 Tonne</.test(purple));
   ok(id + ': signature block', purple.includes('Authorised Signatory') && purple.includes('for <b>DESHWALI MINERALS</b>'));
 }
 const m = T.render(D, { template: 'modern' }), b = T.render(D, { template: 'business' });
-ok('modern: tinted header band with the light "Tax Invoice" title and "Invoice by" on the right', /class="band"/.test(m) && m.includes('<div class="ttl">Tax Invoice') && m.includes('Invoice by'));
+ok('modern: tinted header band with the light "Tax Invoice" title and "Invoice by" on the right', /class="band"/.test(m) && m.includes('<div class="ttl">Tax Invoice') && m.includes('Invoice by') && m.includes('.ttl{font-size:34px;font-weight:300'));
 ok('modern: "Billed to" and "Invoice details" columns', m.includes('>Billed to<') && m.includes('>Invoice details<'));
 ok('modern: tinted footer band', /class="foot"/.test(m) && /\.foot\{background:#2563EB14/.test(m));
-ok('business: centred TAX INVOICE title', b.includes('<div class="ttl">TAX INVOICE</div>'));
-ok('business: "Invoice by" and "Invoice to" tinted boxes with PAN', b.includes('>Invoice by<') && b.includes('>Invoice to<') && b.includes('<b>PAN</b> NLIPS9801K'));
-ok('business: Place of supply strip', b.includes('Place of supply<b>Rajasthan (08)</b>'));
+ok('business: light "Tax Invoice" title top-right, logo and firm top-left', b.includes('<div class="ttl">Tax Invoice</div>') && b.includes('.ttl{font-size:30px;font-weight:300'));
+ok('business: "Invoice by" and "Invoice to" columns with PAN, and the ruled totals box', b.includes('>Invoice by<') && b.includes('>Invoice to<') && b.includes('<b>PAN</b> NLIPS9801K') && b.includes('<tr class="tot"><td>Total Amount</td>') && b.includes('<b>Invoice Total In Words:</b>'));
+ok('business: Country and Place of supply in the meta column', b.includes('<span>Country of supply:</span><b>India</b>') && b.includes('<span>Place of supply:</span><b>Rajasthan (08)</b>'));
 
 /* detailed — the photographed sample, honestly */
 const DT = Object.assign({}, D, { transport: 'Self', station: 'TEH PIPAR CITY', grrr: '' });
@@ -69,7 +69,7 @@ ok('detailed inter-state: IGST carries the rate, CGST / SGST are dashes', xi.inc
 
 /* the unit address rides along in every design */
 const DU = Object.assign({}, DT, { seller: Object.assign({}, D.seller, { unitAddress: 'Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601' }) });
-ok('modern: Unit line in the firm block', T.render(DU, { template: 'modern' }).includes('Unit: Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'));
+ok('modern: Unit line in the notes', T.render(DU, { template: 'modern' }).includes('Unit: Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'));
 ok('business: Unit line in the Invoice-by box', T.render(DU, { template: 'business' }).includes('<b>Unit</b> Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'));
 ok('detailed: UNIT ADDRESS in the footer', T.render(DU, { template: 'detailed' }).includes('<b>UNIT ADDRESS</b>: Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'));
 ok('no design prints a Unit line when the firm has none', !['modern', 'business', 'detailed'].some(id => /Unit|UNIT ADDRESS/.test(T.render(DT, { template: id }))));

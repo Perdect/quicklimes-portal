@@ -392,7 +392,14 @@
 
   /* ── Business calc (ported from v1) ──────────────────────────── */
   // gstR can be absent on legacy/synced sales → default 5% (mirrors invoiceData) so we never produce NaN
-  const cS = s => { const tx = (+s.qty || 0) * (+s.rate || 0), g = tx * (s.gstR == null ? 5 : +s.gstR) / 100; return { tx, cgst: g / 2, sgst: g / 2, tot: tx + g }; };
+  /* THE taxable value of a sale, in one place. A sale is one line (qty × rate)
+     unless it carries items[] — then the lines and any charges add up. The
+     register (cS) and the invoice (invoiceData) both read this, so a multi-line
+     invoice can never total differently on paper than in the books. An export
+     (type === 'export') is zero-rated under LUT: no GST is charged. */
+  const saleTaxable = s => (Array.isArray(s.items) && s.items.length) ? s.items.reduce((a, it) => a + (+it.taxable || 0), 0) + (Array.isArray(s.charges) ? s.charges.reduce((a, c) => a + (+c.amount || 0), 0) : 0) : (+s.qty || 0) * (+s.rate || 0);   // ONE line: the house tests lift it by line
+  const saleGstRate = s => (s.type || '') === 'export' ? 0 : (s.gstR == null ? 5 : +s.gstR);
+  const cS = s => { const tx = saleTaxable(s), g = tx * saleGstRate(s) / 100; return { tx, cgst: g / 2, sgst: g / 2, tot: tx + g }; };
   // RCM: the recipient pays GST to the govt, not the supplier — so the supplier-payable (total) is the taxable only, ITC still claimable
   const cP = p => { const tx = +p.taxable || 0, g = tx * (+p.grate || 0) / 100, rcm = p.itc === 'RCM', itc = (p.itc === 'Eligible' || rcm) ? g : 0; return { g, tot: rcm ? tx : tx + g, itc }; };
   const cW = w => {
@@ -2670,11 +2677,15 @@
   function invoiceData(idx) {
     const s = S.SALES[idx]; if (!s) return null;
     const seller = COMPANIES[ACTIVE_CO];
-    const taxable = (s.qty || 0) * (s.rate || 0);
-    const rate = s.gstR != null ? s.gstR : 5;
+    const taxable = saleTaxable(s);
+    const rate = saleGstRate(s);
     const cgst = taxable * rate / 200, sgst = taxable * rate / 200, total = taxable + cgst + sgst;
     const bg = s.gstin || partyGstin(s.party);   // resolve buyer GSTIN (sale record, else the party) for inter-state detection
-    const interState = bg && bg.length >= 2 && bg.slice(0, 2) !== '08';   // seller is 08 (Rajasthan)
+    /* Inter-state is decided by the buyer's state code: the GSTIN's first two
+       digits, or — for an unregistered buyer — the State on the record
+       ("Maharashtra (27)"). An export is always outside the state. */
+    const bCode = (bg && bg.length >= 2) ? cleanGstin(bg).slice(0, 2) : ((String(s.state || '').match(/\((\d\d)\)/) || [])[1] || '');
+    const interState = (s.type || '') === 'export' || (!!bCode && bCode !== '08');   // seller is 08 (Rajasthan)
     /* Rounding to the rupee is a policy, not arithmetic. Gotan rounds; Deshwali's
        own invoices carry the paise (83,991.60) and so does its GSTR-1 — printing
        83,992 here would disagree with the return already filed. */

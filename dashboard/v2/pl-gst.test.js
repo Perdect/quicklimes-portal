@@ -50,7 +50,7 @@ vm.runInContext([
      rather than telling you anything. */
   grabBlock('function inPeriod(date, period)', '\n  }'),
   grabBlock('function labourPaid(p)', '\n  }'), grabLine('const LABOUR_RE ='),
-  grabLine('const cS = s =>'), grabLine('const cP = p =>'),
+  grabLine('const saleTaxable = s =>'), grabLine('const saleGstRate = s =>'), grabLine('const cS = s =>'), grabLine('const cP = p =>'),
   /* cW (wage maths) is multi-line, so grabLine would take only its first line and
      leave an unbalanced brace — which surfaces as "Unexpected end of input" and
      says nothing about the cause. It is not under test here: S.WORKERS stays empty,
