@@ -103,7 +103,15 @@
       totalTax: fmt(d.interState ? d.igst : (d.cgst + d.sgst)),
       grand: fmt(d.grand), words: d.words || '',
       // Place of supply and reverse charge are Rule 46 items in their own right.
-      pos: b.state || s.state || '', rcm: d.rcm ? 'Yes' : 'No',
+      /* Place of supply. A domestic recipient with no address on record is
+         supplied at the supplier's location (that is the GST rule for an
+         unknown recipient address). An EXPORT is never in Rajasthan: its place
+         of supply is the destination country when known, else "Outside India". */
+      pos: (String(d.type || '').toLowerCase() === 'export') ? ((d.export && d.export.country) || 'Outside India') : (b.state || s.state || ''), rcm: d.rcm ? 'Yes' : 'No',
+      /* The lines every design prints — one line from the sale record unless the
+         sale carries items[]. Shared so no design can print a phantom single line
+         for a multi-line sale. */
+      items: (Array.isArray(d.items) && d.items.length) ? d.items : [{ hsn: d.hsn || '', product: d.product || '', qty: d.qty, unit: d.unit || '', rate: d.rate, taxable: d.taxable }],
       /* Despatch. The transporter name, station and GR/RR number were dropped by
          request — they said nothing the buyer needed and ate a third of the header.
          Vehicle No. and E-Way Bill stayed on purpose: the E-Way number is what a
@@ -153,7 +161,14 @@
      PIECES cannot be added into "11,000" — that number would be a lie about two
      different things. summarise() below refuses to sum across units for exactly
      that reason; it is not being fussy, it is refusing to invent a unit. */
-  function qtyTotal(f) { return f.qty + (f.unit ? ' ' + f.unit : ''); }
+  /* Per unit, never across units: "20 MT + 400 Bag" for a mixed sale, "30 MT"
+     for a single-unit one, and the sale line's own figure when there are no items. */
+  function qtyTotal(f) {
+    if (!f.items || f.items.length <= 1) { var one = f.items && f.items[0] ? f.items[0] : { qty: f.qty, unit: f.unit }; return qfmt(one.qty) + (one.unit ? ' ' + one.unit : ''); }
+    var by = {}, order = [];
+    f.items.forEach(function (it) { var u = String(it.unit || '').trim(); if (!(u in by)) { by[u] = 0; order.push(u); } by[u] += (+it.qty || 0); });
+    return order.map(function (u) { return qfmt(by[u]) + (u ? ' ' + u : ''); }).join(' + ');
+  }
 
   /* The quantity total carries a class naming what it IS, not how it looks.
      Without it the compliance check had to pattern-match "Total ... 10,000 Tonne"
@@ -389,6 +404,22 @@
 
      Narrow preview panes SCALE the sheet (zoom) instead of restacking it, so
      the preview looks like the printed page, not a different layout. */
+  function itemRows(f, numbered) {
+    return f.items.map(function (it, i) {
+      var name = esc(it.product || ''), qty = qfmt(it.qty) + (it.unit ? ' ' + esc(it.unit) : '');
+      return numbered
+        ? '<tr><td><b>' + (i + 1) + '. ' + name + '</b></td><td>' + esc(it.hsn || f.hsn) + '</td><td class="r">' + qty + '</td><td class="r">₹ ' + fmt(it.rate) + '</td><td class="r">₹ ' + fmt(it.taxable) + '</td></tr>'
+        : '<tr><td>' + (i + 1) + '.</td><td><b>' + name + '</b></td><td>' + esc(it.hsn || f.hsn) + '</td><td class="r">' + qty + '</td><td class="r">₹ ' + fmt(it.rate) + '</td><td class="r">₹ ' + fmt(it.taxable) + '</td></tr>';
+    }).join('');
+  }
+  /* IRN / Ack / QR — only for a sale that actually carries an IRN. */
+  function eInvBlock(d, cls) {
+    if (!String(d.irn || '').trim()) return '';
+    var row = function (k, v) { return v ? '<div class="ekv"><span>' + k + '</span><b>' + esc(v) + '</b></div>' : ''; };
+    var qr = d.qrImage ? '<img src="' + esc(d.qrImage) + '" alt="e-Invoice QR">' : (d.qrData ? '<img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(d.qrData) + '" alt="e-Invoice QR">' : '');
+    return '<div class="' + cls + '"><div>' + row('IRN', d.irn) + row('Ack No.', d.ackNo) + row('Ack Date', fdate(d.ackDt)) + '</div>' + qr + '</div>';
+  }
+  var EINV_CSS = '.einv{display:flex;gap:14px;align-items:flex-start;border:1px solid #D1D5DB;padding:8px 12px;font-size:9.5px;word-break:break-all}.einv img{width:84px;height:84px;flex:none}.ekv{display:flex;gap:8px}.ekv span{color:#6B7280;min-width:56px;flex:none}.ekv b{font-weight:600;color:#111827}';
   function contactLine(f, s) {
     var tel = f.tel, mail = s.email || '';
     if (!tel && !mail) return '';
@@ -422,21 +453,21 @@
       + ".foot h5{font-size:10.5px;font-weight:700;color:#111827;margin:0 0 6px}.foot ol{margin:0 0 14px;padding-left:16px;font-size:9.5px;color:#4B5563;line-height:1.6}.foot .nt{font-size:9.5px;color:#4B5563;line-height:1.6;margin-bottom:12px}.foot .ct{font-size:9.5px;color:#4B5563}.foot .ct b{color:#111827}"
       + ".sg{text-align:center}.sg .sfor{font-size:10px;color:#374151}.sg .sline{border-bottom:1px solid #9CA3AF;margin:34px 0 5px}.sg .scap{font-size:9.5px;color:#6B7280}"
       + ".qr{text-align:center;margin-bottom:8px}.qrc{font-size:9px;color:#6B7280}"
-      + "@media screen and (max-width:760px){.sheet{zoom:.7}}";
+      + EINV_CSS + "@media screen and (max-width:760px){.sheet{zoom:.7}}";
     var kv = function (k, v) { return v ? '<span>' + k + '</span><b>' + esc(v) + '</b>' : ''; };
     var body = '<div class="sheet"><div class="band"><div class="ttl">Tax Invoice</div>'
-      + '<div class="by"><div><div class="k">Invoice by</div><div class="n">' + esc(s.name) + '</div><div class="l">' + String(s.address || '').split(/\n/).map(esc).join('<br>') + '<br>GSTIN ' + esc(s.gstin || '') + '</div></div>'
+      + '<div class="by"><div><div class="k">Invoice by</div><div class="n">' + esc(s.name) + '</div><div class="l">' + [String(s.address || '').split(/\n/).map(esc).join('<br>'), s.gstin ? 'GSTIN ' + esc(s.gstin) : ''].filter(Boolean).join('<br>') + '</div></div>'
       + (f.logo ? '<div class="tile">' + logoImg(f, 40) + '</div>' : '') + '</div></div>'
       + '<div class="sec"><div><div class="lab">Billed to</div><div class="nm">' + esc(b.name) + '</div>' + (b.address ? '<div class="ln">' + esc(b.address) + '</div>' : '')
-      + '<div class="ln" style="margin-top:8px"><b>GST</b>' + esc(b.gstin || '—') + '</div>' + (f.bState ? '<div class="ln"><b>State</b>' + esc(f.bState) + '</div>' : '') + (f.bPhone ? '<div class="ln"><b>Contact</b>' + esc(f.bPhone) + '</div>' : '') + '</div>'
+      + (b.gstin ? '<div class="ln" style="margin-top:8px"><b>GST</b>' + esc(b.gstin) + '</div>' : '') + (f.bState ? '<div class="ln"><b>State</b>' + esc(f.bState) + '</div>' : '') + (f.bPhone ? '<div class="ln"><b>Contact</b>' + esc(f.bPhone) + '</div>' : '') + '</div>'
       + '<div><div class="lab">Invoice details</div><div class="kv">' + kv('Invoice #', f.inv) + kv('Invoice Date', f.date) + kv('Due Date', fdate(d.due)) + kv('Place of supply', f.pos) + kv('Reverse charge', f.rcm) + kv('Vehicle no.', f.veh) + kv('E-Way Bill no.', f.eway) + '</div></div></div>'
       + '<div class="itmw"><table class="itm"><thead><tr><th style="width:30px">#</th><th>Item description</th><th style="width:84px">HSN/SAC</th><th class="r" style="width:96px">Qty</th><th class="r" style="width:90px">Rate</th><th class="r" style="width:110px">Amount</th></tr></thead>'
-      + '<tbody><tr><td>1.</td><td><b>' + esc(f.product) + '</b></td><td>' + esc(f.hsn) + '</td><td class="r">' + f.qty + ' ' + esc(f.unit) + '</td><td class="r">₹ ' + f.rate + '</td><td class="r">₹ ' + f.taxable + '</td></tr></tbody></table></div>'
+      + '<tbody>' + itemRows(f, false) + '</tbody></table>' + (eInvBlock(d, 'einv') ? '<div style="margin-top:12px">' + eInvBlock(d, 'einv') + '</div>' : '') + '</div>'
       + '<div class="money"><div class="tot"><div class="tl"><span>Sub Total</span><span>₹ ' + f.taxable + '</span></div>' + taxRows(f, 'tl')
       + '<div class="gt"><span class="l">Total</span><span class="v">₹ ' + f.grand + '</span></div><div class="gtq">' + qtyTotalEl(f) + '</div>'
       + '<div class="wd"><span>Invoice Total (in words)</span><b>' + esc(f.words) + '</b></div></div></div>'
       + '<div class="foot"><div>' + (f.cfg.showDeclaration && f.terms.length ? '<h5>Terms and Conditions</h5><ol>' + f.terms.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ol>' : '')
-      + '<h5>Additional Notes</h5><div class="nt">' + notesLine(f, s) + (f.cfg.footerNote ? '<br>' + esc(f.cfg.footerNote) : '') + '</div>'
+      + (function () { var n = [notesLine(f, s), f.cfg.footerNote ? esc(f.cfg.footerNote) : ''].filter(Boolean).join('<br>'); return n ? '<h5>Additional Notes</h5><div class="nt">' + n + '</div>' : ''; })()
       + (contactLine(f, s) ? '<div class="ct">' + contactLine(f, s) + '</div>' : '') + '</div><div>' + qrBlock(f) + signBlock(f, 'sg') + '</div></div></div>';
     return doc(f, 'modern', css, body);
   }
@@ -457,18 +488,19 @@
       + ".tb tr.tot td{background:" + a + ";color:#fff;font-weight:700;border-color:" + a + "}.tb tr.wd td{font-size:9.5px;text-align:left;border-bottom:0;font-weight:400;color:#374151}.tb tr.wd td b{display:block;font-weight:700;color:#111827;margin-bottom:2px}"
       + ".sig{text-align:right;margin-top:56px}.sig .sfor{font-size:10px;color:#374151;margin-bottom:34px}.sig .sline{display:inline-block;min-width:200px;border-top:1px solid #9CA3AF;padding-top:5px;font-size:10px;color:#374151}"
       + ".enq{border:1px solid #111827;padding:12px;text-align:center;font-size:11px;margin-top:40px}.enq b{font-weight:700}.qr{text-align:right}.qrc{font-size:9px;color:#6B7280}"
-      + "@media screen and (max-width:760px){.sheet{zoom:.7}}";
+      + EINV_CSS + "@media screen and (max-width:760px){.sheet{zoom:.7}}";
     var m = function (k, v) { return v ? '<span>' + k + '</span><b>' + esc(v) + '</b>' : ''; };
+    var isExportB = String(d.type || '').toLowerCase() === 'export';
     var taxTr = f.interState ? '<tr><td>IGST @ ' + f.gstR + ' %</td><td>₹ ' + f.igst + '</td></tr>'
       : '<tr><td>CGST @ ' + f.halfR + ' %</td><td>₹ ' + f.cgst + '</td></tr><tr><td>SGST @ ' + f.halfR + ' %</td><td>₹ ' + f.sgst + '</td></tr>';
     var body = '<div class="sheet"><div class="top"><div class="co">' + (f.logo ? logoImg(f, 44) : '') + '<div><div class="n">' + esc(s.name) + '</div>' + (f.tagline ? '<div class="t">' + esc(f.tagline) + '</div>' : '') + '</div></div><div class="ttl">Tax Invoice</div></div>'
-      + '<div class="cols"><div><h4>Invoice by</h4><div class="l">' + esc(s.name) + '<br>' + String(s.address || '').split(/\n/).map(esc).join('<br>') + (f.unitAddr ? '<br><b>Unit</b> ' + esc(f.unitAddr) : '') + '<br><b>GSTIN</b> ' + esc(s.gstin || '') + (f.pan ? ' &nbsp; <b>PAN</b> ' + esc(f.pan) : '') + (f.msme ? '<br><b>MSME</b> ' + esc(f.msme) : '') + ((f.tel || s.email) ? '<br>' + esc([f.tel, s.email].filter(Boolean).join(' · ')) : '') + '</div></div>'
-      + '<div><h4>Invoice to</h4><div class="l">' + esc(b.name) + (b.address ? '<br>' + esc(b.address) : '') + '<br><b>GSTIN</b> ' + esc(b.gstin || '—') + (f.bState ? '<br><b>State</b> ' + esc(f.bState) : '') + (f.bPhone ? '<br>' + esc(f.bPhone) : '') + '</div></div>'
-      + '<div><div class="meta">' + m('Invoice No:', f.inv) + m('Invoice Date:', f.date) + m('Due Date:', fdate(d.due)) + '<div class="gap"></div>' + m('Country of supply:', 'India') + m('Place of supply:', f.pos) + m('Reverse charge:', f.rcm) + m('Vehicle No:', f.veh) + m('E-Way Bill No:', f.eway) + '</div></div></div>'
+      + '<div class="cols"><div><h4>Invoice by</h4><div class="l">' + esc(s.name) + (s.address ? '<br>' + String(s.address).split(/\n/).map(esc).join('<br>') : '') + (f.unitAddr ? '<br><b>Unit</b> ' + esc(f.unitAddr) : '') + '<br><b>GSTIN</b> ' + esc(s.gstin || '') + (f.pan ? ' &nbsp; <b>PAN</b> ' + esc(f.pan) : '') + (f.msme ? '<br><b>MSME</b> ' + esc(f.msme) : '') + ((f.tel || s.email) ? '<br>' + esc([f.tel, s.email].filter(Boolean).join(' · ')) : '') + '</div></div>'
+      + '<div><h4>Invoice to</h4><div class="l">' + esc(b.name) + (b.address ? '<br>' + esc(b.address) : '') + (b.gstin ? '<br><b>GSTIN</b> ' + esc(b.gstin) : '') + (f.bState ? '<br><b>State</b> ' + esc(f.bState) : '') + (f.bPhone ? '<br>' + esc(f.bPhone) : '') + '</div></div>'
+      + '<div><div class="meta">' + m('Invoice No:', f.inv) + m('Invoice Date:', f.date) + m('Due Date:', fdate(d.due)) + '<div class="gap"></div>' + (isExportB ? m('Country of supply:', (d.export && d.export.country) || '') : '') + m('Place of supply:', f.pos) + m('Reverse charge:', f.rcm) + m('Vehicle No:', f.veh) + m('E-Way Bill No:', f.eway) + '</div></div></div>'
       + '<table class="itm"><thead><tr><th>Item #/Item description</th><th style="width:84px">HSN/SAC</th><th class="r" style="width:96px">Quantity</th><th class="r" style="width:90px">Rate</th><th class="r" style="width:110px">Amount</th></tr></thead>'
-      + '<tbody><tr><td><b>1. ' + esc(f.product) + '</b></td><td>' + esc(f.hsn) + '</td><td class="r">' + f.qty + ' ' + esc(f.unit) + '</td><td class="r">₹ ' + f.rate + '</td><td class="r">₹ ' + f.taxable + '</td></tr></tbody></table>'
+      + '<tbody>' + itemRows(f, true) + '</tbody></table>' + (eInvBlock(d, 'einv') ? '<div style="margin-top:14px">' + eInvBlock(d, 'einv') + '</div>' : '')
       + '<div class="bot"><div>' + (f.cfg.showDeclaration && f.terms.length ? '<h5>Terms and Conditions</h5><ol>' + f.terms.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ol>' : '')
-      + '<h5>Additional Notes</h5><div class="nt">' + notesLine(f, s) + (f.cfg.footerNote ? '<br>' + esc(f.cfg.footerNote) : '') + '</div></div>'
+      + (function () { var n = [notesLine(f, s), f.cfg.footerNote ? esc(f.cfg.footerNote) : ''].filter(Boolean).join('<br>'); return n ? '<h5>Additional Notes</h5><div class="nt">' + n + '</div>' : ''; })() + '</div>'
       + '<div><table class="tb"><tr><td>Sub Total</td><td>₹ ' + f.taxable + '</td></tr>' + taxTr + '<tr class="tot"><td>Total Amount</td><td>₹ ' + f.grand + '</td></tr>'
       + '<tr class="wd"><td colspan="2"><b>Invoice Total In Words:</b>' + esc(f.words) + '<br>Total quantity: ' + qtyTotalEl(f) + '</td></tr></table>'
       + qrBlock(f) + (f.cfg.showSignature ? '<div class="sig"><div class="sfor">for <b>' + esc(f.signatory) + '</b></div><div class="sline">Authorised Signatory</div></div>' : '') + '</div></div>'
@@ -658,7 +690,7 @@
     if (!bSt.code && P(b.gstin).length >= 2) bSt.code = P(b.gstin).slice(0, 2);
     var bPan = P(b.gstin).length === 15 ? P(b.gstin).slice(2, 12) : '';
     var isExport = P(d.type).toLowerCase() === 'export', ex = d.export || {};
-    var eInv = !!(P(d.irn) || P(d.ackNo));
+    var eInv = !!P(d.irn);   // an acknowledgement without its IRN is not an e-invoice
     var copy = P(f.cfg.copy) || 'Original for Recipient';
     var tagline = P(s.tagline) || f.tagline;
     var ship = d.shipTo && P(d.shipTo.name) ? d.shipTo : null;
@@ -670,7 +702,7 @@
     var specRows = [], sp = d.spec || null;
     if (sp) { [['Product', 'product'], ['Grade', 'grade'], ['CaO %', 'cao'], ['MgO %', 'mgo'], ['SiO2 %', 'sio2'], ['LOI %', 'loi'], ['Mesh Size', 'mesh'], ['Reactivity', 'reactivity'], ['Packing', 'packing'], ['Batch No.', 'batch']].forEach(function (p) { if (P(sp[p[1]])) specRows.push([p[0], P(sp[p[1]])]); }); }
     else if (d.qa && Array.isArray(d.qa.params)) { d.qa.params.forEach(function (p) { if (p && P(p.value)) specRows.push([P(p.label) + (P(p.unit) ? ' ' + P(p.unit) : ''), P(p.value)]); }); }
-    var roundOff = Math.round(((+d.grand || 0) - (+d.total || 0)) * 100) / 100, cess = +d.cess || 0, otherTax = +d.otherTax || 0;
+    var roundOff = Math.round((+d.roundOff || 0) * 100) / 100, cess = +d.cess || 0, otherTax = +d.otherTax || 0;   // from the model, not re-derived
     var terms = (f.cfg.terms && f.cfg.terms.length) ? f.cfg.terms : INDUSTRIAL_TERMS;
     var words = /^Rupees /.test(f.words) ? 'Indian ' + f.words : f.words;
     var kv = function (k, v, w) { return P(v) ? '<div class="kv"><span' + (w ? ' style="min-width:' + w + 'px"' : '') + '>' + k + '</span><b>' + esc(P(v)) + '</b></div>' : ''; };
@@ -701,12 +733,12 @@
       + ".ex{border:1px solid " + a + ";padding:8px 12px;margin-top:12px;break-inside:avoid}.ex .kv span{min-width:150px}.ex .decl{font-weight:700;margin-top:4px}"
       + ".ft{margin-top:12px;padding-top:6px;border-top:1px solid #111;font-size:8.5px;color:#444;display:flex;justify-content:space-between;gap:12px}"
       + "@media print{.ft{position:fixed;left:0;right:0;bottom:0;margin:0;padding:6px 30px 0;background:#fff}}@media screen and (max-width:760px){.sheet{zoom:.7}}";
-    var qUnit = P(items[0].unit) || f.unit || 'MT';
+    var qUnit = P(items[0].unit) || f.unit || '';   // never a unit nobody entered
     /* Only the numeric columns are sized; Product Description — the legally
        required description of goods — takes everything that is left and is
        floored at 150px, so it is always the widest text column on A4. */
     var thead = '<tr><th style="width:32px">Sr. No.</th><th style="width:66px">HSN/SAC</th><th style="min-width:150px">Product Description</th>' + (hasGrade ? '<th style="width:88px">Grade / Specification</th>' : '') + (hasPack ? '<th style="width:66px">Packing</th>' : '') + (hasBags ? '<th class="r" style="width:48px">No. of Bags</th>' : '')
-      + '<th class="r" style="width:66px">Qty (' + esc(qUnit) + ')</th><th class="r" style="width:70px">Rate / ' + esc(qUnit) + '</th><th class="r" style="width:92px">Taxable Value (₹)</th></tr>';
+      + '<th class="r" style="width:66px">Qty' + (qUnit ? ' (' + esc(qUnit) + ')' : '') + '</th><th class="r" style="width:70px">Rate' + (qUnit ? ' / ' + esc(qUnit) : '') + '</th><th class="r" style="width:92px">Taxable Value (₹)</th></tr>';
     var rows = items.map(function (it, i) {
       return '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(P(it.hsn) || f.hsn) + '</td><td><b>' + esc(P(it.product)) + '</b>' + (P(it.desc) ? '<br><span style="color:#555">' + esc(P(it.desc)) + '</span>' : '') + '</td>'
         + (hasGrade ? '<td>' + esc(P(it.grade)) + '</td>' : '') + (hasPack ? '<td>' + esc(P(it.packing)) + '</td>' : '') + (hasBags ? '<td class="r">' + esc(P(it.bags)) + '</td>' : '')
@@ -719,11 +751,15 @@
       + (cess ? trow('Cess', fmt(cess)) : '') + (otherTax ? trow('Other Tax', fmt(otherTax)) : '') + (roundOff ? trow('Round Off', (roundOff > 0 ? '+' : '') + fmt(roundOff)) : '')
       + '<tr class="tot"><td><small>Total Invoice Value</small></td><td class="r">₹ ' + f.grand + '</td></tr>' + trow('Total Quantity', qtyTotalEl(f)) + '</table>'
       + '<div class="words"><span>Amount in words</span><b>' + esc(words) + '</b></div>';
-    var eblock = eInv ? '<div class="ein"><div>' + kv('IRN', d.irn, 100) + kv('Ack No.', d.ackNo, 100) + kv('Ack Date', d.ackDt, 100) + '</div>'
+    var eblock = eInv ? '<div class="ein"><div>' + kv('IRN', d.irn, 100) + kv('Ack No.', d.ackNo, 100) + kv('Ack Date', fdate(d.ackDt), 100) + '</div>'
       + (P(d.qrImage) ? '<img src="' + esc(P(d.qrImage)) + '" alt="e-Invoice QR">' : (P(d.qrData) ? '<img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(P(d.qrData)) + '" alt="e-Invoice QR">' : '')) + '</div>' : '';
-    var xblock = isExport ? '<div class="ex"><h3>Export Details</h3>' + kv('IEC', f.iec) + kv('LUT No.', ex.lut || f.lut) + kv('Shipping Bill No.', ex.shippingBill) + kv('Port of Loading', ex.portLoading) + kv('Port of Discharge', ex.portDischarge)
-      + kv('Country of Destination', ex.country) + kv('Country of Origin', ex.origin || 'India') + kv('Currency', ex.currency) + kv('Exchange Rate', ex.fx) + kv('Incoterms', ex.incoterms) + kv('Container No.', ex.container)
-      + (P(ex.declaration) ? '<div class="decl">' + esc(P(ex.declaration)) + '</div>' : '') + '</div>' : '';
+    /* Only the export facts that exist; nothing defaulted (no invented
+       "Country of Origin: India"). No facts at all → no block: the title and the
+       zero-rated IGST line already say what this is. */
+    var xrows = isExport ? kv('IEC', f.iec) + kv('LUT No.', ex.lut || f.lut) + kv('Shipping Bill No.', ex.shippingBill) + kv('Port of Loading', ex.portLoading) + kv('Port of Discharge', ex.portDischarge)
+      + kv('Country of Destination', ex.country) + kv('Country of Origin', ex.origin) + kv('Currency', ex.currency) + kv('Exchange Rate', ex.fx) + kv('Incoterms', ex.incoterms) + kv('Container No.', ex.container)
+      + (P(ex.declaration) ? '<div class="decl">' + esc(P(ex.declaration)) + '</div>' : '') : '';
+    var xblock = xrows ? '<div class="ex"><h3>Export Details</h3>' + xrows + '</div>' : '';
     var body = '<div class="sheet">'
       + '<div class="hd"><div class="co">' + (f.logo ? logoImg(f, 50) : '') + '<div><div class="n">' + esc(s.name) + '</div>' + (tagline ? '<div class="t">' + esc(tagline) + '</div>' : '') + '</div></div>'
       + '<div class="ti"><div class="w">' + (isExport ? 'EXPORT TAX INVOICE' : 'TAX INVOICE') + '</div><div class="copy">' + esc(copy) + '</div>'
@@ -739,7 +775,7 @@
       + ((s.bank || s.accNo || s.upi) ? '<h3 style="margin-top:0">Bank Details</h3>' + kv('Account Name', s.name) + kv('Bank Name', s.bank) + kv('Account Number', s.accNo) + kv('IFSC', s.ifsc) + kv('Branch', s.bankBranch) + kv('UPI', s.upi) : '')
       + '<h3>Terms &amp; Conditions</h3><ol>' + terms.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ol></div>'
       + '<div>' + tax + '<div class="auth"><div class="for">FOR ' + esc(String(s.name || '').toUpperCase()) + '</div>' + qrBlock(f) + '<div class="sg">Digital Signature / Signature<b>Authorized Signatory</b></div></div></div></div>' + eblock + xblock
-      + '<div class="ft"><div>Registered Address: ' + esc(String(s.address || '').replace(/\n/g, ', ')) + (f.tel ? ' &nbsp;·&nbsp; Phone: +91 ' + esc(f.tel) : '') + ' &nbsp;·&nbsp; GSTIN: ' + esc(s.gstin || '') + '</div><div>This is a computer-generated invoice.</div></div>'
+      + '<div class="ft"><div>' + [s.address ? 'Registered Address: ' + esc(String(s.address).replace(/\n/g, ', ')) : '', f.tel ? 'Phone: ' + esc(f.tel) : '', s.gstin ? 'GSTIN: ' + esc(s.gstin) : ''].filter(Boolean).join(' &nbsp;·&nbsp; ') + '</div><div>This is a computer-generated invoice.</div></div>'
       + '</div>';
     return doc(f, 'industrial', css, body);
   }

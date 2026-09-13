@@ -67,7 +67,7 @@ ok('intra-state: CGST + SGST rows, no IGST', h.includes('<td>CGST @ 2.50 %</td><
 const hi = R({ buyer: Object.assign({}, BASE.buyer, { gstin: '27CMVPC2808M1ZK', state: 'Maharashtra (27)' }), interState: true, cgst: 0, sgst: 0, igst: 3999.6 });
 ok('inter-state: IGST row only', hi.includes('<td>IGST @ 5.00 %</td><td class="r">3,999.60</td>') && !/CGST|SGST/.test(hi));
 ok('no Cess / Other Tax / Round Off rows when zero', !/<td>Cess<\/td>|Other Tax|Round Off/.test(h));
-ok('Round Off row for a rounding firm', R({ total: 101849.6, grand: 101850 }).includes('<td>Round Off</td><td class="r">+0.40</td>'));
+ok('Round Off row for a rounding firm (read from the model, never re-derived)', R({ total: 101849.6, grand: 101850, roundOff: 0.4 }).includes('<td>Round Off</td><td class="r">+0.40</td>') && !R({ total: 101849.6, grand: 101850 }).includes('Round Off'));
 ok('the total is loud and correct', h.includes('<small>Total Invoice Value</small></td><td class="r">₹ 83,991.60</td>'));
 ok('quantity total marked', /class="qtytot[^"]*">16\.16 Tonne</.test(h));
 ok('amount in words as "Indian Rupees … Only"', h.includes('<b>Indian Rupees Eighty Three Thousand Nine Hundred Ninety One and Paisa Sixty Only</b>'));
@@ -86,6 +86,13 @@ ok('the IRN, Ack No. and Ack Date print exactly ONCE (header carries only the st
   ok('a one-line invoice with IRN + QR + spec + charges prints on at most two pages', pages(R({ irn: 'a'.repeat(64), ackNo: '1', ackDt: '02-09-2026', qrData: 'x', charges: [{ label: 'Freight', amount: 1000 }], qa: { params: [{ label: 'CaO', value: '86', unit: '%' }] } })) <= 2);
 })();
 ok('no export block on a domestic invoice', !/Export Details|Shipping Bill|Incoterms/.test(h));
+ok('export with NO export facts and no IEC/LUT on the profile: title + zero-rated line only, no block', (function () { const x = R({ type: 'export', export: null, seller: Object.assign({}, seller, { iec: '', lut: '' }), buyer: { name: 'Himalaya Lime Traders', address: 'Birgunj, Nepal', gstin: '', state: '' }, interState: true, cgst: 0, sgst: 0, igst: 0, gstR: 0 }); return x.includes('EXPORT TAX INVOICE') && x.includes('zero-rated export under LUT') && !x.includes('Export Details') && !x.includes('Country of Origin') && !x.includes('Rajasthan (08)') && x.includes('Outside India'); })());
+ok('export with only the profile IEC: the block carries IEC and nothing invented', (function () { const x = R({ type: 'export', export: null, buyer: { name: 'H', address: '', gstin: '', state: '' }, interState: true, cgst: 0, sgst: 0, igst: 0, gstR: 0 }); return x.includes('Export Details') && x.includes('<b>NLIPS9801K</b>') && !x.includes('Country of Origin') && !x.includes('Currency'); })());
+ok('an Ack No. WITHOUT an IRN is not called an e-invoice', !/IRN generated|Ack No/.test(R({ ackNo: '1726', ackDt: '02-09-2026' })));
+ok('Ack Date prints dd-mm-yyyy like every other date', R({ irn: 'abc', ackNo: '1', ackDt: '2026-09-02' }).includes('<b>02-09-2026</b>'));
+ok('footer prints the phone verbatim — no "+91" bolted on', h.includes('Phone: 8875020202, 9460767676') && !h.includes('+91'));
+ok('a multi-line sale totals quantity from the items (30 MT), not the sale line', /class="qtytot[^"]*">30 MT</.test(R({ items: [{ product: 'A', qty: 20, unit: 'MT', rate: 1, taxable: 20 }, { product: 'B', qty: 10, unit: 'MT', rate: 1, taxable: 10 }], qty: 0 })));
+ok('items with no unit print "Qty" / "Rate", never an invented MT', (function () { const x = R({ items: [{ product: 'A', qty: 5, unit: '', rate: 1, taxable: 5 }], unit: '' }); return x.includes('>Qty</th>') && x.includes('>Rate</th>') && !x.includes('(MT)'); })());
 const hx = R({ type: 'export', export: { lut: 'AD080826023319U', country: 'Nepal', currency: 'INR', incoterms: 'EXW', declaration: 'Supply meant for export under LUT without payment of IGST.' } });
 ok('export invoice: no CGST / SGST rows — a single zero-rated IGST line', hx.includes('<td>IGST — zero-rated export under LUT</td>') && !/CGST|SGST/.test(hx));
 ok('export invoice: title, block with only the given fields, declaration', hx.includes('EXPORT TAX INVOICE') && hx.includes('<span>LUT No.</span><b>AD080826023319U</b>') && hx.includes('<b>Nepal</b>') && hx.includes('<b>EXW</b>') && !/Shipping Bill|Port of Loading|Container/.test(hx) && hx.includes('Supply meant for export under LUT without payment of IGST.'));
@@ -98,7 +105,8 @@ ok('no bank block rows for a firm with no bank on file', !/Bank Name|Account Num
 ok('the five default terms from the brief (not the Tally paper terms)', h.includes('<li>Subject to Nagaur, Rajasthan jurisdiction.</li>') && h.includes('<li>Goods once sold are subject to the agreed terms and conditions.</li>') && !h.includes('Tally term one'));
 ok('terms editable: cfg.terms replaces them', R({}, { terms: ['Custom one', 'Custom two'] }).includes('<li>Custom two</li>') && !R({}, { terms: ['Custom one'] }).includes('Subject to Nagaur'));
 ok('authorisation block', h.includes('FOR DESHWALI MINERALS') && h.includes('Authorized Signatory') && h.includes('Digital Signature / Signature'));
-ok('footer: registered address, phone, GSTIN, computer-generated line', h.includes('Registered Address: GROUND FLOOR, KALI TALAI, NEAR HAFIZ SAHAB KI DRAGHA, MERTA CITY, DISTRICT-NAGAUR') && h.includes('Phone: +91 8875020202, 9460767676') && h.includes('This is a computer-generated invoice.'));
+ok('footer: registered address, phone verbatim, GSTIN, computer-generated line', h.includes('Registered Address: GROUND FLOOR, KALI TALAI, NEAR HAFIZ SAHAB KI DRAGHA, MERTA CITY, DISTRICT-NAGAUR') && h.includes('Phone: 8875020202, 9460767676') && h.includes('GSTIN: 08NLIPS9801K1Z5') && h.includes('This is a computer-generated invoice.'));
+ok('footer omits segments the profile lacks (no dangling "Registered Address:")', !R({ seller: Object.assign({}, seller, { address: '', tel: '' }) }).includes('Registered Address:'));
 ok('footer is fixed on print (repeats per page)', h.includes('@media print{.ft{position:fixed'));
 ok('A4 standalone document', /^<!DOCTYPE html>/.test(h) && /@page\{size:A4/.test(h));
 ok('buyer markup is escaped', R({ buyer: Object.assign({}, BASE.buyer, { name: '<script>alert(1)</script>' }) }).includes('&lt;script&gt;'));

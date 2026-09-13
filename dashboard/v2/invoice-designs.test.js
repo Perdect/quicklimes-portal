@@ -41,7 +41,7 @@ ok('modern: "Billed to" and "Invoice details" columns', m.includes('>Billed to<'
 ok('modern: tinted footer band', /class="foot"/.test(m) && /\.foot\{background:#2563EB14/.test(m));
 ok('business: light "Tax Invoice" title top-right, logo and firm top-left', b.includes('<div class="ttl">Tax Invoice</div>') && b.includes('.ttl{font-size:30px;font-weight:300'));
 ok('business: "Invoice by" and "Invoice to" columns with PAN, and the ruled totals box', b.includes('>Invoice by<') && b.includes('>Invoice to<') && b.includes('<b>PAN</b> NLIPS9801K') && b.includes('<tr class="tot"><td>Total Amount</td>') && b.includes('<b>Invoice Total In Words:</b>'));
-ok('business: Country and Place of supply in the meta column', b.includes('<span>Country of supply:</span><b>India</b>') && b.includes('<span>Place of supply:</span><b>Rajasthan (08)</b>'));
+ok('business: Place of supply in the meta column; no Country line on a domestic invoice', b.includes('<span>Place of supply:</span><b>Rajasthan (08)</b>') && !b.includes('Country of supply'));
 
 /* detailed — the photographed sample, honestly */
 const DT = Object.assign({}, D, { transport: 'Self', station: 'TEH PIPAR CITY', grrr: '' });
@@ -73,6 +73,25 @@ ok('modern: Unit line in the notes', T.render(DU, { template: 'modern' }).includ
 ok('business: Unit line in the Invoice-by box', T.render(DU, { template: 'business' }).includes('<b>Unit</b> Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'));
 ok('detailed: UNIT ADDRESS in the footer', T.render(DU, { template: 'detailed' }).includes('<b>UNIT ADDRESS</b>: Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'));
 ok('no design prints a Unit line when the firm has none', !['modern', 'business', 'detailed'].some(id => /Unit|UNIT ADDRESS/.test(T.render(DT, { template: id }))));
+
+/* review 14-09-2026: honesty fixes across modern / business */
+const MI = Object.assign({}, DT, { items: [{ hsn: '25221000', product: 'Quick Lime Powder', qty: 20, unit: 'MT', rate: 5000, taxable: 100000 }, { hsn: '25221000', product: 'Quick Lime Lumps', qty: 10, unit: 'MT', rate: 4800, taxable: 48000 }], qty: 0, taxable: 148000, grand: 155400, total: 155400, cgst: 3700, sgst: 3700, words: 'Rupees One Lakh Fifty Five Thousand Four Hundred Only' });
+for (const id of ['modern', 'business']) {
+  const x = T.render(MI, { template: id });
+  ok(id + ': a multi-line sale prints BOTH items, no phantom single line', x.includes('Quick Lime Powder') && x.includes('Quick Lime Lumps') && !/0 Tonne/.test(x) && x.includes('₹ 1,00,000.00') && x.includes('₹ 48,000.00'));
+  ok(id + ': the quantity total sums per unit — 30 MT', /class="qtytot[^"]*">30 MT</.test(x));
+  ok(id + ': no "—" placeholder for a buyer without a GSTIN (the GSTIN row is simply absent)', (function () { const x = T.render(Object.assign({}, DT, { buyer: Object.assign({}, D.buyer, { gstin: '' }) }), { template: id }).replace(/<title>[^<]*<\/title>/, ''); return !x.includes('—') && !/<b>GST(IN)?<\/b>\s*<\/div>|<b>GST(IN)?<\/b> ?</.test(x); })());
+  ok(id + ': no empty Additional Notes heading for a bare profile', !T.render(Object.assign({}, DT, { seller: { name: 'X', gstin: '08NLIPS9801K1Z5', address: 'A' } }), { template: id }).includes('Additional Notes'));
+  const xe = T.render(Object.assign({}, DT, { irn: 'abc123', ackNo: '1726', ackDt: '2026-09-02', qrData: 'q' }), { template: id });
+  ok(id + ': an e-invoiced sale shows IRN / Ack / QR', xe.includes('<b>abc123</b>') && xe.includes('<b>1726</b>') && xe.includes('<b>02-09-2026</b>') && xe.includes('e-Invoice QR'));
+  ok(id + ': no IRN block without an IRN (an Ack alone is not an e-invoice)', !/IRN|Ack No|e-Invoice QR/.test(T.render(Object.assign({}, DT, { ackNo: '1726' }), { template: id })));
+}
+ok('mixed units are never summed across units — "20 MT + 400 Bag"', /class="qtytot[^"]*">20 MT \+ 400 Bag</.test(T.render(Object.assign({}, MI, { items: [MI.items[0], { product: 'Hydrated Lime', qty: 400, unit: 'Bag', rate: 250, taxable: 100000 }] }), { template: 'modern' })));
+const XP = Object.assign({}, DT, { type: 'export', buyer: { name: 'Himalaya Lime Traders', address: 'Birgunj, Nepal', gstin: '', state: '' }, export: { country: 'Nepal' }, interState: true, cgst: 0, sgst: 0, igst: 0, gstR: 0 });
+ok('export: place of supply is the destination, not the seller\'s state', ['modern', 'business', 'industrial'].every(id => { const x = T.render(XP, { template: id }); return x.includes('>Nepal<') && !x.includes('Rajasthan (08)'); }));
+ok('export with no country on record: "Outside India", never Rajasthan', ['modern', 'business', 'industrial'].every(id => { const x = T.render(Object.assign({}, XP, { export: null }), { template: id }); return x.includes('Outside India') && !x.includes('Rajasthan (08)'); }));
+ok('business: no hard-coded "Country of supply: India" on a domestic invoice', !T.render(DT, { template: 'business' }).includes('Country of supply'));
+ok('business: Country of supply on an export is the destination', T.render(XP, { template: 'business' }).includes('<span>Country of supply:</span><b>Nepal</b>'));
 
 console.log('\n═══ the two colour designs ═══\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));
