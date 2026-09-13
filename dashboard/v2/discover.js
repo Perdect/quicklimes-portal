@@ -708,11 +708,6 @@ function leadEconomics(r) {
 const IC_PHONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
 const IC_WEB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
 const IC_BLDG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01"/></svg>';
-const IC_FLAME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s4 4 4 8a4 4 0 0 1-8 0c0-1.5.5-2.5 1-3 0 2 1 3 2 3 1.5 0 1-4 1-8z"/><path d="M6 14a6 6 0 0 0 12 0c0-2-1-3.5-2-5"/></svg>';
-const IC_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
-const IC_SNOW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19"/></svg>';
-const IC_LAYERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></svg>';
-const IC_TROPHY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12v5a6 6 0 0 1-12 0z"/><path d="M6 6H3v1a4 4 0 0 0 3 3.9M18 6h3v1a4 4 0 0 1-3 3.9M9 20h6M12 15v5"/></svg>';
 const IC_RUPEE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12M6 9h12M15 4c0 4-3 5-6 5h-.5L15 20"/></svg>';
 const IC_TARGET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>';
 const IC_CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>';
@@ -1733,10 +1728,6 @@ function pipeTemp(l) {
   if (s >= 34) return { key: 'warm', label: 'Warm', c: '#b45309', bg: '#fff7ed' };
   return { key: 'cold', label: 'Cold', c: '#0284c7', bg: '#eff6ff' };
 }
-function pipeKpi(icon, label, value, tone) {
-  return '<div class="pk-card"><div class="pk-ic" style="background:' + (tone ? tone[1] : 'var(--ql-brand-50,#eff6ff)') + ';color:' + (tone ? tone[0] : 'var(--ql-brand-600,#2563eb)') + '">' + icon + '</div>'
-    + '<div class="pk-l">' + label + '</div><div class="pk-v">' + value + '</div></div>';
-}
 /* ═══ TOUCH LOG ═══════════════════════════════════════════════════════════
    crm_activities has existed (with a working /api/crm write endpoint) since
    the CRM was built, and NOTHING ever wrote to it. Every outreach the user
@@ -1771,47 +1762,18 @@ async function renderPipeline(force) {
     else { root.innerHTML = '<div class="pl-empty">Could not load the pipeline. ' + esc((r && r.error) || '') + '</div>'; return; }
   }
   const all = PIPE.leads;
-  const acts = PIPE.activities || [];
-  // ── KPI band (all real, derived from the leads) ──
-  const temps = all.map(pipeTemp);
-  const hot = temps.filter(t => t.key === 'hot').length, warm = temps.filter(t => t.key === 'warm').length, cold = temps.filter(t => t.key === 'cold').length;
-  const open = all.filter(l => CC.isOpen(l.stage)).length;
-  const won = all.filter(l => l.stage === 'won').length, lost = all.filter(l => l.stage === 'lost').length;
-  const f = CC.forecast(all);
-  const conv = (won + lost) > 0 ? Math.round(won / (won + lost) * 100) : (won > 0 ? 100 : 0);
-  const band = '<div class="pk-band">'
-    + pipeKpi(IC_BLDG, 'Total leads', all.length, ['#2563eb', '#eff6ff'])
-    + pipeKpi(IC_FLAME, 'Hot', hot, ['#dc2626', '#fef2f2'])
-    + pipeKpi(IC_SUN, 'Warm', warm, ['#b45309', '#fff7ed'])
-    + pipeKpi(IC_SNOW, 'Cold', cold, ['#0284c7', '#eff6ff'])
-    + pipeKpi(IC_LAYERS, 'Open', open, ['#7c3aed', '#f5f3ff'])
-    + pipeKpi(IC_TROPHY, 'Won', won, ['#15803d', '#dcfce7'])
-    + pipeKpi(IC_RUPEE, 'Pipeline value', pipeFmt(f.gross), ['#0f766e', '#ccfbf1'])
-    + pipeKpi(IC_TARGET, 'Conversion', conv + '%', ['#15803d', '#dcfce7'])
-    + '</div>';
-  /* ── OUTREACH BAND ──────────────────────────────────────────────────────
-     Every number here is a row in crm_activities that this app wrote when the
-     user did something. There is deliberately NO "emails sent", "delivered" or
-     "reply rate": no channel is connected, so nothing in this system can
-     observe a delivery or a reply, and a made-up figure in front of a customer
-     is worse than an absent one. The wording says "opened", and the footnote
-     says why. */
-  const nk = k => acts.filter(a => a.kind === k).length;
-  const today = new Date().toISOString().slice(0, 10);
-  const due = all.filter(l => CC.isOpen(l.stage) && l.next_action_at && String(l.next_action_at).slice(0, 10) <= today).length;
-  const band2 = '<div class="pk-band pk-band-2">'
-    + pipeKpi(IC_WA, 'WhatsApp drafts opened', nk('whatsapp'), ['#16a34a', '#f0fdf4'])
-    + pipeKpi(IC_MAIL, 'Email drafts opened', nk('email'), ['#2563eb', '#eff6ff'])
-    + pipeKpi(IC_DOC, 'Proposals generated', nk('proposal'), ['#7c3aed', '#f5f3ff'])
-    + pipeKpi(IC_CAL, 'Meetings logged', nk('meeting'), ['#b45309', '#fff7ed'])
-    + pipeKpi(IC_PHONE, 'Calls & notes logged', nk('call') + nk('note'), ['#0f766e', '#ccfbf1'])
-    + pipeKpi(IC_CLOCK, 'Follow-ups due', due, due ? ['#dc2626', '#fef2f2'] : ['#64748b', '#f1f5f9'])
-    + '</div>'
-    + '<div class="pk-note">Counted when you open a draft or log a touch here. Delivery and replies are not counted — no email or WhatsApp channel is connected to this app, so nothing can observe them.</div>';
+  /* The two KPI bands that used to sit here (Total/Hot/Warm/Cold/Open/Won/
+     value/conversion, then drafts-opened/meetings/calls/follow-ups) were
+     removed on the owner's instruction, 14 Sep 2026: fourteen tiles pushed
+     the board and its "+ Add lead" button below the fold, and the outreach
+     counters could only ever say "opened", never "sent". The same numbers
+     still exist per lead — the detail panel shows value, score and next
+     action — and the touch log (crm_activities) is still written to. */
   /* CRMCore.nextActions() has existed since the CRM was written with NOTHING
      calling it, so "follow-ups due" was a number you could not act on. This is
-     its caller: the overdue-first call list, straight above the board. */
-  const dueList = CC.nextActions ? CC.nextActions(all, today) : [];
+     its caller: the overdue-first call list, straight above the board. It
+     picks "today" itself, in local time — the machine's date, not UTC's. */
+  const dueList = CC.nextActions ? CC.nextActions(all) : [];
   const dueStrip = dueList.length ? '<div class="pd-due"><div class="pd-due-t">' + IC_CLOCK
     + '<span>Follow up now · ' + dueList.length + '</span></div><div class="pd-due-l">'
     + dueList.slice(0, 8).map(x => {
@@ -1832,7 +1794,7 @@ async function renderPipeline(force) {
   const orphanBar = orphanCos.length ? `<div class="pd-due" style="margin-bottom:14px"><div class="pd-due-t">${IC_USERPLUS}<span>${orphanCos.length} promoted compan${orphanCos.length === 1 ? 'y is' : 'ies are'} not on this board</span></div>
     <div class="in-note" style="margin:0 0 8px">They were promoted before the board existed, so no pipeline row was created. Adding them starts each at the New stage, unscored.</div>
     <button class="lr-b pri" id="plBackfill" type="button">${IC_USERPLUS}Add ${orphanCos.length} to the board</button></div>` : '';
-  if (!all.length) { root.innerHTML = band + band2 + dueStrip + orphanBar + controls + '<div class="pl-empty">No leads yet. Promote a discovered company from the Leads tab, or add one.</div>'; wirePipe(); return; }
+  if (!all.length) { root.innerHTML = dueStrip + orphanBar + controls + '<div class="pl-empty">No leads yet. Promote a discovered company from the Leads tab, or add one.</div>'; wirePipe(); return; }
   // ── filtered leads for the board ──
   const q = PIPE_SEARCH.toLowerCase().trim();
   let leads = all.filter(l => {
@@ -1855,7 +1817,7 @@ async function renderPipeline(force) {
     }).join('') || '<div class="pl-col-empty">Empty</div>';
     return '<div class="pl-col"><div class="pl-col-h"><span class="pl-col-dot" style="background:' + (s.key === 'won' ? '#16a34a' : s.key === 'lost' ? '#dc2626' : '#94a3b8') + '"></span><span>' + esc(s.label) + '</span><span class="pl-col-n">' + ls.length + ' · ' + pipeFmt(total) + '</span></div>' + cards + '</div>';
   }).join('');
-  root.innerHTML = band + band2 + dueStrip + orphanBar + controls + '<div class="pl-board"><div class="pl-cols">' + cols + '</div></div>';
+  root.innerHTML = dueStrip + orphanBar + controls + '<div class="pl-board"><div class="pl-cols">' + cols + '</div></div>';
   wirePipe();
 }
 /* upsertLead's UPDATE writes EVERY column it picks, so a partial payload is a
@@ -1873,7 +1835,10 @@ function wirePipe() {
     else { bf.disabled = false; toast((r && r.error) || 'Could not backfill', 'err'); }
   };
   const add = document.getElementById('plAdd'); if (add) add.addEventListener('click', pipeAddLead);
-  const imp = document.getElementById('plImport'); if (imp) imp.addEventListener('click', () => { switchSection('leads'); const b = document.getElementById('dcImport'); if (b) b.click(); });
+  /* The list importer (file → map columns → ranked call list) lives on
+     crm.html. This used to switch to the Leads tab and click a #dcImport
+     button that no longer exists there — the button did nothing. */
+  const imp = document.getElementById('plImport'); if (imp) imp.addEventListener('click', openPaste);
   const srch = document.getElementById('plSearch'); if (srch) { srch.addEventListener('input', () => { PIPE_SEARCH = srch.value; renderPipeline(); srch.focus(); srch.setSelectionRange(srch.value.length, srch.value.length); }); }
   const temp = document.getElementById('plTemp'); if (temp) temp.addEventListener('change', () => { PIPE_TEMP = temp.value; renderPipeline(); });
   document.querySelectorAll('#pipeRoot [data-due]').forEach(b => b.addEventListener('click', () => pipeOpenLead(+b.dataset.due)));
@@ -1886,23 +1851,53 @@ function wirePipe() {
     if (r && r.ok) renderPipeline(true); else alert('Could not move: ' + ((r && r.error) || ''));
   }));
 }
+/* The manual entry — a buyer met at a fair, a referral, a name from a phone
+   call. It writes the same three rows a promotion does (company → lead →
+   contact), so the board, the detail panel and its Call/WhatsApp buttons treat
+   a hand-entered lead exactly like a discovered one. The vocabulary is the
+   standalone CRM's (crm.js CO_SPECS/CONTACT_SPECS): industry keys the scorer
+   understands, and the same consent choices mayContact() enforces. */
 function pipeAddLead() {
+  const CC = window.CRMCore;
   QLShell.openForm({
-    title: 'Add lead', saveLabel: 'Add', initial: { stage: 'new' },
+    title: 'Add lead', sub: 'By hand — a buyer you already know of', saveLabel: 'Add to the board',
+    initial: { stage: 'new', industry: '', consent_basis: 'none' },
     specs: [
       { k: 'name', label: 'Company', req: true, full: true },
-      { k: 'industry', label: 'Industry' },
+      { k: 'industry', label: 'Industry', type: 'select', opts: () => [['', 'Unknown']].concat((IC2 ? IC2.INDUSTRIES : []).map(i => [i.key, i.label])),
+        hint: 'Drives the fit score — ranked on what that industry actually earns you.' },
       { k: 'city', label: 'City' },
+      { k: 'gstin', label: 'GSTIN', upper: true, hint: 'Optional, but it is what stops two rows for one buyer.' },
       { k: 'tonnes', label: 'Tonnes (MT)', type: 'number' },
       { k: 'price_per_tonne', label: 'Price ₹/MT', type: 'number' },
-      { k: 'stage', label: 'Stage', type: 'select', opts: CRMCore.STAGES.map(s => [s.key, s.label]) }
+      { k: 'stage', label: 'Stage', type: 'select', opts: CC.STAGES.map(s => [s.key, s.label]) },
+      { type: 'section', label: 'Contact person (optional)' },
+      { k: 'contact_name', label: 'Name' },
+      { k: 'phone', label: 'Phone', type: 'tel', ph: '10 digits' },
+      { k: 'email', label: 'Email', type: 'email', full: true },
+      { k: 'consent_basis', label: 'How may you contact them?', type: 'select', full: true,
+        opts: [['none', 'No basis yet — do not contact'], ['inbound', 'They contacted us first'], ['consent', 'They agreed to be contacted'],
+               ['contract', 'Existing customer (we supply them)'], ['purchased', 'Bought / scraped list — email only']],
+        hint: 'A mobile number is personal data even in B2B. The app will not open a WhatsApp draft to anyone without a basis on file.' }
     ],
     async onSave(v) {
-      const c = await pipeApi({ action: 'upsertCompany', company: { name: v.name, industry: v.industry || '', city: v.city || '' } });
-      if (!c || !c.ok) return alert('Could not save company: ' + ((c && c.error) || ''));
+      // Warn BEFORE writing. Two rows for one buyer means two prices quoted
+      // to one man. Same GSTIN is certain and stops here; same name only warns.
+      const d = CC.dupeOf ? CC.dupeOf(v, PIPE.companies) : { dupe: false };
+      if (d.dupe && d.certain) { toast('Already on the board as "' + d.of.name + '" (same GSTIN)', 'err'); return false; }
+      if (d.dupe) toast('Looks like "' + d.of.name + '" is already here — check the board for a duplicate');
+      const c = await pipeApi({ action: 'upsertCompany', company: { name: v.name, industry: v.industry || '', city: v.city || '', gstin: v.gstin || '', source: 'manual' } });
+      if (!c || !c.ok) { toast('Could not save company: ' + ((c && c.error) || ''), 'err'); return false; }
       const cid = c.id || (c.company && c.company.id);
       const l = await pipeApi({ action: 'upsertLead', lead: { id: 0, crm_company: cid, tonnes: +v.tonnes || null, price_per_tonne: +v.price_per_tonne || null, stage: v.stage || 'new' } });
-      if (!l || !l.ok) return alert('Could not save lead: ' + ((l && l.error) || ''));
+      if (!l || !l.ok) { toast('Company saved, but the lead was not: ' + ((l && l.error) || ''), 'err'); renderPipeline(true); return; }
+      // The contact is a bonus, not the point: the company and the lead are
+      // already on the board, so a contact failure is reported, not fatal.
+      if (v.contact_name || v.phone || v.email) {
+        const ct = await pipeApi({ action: 'upsertContact', contact: { crm_company: cid, name: v.contact_name || v.name, phone: v.phone || null, email: v.email || null, consent_basis: v.consent_basis || 'none' } });
+        if (!ct || !ct.ok) toast('Lead added, but the contact was not saved: ' + ((ct && ct.error) || ''), 'err');
+      }
+      toast('Added to the board');
       renderPipeline(true);
     }
   });

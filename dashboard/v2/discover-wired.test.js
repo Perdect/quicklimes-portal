@@ -462,37 +462,57 @@ const bare = js.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/freight-core\.js/.test(html) && /freight\.js/.test(html), '  loads the freight engine + UI');
   ok(/FreightUI\.init\(\)/.test(bare), '  inits the freight calculator when its tab opens');
   ok(/crm-core\.js/.test(html), '  loads crm-core for the pipeline');
-  ok(/function renderPipeline\(/.test(bare) && /\.forecast\(/.test(bare) && /window\.CRMCore/.test(bare), '  the Pipeline tab renders a real board from crm-core forecast');
+  /* Per-lead value and per-column totals come from crm-core's leadValue —
+     the same maths the standalone CRM uses. (forecast() fed the "Pipeline
+     value" tile, which is gone; see the Acquisition block below.) */
+  ok(/function renderPipeline\(/.test(bare) && /CC\.leadValue\(/.test(bare) && /window\.CRMCore/.test(bare), '  the Pipeline tab renders a real board priced by crm-core');
   ok(/action: 'list'/.test(bare) && /\/api\/crm/.test(bare), '  reads live pipeline data from /api/crm');
   ok(/canMove\(/.test(bare), '  stage moves are validated by crm-core (no dishonest wins)');
 }
 
-/* ── Acquisition dashboard (ZOG-style): KPI band + temperature kanban ── */
+/* ── Acquisition board: temperature kanban, no KPI tiles ── */
 {
   ok(/function pipeTemp\(/.test(bare), 'temperature is derived from the ICP fit score (pipeTemp)');
   ok(/l\.score/.test(bare) && /Unscored/.test(bare), '  temperature reads lead.score and stays honest when unscored');
-  ok(/pk-band/.test(html) && /class="pk-card"/.test(bare), '  renders a KPI band (Total/Hot/Warm/Cold/Open/Onboarded/value/conversion)');
-  /* "Won" not "Onboarded" — the tile has to say the same word as the stage
-     chip it counts, or the board contradicts itself. */
-  ok(/Pipeline value/.test(bare) && /Conversion/.test(bare) && /'Won'/.test(bare), '  the KPI band has the acquisition metrics');
 
-  /* ── the outreach band may only count what actually happened ──
-     No channel is connected, so nothing in this app can observe a delivery or
-     a reply. The tiles say "opened"/"logged", and the words that would imply
-     observation we do not have must never appear as a metric label. */
-  ok(/WhatsApp drafts opened/.test(bare) && /Email drafts opened/.test(bare), '  outreach tiles say "opened", never "sent"');
-  /* Scoped to the outreach band itself — "Delivered cost ₹/MT" elsewhere in
-     this file is freight pricing and has nothing to do with message delivery. */
-  const band2 = bare.slice(bare.indexOf('const band2 ='), bare.indexOf('// ── controls'));
-  ok(band2.length > 100, '  (the outreach band is where it should be)');
-  ok(!/sent'/i.test(band2) && !/reply rate/i.test(band2) && !/delivered/i.test(band2) && !/opened rate/i.test(band2),
-    '  no "sent" / "reply rate" / "delivered" metric is invented');
-  ok(/pk-note/.test(bare) && /no email or WhatsApp channel is connected/.test(bare), '  and the band says why in plain words');
+  /* The two KPI bands (Total/Hot/Warm/Cold/Open/Won/value/conversion and the
+     drafts-opened/meetings/calls/follow-ups counters) were removed on the
+     owner's instruction, 14 Sep 2026. Fourteen tiles pushed the board and its
+     "+ Add lead" button below the fold. This pins the removal: no band, no
+     tile markup, no orphaned CSS — and no metric that would need a channel
+     this app does not have ("sent", "delivered", "reply rate"). */
+  ok(!/pk-band/.test(bare) && !/pk-band/.test(html), '  no KPI band is rendered or styled');
+  ok(!/class="pk-card"/.test(bare) && !/function pipeKpi\(/.test(bare), '  the tile helper is gone with it');
+  ok(!/drafts opened/i.test(bare) && !/pk-note/.test(bare), '  the outreach counters and their footnote are gone');
+  const pipe = bare.slice(bare.indexOf('async function renderPipeline('), bare.indexOf('function leadPatch('));
+  ok(!/sent'/i.test(pipe) && !/reply rate/i.test(pipe) && !/delivered/i.test(pipe), '  no "sent" / "reply rate" / "delivered" metric is invented');
+  ok(/root\.innerHTML = dueStrip \+ orphanBar \+ controls/.test(pipe), '  the board opens with the follow-up strip and the controls — nothing above them');
+  ok(!/IC_FLAME|IC_SUN\b|IC_SNOW|IC_LAYERS|IC_TROPHY/.test(bare), '  the icons only the tiles used are not left behind');
 
-  /* Counts come from crm_activities, which this app now actually writes to. */
+  /* Touches are still logged to crm_activities — the detail panel's timeline
+     reads them — even though no tile counts them any more. */
   ok(/action: 'activity'/.test(bare) && /function logTouch/.test(bare), '  touches are logged to the server (crm_activities)');
-  ok(/PIPE\.activities/.test(bare), '  and the tiles count those rows, not a guess');
+  ok(/PIPE\.activities/.test(bare), '  and the lead panel reads those rows');
   ok(/kind: ch === 'whatsapp'/.test(bare), '  opening a draft in the Outreach Studio logs a touch');
+
+  /* ── adding a lead by hand ──
+     "+ Add lead" must write the same three rows a promotion does — company,
+     lead, contact — so a hand-entered buyer gets the Call/WhatsApp buttons and
+     the same consent rule as a discovered one. */
+  const add = bare.slice(bare.indexOf('function pipeAddLead('), bare.indexOf('function pipeOpenLead('));
+  ok(/id="plAdd"/.test(bare) && /plAdd'\)/.test(bare) && /pipeAddLead\)/.test(bare), '  the board has a "+ Add lead" button wired to the form');
+  ok(/action: 'upsertCompany'/.test(add) && /action: 'upsertLead'/.test(add) && /action: 'upsertContact'/.test(add), '  the form writes company, lead AND contact');
+  ok(/k: 'phone'/.test(add) && /k: 'gstin'/.test(add) && /k: 'consent_basis'/.test(add), '  it asks for a phone, a GSTIN and how the contact may be reached');
+  ok(/\['purchased', 'Bought \/ scraped list — email only'\]/.test(add) && /'none', 'No basis yet — do not contact'/.test(add), '  the consent choices are the CRM\'s own vocabulary (mayContact enforces them)');
+  ok(/IC2\.INDUSTRIES/.test(add), '  industry is picked from the list the scorer understands, not typed free');
+  ok(/dupeOf\(/.test(add) && /d\.certain/.test(add) && /return false/.test(add), '  a same-GSTIN duplicate is refused before anything is written');
+  ok(/source: 'manual'/.test(add), '  the company records that it was entered by hand');
+
+  /* The Import button on the board used to click a #dcImport control that no
+     longer exists on the Leads tab, so it did nothing. It goes to crm.html's
+     list importer now. */
+  ok(!/getElementById\('dcImport'\)\.click|const b = document\.getElementById\('dcImport'\)/.test(bare), '  the board\'s Import button no longer targets a control that is not there');
+  ok(/plImport'\); if \(imp\) imp\.addEventListener\('click', openPaste\)/.test(bare) && /function openPaste\(\)[\s\S]{0,120}crm\.html/.test(bare), '  it opens the list importer instead');
 
   /* A promoted company must ENTER the pipeline — without a crm_leads row the
      board stays empty however many leads you promote. */

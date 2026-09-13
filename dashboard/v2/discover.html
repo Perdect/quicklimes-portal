@@ -22,7 +22,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./shell.css?v=r13"><link rel="stylesheet" href="./pages.css?v=m20cora"><link rel="stylesheet" href="./imchat.css?v=im10">
-<link rel="stylesheet" href="./qlx.css?v=m25">
+<link rel="stylesheet" href="./qlx.css?v=m26">
 <link rel="stylesheet" href="./mobile.css?v=m16">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 
@@ -457,12 +457,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   .pl-card .v { font: 800 13px var(--ql-font-sans); color: var(--ql-brand-700,#1d4ed8); }
   [data-theme="dark"] .pl-card .v { color:#93c5fd; }
   .pl-empty { padding: 30px; text-align: center; color: var(--ql-text-muted); font: 500 13px var(--ql-font-sans); }
-  /* ── Acquisition dashboard (ZOG-style) — KPI band + temperature kanban ── */
-  .pk-band { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; margin-bottom: 16px; }
-  .pk-card { background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 16px; padding: 14px 16px; }
-  .pk-ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font: 700 15px var(--ql-font-sans); }
-  .pk-l { font: 700 10.5px var(--ql-font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ql-text-secondary); margin-top: 10px; }
-  .pk-v { font: 800 24px/1.1 var(--ql-font-sans); color: var(--ql-text); letter-spacing: -.02em; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  /* ── Acquisition board — search, temperature filter, add/import ── */
   .pk-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
   .pk-search { flex: 1; min-width: 180px; font: 500 13.5px var(--ql-font-sans); color: var(--ql-text); background: var(--ql-card); border: 1px solid var(--ql-border); border-radius: 11px; padding: 10px 14px; }
   .pk-search:focus { outline: none; border-color: var(--ql-brand-500,#3b82f6); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
@@ -701,19 +696,8 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
   #plStudio, #plProposal, #plOnboard { display: inline-flex; align-items: center; gap: 7px; }
   #plStudio svg, #plProposal svg, #plOnboard svg { width: 15px; height: 15px; flex: none; }
 
-  /* ── Acquisition: KPI tiles carry real SVG icons, never dingbats ── */
-  .pk-ic svg { width: 17px; height: 17px; }
-  .pk-band-2 { grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); margin-bottom: 6px; }
   .pk-title { font: 800 24px/1.2 var(--ql-font-sans); color: var(--ql-text); letter-spacing: -.025em; }
   .pk-tsub { font: 500 13px var(--ql-font-sans); color: var(--ql-text-secondary); margin: 5px 0 20px; }
-  @media (min-width: 1180px) {
-    /* One clean row each, like the board they sit above — auto-fit leaves an
-       ugly 6+2 orphan at common desktop widths. */
-    .pk-band { grid-template-columns: repeat(8, 1fr); }
-    .pk-band-2 { grid-template-columns: repeat(6, 1fr); }
-  }
-  .pk-band .pk-v { font-size: 21px; }
-  .pk-note { font: 500 11.5px/1.6 var(--ql-font-sans); color: var(--ql-text-muted); margin: 0 2px 16px; max-width: 900px; }
 
   /* ── Lead detail panel ── */
   .pd-head { display: flex; align-items: flex-start; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--ql-border); }
@@ -1090,7 +1074,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <!-- Company 360° side-drawer (Phase 3) -->
 <div class="lc-back" id="lcBack" hidden><aside class="lc-drawer" id="lcDrawer" role="dialog" aria-modal="true" aria-label="Company details"></aside></div>
 
-<script src="ql-api.js?v=a5"></script>
+<script src="ql-api.js?v=a6"></script>
 <script src="./crm-core.js?v=k1"></script>
 <script src="./icp-core.js?v=i1"></script>
 <script src="./lead-import.js?v=l1"></script>
@@ -1101,20 +1085,20 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./party-identity.js?v=m28"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./party-resolve.js?v=pr1"></script>
-<script src="./data.js?v=m52caaaaaaaaaaaaaaaa"></script>
+<script src="./data.js?v=m52caaaaaaaaaaaaaaaaa"></script>
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./i18n.js?v=h8"></script>
 <script src="./wa-core.js?v=w3"></script>
 <script src="./invoice-templates.js?v=t18"></script>
-<script src="./shell.js?v=m68saaaaaaaaaaaaaaaaaa"></script>
+<script src="./shell.js?v=m68saaaaaaaaaaaaaaaaaaaa"></script>
 <script src="./chat-core.js?v=cc2"></script>
 <script src="./imchat.js?v=im11"></script>
 <script src="./mobile.js?v=m16"></script>
-<script src="./qlx.js?v=m20prgdaaaaa"></script>
+<script src="./qlx.js?v=m20prgdaaaaaa"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="./freight-core.js?v=f1"></script>
 <script src="./freight.js?v=f2"></script>
 <script src="./india-geo.js?v=g1"></script>
-<script src="./discover.js?v=d55"></script>
+<script src="./discover.js?v=d56"></script>
 </body>
 </html>
