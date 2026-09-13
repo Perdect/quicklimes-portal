@@ -18,6 +18,11 @@
   var API = (function () {
     var h = location.hostname;
     if (h === 'app.quicklimes.com') return '/api/';
+    /* A local stack (php -S + scratch MySQL, see data.js's _loginUrl) is
+       same-origin too. Without this a localhost session sent its token to the
+       PRODUCTION api, got a 401, and signed itself out — and any write it did
+       manage would have landed in the live books. */
+    if (h === 'localhost' || h === '127.0.0.1' || /\.local$/.test(h)) return '/api/';
     return 'https://app.quicklimes.com/api/';
   })();
 

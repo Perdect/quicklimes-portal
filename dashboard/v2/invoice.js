@@ -169,6 +169,10 @@ function render() {
   const tpl = document.getElementById('invTpl'); if (tpl) tpl.addEventListener('change', onPickDesign);
   document.getElementById('invSave').onclick = () => save(false);
   document.getElementById('invPrint').onclick = () => save(true);
+  /* Deep link from the Customer 360 "Record Order": ?party=<id> fills the buyer
+     from the master record — the sale then resolves back to that customer. */
+  const pid = new URLSearchParams(location.search).get('party');
+  if (pid) { const p = Q.partyRows().find(x => x.id === pid); if (p) { const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; }; set('i_bname', p.name); set('i_bgst', p.gstin); set('i_baddr', [p.address, p.city].filter(Boolean).join(', ')); set('i_bstate', p.state || (p.gstin ? Q.stateOfGstin(p.gstin) : '')); set('i_bphone', p.wa || p.phone); set('i_stn', p.deliveryLoc || ''); } }
   updatePreview();
   QLShell.paintWorkspace && QLShell.paintWorkspace();
 }

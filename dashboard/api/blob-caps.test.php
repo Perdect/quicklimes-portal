@@ -120,6 +120,18 @@ $EXPECTED = [
   // never 'recon': a recon-only role may work the matching screen without being
   // handed the list of the firm's accounts and their statement history.
   'statements'   => 'finance',
+  // Customer 360°: what each customer wants, what we quoted and offered them,
+  // the deal pipeline, follow-ups, private notes, the activity log and the
+  // message templates. Pricing and conversation content — the same decision
+  // as 'wa': a sales seat's data, never readable by production or dispatch.
+  'reqs'         => 'sales',
+  'quotes'       => 'sales',
+  'offers'       => 'sales',
+  'deals'        => 'sales',
+  'followups'    => 'sales',
+  'cnotes'       => 'sales',
+  'ctimeline'    => 'sales',
+  'msgTemplates' => 'sales',
 ];
 foreach ($EXPECTED as $key => $want) {
   ok("'$key' is gated on '$want' exactly" . ($want === 'labour' ? ' (wages — never sales/production)' : ''),

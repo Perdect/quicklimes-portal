@@ -61,7 +61,9 @@
       // phones are card-first: a squeezed data-grid is never shown when the
       // module defines a card() renderer
       view: (qxMobile() && CFG.card) ? 'cards' : ((CFG.views && CFG.views[0]) || 'table'),
-      quick: 'all', q: '', groupBy: (CFG.groupByDefault || (CFG.groupBy && CFG.groupBy[0] && CFG.groupBy[0].key) || 'none'),
+      /* 'all' means no quick filter; a module can open on one of its own
+         (CFG.quickDefault), e.g. a follow-up list that opens on "Open". */
+      quick: CFG.quickDefault || 'all', q: '', groupBy: (CFG.groupByDefault || (CFG.groupBy && CFG.groupBy[0] && CFG.groupBy[0].key) || 'none'),
       sort: Object.assign({}, CFG.sortDefault || { key: null, dir: 'desc' }),
       adv: {}, advOpen: false, page: 1,
       hidden: loadHidden(), collapsed: new Set(), sel: new Set(),
@@ -610,18 +612,55 @@
     else { const g = grouper() || (CFG.groupBy || [])[0]; if (!g) return cardsHTML(rows); const keys = [...new Set(rows.map(g.of))]; cols = keys.map(k => ({ key: k, label: k, color: 'var(--qx)', of: r => g.of(r) === k })); }
     return `<div class="qx-board">${cols.map(col => {
       const cr = rows.filter(col.of), sum = cr.reduce((a, r) => a + (CFG.groupSum ? CFG.groupSum(r) : 0), 0);
-      return `<div class="qx-col"><div class="qx-col-h"><span class="qx-col-dot" style="background:${col.color}"></span><span class="qx-col-n">${esc(col.label)}</span><span class="qx-col-ct">${cr.length}</span>${CFG.groupSum ? `<span class="qx-col-sum">${fC(sum)}</span>` : ''}</div>
+      return `<div class="qx-col" data-col="${esc(col.key)}"><div class="qx-col-h"><span class="qx-col-dot" style="background:${col.color}"></span><span class="qx-col-n">${esc(col.label)}</span><span class="qx-col-ct">${cr.length}</span>${CFG.groupSum ? `<span class="qx-col-sum">${fC(sum)}</span>` : ''}</div>
         <div class="qx-col-body">${cr.map(kcardHTML).join('') || '<div class="qx-empty" style="padding:16px">—</div>'}</div></div>`;
     }).join('')}</div>`;
   }
   function kcardHTML(r) {
     const c = CFG.card ? CFG.card(r) : { id: rowId(r), title: '', amount: '' };
     const id = rowId(r);
-    return `<div class="qx-kcard" data-id="${esc(id)}">
+    const drag = (CFG.status && CFG.status.set) ? ' draggable="true"' : '';
+    return `<div class="qx-kcard" data-id="${esc(id)}"${drag}>
       <div class="qx-kcard-top"><span class="qx-kcard-ttl">${c.title || esc(c.id)}</span>${c.amount ? `<span class="qx-kcard-amt">${c.amount}</span>` : ''}</div>
       ${c.party ? `<div class="qx-kcard-meta"><span class="qx-av" style="background:linear-gradient(135deg,${avColor(c.party)})">${esc((c.party || '?').charAt(0).toUpperCase())}</span>${esc(c.party)}</div>` : ''}
       ${(c.chips && c.chips.length) ? `<div class="qx-kcard-foot">${c.chips.join('')}</div>` : ''}
     </div>`;
+  }
+
+  /* ── KANBAN DRAG & DROP ─────────────────────────────────────────────────
+     Only when the module declares CFG.status.set(row, newKey). HTML5 drag on
+     desktop; on touch the card grows a "Move to…" menu instead (long-press
+     drag on a horizontally scrolling board is a fight nobody wins). The
+     module's set() may return false / a string to refuse the move. */
+  let _dragId = null;
+  function wireBoardDrag(root) {
+    if (!(CFG.status && CFG.status.set) || S.view !== 'board') return;
+    root.querySelectorAll('.qx-kcard[draggable]').forEach(card => {
+      card.addEventListener('dragstart', e => { _dragId = card.dataset.id; card.classList.add('qx-dragging'); try { e.dataTransfer.setData('text/plain', _dragId); e.dataTransfer.effectAllowed = 'move'; } catch (_) {} });
+      card.addEventListener('dragend', () => { card.classList.remove('qx-dragging'); root.querySelectorAll('.qx-col.qx-over').forEach(c => c.classList.remove('qx-over')); });
+      if (qxMobile()) card.addEventListener('contextmenu', e => { e.preventDefault(); openMoveMenu(card.dataset.id, card); });
+    });
+    root.querySelectorAll('.qx-col[data-col]').forEach(col => {
+      col.addEventListener('dragover', e => { if (_dragId == null) return; e.preventDefault(); col.classList.add('qx-over'); try { e.dataTransfer.dropEffect = 'move'; } catch (_) {} });
+      col.addEventListener('dragleave', () => col.classList.remove('qx-over'));
+      col.addEventListener('drop', e => {
+        e.preventDefault(); col.classList.remove('qx-over');
+        const id = _dragId; _dragId = null; if (id == null) return;
+        const r = rowById(id); if (!r) return;
+        if (CFG.status.of(r) === col.dataset.col) return;
+        const res = CFG.status.set(r, col.dataset.col);
+        if (res === false) return; if (typeof res === 'string') { toast(res, 'err'); return; }
+        render();
+      });
+    });
+  }
+  function openMoveMenu(id, anchor) {
+    const r = rowById(id); if (!r || !(CFG.status && CFG.status.options)) return;
+    const items = CFG.status.options.filter(o => o[0] !== CFG.status.of(r)).map(o => ({ label: 'Move to ' + o[1], onClick: () => { const res = CFG.status.set(r, o[0]); if (typeof res === 'string') toast(res, 'err'); else if (res !== false) render(); } }));
+    closeMenu(); const m = document.createElement('div'); m.className = 'qx-menu';
+    m.innerHTML = '<div class="qx-menu-h">Move card</div>' + items.map(it => `<button class="qx-menu-i">${esc(it.label)}</button>`).join('');
+    m.querySelectorAll('.qx-menu-i').forEach((btn, i) => { btn.onclick = () => { closeMenu(); items[i].onClick(); }; });
+    placeMenu(m, anchor);
   }
 
   /* ══════════════════ CARDS / GALLERY ══════════════════ */
@@ -710,6 +749,7 @@
     if ($('qxAll')) $('qxAll').onclick = () => { const all = allSel(rows); rows.forEach(r => { const id = String(rowId(r)); all ? S.sel.delete(id) : S.sel.add(id); }); render(); };
     root.querySelectorAll('[data-ck]').forEach(cb => cb.onclick = e => { e.stopPropagation(); const id = cb.dataset.ck; S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id); render(); });
     // row / card / kanban / cal open
+    wireBoardDrag(root);
     root.querySelectorAll('.qx-row, .qx-kcard, .qx-card, .qx-cal-ev, .qlm-lrow').forEach(el => el.addEventListener('click', e => {
       if (e.target.closest('button,select,input,a,.qx-cbx,[data-act]')) return;
       openDetail(el.dataset.id);
@@ -803,7 +843,13 @@
   }
 
   /* ══════════════════ DETAIL PANEL ══════════════════ */
-  function openDetail(id) { S.openId = id; S.dpTab = 0; renderDetailBody(); DP.classList.add('open'); }
+  /* CFG.onOpen(row) → true takes the click instead of the drawer: a module
+     whose record has a whole PAGE (a customer's 360° profile) navigates there
+     rather than squeezing it into a side panel. */
+  function openDetail(id) {
+    if (CFG.onOpen) { const r = rowById(id); if (r && CFG.onOpen(r) === true) return; }
+    S.openId = id; S.dpTab = 0; renderDetailBody(); DP.classList.add('open');
+  }
   function closeDetail() { DP.classList.remove('open'); S.openId = null; }
   function renderDetailBody() {
     const r = rowById(S.openId); if (!r || !CFG.detail) return;
@@ -899,7 +945,12 @@
   }
 
   /* ══════════════════ TOAST ══════════════════ */
-  function toast(m, tone) { TOAST.textContent = m; TOAST.className = 'qx-toast ' + (tone || ''); TOAST.hidden = false; clearTimeout(_tt); _tt = setTimeout(() => { TOAST.hidden = true; }, 2600); }
+  /* Usable before mount(): a page that only borrows the chrome (the customer
+     profile) toasts through here too, so the element is made on demand. */
+  function toast(m, tone) {
+    if (!TOAST) { TOAST = document.getElementById('qxToast'); if (!TOAST) { TOAST = document.createElement('div'); TOAST.id = 'qxToast'; TOAST.className = 'qx-toast'; TOAST.hidden = true; document.body.appendChild(TOAST); } }
+    TOAST.textContent = m; TOAST.className = 'qx-toast ' + (tone || ''); TOAST.hidden = false; clearTimeout(_tt); _tt = setTimeout(() => { TOAST.hidden = true; }, 2600);
+  }
 
   /* ══════════════════ BILL / DOC VIEWER ══════════════════
      Opens an uploaded file (image/PDF) or a generated bill (HTML) in a

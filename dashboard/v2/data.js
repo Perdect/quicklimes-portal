@@ -353,7 +353,18 @@
        but never WHEN, BY WHOM, or FROM WHICH FILE. That is why a bank card cannot
        say "last upload", why there is no history to re-import from, and why the
        same statement can be uploaded twice with only per-row dedupe to catch it. */
-    STATEMENTS: []
+    STATEMENTS: [],
+    /* ── Customer 360° (customer-store.js writes these; customer-core.js reads) ──
+       reqs       what each customer normally wants (many per customer)
+       quotes     quotations, with revision history
+       offers     quick price offers
+       deals      the order-lifecycle pipeline (one card per opportunity)
+       followups  reminders — call, WhatsApp, price, payment…
+       cnotes     private internal notes per customer
+       ctimeline  explicit activity events (the registers add theirs at render)
+       msgTemplates  {{variable}} message templates
+       Every row carries `cust` = the party's stable id, never its array index. */
+    REQS: [], QUOTES: [], OFFERS: [], DEALS: [], FOLLOWUPS: [], CNOTES: [], CTIMELINE: [], MSG_TEMPLATES: []
   };
   // Finance + GST Portal state (bank txns, GST tracking, CA docs metadata).
   // Lives inside the per-company blob so it persists locally and syncs to
@@ -477,6 +488,7 @@
     S.WA = { cfg: {}, log: [] };
     S.BANK_ACCOUNTS.length = 0;
     S.STATEMENTS.length = 0;
+    ['REQS', 'QUOTES', 'OFFERS', 'DEALS', 'FOLLOWUPS', 'CNOTES', 'CTIMELINE', 'MSG_TEMPLATES'].forEach(k => { S[k].length = 0; });
   }
   function hydrate(d) {
     if (!d) return;
@@ -499,6 +511,14 @@
     if (d.reconcile && Array.isArray(d.reconcile.txns)) S.RECON = d.reconcile;
     if (Array.isArray(d.bankAccounts)) S.BANK_ACCOUNTS.push(...d.bankAccounts);
     if (Array.isArray(d.statements)) S.STATEMENTS.push(...d.statements);
+    if (Array.isArray(d.reqs)) S.REQS.push(...d.reqs);
+    if (Array.isArray(d.quotes)) S.QUOTES.push(...d.quotes);
+    if (Array.isArray(d.offers)) S.OFFERS.push(...d.offers);
+    if (Array.isArray(d.deals)) S.DEALS.push(...d.deals);
+    if (Array.isArray(d.followups)) S.FOLLOWUPS.push(...d.followups);
+    if (Array.isArray(d.cnotes)) S.CNOTES.push(...d.cnotes);
+    if (Array.isArray(d.ctimeline)) S.CTIMELINE.push(...d.ctimeline);
+    if (Array.isArray(d.msgTemplates)) S.MSG_TEMPLATES.push(...d.msgTemplates);
     // The WhatsApp send log IS the dedupe memory — without restoring it, every
     // reload forgets what was already sent and a customer gets chased twice.
     if (d.wa && typeof d.wa === 'object') S.WA = { cfg: d.wa.cfg || {}, log: Array.isArray(d.wa.log) ? d.wa.log : [] };
@@ -610,6 +630,10 @@
       reconcile: S.RECON || { txns: [] },
       bankAccounts: S.BANK_ACCOUNTS,
       statements: S.STATEMENTS,
+      // Customer 360° stores — all eight, or a requirement typed today dies on
+      // the next reload (blob() is a whitelist, see below).
+      reqs: S.REQS, quotes: S.QUOTES, offers: S.OFFERS, deals: S.DEALS, followups: S.FOLLOWUPS,
+      cnotes: S.CNOTES, ctimeline: S.CTIMELINE, msgTemplates: S.MSG_TEMPLATES,
       // blob() is an explicit WHITELIST: a store missing from this list is
       // never saved and silently dies on reload. The WhatsApp send log is the
       // DEDUPE MEMORY — lose it and a customer gets chased twice for the same
@@ -887,8 +911,8 @@
      A sales invoice auto-routed off the Purchase register must land in the SALES
      store: written to the purchase store it is filed where nothing will ever
      look for it, which is the same as losing it. */
-  const DOC_DB = { purchase: 'ql_pur_docs', sales: 'ql_sal_docs' };
-  const DOC_PFX = { purchase: 'pa', sales: 'sa' };
+  const DOC_DB = { purchase: 'ql_pur_docs', sales: 'ql_sal_docs', parties: 'ql_party_docs' };
+  const DOC_PFX = { purchase: 'pa', sales: 'sa', parties: 'pd' };
   const _docDb = {};
   function docDb(kind) {
     const name = DOC_DB[kind];
@@ -931,6 +955,19 @@
     return id;
   }
   function getDoc(kind, id) { return docOp(kind, 'readonly', st => st.get(id)); }
+  /* Customer documents (GST certificate, PO, contract, test report…): the file
+     goes to the parties store here (fast, offline) and to the server copy via
+     docSync; the metadata rides on party.docs through QLCRM.addDocMeta so it
+     is on every device the blob reaches. Same id discipline as bill scans. */
+  async function attachPartyDoc(idx, file, kind, label) {
+    if (!file) return '';
+    if (!S.PARTIES[idx]) throw new Error('the customer is no longer there — document not attached');
+    const id = DOC_PFX.parties + Date.now().toString(36) + Math.floor(Math.random() * 1e5).toString(36);
+    await docOp('parties', 'readwrite', st => st.put(file, id));
+    docSync(id, { name: file.name, kind: kind || 'other', mime: file.type || '' }, file);
+    if (window.QLCRM && window.QLCRM.addDocMeta) window.QLCRM.addDocMeta(idx, { id, name: file.name, mime: file.type || '', kind: kind || 'other', label: label || '', size: file.size });
+    return id;
+  }
 
   /* ── SERVER COPY of every scan (/api/files) ──────────────────────────────
      The browser store stays primary (fast, offline). The server is the shared
@@ -1770,6 +1807,9 @@
       // engine about this UI's encoding. Default is opt-IN (undefined -> true):
       // an existing party with no preference set still gets their invoice.
       industry: p.industry || '',          // '' ⇒ ICPCore guesses from the name, and says it guessed
+      // Customer master fields — written by customer-store.js, read by customer-core.js
+      ctype: p.ctype || '', contact: p.contact || '', email: p.email || '', altContact: p.altContact || '', city: p.city || '', country: p.country || '', pin: p.pin || '', pan: p.pan || '', iec: p.iec || '', code: p.code || '',
+      payTerms: p.payTerms || '', payTermsNote: p.payTermsNote || '', transport: p.transport || '', deliveryLoc: p.deliveryLoc || '', since: p.since || '', salesperson: p.salesperson || '', cstatus: p.cstatus || '', segments: Array.isArray(p.segments) ? p.segments : [], docs: Array.isArray(p.docs) ? p.docs : [],
       wa: p.wa || '', waAlt: p.waAlt || '', lang: p.lang || 'en',
       autoRemind: p.autoRemind !== 'no', autoInvoice: p.autoInvoice !== 'no', autoStatement: p.autoStatement !== 'no'
     }));
@@ -3129,7 +3169,7 @@
     upsertParty, deleteParty,
     addSale, updateSale, deleteSale, setSaleStatus,
     addPurchase, updatePurchase, deletePurchase, setPurchaseStatus, importGenericBill,
-    attachDoc, getDoc,
+    attachDoc, getDoc, attachPartyDoc, fetchDocBlob,
     addFreightPayment, deleteFreightPayment, updateFreightNote,
     addWorker, updateWorker, deleteWorker,
     addCashEntry, deleteCashEntry,

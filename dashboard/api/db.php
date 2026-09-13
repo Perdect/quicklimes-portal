@@ -328,6 +328,11 @@ function ql_blob_caps() {
     // uploaded it. It names the firm's bank accounts and its statement periods,
     // so it belongs with the money detail — same capability as bankAccounts.
     'statements' => 'finance',
+    // Customer 360°: requirements, quotations, offers, the deal pipeline,
+    // follow-ups, notes, the activity log and message templates. Pricing and
+    // what was said to a customer — a sales seat's data, nobody else's.
+    'reqs' => 'sales', 'quotes' => 'sales', 'offers' => 'sales', 'deals' => 'sales',
+    'followups' => 'sales', 'cnotes' => 'sales', 'ctimeline' => 'sales', 'msgTemplates' => 'sales',
   ];
 }
 

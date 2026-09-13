@@ -208,7 +208,12 @@
     { type: 'group', label: 'Sales', feat: 'sales', items: [
       { id: 'invoice',     label: 'GST Invoice',     href: 'invoice.html', icon: I.invoice },
       { id: 'sales',       label: 'Sales Register',  href: 'sales.html', icon: I.sales },
-      { id: 'customers',   label: 'Customers',       href: 'parties.html#customer', icon: I.users },
+      /* Customer 360°: the CRM workspace (customers.html) — list, pipeline,
+         follow-ups, quotations, offers — and the per-customer profile
+         (customer.html) which also highlights this item. parties.html#customer
+         stays reachable through All Parties for the plain contact book. */
+      { id: 'customers',   label: 'Customers',       href: 'customers.html', icon: I.users },
+      { id: 'pipeline',    label: 'Sales Pipeline',  href: 'customers.html#pipeline', icon: I.pulse || I.users },
       { id: 'collections', label: 'Collections',     href: 'collections.html', icon: I.coll, badgeKey: 'collections' },
       { id: 'monthreg',    label: 'Monthly Register', href: 'monthreg.html', icon: I.cal, feat: 'monthreg' }
     ]},
@@ -1191,6 +1196,19 @@
       hint: 'What they use lime for. Confirming this turns a guess into a fact and sharpens every sales insight.' },
     { k: 'phone', label: 'Phone' },
     { k: 'state', label: 'State' },
+    /* ── Customer master (Customer 360°). Lists come from CustomerCore so this
+       form and the intelligence layer can never disagree on a customer type
+       or a status; the same keys the CRM store (customer-store.js) writes. */
+    { type: 'section', label: 'Customer master' },
+    { k: 'ctype', label: 'Customer type', type: 'select', opts: () => [['', '—']].concat(window.CustomerCore ? CustomerCore.CUSTOMER_TYPES : []) },
+    { k: 'cstatus', label: 'Customer status', type: 'select', opts: () => [['', '— (auto)']].concat(window.CustomerCore ? CustomerCore.CUSTOMER_STATUS : []) },
+    { k: 'contact', label: 'Contact person' }, { k: 'email', label: 'Email', type: 'email' }, { k: 'altContact', label: 'Alternate contact' },
+    { k: 'city', label: 'City' }, { k: 'country', label: 'Country', ph: 'India' }, { k: 'pin', label: 'PIN code' },
+    { k: 'pan', label: 'PAN', upper: true, ph: 'Leave blank to read it off the GSTIN' }, { k: 'iec', label: 'IEC (export customers)', upper: true }, { k: 'code', label: 'Customer code', ph: 'Auto: C-0001' },
+    { k: 'payTerms', label: 'Payment terms', type: 'select', opts: () => [['', '—']].concat(window.CustomerCore ? CustomerCore.PAYMENT_TERMS : []) },
+    { k: 'transport', label: 'Transport preference', type: 'select', opts: () => [['', '—']].concat(window.CustomerCore ? CustomerCore.TRANSPORT : []) },
+    { k: 'deliveryLoc', label: 'Preferred delivery location' }, { k: 'since', label: 'Customer since', type: 'date' }, { k: 'salesperson', label: 'Assigned sales person' },
+    { type: 'section', label: 'Account' },
     { k: 'opening', label: 'Opening balance (₹)', type: 'number', ph: '+ they owe you · − you owe them' },
     { k: 'creditLimit', label: 'Credit limit (₹)', type: 'number', ph: '0 = none' },
     { k: 'creditDays', label: 'Credit days', type: 'number', ph: 'e.g. 30', hint: 'Invoice date + credit days = the due date every reminder is scheduled from.' },
@@ -1208,6 +1226,19 @@
     { k: 'autoStatement', label: 'Send statement automatically', type: 'select', opts: [['yes', 'Yes'], ['no', 'No']] }
   ];
   function openPartyForm(idx) {
+    /* The customer-master selects read their lists from CustomerCore. A page
+       that never loads it (the assistant can open this form anywhere) pulls
+       the pure module once, then opens — never an empty dropdown. */
+    if (!window.CustomerCore && !openPartyForm._loading) {
+      openPartyForm._loading = true;
+      const sc = document.createElement('script'); sc.src = './customer-core.js?v=cu2';
+      sc.onload = () => { openPartyForm._loading = false; openPartyForm(idx); };
+      sc.onerror = () => { openPartyForm._loading = false; openPartyFormNow(idx); };
+      document.head.appendChild(sc); return;
+    }
+    openPartyFormNow(idx);
+  }
+  function openPartyFormNow(idx) {
     const editing = idx != null && idx >= 0;
     const row = editing ? window.QLD.state.PARTIES[idx] : null;
     openForm({
@@ -1226,7 +1257,9 @@
           if (p) {
             p.opening = +v.opening || 0; p.creditLimit = +v.creditLimit || 0; p.creditDays = +v.creditDays || 0;
             if (v.notes) p.notes = v.notes;
-            ['industry', 'wa', 'waAlt', 'lang', 'autoRemind', 'autoInvoice', 'autoStatement'].forEach(k => { if (v[k] !== undefined && v[k] !== '') p[k] = v[k]; });
+            /* EVERY spec key that is not a core identity field — so a field added
+               to PARTY_SPECS is saved on a new party without a second list to forget. */
+            PARTY_SPECS.forEach(f => { const k = f.k; if (!k || ['name', 'gstin', 'phone', 'address', 'state', 'type', 'opening', 'creditLimit', 'creditDays', 'notes'].indexOf(k) >= 0) return; if (v[k] !== undefined && v[k] !== '') p[k] = v[k]; });
             window.QLD.commit();
           }
         }

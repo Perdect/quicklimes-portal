@@ -678,3 +678,8 @@
 .qx-stats-inset .qx-stat{padding:12px 14px}
 .qx-stats-inset .qx-stat-ic{display:none}
 .qx-stats-inset .qx-stat-v{font-size:var(--ql-text-xl)}
+
+/* ── kanban drag & drop (modules that declare status.set) ── */
+.qx-kcard[draggable] { cursor: grab; }
+.qx-kcard.qx-dragging { opacity: .45; transform: rotate(1.5deg); }
+.qx-col.qx-over { outline: 2px dashed var(--qx, #2563eb); outline-offset: -2px; background: rgba(37,99,235,.06); }

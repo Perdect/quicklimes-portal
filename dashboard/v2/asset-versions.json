@@ -8,8 +8,8 @@
     "sha": "447ba975211b"
   },
   "qlx.css": {
-    "v": "m25",
-    "sha": "4a55892f0cd6"
+    "v": "m26",
+    "sha": "52bef6c698cb"
   },
   "mobile.css": {
     "v": "m16",
@@ -40,8 +40,8 @@
     "sha": "c398a2a2bac5"
   },
   "ql-api.js": {
-    "v": "a5",
-    "sha": "cde317cbde9b"
+    "v": "a6",
+    "sha": "811dcad90e04"
   },
   "party-identity.js": {
     "v": "m28",
@@ -56,8 +56,8 @@
     "sha": "2b271ee5c6b3"
   },
   "data.js": {
-    "v": "m52caaaaaaaaaaaaaaaa",
-    "sha": "5d601fa7646b"
+    "v": "m52caaaaaaaaaaaaaaaaa",
+    "sha": "a204528aa1a1"
   },
   "party-link.js": {
     "v": "pl1p",
@@ -76,8 +76,8 @@
     "sha": "d73a3597cae3"
   },
   "shell.js": {
-    "v": "m68saaaaaaaaaaaaaaaaaa",
-    "sha": "96a344a20b11"
+    "v": "m68saaaaaaaaaaaaaaaaaaaa",
+    "sha": "f2763731a1be"
   },
   "chat-core.js": {
     "v": "cc2",
@@ -92,8 +92,8 @@
     "sha": "106ad4847e8d"
   },
   "qlx.js": {
-    "v": "m20prgdaaaaa",
-    "sha": "f8a38770be20"
+    "v": "m20prgdaaaaaa",
+    "sha": "6b04f33955ee"
   },
   "cashbook.js": {
     "v": "m4d",
@@ -134,6 +134,42 @@
   "crm.js": {
     "v": "k2",
     "sha": "1ff0028f4f98"
+  },
+  "crm.css": {
+    "v": "m9",
+    "sha": "39e3307c698d"
+  },
+  "customers.css": {
+    "v": "cu2",
+    "sha": "cb5a1b5c5024"
+  },
+  "customer-core.js": {
+    "v": "cu2",
+    "sha": "809ea93f0419"
+  },
+  "customer-store.js": {
+    "v": "cu2",
+    "sha": "ef15b705bca8"
+  },
+  "quote-doc.js": {
+    "v": "cu2",
+    "sha": "3de8db4bf100"
+  },
+  "crm-ui.js": {
+    "v": "cu2",
+    "sha": "f9a0cc031056"
+  },
+  "customer.js": {
+    "v": "cu2",
+    "sha": "4251f912d720"
+  },
+  "pbill.css": {
+    "v": "p7",
+    "sha": "9a162479e41b"
+  },
+  "customers.js": {
+    "v": "cu2",
+    "sha": "f5c88e960777"
   },
   "dash.css": {
     "v": "d9ru",
@@ -176,8 +212,8 @@
     "sha": "d6c5374f43d7"
   },
   "discover.js": {
-    "v": "d55",
-    "sha": "1f771a4d160d"
+    "v": "d56",
+    "sha": "8d27236097fb"
   },
   "costing-core.js": {
     "v": "ct3",
@@ -212,16 +248,12 @@
     "sha": "3f43f33c9bb3"
   },
   "invoice.js": {
-    "v": "tpl5",
-    "sha": "5f979743db66"
+    "v": "tpl6",
+    "sha": "692c33435bad"
   },
   "labour.js": {
     "v": "m2",
     "sha": "ee705d0052bf"
-  },
-  "crm.css": {
-    "v": "m9",
-    "sha": "39e3307c698d"
   },
   "allocate-core.js": {
     "v": "al1",
@@ -246,10 +278,6 @@
   "monthreg.js": {
     "v": "mr4",
     "sha": "7340dd073f58"
-  },
-  "pbill.css": {
-    "v": "p7",
-    "sha": "9a162479e41b"
   },
   "ledger-core.js": {
     "v": "lc1",
