@@ -17,9 +17,9 @@ const D = { seller: { name: 'DESHWALI MINERALS', address: 'Merta City', gstin: '
   hsn: '25221000', inv: '36', date: '2026-08-01', product: 'Quick Lime', qty: 16.16, rate: 4950, unit: 'Tonne', veh: 'RJ37GA1987', eway: '791656947547', gstR: 5,
   taxable: 79992, cgst: 1999.8, sgst: 1999.8, igst: 0, interState: false, total: 83991.6, roundOff: 0, grand: 83991.6, words: 'Rupees Eighty Three Thousand Nine Hundred Ninety One and Paisa Sixty Only' };
 
-ok('registry is exactly gst, modern, business, detailed', T.TEMPLATES.map(t => t.id).join(',') === 'gst,modern,business,detailed');
+ok('registry is gst, modern, business, detailed, industrial — in that order', T.TEMPLATES.map(t => t.id).join(',') === 'gst,modern,business,detailed,industrial');
 ok('the rejected designs are gone', !T.TEMPLATES.some(t => /mono|compact|classic/.test(t.id)));
-ok('modern, business and detailed are accentable (the colour picker applies)', T.TEMPLATES.filter(t => t.accentable).map(t => t.id).join(',') === 'modern,business,detailed');
+ok('modern, business and detailed are accentable (the colour picker applies)', T.TEMPLATES.filter(t => t.accentable).map(t => t.id).join(',') === 'modern,business,detailed,industrial');
 ok('modern and business do not print the despatch block; detailed does (it is the full-detail layout)', !T.TEMPLATES.filter(t => /modern|business/.test(t.id)).some(t => t.despatch) && T.get('detailed').despatch === true);
 
 for (const id of ['modern', 'business']) {

@@ -1415,6 +1415,11 @@
     });
   }
 
+  /* Terms & conditions the owner edits on the Invoice Designs page — per firm,
+     applied to every design through cfg.terms (facts() prefers cfg.terms). */
+  function invoiceTermsKey() { const co = (window.QLD && window.QLD.co && window.QLD.co.key) || 'default'; return 'ql_inv_terms_' + co; }
+  function invoiceTerms() { try { const v = JSON.parse(localStorage.getItem(invoiceTermsKey()) || '[]'); return Array.isArray(v) ? v.map(x => String(x).trim()).filter(Boolean) : []; } catch (_) { return []; } }
+  function setInvoiceTerms(lines) { const v = (lines || []).map(x => String(x).trim()).filter(Boolean); try { if (v.length) localStorage.setItem(invoiceTermsKey(), JSON.stringify(v)); else localStorage.removeItem(invoiceTermsKey()); } catch (_) {} return v; }
   function invoiceTemplateKey() {
     const co = (window.QLD && window.QLD.co && window.QLD.co.key) || 'default';
     return 'ql_inv_tpl_' + co;
@@ -2722,9 +2727,10 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
     renderInvoice(d, cfg) {
       const T = window.InvoiceTemplates;
       if (!T) return invoiceHTML(d);                       // engine not loaded on this page
-      return T.render(d, Object.assign({ template: invoiceTemplateId() }, cfg || {}));
+      const own = invoiceTerms();
+      return T.render(d, Object.assign({ template: invoiceTemplateId() }, own.length ? { terms: own } : {}, cfg || {}));
     },
-    invoiceTemplate: invoiceTemplateId,
+    invoiceTemplate: invoiceTemplateId, invoiceTerms, setInvoiceTerms,
     setInvoiceTemplate(id) {
       const T = window.InvoiceTemplates;
       if (!T || !T.TEMPLATES.some(t => t.id === id)) return false;

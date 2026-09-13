@@ -56,8 +56,8 @@
     "sha": "2b271ee5c6b3"
   },
   "data.js": {
-    "v": "m52caaaaaaaaaaaaa",
-    "sha": "ff7159ef8b65"
+    "v": "m52caaaaaaaaaaaaaa",
+    "sha": "79b738e16b67"
   },
   "party-link.js": {
     "v": "pl1p",
@@ -72,12 +72,12 @@
     "sha": "14462b5adbf8"
   },
   "invoice-templates.js": {
-    "v": "t14",
-    "sha": "c79ae81cde10"
+    "v": "t15",
+    "sha": "ad6b07085b5a"
   },
   "shell.js": {
-    "v": "m68saaaaaaaaaaaaaaaa",
-    "sha": "62c49ea3cf76"
+    "v": "m68saaaaaaaaaaaaaaaaa",
+    "sha": "23fe7e11495a"
   },
   "chat-core.js": {
     "v": "cc2",

@@ -83,13 +83,13 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./party-identity.js?v=m28"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./party-resolve.js?v=pr1"></script>
-<script src="./data.js?v=m52caaaaaaaaaaaaa"></script>
+<script src="./data.js?v=m52caaaaaaaaaaaaaa"></script>
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./i18n.js?v=h8"></script>
-<script src="./invoice-templates.js?v=t14"></script>
+<script src="./invoice-templates.js?v=t15"></script>
 <script src="./wa-core.js?v=w3"></script>
 
-<script src="./shell.js?v=m68saaaaaaaaaaaaaaaa"></script>
+<script src="./shell.js?v=m68saaaaaaaaaaaaaaaaa"></script>
 <script src="./chat-core.js?v=cc2"></script>
 <script src="./imchat.js?v=im11"></script>
 <script src="./qlx.js?v=m20prgdaaaaa"></script>
@@ -202,6 +202,9 @@ function render() {
     <div class="id-bar">
       ${true ? `<label>Invoice <select id="idSale" onchange="pickSale(this.value)">${invOpts}</select></label>` : ''}
       <label>Accent <input type="color" id="idAccent" value="${ACCENT}" oninput="pickAccent(this.value)"></label>
+      <label style="display:flex;gap:8px;align-items:flex-start;flex:1;min-width:280px">Terms &amp; conditions (this firm, one per line)
+        <textarea id="idTerms" rows="3" style="flex:1;font:inherit;font-size:12px;padding:6px 8px;border:1px solid var(--ql-border);border-radius:8px;background:var(--ql-card);color:var(--ql-text)" placeholder="Leave empty for the design's own default terms">${esc((QLShell.invoiceTerms ? QLShell.invoiceTerms() : []).join('\n'))}</textarea>
+        <button class="ql-btn ql-btn-secondary" onclick="saveTerms()">Save terms</button></label>
       <span style="opacity:.7">— accent applies to Premium Glass and Vivid Business</span>
       <button class="ql-btn" style="margin-left:auto" onclick="printIt()">Print / PDF</button>
     </div>
@@ -212,6 +215,7 @@ function render() {
 function pick(id) { CUR = id; paint(); }
 function pickSale(i) { SALE_IDX = +i; paint(); }
 function pickAccent(v) { ACCENT = v; paint(); }
+function saveTerms() { const v = QLShell.setInvoiceTerms(document.getElementById('idTerms').value.split('\n')); QLShell.toast(v.length ? v.length + ' terms saved for this firm' : 'Back to the default terms', 'ok'); paint(); }
 function printIt() {
   const fr = document.getElementById('idFrame');
   if (fr && fr.contentWindow) { fr.contentWindow.focus(); fr.contentWindow.print(); }

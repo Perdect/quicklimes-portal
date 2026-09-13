@@ -150,7 +150,9 @@
       iec: 'NLIPS9801K', lut: 'AD080826023319U', email: 'deshwaliminerals@gmail.com', upi: '8875020202@hdfcbank',
       /* The kiln at Borunda — printed on every bill as UNIT ADDRESS next to the
          registered office (owner, 13-09-2026, verbatim). */
-      unitAddress: 'Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'
+      unitAddress: 'Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601',
+      /* Header line for the Professional Industrial design (owner's brief, 13-09-2026). */
+      tagline: 'Manufacturer & Supplier of Quick Lime, Hydrated Lime, Lime Stone & Industrial Minerals'
     },
     '08BNAPM0488E1Z3': {
       address: 'TALANPUR ROAD ,SH 86B,, CHANDRA TYRE RETREADING GOTAN, DISTRICT -NAGAUR',
@@ -185,7 +187,7 @@
       bank2: seller.bank2 || '', bankBranch2: seller.bankBranch2 || '', accNo2: seller.accNo2 || '', ifsc2: seller.ifsc2 || '',
       product: seller.product || '', msme: seller.msme || '', logo: seller.logo || '', jurisdiction: seller.jurisdiction || '',
       tel: seller.tel || '', terms: seller.terms || [], invoiceTemplate: seller.invoiceTemplate || '', roundOff: seller.roundOff !== false,
-      iec: seller.iec || '', lut: seller.lut || '', cin: seller.cin || '', upi: seller.upi || '', unitAddress: seller.unitAddress || '', hsn: HSN,
+      iec: seller.iec || '', lut: seller.lut || '', cin: seller.cin || '', upi: seller.upi || '', unitAddress: seller.unitAddress || '', tagline: seller.tagline || '', hsn: HSN,
       isPrimary: !p.parent_plant_id,
       dataKey: 'ql_data_' + p.id
     };
@@ -2690,7 +2692,16 @@
       transport: s.transport || '', station: s.station || '', grrr: s.grrr || '',
       taxable, cgst, sgst, igst: interState ? cgst + sgst : 0, interState,
       total, roundOff: grand - total, grand,
-      words: amountInWords(grand)
+      words: amountInWords(grand),
+      /* Optional fields the Professional Industrial design shows only when present.
+         Pure pass-through — no logic here, none in the template: a sale that has
+         none of them prints exactly as before. PO no./date fall back to what the
+         analysis-report form captured for the same dispatch. */
+      po: s.po || (s.qa && s.qa.po) || '', poDate: s.poDate || (s.qa && s.qa.poDate) || '', due: s.due || '',
+      irn: s.irn || '', ackNo: s.ackNo || '', ackDt: s.ackDt || '', qrData: s.qrData || '', qrImage: s.qrImage || '', ewayDate: s.ewayDate || '',
+      items: Array.isArray(s.items) ? s.items : null, charges: Array.isArray(s.charges) ? s.charges : null, shipTo: s.shipTo || null,
+      type: s.type || '', export: s.export || null, spec: s.spec || null, qa: s.qa || null,
+      grade: s.grade || '', packing: s.packing || '', bags: s.bags || '', cess: +s.cess || 0, otherTax: +s.otherTax || 0
     };
   }
 

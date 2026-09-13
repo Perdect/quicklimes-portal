@@ -604,6 +604,119 @@
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(d.title || 'Analysis Report') + ' — ' + esc(s.short || s.name || '') + '</title><style>' + PRINT + css + '</style></head><body>' + body + '</body></html>';
   }
 
+  /* ══════════ industrial — "Deshwali Professional Industrial Invoice" ══════════
+     Commissioned 13-09-2026 as a NEW, additional design; nothing above it
+     changed. Black-and-white first with one restrained accent, thin rules, a
+     strong header, a compact registration strip, Bill To / Ship To, an order &
+     transport grid, a multi-line product table (thead repeats on every printed
+     page), an optional quality-specification block fed from the dispatch's
+     analysis report, optional charges, a tax block that shows only the heads
+     that apply, the total made loud, the words, bank details, editable terms,
+     a signature space, and a fixed compliance footer.
+
+     HIDE-EMPTY IS THE RULE: every optional field, cell, column, row and block
+     is emitted only when its value exists. IRN / Ack / QR print only for a real
+     e-invoice; the export block only when d.type === 'export'. Totals and tax
+     heads come from the data model — the template never recomputes GST. */
+  var INDUSTRIAL_TERMS = [
+    'Goods once sold are subject to the agreed terms and conditions.',
+    'Payment terms shall be as mentioned in the invoice / purchase order.',
+    'Goods are supplied according to agreed product specifications.',
+    'Subject to applicable GST laws and regulations.',
+    'Subject to Nagaur, Rajasthan jurisdiction.'
+  ];
+  function industrial(d, cfg) {
+    var f = facts(d, cfg), s = f.s, b = f.b, a = f.cfg.accent || '#1F3A5F';
+    var P = function (v) { return v == null ? '' : String(v).trim(); };
+    var st = function (x) { var m = P(x).match(/^(.*?)\s*\((\d\d)\)\s*$/); return m ? { name: m[1], code: m[2] } : { name: P(x), code: '' }; };
+    var sSt = st(s.state), bSt = st(f.bState || b.state);
+    if (!sSt.code && P(s.gstin).length >= 2) sSt.code = P(s.gstin).slice(0, 2);
+    if (!bSt.code && P(b.gstin).length >= 2) bSt.code = P(b.gstin).slice(0, 2);
+    var bPan = P(b.gstin).length === 15 ? P(b.gstin).slice(2, 12) : '';
+    var isExport = P(d.type).toLowerCase() === 'export', ex = d.export || {};
+    var eInv = !!(P(d.irn) || P(d.ackNo));
+    var copy = P(f.cfg.copy) || 'Original for Recipient';
+    var tagline = P(s.tagline) || f.tagline;
+    var ship = d.shipTo && P(d.shipTo.name) ? d.shipTo : null;
+    var shipName = ship ? P(ship.name) : b.name, shipAddr = ship ? P(ship.address) : (b.address || ''), shipSt = ship ? st(ship.state) : bSt, shipG = ship ? P(ship.gstin) : (b.gstin || ''), shipPh = ship ? P(ship.phone) : f.bPhone;
+    var items = (Array.isArray(d.items) && d.items.length) ? d.items
+      : [{ hsn: f.hsn, product: f.product, grade: d.grade, packing: d.packing, bags: d.bags, qty: d.qty, unit: d.unit, rate: d.rate, taxable: d.taxable }];
+    var hasGrade = items.some(function (it) { return P(it.grade); }), hasPack = items.some(function (it) { return P(it.packing); }), hasBags = items.some(function (it) { return P(it.bags); });
+    var charges = (d.charges || []).filter(function (c) { return c && P(c.label) && +c.amount; });
+    var specRows = [], sp = d.spec || null;
+    if (sp) { [['Product', 'product'], ['Grade', 'grade'], ['CaO %', 'cao'], ['MgO %', 'mgo'], ['SiO2 %', 'sio2'], ['LOI %', 'loi'], ['Mesh Size', 'mesh'], ['Reactivity', 'reactivity'], ['Packing', 'packing'], ['Batch No.', 'batch']].forEach(function (p) { if (P(sp[p[1]])) specRows.push([p[0], P(sp[p[1]])]); }); }
+    else if (d.qa && Array.isArray(d.qa.params)) { d.qa.params.forEach(function (p) { if (p && P(p.value)) specRows.push([P(p.label) + (P(p.unit) ? ' ' + P(p.unit) : ''), P(p.value)]); }); }
+    var roundOff = Math.round(((+d.grand || 0) - (+d.total || 0)) * 100) / 100, cess = +d.cess || 0, otherTax = +d.otherTax || 0;
+    var terms = (f.cfg.terms && f.cfg.terms.length) ? f.cfg.terms : INDUSTRIAL_TERMS;
+    var words = /^Rupees /.test(f.words) ? 'Indian ' + f.words : f.words;
+    var kv = function (k, v, w) { return P(v) ? '<div class="kv"><span' + (w ? ' style="min-width:' + w + 'px"' : '') + '>' + k + '</span><b>' + esc(P(v)) + '</b></div>' : ''; };
+    var cell = function (k, v) { return P(v) ? '<div><span>' + k + '</span><b>' + esc(P(v)) + '</b></div>' : ''; };
+    var trow = function (k, v, cls) { return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + k + '</td><td class="r">' + v + '</td></tr>'; };
+    var css = "body{font-family:Helvetica,Arial,sans-serif;color:#111;font-size:10.5px;line-height:1.4;padding:0;background:#fff}"
+      + ".sheet{max-width:820px;margin:0 auto;padding:24px 30px 64px;position:relative}"
+      + ".hd{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;padding-bottom:12px;border-bottom:2px solid #111}"
+      + ".co{display:flex;gap:14px;align-items:center}.co .n{font-size:21px;font-weight:800;letter-spacing:.03em}.co .t{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#444;margin-top:3px;max-width:400px}"
+      + ".ti{text-align:right;flex:none}.ti .w{font-size:18px;font-weight:800;letter-spacing:.14em;color:" + a + "}.ti .copy{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:#555;margin:3px 0 6px}"
+      + ".ti .kv{display:flex;justify-content:flex-end;gap:10px;font-size:10px;padding:1px 0}.ti .kv span{color:#666}.ti .kv b{min-width:112px;text-align:right;font-weight:700}"
+      + ".reg{display:flex;flex-wrap:wrap;border:1px solid #111;border-top:0;font-size:9.5px}.reg div{padding:5px 10px;border-right:1px solid #ccc;flex:1;white-space:nowrap}.reg div:last-child{border-right:0}.reg span{color:#666;margin-right:4px}.reg b{font-weight:700}"
+      + ".par{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.box{border:1px solid #111;padding:9px 12px}"
+      + ".box h4,h3{margin:0 0 5px;font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:" + a + ";font-weight:800}h3{margin:12px 0 5px}"
+      + ".box .nm{font-size:12px;font-weight:700}.box .ad{white-space:pre-line;margin:2px 0 5px;color:#222}"
+      + ".kv{display:flex;gap:6px;font-size:10px;padding:1px 0}.kv span{color:#666;min-width:88px;flex:none}.kv b{font-weight:600}"
+      + ".ot{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #111}.ot div{padding:5px 9px;border-right:1px solid #ccc;border-bottom:1px solid #ccc;font-size:10px;min-width:0}.ot div:nth-child(4n){border-right:0}.ot div span{display:block;font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:#666}.ot div b{font-weight:600;word-break:break-word}"
+      + "table.it{width:100%;border-collapse:collapse;margin-top:6px}.it thead{display:table-header-group}.it th{background:#111;color:#fff;font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;padding:7px 8px;text-align:left;border:1px solid #111}"
+      + ".it td{border:1px solid #333;padding:7px 8px;font-size:10.5px;vertical-align:top}.it tbody tr{break-inside:avoid}.r{text-align:right}.c{text-align:center}"
+      + ".low{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;margin-top:12px;align-items:start}"
+      + ".spec,.chg{border:1px solid #111;padding:8px 12px;margin-bottom:12px}.spec table,.chg table{width:100%;border-collapse:collapse;font-size:10px}.spec td,.chg td{padding:2px 0;border-bottom:1px dotted #ccc}.spec td:last-child,.chg td:last-child{text-align:right;font-weight:600}"
+      + ".tx{width:100%;border-collapse:collapse;border:1px solid #111}.tx td{padding:5px 10px;border-bottom:1px solid #ddd;font-size:10.5px}.tx td.r{font-weight:600}"
+      + ".tx tr.tot td{background:#111;color:#fff;font-weight:800;font-size:13.5px;border-bottom:0;padding:8px 10px}.tx tr.tot td small{display:block;font-size:8px;letter-spacing:.12em;font-weight:600;opacity:.85}"
+      + ".words{border:1px solid #111;border-top:0;padding:7px 10px;font-size:10.5px}.words span{font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#666;display:block}.words b{font-weight:700}"
+      + ".bot{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px;break-inside:avoid}.bank .kv span{min-width:110px}ol{margin:0;padding-left:14px;font-size:9.5px;line-height:1.5;color:#222}"
+      + ".auth{text-align:right;border:1px solid #111;padding:9px 12px;min-height:124px;display:flex;flex-direction:column;justify-content:space-between}.auth .for{font-weight:800;font-size:11px;letter-spacing:.04em}.auth .sg{font-size:9px;color:#666}.auth .sg b{display:block;color:#111;font-size:10.5px;margin-top:2px}"
+      + ".ein{border:1px solid #111;padding:8px 12px;margin-top:12px;display:flex;gap:14px;align-items:flex-start;font-size:9.5px;word-break:break-all;break-inside:avoid}.ein img{width:96px;height:96px;flex:none}"
+      + ".ex{border:1px solid " + a + ";padding:8px 12px;margin-top:12px;break-inside:avoid}.ex .kv span{min-width:150px}.ex .decl{font-weight:700;margin-top:4px}"
+      + ".ft{margin-top:16px;padding-top:7px;border-top:1px solid #111;font-size:8.5px;color:#444;display:flex;justify-content:space-between;gap:12px}"
+      + "@media print{.ft{position:fixed;left:0;right:0;bottom:0;margin:0;padding:6px 30px 0;background:#fff}}";
+    var thead = '<tr><th style="width:34px">Sr. No.</th><th style="width:72px">HSN/SAC</th><th>Product Description</th>' + (hasGrade ? '<th style="width:110px">Grade / Specification</th>' : '') + (hasPack ? '<th style="width:80px">Packing</th>' : '') + (hasBags ? '<th class="r" style="width:64px">No. of Bags</th>' : '')
+      + '<th class="r" style="width:82px">Qty (' + esc(f.unit || 'MT') + ')</th><th class="r" style="width:84px">Rate / ' + esc(f.unit || 'MT') + '</th><th class="r" style="width:104px">Taxable Value (₹)</th></tr>';
+    var rows = items.map(function (it, i) {
+      return '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(P(it.hsn) || f.hsn) + '</td><td><b>' + esc(P(it.product)) + '</b>' + (P(it.desc) ? '<br><span style="color:#555">' + esc(P(it.desc)) + '</span>' : '') + '</td>'
+        + (hasGrade ? '<td>' + esc(P(it.grade)) + '</td>' : '') + (hasPack ? '<td>' + esc(P(it.packing)) + '</td>' : '') + (hasBags ? '<td class="r">' + esc(P(it.bags)) + '</td>' : '')
+        + '<td class="r">' + qfmt(it.qty) + '</td><td class="r">' + fmt(it.rate) + '</td><td class="r">' + fmt(it.taxable) + '</td></tr>';
+    }).join('');
+    var order = cell('PO Number', d.po) + cell('PO Date', fdate(d.poDate)) + cell('Transport Mode', f.transport) + cell('Vehicle Number', f.veh) + cell('LR / GR/RR No.', f.grrr)
+      + cell('Dispatch From', f.unitAddr || s.station || '') + cell('Place of Supply', f.pos) + cell('Delivery Station', f.station) + cell('Reverse Charge', f.rcm);
+    var tax = '<table class="tx">' + trow('Subtotal / Taxable Value', f.taxable)
+      + (f.interState ? trow('IGST @ ' + f.gstR + ' %', f.igst) : trow('CGST @ ' + f.halfR + ' %', f.cgst) + trow('SGST @ ' + f.halfR + ' %', f.sgst))
+      + (cess ? trow('Cess', fmt(cess)) : '') + (otherTax ? trow('Other Tax', fmt(otherTax)) : '') + (roundOff ? trow('Round Off', (roundOff > 0 ? '+' : '') + fmt(roundOff)) : '')
+      + '<tr class="tot"><td><small>Total Invoice Value</small></td><td class="r">₹ ' + f.grand + '</td></tr>' + trow('Total Quantity', qtyTotalEl(f)) + '</table>'
+      + '<div class="words"><span>Amount in words</span><b>' + esc(words) + '</b></div>';
+    var eblock = eInv ? '<div class="ein"><div>' + kv('IRN', d.irn, 100) + kv('Ack No.', d.ackNo, 100) + kv('Ack Date', d.ackDt, 100) + kv('E-Way Bill No.', f.eway, 100) + '</div>'
+      + (P(d.qrImage) ? '<img src="' + esc(P(d.qrImage)) + '" alt="e-Invoice QR">' : (P(d.qrData) ? '<img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(P(d.qrData)) + '" alt="e-Invoice QR">' : '')) + '</div>' : '';
+    var xblock = isExport ? '<div class="ex"><h3>Export Details</h3>' + kv('IEC', f.iec) + kv('LUT No.', ex.lut || f.lut) + kv('Shipping Bill No.', ex.shippingBill) + kv('Port of Loading', ex.portLoading) + kv('Port of Discharge', ex.portDischarge)
+      + kv('Country of Destination', ex.country) + kv('Country of Origin', ex.origin || 'India') + kv('Currency', ex.currency) + kv('Exchange Rate', ex.fx) + kv('Incoterms', ex.incoterms) + kv('Container No.', ex.container)
+      + (P(ex.declaration) ? '<div class="decl">' + esc(P(ex.declaration)) + '</div>' : '') + '</div>' : '';
+    var body = '<div class="sheet">'
+      + '<div class="hd"><div class="co">' + (f.logo ? logoImg(f, 50) : '') + '<div><div class="n">' + esc(s.name) + '</div>' + (tagline ? '<div class="t">' + esc(tagline) + '</div>' : '') + '</div></div>'
+      + '<div class="ti"><div class="w">' + (isExport ? 'EXPORT TAX INVOICE' : 'TAX INVOICE') + '</div><div class="copy">' + esc(copy) + '</div>'
+      + kv('Invoice No.', f.inv) + kv('Invoice Date', f.date) + kv('Due Date', fdate(d.due)) + (eInv ? kv('E-Invoice Status', 'IRN generated') + kv('IRN', d.irn) + kv('Ack No.', d.ackNo) + kv('Ack Date', d.ackDt) : '') + kv('E-Way Bill No.', f.eway) + kv('E-Way Bill Date', fdate(d.ewayDate)) + '</div></div>'
+      + '<div class="reg"><div><span>GSTIN</span><b>' + esc(s.gstin || '') + '</b></div>' + (f.pan ? '<div><span>PAN</span><b>' + esc(f.pan) + '</b></div>' : '') + (f.iec ? '<div><span>IEC</span><b>' + esc(f.iec) + '</b></div>' : '') + (f.msme ? '<div><span>Udyam/MSME</span><b>' + esc(f.msme) + '</b></div>' : '')
+      + (sSt.name ? '<div><span>State</span><b>' + esc(sSt.name) + '</b></div>' : '') + (sSt.code ? '<div><span>State Code</span><b>' + esc(sSt.code) + '</b></div>' : '') + '</div>'
+      + '<div class="par"><div class="box"><h4>Bill To</h4><div class="nm">' + esc(b.name) + '</div>' + (b.address ? '<div class="ad">' + esc(b.address) + '</div>' : '') + kv('State', bSt.name) + kv('State Code', bSt.code) + kv('GSTIN', b.gstin) + kv('PAN', bPan) + kv('Contact', f.bPhone) + kv('Email', f.bEmail) + '</div>'
+      + '<div class="box"><h4>Ship To</h4><div class="nm">' + esc(shipName) + '</div>' + (shipAddr ? '<div class="ad">' + esc(shipAddr) + '</div>' : '') + kv('State', shipSt.name) + kv('State Code', shipSt.code) + kv('GSTIN', shipG) + kv('Place of Supply', f.pos) + kv('Contact', shipPh) + '</div></div>'
+      + (order ? '<h3>Order &amp; Transport Details</h3><div class="ot">' + order + '</div>' : '')
+      + '<h3>Products</h3><table class="it"><thead>' + thead + '</thead><tbody>' + rows + '</tbody></table>'
+      + '<div class="low"><div>' + (specRows.length ? '<div class="spec"><h3 style="margin-top:0">Product / Quality Specification</h3><table>' + specRows.map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table></div>' : '')
+      + (charges.length ? '<div class="chg"><h3 style="margin-top:0">Additional Charges</h3><table>' + charges.map(function (c) { return '<tr><td>' + esc(P(c.label)) + '</td><td>₹ ' + fmt(c.amount) + '</td></tr>'; }).join('') + '</table></div>' : '') + '</div>'
+      + '<div>' + tax + '</div></div>' + eblock + xblock
+      + '<div class="bot"><div class="bank"><h3 style="margin-top:0">Bank Details</h3>' + kv('Account Name', s.name) + kv('Bank Name', s.bank) + kv('Account Number', s.accNo) + kv('IFSC', s.ifsc) + kv('Branch', s.bankBranch) + kv('UPI', s.upi)
+      + '<h3>Terms &amp; Conditions</h3><ol>' + terms.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ol></div>'
+      + '<div class="auth"><div class="for">FOR ' + esc(String(s.name || '').toUpperCase()) + '</div>' + qrBlock(f) + '<div class="sg">Digital Signature / Signature<b>Authorized Signatory</b></div></div></div>'
+      + '<div class="ft"><div>Registered Address: ' + esc(String(s.address || '').replace(/\n/g, ', ')) + (f.tel ? ' &nbsp;·&nbsp; Phone: +91 ' + esc(f.tel) : '') + ' &nbsp;·&nbsp; GSTIN: ' + esc(s.gstin || '') + '</div><div>This is a computer-generated invoice.</div></div>'
+      + '</div>';
+    return doc(f, 'industrial', css, body);
+  }
+
   var TEMPLATES = [
     { id: 'gst',     name: 'GST Invoice (print format)', category: 'In use now', accentable: false, despatch: true,
       desc: 'Your billing software\'s format, line for line — logo, Tel., Transport / Station / GR-RR, party contact lines, Terms & Conditions, Receiver\'s Signature.', render: gst },
@@ -612,7 +725,9 @@
     { id: 'business', name: 'Business', category: 'Colour', accentable: true,
       desc: 'A centred title, your logo top-left, tinted “Invoice by / Invoice to” boxes and a solid-colour item table. Pick the colour.', render: business },
     { id: 'detailed', name: 'Detailed', category: 'Full detail', accentable: true, despatch: true,
-      desc: 'The full-detail layout of the sample you sent: GSTIN / PAN header, MSME, transport block, buyer and consignee, watermark, tax stack, terms, address footer. IRN / QR print only once an e-invoice exists.', render: detailed }
+      desc: 'The full-detail layout of the sample you sent: GSTIN / PAN header, MSME, transport block, buyer and consignee, watermark, tax stack, terms, address footer. IRN / QR print only once an e-invoice exists.', render: detailed },
+    { id: 'industrial', name: 'Deshwali Professional Industrial Invoice', category: 'Premium', accentable: true, despatch: true,
+      desc: 'Black-and-white first with one accent: registration strip, Bill To / Ship To, order & transport grid, multi-line product table, optional quality specification and charges, only the tax heads that apply, editable terms, e-invoice and export blocks only when real.', render: industrial }
   ];
 
   function get(id) { for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].id === id) return TEMPLATES[i]; return TEMPLATES[0]; }
