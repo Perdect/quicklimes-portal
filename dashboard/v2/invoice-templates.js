@@ -812,8 +812,23 @@
      empty optional fields are not printed, units through units-core (a Kg line
      priced per Ton shows its arithmetic), IRN/QR only for a real e-invoice, the
      export block only when there is something to say. */
-  var PREMIUM_NAVY = '#1F2D3D', PREMIUM_GOLD = '#C9A227';
+  var PREMIUM_NAVY = '#0E2A47', PREMIUM_GOLD = '#C9A227';   // sampled from the firm's quotation PDF (18-09-2026)
   /* "DESHWALI MINERALS" → two lines, as the letterhead sets it. */
+  /* The firm's OWN logo, printed white on the band. With logoMark 'gem' (the
+     Deshwali diamond) facet lines are drawn over it in the band's navy — any
+     part of a line outside the silhouette is navy on navy and vanishes, so no
+     mask, nothing that can fail to load. A firm without a logo gets the vector
+     gem below. */
+  function bandLogo(f, h) {
+    if (!f.logo) return gemMark(h);
+    var src = f.logo; if (src.charAt(0) === '/' && typeof location !== 'undefined' && location.origin && /^https?:/.test(location.origin)) src = location.origin + src;
+    var w = Math.round(h * 1.528), gem = f.s && f.s.logoMark === 'gem';
+    return '<span class="lg" style="position:relative;display:inline-block;width:' + w + 'px;height:' + h + 'px;flex:none"><img src="' + esc(src) + '" alt="' + esc(f.s.short || f.s.name || 'logo') + '" style="position:absolute;left:0;top:0;width:' + w + 'px;height:' + h + 'px;object-fit:contain;filter:brightness(0) invert(1)">'
+      + (gem ? '<svg style="position:absolute;left:0;top:0" width="' + w + '" height="' + h + '" viewBox="0 0 1000 655" preserveAspectRatio="none" aria-hidden="true"><g stroke="' + PREMIUM_NAVY + '" stroke-width="12" fill="none" stroke-linejoin="round" stroke-linecap="round"><line x1="0" y1="177" x2="1000" y2="177"/><polyline points="176,0 330,177 500,655"/><polyline points="831,0 670,177 500,655"/><line x1="330" y1="177" x2="500" y2="0"/><line x1="670" y1="177" x2="500" y2="0"/><line x1="0" y1="177" x2="176" y2="0"/><line x1="1000" y1="177" x2="831" y2="0"/></g></svg>' : '') + '</span>';
+  }
+  function gemMark(h) { return '<svg class="gem" width="' + Math.round(h * 1.2) + '" height="' + h + '" viewBox="0 0 120 100" aria-hidden="true"><polygon points="18,36 36,12 84,12 102,36 60,94" fill="#fff" stroke="#fff" stroke-width="3" stroke-linejoin="round"/><g stroke="' + PREMIUM_NAVY + '" stroke-width="2" fill="none" stroke-linejoin="round"><line x1="18" y1="36" x2="102" y2="36"/><polyline points="36,12 46,36 60,94"/><polyline points="84,12 74,36 60,94"/><line x1="46" y1="36" x2="60" y2="12"/><line x1="74" y1="36" x2="60" y2="12"/></g></svg>'; }
+  /* "8875020202, 9460767676" → "+91 88750 20202, +91 94607 67676" (the PDF's form). */
+  function intlPhones(tel) { return String(tel || '').split(/[,/]/).map(function (p) { var s = p.trim(), d = s.replace(/\D/g, ''); if (d.length === 10) return '+91 ' + d.slice(0, 5) + ' ' + d.slice(5); if (d.length === 12 && d.slice(0, 2) === '91') return '+91 ' + d.slice(2, 7) + ' ' + d.slice(7); return s; }).filter(Boolean).join(', '); }
   function wordmark(name) { var w = String(name || '').trim().split(/\s+/); return w.length >= 2 ? esc(w[0]) + '<br>' + esc(w.slice(1).join(' ')) : esc(name || ''); }
   var PREMIUM_DECL = 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.';
   function premium(d, cfg) {
@@ -837,31 +852,31 @@
     var rUnit = P(items[0].rateUnit) || f.rateUnit || unitOfItems;
     var css = "body{font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;font-size:10.5px;line-height:1.45;padding:0;background:#fff}"
       + ".sheet{max-width:820px;margin:0 auto;padding:0 0 16px}"
-      + ".band{background:" + PREMIUM_NAVY + ";color:#fff;padding:11px 32px 9px;display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid " + PREMIUM_GOLD + "}"
-      + ".band .co{display:flex;gap:14px;align-items:center}.band .co img{filter:brightness(0) invert(1);height:50px!important;width:auto}.band .n{font-size:22px;font-weight:800;letter-spacing:.06em;line-height:1.02;text-transform:uppercase}.band .t{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:4px}"
-      + ".band .ti{text-align:right}.band .ti .w{font-size:17px;font-weight:800;letter-spacing:.16em}.band .ti .c{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:2px}"
-      + ".contact{text-align:center;font-size:9px;color:#444;padding:4px 32px;border-bottom:1px solid #d6d9de}"
-      + ".in{padding:9px 32px 0}"
-      + ".meta{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #c9ced6;margin-bottom:9px}.meta div{padding:4px 10px;border-right:1px solid #c9ced6;min-width:0}.meta div:last-child{border-right:0}.meta span{display:block;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280}.meta b{font-size:11px;color:" + PREMIUM_NAVY + ";word-break:break-word}"
-      + ".par{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:9px}.box{border:1px solid #c9ced6}.box h4{margin:0;padding:5px 10px;font-size:7.5px;letter-spacing:.14em;text-transform:uppercase;color:#4b5563;background:#f1f3f6;border-bottom:1px solid #c9ced6}.box .bd{padding:6px 10px}"
+      + ".band{background:" + PREMIUM_NAVY + ";color:#fff;padding:20px 40px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid " + PREMIUM_GOLD + "}"
+      + ".band .co{display:flex;gap:20px;align-items:center}.band .gem{flex:none;display:block}.band .n{font-size:30px;font-weight:800;letter-spacing:.06em;line-height:1;text-transform:uppercase}"
+      + ".band .ti{text-align:right;flex:none;padding-left:20px}.band .ti .w{font-size:24px;font-weight:800;letter-spacing:.12em;line-height:1}.band .ti .c{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:6px}"
+      + ".contact{text-align:center;font-size:9.5px;color:#333;padding:5px 32px;border-bottom:1px solid #d6d9de}.contact .pl{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:700;margin-bottom:2px}"
+      + ".in{padding:8px 32px 0}"
+      + ".meta{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #c9ced6;margin-bottom:8px}.meta div{padding:3px 10px;border-right:1px solid #c9ced6;min-width:0}.meta div:last-child{border-right:0}.meta span{display:block;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280}.meta b{font-size:11px;color:" + PREMIUM_NAVY + ";word-break:break-word}"
+      + ".par{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px}.box{border:1px solid #c9ced6}.box h4{margin:0;padding:5px 10px;font-size:7.5px;letter-spacing:.14em;text-transform:uppercase;color:#4b5563;background:#f1f3f6;border-bottom:1px solid #c9ced6}.box .bd{padding:5px 10px}"
       + ".box .nm{font-size:12px;font-weight:800;color:" + PREMIUM_NAVY + ";margin-bottom:2px}.box .ad{white-space:pre-line;color:#222}.box .kv{font-size:9.5px;margin-top:2px}.box .kv span{color:#6b7280;margin-right:4px}.box .kv b{font-weight:600;margin-right:10px}"
       + "h3{margin:9px 0 5px;font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;border-bottom:2px solid " + PREMIUM_GOLD + ";padding-bottom:3px}"
       + "table.it{width:100%;border-collapse:collapse;border:1px solid #c9ced6}.it thead{display:table-header-group}.it th{background:" + PREMIUM_NAVY + ";color:#fff;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;padding:7px 8px;text-align:left}"
       + ".it td{padding:6px 8px;border-bottom:1px solid #c9ced6;border-right:1px solid #e3e6ea;font-size:10px;vertical-align:middle}.it td:last-child{border-right:0}.it tbody tr{break-inside:avoid}.r{text-align:right}.c{text-align:center}"
       + ".it .dn{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:10.5px}.it .ds{color:#6b7280;font-size:9px}"
-      + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:8px}.tot td{padding:4px 10px;border-bottom:1px solid #e3e6ea;font-size:9.5px}.tot td.l{text-align:right;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#374151;font-weight:700;background:#f7f8fa;width:70%}.tot td.v{text-align:right;font-weight:700;color:" + PREMIUM_NAVY + "}.tot tr.g td{background:#eef1f5}.tot tr.g td.v{font-size:14px;font-weight:800}.tot tr:last-child td{border-bottom:0}"
+      + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:8px}.tot td{padding:3px 10px;border-bottom:1px solid #e3e6ea;font-size:9.5px}.tot td.l{text-align:right;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#374151;font-weight:700;background:#f7f8fa;width:70%}.tot td.v{text-align:right;font-weight:700;color:" + PREMIUM_NAVY + "}.tot tr.g td{background:#eef1f5}.tot tr.g td.v{font-size:14px;font-weight:800}.tot tr:last-child td{border-bottom:0}"
       + ".words{margin:6px 0 0;font-size:10px}.words b{font-weight:800}"
-      + ".tc{width:100%;border-collapse:collapse}.tc td{padding:5px 0;border-bottom:1px solid #e3e6ea;font-size:9.5px;vertical-align:top}.tc td.k{width:22%;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;padding-top:7px}"
-      + ".two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}.pbox{border:1px solid #c9ced6;padding:8px 10px;font-size:9.5px}.pbox b.h{display:block;color:" + PREMIUM_NAVY + ";font-size:10.5px;margin-bottom:4px}"
-      + ".close{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end;margin-top:8px;break-inside:avoid}.close .msg{font-size:9.5px;color:#374151;line-height:1.55}"
+      + ".tc{width:100%;border-collapse:collapse}.tc td{padding:4px 0;border-bottom:1px solid #e3e6ea;font-size:9.5px;vertical-align:top}.tc td.k{width:22%;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;padding-top:7px}"
+      + ".two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}.pbox{border:1px solid #c9ced6;padding:7px 10px;font-size:9.5px}.pbox b.h{display:block;color:" + PREMIUM_NAVY + ";font-size:10.5px;margin-bottom:4px}"
+      + ".close{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end;margin-top:6px;break-inside:avoid}.close .msg{font-size:9.5px;color:#374151;line-height:1.55}"
       + ".sig{text-align:right;min-width:220px}.sig .for{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:10px}.sig .seal{margin:2px 0 0}.sig .cap{border-top:1px solid " + PREMIUM_NAVY + ";padding-top:4px;font-size:9px;color:#374151}"
-      + ".ft{margin-top:10px;padding:6px 32px 0;border-top:1px solid #c9ced6;text-align:center;font-size:8px;color:#6b7280}"
+      + ".ft{margin-top:8px;padding:5px 32px 0;border-top:1px solid #c9ced6;text-align:center;font-size:8px;color:#6b7280}"
       + ".ein{border:1px solid #c9ced6;padding:6px 12px;margin-top:8px;display:flex;gap:14px;align-items:flex-start;font-size:9.5px;word-break:break-all;break-inside:avoid}.ein img{width:96px;height:96px;flex:none}"
       + ".ex{border:1px solid " + PREMIUM_GOLD + ";padding:6px 12px;margin-top:8px;font-size:9.5px;break-inside:avoid}.ex .decl{font-weight:700;margin-top:4px}"
       + "@media screen and (max-width:760px){.sheet{zoom:.7}}";
     var kv = function (k, v) { return P(v) ? '<span class="kv"><span>' + k + ':</span><b>' + esc(P(v)) + '</b></span>' : ''; };
     var mcell = function (k, v) { return '<div><span>' + k + '</span><b>' + (P(v) ? esc(P(v)) : '—') + '</b></div>'; };
-    var contact = [s.website ? esc(s.website) : '', s.email ? esc(s.email) : '', f.tel ? esc(f.tel) : ''].filter(Boolean).join(' &nbsp;·&nbsp; ');
+    var contact = [s.website ? esc(s.website) : '', s.email ? esc(s.email) : '', f.tel ? esc(intlPhones(f.tel)) : ''].filter(Boolean).join(' &nbsp;·&nbsp; ');
     /* the four-cell strip: no. · date · (due date or e-way) · place of supply */
     var third = P(d.due) ? mcell('Due date', fdate(d.due)) : (f.eway ? mcell('E-Way Bill No.', f.eway) : mcell('Vehicle No.', f.veh));
     var meta = '<div class="meta">' + mcell('Invoice No.', f.inv) + mcell('Date', f.date) + third + mcell('Place of supply', f.pos) + '</div>';
@@ -870,7 +885,7 @@
         + '<div>' + kv('GSTIN', gst) + kv('State', state) + '</div>' + '<div>' + kv('PAN', pan) + kv('Mobile', phone) + kv('E-mail', email) + '</div></div></div>';
     };
     var sPan = f.pan, bPan = P(b.gstin).length === 15 ? P(b.gstin).slice(2, 12) : '';
-    var seller = party('From — Supplier', s.name, String(s.address || '').replace(/\n/g, ', ') + (sSt.name && !/Rajasthan/i.test(s.address || '') ? '' : ''), s.gstin, s.state, f.tel, s.email, sPan);
+    var seller = party('From — Supplier', s.name, String(s.address || '').replace(/\n/g, ', '), s.gstin, s.state, intlPhones(f.tel), s.email, sPan);
     var buyer = party('To — Buyer', b.name, b.address, b.gstin, f.bState || b.state, f.bPhone, f.bEmail, bPan);
     var thead = '<tr><th style="width:30px">Sr.</th><th>Description</th><th style="width:76px">HSN</th>' + (hasPack ? '<th style="width:96px">Packing</th>' : '')
       + '<th class="r" style="width:74px">Qty' + (unitOfItems ? ' (' + esc(unitOfItems) + ')' : '') + '</th><th class="r" style="width:88px">Rate' + (rUnit ? ' / ' + esc(rUnit) : '') + '</th><th class="r" style="width:104px">Amount</th></tr>';
@@ -906,9 +921,9 @@
     var xrows = isExport ? xkv('IEC', f.iec) + xkv('LUT No.', ex.lut || f.lut) + xkv('Shipping Bill No.', ex.shippingBill) + xkv('Port of Loading', ex.portLoading) + xkv('Port of Discharge', ex.portDischarge) + xkv('Country of Destination', ex.country) + xkv('Country of Origin', ex.origin) + xkv('Currency', ex.currency) + xkv('Exchange Rate', ex.fx) + xkv('Incoterms', ex.incoterms) + xkv('Container No.', ex.container) + (P(ex.declaration) ? '<div class="decl">' + esc(P(ex.declaration)) + '</div>' : '') : '';
     var xblock = xrows ? '<div class="ex"><h3 style="margin-top:0">Export Details</h3>' + xrows + '</div>' : '';
     var body = '<div class="sheet">'
-      + '<div class="band"><div class="co">' + (f.logo ? logoImg(f, 56) : '') + '<div><div class="n">' + wordmark(s.name) + '</div>' + (f.tagline ? '<div class="t">' + esc(f.tagline) + '</div>' : '') + '</div></div>'
-      + '<div class="ti"><div class="w">' + (isExport ? 'EXPORT TAX INVOICE' : 'TAX INVOICE') + '</div><div class="c">' + esc(copy) + (s.gstin ? ' · GSTIN ' + esc(s.gstin) : '') + '</div></div></div>'
-      + (contact ? '<div class="contact">' + contact + '</div>' : '')
+      + '<div class="band"><div class="co">' + bandLogo(f, 66) + '<div class="n">' + wordmark(s.name) + '</div></div>'
+      + '<div class="ti"><div class="w">' + (isExport ? 'EXPORT TAX INVOICE' : 'TAX INVOICE') + '</div><div class="c">' + esc(copy) + '</div></div></div>'
+      + ((contact || f.tagline) ? '<div class="contact">' + (f.tagline ? '<div class="pl">' + esc(f.tagline) + '</div>' : '') + contact + '</div>' : '')
       + '<div class="in">' + meta + '<div class="par">' + seller + buyer + '</div>'
       + ((f.transport || f.veh || f.station || f.grrr || (f.eway && P(d.due))) ? '<div class="meta" style="margin-top:0">' + mcell('Transport', f.transport) + mcell('Vehicle No.', f.veh) + mcell('Station', f.station) + mcell('GR/RR No.', f.grrr) + (f.eway && P(d.due) ? mcell('E-Way Bill No.', f.eway) : '') + '</div>' : '')
       + '<h3>' + (isExport ? 'Export supply' : 'Supply') + '</h3><table class="it"><thead>' + thead + '</thead><tbody>' + rows + '</tbody></table>'
