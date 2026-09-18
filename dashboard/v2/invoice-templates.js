@@ -819,6 +819,14 @@
      part of a line outside the silhouette is navy on navy and vanishes, so no
      mask, nothing that can fail to load. A firm without a logo gets the vector
      gem below. */
+  /* The firm's letterhead LOCKUP (logo + wordmark as one white-on-transparent
+     vector, the file the owner sent on 18-09-2026) when it has one; else the
+     firm's logo printed white beside the two-line wordmark. */
+  function bandLockup(f, h) {
+    var src = String(f.s.lockup || '').trim(); if (!src) return '';
+    if (src.charAt(0) === '/' && typeof location !== 'undefined' && location.origin && /^https?:/.test(location.origin)) src = location.origin + src;
+    return '<img class="lockup" src="' + esc(src) + '" alt="' + esc(f.s.name || 'logo') + '" style="height:' + h + 'px;width:auto;display:block">';
+  }
   function bandLogo(f, h) {
     if (!f.logo) return gemMark(h);
     var src = f.logo; if (src.charAt(0) === '/' && typeof location !== 'undefined' && location.origin && /^https?:/.test(location.origin)) src = location.origin + src;
@@ -921,7 +929,7 @@
     var xrows = isExport ? xkv('IEC', f.iec) + xkv('LUT No.', ex.lut || f.lut) + xkv('Shipping Bill No.', ex.shippingBill) + xkv('Port of Loading', ex.portLoading) + xkv('Port of Discharge', ex.portDischarge) + xkv('Country of Destination', ex.country) + xkv('Country of Origin', ex.origin) + xkv('Currency', ex.currency) + xkv('Exchange Rate', ex.fx) + xkv('Incoterms', ex.incoterms) + xkv('Container No.', ex.container) + (P(ex.declaration) ? '<div class="decl">' + esc(P(ex.declaration)) + '</div>' : '') : '';
     var xblock = xrows ? '<div class="ex"><h3 style="margin-top:0">Export Details</h3>' + xrows + '</div>' : '';
     var body = '<div class="sheet">'
-      + '<div class="band"><div class="co">' + bandLogo(f, 66) + '<div class="n">' + wordmark(s.name) + '</div></div>'
+      + '<div class="band"><div class="co">' + (bandLockup(f, 60) || (bandLogo(f, 66) + '<div class="n">' + wordmark(s.name) + '</div>')) + '</div>'
       + '<div class="ti"><div class="w">' + (isExport ? 'EXPORT TAX INVOICE' : 'TAX INVOICE') + '</div><div class="c">' + esc(copy) + '</div></div></div>'
       + ((contact || f.tagline) ? '<div class="contact">' + (f.tagline ? '<div class="pl">' + esc(f.tagline) + '</div>' : '') + contact + '</div>' : '')
       + '<div class="in">' + meta + '<div class="par">' + seller + buyer + '</div>'
