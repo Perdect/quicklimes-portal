@@ -31,7 +31,9 @@ function buildData() {
      for every buyer). It is the buyer's state unless the form points elsewhere;
      and on an inter-state sale it can never be the seller's own state, or the
      page would print IGST against a place of supply that says CGST/SGST. */
-  const posField = g('i_pos'), pos = (!posField || (interState && posField === (Q.co && Q.co.state))) ? bState : posField;
+  const sellerCode = (Q.co && Q.co.gstin ? String(Q.co.gstin).slice(0, 2) : '') || Q.stateCode(Q.co && Q.co.state) || '08';
+  const posField = g('i_pos'), posCanon = Q.stateCanon(posField);   // 'Rajasthan' → 'Rajasthan (08)'; unknown text stays as typed
+  const pos = (!posField || (interState && Q.stateCode(posField) === sellerCode)) ? bState : (posCanon || posField);
   return {
     seller: Q.co, noBar: true, hsn: g('i_hsn') || '25221000',
     /* The State is a fact read off the GSTIN's first two digits. The box arrives
@@ -221,7 +223,9 @@ function setState(v) {
   const st = document.getElementById('i_bstate'), pos = document.getElementById('i_pos');
   const was = _lastBState || (Q.co && Q.co.state) || '';
   if (st) st.value = v;
-  if (pos && (!pos.value || pos.value === was || pos.value === (Q.co && Q.co.state))) pos.value = v;
+  /* by code, not spelling: 'Rajasthan' typed without '(08)' is still the pre-fill */
+  const same = (a, b) => !!a && !!b && (a === b || (Q.stateCode(a) && Q.stateCode(a) === Q.stateCode(b)));
+  if (pos && (!pos.value || same(pos.value, was) || same(pos.value, Q.co && Q.co.state))) pos.value = v;
   _lastBState = v;
 }
 let _gstinSeq = 0;

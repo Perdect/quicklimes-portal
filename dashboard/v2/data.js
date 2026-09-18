@@ -1413,6 +1413,21 @@
     return st.indexOf('(' + code + ')') >= 0 ? st : fromG;   // agree → keep; disagree → the GSTIN is the fact
   }
   function stateOfGstin(g) { const c = String(g || '').trim().slice(0, 2); return GST_STATES[c] ? GST_STATES[c] + ' (' + c + ')' : ''; }
+  /* A state typed any way a person types it — 'Rajasthan', 'rajasthan (08)', '08',
+     'Orissa' — to its canonical 'Name (NN)'; '' when it is not a state we know.
+     Place of supply is compared by CODE, never by spelling: 'Rajasthan' typed
+     without the code printed as the place of supply on an IGST invoice to Odisha
+     (18-09-2026) because the text did not equal 'Rajasthan (08)'. */
+  const STATE_ALIASES = { orissa: '21', pondicherry: '34', bengal: '19', 'west bengal': '19', delhi: '07', 'new delhi': '07', 'j&k': '01', 'jammu and kashmir': '01', 'tamilnadu': '33', 'chattisgarh': '22', 'uttaranchal': '05', 'daman and diu': '26', 'dadra and nagar haveli': '26', 'andaman and nicobar': '35', 'andaman & nicobar': '35' };
+  function stateCanon(text) {
+    const s = String(text || '').trim(); if (!s) return '';
+    const m = s.match(/\((\d\d)\)\s*$/) || s.match(/^(\d\d)$/);
+    if (m) return GST_STATES[m[1]] ? GST_STATES[m[1]] + ' (' + m[1] + ')' : '';
+    const name = s.toLowerCase().replace(/\s+/g, ' ');
+    const code = Object.keys(GST_STATES).find(k => GST_STATES[k].toLowerCase() === name) || STATE_ALIASES[name] || '';
+    return code ? GST_STATES[code] + ' (' + code + ')' : '';
+  }
+  function stateCode(text) { const c = stateCanon(text); return c ? c.slice(-3, -1) : ''; }
   function partyPhone(name) { const p = S.PARTIES.find(x => (x.name || '').toUpperCase() === (name || '').trim().toUpperCase()); return p ? (p.phone || '') : ''; }
   /* The customer's contact person and e-mail from the party record (Customer 360
      fields) — printed as Attn. / E-mail on designs that carry them. */
@@ -3197,7 +3212,7 @@
     // ── Soft-delete / Trash / Archive / Audit (recoverable deletion) ──
     softDelete, restoreRecord, purgeRecord, voidRecord, archiveRecord, archiveRows, archiveCount, trashRows, trashCount, auditRows, logAudit, backupJSON, trashModules: () => Object.keys(TRASHABLE),
     tdsRows, tdsSummary, monthlyRegister, monthlyRegisterTotals,
-    invoiceData, amountInWords, stateOfGstin, partyPhone, reconcileState, cleanGstin,
+    invoiceData, amountInWords, stateOfGstin, stateCanon, stateCode, partyPhone, reconcileState, cleanGstin,
     setSaleQA, qaData,
     notifications, getRenewals, addRenewal, removeRenewal, recommendations,
     REPORT_TYPES, buildReport, getGroups, saveGroups, getSchedules, saveSchedules,

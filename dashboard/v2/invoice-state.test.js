@@ -16,7 +16,7 @@ const blk = (s, start) => lift(s, start, /\n  }\n/);
 
 /* data.js: the GST state table + reconcileState/stateOfGstin, as the page gets them from QLD */
 const dctx = { console }; vm.createContext(dctx);
-vm.runInContext(dsrc.slice(dsrc.indexOf('  const GST_STATES = {'), dsrc.indexOf('  function partyPhone(name)')) + '\nthis.reconcileState = reconcileState; this.stateOfGstin = stateOfGstin; this.cleanGstin = cleanGstin;', dctx);
+vm.runInContext(dsrc.slice(dsrc.indexOf('  const GST_STATES = {'), dsrc.indexOf('  function partyPhone(name)')) + '\nthis.reconcileState = reconcileState; this.stateOfGstin = stateOfGstin; this.cleanGstin = cleanGstin; this.stateCanon = stateCanon; this.stateCode = stateCode;', dctx);
 
 /* a stub DOM: every field is an object with a .value */
 function page(fields) {
@@ -24,7 +24,7 @@ function page(fields) {
   const ctx = {
     console, document: { getElementById: id => els[id] || null },
     QLUnits: require('./units-core.js'),
-    Q: { co: { state: 'Rajasthan (08)', roundOff: false }, reconcileState: dctx.reconcileState, stateOfGstin: dctx.stateOfGstin, amountInWords: n => 'Rupees ' + n + ' Only' },
+    Q: { co: { state: 'Rajasthan (08)', gstin: '08NLIPS9801K1Z5', roundOff: false }, reconcileState: dctx.reconcileState, stateOfGstin: dctx.stateOfGstin, stateCanon: dctx.stateCanon, stateCode: dctx.stateCode, amountInWords: n => 'Rupees ' + n + ' Only' },
     QLShell: {}, els
   };
   vm.createContext(ctx);
@@ -51,11 +51,28 @@ ok('an unregistered buyer (no GSTIN): the typed State stands and an empty Place 
 p = page(Object.assign({}, base, { i_bgst: '27CMVPC2808M1ZK', i_bstate: '', i_pos: '' })); d = p.buildData();
 ok('blank boxes: both come from the GSTIN', d.buyer.state === 'Maharashtra (27)' && d.pos === 'Maharashtra (27)');
 
+/* 18-09-2026, second case: an Odisha buyer (21AFTPJ3586N1ZT) printed
+   'Place of supply: Rajasthan' — the box held 'Rajasthan' typed without the
+   code, which the text comparison did not recognise as the seller's own state */
+p = page(Object.assign({}, base, { i_bgst: '21AFTPJ3586N1ZT', i_bstate: 'Rajasthan (08)', i_pos: 'Rajasthan' })); d = p.buildData();
+ok('the Durga Fly Ash case: "Rajasthan" typed without the code is still the seller\'s state → Place of supply Odisha (21)', d.buyer.state === 'Odisha (21)' && d.pos === 'Odisha (21)' && d.interState === true);
+p = page(Object.assign({}, base, { i_bgst: '21AFTPJ3586N1ZT', i_pos: 'orissa' })); d = p.buildData();
+ok('a state typed by name or old name is printed canonically: "orissa" → Odisha (21)', d.pos === 'Odisha (21)');
+p = page(Object.assign({}, base, { i_bgst: '21AFTPJ3586N1ZT', i_pos: 'gujarat' })); d = p.buildData();
+ok('a different state typed by name (ship-to) is respected and canonicalised: "gujarat" → Gujarat (24)', d.pos === 'Gujarat (24)');
+p = page(Object.assign({}, base, { i_bgst: '08BPLPS6684F1Z6', i_pos: 'Rajasthan' })); d = p.buildData();
+ok('a Rajasthan buyer with "Rajasthan" typed prints Rajasthan (08) — CGST/SGST', d.pos === 'Rajasthan (08)' && d.interState === false);
+p = page(Object.assign({}, base, { i_bgst: '21AFTPJ3586N1ZT', i_pos: 'Site 4, Sambalpur yard' })); d = p.buildData();
+ok('text that is not a state is kept as typed (the user\'s call)', d.pos === 'Site 4, Sambalpur yard');
+ok('stateCanon: codes, names, aliases, garbage', dctx.stateCanon('08') === 'Rajasthan (08)' && dctx.stateCanon('rajasthan (08)') === 'Rajasthan (08)' && dctx.stateCanon(' West  Bengal ') === 'West Bengal (19)' && dctx.stateCanon('Pondicherry') === 'Puducherry (34)' && dctx.stateCanon('Mars') === '' && dctx.stateCanon('') === '' && dctx.stateCode('Odisha') === '21');
+
 /* setState — what the GSTIN assist / party pick / deep link call: State box set,
    Place of supply follows while it is still the pre-fill or the previous state */
 p = page(Object.assign({}, base, { i_bgst: '27CMVPC2808M1ZK' }));
 p.setState('Maharashtra (27)');
 ok('setState moves the pre-filled Place of supply along with the State', p.els.i_bstate.value === 'Maharashtra (27)' && p.els.i_pos.value === 'Maharashtra (27)');
+p = page(Object.assign({}, base, { i_bgst: '21AFTPJ3586N1ZT', i_pos: 'rajasthan' })); p.setState('Odisha (21)');
+ok('setState treats "rajasthan" typed without the code as the pre-fill and moves it', p.els.i_pos.value === 'Odisha (21)');
 p.els.i_pos.value = 'Gujarat (24)'; p.setState('Karnataka (29)');
 ok('…but leaves a Place of supply the user changed by hand', p.els.i_bstate.value === 'Karnataka (29)' && p.els.i_pos.value === 'Gujarat (24)');
 p.els.i_pos.value = 'Karnataka (29)'; p.setState('Delhi (07)');
