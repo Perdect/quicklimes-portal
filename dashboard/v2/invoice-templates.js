@@ -795,6 +795,125 @@
     return doc(f, 'industrial', css, body);
   }
 
+  /* ══════════ premium — "Deshwali Premium Invoice" ══════════
+     Commissioned 18-09-2026 from the firm's own quotation PDF (DM/QT/2026-27/922):
+     a navy letterhead band with the logo and the firm name, a gold rule, one
+     contact line, a boxed four-cell strip (no. · date · due/e-way · place of
+     supply), FROM — SUPPLIER / TO — BUYER boxes, a navy table (description in
+     navy bold with a grey sub-line, HSN, packing when present, qty, rate, amount),
+     a right-aligned totals block ending in the bold total, the amount in words,
+     TERMS AND CONDITIONS as a two-column list, Bank Details + Declaration boxes,
+     a closing line, "For <firm>" with a round seal and "Authorised Signatory &
+     Seal", and a one-line footer. Because this is a TAX INVOICE and not an
+     offer, the quotation's letter paragraph and "To confirm this order" box are
+     replaced by the copy label and the invoice declaration.
+
+     Same discipline as every other design: every value comes from the record,
+     empty optional fields are not printed, units through units-core (a Kg line
+     priced per Ton shows its arithmetic), IRN/QR only for a real e-invoice, the
+     export block only when there is something to say. */
+  var PREMIUM_NAVY = '#1F2D3D', PREMIUM_GOLD = '#C9A227';
+  var PREMIUM_DECL = 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.';
+  function premium(d, cfg) {
+    var f = facts(d, cfg), s = f.s, b = f.b;
+    var P = function (v) { return v == null ? '' : String(v).trim(); };
+    var st = function (x) { var m = P(x).match(/^(.*?)\s*\((\d\d)\)\s*$/); return m ? { name: m[1], code: m[2] } : { name: P(x), code: '' }; };
+    var sSt = st(s.state), bSt = st(f.bState || b.state);
+    if (!sSt.code && P(s.gstin).length >= 2) sSt.code = P(s.gstin).slice(0, 2);
+    if (!bSt.code && P(b.gstin).length >= 2) bSt.code = P(b.gstin).slice(0, 2);
+    var isExport = P(d.type).toLowerCase() === 'export', ex = d.export || {};
+    var eInv = !!P(d.irn);
+    var copy = P(f.cfg.copy) || 'Original for Recipient';
+    var items = (Array.isArray(d.items) && d.items.length) ? d.items
+      : [{ hsn: f.hsn, product: f.product, desc: d.desc, grade: d.grade, packing: d.packing, qty: d.qty, unit: d.unit, rate: d.rate, rateUnit: d.rateUnit || d.unit || '', taxable: d.taxable }];
+    var hasPack = items.some(function (it) { return P(it.packing); });
+    var charges = (d.charges || []).filter(function (c) { return c && P(c.label) && +c.amount; });
+    var roundOff = Math.round((+d.roundOff || 0) * 100) / 100, cess = +d.cess || 0, otherTax = +d.otherTax || 0;
+    var terms = f.terms || [];
+    var words = /^Rupees /.test(f.words) ? 'Indian ' + f.words : f.words;
+    var unitOfItems = P(items[0].unit) || f.unit || '';
+    var rUnit = P(items[0].rateUnit) || f.rateUnit || unitOfItems;
+    var css = "body{font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;font-size:10.5px;line-height:1.45;padding:0;background:#fff}"
+      + ".sheet{max-width:820px;margin:0 auto;padding:0 0 16px}"
+      + ".band{background:" + PREMIUM_NAVY + ";color:#fff;padding:14px 32px 11px;display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid " + PREMIUM_GOLD + "}"
+      + ".band .co{display:flex;gap:14px;align-items:center}.band .n{font-size:20px;font-weight:800;letter-spacing:.04em;line-height:1.05}.band .t{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:4px}"
+      + ".band .ti{text-align:right}.band .ti .w{font-size:17px;font-weight:800;letter-spacing:.16em}.band .ti .c{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:2px}"
+      + ".contact{text-align:center;font-size:9px;color:#444;padding:4px 32px;border-bottom:1px solid #d6d9de}"
+      + ".in{padding:9px 32px 0}"
+      + ".meta{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #c9ced6;margin-bottom:9px}.meta div{padding:4px 10px;border-right:1px solid #c9ced6;min-width:0}.meta div:last-child{border-right:0}.meta span{display:block;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280}.meta b{font-size:11px;color:" + PREMIUM_NAVY + ";word-break:break-word}"
+      + ".par{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:9px}.box{border:1px solid #c9ced6}.box h4{margin:0;padding:5px 10px;font-size:7.5px;letter-spacing:.14em;text-transform:uppercase;color:#4b5563;background:#f1f3f6;border-bottom:1px solid #c9ced6}.box .bd{padding:6px 10px}"
+      + ".box .nm{font-size:12px;font-weight:800;color:" + PREMIUM_NAVY + ";margin-bottom:2px}.box .ad{white-space:pre-line;color:#222}.box .kv{font-size:9.5px;margin-top:2px}.box .kv span{color:#6b7280;margin-right:4px}.box .kv b{font-weight:600;margin-right:10px}"
+      + "h3{margin:9px 0 5px;font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;border-bottom:2px solid " + PREMIUM_GOLD + ";padding-bottom:3px}"
+      + "table.it{width:100%;border-collapse:collapse;border:1px solid #c9ced6}.it thead{display:table-header-group}.it th{background:" + PREMIUM_NAVY + ";color:#fff;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;padding:7px 8px;text-align:left}"
+      + ".it td{padding:6px 8px;border-bottom:1px solid #c9ced6;border-right:1px solid #e3e6ea;font-size:10px;vertical-align:middle}.it td:last-child{border-right:0}.it tbody tr{break-inside:avoid}.r{text-align:right}.c{text-align:center}"
+      + ".it .dn{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:10.5px}.it .ds{color:#6b7280;font-size:9px}"
+      + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:8px}.tot td{padding:4px 10px;border-bottom:1px solid #e3e6ea;font-size:9.5px}.tot td.l{text-align:right;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#374151;font-weight:700;background:#f7f8fa;width:70%}.tot td.v{text-align:right;font-weight:700;color:" + PREMIUM_NAVY + "}.tot tr.g td{background:#eef1f5}.tot tr.g td.v{font-size:14px;font-weight:800}.tot tr:last-child td{border-bottom:0}"
+      + ".words{margin:6px 0 0;font-size:10px}.words b{font-weight:800}"
+      + ".tc{width:100%;border-collapse:collapse}.tc td{padding:5px 0;border-bottom:1px solid #e3e6ea;font-size:9.5px;vertical-align:top}.tc td.k{width:22%;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;padding-top:7px}"
+      + ".two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:9px}.pbox{border:1px solid #c9ced6;padding:8px 10px;font-size:9.5px}.pbox b.h{display:block;color:" + PREMIUM_NAVY + ";font-size:10.5px;margin-bottom:4px}"
+      + ".close{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end;margin-top:10px;break-inside:avoid}.close .msg{font-size:9.5px;color:#374151;line-height:1.55}"
+      + ".sig{text-align:right;min-width:220px}.sig .for{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:10px}.sig .seal{margin:4px 0 2px}.sig .cap{border-top:1px solid " + PREMIUM_NAVY + ";padding-top:4px;font-size:9px;color:#374151}"
+      + ".ft{margin-top:10px;padding:6px 32px 0;border-top:1px solid #c9ced6;text-align:center;font-size:8px;color:#6b7280}"
+      + ".ein{border:1px solid #c9ced6;padding:8px 12px;margin-top:12px;display:flex;gap:14px;align-items:flex-start;font-size:9.5px;word-break:break-all;break-inside:avoid}.ein img{width:96px;height:96px;flex:none}"
+      + ".ex{border:1px solid " + PREMIUM_GOLD + ";padding:8px 12px;margin-top:12px;font-size:9.5px;break-inside:avoid}.ex .decl{font-weight:700;margin-top:4px}"
+      + "@media screen and (max-width:760px){.sheet{zoom:.7}}";
+    var kv = function (k, v) { return P(v) ? '<span class="kv"><span>' + k + ':</span><b>' + esc(P(v)) + '</b></span>' : ''; };
+    var mcell = function (k, v) { return '<div><span>' + k + '</span><b>' + (P(v) ? esc(P(v)) : '—') + '</b></div>'; };
+    var contact = [s.website ? esc(s.website) : '', s.email ? esc(s.email) : '', f.tel ? esc(f.tel) : ''].filter(Boolean).join(' &nbsp;·&nbsp; ');
+    /* the four-cell strip: no. · date · (due date or e-way) · place of supply */
+    var third = P(d.due) ? mcell('Due date', fdate(d.due)) : (f.eway ? mcell('E-Way Bill No.', f.eway) : mcell('Vehicle No.', f.veh));
+    var meta = '<div class="meta">' + mcell('Invoice No.', f.inv) + mcell('Date', f.date) + third + mcell('Place of supply', f.pos) + '</div>';
+    var party = function (title, name, addr, gst, state, phone, email, pan) {
+      return '<div class="box"><h4>' + title + '</h4><div class="bd"><div class="nm">' + esc(name || '') + '</div>' + (P(addr) ? '<div class="ad">' + esc(P(addr)) + '</div>' : '')
+        + '<div>' + kv('GSTIN', gst) + kv('State', state) + '</div>' + '<div>' + kv('PAN', pan) + kv('Mobile', phone) + kv('E-mail', email) + '</div></div></div>';
+    };
+    var sPan = f.pan, bPan = P(b.gstin).length === 15 ? P(b.gstin).slice(2, 12) : '';
+    var seller = party('From — Supplier', s.name, String(s.address || '').replace(/\n/g, ', ') + (sSt.name && !/Rajasthan/i.test(s.address || '') ? '' : ''), s.gstin, s.state, f.tel, s.email, sPan);
+    var buyer = party('To — Buyer', b.name, b.address, b.gstin, f.bState || b.state, f.bPhone, f.bEmail, bPan);
+    var thead = '<tr><th style="width:30px">Sr.</th><th>Description</th><th style="width:76px">HSN</th>' + (hasPack ? '<th style="width:96px">Packing</th>' : '')
+      + '<th class="r" style="width:74px">Qty' + (unitOfItems ? ' (' + esc(unitOfItems) + ')' : '') + '</th><th class="r" style="width:88px">Rate' + (rUnit ? ' / ' + esc(rUnit) : '') + '</th><th class="r" style="width:104px">Amount</th></tr>';
+    var rows = items.map(function (it, i) {
+      var note = convNote(it), rowRu = P(it.rateUnit) || rUnit;
+      return '<tr><td class="c">' + (i + 1) + '</td><td><div class="dn">' + esc(P(it.product)) + '</div>' + (P(it.desc) || P(it.grade) ? '<div class="ds">' + esc([P(it.grade), P(it.desc)].filter(Boolean).join(' · ')) + '</div>' : '') + (note ? '<div class="ds">' + note + '</div>' : '') + '</td>'
+        + '<td>' + esc(P(it.hsn) || f.hsn) + '</td>' + (hasPack ? '<td>' + esc(P(it.packing) || '—') + '</td>' : '')
+        + '<td class="r">' + qfmt(it.qty) + (P(it.unit) && P(it.unit) !== unitOfItems ? ' ' + esc(P(it.unit)) : '') + '</td><td class="r">INR ' + fmt(it.rate) + (rowRu !== rUnit ? '<br><span class="ds">/ ' + esc(rowRu) + '</span>' : '') + '</td><td class="r"><b>INR ' + fmt(lineTaxable(it)) + '</b></td></tr>';
+    }).join('') + charges.map(function (c, i) {
+      return '<tr><td class="c">' + (items.length + i + 1) + '</td><td><div class="dn">' + esc(P(c.label)) + '</div>' + (P(c.desc) ? '<div class="ds">' + esc(P(c.desc)) + '</div>' : '') + '</td><td>' + esc(P(c.hsn) || '9965') + '</td>' + (hasPack ? '<td>—</td>' : '') + '<td class="r">—</td><td class="r">—</td><td class="r"><b>INR ' + fmt(c.amount) + '</b></td></tr>';
+    }).join('');
+    var trow = function (k, v, g) { return '<tr' + (g ? ' class="g"' : '') + '><td class="l">' + k + '</td><td class="v">' + v + '</td></tr>'; };
+    var goods = items.reduce(function (a, it) { return a + lineTaxable(it); }, 0), chargeSum = charges.reduce(function (a, c) { return a + (+c.amount || 0); }, 0);
+    var tot = '<table class="tot">' + trow('Value of goods' + (items.length === 1 && +items[0].qty && +items[0].rate ? ' (' + qfmt(items[0].qty) + ' ' + esc(P(items[0].unit) || unitOfItems) + ' × INR ' + fmt(items[0].rate) + (rUnit ? '/' + esc(rUnit) : '') + ')' : ''), 'INR ' + fmt(goods))
+      + (chargeSum ? trow('Charges', 'INR ' + fmt(chargeSum)) : '')
+      + (isExport ? trow('IGST — zero-rated export under LUT', 'INR ' + f.igst) : f.interState ? trow('IGST @ ' + f.gstR + ' %' + (f.hsn ? ' (HSN ' + esc(f.hsn) + ')' : ''), 'INR ' + f.igst) : trow('CGST @ ' + f.halfR + ' %', 'INR ' + f.cgst) + trow('SGST @ ' + f.halfR + ' %', 'INR ' + f.sgst))
+      + (cess ? trow('Cess', 'INR ' + fmt(cess)) : '') + (otherTax ? trow('Other tax', 'INR ' + fmt(otherTax)) : '') + (roundOff ? trow('Round off', (roundOff > 0 ? '+' : '−') + fmt(Math.abs(roundOff))) : '')
+      + trow('Total payable (goods incl. GST)', 'INR ' + f.grand, true) + trow('Total quantity', qtyTotalEl(f)) + '</table>';
+    var termsRows = terms.map(function (t, i) { var m = String(t).match(/^([A-Za-z][A-Za-z /&]{2,28}):\s*(.+)$/); return '<tr><td class="k">' + (m ? esc(m[1]) : 'Term ' + (i + 1)) + '</td><td>' + esc(m ? m[2] : t) + '</td></tr>'; }).join('');
+    var bank = (s.bank || s.accNo || s.upi) ? '<div class="pbox"><b class="h">Bank Details — for payment</b>' + (s.name ? 'Account name: ' + esc(s.name) + '<br>' : '') + (s.bank ? esc(s.bank) + (s.bankBranch ? ', ' + esc(s.bankBranch) : '') + '<br>' : '') + (s.accNo ? 'A/C No.: ' + esc(s.accNo) : '') + (s.ifsc ? ' &nbsp;|&nbsp; IFSC: ' + esc(s.ifsc) : '') + (s.upi ? '<br>UPI: ' + esc(s.upi) : '') + '</div>' : '';
+    var decl = '<div class="pbox"><b class="h">Declaration</b>' + PREMIUM_DECL + (f.rcm === 'Yes' ? '<br>Tax is payable on reverse charge.' : '') + '</div>';
+    var seal = '<svg class="seal" width="66" height="66" viewBox="0 0 100 100" aria-hidden="true"><defs><path id="sealArc" d="M50,50 m-36,0 a36,36 0 1,1 72,0 a36,36 0 1,1 -72,0"/></defs><circle cx="50" cy="50" r="46" fill="none" stroke="' + PREMIUM_NAVY + '" stroke-width="1.6"/><circle cx="50" cy="50" r="30" fill="none" stroke="' + PREMIUM_NAVY + '" stroke-width="1"/><text font-size="8.5" font-weight="700" fill="' + PREMIUM_NAVY + '" letter-spacing="1"><textPath href="#sealArc" startOffset="2%">' + esc(String(s.name || '').toUpperCase()) + (s.city || sSt.name ? ' · ' + esc(String(s.city || sSt.name).toUpperCase()) : '') + '</textPath></text><text x="50" y="47" text-anchor="middle" font-size="7" fill="' + PREMIUM_NAVY + '">SEAL</text><text x="50" y="58" text-anchor="middle" font-size="6" fill="' + PREMIUM_NAVY + '">' + (s.gstin ? esc(String(s.gstin).slice(0, 15)) : '') + '</text></svg>';
+    var eblock = eInv ? '<div class="ein"><div>' + [['IRN', d.irn], ['Ack No.', d.ackNo], ['Ack Date', fdate(d.ackDt)]].map(function (x) { return P(x[1]) ? '<div><span style="color:#6b7280;display:inline-block;min-width:64px">' + x[0] + '</span><b>' + esc(P(x[1])) + '</b></div>' : ''; }).join('') + '</div>'
+      + (P(d.qrImage) ? '<img src="' + esc(P(d.qrImage)) + '" alt="e-Invoice QR">' : (P(d.qrData) ? '<img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(P(d.qrData)) + '" alt="e-Invoice QR">' : '')) + '</div>' : '';
+    var xkv = function (k, v) { return P(v) ? '<div><span style="color:#6b7280;display:inline-block;min-width:150px">' + k + '</span><b>' + esc(P(v)) + '</b></div>' : ''; };
+    var xrows = isExport ? xkv('IEC', f.iec) + xkv('LUT No.', ex.lut || f.lut) + xkv('Shipping Bill No.', ex.shippingBill) + xkv('Port of Loading', ex.portLoading) + xkv('Port of Discharge', ex.portDischarge) + xkv('Country of Destination', ex.country) + xkv('Country of Origin', ex.origin) + xkv('Currency', ex.currency) + xkv('Exchange Rate', ex.fx) + xkv('Incoterms', ex.incoterms) + xkv('Container No.', ex.container) + (P(ex.declaration) ? '<div class="decl">' + esc(P(ex.declaration)) + '</div>' : '') : '';
+    var xblock = xrows ? '<div class="ex"><h3 style="margin-top:0">Export Details</h3>' + xrows + '</div>' : '';
+    var body = '<div class="sheet">'
+      + '<div class="band"><div class="co">' + (f.logo ? logoImg(f, 46) : '') + '<div><div class="n">' + esc(s.name) + '</div>' + (f.tagline ? '<div class="t">' + esc(f.tagline) + '</div>' : '') + '</div></div>'
+      + '<div class="ti"><div class="w">' + (isExport ? 'EXPORT TAX INVOICE' : 'TAX INVOICE') + '</div><div class="c">' + esc(copy) + (s.gstin ? ' · GSTIN ' + esc(s.gstin) : '') + '</div></div></div>'
+      + (contact ? '<div class="contact">' + contact + '</div>' : '')
+      + '<div class="in">' + meta + '<div class="par">' + seller + buyer + '</div>'
+      + ((f.transport || f.veh || f.station || f.grrr || (f.eway && P(d.due))) ? '<div class="meta" style="margin-top:0">' + mcell('Transport', f.transport) + mcell('Vehicle No.', f.veh) + mcell('Station', f.station) + mcell('GR/RR No.', f.grrr) + (f.eway && P(d.due) ? mcell('E-Way Bill No.', f.eway) : '') + '</div>' : '')
+      + '<h3>' + (isExport ? 'Export supply' : 'Supply') + '</h3><table class="it"><thead>' + thead + '</thead><tbody>' + rows + '</tbody></table>'
+      + tot + '<div class="words"><b>Amount in words:</b> ' + esc(words) + '</div>'
+      + eblock + xblock
+      + (termsRows ? '<h3>Terms and Conditions</h3><table class="tc">' + termsRows + '</table>' : '')
+      + '<div class="two">' + bank + decl + '</div>'
+      + '<div class="close"><div class="msg">' + (f.cfg.footerNote ? esc(f.cfg.footerNote) + '<br>' : '') + 'Reverse charge: ' + esc(f.rcm) + (f.jurisdiction ? ' &nbsp;·&nbsp; Subject to ' + esc(f.jurisdiction) + ' jurisdiction' : '') + '</div>'
+      + (f.cfg.showSignature ? '<div class="sig"><div class="for">For ' + esc(String(f.signatory || s.name || '').toUpperCase()) + '</div>' + seal + '<div class="cap">Authorised Signatory &amp; Seal</div></div>' : '') + '</div></div>'
+      + '<div class="ft">Invoice ' + esc(f.inv) + (f.date ? ' · ' + esc(f.date) : '') + ' · This is a tax invoice under the CGST Rules, 2017. Errors and omissions excepted.</div>'
+      + '</div>';
+    return doc(f, 'premium', css, body);
+  }
+
   var TEMPLATES = [
     { id: 'gst',     name: 'GST Invoice (print format)', category: 'In use now', accentable: false, despatch: true,
       desc: 'Your billing software\'s format, line for line — logo, Tel., Transport / Station / GR-RR, party contact lines, Terms & Conditions, Receiver\'s Signature.', render: gst },
@@ -805,7 +924,9 @@
     { id: 'detailed', name: 'Detailed', category: 'Full detail', accentable: true, despatch: true,
       desc: 'The full-detail layout of the sample you sent: GSTIN / PAN header, MSME, transport block, buyer and consignee, watermark, tax stack, terms, address footer. IRN / QR print only once an e-invoice exists.', render: detailed },
     { id: 'industrial', name: 'Deshwali Professional Industrial Invoice', category: 'Premium', accentable: true, despatch: true,
-      desc: 'Black-and-white first with one accent: registration strip, Bill To / Ship To, order & transport grid, multi-line product table, optional quality specification and charges, only the tax heads that apply, editable terms, e-invoice and export blocks only when real.', render: industrial }
+      desc: 'Black-and-white first with one accent: registration strip, Bill To / Ship To, order & transport grid, multi-line product table, optional quality specification and charges, only the tax heads that apply, editable terms, e-invoice and export blocks only when real.', render: industrial },
+    { id: 'premium', name: 'Deshwali Premium Invoice', category: 'Premium', accentable: false, despatch: true,
+      desc: 'The firm\'s quotation letterhead as a tax invoice: navy band with the logo, gold rule, boxed invoice strip, From / To boxes, navy table with packing and units, totals block, terms as a list, bank and declaration boxes, seal.', render: premium }
   ];
 
   function get(id) { for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].id === id) return TEMPLATES[i]; return TEMPLATES[0]; }

@@ -20,7 +20,7 @@ const R = (extra, cfg) => T.render(Object.assign({}, BASE, extra || {}), Object.
 const h = R();
 
 /* the existing designs are untouched, this one is additional */
-ok('registry: existing ids in their order, industrial appended', T.TEMPLATES.map(t => t.id).join(',') === 'gst,modern,business,detailed,industrial');
+ok('registry: existing ids in their order, industrial then premium appended', T.TEMPLATES.map(t => t.id).join(',') === 'gst,modern,business,detailed,industrial,premium');
 ok('gst is still TEMPLATES[0] (the default and the fallback)', T.TEMPLATES[0].id === 'gst');
 const reg = T.get('industrial'); ok('registered under the exact name from the brief', reg.name === 'Deshwali Professional Industrial Invoice' && reg.accentable === true && reg.despatch === true);
 
