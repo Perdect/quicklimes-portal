@@ -813,6 +813,8 @@
      priced per Ton shows its arithmetic), IRN/QR only for a real e-invoice, the
      export block only when there is something to say. */
   var PREMIUM_NAVY = '#1F2D3D', PREMIUM_GOLD = '#C9A227';
+  /* "DESHWALI MINERALS" → two lines, as the letterhead sets it. */
+  function wordmark(name) { var w = String(name || '').trim().split(/\s+/); return w.length >= 2 ? esc(w[0]) + '<br>' + esc(w.slice(1).join(' ')) : esc(name || ''); }
   var PREMIUM_DECL = 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.';
   function premium(d, cfg) {
     var f = facts(d, cfg), s = f.s, b = f.b;
@@ -835,8 +837,8 @@
     var rUnit = P(items[0].rateUnit) || f.rateUnit || unitOfItems;
     var css = "body{font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;font-size:10.5px;line-height:1.45;padding:0;background:#fff}"
       + ".sheet{max-width:820px;margin:0 auto;padding:0 0 16px}"
-      + ".band{background:" + PREMIUM_NAVY + ";color:#fff;padding:14px 32px 11px;display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid " + PREMIUM_GOLD + "}"
-      + ".band .co{display:flex;gap:14px;align-items:center}.band .n{font-size:20px;font-weight:800;letter-spacing:.04em;line-height:1.05}.band .t{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:4px}"
+      + ".band{background:" + PREMIUM_NAVY + ";color:#fff;padding:11px 32px 9px;display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid " + PREMIUM_GOLD + "}"
+      + ".band .co{display:flex;gap:14px;align-items:center}.band .co img{filter:brightness(0) invert(1);height:50px!important;width:auto}.band .n{font-size:22px;font-weight:800;letter-spacing:.06em;line-height:1.02;text-transform:uppercase}.band .t{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:4px}"
       + ".band .ti{text-align:right}.band .ti .w{font-size:17px;font-weight:800;letter-spacing:.16em}.band .ti .c{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:2px}"
       + ".contact{text-align:center;font-size:9px;color:#444;padding:4px 32px;border-bottom:1px solid #d6d9de}"
       + ".in{padding:9px 32px 0}"
@@ -850,12 +852,12 @@
       + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:8px}.tot td{padding:4px 10px;border-bottom:1px solid #e3e6ea;font-size:9.5px}.tot td.l{text-align:right;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#374151;font-weight:700;background:#f7f8fa;width:70%}.tot td.v{text-align:right;font-weight:700;color:" + PREMIUM_NAVY + "}.tot tr.g td{background:#eef1f5}.tot tr.g td.v{font-size:14px;font-weight:800}.tot tr:last-child td{border-bottom:0}"
       + ".words{margin:6px 0 0;font-size:10px}.words b{font-weight:800}"
       + ".tc{width:100%;border-collapse:collapse}.tc td{padding:5px 0;border-bottom:1px solid #e3e6ea;font-size:9.5px;vertical-align:top}.tc td.k{width:22%;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;padding-top:7px}"
-      + ".two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:9px}.pbox{border:1px solid #c9ced6;padding:8px 10px;font-size:9.5px}.pbox b.h{display:block;color:" + PREMIUM_NAVY + ";font-size:10.5px;margin-bottom:4px}"
-      + ".close{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end;margin-top:10px;break-inside:avoid}.close .msg{font-size:9.5px;color:#374151;line-height:1.55}"
-      + ".sig{text-align:right;min-width:220px}.sig .for{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:10px}.sig .seal{margin:4px 0 2px}.sig .cap{border-top:1px solid " + PREMIUM_NAVY + ";padding-top:4px;font-size:9px;color:#374151}"
+      + ".two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}.pbox{border:1px solid #c9ced6;padding:8px 10px;font-size:9.5px}.pbox b.h{display:block;color:" + PREMIUM_NAVY + ";font-size:10.5px;margin-bottom:4px}"
+      + ".close{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end;margin-top:8px;break-inside:avoid}.close .msg{font-size:9.5px;color:#374151;line-height:1.55}"
+      + ".sig{text-align:right;min-width:220px}.sig .for{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:10px}.sig .seal{margin:2px 0 0}.sig .cap{border-top:1px solid " + PREMIUM_NAVY + ";padding-top:4px;font-size:9px;color:#374151}"
       + ".ft{margin-top:10px;padding:6px 32px 0;border-top:1px solid #c9ced6;text-align:center;font-size:8px;color:#6b7280}"
-      + ".ein{border:1px solid #c9ced6;padding:8px 12px;margin-top:12px;display:flex;gap:14px;align-items:flex-start;font-size:9.5px;word-break:break-all;break-inside:avoid}.ein img{width:96px;height:96px;flex:none}"
-      + ".ex{border:1px solid " + PREMIUM_GOLD + ";padding:8px 12px;margin-top:12px;font-size:9.5px;break-inside:avoid}.ex .decl{font-weight:700;margin-top:4px}"
+      + ".ein{border:1px solid #c9ced6;padding:6px 12px;margin-top:8px;display:flex;gap:14px;align-items:flex-start;font-size:9.5px;word-break:break-all;break-inside:avoid}.ein img{width:96px;height:96px;flex:none}"
+      + ".ex{border:1px solid " + PREMIUM_GOLD + ";padding:6px 12px;margin-top:8px;font-size:9.5px;break-inside:avoid}.ex .decl{font-weight:700;margin-top:4px}"
       + "@media screen and (max-width:760px){.sheet{zoom:.7}}";
     var kv = function (k, v) { return P(v) ? '<span class="kv"><span>' + k + ':</span><b>' + esc(P(v)) + '</b></span>' : ''; };
     var mcell = function (k, v) { return '<div><span>' + k + '</span><b>' + (P(v) ? esc(P(v)) : '—') + '</b></div>'; };
@@ -890,14 +892,21 @@
     var termsRows = terms.map(function (t, i) { var m = String(t).match(/^([A-Za-z][A-Za-z /&]{2,28}):\s*(.+)$/); return '<tr><td class="k">' + (m ? esc(m[1]) : 'Term ' + (i + 1)) + '</td><td>' + esc(m ? m[2] : t) + '</td></tr>'; }).join('');
     var bank = (s.bank || s.accNo || s.upi) ? '<div class="pbox"><b class="h">Bank Details — for payment</b>' + (s.name ? 'Account name: ' + esc(s.name) + '<br>' : '') + (s.bank ? esc(s.bank) + (s.bankBranch ? ', ' + esc(s.bankBranch) : '') + '<br>' : '') + (s.accNo ? 'A/C No.: ' + esc(s.accNo) : '') + (s.ifsc ? ' &nbsp;|&nbsp; IFSC: ' + esc(s.ifsc) : '') + (s.upi ? '<br>UPI: ' + esc(s.upi) : '') + '</div>' : '';
     var decl = '<div class="pbox"><b class="h">Declaration</b>' + PREMIUM_DECL + (f.rcm === 'Yes' ? '<br>Tax is payable on reverse charge.' : '') + '</div>';
-    var seal = '<svg class="seal" width="66" height="66" viewBox="0 0 100 100" aria-hidden="true"><defs><path id="sealArc" d="M50,50 m-36,0 a36,36 0 1,1 72,0 a36,36 0 1,1 -72,0"/></defs><circle cx="50" cy="50" r="46" fill="none" stroke="' + PREMIUM_NAVY + '" stroke-width="1.6"/><circle cx="50" cy="50" r="30" fill="none" stroke="' + PREMIUM_NAVY + '" stroke-width="1"/><text font-size="8.5" font-weight="700" fill="' + PREMIUM_NAVY + '" letter-spacing="1"><textPath href="#sealArc" startOffset="2%">' + esc(String(s.name || '').toUpperCase()) + (s.city || sSt.name ? ' · ' + esc(String(s.city || sSt.name).toUpperCase()) : '') + '</textPath></text><text x="50" y="47" text-anchor="middle" font-size="7" fill="' + PREMIUM_NAVY + '">SEAL</text><text x="50" y="58" text-anchor="middle" font-size="6" fill="' + PREMIUM_NAVY + '">' + (s.gstin ? esc(String(s.gstin).slice(0, 15)) : '') + '</text></svg>';
+    var sealLine = P(s.sealText) || [s.city, sSt.name].filter(Boolean).join(', ');
+    var SB = '#1F3A68';   // the seal's blue, as stamped
+    var seal = '<svg class="seal" width="68" height="68" viewBox="0 0 100 100" aria-hidden="true"><defs><path id="sealTop" d="M14,50 a36,36 0 0,1 72,0"/><path id="sealBot" d="M14,50 a36,36 0 0,0 72,0"/></defs>'
+      + '<circle cx="50" cy="50" r="47" fill="none" stroke="' + SB + '" stroke-width="2.2"/><circle cx="50" cy="50" r="43.5" fill="none" stroke="' + SB + '" stroke-width=".8"/><circle cx="50" cy="50" r="28" fill="none" stroke="' + SB + '" stroke-width="1.4"/>'
+      + '<text font-size="8.2" font-weight="700" fill="' + SB + '" letter-spacing="1.2" text-anchor="middle"><textPath href="#sealTop" startOffset="50%">' + esc(String(s.name || '').toUpperCase()) + '</textPath></text>'
+      + (sealLine ? '<text font-size="5.6" font-weight="700" fill="' + SB + '" letter-spacing=".9" text-anchor="middle"><textPath href="#sealBot" startOffset="50%">' + esc(sealLine.toUpperCase()) + '</textPath></text>' : '')
+      + '<text x="11" y="53" font-size="9" fill="' + SB + '">★</text><text x="81" y="53" font-size="9" fill="' + SB + '">★</text>'
+      + '<g stroke="' + SB + '" stroke-width="1.2"><line x1="40" y1="43" x2="46" y2="43"/><circle cx="50" cy="43" r="1.1" fill="' + SB + '"/><line x1="54" y1="43" x2="60" y2="43"/><line x1="40" y1="57" x2="46" y2="57"/><circle cx="50" cy="57" r="1.1" fill="' + SB + '"/><line x1="54" y1="57" x2="60" y2="57"/></g></svg>';
     var eblock = eInv ? '<div class="ein"><div>' + [['IRN', d.irn], ['Ack No.', d.ackNo], ['Ack Date', fdate(d.ackDt)]].map(function (x) { return P(x[1]) ? '<div><span style="color:#6b7280;display:inline-block;min-width:64px">' + x[0] + '</span><b>' + esc(P(x[1])) + '</b></div>' : ''; }).join('') + '</div>'
       + (P(d.qrImage) ? '<img src="' + esc(P(d.qrImage)) + '" alt="e-Invoice QR">' : (P(d.qrData) ? '<img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(P(d.qrData)) + '" alt="e-Invoice QR">' : '')) + '</div>' : '';
     var xkv = function (k, v) { return P(v) ? '<div><span style="color:#6b7280;display:inline-block;min-width:150px">' + k + '</span><b>' + esc(P(v)) + '</b></div>' : ''; };
     var xrows = isExport ? xkv('IEC', f.iec) + xkv('LUT No.', ex.lut || f.lut) + xkv('Shipping Bill No.', ex.shippingBill) + xkv('Port of Loading', ex.portLoading) + xkv('Port of Discharge', ex.portDischarge) + xkv('Country of Destination', ex.country) + xkv('Country of Origin', ex.origin) + xkv('Currency', ex.currency) + xkv('Exchange Rate', ex.fx) + xkv('Incoterms', ex.incoterms) + xkv('Container No.', ex.container) + (P(ex.declaration) ? '<div class="decl">' + esc(P(ex.declaration)) + '</div>' : '') : '';
     var xblock = xrows ? '<div class="ex"><h3 style="margin-top:0">Export Details</h3>' + xrows + '</div>' : '';
     var body = '<div class="sheet">'
-      + '<div class="band"><div class="co">' + (f.logo ? logoImg(f, 46) : '') + '<div><div class="n">' + esc(s.name) + '</div>' + (f.tagline ? '<div class="t">' + esc(f.tagline) + '</div>' : '') + '</div></div>'
+      + '<div class="band"><div class="co">' + (f.logo ? logoImg(f, 56) : '') + '<div><div class="n">' + wordmark(s.name) + '</div>' + (f.tagline ? '<div class="t">' + esc(f.tagline) + '</div>' : '') + '</div></div>'
       + '<div class="ti"><div class="w">' + (isExport ? 'EXPORT TAX INVOICE' : 'TAX INVOICE') + '</div><div class="c">' + esc(copy) + (s.gstin ? ' · GSTIN ' + esc(s.gstin) : '') + '</div></div></div>'
       + (contact ? '<div class="contact">' + contact + '</div>' : '')
       + '<div class="in">' + meta + '<div class="par">' + seller + buyer + '</div>'

@@ -159,6 +159,9 @@
          ADDRESS strip to be removed on 18-09-2026 once the office moved to
          Borunda. Setting this prints the strip (and a Unit line on every design). */
       unitAddress: '',
+      /* The bottom arc of the firm's rubber stamp, as it reads on the quotation
+         PDF of 18-09-2026; the Premium design draws the seal from this. */
+      sealText: 'BORUNDA, GOTAN, RAJASTHAN', website: 'www.deshwaliminerals.com',
       /* Header line for the Professional Industrial design (owner's brief, 13-09-2026). */
       tagline: 'Manufacturer & Supplier of Quick Lime, Hydrated Lime, Lime Stone & Industrial Minerals'
     },
@@ -195,7 +198,7 @@
       bank2: seller.bank2 || '', bankBranch2: seller.bankBranch2 || '', accNo2: seller.accNo2 || '', ifsc2: seller.ifsc2 || '',
       product: seller.product || '', msme: seller.msme || '', logo: seller.logo || '', jurisdiction: seller.jurisdiction || '',
       tel: seller.tel || '', terms: seller.terms || [], invoiceTemplate: seller.invoiceTemplate || '', roundOff: seller.roundOff !== false,
-      iec: seller.iec || '', lut: seller.lut || '', cin: seller.cin || '', upi: seller.upi || '', unitAddress: seller.unitAddress || '', tagline: seller.tagline || '', hsn: HSN,
+      iec: seller.iec || '', lut: seller.lut || '', cin: seller.cin || '', upi: seller.upi || '', unitAddress: seller.unitAddress || '', tagline: seller.tagline || '', sealText: seller.sealText || '', website: seller.website || '', hsn: HSN,
       isPrimary: !p.parent_plant_id,
       dataKey: 'ql_data_' + p.id
     };
