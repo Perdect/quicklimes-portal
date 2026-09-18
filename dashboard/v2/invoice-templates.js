@@ -860,7 +860,7 @@
     var qty3 = function (q, u) { var U = QLUnitsOpt(); var mass = U ? U.familyOf(u) === 'mass' : /^(ton|tonne|mt|t|kg|quintal)/i.test(String(u || '')); var n = +q || 0; return mass && !Number.isInteger(n * 1000) === false && mass ? n.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : qfmt(n); };
     var rUnit = P(items[0].rateUnit) || f.rateUnit || unitOfItems;
     var css = "@page{size:A4;margin:0}body{font-family:'DejaVu Sans',Verdana,'Bitstream Vera Sans',Helvetica,Arial,sans-serif;color:#1a1a1a;font-size:9.5px;line-height:1.45;padding:0;background:#fff}"
-      + ".sheet{max-width:820px;margin:0 auto;padding:0 0 16px}@media print{.sheet{max-width:none;padding:0 0 8mm}}"
+      + ".sheet{max-width:820px;margin:0 auto;padding:0 0 16px}@media print{.sheet{max-width:none;padding:0 0 6mm;min-height:100vh;box-sizing:border-box;display:flex;flex-direction:column}.sheet .in{flex:1;display:flex;flex-direction:column}.sheet .in .close{margin-top:auto;padding-top:14px}}"
       + ".band{background:" + PREMIUM_NAVY + ";color:#fff;padding:23px 5.4% 23px 5.3%;min-height:82px;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid " + PREMIUM_GOLD + "}"
       + ".band .co{display:flex;gap:20px;align-items:center}.band .lockup{height:35px!important;width:auto}.band .gem{flex:none;display:block}.band .n{font-size:16px;font-weight:800;letter-spacing:.06em;line-height:1;text-transform:uppercase}"
       + ".band .ti{text-align:right;flex:none;padding-left:20px}.band .ti .w{font-size:17.5px;font-weight:800;letter-spacing:.1em;line-height:1}.band .ti .c{font-size:8.8px;letter-spacing:.1em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:6px}"
@@ -919,11 +919,14 @@
     var decl = '<div class="pbox"><b class="h">Declaration</b>' + PREMIUM_DECL + (f.rcm === 'Yes' ? '<br>Tax is payable on reverse charge.' : '') + '</div>';
     var sealLine = P(s.sealText) || [s.city, sSt.name].filter(Boolean).join(', ');
     var SB = '#1F3A68';   // the seal's blue, as stamped
-    var seal = '<svg class="seal" width="68" height="68" viewBox="0 0 100 100" aria-hidden="true"><defs><path id="sealTop" d="M14,50 a36,36 0 0,1 72,0"/><path id="sealBot" d="M14,50 a36,36 0 0,0 72,0"/></defs>'
+    var arcLen = Math.PI * 37;   // half the ring the text sits on (r = 37)
+    var fit = function (txt, fs, ls) { var est = txt.length * (fs * 0.68 + ls); return est > arcLen * 0.9 ? ' textLength="' + (arcLen * 0.9).toFixed(1) + '" lengthAdjust="spacingAndGlyphs"' : ''; };
+    var topTxt = String(s.name || '').toUpperCase(), botTxt = String(sealLine || '').toUpperCase();
+    var seal = '<svg class="seal" width="68" height="68" viewBox="0 0 100 100" aria-hidden="true"><defs><path id="sealTop" d="M13,50 a37,37 0 0,1 74,0"/><path id="sealBot" d="M13,50 a37,37 0 0,0 74,0"/></defs>'
       + '<circle cx="50" cy="50" r="47" fill="none" stroke="' + SB + '" stroke-width="2.2"/><circle cx="50" cy="50" r="43.5" fill="none" stroke="' + SB + '" stroke-width=".8"/><circle cx="50" cy="50" r="28" fill="none" stroke="' + SB + '" stroke-width="1.4"/>'
-      + '<text font-size="8.2" font-weight="700" fill="' + SB + '" letter-spacing="1.2" text-anchor="middle"><textPath href="#sealTop" startOffset="50%">' + esc(String(s.name || '').toUpperCase()) + '</textPath></text>'
-      + (sealLine ? '<text font-size="5.6" font-weight="700" fill="' + SB + '" letter-spacing=".9" text-anchor="middle"><textPath href="#sealBot" startOffset="50%">' + esc(sealLine.toUpperCase()) + '</textPath></text>' : '')
-      + '<text x="11" y="53" font-size="9" fill="' + SB + '">★</text><text x="81" y="53" font-size="9" fill="' + SB + '">★</text>'
+      + '<text font-size="7.2" font-weight="700" fill="' + SB + '" letter-spacing=".9" text-anchor="middle"><textPath href="#sealTop" startOffset="50%"' + fit(topTxt, 7.2, .9) + '>' + esc(topTxt) + '</textPath></text>'
+      + (sealLine ? '<text font-size="5.2" font-weight="700" fill="' + SB + '" letter-spacing=".7" text-anchor="middle"><textPath href="#sealBot" startOffset="50%"' + fit(botTxt, 5.2, .7) + '>' + esc(botTxt) + '</textPath></text>' : '')
+      + '<text x="6.5" y="53" font-size="8" fill="' + SB + '">★</text><text x="85.5" y="53" font-size="8" fill="' + SB + '">★</text>'
       + '<g stroke="' + SB + '" stroke-width="1.2"><line x1="40" y1="43" x2="46" y2="43"/><circle cx="50" cy="43" r="1.1" fill="' + SB + '"/><line x1="54" y1="43" x2="60" y2="43"/><line x1="40" y1="57" x2="46" y2="57"/><circle cx="50" cy="57" r="1.1" fill="' + SB + '"/><line x1="54" y1="57" x2="60" y2="57"/></g></svg>';
     var eblock = eInv ? '<div class="ein"><div>' + [['IRN', d.irn], ['Ack No.', d.ackNo], ['Ack Date', fdate(d.ackDt)]].map(function (x) { return P(x[1]) ? '<div><span style="color:#6b7280;display:inline-block;min-width:64px">' + x[0] + '</span><b>' + esc(P(x[1])) + '</b></div>' : ''; }).join('') + '</div>'
       + (P(d.qrImage) ? '<img src="' + esc(P(d.qrImage)) + '" alt="e-Invoice QR">' : (P(d.qrData) ? '<img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(P(d.qrData)) + '" alt="e-Invoice QR">' : '')) + '</div>' : '';
