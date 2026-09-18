@@ -76,8 +76,8 @@
     "sha": "c0245259e46f"
   },
   "invoice-templates.js": {
-    "v": "t33",
-    "sha": "e2aee7d1b621"
+    "v": "t34",
+    "sha": "225a1305569a"
   },
   "shell.js": {
     "v": "m68saaaaaaaaaaaaaaaaaaaa3",
@@ -252,8 +252,8 @@
     "sha": "3f43f33c9bb3"
   },
   "invoice.js": {
-    "v": "tpl7",
-    "sha": "ecbf1a1c91da"
+    "v": "tpl8",
+    "sha": "91c6a55782cd"
   },
   "labour.js": {
     "v": "m2",

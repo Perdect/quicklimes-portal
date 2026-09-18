@@ -111,7 +111,7 @@
          supplied at the supplier's location (that is the GST rule for an
          unknown recipient address). An EXPORT is never in Rajasthan: its place
          of supply is the destination country when known, else "Outside India". */
-      pos: (String(d.type || '').toLowerCase() === 'export') ? ((d.export && d.export.country) || 'Outside India') : (b.state || s.state || ''), rcm: d.rcm ? 'Yes' : 'No',
+      pos: (String(d.type || '').toLowerCase() === 'export') ? ((d.export && d.export.country) || 'Outside India') : (d.pos || b.state || s.state || ''), rcm: d.rcm ? 'Yes' : 'No',
       /* The lines every design prints — one line from the sale record unless the
          sale carries items[]. Shared so no design can print a phantom single line
          for a multi-line sale. */
@@ -871,7 +871,7 @@
       + ".contact{text-align:center;font-size:8px;color:#333;padding:5px 5.2% 4px;border-bottom:1px solid #d6d9de}.contact .pl{font-size:8.6px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;margin-bottom:2px}.contact .sep{color:#6b7280;margin:0 5px}"
       + ".in{padding:14px 5.2% 0}"
       + ".meta{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #c9ced6;margin-bottom:10px}.meta div{padding:5px 9px;border-right:1px solid #c9ced6;min-width:0}.meta div:last-child{border-right:0}.meta span{display:block;font-size:6.6px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;margin-bottom:1px}.meta b{font-size:9.6px;color:" + PREMIUM_NAVY + ";word-break:break-word}"
-      + ".par{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0 2.2% 12px}.box{border:1px solid #c9ced6}.box h4{margin:0;padding:3px 9px;font-size:6.8px;letter-spacing:.14em;text-transform:uppercase;color:#4b5563;background:#f1f3f6;border-bottom:1px solid #c9ced6}.box .bd{padding:6px 9px 7px}"
+      + ".par{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0 0 12px}.box{border:1px solid #c9ced6}.box h4{margin:0;padding:3px 9px;font-size:6.8px;letter-spacing:.14em;text-transform:uppercase;color:#4b5563;background:#f1f3f6;border-bottom:1px solid #c9ced6}.box .bd{padding:6px 9px 7px}"
       + ".box .nm{font-size:10.5px;font-weight:800;color:" + PREMIUM_NAVY + ";margin-bottom:3px}.box .ad{white-space:pre-line;color:#1a1a1a;margin-bottom:4px;line-height:1.35}.box .kv{font-size:8.4px}.box .kv span{color:#6b7280;margin-right:4px}.box .kv b{font-weight:400;color:#1a1a1a;margin-right:11px}"
       + "h3{margin:10px 0 4px;font-size:7.6px;letter-spacing:.16em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;border-bottom:2px solid " + PREMIUM_GOLD + ";padding-bottom:3px}"
       + "table.it{width:100%;border-collapse:collapse;border:1px solid #c9ced6}.it thead{display:table-header-group}.it th{background:" + PREMIUM_NAVY + ";color:#fff;font-size:6.8px;letter-spacing:.12em;text-transform:uppercase;padding:5px 6px;text-align:center}"
@@ -880,7 +880,7 @@
       + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:9px}.tot td{padding:2.5px 10px;border-bottom:1px solid #d6dae0;font-size:8.7px;vertical-align:middle}.tot td.l{text-align:right;font-size:7.4px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;background:#f1f3f6;width:70%;border-right:1px solid #d6dae0}.tot td.v{text-align:right;font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9.6px}.tot tr.g td.v{font-size:12.4px}.tot tr:last-child td{border-bottom:0}"
       + ".words{margin:7px 0 0;font-size:8.7px}.words b{font-weight:800}"
       + ".tc{width:100%;border-collapse:collapse}.tc td{padding:6px 0;border-bottom:1px solid #e3e6ea;font-size:8.7px;vertical-align:top;line-height:1.45}.tc td.k{width:22%;font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;padding-top:8px}"
-      + ".two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 2.2% 0}.pbox{border:1px solid #c9ced6;border-left:3px solid " + PREMIUM_GOLD + ";padding:8px 10px;font-size:8.6px;line-height:1.45}.pbox b.h{display:block;color:" + PREMIUM_NAVY + ";font-size:9.8px;margin-bottom:3px}"
+      + ".two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0 0}.pbox{border:1px solid #c9ced6;border-left:3px solid " + PREMIUM_GOLD + ";padding:8px 10px;font-size:8.6px;line-height:1.45}.pbox b.h{display:block;color:" + PREMIUM_NAVY + ";font-size:9.8px;margin-bottom:3px}"
       + ".close{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start;margin-top:14px;break-inside:avoid}.close .msg{font-size:8.2px;color:#374151;line-height:1.5;padding-top:4px}"
       + ".sig{text-align:right;min-width:220px}.sig .for{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9px}.sig .seal{margin:2px 0 0}.sig .cap{border-top:1px solid " + PREMIUM_NAVY + ";padding-top:4px;font-size:8.2px;color:#374151}"
       + ".ft{margin-top:14px;padding:6px 5.2% 0;border-top:1px solid #c9ced6;text-align:center;font-size:7.2px;color:#6b7280}"

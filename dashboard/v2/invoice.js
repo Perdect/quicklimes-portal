@@ -26,9 +26,21 @@ function buildData() {
   const bgst = g('i_bgst').toUpperCase().replace(/[^A-Z0-9]/g, '');   // registered form, never with spaces
   const interState = bgst && bgst.length >= 2 && bgst.slice(0, 2) !== '08';
   const grand = (Q.co && Q.co.roundOff === false) ? Math.round(total * 100) / 100 : Math.round(total);   // mirrors invoiceData
+  const bState = Q.reconcileState(g('i_bstate'), bgst);
+  /* Place of supply — the field was never read before (the seller's state printed
+     for every buyer). It is the buyer's state unless the form points elsewhere;
+     and on an inter-state sale it can never be the seller's own state, or the
+     page would print IGST against a place of supply that says CGST/SGST. */
+  const posField = g('i_pos'), pos = (!posField || (interState && posField === (Q.co && Q.co.state))) ? bState : posField;
   return {
     seller: Q.co, noBar: true, hsn: g('i_hsn') || '25221000',
-    buyer: { name: g('i_bname'), gstin: bgst, address: g('i_baddr'), state: g('i_bstate') || Q.stateOfGstin(bgst), phone: g('i_bphone'), email: '' },
+    /* The State is a fact read off the GSTIN's first two digits. The box arrives
+       pre-filled with the seller's own state, so a typed/stored state that names a
+       DIFFERENT code is the pre-fill, not a fact — the GSTIN wins (reconcileState,
+       the same rule invoiceData applies to saved sales). A Maharashtra buyer
+       (27…) printed as "Rajasthan (08)" on 18-09-2026 because this read the box. */
+    buyer: { name: g('i_bname'), gstin: bgst, address: g('i_baddr'), state: bState, phone: g('i_bphone'), email: '' },
+    pos,
     inv: g('i_no'), date: g('i_date'), product: g('i_product') || 'Quick Lime',
     qty, rate, unit, rateUnit, billableQty: line.billableQty, billableUnit: line.billableUnit, lineOk: line.ok, lineWhy: line.why, gstR,
     veh: g('i_veh'), eway: g('i_eway'), transport: g('i_trans'), station: g('i_stn'), grrr: g('i_grrr'),
@@ -193,7 +205,7 @@ function render() {
   /* Deep link from the Customer 360 "Record Order": ?party=<id> fills the buyer
      from the master record — the sale then resolves back to that customer. */
   const pid = new URLSearchParams(location.search).get('party');
-  if (pid) { const p = Q.partyRows().find(x => x.id === pid); if (p) { const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; }; set('i_bname', p.name); set('i_bgst', p.gstin); set('i_baddr', [p.address, p.city].filter(Boolean).join(', ')); set('i_bstate', p.state || (p.gstin ? Q.stateOfGstin(p.gstin) : '')); set('i_bphone', p.wa || p.phone); set('i_stn', p.deliveryLoc || ''); } }
+  if (pid) { const p = Q.partyRows().find(x => x.id === pid); if (p) { const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; }; set('i_bname', p.name); set('i_bgst', p.gstin); set('i_baddr', [p.address, p.city].filter(Boolean).join(', ')); setState(Q.reconcileState(p.state, p.gstin) || (p.gstin ? Q.stateOfGstin(p.gstin) : '')); set('i_bphone', p.wa || p.phone); set('i_stn', p.deliveryLoc || ''); } }
   updatePreview();
   QLShell.paintWorkspace && QLShell.paintWorkspace();
 }
@@ -201,6 +213,17 @@ function render() {
    address / mobile from a customer we already know, or from the GST lookup when
    a key is configured (QLShell.gstinLookup). Never overwrites what was typed;
    flags a wrong check digit under the field instead of letting it print. */
+/* The buyer's State and the Place of supply move together: goods go to the
+   buyer's state unless the user has pointed Place of supply somewhere else. */
+let _lastBState = '';
+function setState(v) {
+  if (!v) return;
+  const st = document.getElementById('i_bstate'), pos = document.getElementById('i_pos');
+  const was = _lastBState || (Q.co && Q.co.state) || '';
+  if (st) st.value = v;
+  if (pos && (!pos.value || pos.value === was || pos.value === (Q.co && Q.co.state))) pos.value = v;
+  _lastBState = v;
+}
 let _gstinSeq = 0;
 async function gstinAssist(val) {
   const el = document.getElementById('i_bgst'); if (!el) return;
@@ -218,7 +241,7 @@ async function gstinAssist(val) {
        fact read off the GSTIN's first two digits, and the box arrives pre-filled
        with the seller's own state, which is wrong for any out-of-state buyer. */
     if (el.value !== r.gstin) el.value = r.gstin;
-    const st = document.getElementById('i_bstate'); if (st && r.state) st.value = r.state;
+    if (r.state) setState(r.state);
     if (r.party) { fill('i_bname', r.party.name); fill('i_baddr', r.party.address); fill('i_bphone', r.party.phone); }
     const m = r.remote; if (m && m.lookup === 'ok') { fill('i_bname', m.trade || m.name); fill('i_baddr', m.address); }
   }
@@ -228,10 +251,11 @@ async function gstinAssist(val) {
 function onInput(e) {
   showCalc();
   if (e.target.id === 'i_bgst') gstinAssist(e.target.value);
+  if (e.target.id === 'i_bstate') setState(e.target.value);
   // when a known customer is picked, auto-fill GSTIN / address / state
   if (e.target.id === 'i_bname') {
     const p = Q.partyRows().find(x => (x.name || '').toUpperCase() === e.target.value.trim().toUpperCase());
-    if (p) { const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; }; set('i_bgst', p.gstin); set('i_baddr', p.address); set('i_bstate', p.state); set('i_bphone', p.phone); }
+    if (p) { const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; }; set('i_bgst', p.gstin); set('i_baddr', p.address); setState(Q.reconcileState(p.state, p.gstin)); set('i_bphone', p.phone); }
   }
   schedulePreview();
 }
