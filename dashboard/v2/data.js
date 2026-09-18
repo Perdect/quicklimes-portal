@@ -132,8 +132,10 @@
     '08NLIPS9801K1Z5': {
       /* Two lines, broken where the firm's own invoice breaks them (a \n the print
          format honours; every other consumer sees a space). */
-      address: 'GROUND FLOOR, KALI TALAI\nNEAR HAFIZ SAHAB KI DRAGHA, MERTA CITY, DISTRICT-NAGAUR',
-      state: 'Rajasthan (08)', pin: '341510', gstin: '08NLIPS9801K1Z5', phone: '9610099006',
+      /* Registered office as the owner gave it on 18-09-2026 ("change address to"),
+         replacing the Merta City lines that were on invoice no. 36. One line. */
+      address: 'Near Dharam Kanta Gotan Road, Borunda 342604',
+      state: 'Rajasthan (08)', pin: '342604', gstin: '08NLIPS9801K1Z5', phone: '9610099006',
       bank: 'HDFC Bank', bankBranch: 'Merta City', accNo: '50200089605146', ifsc: 'HDFC0002670',
       product: 'Manufactures of Quick Lime and Hydrated Lime.', tan: 'JDPM00000D', jurisdiction: 'MERTA CITY',
       /* Straight off the invoice the firm actually issues (no. 36 of 01-08-2026).
