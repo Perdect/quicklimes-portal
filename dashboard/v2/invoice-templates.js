@@ -857,22 +857,23 @@
     var terms = f.terms || [];
     var words = /^Rupees /.test(f.words) ? 'Indian ' + f.words : f.words;
     var unitOfItems = P(items[0].unit) || f.unit || '';
+    var qty3 = function (q, u) { var U = QLUnitsOpt(); var mass = U ? U.familyOf(u) === 'mass' : /^(ton|tonne|mt|t|kg|quintal)/i.test(String(u || '')); var n = +q || 0; return mass && !Number.isInteger(n * 1000) === false && mass ? n.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : qfmt(n); };
     var rUnit = P(items[0].rateUnit) || f.rateUnit || unitOfItems;
-    var css = "body{font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;font-size:10.5px;line-height:1.45;padding:0;background:#fff}"
-      + ".sheet{max-width:820px;margin:0 auto;padding:0 0 16px}"
+    var css = "@page{size:A4;margin:0}body{font-family:'DejaVu Sans',Verdana,'Bitstream Vera Sans',Helvetica,Arial,sans-serif;color:#1a1a1a;font-size:9.5px;line-height:1.45;padding:0;background:#fff}"
+      + ".sheet{max-width:820px;margin:0 auto;padding:0 0 16px}@media print{.sheet{max-width:none;padding:9mm 9mm 8mm}}"
       + ".band{background:" + PREMIUM_NAVY + ";color:#fff;padding:20px 40px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid " + PREMIUM_GOLD + "}"
-      + ".band .co{display:flex;gap:20px;align-items:center}.band .gem{flex:none;display:block}.band .n{font-size:30px;font-weight:800;letter-spacing:.06em;line-height:1;text-transform:uppercase}"
-      + ".band .ti{text-align:right;flex:none;padding-left:20px}.band .ti .w{font-size:24px;font-weight:800;letter-spacing:.12em;line-height:1}.band .ti .c{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:6px}"
+      + ".band .co{display:flex;gap:20px;align-items:center}.band .gem{flex:none;display:block}.band .n{font-size:28px;font-weight:800;letter-spacing:.06em;line-height:1;text-transform:uppercase}"
+      + ".band .ti{text-align:right;flex:none;padding-left:20px}.band .ti .w{font-size:22px;font-weight:800;letter-spacing:.1em;line-height:1}.band .ti .c{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:6px}"
       + ".contact{text-align:center;font-size:9.5px;color:#333;padding:5px 32px;border-bottom:1px solid #d6d9de}.contact .pl{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:700;margin-bottom:2px}"
       + ".in{padding:8px 32px 0}"
-      + ".meta{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #c9ced6;margin-bottom:8px}.meta div{padding:3px 10px;border-right:1px solid #c9ced6;min-width:0}.meta div:last-child{border-right:0}.meta span{display:block;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280}.meta b{font-size:11px;color:" + PREMIUM_NAVY + ";word-break:break-word}"
+      + ".meta{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #c9ced6;margin-bottom:8px}.meta div{padding:3px 10px;border-right:1px solid #c9ced6;min-width:0}.meta div:last-child{border-right:0}.meta span{display:block;font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280}.meta b{font-size:10px;color:" + PREMIUM_NAVY + ";word-break:break-word}"
       + ".par{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px}.box{border:1px solid #c9ced6}.box h4{margin:0;padding:5px 10px;font-size:7.5px;letter-spacing:.14em;text-transform:uppercase;color:#4b5563;background:#f1f3f6;border-bottom:1px solid #c9ced6}.box .bd{padding:5px 10px}"
-      + ".box .nm{font-size:12px;font-weight:800;color:" + PREMIUM_NAVY + ";margin-bottom:2px}.box .ad{white-space:pre-line;color:#222}.box .kv{font-size:9.5px;margin-top:2px}.box .kv span{color:#6b7280;margin-right:4px}.box .kv b{font-weight:600;margin-right:10px}"
+      + ".box .nm{font-size:11px;font-weight:800;color:" + PREMIUM_NAVY + ";margin-bottom:2px}.box .ad{white-space:pre-line;color:#222}.box .kv{font-size:9.5px;margin-top:2px}.box .kv span{color:#6b7280;margin-right:4px}.box .kv b{font-weight:600;margin-right:10px}"
       + "h3{margin:9px 0 5px;font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;border-bottom:2px solid " + PREMIUM_GOLD + ";padding-bottom:3px}"
-      + "table.it{width:100%;border-collapse:collapse;border:1px solid #c9ced6}.it thead{display:table-header-group}.it th{background:" + PREMIUM_NAVY + ";color:#fff;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;padding:7px 8px;text-align:left}"
-      + ".it td{padding:6px 8px;border-bottom:1px solid #c9ced6;border-right:1px solid #e3e6ea;font-size:10px;vertical-align:middle}.it td:last-child{border-right:0}.it tbody tr{break-inside:avoid}.r{text-align:right}.c{text-align:center}"
-      + ".it .dn{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:10.5px}.it .ds{color:#6b7280;font-size:9px}"
-      + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:8px}.tot td{padding:3px 10px;border-bottom:1px solid #e3e6ea;font-size:9.5px}.tot td.l{text-align:right;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#374151;font-weight:700;background:#f7f8fa;width:70%}.tot td.v{text-align:right;font-weight:700;color:" + PREMIUM_NAVY + "}.tot tr.g td{background:#eef1f5}.tot tr.g td.v{font-size:14px;font-weight:800}.tot tr:last-child td{border-bottom:0}"
+      + "table.it{width:100%;border-collapse:collapse;border:1px solid #c9ced6}.it thead{display:table-header-group}.it th{background:" + PREMIUM_NAVY + ";color:#fff;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;padding:8px 8px;text-align:center}"
+      + ".it td{padding:8px 8px;border-bottom:1px solid #c9ced6;border-right:1px solid #e3e6ea;font-size:10px;vertical-align:middle}.it td:last-child{border-right:0}.it tbody tr{break-inside:avoid}.r{text-align:right}.c{text-align:center}.it td.q{text-align:center;font-weight:800}.it td.r,.it td.q,.it td.c{white-space:nowrap}"
+      + ".it .dn{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:10px}.it .ds{color:#6b7280;font-size:8.5px}"
+      + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:8px}.tot td{padding:7px 12px;border-bottom:1px solid #d6dae0;font-size:10px;vertical-align:middle}.tot td.l{text-align:right;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;background:#f1f3f6;width:70%;border-right:1px solid #d6dae0}.tot td.v{text-align:right;font-weight:800;color:" + PREMIUM_NAVY + ";font-size:10.5px}.tot tr.g td.v{font-size:14px}.tot tr:last-child td{border-bottom:0}"
       + ".words{margin:6px 0 0;font-size:10px}.words b{font-weight:800}"
       + ".tc{width:100%;border-collapse:collapse}.tc td{padding:4px 0;border-bottom:1px solid #e3e6ea;font-size:9.5px;vertical-align:top}.tc td.k{width:22%;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;padding-top:7px}"
       + ".two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}.pbox{border:1px solid #c9ced6;padding:7px 10px;font-size:9.5px}.pbox b.h{display:block;color:" + PREMIUM_NAVY + ";font-size:10.5px;margin-bottom:4px}"
@@ -888,30 +889,31 @@
     /* the four-cell strip: no. · date · (due date or e-way) · place of supply */
     var third = P(d.due) ? mcell('Due date', fdate(d.due)) : (f.eway ? mcell('E-Way Bill No.', f.eway) : mcell('Vehicle No.', f.veh));
     var meta = '<div class="meta">' + mcell('Invoice No.', f.inv) + mcell('Date', f.date) + third + mcell('Place of supply', f.pos) + '</div>';
-    var party = function (title, name, addr, gst, state, phone, email, pan) {
-      return '<div class="box"><h4>' + title + '</h4><div class="bd"><div class="nm">' + esc(name || '') + '</div>' + (P(addr) ? '<div class="ad">' + esc(P(addr)) + '</div>' : '')
-        + '<div>' + kv('GSTIN', gst) + kv('State', state) + '</div>' + '<div>' + kv('PAN', pan) + kv('Mobile', phone) + kv('E-mail', email) + '</div></div></div>';
+    var party = function (title, name, addr, gst, state, phone, email, pan, iec, attn) {
+      var l = function (h) { return h ? '<div>' + h + '</div>' : ''; };
+      return '<div class="box"><h4>' + title + '</h4><div class="bd"><div class="nm">' + esc(name || '') + '</div>' + (P(attn) ? '<div>' + kv('Attn.', attn) + '</div>' : '') + (P(addr) ? '<div class="ad">' + esc(P(addr)) + '</div>' : '')
+        + l(kv('GSTIN', gst) + kv('State', state)) + l(kv('PAN', pan) + kv('IEC', iec)) + l(kv('Mobile', phone)) + l(kv('E-mail', email)) + '</div></div>';
     };
     var sPan = f.pan, bPan = P(b.gstin).length === 15 ? P(b.gstin).slice(2, 12) : '';
-    var seller = party('From — Supplier', s.name, String(s.address || '').replace(/\n/g, ', '), s.gstin, s.state, intlPhones(f.tel), s.email, sPan);
-    var buyer = party('To — Buyer', b.name, b.address, b.gstin, f.bState || b.state, f.bPhone, f.bEmail, bPan);
+    var seller = party('From — Supplier', s.name, String(s.address || '').replace(/\n/g, ', '), s.gstin, s.state, intlPhones(f.tel), s.email, sPan, f.iec, '');
+    var buyer = party('To — Buyer', b.name, b.address, b.gstin, f.bState || b.state, f.bPhone, f.bEmail, bPan, '', b.contact || d.contact || '');
     var thead = '<tr><th style="width:30px">Sr.</th><th>Description</th><th style="width:76px">HSN</th>' + (hasPack ? '<th style="width:96px">Packing</th>' : '')
-      + '<th class="r" style="width:74px">Qty' + (unitOfItems ? ' (' + esc(unitOfItems) + ')' : '') + '</th><th class="r" style="width:88px">Rate' + (rUnit ? ' / ' + esc(rUnit) : '') + '</th><th class="r" style="width:104px">Amount</th></tr>';
+      + '<th style="width:74px">Qty' + (unitOfItems ? ' (' + esc(unitOfItems) + ')' : '') + '</th><th style="width:96px">Rate' + (rUnit ? ' / ' + esc(rUnit) : '') + '</th><th style="width:126px">Amount</th></tr>';
     var rows = items.map(function (it, i) {
       var note = convNote(it), rowRu = P(it.rateUnit) || rUnit;
       return '<tr><td class="c">' + (i + 1) + '</td><td><div class="dn">' + esc(P(it.product)) + '</div>' + (P(it.desc) || P(it.grade) ? '<div class="ds">' + esc([P(it.grade), P(it.desc)].filter(Boolean).join(' · ')) + '</div>' : '') + (note ? '<div class="ds">' + note + '</div>' : '') + '</td>'
-        + '<td>' + esc(P(it.hsn) || f.hsn) + '</td>' + (hasPack ? '<td>' + esc(P(it.packing) || '—') + '</td>' : '')
-        + '<td class="r">' + qfmt(it.qty) + (P(it.unit) && P(it.unit) !== unitOfItems ? ' ' + esc(P(it.unit)) : '') + '</td><td class="r">INR ' + fmt(it.rate) + (rowRu !== rUnit ? '<br><span class="ds">/ ' + esc(rowRu) + '</span>' : '') + '</td><td class="r"><b>INR ' + fmt(lineTaxable(it)) + '</b></td></tr>';
+        + '<td class="c">' + esc(P(it.hsn) || f.hsn) + '</td>' + (hasPack ? '<td class="c">' + esc(P(it.packing) || '—') + '</td>' : '')
+        + '<td class="q">' + qty3(it.qty, P(it.unit) || unitOfItems) + (P(it.unit) && P(it.unit) !== unitOfItems ? ' ' + esc(P(it.unit)) : '') + '</td><td class="r">INR ' + fmt(it.rate) + (rowRu !== rUnit ? '<br><span class="ds">/ ' + esc(rowRu) + '</span>' : '') + '</td><td class="r"><b>INR ' + fmt(lineTaxable(it)) + '</b></td></tr>';
     }).join('') + charges.map(function (c, i) {
-      return '<tr><td class="c">' + (items.length + i + 1) + '</td><td><div class="dn">' + esc(P(c.label)) + '</div>' + (P(c.desc) ? '<div class="ds">' + esc(P(c.desc)) + '</div>' : '') + '</td><td>' + esc(P(c.hsn) || '9965') + '</td>' + (hasPack ? '<td>—</td>' : '') + '<td class="r">—</td><td class="r">—</td><td class="r"><b>INR ' + fmt(c.amount) + '</b></td></tr>';
+      return '<tr><td class="c">' + (items.length + i + 1) + '</td><td><div class="dn">' + esc(P(c.label)) + '</div>' + (P(c.desc) ? '<div class="ds">' + esc(P(c.desc)) + '</div>' : '') + '</td><td class="c">' + esc(P(c.hsn) || '9965') + '</td>' + (hasPack ? '<td class="c">—</td>' : '') + '<td class="c">—</td><td class="r">—</td><td class="r"><b>INR ' + fmt(c.amount) + '</b></td></tr>';
     }).join('');
     var trow = function (k, v, g) { return '<tr' + (g ? ' class="g"' : '') + '><td class="l">' + k + '</td><td class="v">' + v + '</td></tr>'; };
     var goods = items.reduce(function (a, it) { return a + lineTaxable(it); }, 0), chargeSum = charges.reduce(function (a, c) { return a + (+c.amount || 0); }, 0);
-    var tot = '<table class="tot">' + trow('Value of goods' + (items.length === 1 && +items[0].qty && +items[0].rate ? ' (' + qfmt(items[0].qty) + ' ' + esc(P(items[0].unit) || unitOfItems) + ' × INR ' + fmt(items[0].rate) + (rUnit ? '/' + esc(rUnit) : '') + ')' : ''), 'INR ' + fmt(goods))
+    var tot = '<table class="tot">' + trow('Value of goods' + (items.length === 1 && +items[0].qty && +items[0].rate ? ' (' + qtyTotalEl(f) + ' × INR ' + fmt(items[0].rate) + (rUnit ? '/' + esc(rUnit) : '') + ')' : ''), 'INR ' + fmt(goods))
       + (chargeSum ? trow('Charges', 'INR ' + fmt(chargeSum)) : '')
       + (isExport ? trow('IGST — zero-rated export under LUT', 'INR ' + f.igst) : f.interState ? trow('IGST @ ' + f.gstR + ' %' + (f.hsn ? ' (HSN ' + esc(f.hsn) + ')' : ''), 'INR ' + f.igst) : trow('CGST @ ' + f.halfR + ' %', 'INR ' + f.cgst) + trow('SGST @ ' + f.halfR + ' %', 'INR ' + f.sgst))
       + (cess ? trow('Cess', 'INR ' + fmt(cess)) : '') + (otherTax ? trow('Other tax', 'INR ' + fmt(otherTax)) : '') + (roundOff ? trow('Round off', (roundOff > 0 ? '+' : '−') + fmt(Math.abs(roundOff))) : '')
-      + trow('Total payable (goods incl. GST)', 'INR ' + f.grand, true) + trow('Total quantity', qtyTotalEl(f)) + '</table>';
+      + trow('Total payable (goods incl. GST)', 'INR ' + f.grand, true) + '</table>';
     var termsRows = terms.map(function (t, i) { var m = String(t).match(/^([A-Za-z][A-Za-z /&]{2,28}):\s*(.+)$/); return '<tr><td class="k">' + (m ? esc(m[1]) : 'Term ' + (i + 1)) + '</td><td>' + esc(m ? m[2] : t) + '</td></tr>'; }).join('');
     var bank = (s.bank || s.accNo || s.upi) ? '<div class="pbox"><b class="h">Bank Details — for payment</b>' + (s.name ? 'Account name: ' + esc(s.name) + '<br>' : '') + (s.bank ? esc(s.bank) + (s.bankBranch ? ', ' + esc(s.bankBranch) : '') + '<br>' : '') + (s.accNo ? 'A/C No.: ' + esc(s.accNo) : '') + (s.ifsc ? ' &nbsp;|&nbsp; IFSC: ' + esc(s.ifsc) : '') + (s.upi ? '<br>UPI: ' + esc(s.upi) : '') + '</div>' : '';
     var decl = '<div class="pbox"><b class="h">Declaration</b>' + PREMIUM_DECL + (f.rcm === 'Yes' ? '<br>Tax is payable on reverse charge.' : '') + '</div>';
@@ -935,7 +937,7 @@
       + '<div class="in">' + meta + '<div class="par">' + seller + buyer + '</div>'
       + ((f.transport || f.veh || f.station || f.grrr || (f.eway && P(d.due))) ? '<div class="meta" style="margin-top:0">' + mcell('Transport', f.transport) + mcell('Vehicle No.', f.veh) + mcell('Station', f.station) + mcell('GR/RR No.', f.grrr) + (f.eway && P(d.due) ? mcell('E-Way Bill No.', f.eway) : '') + '</div>' : '')
       + '<h3>' + (isExport ? 'Export supply' : 'Supply') + '</h3><table class="it"><thead>' + thead + '</thead><tbody>' + rows + '</tbody></table>'
-      + tot + '<div class="words"><b>Amount in words:</b> ' + esc(words) + '</div>'
+      + tot + '<div class="words"><b>Amount in words:</b> ' + esc(words) + ((+d.igst || +d.cgst || +d.sgst) ? ' (inclusive of ' + (f.interState ? 'IGST' : 'GST') + ')' : '') + (items.length > 1 ? '<br><span style="color:#6b7280">Total quantity: ' + qtyTotalEl(f) + '</span>' : '') + '</div>'
       + eblock + xblock
       + (termsRows ? '<h3>Terms and Conditions</h3><table class="tc">' + termsRows + '</table>' : '')
       + '<div class="two">' + bank + decl + '</div>'
