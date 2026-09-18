@@ -877,7 +877,7 @@
       + "table.it{width:100%;border-collapse:collapse;border:1px solid #c9ced6}.it thead{display:table-header-group}.it th{background:" + PREMIUM_NAVY + ";color:#fff;font-size:6.8px;letter-spacing:.12em;text-transform:uppercase;padding:5px 6px;text-align:center}"
       + ".it td{padding:7px 7px;border-bottom:1px solid #c9ced6;border-right:1px solid #e3e6ea;font-size:8.7px;vertical-align:middle}.it td:last-child{border-right:0}.it tbody tr{break-inside:avoid}.r{text-align:right}.c{text-align:center}.it td.q{text-align:center;font-weight:800}.it td.r,.it td.q,.it td.c{white-space:nowrap}"
       + ".it .dn{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9.6px}.it .ds{color:#6b7280;font-size:7.8px;margin-top:1px}"
-      + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:9px}.tot td{padding:2px 10px;line-height:1.15;border-bottom:1px solid #d6dae0;font-size:8.7px;vertical-align:middle}.tot td.l{text-align:right;font-size:7.4px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;background:#f1f3f6;border-right:1px solid #d6dae0}.tot td.v{text-align:right;font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9.6px;width:1%;white-space:nowrap;padding-left:30px}.tot td.l{padding-top:2.5px}.tot tr.g td.v{font-size:12.4px}.tot tr:last-child td{border-bottom:0}"
+      + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:9px}.tot td{padding:2.5px 10px;line-height:1.3;border-bottom:1px solid #d6dae0;font-size:8.7px;vertical-align:middle}.tot td.l{text-align:right;font-size:7.4px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;background:#f1f3f6;border-right:1px solid #d6dae0}.tot td.v{text-align:right;font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9.6px;width:1%;white-space:nowrap;padding-left:30px}.tot td.l{padding-top:2.5px}.tot tr.g td.v{font-size:12.4px}.tot tr:last-child td{border-bottom:0}"
       + ".words{margin:7px 0 0;font-size:8.7px}.words b{font-weight:800}"
       + ".tc{width:100%;border-collapse:collapse}.tc td{padding:6px 0;border-bottom:1px solid #e3e6ea;font-size:8.7px;vertical-align:top;line-height:1.45}.tc td.k{width:22%;font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;padding-top:8px}"
       + ".two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0 0}.pbox{border:1px solid #c9ced6;border-left:3px solid " + PREMIUM_GOLD + ";padding:8px 10px;font-size:8.6px;line-height:1.45}.pbox b.h{display:block;color:" + PREMIUM_NAVY + ";font-size:9.8px;margin-bottom:3px}"
@@ -945,18 +945,23 @@
        long name is compressed rather than clipped. */
     var SB = '#0A1F5C';
     var TOP_R = 39.3, BOT_R = 45.0;
+    /* Centred by construction: the text starts at (half-circle − span)/2 along the
+       arc and is laid out over exactly that span, whatever font the viewer's
+       machine substitutes. text-anchor="middle" + textLength drifted the text
+       clockwise on the owner's Mac (Verdana is wider than DejaVu, and Chrome
+       centres the natural width, then stretches from there). */
     var arcText = function (txt, fs, radius, degrees, maxGap) {
-      var target = degrees / 360 * 2 * Math.PI * radius, est = txt.length * fs * 0.72;
-      if (est > target) return ' textLength="' + target.toFixed(1) + '" lengthAdjust="spacingAndGlyphs"';
-      return ' textLength="' + Math.min(target, est + txt.length * maxGap).toFixed(1) + '" lengthAdjust="spacing"';
+      var half = Math.PI * radius, target = degrees / 360 * 2 * Math.PI * radius, est = txt.length * fs * 0.72;
+      var span = est > target ? target : Math.min(target, est + txt.length * maxGap);
+      return ' startOffset="' + ((half - span) / 2).toFixed(1) + '" textLength="' + span.toFixed(1) + '" lengthAdjust="spacingAndGlyphs"';
     };
     var star = function (cx, cy) { var p = []; for (var k = 0; k < 10; k++) { var a = (-90 + k * 36) * Math.PI / 180, r = k % 2 ? 1.35 : 3.3; p.push((cx + r * Math.cos(a)).toFixed(2) + ',' + (cy + r * Math.sin(a)).toFixed(2)); } return '<polygon points="' + p.join(' ') + '" fill="' + SB + '"/>'; };
     var mark = function (y) { return '<line x1="38.7" y1="' + y + '" x2="46.8" y2="' + y + '"/><circle cx="50" cy="' + y + '" r="1" fill="' + SB + '" stroke="none"/><line x1="53.2" y1="' + y + '" x2="61.3" y2="' + y + '"/>'; };
     var topTxt = String(s.name || '').toUpperCase(), botTxt = String(sealLine || '').toUpperCase();
     var seal = '<svg class="seal" width="64" height="64" viewBox="0 0 100 100" aria-hidden="true"><defs><path id="sealTop" d="M' + +(50 - TOP_R).toFixed(1) + ',50 a' + TOP_R + ',' + TOP_R + ' 0 0,1 ' + +(2 * TOP_R).toFixed(1) + ',0"/><path id="sealBot" d="M' + +(50 - BOT_R).toFixed(1) + ',50 a' + BOT_R + ',' + BOT_R + ' 0 0,0 ' + +(2 * BOT_R).toFixed(1) + ',0"/></defs>'
       + '<g fill="none" stroke="' + SB + '"><circle cx="50" cy="50" r="49.1" stroke-width="1.75"/><circle cx="50" cy="50" r="46.6" stroke-width=".8"/><circle cx="50" cy="50" r="33.7" stroke-width=".8"/><circle cx="50" cy="50" r="32" stroke-width=".6"/></g>'
-      + '<text font-size="7.8" font-weight="700" fill="' + SB + '" text-anchor="middle"><textPath href="#sealTop" startOffset="50%"' + arcText(topTxt, 7.8, TOP_R, 140, 0.9) + '>' + esc(topTxt) + '</textPath></text>'
-      + (sealLine ? '<text font-size="6.2" font-weight="700" fill="' + SB + '" text-anchor="middle"><textPath href="#sealBot" startOffset="50%"' + arcText(botTxt, 6.2, BOT_R, 148, 0.8) + '>' + esc(botTxt) + '</textPath></text>' : '')
+      + '<text font-size="7.8" font-weight="700" fill="' + SB + '"><textPath href="#sealTop"' + arcText(topTxt, 7.8, TOP_R, 140, 0.9) + '>' + esc(topTxt) + '</textPath></text>'
+      + (sealLine ? '<text font-size="6.2" font-weight="700" fill="' + SB + '"><textPath href="#sealBot"' + arcText(botTxt, 6.2, BOT_R, 148, 0.8) + '>' + esc(botTxt) + '</textPath></text>' : '')
       + star(8.6, 50) + star(91.4, 50)
       + '<g stroke="' + SB + '" stroke-width=".7">' + mark(29) + mark(69) + '</g></svg>';
     var eblock = eInv ? '<div class="ein"><div>' + [['IRN', d.irn], ['Ack No.', d.ackNo], ['Ack Date', fdate(d.ackDt)]].map(function (x) { return P(x[1]) ? '<div><span style="color:#6b7280;display:inline-block;min-width:64px">' + x[0] + '</span><b>' + esc(P(x[1])) + '</b></div>' : ''; }).join('') + '</div>'
