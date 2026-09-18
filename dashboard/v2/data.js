@@ -137,7 +137,7 @@
       address: 'Near Dharam Kanta Gotan Road, Borunda 342604, Rajasthan',
       state: 'Rajasthan (08)', pin: '342604', gstin: '08NLIPS9801K1Z5', phone: '9610099006',
       bank: 'HDFC Bank', bankBranch: 'Merta City', accNo: '50200089605146', ifsc: 'HDFC0002670',
-      product: 'Manufactures and Exporter of Quick Lime and Hydrated Lime.',   // owner, 18-09-2026
+      product: 'Manufacturer & Exporter of Premium Quick Lime and Hydrated Lime',   // owner, 18-09-2026 (final wording)
       tan: 'JDPM00000D', jurisdiction: 'RAJASTHAN',   // owner, 18-09-2026: "Rajasthan"
       /* Straight off the invoice the firm actually issues (no. 36 of 01-08-2026).
          tel   — printed as "Tel. :" under the GSTIN; two numbers, as on paper.

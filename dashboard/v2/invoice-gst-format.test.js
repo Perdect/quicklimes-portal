@@ -162,7 +162,7 @@ const xu = T.render(Object.assign({}, SALE, { seller: Object.assign({}, SALE.sel
 ok('gst: REGD. ADDRESS and UNIT ADDRESS strip when the firm has a unit address', xu.includes('<b>REGD. ADDRESS</b> : GROUND FLOOR, KALI TALAI, NEAR HAFIZ SAHAB KI DRAGHA, MERTA CITY, DISTRICT-NAGAUR<br><b>UNIT ADDRESS</b> : Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601'));
 ok('gst: no strip for a firm without one (the paper stays as it is)', !html.includes('UNIT ADDRESS') && !html.includes('REGD. ADDRESS'));
 ok('the seed carries the registered office the owner gave on 18-09-2026 (with the State, jurisdiction Rajasthan)', /address: 'Near Dharam Kanta Gotan Road, Borunda 342604, Rajasthan',\n\s+state: 'Rajasthan \(08\)', pin: '342604'/.test(src) && !/KALI TALAI/.test(src) && /jurisdiction: 'RAJASTHAN'/.test(src) && /Subject to 'RAJASTHAN' Jurisdiction only\./.test(src));
-ok('the seed says Manufactures and Exporter (owner, 18-09-2026)', /product: 'Manufactures and Exporter of Quick Lime and Hydrated Lime\.'/.test(src));
+ok('the seed says Manufacturer & Exporter of Premium Quick Lime and Hydrated Lime (owner, 18-09-2026)', /product: 'Manufacturer & Exporter of Premium Quick Lime and Hydrated Lime'/.test(src));
 ok('the seed carries NO unit address (strip removed at the owner\'s request, 18-09-2026)', /unitAddress: ''/.test(src) && !/Khasra No\.1787/.test(src));
 
 /* 11 ── a firm with no tel / terms of its own still renders (Gotan through this design) */
