@@ -1414,6 +1414,9 @@
   }
   function stateOfGstin(g) { const c = String(g || '').trim().slice(0, 2); return GST_STATES[c] ? GST_STATES[c] + ' (' + c + ')' : ''; }
   function partyPhone(name) { const p = S.PARTIES.find(x => (x.name || '').toUpperCase() === (name || '').trim().toUpperCase()); return p ? (p.phone || '') : ''; }
+  /* The customer's contact person and e-mail from the party record (Customer 360
+     fields) — printed as Attn. / E-mail on designs that carry them. */
+  function partyField(name, k) { const p = S.PARTIES.find(x => (x.name || '').toUpperCase() === (name || '').trim().toUpperCase()); return p ? (p[k] || '') : ''; }
   function partyGstin(name) {
     if (!name || name === '—') return '';
     const n = String(name).trim().toUpperCase();
@@ -2781,7 +2784,7 @@
          (the form used to pre-fill the seller's own state and keep it), and a
          tax invoice must not print it: the GSTIN wins whenever the two disagree.
          The GSTIN itself prints in its registered form — no spaces. */
-      buyer: { name: s.party || '', gstin: cleanGstin(s.gstin), address: s.addr || '', state: reconcileState(s.state, bg), phone: partyPhone(s.party), email: '' },
+      buyer: { name: s.party || '', gstin: cleanGstin(s.gstin), address: s.addr || '', state: reconcileState(s.state, bg), phone: partyPhone(s.party), email: partyField(s.party, 'email'), contact: partyField(s.party, 'contact') },
       inv: s.inv, date: s.date, product: s.product || 'Quick Lime', qty: s.qty || 0, rate: s.rate || 0,
       unit: s.unit || 'Tonne', rateUnit: s.rateUnit || s.unit || 'Tonne', billableQty: QLUnits.lineAmount(s).billableQty, billableUnit: QLUnits.lineAmount(s).billableUnit || s.unit || 'Tonne',
       veh: s.veh || '', eway: s.eway || '', gstR: rate,

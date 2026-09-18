@@ -859,46 +859,62 @@
     var unitOfItems = P(items[0].unit) || f.unit || '';
     var qty3 = function (q, u) { var U = QLUnitsOpt(); var mass = U ? U.familyOf(u) === 'mass' : /^(ton|tonne|mt|t|kg|quintal)/i.test(String(u || '')); var n = +q || 0; return mass && !Number.isInteger(n * 1000) === false && mass ? n.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : qfmt(n); };
     var rUnit = P(items[0].rateUnit) || f.rateUnit || unitOfItems;
-    var css = "@page{size:A4;margin:0}body{font-family:'DejaVu Sans',Verdana,'Bitstream Vera Sans',Helvetica,Arial,sans-serif;color:#1a1a1a;font-size:9.5px;line-height:1.45;padding:0;background:#fff}"
-      + ".sheet{max-width:820px;margin:0 auto;padding:0 0 16px}@media print{.sheet{max-width:none;padding:0 0 6mm;min-height:100vh;box-sizing:border-box;display:flex;flex-direction:column}.sheet .in{flex:1;display:flex;flex-direction:column}.sheet .in .close{margin-top:auto;padding-top:14px}}"
-      + ".band{background:" + PREMIUM_NAVY + ";color:#fff;padding:23px 5.4% 23px 5.3%;min-height:82px;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid " + PREMIUM_GOLD + "}"
-      + ".band .co{display:flex;gap:20px;align-items:center}.band .lockup{height:35px!important;width:auto}.band .gem{flex:none;display:block}.band .n{font-size:16px;font-weight:800;letter-spacing:.06em;line-height:1;text-transform:uppercase}"
-      + ".band .ti{text-align:right;flex:none;padding-left:20px}.band .ti .w{font-size:17.5px;font-weight:800;letter-spacing:.1em;line-height:1}.band .ti .c{font-size:8.8px;letter-spacing:.1em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:6px}"
-      + ".contact{text-align:center;font-size:10.5px;color:#2b3440;padding:9px 5.2% 8px;background:#f3f5f8;border-bottom:1px solid #d6d9de}.contact .pl{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;margin-bottom:4px}.contact .sep{color:" + PREMIUM_GOLD + ";margin:0 6px}"
-      + ".in{padding:8px 5.2% 0}"
-      + ".meta{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #c9ced6;margin-bottom:8px}.meta div{padding:3px 10px;border-right:1px solid #c9ced6;min-width:0}.meta div:last-child{border-right:0}.meta span{display:block;font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280}.meta b{font-size:10px;color:" + PREMIUM_NAVY + ";word-break:break-word}"
-      + ".par{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px}.box{border:1px solid #c9ced6}.box h4{margin:0;padding:5px 10px;font-size:7.5px;letter-spacing:.14em;text-transform:uppercase;color:#4b5563;background:#f1f3f6;border-bottom:1px solid #c9ced6}.box .bd{padding:5px 10px}"
-      + ".box .nm{font-size:11px;font-weight:800;color:" + PREMIUM_NAVY + ";margin-bottom:2px}.box .ad{white-space:pre-line;color:#222}.box .kv{font-size:9.5px;margin-top:2px}.box .kv span{color:#6b7280;margin-right:4px}.box .kv b{font-weight:600;margin-right:10px}"
-      + "h3{margin:9px 0 5px;font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;border-bottom:2px solid " + PREMIUM_GOLD + ";padding-bottom:3px}"
-      + "table.it{width:100%;border-collapse:collapse;border:1px solid #c9ced6}.it thead{display:table-header-group}.it th{background:" + PREMIUM_NAVY + ";color:#fff;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;padding:8px 8px;text-align:center}"
-      + ".it td{padding:8px 8px;border-bottom:1px solid #c9ced6;border-right:1px solid #e3e6ea;font-size:10px;vertical-align:middle}.it td:last-child{border-right:0}.it tbody tr{break-inside:avoid}.r{text-align:right}.c{text-align:center}.it td.q{text-align:center;font-weight:800}.it td.r,.it td.q,.it td.c{white-space:nowrap}"
-      + ".it .dn{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:10px}.it .ds{color:#6b7280;font-size:8.5px}"
-      + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:8px}.tot td{padding:7px 12px;border-bottom:1px solid #d6dae0;font-size:10px;vertical-align:middle}.tot td.l{text-align:right;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;background:#f1f3f6;width:70%;border-right:1px solid #d6dae0}.tot td.v{text-align:right;font-weight:800;color:" + PREMIUM_NAVY + ";font-size:10.5px}.tot tr.g td.v{font-size:14px}.tot tr:last-child td{border-bottom:0}"
-      + ".words{margin:6px 0 0;font-size:10px}.words b{font-weight:800}"
-      + ".tc{width:100%;border-collapse:collapse}.tc td{padding:4px 0;border-bottom:1px solid #e3e6ea;font-size:9.5px;vertical-align:top}.tc td.k{width:22%;font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;padding-top:7px}"
-      + ".two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}.pbox{border:1px solid #c9ced6;padding:7px 10px;font-size:9.5px}.pbox b.h{display:block;color:" + PREMIUM_NAVY + ";font-size:10.5px;margin-bottom:4px}"
-      + ".close{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end;margin-top:6px;break-inside:avoid}.close .msg{font-size:9.5px;color:#374151;line-height:1.55}"
-      + ".sig{text-align:right;min-width:220px}.sig .for{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:10px}.sig .seal{margin:2px 0 0}.sig .cap{border-top:1px solid " + PREMIUM_NAVY + ";padding-top:4px;font-size:9px;color:#374151}"
-      + ".ft{margin-top:8px;padding:5px 5.2% 0;border-top:1px solid #c9ced6;text-align:center;font-size:8px;color:#6b7280}"
-      + ".ein{border:1px solid #c9ced6;padding:6px 12px;margin-top:8px;display:flex;gap:14px;align-items:flex-start;font-size:9.5px;word-break:break-all;break-inside:avoid}.ein img{width:96px;height:96px;flex:none}"
-      + ".ex{border:1px solid " + PREMIUM_GOLD + ";padding:6px 12px;margin-top:8px;font-size:9.5px;break-inside:avoid}.ex .decl{font-weight:700;margin-top:4px}"
+    /* Sizes are the reference PDF's, measured at 110 dpi and converted to CSS px
+       (×0.873): body 8.7px, labels 7px, names 10.5px, table row 45px, totals row
+       22px, band 79px. The whole page is that density — that is what makes it
+       read as the same document. */
+    var css = "@page{size:A4;margin:0}body{font-family:'DejaVu Sans',Verdana,'Bitstream Vera Sans',Helvetica,Arial,sans-serif;color:#1a1a1a;font-size:8.7px;line-height:1.4;padding:0;background:#fff}"
+      + ".sheet{max-width:820px;margin:0 auto;padding:0 0 16px}@media print{.sheet{max-width:none;padding:0 0 6mm;min-height:100vh;box-sizing:border-box;display:flex;flex-direction:column}.sheet .in{flex:1;display:flex;flex-direction:column}.sheet .in .close{margin-top:auto;padding-top:12px}}"
+      + ".band{background:" + PREMIUM_NAVY + ";color:#fff;padding:22px 5.4% 22px 5.3%;min-height:79px;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid " + PREMIUM_GOLD + "}"
+      + ".band .co{display:flex;gap:18px;align-items:center}.band .lockup{height:34px!important;width:auto}.band .n{font-size:16px;font-weight:800;letter-spacing:.06em;line-height:1;text-transform:uppercase}"
+      + ".band .ti{text-align:right;flex:none;padding-left:20px}.band .ti .w{font-size:16.5px;font-weight:800;letter-spacing:.1em;line-height:1}.band .ti .c{font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:5px}"
+      + ".contact{text-align:center;font-size:8px;color:#333;padding:5px 5.2% 4px;border-bottom:1px solid #d6d9de}.contact .pl{font-size:8.6px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;margin-bottom:2px}.contact .sep{color:#6b7280;margin:0 5px}"
+      + ".in{padding:14px 5.2% 0}"
+      + ".meta{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #c9ced6;margin-bottom:10px}.meta div{padding:5px 9px;border-right:1px solid #c9ced6;min-width:0}.meta div:last-child{border-right:0}.meta span{display:block;font-size:6.6px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;margin-bottom:1px}.meta b{font-size:9.6px;color:" + PREMIUM_NAVY + ";word-break:break-word}"
+      + ".par{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0 2.2% 12px}.box{border:1px solid #c9ced6}.box h4{margin:0;padding:3px 9px;font-size:6.8px;letter-spacing:.14em;text-transform:uppercase;color:#4b5563;background:#f1f3f6;border-bottom:1px solid #c9ced6}.box .bd{padding:6px 9px 7px}"
+      + ".box .nm{font-size:10.5px;font-weight:800;color:" + PREMIUM_NAVY + ";margin-bottom:3px}.box .ad{white-space:pre-line;color:#1a1a1a;margin-bottom:4px;line-height:1.35}.box .kv{font-size:8.4px}.box .kv span{color:#6b7280;margin-right:4px}.box .kv b{font-weight:400;color:#1a1a1a;margin-right:11px}"
+      + "h3{margin:10px 0 4px;font-size:7.6px;letter-spacing:.16em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;border-bottom:2px solid " + PREMIUM_GOLD + ";padding-bottom:3px}"
+      + "table.it{width:100%;border-collapse:collapse;border:1px solid #c9ced6}.it thead{display:table-header-group}.it th{background:" + PREMIUM_NAVY + ";color:#fff;font-size:6.8px;letter-spacing:.12em;text-transform:uppercase;padding:5px 6px;text-align:center}"
+      + ".it td{padding:7px 7px;border-bottom:1px solid #c9ced6;border-right:1px solid #e3e6ea;font-size:8.7px;vertical-align:middle}.it td:last-child{border-right:0}.it tbody tr{break-inside:avoid}.r{text-align:right}.c{text-align:center}.it td.q{text-align:center;font-weight:800}.it td.r,.it td.q,.it td.c{white-space:nowrap}"
+      + ".it .dn{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9.6px}.it .ds{color:#6b7280;font-size:7.8px;margin-top:1px}"
+      + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:9px}.tot td{padding:5px 10px;border-bottom:1px solid #d6dae0;font-size:8.7px;vertical-align:middle}.tot td.l{text-align:right;font-size:7.4px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;background:#f1f3f6;width:70%;border-right:1px solid #d6dae0}.tot td.v{text-align:right;font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9.6px}.tot tr.g td.v{font-size:12.4px}.tot tr:last-child td{border-bottom:0}"
+      + ".words{margin:7px 0 0;font-size:8.7px}.words b{font-weight:800}"
+      + ".tc{width:100%;border-collapse:collapse}.tc td{padding:6px 0;border-bottom:1px solid #e3e6ea;font-size:8.7px;vertical-align:top;line-height:1.45}.tc td.k{width:22%;font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;padding-top:8px}"
+      + ".two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 2.2% 0}.pbox{border:1px solid #c9ced6;border-left:3px solid " + PREMIUM_GOLD + ";padding:8px 10px;font-size:8.6px;line-height:1.45}.pbox b.h{display:block;color:" + PREMIUM_NAVY + ";font-size:9.8px;margin-bottom:3px}"
+      + ".close{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start;margin-top:14px;break-inside:avoid}.close .msg{font-size:8.2px;color:#374151;line-height:1.5;padding-top:4px}"
+      + ".sig{text-align:right;min-width:220px}.sig .for{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9px}.sig .seal{margin:2px 0 0}.sig .cap{border-top:1px solid " + PREMIUM_NAVY + ";padding-top:4px;font-size:8.2px;color:#374151}"
+      + ".ft{margin-top:14px;padding:6px 5.2% 0;border-top:1px solid #c9ced6;text-align:center;font-size:7.2px;color:#6b7280}"
+      + ".ein{border:1px solid #c9ced6;padding:6px 10px;margin-top:8px;display:flex;gap:14px;align-items:flex-start;font-size:8.2px;word-break:break-all;break-inside:avoid}.ein img{width:88px;height:88px;flex:none}"
+      + ".ex{border:1px solid " + PREMIUM_GOLD + ";padding:6px 10px;margin-top:8px;font-size:8.4px;break-inside:avoid}.ex .decl{font-weight:700;margin-top:4px}"
       + "@media screen and (max-width:760px){.sheet{zoom:.7}}";
     var kv = function (k, v) { return P(v) ? '<span class="kv"><span>' + k + ':</span><b>' + esc(P(v)) + '</b></span>' : ''; };
     var mcell = function (k, v) { return '<div><span>' + k + '</span><b>' + (P(v) ? esc(P(v)) : '—') + '</b></div>'; };
     var contact = [s.website ? esc(s.website) : '', s.email ? esc(s.email) : '', f.tel ? esc(intlPhones(f.tel)) : ''].filter(Boolean).join(' &nbsp;·&nbsp; ');
     /* the four-cell strip: no. · date · (due date or e-way) · place of supply */
+    /* dates stay dd-mm-yyyy — the house convention every design and the compliance suite share */
     var third = P(d.due) ? mcell('Due date', fdate(d.due)) : (f.eway ? mcell('E-Way Bill No.', f.eway) : mcell('Vehicle No.', f.veh));
     var meta = '<div class="meta">' + mcell('Invoice No.', f.inv) + mcell('Date', f.date) + third + mcell('Place of supply', f.pos) + '</div>';
+    var addrLines = function (addr, stateName, pin) {
+      var a = String(addr || '').trim(); if (!a) return '';
+      if (/\n/.test(a)) return a;   // already broken by hand
+      var m = a.match(/\b(\d{6})\b/); var pn = pin || (m ? m[1] : '');
+      if (!pn && !stateName) return a;
+      var rest = a.replace(/\b\d{6}\b/, '');
+      if (stateName) rest = rest.replace(new RegExp('\\b' + stateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i'), '');
+      rest = rest.replace(/\bIndia\b/i, '').replace(/[\s,–-]+$/g, '').replace(/,\s*,/g, ',').replace(/\s+,/g, ',').replace(/^[\s,]+/, '').trim();
+      var line2 = (stateName ? stateName + (pn ? ' – ' + pn : '') : pn) + ', India';
+      return (rest ? rest + '\n' : '') + line2;
+    };
     var party = function (title, name, addr, gst, state, phone, email, pan, iec, attn) {
       var l = function (h) { return h ? '<div>' + h + '</div>' : ''; };
       return '<div class="box"><h4>' + title + '</h4><div class="bd"><div class="nm">' + esc(name || '') + '</div>' + (P(attn) ? '<div>' + kv('Attn.', attn) + '</div>' : '') + (P(addr) ? '<div class="ad">' + esc(P(addr)) + '</div>' : '')
         + l(kv('GSTIN', gst) + kv('State', state)) + l(kv('PAN', pan) + kv('IEC', iec)) + l(kv('Mobile', phone)) + l(kv('E-mail', email)) + '</div></div>';
     };
     var sPan = f.pan, bPan = P(b.gstin).length === 15 ? P(b.gstin).slice(2, 12) : '';
-    var seller = party('From — Supplier', s.name, String(s.address || '').replace(/\n/g, ', '), s.gstin, s.state, intlPhones(f.tel), s.email, sPan, f.iec, '');
-    var buyer = party('To — Buyer', b.name, b.address, b.gstin, f.bState || b.state, f.bPhone, f.bEmail, bPan, '', b.contact || d.contact || '');
-    var thead = '<tr><th style="width:30px">Sr.</th><th>Description</th><th style="width:76px">HSN</th>' + (hasPack ? '<th style="width:96px">Packing</th>' : '')
-      + '<th style="width:74px">Qty' + (unitOfItems ? ' (' + esc(unitOfItems) + ')' : '') + '</th><th style="width:96px">Rate' + (rUnit ? ' / ' + esc(rUnit) : '') + '</th><th style="width:126px">Amount</th></tr>';
+    var seller = party('From — Supplier', s.name, addrLines(s.address, sSt.name, s.pin), s.gstin, s.state, intlPhones(f.tel), '', sPan, f.iec, '');   // the e-mail is in the contact strip
+    var buyer = party('To — Buyer', b.name, addrLines(b.address, bSt.name, ''), b.gstin, f.bState || b.state, f.bPhone, f.bEmail, bPan, '', b.contact || d.contact || '');
+    var thead = '<tr><th style="width:34px">Sr.</th><th>Description</th><th style="width:78px">HSN</th>' + (hasPack ? '<th style="width:100px">Packing</th>' : '')
+      + '<th style="width:66px">Qty' + (unitOfItems ? ' (' + esc(unitOfItems) + ')' : '') + '</th><th style="width:92px">Rate' + (rUnit ? ' / ' + esc(rUnit) : '') + '</th><th style="width:112px">Amount</th></tr>';
     var rows = items.map(function (it, i) {
       var note = convNote(it), rowRu = P(it.rateUnit) || rUnit;
       return '<tr><td class="c">' + (i + 1) + '</td><td><div class="dn">' + esc(P(it.product)) + '</div>' + (P(it.desc) || P(it.grade) ? '<div class="ds">' + esc([P(it.grade), P(it.desc)].filter(Boolean).join(' · ')) + '</div>' : '') + (note ? '<div class="ds">' + note + '</div>' : '') + '</td>'
@@ -909,12 +925,12 @@
     }).join('');
     var trow = function (k, v, g) { return '<tr' + (g ? ' class="g"' : '') + '><td class="l">' + k + '</td><td class="v">' + v + '</td></tr>'; };
     var goods = items.reduce(function (a, it) { return a + lineTaxable(it); }, 0), chargeSum = charges.reduce(function (a, c) { return a + (+c.amount || 0); }, 0);
-    var tot = '<table class="tot">' + trow('Value of goods' + (items.length === 1 && +items[0].qty && +items[0].rate ? ' (' + qtyTotalEl(f) + ' × INR ' + fmt(items[0].rate) + (rUnit ? '/' + esc(rUnit) : '') + ')' : ''), 'INR ' + fmt(goods))
+    var tot = '<table class="tot">' + trow('Value of goods' + (items.length === 1 && +items[0].qty && +items[0].rate ? ' (' + qtyTotalEl(f) + ' × INR ' + (+items[0].rate % 1 ? fmt(items[0].rate) : Number(items[0].rate).toLocaleString('en-IN')) + (rUnit ? '/' + esc(rUnit) : '') + ')' : ''), 'INR ' + fmt(goods))
       + (chargeSum ? trow('Charges', 'INR ' + fmt(chargeSum)) : '')
       + (isExport ? trow('IGST — zero-rated export under LUT', 'INR ' + f.igst) : f.interState ? trow('IGST @ ' + f.gstR + ' %' + (f.hsn ? ' (HSN ' + esc(f.hsn) + ')' : ''), 'INR ' + f.igst) : trow('CGST @ ' + f.halfR + ' %', 'INR ' + f.cgst) + trow('SGST @ ' + f.halfR + ' %', 'INR ' + f.sgst))
       + (cess ? trow('Cess', 'INR ' + fmt(cess)) : '') + (otherTax ? trow('Other tax', 'INR ' + fmt(otherTax)) : '') + (roundOff ? trow('Round off', (roundOff > 0 ? '+' : '−') + fmt(Math.abs(roundOff))) : '')
       + trow('Total payable (goods incl. GST)', 'INR ' + f.grand, true) + '</table>';
-    var termsRows = terms.map(function (t, i) { var m = String(t).match(/^([A-Za-z][A-Za-z /&]{2,28}):\s*(.+)$/); return '<tr><td class="k">' + (m ? esc(m[1]) : 'Term ' + (i + 1)) + '</td><td>' + esc(m ? m[2] : t) + '</td></tr>'; }).join('');
+    var termsRows = terms.map(function (t, i) { var m = String(t).match(/^([A-Za-z][A-Za-z /&]{2,28}):\s*(.+)$/); return '<tr><td class="k">' + (m ? esc(m[1]) : String(i + 1) + '.') + '</td><td>' + esc(m ? m[2] : t) + '</td></tr>'; }).join('');
     var bank = (s.bank || s.accNo || s.upi) ? '<div class="pbox"><b class="h">Bank Details — for payment</b>' + (s.name ? 'Account name: ' + esc(s.name) + '<br>' : '') + (s.bank ? esc(s.bank) + (s.bankBranch ? ', ' + esc(s.bankBranch) : '') + '<br>' : '') + (s.accNo ? 'A/C No.: ' + esc(s.accNo) : '') + (s.ifsc ? ' &nbsp;|&nbsp; IFSC: ' + esc(s.ifsc) : '') + (s.upi ? '<br>UPI: ' + esc(s.upi) : '') + '</div>' : '';
     var decl = '<div class="pbox"><b class="h">Declaration</b>' + PREMIUM_DECL + (f.rcm === 'Yes' ? '<br>Tax is payable on reverse charge.' : '') + '</div>';
     var sealLine = P(s.sealText) || [s.city, sSt.name].filter(Boolean).join(', ');
