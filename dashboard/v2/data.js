@@ -134,10 +134,10 @@
          format honours; every other consumer sees a space). */
       /* Registered office as the owner gave it on 18-09-2026 ("change address to"),
          replacing the Merta City lines that were on invoice no. 36. One line. */
-      address: 'Near Dharam Kanta Gotan Road, Borunda 342604',
+      address: 'Near Dharam Kanta Gotan Road, Borunda 342604, Rajasthan',
       state: 'Rajasthan (08)', pin: '342604', gstin: '08NLIPS9801K1Z5', phone: '9610099006',
       bank: 'HDFC Bank', bankBranch: 'Merta City', accNo: '50200089605146', ifsc: 'HDFC0002670',
-      product: 'Manufactures of Quick Lime and Hydrated Lime.', tan: 'JDPM00000D', jurisdiction: 'MERTA CITY',
+      product: 'Manufactures of Quick Lime and Hydrated Lime.', tan: 'JDPM00000D', jurisdiction: 'RAJASTHAN',   // owner, 18-09-2026: "Rajasthan"
       /* Straight off the invoice the firm actually issues (no. 36 of 01-08-2026).
          tel   — printed as "Tel. :" under the GSTIN; two numbers, as on paper.
          terms — its Terms & Conditions, verbatim, so the app's print matches the
@@ -148,7 +148,7 @@
       tel: '8875020202, 9460767676', logo: '/v2/deshwali-logo.png',   // as the owner asked, 12-09-2026
       terms: ['Goods once sold will not be taken back.',
               'Interest @ 18% p.a. will be charged if the payment is not made with in the 30days.',
-              "Subject to 'MERTA CITY' Jurisdiction only."],
+              "Subject to 'RAJASTHAN' Jurisdiction only."],
       invoiceTemplate: 'gst', roundOff: false,
       /* From the IEC certificate (DGFT, issued 29-08-2026: proprietorship, IEC =
          PAN) and the firm's own export invoice EI/2026-27/01. A proprietorship
