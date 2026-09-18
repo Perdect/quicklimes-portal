@@ -39,6 +39,7 @@ for (const id of ['gst', 'modern', 'business', 'detailed', 'industrial']) {
   ok(id + ': GST 2,027.25 / total 42,572.25 as given', /1,013\.63|2,027\.25/.test(h) && /42,572\.25/.test(h));
 }
 ok('gst design shows the arithmetic 7,650 Kg = 7.65 Ton × ₹5,300.00', /7,650 Kg = 7\.65 Ton × ₹5,300\.00/.test(T.render(d, { template: 'gst' })));
+for (const id of ['modern', 'business', 'detailed', 'industrial']) ok(id + ': shows the conversion note 7,650 Kg = 7.65 Ton × ₹5,300.00', /7,650 Kg = 7\.65 Ton × ₹5,300\.00/.test(T.render(d, { template: id })));
 ok('a same-unit line prints no conversion note', !/= .* × ₹/.test(T.render(Object.assign({}, d, { unit: 'Ton', rateUnit: 'Ton', qty: 7.65, billableQty: 7.65 }), { template: 'gst' })));
 
 console.log('═══ the e-way / e-invoice gate (gst-core) ═══');

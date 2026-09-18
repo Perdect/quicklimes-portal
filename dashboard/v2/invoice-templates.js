@@ -709,7 +709,7 @@
     var ship = d.shipTo && P(d.shipTo.name) ? d.shipTo : null;
     var shipName = ship ? P(ship.name) : b.name, shipAddr = ship ? P(ship.address) : (b.address || ''), shipSt = ship ? st(ship.state) : bSt, shipG = ship ? P(ship.gstin) : (b.gstin || ''), shipPh = ship ? P(ship.phone) : f.bPhone;
     var items = (Array.isArray(d.items) && d.items.length) ? d.items
-      : [{ hsn: f.hsn, product: f.product, grade: d.grade, packing: d.packing, bags: d.bags, qty: d.qty, unit: d.unit, rate: d.rate, taxable: d.taxable }];
+      : [{ hsn: f.hsn, product: f.product, grade: d.grade, packing: d.packing, bags: d.bags, qty: d.qty, unit: d.unit, rate: d.rate, rateUnit: d.rateUnit || d.unit || '', taxable: d.taxable }];
     var hasGrade = items.some(function (it) { return P(it.grade); }), hasPack = items.some(function (it) { return P(it.packing); }), hasBags = items.some(function (it) { return P(it.bags); });
     var charges = (d.charges || []).filter(function (c) { return c && P(c.label) && +c.amount; });
     var specRows = [], sp = d.spec || null;
