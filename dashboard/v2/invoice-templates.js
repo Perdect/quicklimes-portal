@@ -946,7 +946,7 @@
       + '<div class="two">' + bank + decl + '</div>'
       + '<div class="close"><div class="msg">' + (f.cfg.footerNote ? esc(f.cfg.footerNote) + '<br>' : '') + 'Reverse charge: ' + esc(f.rcm) + (f.jurisdiction ? ' &nbsp;·&nbsp; Subject to ' + esc(f.jurisdiction) + ' jurisdiction' : '') + '</div>'
       + (f.cfg.showSignature ? '<div class="sig"><div class="for">For ' + esc(String(f.signatory || s.name || '').toUpperCase()) + '</div>' + seal + '<div class="cap">Authorised Signatory &amp; Seal</div></div>' : '') + '</div></div>'
-      + '<div class="ft">Invoice ' + esc(f.inv) + (f.date ? ' · ' + esc(f.date) : '') + ' · This is a tax invoice under the CGST Rules, 2017. Errors and omissions excepted.</div>'
+      + '<div class="ft">Invoice ' + esc(f.inv) + (f.date ? ' · ' + esc(f.date) : '') + ' · This is a tax invoice under the CGST Rules, 2017.</div>'
       + '</div>';
     return doc(f, 'premium', css, body);
   }

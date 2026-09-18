@@ -147,9 +147,13 @@
          roundOff:false  — that invoice totals 83,991.60, not 83,992: the firm
                  does not round to the rupee, and its GSTR-1 carries the paise. */
       tel: '8875020202, 9460767676', logo: '/v2/deshwali-logo.png',   // as the owner asked, 12-09-2026
-      terms: ['Goods once sold will not be taken back.',
-              'Interest @ 18% p.a. will be charged if the payment is not made with in the 30days.',
-              "Subject to 'RAJASTHAN' Jurisdiction only."],
+      /* Terms & Conditions as the owner gave them on 18-09-2026 (four; a fifth
+         line repeated the jurisdiction clause and was not kept twice). Every design
+         prints these; the Premium design shows a 'Label: text' term under its label. */
+      terms: ['Goods once sold will not be taken back or exchanged.',
+              'Payment Terms: Payment must be made within 30 days from the invoice date. Delayed payments will attract interest at 18% per annum from the due date until the date of full payment.',
+              'Jurisdiction: All disputes shall be subject to the exclusive jurisdiction of courts in Rajasthan, India.',
+              'Acceptance: Placement of an order or acceptance of the quotation shall constitute the buyer\u2019s acceptance of these Terms & Conditions.'],
       invoiceTemplate: 'gst', roundOff: false,
       /* From the IEC certificate (DGFT, issued 29-08-2026: proprietorship, IEC =
          PAN) and the firm's own export invoice EI/2026-27/01. A proprietorship
