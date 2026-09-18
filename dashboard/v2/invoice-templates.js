@@ -877,7 +877,7 @@
       + "table.it{width:100%;border-collapse:collapse;border:1px solid #c9ced6}.it thead{display:table-header-group}.it th{background:" + PREMIUM_NAVY + ";color:#fff;font-size:6.8px;letter-spacing:.12em;text-transform:uppercase;padding:5px 6px;text-align:center}"
       + ".it td{padding:7px 7px;border-bottom:1px solid #c9ced6;border-right:1px solid #e3e6ea;font-size:8.7px;vertical-align:middle}.it td:last-child{border-right:0}.it tbody tr{break-inside:avoid}.r{text-align:right}.c{text-align:center}.it td.q{text-align:center;font-weight:800}.it td.r,.it td.q,.it td.c{white-space:nowrap}"
       + ".it .dn{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9.6px}.it .ds{color:#6b7280;font-size:7.8px;margin-top:1px}"
-      + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:9px}.tot td{padding:.5px 10px;line-height:1;border-bottom:1px solid #d6dae0;font-size:8.7px;vertical-align:middle}.tot td.l{text-align:right;font-size:7.4px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;background:#f1f3f6;border-right:1px solid #d6dae0}.tot td.v{text-align:right;font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9.6px;width:1%;white-space:nowrap;padding-left:30px}.tot tr.g td.v{font-size:12.4px}.tot tr:last-child td{border-bottom:0}"
+      + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:9px}.tot td{padding:2px 10px;line-height:1.15;border-bottom:1px solid #d6dae0;font-size:8.7px;vertical-align:middle}.tot td.l{text-align:right;font-size:7.4px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;background:#f1f3f6;border-right:1px solid #d6dae0}.tot td.v{text-align:right;font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9.6px;width:1%;white-space:nowrap;padding-left:30px}.tot td.l{padding-top:2.5px}.tot tr.g td.v{font-size:12.4px}.tot tr:last-child td{border-bottom:0}"
       + ".words{margin:7px 0 0;font-size:8.7px}.words b{font-weight:800}"
       + ".tc{width:100%;border-collapse:collapse}.tc td{padding:6px 0;border-bottom:1px solid #e3e6ea;font-size:8.7px;vertical-align:top;line-height:1.45}.tc td.k{width:22%;font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;padding-top:8px}"
       + ".two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0 0}.pbox{border:1px solid #c9ced6;border-left:3px solid " + PREMIUM_GOLD + ";padding:8px 10px;font-size:8.6px;line-height:1.45}.pbox b.h{display:block;color:" + PREMIUM_NAVY + ";font-size:9.8px;margin-bottom:3px}"
@@ -934,16 +934,31 @@
     var bank = (s.bank || s.accNo || s.upi) ? '<div class="pbox"><b class="h">Bank Details — for payment</b>' + (s.name ? 'Account name: ' + esc(s.name) + '<br>' : '') + (s.bank ? esc(s.bank) + (s.bankBranch ? ', ' + esc(s.bankBranch) : '') + '<br>' : '') + (s.accNo ? 'A/C No.: ' + esc(s.accNo) : '') + (s.ifsc ? ' &nbsp;|&nbsp; IFSC: ' + esc(s.ifsc) : '') + (s.upi ? '<br>UPI: ' + esc(s.upi) : '') + '</div>' : '';
     var decl = '<div class="pbox"><b class="h">Declaration</b>' + PREMIUM_DECL + (f.rcm === 'Yes' ? '<br>Tax is payable on reverse charge.' : '') + '</div>';
     var sealLine = P(s.sealText) || [s.city, sSt.name].filter(Boolean).join(', ');
-    var SB = '#1F3A68';   // the seal's blue, as stamped
-    var arcLen = Math.PI * 37;   // half the ring the text sits on (r = 37)
-    var fit = function (txt, fs, ls) { var est = txt.length * (fs * 0.68 + ls); return est > arcLen * 0.9 ? ' textLength="' + (arcLen * 0.9).toFixed(1) + '" lengthAdjust="spacingAndGlyphs"' : ''; };
+    /* The seal, measured on the owner's quotation PDF at 5000px (viewBox units,
+       outer edge = 50): a 1.75-wide outer ring at r 49.1 with a 0.8 ring at 46.6;
+       an inner pair at 33.7 (0.8) and 32.0 (0.6); the firm name on a 39.3 baseline
+       spanning 140° of arc in 7.8px bold, the stamp line hanging from a 45.0
+       baseline over up to 148° in 6.2px; 5-point stars 3.3 tall at r 41.4 on the
+       horizontal; dash-dot marks (8-long lines, r=1 dot) at y 29 and 69; ink
+       #0A1F5C (the ring core); 64px on the page (16.9mm on the reference). The
+       text is fitted to its arc: spacing opens up to the reference's span, a
+       long name is compressed rather than clipped. */
+    var SB = '#0A1F5C';
+    var TOP_R = 39.3, BOT_R = 45.0;
+    var arcText = function (txt, fs, radius, degrees, maxGap) {
+      var target = degrees / 360 * 2 * Math.PI * radius, est = txt.length * fs * 0.72;
+      if (est > target) return ' textLength="' + target.toFixed(1) + '" lengthAdjust="spacingAndGlyphs"';
+      return ' textLength="' + Math.min(target, est + txt.length * maxGap).toFixed(1) + '" lengthAdjust="spacing"';
+    };
+    var star = function (cx, cy) { var p = []; for (var k = 0; k < 10; k++) { var a = (-90 + k * 36) * Math.PI / 180, r = k % 2 ? 1.35 : 3.3; p.push((cx + r * Math.cos(a)).toFixed(2) + ',' + (cy + r * Math.sin(a)).toFixed(2)); } return '<polygon points="' + p.join(' ') + '" fill="' + SB + '"/>'; };
+    var mark = function (y) { return '<line x1="38.7" y1="' + y + '" x2="46.8" y2="' + y + '"/><circle cx="50" cy="' + y + '" r="1" fill="' + SB + '" stroke="none"/><line x1="53.2" y1="' + y + '" x2="61.3" y2="' + y + '"/>'; };
     var topTxt = String(s.name || '').toUpperCase(), botTxt = String(sealLine || '').toUpperCase();
-    var seal = '<svg class="seal" width="68" height="68" viewBox="0 0 100 100" aria-hidden="true"><defs><path id="sealTop" d="M13,50 a37,37 0 0,1 74,0"/><path id="sealBot" d="M13,50 a37,37 0 0,0 74,0"/></defs>'
-      + '<circle cx="50" cy="50" r="47" fill="none" stroke="' + SB + '" stroke-width="2.2"/><circle cx="50" cy="50" r="43.5" fill="none" stroke="' + SB + '" stroke-width=".8"/><circle cx="50" cy="50" r="28" fill="none" stroke="' + SB + '" stroke-width="1.4"/>'
-      + '<text font-size="7.2" font-weight="700" fill="' + SB + '" letter-spacing=".9" text-anchor="middle"><textPath href="#sealTop" startOffset="50%"' + fit(topTxt, 7.2, .9) + '>' + esc(topTxt) + '</textPath></text>'
-      + (sealLine ? '<text font-size="5.2" font-weight="700" fill="' + SB + '" letter-spacing=".7" text-anchor="middle"><textPath href="#sealBot" startOffset="50%"' + fit(botTxt, 5.2, .7) + '>' + esc(botTxt) + '</textPath></text>' : '')
-      + '<text x="6.5" y="53" font-size="8" fill="' + SB + '">★</text><text x="85.5" y="53" font-size="8" fill="' + SB + '">★</text>'
-      + '<g stroke="' + SB + '" stroke-width="1.2"><line x1="40" y1="43" x2="46" y2="43"/><circle cx="50" cy="43" r="1.1" fill="' + SB + '"/><line x1="54" y1="43" x2="60" y2="43"/><line x1="40" y1="57" x2="46" y2="57"/><circle cx="50" cy="57" r="1.1" fill="' + SB + '"/><line x1="54" y1="57" x2="60" y2="57"/></g></svg>';
+    var seal = '<svg class="seal" width="64" height="64" viewBox="0 0 100 100" aria-hidden="true"><defs><path id="sealTop" d="M' + +(50 - TOP_R).toFixed(1) + ',50 a' + TOP_R + ',' + TOP_R + ' 0 0,1 ' + +(2 * TOP_R).toFixed(1) + ',0"/><path id="sealBot" d="M' + +(50 - BOT_R).toFixed(1) + ',50 a' + BOT_R + ',' + BOT_R + ' 0 0,0 ' + +(2 * BOT_R).toFixed(1) + ',0"/></defs>'
+      + '<g fill="none" stroke="' + SB + '"><circle cx="50" cy="50" r="49.1" stroke-width="1.75"/><circle cx="50" cy="50" r="46.6" stroke-width=".8"/><circle cx="50" cy="50" r="33.7" stroke-width=".8"/><circle cx="50" cy="50" r="32" stroke-width=".6"/></g>'
+      + '<text font-size="7.8" font-weight="700" fill="' + SB + '" text-anchor="middle"><textPath href="#sealTop" startOffset="50%"' + arcText(topTxt, 7.8, TOP_R, 140, 0.9) + '>' + esc(topTxt) + '</textPath></text>'
+      + (sealLine ? '<text font-size="6.2" font-weight="700" fill="' + SB + '" text-anchor="middle"><textPath href="#sealBot" startOffset="50%"' + arcText(botTxt, 6.2, BOT_R, 148, 0.8) + '>' + esc(botTxt) + '</textPath></text>' : '')
+      + star(8.6, 50) + star(91.4, 50)
+      + '<g stroke="' + SB + '" stroke-width=".7">' + mark(29) + mark(69) + '</g></svg>';
     var eblock = eInv ? '<div class="ein"><div>' + [['IRN', d.irn], ['Ack No.', d.ackNo], ['Ack Date', fdate(d.ackDt)]].map(function (x) { return P(x[1]) ? '<div><span style="color:#6b7280;display:inline-block;min-width:64px">' + x[0] + '</span><b>' + esc(P(x[1])) + '</b></div>' : ''; }).join('') + '</div>'
       + (P(d.qrImage) ? '<img src="' + esc(P(d.qrImage)) + '" alt="e-Invoice QR">' : (P(d.qrData) ? '<img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(P(d.qrData)) + '" alt="e-Invoice QR">' : '')) + '</div>' : '';
     var xkv = function (k, v) { return P(v) ? '<div><span style="color:#6b7280;display:inline-block;min-width:150px">' + k + '</span><b>' + esc(P(v)) + '</b></div>' : ''; };

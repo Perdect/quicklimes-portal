@@ -165,7 +165,7 @@
       unitAddress: '',
       /* The bottom arc of the firm's rubber stamp, as it reads on the quotation
          PDF of 18-09-2026; the Premium design draws the seal from this. */
-      sealText: 'BORUNDA, GOTAN, RAJASTHAN', website: 'www.deshwaliminerals.com',
+      sealText: 'BORUNDA, GOTAN', website: 'www.deshwaliminerals.com',
       logoMark: 'gem',   // the Premium design draws the diamond's facets over the white logo (used only when there is no lockup)
       /* The letterhead lockup — diamond + wordmark as one white vector (the owner's
          'Group 4.svg', 18-09-2026). The Premium band prints this instead of logo + name. */
