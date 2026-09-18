@@ -864,7 +864,7 @@
       + ".band{background:" + PREMIUM_NAVY + ";color:#fff;padding:23px 5.4% 23px 5.3%;min-height:82px;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid " + PREMIUM_GOLD + "}"
       + ".band .co{display:flex;gap:20px;align-items:center}.band .lockup{height:35px!important;width:auto}.band .gem{flex:none;display:block}.band .n{font-size:16px;font-weight:800;letter-spacing:.06em;line-height:1;text-transform:uppercase}"
       + ".band .ti{text-align:right;flex:none;padding-left:20px}.band .ti .w{font-size:17.5px;font-weight:800;letter-spacing:.1em;line-height:1}.band .ti .c{font-size:8.8px;letter-spacing:.1em;text-transform:uppercase;color:" + PREMIUM_GOLD + ";margin-top:6px}"
-      + ".contact{text-align:center;font-size:9.5px;color:#333;padding:5px 5.2%;border-bottom:1px solid #d6d9de}.contact .pl{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:700;margin-bottom:2px}"
+      + ".contact{text-align:center;font-size:10.5px;color:#2b3440;padding:9px 5.2% 8px;background:#f3f5f8;border-bottom:1px solid #d6d9de}.contact .pl{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;margin-bottom:4px}.contact .sep{color:" + PREMIUM_GOLD + ";margin:0 6px}"
       + ".in{padding:8px 5.2% 0}"
       + ".meta{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #c9ced6;margin-bottom:8px}.meta div{padding:3px 10px;border-right:1px solid #c9ced6;min-width:0}.meta div:last-child{border-right:0}.meta span{display:block;font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280}.meta b{font-size:10px;color:" + PREMIUM_NAVY + ";word-break:break-word}"
       + ".par{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px}.box{border:1px solid #c9ced6}.box h4{margin:0;padding:5px 10px;font-size:7.5px;letter-spacing:.14em;text-transform:uppercase;color:#4b5563;background:#f1f3f6;border-bottom:1px solid #c9ced6}.box .bd{padding:5px 10px}"
@@ -933,7 +933,7 @@
     var body = '<div class="sheet">'
       + '<div class="band"><div class="co">' + (bandLockup(f, 35) || (bandLogo(f, 36) + '<div class="n">' + wordmark(s.name) + '</div>')) + '</div>'
       + '<div class="ti"><div class="w">' + (isExport ? 'EXPORT TAX INVOICE' : 'TAX INVOICE') + '</div><div class="c">' + esc(copy) + '</div></div></div>'
-      + ((contact || f.tagline) ? '<div class="contact">' + (f.tagline ? '<div class="pl">' + esc(f.tagline) + '</div>' : '') + contact + '</div>' : '')
+      + ((contact || f.tagline) ? '<div class="contact">' + (f.tagline ? '<div class="pl">' + esc(f.tagline) + '</div>' : '') + contact.split(' &nbsp;·&nbsp; ').join('<span class="sep">·</span>') + '</div>' : '')
       + '<div class="in">' + meta + '<div class="par">' + seller + buyer + '</div>'
       + ((f.transport || f.veh || f.station || f.grrr || (f.eway && P(d.due))) ? '<div class="meta" style="margin-top:0">' + mcell('Transport', f.transport) + mcell('Vehicle No.', f.veh) + mcell('Station', f.station) + mcell('GR/RR No.', f.grrr) + (f.eway && P(d.due) ? mcell('E-Way Bill No.', f.eway) : '') + '</div>' : '')
       + '<h3>' + (isExport ? 'Export supply' : 'Supply') + '</h3><table class="it"><thead>' + thead + '</thead><tbody>' + rows + '</tbody></table>'
