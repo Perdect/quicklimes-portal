@@ -103,6 +103,7 @@ const D = {
      care about lives in it: the server copy is fire-and-forget, and nothing
      it does may cost you the local attachment. */
   ACTIVE_CO: 'gotan',
+  QLUnits: require('./units-core.js'),
   SYNCED: [],
   BREAK_READER: false,
   docApi(body, co) { D.SYNCED.push({ id: body.id, name: body.name, co }); return Promise.resolve({ ok: true }); }

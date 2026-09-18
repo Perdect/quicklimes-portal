@@ -63,6 +63,16 @@ const SAMPLE = {
   // Statement upload history — per bank account. Without it a bank card
   // cannot say when it was last updated and a re-upload cannot be detected.
   STATEMENTS: [{ id: 'ST1', accountId: 'A1', file: 'hdfc-jan.pdf', rows: 196, sha: 'abc' }],
+  // Customer 360 stores (commit 75f5903) — every one must survive a reload or the
+  // CRM forgets a quotation the moment the page is refreshed.
+  REQS: [{ id: 'R1', cust: 'p1', product: 'Quick Lime', qty: 7650, unit: 'Kg', rateUnit: 'Ton' }],
+  QUOTES: [{ id: 'Q1', cust: 'p1', no: 'QT-1001' }],
+  OFFERS: [{ id: 'O1', cust: 'p1', no: 'OF-1001' }],
+  DEALS: [{ id: 'D1', cust: 'p1', stage: 'lead' }],
+  FOLLOWUPS: [{ id: 'F1', cust: 'p1', date: '2026-09-18' }],
+  CNOTES: [{ id: 'N1', cust: 'p1', text: 'Prefers 40 KG bags' }],
+  CTIMELINE: [{ id: 'T1', cust: 'p1', kind: 'note' }],
+  MSG_TEMPLATES: [{ id: 'M1', name: 'Price offer' }],
 };
 function fill() {
   ctx.clearState();

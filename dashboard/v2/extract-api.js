@@ -152,6 +152,15 @@
       var li = (rawAI.lineItems || [])[0] || {};
       g.group = (li.category || '') + ''; g.item = (li.name || li.category || '') + '';
       if (li.qty != null) g.qty = li.qty; g.hsn = li.hsn || '';
+      /* The bill's quantity UNIT and its per-unit price travel with the qty.
+         g.rate is the GST% (above) — the price goes out as g.unitRate — and
+         g.unit is what importGenericBill / the importers store, so a bill that
+         reads '7,650 Kg' books 7,650 Kg with a rate per Ton, never a bare
+         7,650 later read as tonnes. Unit exactly as printed; the store
+         normalises ('MT'/'Tonne' → Ton). */
+      g.unit = (li.unit || '') + '';
+      if (li.rate != null && li.rate !== '') g.unitRate = li.rate;
+      if (li.rateUnit) g.rateUnit = (li.rateUnit || '') + '';
     } catch (_) {}
     // confidence + review, keyed to the GENERIC keys makeBill reads
     var GEN = { invoiceNo: 'docno', invoiceDate: 'date', supplierName: 'name', buyerName: 'name', supplierGstin: 'gstin', buyerGstin: 'gstin', taxable: 'taxable', grandTotal: 'total', gstRate: 'rate', vehicleNo: 'veh' };

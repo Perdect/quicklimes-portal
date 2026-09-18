@@ -1111,8 +1111,10 @@
     { k: 'party', label: 'Party', req: true, ph: 'Customer name', upper: true, full: true },
     { k: 'gstin', label: 'GSTIN', ph: '08AAAAA0000A1Z5', upper: true },
     { k: 'product', label: 'Product', ph: 'Quick Lime' },
-    { k: 'qty', label: 'Qty (T)', type: 'number', req: true, reqNonZero: true },
-    { k: 'rate', label: 'Rate (₹/T)', type: 'number', req: true, reqNonZero: true },
+    { k: 'qty', label: 'Quantity', type: 'number', req: true, reqNonZero: true },
+    { k: 'unit', label: 'Quantity unit', type: 'select', opts: () => (window.QLUnits ? QLUnits.UNITS.map(u => [u.key, u.label]) : [['Ton', 'Ton']]) },
+    { k: 'rate', label: 'Rate (₹)', type: 'number', req: true, reqNonZero: true },
+    { k: 'rateUnit', label: 'Rate per', type: 'select', opts: () => (window.QLUnits ? QLUnits.UNITS.map(u => [u.key, u.label]) : [['Ton', 'Ton']]), hint: 'The amount is the quantity converted into this unit × the rate: 7,650 Kg @ ₹5,300 / Ton = ₹40,545.' },
     { k: 'gstR', label: 'GST rate', type: 'select', opts: GST_OPTS },
     { k: 'veh', label: 'Vehicle No.', upper: true },
     { k: 'eway', label: 'E-way bill' }
@@ -1123,9 +1125,16 @@
     openForm({
       title: editing ? 'Edit invoice' : 'New GST invoice', sub: 'Sales register',
       specs: SALE_SPECS, saveLabel: editing ? 'Save changes' : 'Create invoice',
-      initial: row || { date: today(), product: 'Quick Lime', gstR: 5 },
+      /* Editing opens with what the books CURRENTLY mean: a row saved before rate
+         units existed is priced per its own quantity unit, so the selects show that
+         and saving without touching them changes nothing. (The Data check lists
+         Kg rows that look priced per Ton, with a fix you confirm.) A new invoice
+         defaults to Ton / per Ton. */
+      initial: row ? Object.assign({}, row, { unit: (window.QLUnits && row.unit) ? (QLUnits.normalizeUnit(row.unit) || row.unit) : (row.unit || 'Ton'), rateUnit: row.rateUnit || ((window.QLUnits && row.unit) ? (QLUnits.normalizeUnit(row.unit) || row.unit) : (row.unit || 'Ton')) })
+                   : { date: today(), product: 'Quick Lime', gstR: 5, unit: 'Ton', rateUnit: 'Ton' },
       onSave(v) {
         v.product = v.product || 'Quick Lime';
+        if (window.QLUnits) { const L = QLUnits.lineAmount({ qty: v.qty, unit: v.unit, rate: v.rate, rateUnit: v.rateUnit }); if (!L.ok) { toast(L.why, 'err'); return false; } }
         if (editing) { window.QLD.updateSale(idx, v); refresh('Invoice updated'); return; }
         // `return false` keeps the modal open (see the save handler) so the number
         // can be corrected in place — the alternative is closing on a save that
@@ -1582,14 +1591,14 @@ ${d.noBar ? '' : '<div class="bar noprint"><button class="btn btn-p" onclick="wi
   <table class="it">
     <thead><tr><th style="width:36px">S.N.</th><th>Description of Goods</th><th style="width:74px">HSN/SAC<br>Code</th><th style="width:56px">Qty.</th><th style="width:56px">Unit</th><th style="width:82px">Price</th><th style="width:100px">Amount(₹)</th></tr></thead>
     <tbody>
-      <tr><td class="c">1</td><td class="l">${esc(d.product)}</td><td class="c">${esc(d.hsn)}</td><td class="r">${amt(d.qty)}</td><td class="c">${esc(d.unit || 'Tonne')}</td><td class="r">${amt(d.rate)}</td><td class="r">${amt(d.taxable)}</td></tr>
+      <tr><td class="c">1</td><td class="l">${esc(d.product)}</td><td class="c">${esc(d.hsn)}</td><td class="r">${window.QLUnits ? esc(QLUnits.fmtQty(d.qty, '')) : amt(d.qty)}</td><td class="c">${esc(d.unit || 'Tonne')}</td><td class="r">${amt(d.rate)}<br><small>/ ${esc(d.rateUnit || d.unit || 'Tonne')}</small></td><td class="r">${amt(d.taxable)}</td></tr>
       <tr class="fill"><td class="l" colspan="7"></td></tr>
     </tbody>
   </table>
   <div class="tot b-b">
     <div class="tl"><span></span><span>${amt(d.taxable)}</span></div>
     ${gstCols}
-    <div class="grand"><span>Grand Total&nbsp;&nbsp;${amt(d.qty)} ${esc(d.unit || 'Tonne')}</span><span>₹ ${amt(d.grand)}</span></div>
+    <div class="grand"><span>Grand Total&nbsp;&nbsp;${window.QLUnits ? esc(QLUnits.fmtQty(d.qty, d.unit || 'Tonne')) : amt(d.qty) + ' ' + esc(d.unit || 'Tonne')}</span><span>₹ ${amt(d.grand)}</span></div>
   </div>
   <table class="ts b-b">
     <thead><tr><th>HSN/SAC</th><th>Tax Rate</th><th>Taxable Amt.</th>${taxSumHead}<th>Total Tax</th></tr></thead>

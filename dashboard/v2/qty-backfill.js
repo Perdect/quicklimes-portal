@@ -37,13 +37,23 @@
 (function (root) {
   'use strict';
 
+  /* units-core.js is THE quantity / rate-unit arithmetic (window.QLUnits in the
+     browser, a require under Node) — resolved on first use, memoised. */
+  var _U = null;
+  var U = function () { return _U || (_U = root.QLUnits || (typeof globalThis !== 'undefined' && globalThis.QLUnits) || (typeof require === 'function' ? require('./units-core.js') : null)); };
+
   /* qty × rate must reproduce the taxable the books already hold. Within a rupee
      for float dust, or 0.5% for a bill that rounds its own line items (Indian Oil's
-     ZRND line does exactly that: 486128.38 → 486128.00). */
-  function arithmeticAgrees(qty, rate, taxable) {
+     ZRND line does exactly that: 486128.38 → 486128.00).
+     `rate` is bill-ocr's f.unitRate = taxable ÷ qty in the bill's OWN unit, so the
+     line is priced through QLUnits.lineAmount with rateUnit = unit — one source
+     for "quantity meets rate", numerically the same product. */
+  function arithmeticAgrees(qty, rate, taxable, unit) {
     if (!(qty > 0) || !(rate > 0) || !(taxable > 0)) return false;
-    var implied = qty * rate;
-    var diff = Math.abs(implied - taxable);
+    var u = (unit || '').toString().trim();
+    var L = U().lineAmount({ qty: qty, unit: u, rate: rate, rateUnit: u });
+    if (!L.ok) return false;
+    var diff = Math.abs(L.amount - taxable);
     return diff <= 1 || diff <= taxable * 0.005;
   }
 
@@ -59,7 +69,7 @@
 
     /* The arithmetic gate. Without it we would be taking the parser's word for a
        number that changes every cost figure in the app. */
-    if (!arithmeticAgrees(qty, rate, taxable)) {
+    if (!arithmeticAgrees(qty, rate, taxable, f.unit)) {
       return { ok: false, why: 'read ' + qty + ' × ₹' + Math.round(rate) + ' = ₹' + Math.round(qty * rate)
         + ', but the bill is booked at ₹' + Math.round(taxable) + ' — does not reconcile, so not applied' };
     }
@@ -207,8 +217,11 @@
     (found || []).forEach(function (x) {
       var cur = Q.state.PURCHASES[x.idx];
       if (!cur || +cur.qty > 0) return;                       // someone got there first
+      /* The derived rate is per the bill's OWN unit (taxable ÷ qty), so the row
+         says so: unit (canonical — Indian Oil's 'TO' is a Ton) + rateUnit. */
+      var unit = x.unit ? (U().normalizeUnit(x.unit) || x.unit) : '';
       var patch = { qty: x.qty, rate: x.rate };
-      if (x.unit) patch.unit = x.unit;
+      if (unit) { patch.unit = unit; patch.rateUnit = unit; }
       Q.updatePurchase(x.idx, patch);
       n++;
     });

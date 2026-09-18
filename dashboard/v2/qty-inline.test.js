@@ -24,27 +24,35 @@ function cellOf(key) {
   // next column starts at the following "{ key: '"
   const nxt = src.indexOf("{ key: '", body);
   const expr = src.slice(body, src.lastIndexOf('},', nxt)).trim();
-  const ctx = { fmt: (n, d) => Number(n).toFixed(d), fC: n => '₹' + Number(n).toLocaleString('en-IN'), t: x => x, Math };
+  /* The page's window.QLUnits and QLX.esc — the cells print the entered
+     quantity WITH its unit beside the tonnes (units-core.js). */
+  const U = require('./units-core.js');
+  const ctx = { fmt: (n, d) => Number(n).toFixed(d), fC: n => '₹' + Number(n).toLocaleString('en-IN'), t: x => x, Math, U, esc: x => String(x) };
   vm.createContext(ctx);
   return { cell: vm.runInContext('(r => ' + expr + ')', ctx), expr };
 }
 
-/* ── Qty: read-only value, no editor ── */
+/* ── Qty (T): read-only TONNES (purchaseRows r.tonnes), no editor ── */
 {
-  const { cell, expr } = cellOf('qty');
-  const withQty = cell({ idx: 1, qty: 32.06, taxable: 566180 });
-  const noQty = cell({ idx: 2, qty: 0, taxable: 566180 });
+  const { cell, expr } = cellOf('tonnes');
+  const withQty = cell({ idx: 1, qty: 32.06, unit: 'Ton', tonnes: 32.06, taxable: 566180 });
+  const noQty = cell({ idx: 2, qty: 0, tonnes: null, taxable: 566180 });
   ok(/32\.06/.test(withQty), 'Qty shows the tonnage');
   ok(/qx-dash|—/.test(noQty), 'a bill with no tonnage shows a plain dash');
+  const kg = cell({ idx: 3, qty: 7650, unit: 'Kg', tonnes: 7.65, taxable: 40545 });
+  ok(/7\.65/.test(kg) && /7,650 Kg/.test(kg), 'a 7,650 Kg bill shows 7.65 T with the entered quantity beside it, never 7,650 under T');
+  const bags = cell({ idx: 4, qty: 400, unit: 'Bag', tonnes: null, taxable: 9600 });
+  ok(!/400\.00/.test(bags) && /400 Bag/.test(bags), 'a bill in bags is not a tonnage — the count shows with its unit');
   ok(!/data-qy|pfr-edit|pfr-add|<button/.test(expr), 'Qty cell is NOT editable — no button, no pencil, no data-qy');
 }
 /* ── Rate: read-only derived value, no editor ── */
 {
   const { cell, expr } = cellOf('rate');
-  const priced = cell({ idx: 1, qty: 32.06, taxable: 566180 });
-  const noRate = cell({ idx: 2, qty: 0, taxable: 566180 });
+  const priced = cell({ idx: 1, qty: 32.06, tonnes: 32.06, taxable: 566180 });
+  const noRate = cell({ idx: 2, qty: 0, tonnes: null, taxable: 566180 });
   ok(/17,6\d\d/.test(priced), 'Rate shows the derived ₹/T (566180 ÷ 32.06 ≈ ₹17,660)');
   ok(/qx-dash|—/.test(noRate), 'no tonnage → a plain dash');
+  ok(/5,300/.test(cell({ idx: 3, qty: 7650, unit: 'Kg', tonnes: 7.65, taxable: 40545 })), 'a 7,650 Kg bill at ₹40,545 is ₹5,300/T — taxable ÷ TONNES, not ÷ 7,650');
   ok(!/data-rt|pfr-edit|pfr-add|<button/.test(expr), 'Rate cell is NOT editable — no button, no pencil, no data-rt');
 }
 /* ── Freight: STILL editable inline ── */
@@ -63,7 +71,7 @@ function cellOf(key) {
 {
   const s = src.replace(/\/\*[\s\S]*?\*\//g, ' ');
   ok(/label: 'Set rate ₹\/T'/.test(s), 'the bulk "Set rate ₹/T" action still exists (fills rates without per-cell edits)');
-  ok(/\(\+r\.taxable\) \/ rate/.test(s) && /Q\.updatePurchase\(r\.idx, \{ qty \}\)/.test(s), '  and derives each bill\'s own qty from the one rate');
+  ok(/\(\+r\.taxable\) \/ rate/.test(s) && /Q\.updatePurchase\(r\.idx, \{ qty, unit: 'Ton', rate, rateUnit: 'Ton' \}\)/.test(s), '  and derives each bill\'s own qty (tonnes) from the one ₹/T rate — stored self-describing: unit Ton, rate per Ton');
 }
 
 console.log('\n' + (fail ? '❌ FAILED' : '✅ PASSED') + ' — Passed: ' + pass + ' · Failed: ' + fail + '\n');

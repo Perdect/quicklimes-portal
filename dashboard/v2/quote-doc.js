@@ -9,10 +9,12 @@
    never disagree with the register or the WhatsApp text.
    ═══════════════════════════════════════════════════════════════════════ */
 (function (root, factory) {
-  var api = factory(typeof require === 'function' ? require('./customer-core.js') : root.CustomerCore);
+  var C = root.CustomerCore || (typeof require === 'function' ? require('./customer-core.js') : null);
+  var U = root.QLUnits || (typeof require === 'function' ? require('./units-core.js') : null);
+  var api = factory(C, U);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.QuoteDoc = api;
-}(typeof self !== 'undefined' ? self : this, function (C) {
+}(typeof self !== 'undefined' ? self : this, function (C, U) {
   'use strict';
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var money = function (n) { return '₹' + Math.round(+n || 0).toLocaleString('en-IN'); };
@@ -34,6 +36,7 @@
     '.qd-sign{display:flex;justify-content:space-between;align-items:flex-end;margin-top:38px;padding-top:14px;border-top:1px solid #e2e8f0}.qd-sign-l{font-size:12px;color:#475569}.qd-sign-r{text-align:center;font-size:12px;color:#475569}.qd-sign-r b{display:block;color:#0f172a;margin-bottom:38px}' +
     '.qd-status{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:#eff6ff;color:#1d4ed8;margin-left:8px}' +
     '.qd-offer .qd-big{font-size:34px;font-weight:800;color:#0f4c81;letter-spacing:-.02em}.qd-offer .qd-big small{font-size:14px;color:#475569;font-weight:600}' +
+    '.qd-conv{font-size:.88em;color:var(--ql-text-secondary,#475569);white-space:nowrap}' +
     '@media print{.qd{padding:0;max-width:none}@page{margin:16mm}}';
 
   function sellerBlock(co) {
@@ -55,7 +58,11 @@
     var t = C.quoteTotals(q);
     var st = C.effectiveQuoteStatus(q, opts.today);
     var rows = t.lines.map(function (l, i) {
-      return '<tr><td>' + (i + 1) + '</td><td><b>' + esc(l.product) + '</b>' + (q.spec ? '<div style="font-size:11.5px;color:#475569">' + esc(q.spec) + '</div>' : '') + '</td><td class="n">' + l.qty + ' ' + esc(l.unit) + '</td><td class="n">' + money(l.rate) + '</td>' + (t.lines.some(function (x) { return x.discount; }) ? '<td class="n">' + (l.discount ? money(l.discount) : '—') + '</td>' : '') + '<td class="n">' + money2(l.amount) + '</td></tr>';
+      /* the quantity AS ENTERED with its unit, the rate with the unit it is
+         per, and — only when the two differ — one small line of arithmetic
+         so the customer sees how 7,650 Kg became ₹40,545 at ₹5,300 / Ton */
+      var conv = (l.ok && l.billableUnit !== l.unit) ? '<div class="qd-conv">' + esc(U.fmtQty(l.qty, l.unit) + ' = ' + U.fmtQty(l.billableQty, l.billableUnit) + ' × ' + money(l.rate)) + '</div>' : '';
+      return '<tr><td>' + (i + 1) + '</td><td><b>' + esc(l.product) + '</b>' + (q.spec ? '<div style="font-size:11.5px;color:#475569">' + esc(q.spec) + '</div>' : '') + '</td><td class="n">' + esc(U.fmtQty(l.qty, l.unit)) + '</td><td class="n">' + esc(U.fmtRate(l.rate, l.rateUnit)) + '</td>' + (t.lines.some(function (x) { return x.discount; }) ? '<td class="n">' + (l.discount ? money(l.discount) : '—') + '</td>' : '') + '<td class="n">' + money2(l.amount) + conv + '</td></tr>';
     }).join('');
     var hasDisc = t.lines.some(function (x) { return x.discount; });
     var charge = function (label, v) { return v ? '<tr><td>' + esc(label) + '</td><td class="n">' + money2(v) + '</td></tr>' : ''; };
@@ -83,14 +90,18 @@
 
   /* ── the PRICE OFFER — a one-page card ─────────────────────────────── */
   function offerHTML(o, cust, co) {
+    var unit = C.unitKey(o.unit) || C.LEGACY_UNIT, rateUnit = C.rateUnitOf(unit, o.rateUnit);
+    var L = (+o.qty > 0 && +o.rate > 0) ? C.priceLine(o.qty, unit, o.rate, rateUnit) : null;
     var facts = [
-      ['Product', o.product], ['Quantity', (o.qty || '—') + ' ' + (o.unit || 'MT')], ['Freight', C.labelOf(C.FREIGHT, o.freight)],
+      ['Product', o.product], ['Quantity', o.qty ? U.fmtQty(o.qty, unit) : '—'], ['Price', U.fmtRate(o.rate, rateUnit)],
+      ['Value', L && L.ok ? money2(L.amount) + (L.billableUnit !== C.unitKey(unit) ? ' (' + U.fmtQty(L.billableQty, L.billableUnit) + ' × ' + money(o.rate) + ')' : '') + ' + GST' : '—'],
+      ['Freight', C.labelOf(C.FREIGHT, o.freight)],
       ['GST', o.gstText || 'As applicable'], ['Validity', o.validUntil ? 'until ' + dLong(o.validUntil) : (o.validDays ? o.validDays + ' days' : '—')],
       ['Delivery', o.delivery || '—'], ['Payment', C.labelOf(C.PAYMENT_TERMS, o.payment) || '—'], ['Delivery location', o.deliveryLoc || (cust && (cust.deliveryLoc || cust.city)) || '—']
     ];
     return '<div class="qd qd-offer">' +
       '<div class="qd-head">' + sellerBlock(co) + '<div class="qd-doc"><div class="qd-doc-t">PRICE OFFER</div><div class="qd-doc-m">No. <b>' + esc(o.no || '') + '</b><br>Date <b>' + esc(dLong(o.date)) + '</b></div></div></div>' +
-      '<div class="qd-meta">' + customerBlock(cust, 'Offer to') + '<div class="qd-box"><div class="qd-box-l">Our offer</div><div class="qd-big">' + money(o.rate) + ' <small>/ ' + esc(o.unit || 'MT') + '</small></div><div class="qd-box-s">' + esc(o.product || '') + (o.qty ? ' · ' + o.qty + ' ' + (o.unit || 'MT') : '') + '</div></div></div>' +
+      '<div class="qd-meta">' + customerBlock(cust, 'Offer to') + '<div class="qd-box"><div class="qd-box-l">Our offer</div><div class="qd-big">' + money(o.rate) + ' <small>/ ' + esc(U.normalizeUnit(rateUnit) || rateUnit) + '</small></div><div class="qd-box-s">' + esc(o.product || '') + (o.qty ? ' · ' + esc(U.fmtQty(o.qty, unit)) : '') + '</div></div></div>' +
       '<table><tbody>' + facts.map(function (f) { return '<tr><td style="width:180px;color:#64748b">' + esc(f[0]) + '</td><td><b>' + esc(f[1] || '—') + '</b></td></tr>'; }).join('') + '</tbody></table>' +
       (o.notes ? '<div class="qd-notes">' + esc(o.notes) + '</div>' : '') +
       '<div class="qd-sign"><div class="qd-sign-l">' + esc((co && co.phone) ? 'Confirm on ' + co.phone : '') + '</div><div class="qd-sign-r"><b>For ' + esc((co && (co.name || co.short)) || 'Deshwali Minerals') + '</b>Authorised Signatory</div></div>' +

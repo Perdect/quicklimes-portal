@@ -212,6 +212,58 @@ close('  detail purchase value = card value', dr.purchases.reduce((a, r) => a + 
 eq('  purchase rows carry their material group', dr.purchases.find(r => r.bill === 'P2').material, 'Petcoke');
 close('  per-row rate = value / qty', dr.purchases.find(r => r.bill === 'P1').rate, 2000);
 
+/* ══ PIN: sales quantity is TONNES, never the raw qty summed ══
+   7,650 Kg @ ₹5,300/Ton + 16.16 Tonne @ ₹5,300/Ton + 400 Bag @ ₹250/Bag against a
+   30 T production run. Before the fix every figure below summed raw qty:
+   sales qty 8,066.16 T, avg ₹28/T, FG closing −8,036.16 T (read as theft). */
+const UNITS = {
+  sales: [
+    { inv: 'K1', date: '2026-07-02', party: 'A', qty: 7650, unit: 'Kg', rate: 5300, rateUnit: 'Ton', gstR: 5, status: 'pending' },
+    { inv: 'T1', date: '2026-07-03', party: 'B', qty: 16.16, unit: 'Tonne', rate: 5300, rateUnit: 'Ton', gstR: 5, status: 'pending' },
+    { inv: 'B1', date: '2026-07-04', party: 'C', qty: 400, unit: 'Bag', rate: 250, rateUnit: 'Bag', gstR: 5, status: 'pending' },
+  ],
+  purchases: [], chunna: [],
+  prod: [{ date: '2026-07-01', limestone: 50, petcoke: 5, bags: 0, quicklime: 30, hydrated: 0, labour: 1000 }],
+};
+const us = G.summarize(UNITS, JULY);
+close('PIN sales qty = 7.65 + 16.16 T (Bag is not a tonnage)', us.sales.qty, 23.81);
+close('PIN sales taxable = 40,545 + 85,648 + 100,000', us.sales.taxable, 226193);
+close('PIN avg rate ≈ ₹9,500/T (value ÷ tonnes, not ÷ raw qty)', us.sales.avgRate, 9499.92);   // 226,193 ÷ 23.81
+eq('PIN a Bag invoice is NOT "missing qty" — it has a quantity, just no tonnage', us.sales.missingQty, 0);
+eq('PIN   ...and is counted as non-mass so the UI can caveat it', us.sales.nonMass, 1);
+const ufg = us.stock.find(x => x.key === 'fg');
+close('PIN FG closing = 30 made − 23.81 dispatched', ufg.closing, 30 - 23.81);
+eq('PIN   FG balance stays computable with a Bag invoice on file', ufg.computable, true);
+close('PIN   FG used is tonnes', ufg.used, 23.81);
+const ut = G.consolidate([{ id: 'u', name: 'U', summary: us }]);
+close('PIN consolidated sales qty is tonnes', ut.sales.qty, 23.81);
+close('PIN consolidated FG closing', ut.stockClosing.fg, 6.19);
+eq('PIN consolidated carries the non-mass count', ut.sales.nonMass, 1);
+/* tonnesOf itself */
+close('tonnesOf: 7,650 Kg → 7.65', G.tonnesOf({ qty: 7650, unit: 'Kg' }), 7.65);
+close('tonnesOf: 16.16 Tonne → 16.16', G.tonnesOf({ qty: 16.16, unit: 'Tonne' }), 16.16);
+close('tonnesOf: 25 Quintal → 2.5', G.tonnesOf({ qty: 25, unit: 'Qtl' }), 2.5);
+eq('tonnesOf: 400 Bag → 0 (excluded, not counted)', G.tonnesOf({ qty: 400, unit: 'Bag' }), 0);
+eq('tonnesOf: 12 Nos → 0', G.tonnesOf({ qty: 12, unit: 'Nos' }), 0);
+eq('tonnesOf: 500 Litre → 0', G.tonnesOf({ qty: 500, unit: 'Litre' }), 0);
+close('tonnesOf: legacy row with blank unit is tonnes', G.tonnesOf({ qty: 42.1 }), 42.1);
+close('tonnesOf: a Q.salesRows() row uses its stored tonnes over qty', G.tonnesOf({ qty: 7650, unit: 'Kg', tonnes: 7.65 }), 7.65);
+close('tonnesOf: multi-line invoice sums its items (Kg + Ton, Bag excluded)',
+      G.tonnesOf({ items: [{ qty: 500, unit: 'Kg' }, { qty: 2, unit: 'MT' }, { qty: 10, unit: 'Bag' }] }), 2.5);
+eq('tonnesOf: no qty → 0', G.tonnesOf({ unit: 'Ton' }), 0);
+/* a sale with NO quantity at all still makes the FG ledger refuse */
+const NOQ = { ...UNITS, sales: UNITS.sales.concat([{ inv: 'X', date: '2026-07-05', party: 'D', rate: 5000, gstR: 5, status: 'pending' }]) };
+const nq = G.summarize(NOQ, JULY);
+eq('a sale with no qty at all is still "missing"', nq.sales.missingQty, 1);
+eq('  and the FG ledger refuses a number for it', nq.stock.find(x => x.key === 'fg').closing, null);
+/* detail rows: per-bill qty stays in its OWN unit, tonnes alongside */
+const udr = G.detailRows(UNITS, JULY, { id: 'u', name: 'U' });
+const kgRow = udr.sales.find(r => r.inv === 'K1');
+eq('detail row keeps the bill\'s own qty + unit', [kgRow.qty, kgRow.unit, kgRow.rateUnit], [7650, 'Kg', 'Ton']);
+close('  and carries its tonnes', kgRow.tonnes, 7.65);
+eq('  a Bag row weighs 0 tonnes', udr.sales.find(r => r.inv === 'B1').tonnes, 0);
+close('  detail tonnes total = card sales qty', udr.sales.reduce((a, r) => a + r.tonnes, 0), us.sales.qty);
+
 console.log('\n════ group-core (multi-company consolidation) ════');
 console.log('  Passed: ' + pass + '   Failed: ' + fail);
 bad.forEach(b => console.log('    ✗ ' + b));

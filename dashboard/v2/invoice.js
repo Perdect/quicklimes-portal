@@ -18,7 +18,11 @@ function nextInvNo() {
 
 function buildData() {
   const qty = +g('i_qty') || 0, rate = +g('i_rate') || 0, gstR = +g('i_gst') || 5;
-  const taxable = qty * rate, cgst = taxable * gstR / 200, sgst = cgst, total = taxable + cgst + sgst;
+  /* THE line, through units-core: the quantity converted INTO the rate's unit,
+     times the rate. 7,650 Kg @ ₹5,300 / Ton = 7.65 × 5,300 = ₹40,545. */
+  const unit = g('i_unit') || 'Ton', rateUnit = g('i_rateUnit') || QLUnits.defaultRateUnit(unit);
+  const line = QLUnits.lineAmount({ qty, unit, rate, rateUnit });
+  const taxable = line.amount, cgst = taxable * gstR / 200, sgst = cgst, total = taxable + cgst + sgst;
   const bgst = g('i_bgst').toUpperCase().replace(/[^A-Z0-9]/g, '');   // registered form, never with spaces
   const interState = bgst && bgst.length >= 2 && bgst.slice(0, 2) !== '08';
   const grand = (Q.co && Q.co.roundOff === false) ? Math.round(total * 100) / 100 : Math.round(total);   // mirrors invoiceData
@@ -26,7 +30,7 @@ function buildData() {
     seller: Q.co, noBar: true, hsn: g('i_hsn') || '25221000',
     buyer: { name: g('i_bname'), gstin: bgst, address: g('i_baddr'), state: g('i_bstate') || Q.stateOfGstin(bgst), phone: g('i_bphone'), email: '' },
     inv: g('i_no'), date: g('i_date'), product: g('i_product') || 'Quick Lime',
-    qty, rate, unit: g('i_unit') || 'Tonne', gstR,
+    qty, rate, unit, rateUnit, billableQty: line.billableQty, billableUnit: line.billableUnit, lineOk: line.ok, lineWhy: line.why, gstR,
     veh: g('i_veh'), eway: g('i_eway'), transport: g('i_trans'), station: g('i_stn'), grrr: g('i_grrr'),
     taxable, cgst, sgst, igst: interState ? cgst + sgst : 0, interState,
     total, roundOff: grand - total, grand,
@@ -60,6 +64,14 @@ function updatePreview() {
 }
 let _prevTimer = null;
 function schedulePreview() { clearTimeout(_prevTimer); _prevTimer = setTimeout(updatePreview, 250); }
+function showCalc() {
+  const el = document.getElementById('i_calc'); if (!el) return;
+  const d = buildData();
+  if (!d.qty || !d.rate) { el.innerHTML = ''; return; }
+  if (!d.lineOk) { el.innerHTML = '<span style="color:var(--ql-danger-600)">' + esc(d.lineWhy) + '</span>'; return; }
+  const conv = QLUnits.normalizeUnit(d.unit) !== QLUnits.normalizeUnit(d.rateUnit) ? esc(QLUnits.fmtQty(d.qty, d.unit)) + ' = <b>' + esc(QLUnits.fmtQty(d.billableQty, d.billableUnit)) + '</b> · ' : '';
+  el.innerHTML = conv + esc(QLUnits.fmtQty(d.billableQty, d.billableUnit)) + ' × ' + esc(QLUnits.fmtRate(d.rate, d.rateUnit)) + ' = <b>₹' + d.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</b>';
+}
 
 function field(id, label, opts) {
   opts = opts || {};
@@ -102,9 +114,11 @@ function formHTML() {
     <div class="if-grid">
       ${field('i_product', 'Description of goods', { full: true, val: 'Quick Lime' })}
       ${field('i_hsn', 'HSN / SAC', { val: '25221000' })}
-      ${field('i_unit', 'Unit', { opts: [['Tonne', 'Tonne'], ['Bag', 'Bag'], ['MT', 'MT'], ['Kg', 'Kg']], val: 'Tonne' })}
       ${field('i_qty', 'Quantity', { type: 'number', ph: '0' })}
+      ${field('i_unit', 'Quantity unit', { opts: QLUnits.UNITS.map(u => [u.key, u.label]), val: 'Ton' })}
       ${field('i_rate', 'Rate (₹)', { type: 'number', ph: '0' })}
+      ${field('i_rateUnit', 'Rate per', { opts: QLUnits.UNITS.map(u => [u.key, u.label]), val: 'Ton' })}
+      <div class="if-f full" id="i_calc" style="font-size:12.5px;color:var(--ql-text-muted);margin-top:-4px"></div>
       ${field('i_gst', 'GST %', { opts: [['0', '0%'], ['5', '5%'], ['12', '12%'], ['18', '18%'], ['28', '28%']], val: '5' })}
     </div>`;
 }
@@ -113,7 +127,8 @@ function save(andPrint) {
   const d = buildData();
   if (!d.buyer.name) { toast('Enter the customer name', 'err'); document.getElementById('i_bname').focus(); return; }
   if (!d.qty || !d.rate) { toast('Enter quantity and rate', 'err'); return; }
-  Q.addSale({ inv: d.inv, date: d.date, party: d.buyer.name, gstin: d.buyer.gstin, addr: d.buyer.address, state: d.buyer.state, product: d.product, qty: d.qty, rate: d.rate, gstR: d.gstR, veh: d.veh, eway: d.eway, unit: d.unit, hsn: d.hsn, transport: d.transport, station: d.station, grrr: d.grrr, status: 'pending' });
+  if (!d.lineOk) { toast(d.lineWhy, 'err'); document.getElementById('i_rateUnit').focus(); return; }
+  Q.addSale({ inv: d.inv, date: d.date, party: d.buyer.name, gstin: d.buyer.gstin, addr: d.buyer.address, state: d.buyer.state, product: d.product, qty: d.qty, rate: d.rate, rateUnit: d.rateUnit, gstR: d.gstR, veh: d.veh, eway: d.eway, unit: d.unit, hsn: d.hsn, transport: d.transport, station: d.station, grrr: d.grrr, status: 'pending' });
   toast('Invoice ' + (d.inv || '') + ' saved ✓', 'ok');
   if (andPrint) { const w = window.open('', '_blank'); if (w) { w.document.write(QLShell.renderInvoice(Object.assign({}, d, { noBar: true })) + '<scr' + 'ipt>onload=function(){setTimeout(print,300)}</scr' + 'ipt>'); w.document.close(); } }
   setTimeout(() => location.href = 'sales.html', andPrint ? 400 : 700);
@@ -166,6 +181,12 @@ function render() {
   </div>`;
   // live update on any input
   main.querySelectorAll('.inv-form input, .inv-form select').forEach(el => { el.addEventListener('input', onInput); el.addEventListener('change', onInput); });
+  /* The quantity unit decides the rate's default unit (lime is priced per Ton
+     whatever the truck was weighed in); the line under the fields shows the
+     arithmetic so the owner sees 7,650 Kg → 7.65 Ton × ₹5,300 = ₹40,545 as he types. */
+  const unitEl = document.getElementById('i_unit'), ruEl = document.getElementById('i_rateUnit');
+  if (unitEl && ruEl) unitEl.addEventListener('change', () => { ruEl.value = QLUnits.defaultRateUnit(unitEl.value); showCalc(); });
+  showCalc();
   const tpl = document.getElementById('invTpl'); if (tpl) tpl.addEventListener('change', onPickDesign);
   document.getElementById('invSave').onclick = () => save(false);
   document.getElementById('invPrint').onclick = () => save(true);
@@ -205,6 +226,7 @@ async function gstinAssist(val) {
   schedulePreview();
 }
 function onInput(e) {
+  showCalc();
   if (e.target.id === 'i_bgst') gstinAssist(e.target.value);
   // when a known customer is picked, auto-fill GSTIN / address / state
   if (e.target.id === 'i_bname') {

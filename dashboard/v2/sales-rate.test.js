@@ -31,35 +31,47 @@ function cellOf(src, what) {
 }
 const sCell = cellOf(ssrc, 'sales.js'), pCell = cellOf(psrc, 'purchase.js');
 
-/* ── the owner's example, verbatim ── */
+/* ── the owner's example, verbatim. Rows are salesRows / purchaseRows, which
+      carry TONNES (r.tonnes) — the rate is ₹ per tonne, whatever unit the bill
+      was entered in. ── */
 {
-  const r = { qty: 16.78, taxable: 88934 };
+  const r = { qty: 16.78, unit: 'Ton', tonnes: 16.78, taxable: 88934 };
   ok(/5,300/.test(sCell(r)), 'SALES: 16.78 T at ₹88,934 → ₹5,300/T (the owner\'s own example)');
   ok(/5,300/.test(pCell(r)), 'PURCHASE: same numbers, same answer');
   eq('  the two registers render the SAME cell for the same row', sCell(r), pCell(r));
 }
 {
-  const r = { qty: 20, taxable: 110000 };
+  const r = { qty: 20, unit: 'Ton', tonnes: 20, taxable: 110000 };
   ok(/5,500/.test(sCell(r)), '20 T at ₹1,10,000 → ₹5,500/T (the brief\'s second example)');
+}
+{
+  /* THE unit bug: 7,650 Kg at ₹40,545 is ₹5,300/T. Divided by the raw 7,650 it
+     was ₹5/T — the register said lime sold for five rupees a tonne. */
+  const r = { qty: 7650, unit: 'Kg', tonnes: 7.65, taxable: 40545 };
+  ok(/5,300/.test(sCell(r)), 'SALES: 7,650 Kg at ₹40,545 → ₹5,300/T (taxable ÷ TONNES, never ÷ the raw 7,650)');
+  ok(/5,300/.test(pCell(r)), 'PURCHASE: a 7,650 Kg bill prices the same');
+  eq('  and the two registers still agree on it', sCell(r), pCell(r));
 }
 /* ── the guards: no tonnage, no rate — never ₹Infinity, never ₹NaN ── */
 {
-  ok(/qx-dash/.test(sCell({ qty: 0, taxable: 88934 })), 'no quantity → a dash, not ₹Infinity');
-  ok(/qx-dash/.test(sCell({ qty: 16.78, taxable: 0 })), 'no taxable → a dash, not ₹0 pretending to be a rate');
+  ok(/qx-dash/.test(sCell({ qty: 0, tonnes: 0, taxable: 88934 })), 'no quantity → a dash, not ₹Infinity');
+  ok(/qx-dash/.test(sCell({ qty: 16.78, tonnes: 16.78, taxable: 0 })), 'no taxable → a dash, not ₹0 pretending to be a rate');
+  ok(/qx-dash/.test(sCell({ qty: 400, unit: 'Bag', tonnes: null, taxable: 9600 })), 'a quantity in bags is no tonnage → a dash, not ₹24/T');
   ok(!/NaN|Infinity/.test(sCell({ qty: undefined, taxable: undefined })), 'missing fields cannot render garbage');
 }
 
 /* ── placement: his specified order — Qty, then Rate, then Taxable ── */
 {
-  const qty = ssrc.indexOf("key: 'qty'"), rate = ssrc.indexOf("key: 'rate'"), tax = ssrc.indexOf("key: 'taxable'");
+  const qty = ssrc.indexOf("key: 'tonnes'"), rate = ssrc.indexOf("key: 'rate'"), tax = ssrc.indexOf("key: 'taxable'");
   ok(qty > 0 && qty < rate && rate < tax, 'Sales column order is Qty (T) → Rate ₹/T → Taxable, as specified');
 }
 
 /* ── the other surfaces the brief names ── */
 {
   ok(/'Qty \(MT\)', 'Rate ₹\/T', 'Taxable'/.test(ssrc), 'CSV export carries Rate between Qty and Taxable');
-  ok(/Math\.round\(x\.taxable \/ x\.qty\)/.test(ssrc), '  with the same derivation, not a second formula');
-  ok(/@ ' \+ fC\(Math\.round\(r\.taxable \/ r\.qty\)\) \+ '\/T'/.test(ssrc), 'the mobile card reads "16.78 T @ ₹5,300/T"');
+  ok(/Math\.round\(x\.taxable \/ x\.tonnes\)/.test(ssrc), '  with the same derivation (÷ tonnes), not a second formula');
+  ok(/'Status', 'Qty', 'Unit', 'Rate', 'Rate per'\]/.test(ssrc), '  and exports the row AS ENTERED too: Qty, Unit, Rate, Rate per');
+  ok(/qtyLabel\(r\) \+ \(\+r\.rate > 0 \? ' @ ' \+ rateLabel\(r\)/.test(ssrc), 'the mobile card reads the entered quantity WITH its unit and the stored rate WITH the unit it is per — "7,650 Kg @ ₹5,300 / Ton"');
   const hi = fs.readFileSync(path.join(__dirname, 'i18n.js'), 'utf8');
   ok(/'Rate ₹\/T': 'भाव ₹\/टन'/.test(hi), 'and the column translates — भाव ₹/टन (the owner\'s glossary)');
 }

@@ -13,10 +13,17 @@
    history", never a made-up estimate.
    ═══════════════════════════════════════════════════════════════════════ */
 (function (root, factory) {
-  var api = factory();
+  /* units-core.js is THE quantity / rate-unit arithmetic (window.QLUnits in
+     the browser, require()-able in Node). Resolved ONCE here so every quote,
+     offer, requirement and deal figure below prices a line the same way the
+     GST invoice does. A page that forgets to load it fails loudly, not with a
+     silently wrong total. */
+  var U = root.QLUnits || (typeof require === 'function' ? require('./units-core.js') : null);
+  if (!U) throw new Error('customer-core.js needs units-core.js loaded first (window.QLUnits)');
+  var api = factory(U);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CustomerCore = api;
-}(typeof self !== 'undefined' ? self : this, function () {
+}(typeof self !== 'undefined' ? self : this, function (U) {
   'use strict';
 
   /* ── vocabularies — the ONE place each list lives ──────────────────── */
@@ -34,7 +41,29 @@
   var PRODUCTS = [
     ['Quick Lime', 'Quick Lime'], ['Quick Lime Powder', 'Quick Lime Powder'], ['Hydrated Lime', 'Hydrated Lime'], ['Other', 'Other']
   ];
-  var UNITS = [['MT', 'MT (tonne)'], ['KG', 'KG'], ['BAG', 'Bags']];
+  /* Quantity units come from units-core (Ton · Kg · Quintal · Bag · Nos ·
+     Litre · Other). Records written before this list existed carry 'MT' /
+     'KG' / 'BAG' — unitKey() folds those onto the canonical key, so a stored
+     'MT' still reads, prints and prices as a tonne. */
+  var UNITS = U.UNITS.map(function (u) { return [u.key, u.label]; });
+  var LEGACY_UNIT = 'MT';                                   // what every CRM row meant before it carried a unit
+  function unitKey(u) { return U.normalizeUnit(u) || String(u == null ? '' : u).trim(); }
+  /* The rate unit a STORED row was priced in — the legacy rule, the same one
+     data.js applies to the register: an explicit rateUnit wins; a row with no
+     rateUnit (written before rateUnit existed) is priced per its OWN unit, so
+     a stored Kg line at 5,300 keeps the ₹40,545,000 it was booked with.
+     Never guess per Ton here: that silently re-prices old records. */
+  function rateUnitOf(unit, rateUnit) { return U.normalizeUnit(rateUnit) || String(rateUnit || '').trim() || unitKey(unit || LEGACY_UNIT); }
+  /* The rate unit a NEW line gets when a form leaves it blank — the business
+     default (mass → per Ton, bags → per Bag). Only the store's add* / form
+     paths use this; reading an existing record goes through rateUnitOf. */
+  function newRateUnit(unit, rateUnit) { return U.normalizeUnit(rateUnit) || String(rateUnit || '').trim() || U.defaultRateUnit(unitKey(unit || LEGACY_UNIT)); }
+  /* One line, priced the way the invoice prices it: billable qty (converted
+     INTO the rate's unit) × rate. Never qty × rate. */
+  function priceLine(qty, unit, rate, rateUnit) { var u = unitKey(unit || LEGACY_UNIT); return U.lineAmount({ qty: qty, unit: u, rate: rate, rateUnit: rateUnitOf(u, rateUnit) }); }
+  function tonnesOf(qty, unit) { var t = U.toTonnes(+qty || 0, unitKey(unit || LEGACY_UNIT)); return t == null ? 0 : t; }
+  var fmtQty = function (qty, unit) { return U.fmtQty(qty, unitKey(unit || LEGACY_UNIT)); };
+  var fmtRate = function (rate, rateUnit, unit) { return U.fmtRate(rate, rateUnitOf(unit, rateUnit)); };
   var REQ_FREQ = [['monthly', 'Monthly'], ['weekly', 'Weekly'], ['one-time', 'One-time']];
   var FORMS = [['lump', 'Lump'], ['powder', 'Powder']];
   var PACKAGING = [['25kg', '25 KG Bag'], ['40kg', '40 KG Bag'], ['50kg', '50 KG Bag'], ['jumbo', 'Jumbo Bag'], ['bulk', 'Bulk (loose)'], ['custom', 'Custom']];
@@ -144,16 +173,22 @@
     var goods = 0;
     var lines = items.map(function (it) {
       var qty = +it.qty || 0, rate = +it.rate || 0, disc = +it.discount || 0;
-      var amt = Math.max(0, qty * rate - disc);
+      /* 7,650 Kg @ ₹5,300 / Ton is 7.65 × 5,300 = ₹40,545 — the line is priced
+         through units-core, exactly as the GST invoice prices it. A rate that
+         cannot price the quantity (per Ton on Bags) is flagged, not multiplied. */
+      var L = priceLine(qty, it.unit, rate, it.rateUnit);
+      var amt = Math.max(0, L.amount - disc);
       goods += amt;
-      return { product: it.product || '', qty: qty, unit: it.unit || 'MT', rate: rate, discount: disc, amount: round(amt, 2) };
+      return { product: it.product || '', qty: qty, unit: unitKey(it.unit || LEGACY_UNIT), rate: rate, rateUnit: L.rateUnit, billableQty: L.billableQty, billableUnit: L.billableUnit, discount: disc, amount: round(amt, 2), ok: L.ok, why: L.why };
     });
     var freight = +q.freight || 0, loading = +q.loading || 0, other = +q.other || 0;
     var taxable = goods + freight + loading + other;
     var gstR = q.isExport ? 0 : (q.gstR == null || q.gstR === '' ? 5 : +q.gstR);
     var gst = taxable * gstR / 100;
     var total = taxable + gst;
-    return { lines: lines, goods: round(goods, 2), freight: freight, loading: loading, other: other, taxable: round(taxable, 2), gstR: gstR, gst: round(gst, 2), total: round(total, 2), tonnes: round(items.reduce(function (a, it) { return a + ((it.unit || 'MT') === 'MT' ? (+it.qty || 0) : 0); }, 0), 3) };
+    var bad = lines.filter(function (l) { return !l.ok; });
+    return { lines: lines, goods: round(goods, 2), freight: freight, loading: loading, other: other, taxable: round(taxable, 2), gstR: gstR, gst: round(gst, 2), total: round(total, 2), ok: !bad.length, why: bad.length ? bad[0].why : '',
+             tonnes: round(items.reduce(function (a, it) { return a + tonnesOf(it.qty, it.unit); }, 0), 3) };
   }
   /* A quotation past its validity is expired unless it has already been
      decided — accepted, rejected, converted keep their word. */
@@ -172,6 +207,7 @@
   function monthlyOf(req) {
     if (!req || req.status === 'closed') return 0;
     var q = +req.qty || 0;
+    var t = U.toTonnes(q, unitKey(req.unit || LEGACY_UNIT)); if (t != null) q = t;     // a Kg requirement is a tonnage; a Bag one stays a count
     if (req.freq === 'monthly') return q;
     if (req.freq === 'weekly') return round(q * 4.33, 2);
     return 0;
@@ -198,24 +234,43 @@
     return { orders: dates.length, gapDays: gap, gapLo: lo, gapHi: hi, last: last, next: next, sinceLast: sinceLast, status: status };
   }
 
+  /* A sale's tonnage and its rate PER TON, whatever the truck was weighed in.
+     Register rows (salesRows) already carry `tonnes`; raw rows are converted
+     from their unit (blank = Ton, the register's convention). */
+  function saleTonnes(s) { if (s && s.tonnes != null && s.tonnes !== '') return +s.tonnes || 0; return tonnesOf(s && s.qty, s && s.unit); }
+  function ratePerTon(s) {
+    if (!s) return null;
+    var u = unitKey(s.unit || LEGACY_UNIT);
+    if (U.familyOf(u) !== 'mass') return +s.rate || null;                                   // bags / pieces: the rate is per that unit
+    var amt = (+s.taxable > 0) ? +s.taxable : priceLine(s.qty, u, s.rate, s.rateUnit).amount;
+    var r = U.impliedRate(amt, s.qty, u, 'Ton');
+    return r == null ? (+s.rate || null) : r;
+  }
+
   /* ── per-product demand intelligence ───────────────────────────────────
      sales: this customer's invoices [{date, product, qty, rate, total}]
      reqs:  this customer's requirements */
   function demandByProduct(sales, reqs, today) {
     var out = {};
-    var touch = function (p) { p = p || 'Quick Lime'; return out[p] || (out[p] = { product: p, monthlyDemand: 0, targetRate: null, prefRate: null, moq: null, orders: 0, qtyTotal: 0, avgOrderQty: null, lastQty: null, lastDate: null, lastRate: null, frequency: null, nextWindow: null, reqCount: 0 }); };
+    var touch = function (p) { p = p || 'Quick Lime'; return out[p] || (out[p] = { product: p, monthlyDemand: 0, demandUnit: null, targetRate: null, prefRate: null, moq: null, orders: 0, qtyTotal: 0, avgOrderQty: null, lastQty: null, lastDate: null, lastRate: null, frequency: null, nextWindow: null, reqCount: 0 }); };
+    /* What monthlyDemand is counted in: tonnes for any mass unit (monthlyOf
+       and saleTonnes convert), the unit itself for bags / pieces. */
+    var demandUnitOf = function (unit) { var u = unitKey(unit || LEGACY_UNIT); return U.familyOf(u) === 'mass' ? 'Ton' : u; };
     (reqs || []).forEach(function (r) {
       var d = touch(r.product);
       d.reqCount++;
+      if (!d.demandUnit) d.demandUnit = demandUnitOf(r.unit);
       d.monthlyDemand = round(d.monthlyDemand + monthlyOf(r), 2);
-      if (r.targetRate && (d.targetRate == null || r.updatedAt > (d._tAt || ''))) { d.targetRate = +r.targetRate; d._tAt = r.updatedAt || ''; }
+      if (r.targetRate && (d.targetRate == null || r.updatedAt > (d._tAt || ''))) { d.targetRate = +r.targetRate; d.rateUnit = rateUnitOf(r.unit, r.rateUnit); d._tAt = r.updatedAt || ''; }
       if (r.prefRate && d.prefRate == null) d.prefRate = +r.prefRate;
       if (r.moq && d.moq == null) d.moq = +r.moq;
     });
     (sales || []).forEach(function (s) {
       var d = touch(s.product);
-      d.orders++; d.qtyTotal = round(d.qtyTotal + (+s.qty || 0), 3);
-      if (!d.lastDate || s.date > d.lastDate) { d.lastDate = s.date; d.lastQty = +s.qty || 0; d.lastRate = +s.rate || null; }
+      var t = saleTonnes(s);
+      if (!d.demandUnit) d.demandUnit = demandUnitOf(s.unit);
+      d.orders++; d.qtyTotal = round(d.qtyTotal + t, 3);
+      if (!d.lastDate || s.date > d.lastDate) { d.lastDate = s.date; d.lastQty = t; d.lastRate = ratePerTon(s); if (!d.rateUnit) d.rateUnit = U.familyOf(unitKey(s.unit || LEGACY_UNIT)) === 'mass' ? 'Ton' : rateUnitOf(s.unit, s.rateUnit); }
     });
     Object.keys(out).forEach(function (k) {
       var d = out[k]; delete d._tAt;
@@ -228,8 +283,15 @@
       if (!d.monthlyDemand && d.frequency && d.avgOrderQty) { d.monthlyDemand = round(d.avgOrderQty * 30 / d.frequency, 1); d.demandSource = 'observed'; }
       else if (d.monthlyDemand) d.demandSource = 'requirement';
       else d.demandSource = 'none';
+      /* The potential is the monthly demand PRICED at the rate — through
+         units-core, never demand × rate: 7,650 Kg/month is 7.65 Ton, and a
+         target of ₹5.30 / Kg prices it as 7,650 Kg × 5.30 = ₹40,545, not
+         7.65 × 5.30 = ₹41. The rate's unit is d.rateUnit (the target's, else
+         the last sale's — per Ton for a mass). A rate that cannot price the
+         demand (per Ton on Bags) leaves the potential unknown. */
       var rate = d.targetRate || d.lastRate || null;
-      d.monthlyPotential = (d.monthlyDemand && rate) ? round(d.monthlyDemand * rate, 0) : null;
+      var P = (d.monthlyDemand && rate) ? U.lineAmount({ qty: d.monthlyDemand, unit: d.demandUnit || 'Ton', rate: rate, rateUnit: rateUnitOf(d.demandUnit || 'Ton', d.rateUnit) }) : null;
+      d.monthlyPotential = (P && P.ok) ? round(P.amount, 0) : null;
     });
     return out;
   }
@@ -237,14 +299,18 @@
   /* ── price history: every rate this customer ever saw, per product ──── */
   function priceHistory(sales, quotes, offers, product) {
     var rows = [];
-    (sales || []).forEach(function (s) { if (product && (s.product || 'Quick Lime') !== product) return; rows.push({ date: s.date, product: s.product || 'Quick Lime', qty: +s.qty || 0, rate: +s.rate || 0, status: 'sold', ref: s.inv ? '#' + s.inv : '', kind: 'sale', id: s.idx }); });
+    /* Every row says what its quantity is in and what its rate is per, so the
+       table can print "7,650 Kg" beside "₹5,300.00 / Ton" instead of two bare
+       numbers. A sold rate is normalised to per Ton (a Kg invoice booked at
+       ₹5,300 / Ton compares with a Ton one). */
+    (sales || []).forEach(function (s) { if (product && (s.product || 'Quick Lime') !== product) return; var u = unitKey(s.unit || LEGACY_UNIT); var perTon = U.familyOf(u) === 'mass'; rows.push({ date: s.date, product: s.product || 'Quick Lime', qty: +s.qty || 0, unit: u, rate: (perTon ? ratePerTon(s) : +s.rate) || 0, rateUnit: perTon ? 'Ton' : rateUnitOf(u, s.rateUnit), status: 'sold', ref: s.inv ? '#' + s.inv : '', kind: 'sale', id: s.idx }); });
     (quotes || []).forEach(function (q) {
       (q.items || []).forEach(function (it) {
         if (product && it.product !== product) return;
-        rows.push({ date: q.date, product: it.product, qty: +it.qty || 0, rate: +it.rate || 0, status: 'quoted', sub: q.status || 'draft', ref: q.no || '', kind: 'quote', id: q.id });
+        rows.push({ date: q.date, product: it.product, qty: +it.qty || 0, unit: unitKey(it.unit || LEGACY_UNIT), rate: +it.rate || 0, rateUnit: rateUnitOf(it.unit, it.rateUnit), status: 'quoted', sub: q.status || 'draft', ref: q.no || '', kind: 'quote', id: q.id });
       });
     });
-    (offers || []).forEach(function (o) { if (product && o.product !== product) return; rows.push({ date: o.date || String(o.at || '').slice(0, 10), product: o.product, qty: +o.qty || 0, rate: +o.rate || 0, status: 'offered', sub: o.status || 'sent', ref: o.no || '', kind: 'offer', id: o.id }); });
+    (offers || []).forEach(function (o) { if (product && o.product !== product) return; rows.push({ date: o.date || String(o.at || '').slice(0, 10), product: o.product, qty: +o.qty || 0, unit: unitKey(o.unit || LEGACY_UNIT), rate: +o.rate || 0, rateUnit: rateUnitOf(o.unit, o.rateUnit), status: 'offered', sub: o.status || 'sent', ref: o.no || '', kind: 'offer', id: o.id }); });
     rows = rows.filter(function (r) { return r.rate > 0; }).sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
     var sold = rows.filter(function (r) { return r.status === 'sold'; });
     var offered = rows.filter(function (r) { return r.status !== 'sold'; });
@@ -427,7 +493,7 @@
   function timeline(f, explicit, today) {
     var ev = (explicit || []).map(function (e) { return { id: e.id, at: localIso(e.at), kind: e.kind, title: e.title || TIMELINE_KINDS[e.kind] || e.kind, detail: e.detail || '', by: e.by || '', ref: e.ref || null, amount: e.amount || null, src: 'log' }; });
     (f.invoices || []).forEach(function (s) {
-      ev.push({ at: s.date + 'T09:00:00', kind: 'invoice', title: 'Invoice #' + (s.inv || '—') + ' created', detail: (s.product || 'Quick Lime') + (s.qty ? ' · ' + s.qty + ' MT' : '') + (s.rate ? ' · ₹' + s.rate + '/MT' : ''), amount: s.total, ref: { type: 'sale', id: s.idx }, src: 'sales' });
+      ev.push({ at: s.date + 'T09:00:00', kind: 'invoice', title: 'Invoice #' + (s.inv || '—') + ' created', detail: (s.product || 'Quick Lime') + (s.qty ? ' · ' + fmtQty(s.qty, s.unit) : '') + (s.rate ? ' · ' + fmtRate(s.rate, s.rateUnit, s.unit) : ''), amount: s.total, ref: { type: 'sale', id: s.idx }, src: 'sales' });
       var pays = (s.payments && s.payments.length) ? s.payments : (s.paid > 0.5 ? [{ date: s.paidDate || s.date, amount: s.paid }] : []);
       pays.forEach(function (p) { ev.push({ at: (p.date || s.date) + 'T18:00:00', kind: 'payment', title: 'Payment received', detail: 'against #' + (s.inv || '—') + (p.mode ? ' · ' + p.mode : ''), amount: +p.amount || 0, ref: { type: 'sale', id: s.idx }, src: 'sales' }); });
       var terms = f.creditDays || 30;
@@ -505,11 +571,11 @@
 
   /* ── message templates — {{variable}} substitution, unknowns blank ──── */
   var DEFAULT_TEMPLATES = [
-    { id: 'tpl_offer', name: 'Price offer', channel: 'whatsapp', body: 'Hello {{customer_name}},\n\nWe can offer {{product}} at ₹{{rate}}/MT for {{quantity}} {{unit}}.\n\nDelivery Location: {{location}}\nFreight: {{freight}}\nGST: {{gst}}\nPayment Terms: {{payment_terms}}\nDelivery: {{delivery}}\nOffer valid until: {{validity}}\n\nRegards,\n{{company}}' },
-    { id: 'tpl_quote', name: 'Quotation sent', channel: 'whatsapp', body: 'Dear {{customer_name}},\n\nPlease find our quotation {{quote_no}} for {{product}} — {{quantity}} {{unit}} at ₹{{rate}}/MT.\nTotal: ₹{{total}} (incl. GST)\nValid until: {{validity}}\nPayment: {{payment_terms}}\n\n{{link}}\n\nRegards,\n{{company}}' },
-    { id: 'tpl_followup', name: 'Follow-up', channel: 'whatsapp', body: 'Hello {{customer_name}},\n\nFollowing up on our {{product}} offer of ₹{{rate}}/MT. Shall we schedule the dispatch?\n\nRegards,\n{{company}}' },
+    { id: 'tpl_offer', name: 'Price offer', channel: 'whatsapp', body: 'Hello {{customer_name}},\n\nWe can offer {{product}} at ₹{{rate}}/{{rate_unit}} for {{quantity}} {{unit}}.\n\nDelivery Location: {{location}}\nFreight: {{freight}}\nGST: {{gst}}\nPayment Terms: {{payment_terms}}\nDelivery: {{delivery}}\nOffer valid until: {{validity}}\n\nRegards,\n{{company}}' },
+    { id: 'tpl_quote', name: 'Quotation sent', channel: 'whatsapp', body: 'Dear {{customer_name}},\n\nPlease find our quotation {{quote_no}} for {{product}} — {{quantity}} {{unit}} at ₹{{rate}}/{{rate_unit}}.\nTotal: ₹{{total}} (incl. GST)\nValid until: {{validity}}\nPayment: {{payment_terms}}\n\n{{link}}\n\nRegards,\n{{company}}' },
+    { id: 'tpl_followup', name: 'Follow-up', channel: 'whatsapp', body: 'Hello {{customer_name}},\n\nFollowing up on our {{product}} offer of ₹{{rate}}/{{rate_unit}}. Shall we schedule the dispatch?\n\nRegards,\n{{company}}' },
     { id: 'tpl_payment', name: 'Payment reminder', channel: 'whatsapp', body: 'Dear {{customer_name}},\n\nGentle reminder: ₹{{outstanding}} is outstanding on your account with {{company}}. Kindly arrange payment at your convenience.\n\nThank you.' },
-    { id: 'tpl_reorder', name: 'Reorder check-in', channel: 'whatsapp', body: 'Hello {{customer_name}},\n\nYour last {{product}} lift was on {{last_order}}. Shall we plan the next dispatch? Current rate ₹{{rate}}/MT.\n\nRegards,\n{{company}}' }
+    { id: 'tpl_reorder', name: 'Reorder check-in', channel: 'whatsapp', body: 'Hello {{customer_name}},\n\nYour last {{product}} lift was on {{last_order}}. Shall we plan the next dispatch? Current rate ₹{{rate}}/{{rate_unit}}.\n\nRegards,\n{{company}}' }
   ];
   function fillTemplate(body, vars) {
     vars = vars || {};
@@ -523,7 +589,8 @@
     var fmt = function (n) { return n == null || n === '' ? '' : Math.round(+n).toLocaleString('en-IN'); };
     return {
       customer_name: c.name || '', contact_person: c.contact || c.name || '', company: co.short || co.name || '',
-      product: o.product || first.product || '', rate: fmt(o.rate != null ? o.rate : first.rate), quantity: o.qty != null ? o.qty : (first.qty || ''), unit: o.unit || first.unit || 'MT',
+      product: o.product || first.product || '', rate: fmt(o.rate != null ? o.rate : first.rate), quantity: o.qty != null ? o.qty : (first.qty || ''), unit: unitKey(o.unit || first.unit || LEGACY_UNIT),
+      rate_unit: rateUnitOf(o.unit || first.unit, o.rateUnit || first.rateUnit),
       location: o.deliveryLoc || c.deliveryLoc || c.city || '', payment_terms: labelOf(PAYMENT_TERMS, o.payment || c.payTerms) || (o.payment || ''),
       validity: o.validUntil || '', delivery: o.delivery || '', freight: labelOf(FREIGHT, o.freight) || (o.freight || ''), gst: o.gstText || (o.gstR != null ? o.gstR + '%' : 'As applicable'),
       quote_no: o.no || '', total: q ? fmt(q.total) : '', outstanding: fmt(c.salesDue), last_order: c.salesLast || '', link: o.link || ''
@@ -531,7 +598,18 @@
   }
 
   /* ── pipeline value ────────────────────────────────────────────────────── */
-  function dealValue(d) { if (!d) return null; if (d.value != null && d.value !== '') return +d.value; var q = +d.qty || 0, r = +d.targetRate || 0; return (q > 0 && r > 0) ? q * r : null; }
+  /* A deal's expected value: the explicit figure when a person typed one,
+     else the quantity priced at the target rate — through units-core, so a
+     42,000 Kg deal at ₹4,900 / Ton is ₹2,05,800, not ₹20.58 Cr. Unpriceable
+     (a per-Ton rate on Bags) is unknown, never a raw product. */
+  function dealValue(d) {
+    if (!d) return null;
+    if (d.value != null && d.value !== '') return +d.value;
+    var q = +d.qty || 0, r = +d.targetRate || 0;
+    if (!(q > 0 && r > 0)) return null;
+    var L = priceLine(q, d.unit, r, d.rateUnit);
+    return L.ok ? L.amount : null;
+  }
   function pipelineSummary(deals) {
     var open = (deals || []).filter(function (d) { return isOpenStage(d.stage); });
     var gross = 0, weighted = 0, unvalued = 0;
@@ -560,6 +638,8 @@
     monthlyOf: monthlyOf, rhythm: rhythm, demandByProduct: demandByProduct, priceHistory: priceHistory,
     healthScore: healthScore, autoSegment: autoSegment, enrich: enrich, buildResolver: buildResolver,
     timeline: timeline, filterTimeline: filterTimeline, customerInsights: customerInsights, portfolioInsights: portfolioInsights,
-    fillTemplate: fillTemplate, templateVars: templateVars, dealValue: dealValue, pipelineSummary: pipelineSummary, followupBuckets: followupBuckets
+    fillTemplate: fillTemplate, templateVars: templateVars, dealValue: dealValue, pipelineSummary: pipelineSummary, followupBuckets: followupBuckets,
+    /* units — one vocabulary, shared with the invoice (units-core) */
+    unitKey: unitKey, rateUnitOf: rateUnitOf, newRateUnit: newRateUnit, priceLine: priceLine, tonnesOf: tonnesOf, saleTonnes: saleTonnes, ratePerTon: ratePerTon, fmtQty: fmtQty, fmtRate: fmtRate, LEGACY_UNIT: LEGACY_UNIT
   };
 }));

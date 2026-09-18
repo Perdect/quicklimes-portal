@@ -14,7 +14,11 @@
                    its quantity (missing>0 ⇒ closing:null), because
                    inward-we-know minus consumed-in-full trends negative
                    and looks like theft.
-   · sale money  = data.js cS: taxable = qty×rate, gst = taxable×rate%.
+   · sale money  = data.js saleTaxable through units-core: billable qty
+                   (converted INTO the rate's unit) × rate; gst = taxable×rate%.
+   · sale tonnes = data.js saleTonnes: qty converted to Ton via units-core
+                   (7,650 Kg = 7.65 T); a blank unit is tonnes; a Bag/Nos/Litre
+                   invoice weighs 0 — NEVER the raw qty summed as tonnes.
    · purchase ₹  = taxable (excl GST), matching every register KPI.
    · avg rates   = data.js avgRate — all-time within the company's own
                    blob, value/qty per purchase group.
@@ -26,7 +30,7 @@
 
   const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
   const live = r => ((r.status || 'pending') !== 'cancelled') && !r._del && !r._arch;
-  const hasQty = r => num(r.qty) > 0;
+  const hasQty = r => num(r.qty) > 0;              // purchase bills: qty is tonnes (Qty (T) column)
   const isAddon = r => !!r.freight;            // freight add-on rows: value yes, tonnage no
   const inRange = (d, from, to) => !!d && (!from || d >= from) && (!to || d <= to);
   const upto = (d, to) => !!d && (!to || d <= to);
@@ -65,9 +69,35 @@
   /* Tonnage-bearing groups: qty totals only make sense where the unit is tonnes. */
   const TON_GROUPS = ['limestone', 'petcoke'];
 
-  const saleTaxable = s => round2(num(s.qty) * num(s.rate));
+  /* Through units-core: the quantity converted into the rate's unit × the rate (a stored taxable wins). */
+  const _UN = () => (typeof QLUnits !== 'undefined' ? QLUnits : (typeof window !== 'undefined' && window.QLUnits) || (typeof require === 'function' ? require('./units-core.js') : null));
+  const saleTaxable = s => (s.taxable != null && s.taxable !== '' && num(s.taxable)) ? round2(num(s.taxable)) : round2(_UN() ? _UN().lineAmount(s).amount : num(s.qty) * num(s.rate));
   const saleTotal = s => round2(saleTaxable(s) * (1 + num(s.gstR) / 100));
   const purchVal = p => num(p.taxable) || num(p.total) || 0;
+
+  /* TONNES OFF ONE SALE — never the raw qty. A 7,650 Kg invoice is 7.65 T, a
+     16.16 Tonne one is 16.16 T, and 400 Bag is NOT a tonnage at all (0 — a bag
+     count added to tonnes prints thousands of tonnes dispatched and a finished-
+     goods balance that reads as theft). Order of truth: a row from Q.salesRows()
+     already carries `tonnes`; a raw blob row converts qty through units-core;
+     a legacy row with a blank unit is tonnes, as it always was (mirror of
+     data.js saleTonnes, items[] included). */
+  function tonnesOf(s) {
+    if (!s) return 0;
+    if (s.tonnes != null && s.tonnes !== '' && Number.isFinite(+s.tonnes)) return +s.tonnes;
+    const U = _UN();
+    const one = (q, u) => { q = num(q); if (!(q > 0)) return 0; u = String(u == null ? '' : u).trim();
+      if (!u) return q; if (!U) return 0; const t = U.toTonnes(q, u); return t == null ? 0 : t; };
+    if (Array.isArray(s.items) && s.items.length) return s.items.reduce((a, it) => a + one(it && it.qty, it && it.unit), 0);
+    return one(s.qty, s.unit);
+  }
+  /* A sale HAS a quantity when the bill states one in any unit (or a row from
+     Q.salesRows() carries tonnes). "Missing" means the bill says nothing — that
+     is what makes a stock balance refuse. A 400 Bag invoice is NOT missing: it
+     has a quantity, it just weighs nothing in the tonnage ledger, so it is
+     excluded from the tonnes (and counted in `nonMass`), never a refusal. */
+  const hasSaleQty = s => !!s && ((s.tonnes != null && s.tonnes !== '' && num(s.tonnes) > 0) ||
+    (Array.isArray(s.items) && s.items.length ? s.items.some(it => num(it && it.qty) > 0) : num(s.qty) > 0));
 
   /* All-time average purchase rate per group, within ONE company's blob. */
   function avgRate(purchases, group) {
@@ -98,8 +128,8 @@
     const made = prod.filter(r => live(r) && upto(r.date, to))
       .reduce((a, r) => a + num(r.quicklime) + num(r.hydrated), 0);
     const disp = sales.filter(s => live(s) && upto(s.date, to));
-    const withQty = disp.filter(hasQty);
-    const out = withQty.reduce((a, r) => a + num(r.qty), 0);
+    const withQty = disp.filter(hasSaleQty);
+    const out = round2(withQty.reduce((a, r) => a + tonnesOf(r), 0));   // tonnes: Kg converts, Bag/Nos weigh 0
     if (!made && !out) return { inward: 0, used: 0, missing: 0, computable: false, closing: null, empty: true };
     const missing = disp.length - withQty.length;
     /* NO PRODUCTION RECORDED. Lime has been dispatched but not one production
@@ -138,10 +168,11 @@
     const sIn = sales.filter(s => live(s) && inRange(s.date, from, to));
     const S = {
       count: sIn.length,
-      qty: round2(sIn.reduce((a, s) => a + num(s.qty), 0)),
+      qty: round2(sIn.reduce((a, s) => a + tonnesOf(s), 0)),   // tonnes — a Kg invoice is not 7,650 T, a Bag one is not tonnage
       taxable: round2(sIn.reduce((a, s) => a + saleTaxable(s), 0)),
       total: round2(sIn.reduce((a, s) => a + saleTotal(s), 0)),
-      missingQty: sIn.filter(s => !hasQty(s)).length
+      missingQty: sIn.filter(s => !hasSaleQty(s)).length,
+      nonMass: sIn.filter(s => hasSaleQty(s) && !(tonnesOf(s) > 0)).length   // Bag/Nos/Litre invoices: value yes, tonnage no
     };
     S.avgRate = S.qty ? round2(S.taxable / S.qty) : 0;
 
@@ -257,7 +288,7 @@
   /* ── consolidation: totals + per-company provenance, no row mixing ──── */
   function consolidate(entries) {
     const t = {
-      sales: { count: 0, qty: 0, taxable: 0, total: 0 },
+      sales: { count: 0, qty: 0, taxable: 0, total: 0, missingQty: 0, nonMass: 0 },   // qty is TONNES
       chunna: { count: 0, qty: 0, value: 0 },
       purchase: { count: 0, value: 0, tonnes: 0, byGroup: {} },
       production: { runs: 0, output: 0, labour: 0, matCost: 0, cost: 0,
@@ -271,7 +302,8 @@
     for (const g of GROUPS) t.purchase.byGroup[g] = { key: g, label: GROUP_LABEL[g], qty: 0, value: 0, count: 0 };
     for (const e of entries) {
       const s = e.summary;
-      t.sales.count += s.sales.count; t.sales.qty += s.sales.qty;
+      t.sales.count += s.sales.count; t.sales.qty += s.sales.qty;   // per-company qty is already tonnes (tonnesOf), never raw qty
+      t.sales.missingQty += num(s.sales.missingQty); t.sales.nonMass += num(s.sales.nonMass);
       t.sales.taxable += s.sales.taxable; t.sales.total += s.sales.total;
       t.chunna.count += s.chunna.count; t.chunna.qty += s.chunna.qty; t.chunna.value += s.chunna.value;
       t.purchase.count += s.purchase.count; t.purchase.value += s.purchase.value; t.purchase.tonnes += s.purchase.tonnes;
@@ -389,7 +421,8 @@
     const sales = (data.sales || []).filter(s => live(s) && inRange(s.date, from, to)).map(s => ({
       company: co.name || '', companyId: co.id || '',
       date: s.date || '', inv: s.inv || '', party: s.party || '—',
-      product: s.product || 'Lime', qty: round2(num(s.qty)), unit: s.unit || 'T',
+      product: s.product || 'Lime', qty: round2(num(s.qty)), unit: s.unit || 'Ton', rateUnit: s.rateUnit || s.unit || 'Ton',
+      tonnes: round2(tonnesOf(s)),
       rate: round2(num(s.rate)), taxable: saleTaxable(s), gstR: num(s.gstR), total: saleTotal(s),
       status: s.status || 'pending', veh: s.veh || ''
     })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -432,7 +465,8 @@
 
   const api = { summarize, consolidate, presets, partnerSplit, detailRows, kilnKey, kilnLabel,
                 pgroup, GROUPS, GROUP_LABEL, UNASSIGNED,
-                _internals: { materialBal, fgBal, avgRate, saleTaxable, saleTotal, live } };
+                tonnesOf,
+                _internals: { materialBal, fgBal, avgRate, saleTaxable, saleTotal, live, tonnesOf, hasSaleQty } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.GroupCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

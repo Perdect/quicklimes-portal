@@ -26,13 +26,14 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./party-identity.js?v=m28"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./party-resolve.js?v=pr1"></script>
-<script src="./data.js?v=m52caaaaaaaaaaaaaaaaa"></script>
+<script src="./units-core.js?v=u2"></script>
+<script src="./data.js?v=m52caaaaaaaaaaaaaaaaaaa"></script>
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./chat-core.js?v=cc2"></script>
 <script src="./i18n.js?v=h8"></script>
-<script src="./wa-core.js?v=w3"></script>
-<script src="./invoice-templates.js?v=t18"></script>
-<script src="./shell.js?v=m68saaaaaaaaaaaaaaaaaaaa"></script>
+<script src="./wa-core.js?v=w4"></script>
+<script src="./invoice-templates.js?v=t20"></script>
+<script src="./shell.js?v=m68saaaaaaaaaaaaaaaaaaaa3"></script>
 <script src="./qlx.js?v=m20prgdaaaaaa"></script>
 <script src="./imchat.js?v=im11"></script>
 <script src="./mobile.js?v=m16"></script>
@@ -62,16 +63,35 @@ const fmt = (n, d) => (+n || 0).toLocaleString('en-IN', { maximumFractionDigits:
 
 /* One dispatch row per invoice that MOVED something: an invoice with no
    vehicle and no quantity is billing, not movement, and is left to the Sales
-   Register rather than padded in here with dashes. */
+   Register rather than padded in here with dashes.
+
+   TONNES vs QTY. `qty` + `unit` is the row AS ENTERED (7,650 Kg; 400 Bag;
+   20 Ton); `tonnes` is Q.salesRows()' QLUnits conversion (7.65; 0; 20) and is
+   the ONLY figure ever summed, averaged or headed "T". A raw qty was once
+   summed here as tonnes and a 7,650 Kg trip read "Dispatched 7,650 T". A Bag
+   or Nos count is not a mass: it has NO tonnage, and the register says so
+   rather than pretending 400 bags weigh 400 tonnes. */
 function dispatchRows() {
   return Q.salesRows()
     .filter(r => (r.veh || '').trim() || +r.qty > 0)
     .map(r => ({
       idx: r.idx, inv: r.inv, date: r.date, party: r.party, gstin: r.gstin,
-      veh: (r.veh || '').trim().toUpperCase(), qty: +r.qty || 0,
+      veh: (r.veh || '').trim().toUpperCase(),
+      qty: +r.qty || 0, unit: r.unit || '', tonnes: +r.tonnes || 0,
       taxable: +r.taxable || 0, status: r.status
     }));
 }
+/* The quantity as the invoice states it: "7,650 Kg", "400 Bag", "20 Ton". A
+   legacy row with no unit was always tonnes, so it reads "20 Ton". */
+const enteredQty = r => r.qty > 0 ? QLUnits.fmtQty(r.qty, r.unit || 'Ton') : '';
+/* Whether the entered quantity is worth showing next to the tonnes figure:
+   "7.65 T" alone hides that the bill said 7,650 Kg; "20 T" beside "20 Ton" is noise. */
+const showEntered = r => r.qty > 0 && QLUnits.normalizeUnit(r.unit || 'Ton') !== 'Ton';
+/* The drawer / card quantity line: "7.65 T (7,650 Kg)", "20 T", "400 Bag — no
+   tonnage", or "— not recorded". */
+const qtyLabel = r => r.tonnes > 0 ? fmt(r.tonnes, 2) + ' T' + (showEntered(r) ? ' (' + esc(enteredQty(r)) + ')' : '')
+                    : r.qty > 0 ? esc(enteredQty(r)) + ' — no tonnage'
+                                : '— not recorded';
 
 const IC_TRUCK = '<path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>';
 
@@ -91,18 +111,19 @@ QLX.mount({
     { label: 'Export', icon: QLX.icons.dl, onClick: () => {
         const rows = QLX.rows();
         QLShell.exportCSV('dispatch_' + (Q.co.short || '').replace(/\s+/g, '_') + (QLX.month() ? '_' + QLX.month() : ''),
-          ['Date', 'Vehicle', 'Invoice', 'Customer', 'Qty (T)', 'Value', 'Status'],
-          rows.map(r => [r.date, r.veh || '', r.inv, r.party, r.qty, r.taxable, r.status]));
+          ['Date', 'Vehicle', 'Invoice', 'Customer', 'Qty (T)', 'Qty', 'Unit', 'Value', 'Status'],
+          rows.map(r => [r.date, r.veh || '', r.inv, r.party, r.tonnes > 0 ? r.tonnes : '', r.qty || '', r.qty > 0 ? (QLUnits.normalizeUnit(r.unit || 'Ton') || r.unit) : '', r.taxable, r.status]));
       } },
     { label: 'Sales Register', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
       onClick: () => { location.href = 'sales.html'; } }
   ],
   /* Month-scoped, like every register: `rows` is the picked month. The tonnage
-     never pretends — an invoice with a vehicle but no quantity is counted as a
-     trip and excluded from the tonnes, and the card says how many such. */
+     never pretends — an invoice with a vehicle but no quantity, or with a Bag
+     count that has no mass, is counted as a trip and excluded from the tonnes,
+     and the card says how many such. Only r.tonnes is ever summed. */
   stats: rows => {
-    const qty = rows.reduce((a, r) => a + r.qty, 0);
-    const withQty = rows.filter(r => r.qty > 0).length;
+    const qty = rows.reduce((a, r) => a + r.tonnes, 0);
+    const withQty = rows.filter(r => r.tonnes > 0).length;
     const veh = [...new Set(rows.map(r => r.veh).filter(Boolean))];
     const perTrip = withQty ? qty / withQty : null;
     const byVeh = {};
@@ -110,11 +131,11 @@ QLX.mount({
     const busiest = Object.entries(byVeh).sort((a, b) => b[1] - a[1])[0];
     return [
       { label: 'Trips', value: rows.length, sub: rows.length - withQty ? (rows.length - withQty) + ' with no tonnage recorded' : 'all with tonnage', tint: 'blue', icon: IC_TRUCK },
-      { label: 'Dispatched', value: fmt(qty, 1) + ' T', sub: withQty + ' trips carried a quantity', tint: 'green',
+      { label: 'Dispatched', value: fmt(qty, 2) + ' T', sub: withQty + ' trips carried a tonnage', tint: 'green',
         icon: '<path d="M12 21V7"/><polyline points="6 13 12 7 18 13"/><path d="M4 3h16"/>' },
       { label: 'Vehicles', value: veh.length || '—', sub: veh.length ? 'distinct trucks' : 'no vehicle recorded', tint: 'indigo',
         icon: '<circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/><path d="M2 5h12v12H2z"/>' },
-      { label: 'Avg load', value: perTrip == null ? '—' : fmt(perTrip, 1) + ' T', sub: perTrip == null ? 'needs a recorded tonnage' : 'per loaded trip', tint: 'amber',
+      { label: 'Avg load', value: perTrip == null ? '—' : fmt(perTrip, 2) + ' T', sub: perTrip == null ? 'needs a recorded tonnage' : 'per loaded trip', tint: 'amber',
         icon: '<path d="M12 3v18"/><path d="M5 10l7-7 7 7"/>' },
       { label: 'Busiest truck', value: busiest ? busiest[0] : '—', sub: busiest ? busiest[1] + ' trips' : 'no vehicle recorded', tint: 'violet', icon: IC_TRUCK }
     ];
@@ -122,7 +143,7 @@ QLX.mount({
   quickFilters: [
     { key: 'all', label: 'All', test: () => true },
     { key: 'noveh', label: 'No vehicle', test: r => !r.veh },
-    { key: 'noqty', label: 'No tonnage', test: r => !(r.qty > 0) }
+    { key: 'noqty', label: 'No tonnage', test: r => !(r.tonnes > 0) }
   ],
   search: (r, q) => (r.veh + ' ' + r.inv + ' ' + r.party).toLowerCase().includes(q),
   filters: [
@@ -149,9 +170,13 @@ QLX.mount({
     { key: 'inv', label: 'Invoice', sort: true,
       cell: r => `<a class="qx-ref" href="sales.html?find=${encodeURIComponent(r.inv || '')}">${esc(r.inv || '—')}</a>` },
     { key: 'party', label: 'Customer', sort: true, cell: r => esc(r.party || '—') },
-    { key: 'qty', label: 'Qty (T)', sort: true, num: true,
-      cell: r => r.qty > 0 ? `<span class="qx-num">${fmt(r.qty, 2)}</span>`
-                           : '<span class="qx-dash" title="No tonnage recorded on this invoice">—</span>' },
+    /* Keyed on tonnes so it sorts by what it shows. The entered quantity rides
+       beside it when the bill was not in tonnes; a Bag/Nos trip shows what was
+       entered and says it has no tonnage instead of wearing a T. */
+    { key: 'tonnes', label: 'Qty (T)', sort: true, num: true,
+      cell: r => r.tonnes > 0 ? `<span class="qx-num">${fmt(r.tonnes, 2)}</span>${showEntered(r) ? ` <span class="qx-mut" style="font-size:var(--ql-text-xs)">${esc(enteredQty(r))}</span>` : ''}`
+                : r.qty > 0 ? `<span class="qx-mut" title="${esc(enteredQty(r))} — a count, not a tonnage">${esc(enteredQty(r))} <span class="qx-dash">· no tonnage</span></span>`
+                            : '<span class="qx-dash" title="No tonnage recorded on this invoice">—</span>' },
     { key: 'taxable', label: 'Value', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` }
   ],
   /* The row belongs to the Sales Register; the card says so instead of
@@ -164,14 +189,15 @@ QLX.mount({
       <div class="qx-kv"><span>Date</span><b>${fDS(r.date)}</b></div>
       <div class="qx-kv"><span>Customer</span><b>${esc(r.party || '—')}</b></div>
       <div class="qx-kv"><span>Vehicle</span><b>${r.veh ? esc(r.veh) : '— not recorded'}</b></div>
-      <div class="qx-kv"><span>Quantity</span><b>${r.qty > 0 ? fmt(r.qty, 2) + ' T' : '— not recorded'}</b></div>
+      <div class="qx-kv"><span>Quantity</span><b>${qtyLabel(r)}</b></div>
       <div class="qx-kv qx-kv-tot"><span>Value (taxable)</span><b>${fC(r.taxable)}</b></div>
       <div style="margin-top:14px;font-size:var(--ql-text-xs);color:var(--ql-text-muted)">This trip IS the invoice —
         edit the vehicle or tonnage on the invoice in the Sales Register and this register follows.</div>` }]
   }),
-  card: r => ({ id: r.idx, title: (r.veh ? '🚚 ' + esc(r.veh) : 'No vehicle'), amount: fmt(r.qty, 1) + ' T',
+  card: r => ({ id: r.idx, title: (r.veh ? '🚚 ' + esc(r.veh) : 'No vehicle'),
+    amount: r.tonnes > 0 ? fmt(r.tonnes, 2) + ' T' : r.qty > 0 ? esc(enteredQty(r)) : '—',
     party: r.party, partySub: fDS(r.date) + ' · ' + (r.inv || '—'),
-    rows: [['Invoice', esc(r.inv || '—')], ['Quantity', fmt(r.qty, 2) + ' T'], ['Value', fC(r.taxable)]] })
+    rows: [['Invoice', esc(r.inv || '—')], ['Quantity', qtyLabel(r)], ['Value', fC(r.taxable)]] })
 });
 </script>
 </body>

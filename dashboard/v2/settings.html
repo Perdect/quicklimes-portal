@@ -325,6 +325,19 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
       <div id="waStatus" style="margin-top:var(--ql-space-4)"></div>
     </div>
 
+    <!-- GST LOOKUP — name & address auto-fill from a GSTIN -->
+    <div class="card" id="gstCard" style="margin-top:var(--ql-space-5)">
+      <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+        <div>
+          <h3 class="ft-title">GST lookup (auto-fill from GSTIN)</h3>
+          <div class="ft-note">Type a GSTIN on an invoice or a customer and the registered <b>name and address fill in by themselves</b>. The checksum and State already work without this; the name and address need a GST verification API — the government portal refuses unauthenticated searches.</div>
+        </div>
+        <button class="ql-btn ql-btn-secondary" id="gstRecheck" style="flex:none">Re-check</button>
+      </div>
+      <div id="gstStatus" style="margin-top:var(--ql-space-4)"></div>
+    </div>
+
     <!-- BANK ACCOUNTS (multi-bank, per firm) -->
     <div class="card" id="bankCard" style="margin-top:var(--ql-space-5)">
       <div class="ft-head">
@@ -394,24 +407,25 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./party-identity.js?v=m28"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./i18n.js?v=h8"></script>
-<script src="./selfcheck.js?v=s2"></script>
+<script src="./selfcheck.js?v=s4"></script>
 <script src="./health-findings.js?v=h1"></script>
-<script src="./sources-core.js?v=g9"></script>
+<script src="./sources-core.js?v=g11"></script>
 <script src="./month-apply.js?v=g9"></script>
 <script src="./party-resolve.js?v=pr1"></script>
-<script src="./demo-seed.js?v=ds2"></script>
-<script src="./data.js?v=m52caaaaaaaaaaaaaaaaa"></script>
+<script src="./demo-seed.js?v=ds3"></script>
+<script src="./units-core.js?v=u2"></script>
+<script src="./data.js?v=m52caaaaaaaaaaaaaaaaaaa"></script>
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./recon-core.js?v=rc5a"></script>
-<script src="./wa-core.js?v=w3"></script>
+<script src="./wa-core.js?v=w4"></script>
 
-<script src="./invoice-templates.js?v=t18"></script>
+<script src="./invoice-templates.js?v=t20"></script>
 
-<script src="./shell.js?v=m68saaaaaaaaaaaaaaaaaaaa"></script>
+<script src="./shell.js?v=m68saaaaaaaaaaaaaaaaaaaa3"></script>
 <script src="./chat-core.js?v=cc2"></script>
 <script src="./imchat.js?v=im11"></script>
 <script src="./qlx.js?v=m20prgdaaaaaa"></script>
-<script src="./replace-month.js?v=g9"></script>
+<script src="./replace-month.js?v=g10"></script>
 <script src="./mobile.js?v=m16"></script>
 <script>
 QLShell.mount({ active: 'settings', title: 'Settings' });
@@ -479,6 +493,7 @@ function dhRender(r) {
       '<b style="color:' + tone[0] + ';flex:none;width:14px">' + tone[1] + '</b>' +
       '<div><div style="font-size:13px;color:var(--ql-text)">' + c.what + '</div>' + fig +
       (c.note ? '<div style="font-size:11.5px;color:var(--ql-text-muted);margin-top:2px">' + c.note + '</div>' : '') +
+      (c.fix && !c.ok ? '<div style="margin-top:6px;font-size:11.5px;color:var(--ql-text-muted)">' + esc(c.fix.preview || '') + '</div><button class="ql-btn ql-btn-primary" style="margin-top:6px" data-fix="' + esc(c.id) + '">' + esc(c.fix.label) + ' (' + c.fix.rows.length + ')</button>' : '') +
       '</div></div>';
   };
   const head = r.failed
@@ -486,6 +501,10 @@ function dhRender(r) {
     : '<div style="font-weight:700;color:#15803d;margin-bottom:6px">All ' + r.ran + ' checks passed on your data</div>';
   const skip = r.skipped ? '<div class="ft-note" style="margin-top:8px">' + r.skipped + ' check' + (r.skipped === 1 ? '' : 's') + ' could not run — shown as “—”. Not counted as passed.</div>' : '';
   out.innerHTML = head + r.checks.map(row).join('') + skip;
+  out.querySelectorAll('[data-fix]').forEach(b => b.onclick = () => {
+    const c = r.checks.find(x => x.id === b.dataset.fix); if (!c || !c.fix) return;
+    QLShell.confirmDelete({ title: 'Price ' + c.fix.rows.length + ' invoice(s) per Ton?', desc: 'Sets the rate unit to Ton on each listed invoice. The quantity, rate and GST % stay as entered; the amount becomes (qty ÷ 1000) × rate. You can edit any invoice afterwards.', confirmLabel: 'Fix ' + c.fix.rows.length, onConfirm: () => { let n = 0; c.fix.rows.forEach(i => { if (QLD.state.SALES[i]) { QLD.updateSale(i, { rateUnit: 'Ton' }); n++; } }); QLShell.toast(n + ' invoice(s) now priced per Ton', 'ok'); dhRender(QLSelfCheck.run()); } });
+  });
 }
 
 function render() {
@@ -992,6 +1011,65 @@ async function renderWa() {
     </div>`}`;
 }
 $('#waRecheck').addEventListener('click', () => renderWa());
+
+/* ── GST lookup provider. The key is posted ONCE to the server and stored
+   there (app_data/ql_integrations, per firm); the page only ever sees it
+   masked. Any provider whose API takes the GSTIN in the URL works. */
+async function gstApi(body) {
+  const p = _plant();
+  try {
+    const r = await fetch('/api/gstin.php', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ plant_id: p.id, token: p.token }, body)) });
+    return await r.json();
+  } catch (_) { return { ok: false, error: 'Network error' }; }
+}
+async function renderGst() {
+  const el = $('#gstStatus'); if (!el) return;
+  el.innerHTML = '<div class="ft-note">Checking…</div>';
+  const r = await gstApi({ action: 'status' });
+  const on = !!r.configured, fromCfg = r.source === 'config.php';
+  el.innerHTML = `
+    <div class="ft-row" style="align-items:center">
+      <div class="ft-info">
+        <div class="ft-label">Provider ${on ? waPill('Connected', '#dcfce7', '#15803d') : waPill('Not connected', '#fef3c7', '#92400e')}</div>
+        <div class="ft-desc">${on ? (fromCfg ? 'Set by the operator in <b>api/config.php</b>.' : 'Connected from this page: <code>' + esc(r.url || '') + '</code>' + (r.header ? ' · header <code>' + esc(r.header) + '</code>' : '')) : 'No GST API connected — GSTINs are still checked and the State fills in, but name and address do not.'}</div>
+      </div>
+    </div>
+    ${fromCfg ? '' : `<div class="ft-note" style="margin-top:var(--ql-space-3);line-height:1.65">
+      <b>To connect (about 10 minutes):</b><br>
+      1. Sign up with any GST verification API (AppyFlow, Surepass, Masters India, Signzy, Cashfree Verification, KnowYourGST…). They charge per lookup or a small monthly fee.<br>
+      2. From its docs copy the <b>lookup URL</b> and put <code>{gstin}</code> where the GST number goes — e.g. <code>https://provider.example/api/gst/{gstin}</code> (if the provider puts the key in the URL, that is fine too — it is stored on the server and only ever shown masked).<br>
+      3. If the provider wants the key in a header, paste it as one line — <code>x-api-key: YOUR_KEY</code> or <code>Authorization: Bearer YOUR_KEY</code>.<br>
+      4. Save, then <b>Test</b> with your own GSTIN. The key stays on the server.
+    </div>
+    <div class="ft-row" style="margin-top:var(--ql-space-3);display:grid;grid-template-columns:1fr;gap:8px">
+      <label class="ft-label">Lookup URL (with {gstin})<input class="qlf-input" id="gstUrl" placeholder="${r.url ? 'Saved: ' + esc(r.url) + ' — leave blank to keep' : 'https://provider.example/api/gst/{gstin}'}" autocomplete="off" style="width:100%;margin-top:4px"></label>
+      <label class="ft-label">Header (optional)<input class="qlf-input" id="gstHdr" placeholder="x-api-key: YOUR_KEY" autocomplete="off" style="width:100%;margin-top:4px"><span class="ft-desc">${r.header ? 'Saved: ' + esc(r.header) + ' — leave blank to keep it, or paste a new one.' : ''}</span></label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="ql-btn ql-btn-primary" id="gstSave">Save</button>${on ? '<button class="ql-btn ql-btn-secondary" id="gstClear">Disconnect</button>' : ''}<input class="qlf-input" id="gstTry" placeholder="Test with a GSTIN, e.g. ${esc(((_plant().plant || {}).gst_number) || '08NLIPS9801K1Z5')}" style="flex:1;min-width:220px"><button class="ql-btn ql-btn-secondary" id="gstTest">Test</button></div>
+      <div class="ft-desc" id="gstOut"></div>
+    </div>`}`;
+  const save = $('#gstSave'); if (save) save.addEventListener('click', async () => {
+    const url = $('#gstUrl').value.trim(), header = $('#gstHdr').value.trim();
+    if (!url && !header) { QLShell.toast('Enter the lookup URL (and the header if the provider needs one)', 'err'); return; }
+    const body = { action: 'config', url }; if (header) body.header = header;   // a blank header box KEEPS the saved key
+    const x = await gstApi(body);
+    if (!x.ok) { QLShell.toast(x.error || 'Could not save', 'err'); return; }
+    QLShell.toast('GST lookup saved', 'ok'); renderGst();
+  });
+  const clr = $('#gstClear'); if (clr) clr.addEventListener('click', () => QLShell.confirmDelete({ title: 'Disconnect the GST lookup provider?', desc: 'The saved URL and key are removed from the server. GSTINs are still checked and the State still fills in.', confirmLabel: 'Disconnect', onConfirm: async () => { const x = await gstApi({ action: 'config', clear: true }); QLShell.toast(x.ok ? 'GST lookup disconnected' : (x.error || 'Could not disconnect'), x.ok ? 'ok' : 'err'); renderGst(); } }));
+  const test = $('#gstTest'); if (test) test.addEventListener('click', async () => {
+    const g = $('#gstTry').value.trim().toUpperCase(); const out = $('#gstOut'); if (!g) { out.textContent = 'Enter a GSTIN to test.'; return; }
+    out.textContent = 'Looking up…';
+    const x = await gstApi({ gstin: g });
+    if (!x.ok) { out.textContent = x.error || 'Failed'; return; }
+    if (!x.valid) { out.textContent = 'That GSTIN is not valid: ' + (x.reason || ''); return; }
+    if (x.lookup === 'ok') out.innerHTML = '✓ <b>' + esc(x.name || x.trade || '') + '</b>' + (x.address ? ' — ' + esc(x.address) : '') + (x.status ? ' · ' + esc(x.status) : '');
+    else if (x.lookup === 'unconfigured') out.textContent = '✓ ' + (x.state || '') + ' · valid — but no provider is connected yet (save the URL first).';
+    else out.textContent = '✓ ' + (x.state || '') + ' · valid, but the provider answered ' + (x.lookup === 'not_found' ? 'not found' : 'an error (HTTP ' + (x.http || '?') + ') — check the URL and key with the provider\'s docs.');
+  });
+}
+$('#gstRecheck').addEventListener('click', () => renderGst());
+renderGst();
 
 /* Replace-a-month is owner-only, and the check FAILS CLOSED: _isOwner()
    treats a missing role as 'owner', which is a fine default for reading a

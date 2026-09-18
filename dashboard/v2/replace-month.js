@@ -105,14 +105,18 @@
     const label = window.QLD.monthLabel(ym);
     const rows = mod === 'sales' ? plan.remove.sales.map(i => B.sales[i])
       : mod === 'purchase' ? plan.remove.purchases.map(i => B.purchases[i]) : [];
-    const money = rows.reduce((a, r) => a + (mod === 'sales'
-      ? (+r.taxable || (+r.qty || 0) * (+r.rate || 0)) : (+r.taxable || 0)), 0);
+    /* A sale's value is what the register books it at: window.QLD.saleTaxable
+       (→ QLUnits.lineAmount — billable qty in the rate's unit × rate, so a
+       7,650 Kg @ ₹5,300/Ton invoice previews as ₹40,545, never ₹4.05 Cr; the
+       items[] branch for multi-line rows is the same code the register runs). */
+    const saleVal = r => +(window.QLD.saleTaxable ? window.QLD.saleTaxable(r) : window.QLUnits.lineAmount(r).amount) || 0;
+    const money = rows.reduce((a, r) => a + (mod === 'sales' ? saleVal(r) : (+r.taxable || 0)), 0);
     const ref = r => mod === 'sales' ? r.inv : r.bill;
     const party = r => mod === 'sales' ? r.party : (r.sup || r.name);
 
     const goes = `<div class="rm-blk goes"><h4>Goes — ${rows.length} ${MODULE_NOUN[mod]}${rows.length === 1 ? '' : 's'} · ${fC(money)}</h4>
       <div class="rm-list">${rows.slice(0, 40).map(r =>
-        `<div><span>${esc(ref(r) || '—')}</span><span>${esc(r.date)}</span><span>${esc(party(r) || '—')}</span><span>${fC(mod === 'sales' ? (+r.taxable || (+r.qty || 0) * (+r.rate || 0)) : r.taxable)}</span></div>`).join('')}
+        `<div><span>${esc(ref(r) || '—')}</span><span>${esc(r.date)}</span><span>${esc(party(r) || '—')}</span><span>${fC(mod === 'sales' ? saleVal(r) : r.taxable)}</span></div>`).join('')}
       ${rows.length > 40 ? `<div class="rm-more">+ ${rows.length - 40} more</div>` : ''}</div>
       <p class="rm-note">They move to Trash — restorable from Data Management, just below.</p></div>`;
 

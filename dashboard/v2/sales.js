@@ -10,6 +10,18 @@ const todayISO = (() => { const d = new Date(); return d.getFullYear() + '-' + S
 const STATUSES = [['pending', 'Pending'], ['partial', 'Partial'], ['paid', 'Paid'], ['cash', 'Cash']];
 const STDOT = { pending: '#f59e0b', partial: '#2563eb', paid: '#16a34a', cash: '#0d9488', cancelled: '#ef4444' };
 const toast = (m, t) => QLX.toast(m, t);
+/* ── Quantity + rate labels. units-core.js (window.QLUnits) is THE unit
+   arithmetic: a row shows the quantity AS ENTERED with its unit ("7,650 Kg")
+   and the rate WITH the unit it is per ("₹5,300 / Ton"); every tonnage that
+   is summed comes from r.tonnes (salesRows), never from a raw qty. A row
+   written before units existed has no unit — that is a tonne, the same
+   convention data.js saleTonnes uses. */
+const U = window.QLUnits;
+const unitOf = r => U.normalizeUnit(r.unit) || r.unit || 'Ton';
+const rateUnitOf = r => U.normalizeUnit(r.rateUnit) || r.rateUnit || unitOf(r);
+const qtyLabel = r => U.fmtQty(r.qty, unitOf(r));                 // '7,650 Kg' / '16.78 Ton'
+const rateLabel = r => fC(r.rate) + ' / ' + rateUnitOf(r);       // '₹5,300 / Ton'
+const tonnesOf = r => +r.tonnes || 0;
 
 /* ── Attachments (IndexedDB, per browser) — real scanned/signed invoices ── */
 const ADB = 'ql_sal_docs'; let _adb = null;
@@ -71,7 +83,7 @@ async function openInvPdf(r) {
 }
 /* Generated GST invoice (same layout as an uploaded bill), from manual entry */
 function salesBillHTML(r) {
-  const co = Q.co || {}, cg = r.gst / 2, money = n => '₹' + fmt(n), rate = r.qty ? r.taxable / r.qty : 0;
+  const co = Q.co || {}, cg = r.gst / 2, money = n => '₹' + fmt(n);
   const st = (r.status === 'paid' || r.status === 'cash') ? 'paid' : (r.status === 'partial' ? 'partial' : 'pending');
   return `<style>*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;padding:32px;font-size:13px}
     .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0f172a;padding-bottom:14px}
@@ -85,8 +97,8 @@ function salesBillHTML(r) {
       <div class="doc"><h1>TAX INVOICE</h1><div class="mut">Invoice: <b>${esc(r.inv || '—')}</b><br>Date: ${fDS(r.date)}<br><span class="pill ${st}">${st.toUpperCase()}</span></div></div></div>
     <div class="grid"><div><div class="lbl">Billed to</div><div class="nm">${esc(r.party)}</div><div class="mut">${r.gstin ? 'GSTIN: ' + esc(r.gstin) : ''}</div></div>
       <div style="text-align:right"><div class="lbl">Vehicle</div><div class="nm">${esc(r.veh || '—')}</div></div></div>
-    <table><thead><tr><th>Product</th><th class="r">Qty (T)</th><th class="r">Rate</th><th class="r">Taxable</th></tr></thead>
-      <tbody><tr><td>⚪ Quick Lime</td><td class="r">${fmt(r.qty, 2)}</td><td class="r">${money(rate)}</td><td class="r">${money(r.taxable)}</td></tr></tbody></table>
+    <table><thead><tr><th>Product</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Taxable</th></tr></thead>
+      <tbody><tr><td>⚪ Quick Lime</td><td class="r">${esc(qtyLabel(r))}</td><td class="r">${+r.rate > 0 ? esc(rateLabel(r)) : '—'}</td><td class="r">${money(r.taxable)}</td></tr></tbody></table>
     <div class="tot"><div class="row"><span>Taxable value</span><span>${money(r.taxable)}</span></div><div class="row"><span>CGST</span><span>${money(cg)}</span></div><div class="row"><span>SGST</span><span>${money(cg)}</span></div><div class="row g"><span>Total</span><span>${money(r.total)}</span></div></div>
     <div class="ft">System-generated from ${esc(co.name || 'QuickLimes')} · QuickLimes Sales Register.</div>`;
 }
@@ -138,7 +150,12 @@ function voidInv(r) {
     onConfirm: reason => { const res = Q.voidRecord('sales', r.idx, reason); if (res.ok) { toast('Invoice voided'); QLX.refresh(); } else { toast(res.err || 'Could not void'); } }
   });
 }
-function dupInv(r) { const s = Q.state.SALES[r.idx]; Q.addSale(Object.assign({}, s, { inv: (s.inv || '') + '-COPY', status: 'pending', paid: 0, payments: [] })); toast('Invoice duplicated'); QLX.refresh(); }
+/* The copy must price EXACTLY like the original. addSale reads an ABSENT
+   rateUnit as "default per Ton", so duplicating a row written before rate units
+   existed (unit Kg, rate per Kg, no rateUnit) silently re-priced 7,650 Kg @
+   ₹5,300 from ₹4,05,45,000 to ₹40,545. An EXPLICIT '' tells addSale "per its
+   own unit" — the legacy meaning — so the copy books the original's amount. */
+function dupInv(r) { const s = Q.state.SALES[r.idx]; Q.addSale(Object.assign({}, s, { inv: (s.inv || '') + '-COPY', status: 'pending', paid: 0, payments: [], rateUnit: s.rateUnit || '' })); toast('Invoice duplicated'); QLX.refresh(); }
 /* Delegates to wa-core's normalizePhone — the tested engine. The two inline
    copies that used to live here (shareInv + the detail tab) each rebuilt the
    `length===10 ? '91'+d : d` rule, which silently dropped the country code on any
@@ -167,7 +184,7 @@ function tabOverview(r) {
     <div class="qx-mut" style="font-size:12.5px;margin-top:2px">${r.gstin ? 'GSTIN ' + esc(r.gstin) : 'No GSTIN on file'}${phone ? ' · ' + esc(phone) : ''}</div>
     ${comm}
     <div class="qx-sec-h">Invoice</div>
-    ${kv('Invoice No', esc(r.inv || '—'))}${kv('Date', fDS(r.date))}${kv('Vehicle', esc(r.veh || '—'))}${kv('Qty', fmt(r.qty, 2) + ' T')}
+    ${kv('Invoice No', esc(r.inv || '—'))}${kv('Date', fDS(r.date))}${kv('Vehicle', esc(r.veh || '—'))}${kv('Qty', esc(qtyLabel(r)))}${+r.rate > 0 ? kv('Rate', esc(rateLabel(r))) : ''}${(+r.qty > 0 && unitOf(r) !== rateUnitOf(r)) ? kv('Billable', esc(U.fmtQty(r.billableQty, r.billableUnit) + ' @ ' + rateLabel(r))) : ''}
     <div class="qx-sec-h">Amount</div>
     ${kv('Taxable value', fC(r.taxable))}${kv('GST', fC(r.gst))}
     <div class="qx-kv qx-kv-tot"><span>Grand total</span><b>${fC(r.total)}</b></div>
@@ -205,7 +222,7 @@ function salesInsightsPanel(rows) {
   rows = rows || [];
   const mon = QLX.month() ? QLX.monthLabel() : 'all time';
   const inMon = QLX.month() ? '' : ' (all)';
-  const tons = rows.reduce((a, r) => a + (r.qty || 0), 0);
+  const tons = rows.reduce((a, r) => a + tonnesOf(r), 0);
   const trucks = rows.filter(r => r.veh && r.veh.trim()).length || rows.length;
   const sales = rows.reduce((a, r) => a + (r.taxable || 0), 0);
   const isM = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width:768px)').matches;
@@ -251,7 +268,7 @@ QLX.mount({
   // Month-scoped: `rows` is the selected month's invoices (all statuses).
   stats: rows => {
     const nc = rows.filter(r => r.status !== 'cancelled');
-    const qty = nc.reduce((a, r) => a + (r.qty || 0), 0);
+    const qty = nc.reduce((a, r) => a + tonnesOf(r), 0);
     const taxable = nc.reduce((a, r) => a + (r.taxable || 0), 0);
     const gst = nc.reduce((a, r) => a + (r.gst || 0), 0);
     const pending = nc.reduce((a, r) => a + (r.outstanding || 0), 0);
@@ -291,14 +308,18 @@ QLX.mount({
     { key: 'date', label: 'Date', sort: true, cell: r => `<span class="qx-mut">${fDS(r.date)}</span>` },
     { key: 'party', label: 'Party', sort: true, cell: partyCell },
     { key: 'veh', label: 'Vehicle No', sort: true, cell: r => r.veh ? `<span class="qx-mut">🚚 ${esc(r.veh)}</span>` : '<span class="qx-mut">—</span>' },
-    { key: 'qty', label: 'Qty (T)', sort: true, num: true, cell: r => `<span class="qx-num">${fmt(r.qty, 2)}</span>` },
-    /* DERIVED taxable ÷ qty, byte-for-byte the Purchase register's cell — the
+    /* Tonnes (r.tonnes from salesRows — a 7,650 Kg invoice is 7.65 here, not
+       7,650). When the invoice was entered in another unit the entered figure
+       sits beside it so the paper and the register read the same. Sorted by
+       tonnes: the column shows tonnes. */
+    { key: 'tonnes', label: 'Qty (T)', sort: true, num: true, cell: r => (+r.tonnes > 0 ? `<span class="qx-num">${fmt(r.tonnes, 2)}</span>${unitOf(r) !== 'Ton' ? ` <span class="qx-mut">(${esc(qtyLabel(r))})</span>` : ''}` : (+r.qty > 0 ? `<span class="qx-mut">${esc(qtyLabel(r))}</span>` : `<span class="qx-dash">—</span>`)) },
+    /* DERIVED taxable ÷ tonnes, byte-for-byte the Purchase register's cell — the
        two registers must say the same rate for the same numbers. Derived, not
-       stored: cS() already computes taxable FROM qty × rate, so reading the
+       stored: cS() already computes taxable FROM the billable qty × rate, so the
        stored rate and the derived one can only disagree when the record was
        hand-edited — and then the derived one matches the money on the row. A
        row with no tonnage shows a dash, never ₹Infinity. */
-    { key: 'rate', label: 'Rate ₹/T', sort: true, num: true, cell: r => (+r.qty > 0 && +r.taxable > 0 ? `<span class="qx-num">${fC(Math.round(r.taxable / r.qty))}</span>` : `<span class="qx-dash">—</span>`) },
+    { key: 'rate', label: 'Rate ₹/T', sort: true, num: true, cell: r => (+r.tonnes > 0 && +r.taxable > 0 ? `<span class="qx-num">${fC(Math.round(r.taxable / r.tonnes))}</span>` : `<span class="qx-dash">—</span>`) },
     { key: 'taxable', label: 'Taxable', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` },
     { key: 'gst', label: 'GST', sort: true, num: true, cell: r => `<span class="qx-num qx-mut">${fC(r.gst)}</span>` },
     { key: 'total', label: 'Total', sort: true, num: true, cell: r => `<span class="qx-num qx-strong">${fC(r.total)}</span>` },
@@ -331,10 +352,12 @@ QLX.mount({
     { label: 'Delete', icon: IC.trash, cls: 'del', onClick: rows => { QLShell.confirmDelete({ title: 'Move ' + rows.length + ' invoices to Trash?', desc: 'All ' + rows.length + ' selected invoices move to Trash and can be restored for 90 days.', confirmLabel: 'Move to Trash', onConfirm: reason => { rows.map(r => r.idx).sort((a, b) => b - a).forEach(i => Q.deleteSale(i, reason)); toast(rows.length + ' moved to Trash'); QLX.refresh(); } }); } }
   ],
   /* The card's sub-line carries qty · rate — the phone view of the register,
-     where the owner reads a bill as "16.78 T @ ₹5,300". Same derived rate as
-     the table column; vehicle keeps its slot after the money. */
-  card: r => ({ id: r.inv || '—', title: `<span style="color:var(--qx)">${esc(r.inv || '—')}</span>`, amount: fC(r.total), party: r.party, partySub: r.gstin || '', sub: [(+r.qty > 0 ? fmt(r.qty, 2) + ' T' : ''), (+r.qty > 0 && +r.taxable > 0 ? '@ ' + fC(Math.round(r.taxable / r.qty)) + '/T' : ''), (r.veh ? '🚚 ' + r.veh : '')].filter(Boolean).join(' · ') || 'Invoice: ' + (r.inv || '—'), date: r.date, calLabel: r.party, status: stPill(r), rows: [['Qty', fmt(r.qty, 2) + ' T'], ['Taxable', fC(r.taxable)], ['GST', fC(r.gst)], ['Status', stPill(r)]] }),
-  footer: rows => { const t = rows.reduce((a, r) => ({ qty: a.qty + r.qty, tax: a.tax + r.taxable, gst: a.gst + r.gst, tot: a.tot + r.total, paid: a.paid + r.paid, out: a.out + r.outstanding }), { qty: 0, tax: 0, gst: 0, tot: 0, paid: 0, out: 0 }); return [{ label: 'Qty', value: fmt(t.qty, 1) + ' T' }, { label: 'Taxable', value: fC(t.tax) }, { label: 'GST', value: fC(t.gst) }, { label: 'Grand Total', value: fC(t.tot), strong: true }, { label: 'Collected', value: fC(t.paid) }, { label: 'Pending', value: fC(t.out) }]; },
+     where the owner reads a bill as "16.78 Ton @ ₹5,300 / Ton" or
+     "7,650 Kg @ ₹5,300 / Ton": the quantity AS ENTERED with its unit and the
+     STORED rate with the unit it is per (r.rate / r.rateUnit). Vehicle keeps
+     its slot after the money. */
+  card: r => ({ id: r.inv || '—', title: `<span style="color:var(--qx)">${esc(r.inv || '—')}</span>`, amount: fC(r.total), party: r.party, partySub: r.gstin || '', sub: [(+r.qty > 0 ? qtyLabel(r) + (+r.rate > 0 ? ' @ ' + rateLabel(r) : '') : ''), (r.veh ? '🚚 ' + r.veh : '')].filter(Boolean).join(' · ') || 'Invoice: ' + (r.inv || '—'), date: r.date, calLabel: r.party, status: stPill(r), rows: [['Qty', qtyLabel(r)], ['Taxable', fC(r.taxable)], ['GST', fC(r.gst)], ['Status', stPill(r)]] }),
+  footer: rows => { const t = rows.reduce((a, r) => ({ qty: a.qty + tonnesOf(r), tax: a.tax + r.taxable, gst: a.gst + r.gst, tot: a.tot + r.total, paid: a.paid + r.paid, out: a.out + r.outstanding }), { qty: 0, tax: 0, gst: 0, tot: 0, paid: 0, out: 0 }); return [{ label: 'Qty', value: fmt(t.qty, 1) + ' T' }, { label: 'Taxable', value: fC(t.tax) }, { label: 'GST', value: fC(t.gst) }, { label: 'Grand Total', value: fC(t.tot), strong: true }, { label: 'Collected', value: fC(t.paid) }, { label: 'Pending', value: fC(t.out) }]; },
   analytics: () => {
     const rows = Q.salesRows();
     /* By customer IDENTITY — two spellings of one firm were two bars, each short. */
@@ -346,7 +369,7 @@ QLX.mount({
     return { barsTitle: 'Top customers by sales', bars, donutTitle: 'Sales by status', donut, donutCenter: fC(Q.salesSummary().revenue) };
   },
   detail: r => ({
-    eyebrow: 'GST Invoice', title: `${esc(r.inv || '—')} · ${esc(r.party)}`, sub: `${fDS(r.date)} · ${fmt(r.qty, 2)} T · ${fC(r.total)}`,
+    eyebrow: 'GST Invoice', title: `${esc(r.inv || '—')} · ${esc(r.party)}`, sub: `${fDS(r.date)} · ${qtyLabel(r)} · ${fC(r.total)}`,
     actions: [
       { label: 'PDF', icon: IC.print, onClick: openInvPdf },
       { label: 'Edit', icon: IC.edit, onClick: r => QLShell.openSaleForm(r.idx) },
@@ -368,7 +391,8 @@ QLX.mount({
 function tabProfit(r) {
   const C = window.QLCosting;
   if (!C) return '<div class="qx-empty-tab">Costing engine not loaded.</div>';
-  const ip = C.invoiceProfit({ date: r.date, qty: r.qty, taxable: r.taxable }, Q.costingInputs((r.date || '').slice(0, 7)));
+  /* qty here is TONNES — the costing engine prices output per tonne. */
+  const ip = C.invoiceProfit({ date: r.date, qty: tonnesOf(r), taxable: r.taxable }, Q.costingInputs((r.date || '').slice(0, 7)));
   if (!ip.ok) return '<div class="qx-empty-tab" style="padding:18px;line-height:1.6">' + esc(ip.error) + '<br><span style="font-size:12px;color:var(--ql-text-muted)">Record production runs and expenses for ' + esc(ip.ym || 'this month') + ' on the Production page and this tab fills itself.</span></div>';
   const row = (l, v, sub) => '<tr><td>' + l + (sub ? '<div style="font-size:11px;color:var(--ql-text-muted)">' + esc(sub) + '</div>' : '') + '</td><td class="num"><b>' + v + '</b></td></tr>';
   const good = ip.profit >= 0;
@@ -396,7 +420,10 @@ window.addEventListener('hashchange', () => {
 function exportRows(rows) {
   rows = rows || [];
   const mo = QLX.month() ? '_' + QLX.month() : '';
-  QLShell.exportCSV('sales_' + (Q.co.short || 'register').replace(/\s+/g, '_') + mo, ['Invoice', 'Date', 'Party', 'GSTIN', 'Vehicle', 'Qty (MT)', 'Rate ₹/T', 'Taxable', 'GST', 'Total', 'Status'], rows.map(x => [x.inv, x.date, x.party, x.gstin || '—', x.veh || '—', x.qty, (+x.qty > 0 && +x.taxable > 0 ? Math.round(x.taxable / x.qty) : ''), x.taxable, x.gst, x.total, x.status]));
+  /* Qty (MT) + Rate ₹/T are the tonnage view (derived from x.tonnes, the same
+     formula as the register column); Qty / Unit / Rate / Rate per are the row
+     AS ENTERED, so a Kg invoice exports as 7650 · Kg · 5300 · Ton. */
+  QLShell.exportCSV('sales_' + (Q.co.short || 'register').replace(/\s+/g, '_') + mo, ['Invoice', 'Date', 'Party', 'GSTIN', 'Vehicle', 'Qty (MT)', 'Rate ₹/T', 'Taxable', 'GST', 'Total', 'Status', 'Qty', 'Unit', 'Rate', 'Rate per'], rows.map(x => [x.inv, x.date, x.party, x.gstin || '—', x.veh || '—', tonnesOf(x), (+x.tonnes > 0 && +x.taxable > 0 ? Math.round(x.taxable / x.tonnes) : ''), x.taxable, x.gst, x.total, x.status, x.qty, unitOf(x), x.rate, rateUnitOf(x)]));
   toast('Exported ' + rows.length + ' invoices' + (QLX.month() ? ' · ' + QLX.monthLabel() : ''));
 }
 function exportInvoices() { exportRows(QLX.rows()); }
@@ -406,12 +433,12 @@ function openSalesReport(rows) {
   const label = QLX.month() ? QLX.monthLabel() : 'All months';
   if (!rows.length) { toast('No sales data found for ' + label, 'err'); return; }
   const nc = rows.filter(r => r.status !== 'cancelled');
-  const qty = nc.reduce((a, r) => a + (r.qty || 0), 0), taxable = nc.reduce((a, r) => a + (r.taxable || 0), 0);
+  const qty = nc.reduce((a, r) => a + tonnesOf(r), 0), taxable = nc.reduce((a, r) => a + (r.taxable || 0), 0);
   const gst = nc.reduce((a, r) => a + (r.gst || 0), 0), total = nc.reduce((a, r) => a + (r.total || 0), 0);
   const pending = nc.reduce((a, r) => a + (r.outstanding || 0), 0), collected = total - pending;
   const co = Q.co || {};
   const cards = [['Invoices', rows.length], ['Qty dispatched', fmt(qty, 2) + ' T'], ['Taxable value', fC(taxable)], ['GST output', fC(gst)], ['Collected', fC(collected)], ['Pending', fC(pending)]];
-  const body = rows.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')).map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.inv || '—')}</td><td>${fDS(r.date)}</td><td>${esc(r.party)}</td><td class="r">${fmt(r.qty, 2)}</td><td class="r">${fC(r.taxable)}</td><td class="r">${fC(r.gst)}</td><td class="r">${fC(r.total)}</td><td>${esc(r.status)}</td></tr>`).join('');
+  const body = rows.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')).map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.inv || '—')}</td><td>${fDS(r.date)}</td><td>${esc(r.party)}</td><td class="r">${fmt(tonnesOf(r), 2)}${unitOf(r) !== 'Ton' ? ' <span style="color:var(--ql-text-muted, #64748b)">(' + esc(qtyLabel(r)) + ')</span>' : ''}</td><td class="r">${fC(r.taxable)}</td><td class="r">${fC(r.gst)}</td><td class="r">${fC(r.total)}</td><td>${esc(r.status)}</td></tr>`).join('');
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Sales Report — ${esc(label)}</title>
   <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:#0f172a;padding:28px;max-width:1000px;margin:0 auto}
   .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #2563eb;padding-bottom:14px;margin-bottom:18px}
@@ -438,27 +465,66 @@ function importInvoices() {
   // in the other. Voided and archived count as retired too, matching the save
   // gate (data.js dupCheck) — the pre-pass and the gate must never disagree.
   const liveSales = () => Q.state.SALES.filter(s => !s._del && !s._arch && (s.status || 'pending') !== 'cancelled');
+  const reviewed = [];   // rows buildRow flagged (rate unit unverifiable) that were then saved — surfaced by done()
   const cfg = {
     kind: 'sales',
     title: 'Import sales bills', sub: 'Upload a spreadsheet list — or a photo/PDF of a single bill to scan.',
     dropTitle: 'Choose a file', dropSub: '.csv / .xlsx list, or a photo / PDF of one bill',
     tip: 'A spreadsheet imports many invoices at once. A photo or PDF of one bill is read with OCR.',
     noun: 'invoice', addLabel: 'New invoice', accept: '.csv,.xlsx,.xls,.pdf,image/*,.zip', ocr: true,
-    ocrMap: { inv: 'docno', date: 'date', party: 'name', gstin: 'gstin', qty: 'qty', taxable: 'taxable', total: 'total', gstr: 'rate', veh: 'veh' },
+    ocrMap: { inv: 'docno', date: 'date', party: 'name', gstin: 'gstin', qty: 'qty', unit: 'unit', taxable: 'taxable', total: 'total', gstr: 'rate', veh: 'veh' },
     errText: 'No usable invoices found. Check that Date, Party and an amount column are mapped.',
     headerGroups: [['date', 'invoice', 'bill', 'voucher'], ['party', 'customer', 'buyer', 'consignee', 'name', 'amount', 'taxable', 'total', 'rate']],
-    fields: [{ key: 'inv', label: 'Invoice No.' }, { key: 'date', label: 'Date', required: true }, { key: 'party', label: 'Party / Customer', required: true }, { key: 'gstin', label: 'GSTIN' }, { key: 'qty', label: 'Quantity' }, { key: 'rate', label: 'Rate' }, { key: 'gstr', label: 'GST %' }, { key: 'taxable', label: 'Taxable amount' }, { key: 'total', label: 'Total amount' }, { key: 'veh', label: 'Vehicle No.' }],
+    fields: [{ key: 'inv', label: 'Invoice No.' }, { key: 'date', label: 'Date', required: true }, { key: 'party', label: 'Party / Customer', required: true }, { key: 'gstin', label: 'GSTIN' }, { key: 'qty', label: 'Quantity' }, { key: 'unit', label: 'Unit' }, { key: 'rate', label: 'Rate' }, { key: 'rateUnit', label: 'Rate per' }, { key: 'gstr', label: 'GST %' }, { key: 'taxable', label: 'Taxable amount' }, { key: 'total', label: 'Total amount' }, { key: 'veh', label: 'Vehicle No.' }],
     requireOneOf: [['taxable', 'rate', 'total']],
-    autoMap: h => ({ inv: QLFin.colOf(h, 'invoice no', 'bill no', 'invoice', 'voucher', 'inv no', 'inv'), date: QLFin.colOf(h, 'invoice date', 'bill date', 'date'), party: QLFin.colOf(h, 'party', 'customer', 'buyer', 'consignee', 'name'), gstin: QLFin.colOf(h, 'gstin', 'gst no', 'gst number', 'gst in'), qty: QLFin.colOf(h, 'qty', 'quantity', 'weight', 'tonne', 'ton', 'mt'), rate: QLFin.colOf(h, 'rate', 'price', 'unit'), gstr: QLFin.colOf(h, 'gst %', 'gst%', 'gst rate', 'tax %', 'tax%', 'rate of tax', 'tax rate'), taxable: QLFin.colOf(h, 'taxable', 'basic', 'amount', 'value'), total: QLFin.colOf(h, 'invoice value', 'grand total', 'net amount', 'total'), veh: QLFin.colOf(h, 'vehicle', 'truck', 'lorry') }),
+    autoMap: h => {
+      /* An explicit "Rate per" column is the ONE thing that can say which unit a
+         sheet's rate is per when there is no taxable/total to check it against.
+         It is found first and blanked so the plain "rate" match cannot land on it. */
+      const rateUnit = QLFin.colOf(h, 'rate per', 'rate unit', 'rate uom', 'price per', 'per unit');
+      const h2 = rateUnit >= 0 ? h.map((c, i) => i === rateUnit ? '' : c) : h;
+      return { inv: QLFin.colOf(h, 'invoice no', 'bill no', 'invoice', 'voucher', 'inv no', 'inv'), date: QLFin.colOf(h, 'invoice date', 'bill date', 'date'), party: QLFin.colOf(h, 'party', 'customer', 'buyer', 'consignee', 'name'), gstin: QLFin.colOf(h, 'gstin', 'gst no', 'gst number', 'gst in'), qty: QLFin.colOf(h, 'qty', 'quantity', 'weight', 'tonne', 'ton', 'mt'), unit: QLFin.colOf(h2, 'unit', 'uom'), rate: QLFin.colOf(h2, 'rate', 'price'), rateUnit, gstr: QLFin.colOf(h, 'gst %', 'gst%', 'gst rate', 'tax %', 'tax%', 'rate of tax', 'tax rate'), taxable: QLFin.colOf(h, 'taxable', 'basic', 'amount', 'value'), total: QLFin.colOf(h, 'invoice value', 'grand total', 'net amount', 'total'), veh: QLFin.colOf(h, 'vehicle', 'truck', 'lorry') };
+    },
     buildRow: get => {
       const party = (get('party') || '').toString().trim(), date = QLFin.parseDate(get('date'));
       let qty = QLFin.parseNum(get('qty')), rate = QLFin.parseNum(get('rate'));
       let taxable = QLFin.parseNum(get('taxable')), total = QLFin.parseNum(get('total'));
       let gstR = QLFin.parseNum(get('gstr')); if (!gstR) gstR = 5; if (gstR > 0 && gstR < 1) gstR *= 100;
-      if (!taxable && !(qty && rate) && total) taxable = total / (1 + gstR / 100);
-      if (!qty || !rate) { if (taxable) { qty = qty || 1; rate = taxable / (qty || 1); } }
+      /* A total with no taxable is STILL a booked amount to reconcile against —
+         derive the taxable from it FIRST, before any rate-unit decision. It used
+         to be skipped whenever qty and rate were both present, which is exactly
+         the row that needs it. */
+      if (!taxable && total) taxable = total / (1 + gstR / 100);
+      /* The sheet's / bill's quantity unit, and the unit the rate is per: lime
+         is priced per Ton whatever the truck was weighed in, so a 7,650 Kg bill
+         at ₹40,545 books rate ₹5,300 / Ton (QLUnits.impliedRate) — never
+         ₹5.30 with no unit. A sheet with no unit column stays legacy (tonnes,
+         rate per the qty's own unit). */
+      const unit = QLUnits.normalizeUnit(get('unit')) || '';
+      const sheetRateUnit = unit ? (QLUnits.normalizeUnit(get('rateUnit')) || '') : '';   // an explicit "Rate per" column
+      let rateUnit = unit ? (sheetRateUnit || QLUnits.defaultRateUnit(unit)) : '';
+      let review = '';
+      if (!qty || !rate) { if (taxable) { qty = qty || 1; rate = unit ? (QLUnits.impliedRate(taxable, qty, unit, rateUnit) || 0) : taxable / (qty || 1); } }
+      else if (!taxable && unit && !sheetRateUnit) {
+        /* qty + rate and NOTHING to reconcile against (no taxable, no total, no
+           "Rate per" column): per Ton is a guess, and a wrong guess is ×1000 —
+           7,650 Kg @ ₹5.30 booked ₹40.55 instead of ₹40,545. Keep the rate per
+           the quantity's own unit (the sheet's rate belongs to the sheet's qty)
+           and flag the row so the count is SEEN, never assumed silently. */
+        rateUnit = unit;
+        review = 'Rate booked per ' + unit + ' — no taxable/total to check it against';
+      }
+      else if (taxable && unit) {
+        /* Both a rate and a taxable on the sheet: the taxable is the money the
+           bill was booked at, so it decides which unit the rate is per. The
+           "Rate per" column (else per Ton) reconciles → that; per the qty's own
+           unit reconciles → that; neither → the rate is re-derived from the
+           taxable (the sheet's rate was wrong). */
+        const agrees = ru => { const L = QLUnits.lineAmount({ qty, unit, rate, rateUnit: ru }); return L.ok && (Math.abs(L.amount - taxable) <= 1 || Math.abs(L.amount - taxable) <= taxable * 0.005); };
+        if (!agrees(rateUnit)) { if (agrees(unit)) rateUnit = unit; else rate = QLUnits.impliedRate(taxable, qty, unit, rateUnit) || 0; }
+      }
       if (!party && !qty && !taxable && !total) return null;
-      return { inv: (get('inv') || '').toString().trim(), date: date || '', party, gstin: (get('gstin') || '').toString().trim().toUpperCase(), qty: +(qty || 0), rate: +(rate || 0), gstR, veh: (get('veh') || '').toString().trim(), status: 'pending' };
+      return { inv: (get('inv') || '').toString().trim(), date: date || '', party, gstin: (get('gstin') || '').toString().trim().toUpperCase(), qty: +(qty || 0), ...(unit ? { unit, rateUnit } : {}), rate: +(rate || 0), gstR, veh: (get('veh') || '').toString().trim(), status: 'pending', ...(review ? { _review: review } : {}) };
     },
     /* existing() and rows() derive from the SAME live set — a deleted invoice is
        in neither, so re-uploading one you deleted is not refused as a duplicate.
@@ -470,12 +536,17 @@ function importInvoices() {
        addSale will ask at save time — instead of keyOf's bare invoice number,
        which flags two different customers' INV-1 as the same document. */
     rows: liveSales,
-    preview: { headers: ['Invoice', 'Date', 'Party', 'Qty', 'Taxable', 'GST%'], right: [3, 4, 5], row: s => [s.inv || '—', s.date || '—', s.party || '—', s.qty || '', Q.fC(s.qty * s.rate), s.gstR + '%'] },
+    preview: { headers: ['Invoice', 'Date', 'Party', 'Qty', 'Taxable', 'GST%'], right: [3, 4, 5], row: s => [s.inv || '—', s.date || '—', s.party || '—', (s.qty ? QLUnits.fmtQty(s.qty, s.unit || '') : ''), Q.fC(QLUnits.lineAmount(s).amount) + (s._review ? ' ⚠ ' + QLUnits.fmtRate(s.rate, s.rateUnit) : ''), s.gstR + '%'] },
     // Throws on a duplicate ON PURPOSE: bulk.js postOne() catches, marks the bill
     // failed and shows the reason in its Failed tab. That is the importer's error
     // channel; the add form uses `return false` instead. Same gate, both surfaces.
     /* RETURNS the attach promise — see the note on purchase.js's add. */
     add: (s, file) => {
+      const L = QLUnits.lineAmount(s);
+      if (L.ok === false) throw new Error(L.why);
+      /* The review note is the importer's, not the record's: count it for the
+         done() toast and strip it before the row is stored. */
+      if (s._review) { reviewed.push(s); s = Object.assign({}, s); delete s._review; }
       const r = Q.addSale(s);
       if (r && r.ok === false) throw new Error(r.reason);
       if (file) return addAttach(Q.state.SALES.length - 1, file, 'Invoice');
@@ -483,6 +554,7 @@ function importInvoices() {
     // Jump the month filter to the imported invoice's month so it is VISIBLE
     // immediately (same fix as the purchase register).
     done: (n, lastBill) => {
+      if (reviewed.length) { toast(reviewed.length + ' invoice' + (reviewed.length === 1 ? '' : 's') + ' booked per ' + [...new Set(reviewed.map(x => x.rateUnit))].join('/') + ' with nothing to check the rate against — open ' + (reviewed.length === 1 ? 'it' : 'them') + ' and confirm the rate unit', 'err'); reviewed.length = 0; }
       if (!n) { QLX.refresh(); return; }
       const last = Q.state.SALES.filter(x => !x._del).slice(-1)[0];   // store dates are ISO-normalised
       const ym = last && String(last.date || '').slice(0, 7);

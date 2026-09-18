@@ -12,9 +12,29 @@
    ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
-  const Q = window.QLD, C = window.CustomerCore, M = window.QLCRM, D = window.QuoteDoc;
+  const Q = window.QLD, C = window.CustomerCore, M = window.QLCRM, D = window.QuoteDoc, UN = window.QLUnits;
   const esc = s => (s == null ? '' : s).toString().replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fC = n => '₹' + Math.round(+n || 0).toLocaleString('en-IN');
+  /* ── quantity unit + rate unit, on every form that captures qty and rate ──
+     The unit list is units-core's (Ton · Kg · Quintal · Bag · Nos · Litre ·
+     Other). 'Rate per' defaults to the business rule (mass → per Ton, bags →
+     per Bag) and follows the quantity unit when that changes; a save is
+     refused when the rate cannot price the quantity (per Ton on Bags). */
+  const UNIT_OPTS = () => C.UNITS.map(u => [u[0], u[1]]);
+  const unitSpec = (k, label) => ({ k: k || 'unit', label: label || 'Quantity unit', type: 'select', opts: UNIT_OPTS() });
+  const rateUnitSpec = (k, label) => ({ k: k || 'rateUnit', label: label || 'Rate per', type: 'select', opts: UNIT_OPTS(), hint: 'The unit the rate is per — ₹5,300 per Ton prices 7,650 Kg as 7.65 Ton.' });
+  const unitKey = u => C.unitKey(u) || 'Ton';
+  const rateUnitFor = (unit, rateUnit) => C.rateUnitOf(unit, rateUnit);
+  /* after openForm renders: when the quantity unit changes, the rate unit
+     snaps to its default (a person can still pick another in the family) */
+  function wireUnitPair(unitId, rateUnitId) {
+    const u = document.getElementById('qf_' + (unitId || 'unit')), r = document.getElementById('qf_' + (rateUnitId || 'rateUnit'));
+    if (!u || !r || u.dataset.unitWired) return;
+    u.dataset.unitWired = '1';
+    u.addEventListener('change', () => { r.value = UN.defaultRateUnit(u.value); });
+  }
+  /* the refusal, worded by units-core; null when the line prices cleanly */
+  function unitsProblem(qty, unit, rate, rateUnit) { if (!(+rate > 0) || !(+qty > 0)) return null; const L = C.priceLine(qty, unit, rate, rateUnit); return L.ok ? null : L.why; }
   const toast = (m, t) => (window.QLX && QLX.toast) ? QLX.toast(m, t) : QLShell.toast(m, t);
   const today = () => C.iso(new Date());
   const changed = (what) => { document.dispatchEvent(new CustomEvent('crm:changed', { detail: what || '' })); };
@@ -25,8 +45,10 @@
   function phoneOf(c) { return (c && (c.wa || c.phone)) || ''; }
   function waLink(c, text) {
     const ph = phoneOf(c);
+    /* Only wa-core decides who gets a message (number normalisation, consent);
+       without it there is no link — never a hand-rolled recipient. */
     if (window.WACore && WACore.waLink) return WACore.waLink(ph, text || '');
-    return 'https://wa.me/' + String(ph).replace(/\D/g, '') + '?text=' + encodeURIComponent(text || '');
+    return '#';
   }
   function mailLink(c, subject, body) { return 'mailto:' + encodeURIComponent(c.email || '') + '?subject=' + encodeURIComponent(subject || '') + '&body=' + encodeURIComponent(body || ''); }
   function coProfile() { const co = (Q && Q.co) || {}; return { name: co.name || co.short, short: co.short || co.name, address: co.address, city: co.city, state: co.state, pin: co.pin, gstin: co.gstin, phone: co.phone, email: co.email }; }
@@ -116,10 +138,11 @@
       { k: 'product', label: 'Product', type: 'select', opts: opts(C.PRODUCTS) },
       { k: 'productOther', label: 'If other, name it' },
       { k: 'qty', label: 'Required quantity', type: 'number', req: true, reqNonZero: true },
-      { k: 'unit', label: 'Unit', type: 'select', opts: opts(C.UNITS) },
+      unitSpec('unit', 'Quantity unit'),
       { k: 'freq', label: 'How often', type: 'select', opts: opts(C.REQ_FREQ) },
       { k: 'moq', label: 'Minimum order qty', type: 'number' },
-      { type: 'section', label: 'Rates (₹ per MT)' },
+      { type: 'section', label: 'Rates (₹)' },
+      rateUnitSpec('rateUnit', 'Rates are per'),
       { k: 'prefRate', label: 'Preferred rate', type: 'number' }, { k: 'targetRate', label: 'Target rate', type: 'number' },
       { k: 'lastQuoted', label: 'Last quoted rate', type: 'number' }, { k: 'acceptedRate', label: 'Accepted rate', type: 'number' },
       { type: 'section', label: 'Quality' },
@@ -144,11 +167,15 @@
   function openReqForm(cust, reqId, after) {
     withCustomer(cust, 'Add a requirement for…', id => {
       const c = M.byId(id); const row = reqId ? Q.state.REQS.find(r => r.id === reqId) : null;
-      const initial = row ? Object.assign({}, row) : { product: 'Quick Lime', unit: 'MT', freq: 'monthly', freight: 'extra', status: 'active', deliveryLoc: c.deliveryLoc || c.city || '', transport: c.transport || '', payment: c.payTerms || '' };
+      const initial = row ? Object.assign({}, row) : { product: 'Quick Lime', unit: 'Ton', freq: 'monthly', freight: 'extra', status: 'active', deliveryLoc: c.deliveryLoc || c.city || '', transport: c.transport || '', payment: c.payTerms || '' };
+      initial.unit = unitKey(initial.unit); initial.rateUnit = rateUnitFor(initial.unit, initial.rateUnit);
       QLShell.openForm({
         title: row ? 'Edit requirement' : 'Add requirement', sub: c.name, wide: true, specs: reqSpecs(), initial, saveLabel: row ? 'Save' : 'Add requirement',
+        onRender() { wireUnitPair('unit', 'rateUnit'); },
         onSave(v) {
           if (v.product === 'Other' && v.productOther) v.product = v.productOther;
+          const why = unitsProblem(v.qty, v.unit, v.targetRate || v.prefRate || v.lastQuoted || v.acceptedRate, v.rateUnit);
+          if (why) { toast(why, 'err'); return false; }
           const r = row ? M.updateReq(row.id, v) : M.addReq(id, v);
           if (!r.ok) { toast(r.reason || 'Could not save', 'err'); return false; }
           toast(row ? 'Requirement updated' : 'Requirement added', 'ok'); changed('req'); if (after) after(r.id || row.id);
@@ -162,8 +189,9 @@
     return `<tr data-line="${i}">
       <td><select class="qlf-input cu-in" data-f="product">${C.PRODUCTS.map(p => `<option value="${esc(p[0])}" ${it.product === p[0] ? 'selected' : ''}>${esc(p[1])}</option>`).join('')}${it.product && !C.PRODUCTS.some(p => p[0] === it.product) ? `<option value="${esc(it.product)}" selected>${esc(it.product)}</option>` : ''}</select></td>
       <td><input class="qlf-input cu-in n" data-f="qty" type="number" step="any" value="${esc(it.qty || '')}" placeholder="0"></td>
-      <td><select class="qlf-input cu-in" data-f="unit">${C.UNITS.map(u => `<option value="${u[0]}" ${(it.unit || 'MT') === u[0] ? 'selected' : ''}>${u[0]}</option>`).join('')}</select></td>
-      <td><input class="qlf-input cu-in n" data-f="rate" type="number" step="any" value="${esc(it.rate || '')}" placeholder="₹/MT"></td>
+      <td><select class="qlf-input cu-in" data-f="unit">${C.UNITS.map(u => `<option value="${u[0]}" ${unitKey(it.unit) === u[0] ? 'selected' : ''}>${esc(u[1])}</option>`).join('')}</select></td>
+      <td><input class="qlf-input cu-in n" data-f="rate" type="number" step="any" value="${esc(it.rate || '')}" placeholder="₹"></td>
+      <td><select class="qlf-input cu-in" data-f="rateUnit" title="The unit the rate is per">${C.UNITS.map(u => `<option value="${u[0]}" ${rateUnitFor(it.unit, it.rateUnit) === u[0] ? 'selected' : ''}>${esc(u[1])}</option>`).join('')}</select></td>
       <td><input class="qlf-input cu-in n" data-f="discount" type="number" step="any" value="${esc(it.discount || '')}" placeholder="₹"></td>
       <td class="n cu-amt">—</td>
       <td><button type="button" class="cu-x" data-del="${i}" title="Remove line">×</button></td></tr>`;
@@ -172,16 +200,27 @@
     const g = k => { const el = body.querySelector('[data-q="' + k + '"]'); return el ? el.value : ''; };
     const items = [...body.querySelectorAll('tr[data-line]')].map(tr => {
       const v = f => { const el = tr.querySelector('[data-f="' + f + '"]'); return el ? el.value : ''; };
-      return { product: v('product'), qty: +v('qty') || 0, unit: v('unit') || 'MT', rate: +v('rate') || 0, discount: +v('discount') || 0 };
+      return { product: v('product'), qty: +v('qty') || 0, unit: v('unit') || 'Ton', rate: +v('rate') || 0, rateUnit: v('rateUnit') || rateUnitFor(v('unit') || 'Ton', ''), discount: +v('discount') || 0 };
     });
     return { date: g('date'), validUntil: g('validUntil'), items, freight: +g('freight') || 0, loading: +g('loading') || 0, other: +g('other') || 0, otherLabel: g('otherLabel'), gstR: +g('gstR'), isExport: g('gstR') === '0',
       paymentTerms: g('paymentTerms'), paymentNote: g('paymentNote'), deliveryTerms: g('deliveryTerms'), deliveryLoc: g('deliveryLoc'), transport: g('transport'), packaging: g('packaging'), spec: g('spec'), notes: g('notes'), reqId: g('reqId') || null };
   }
   function paintTotals(body) {
     const q = readQuoteForm(body); const t = C.quoteTotals(q);
-    body.querySelectorAll('tr[data-line]').forEach((tr, i) => { const c = tr.querySelector('.cu-amt'); if (c) c.textContent = t.lines[i] ? D.money(t.lines[i].amount) : '—'; });
+    body.querySelectorAll('tr[data-line]').forEach((tr, i) => {
+      const c = tr.querySelector('.cu-amt'), l = t.lines[i];
+      if (!c) return;
+      /* the amount, and under it the arithmetic when the quantity was
+         converted ("7,650 Kg = 7.65 Ton × ₹5,300") — or the refusal */
+      if (!l) { c.textContent = '—'; c.title = ''; return; }
+      if (!l.ok) { c.textContent = 'cannot price'; c.title = l.why; c.style.color = 'var(--ql-danger-600)'; return; }
+      c.style.color = '';
+      c.textContent = D.money(l.amount);
+      c.title = l.billableUnit !== l.unit ? UN.fmtQty(l.qty, l.unit) + ' = ' + UN.fmtQty(l.billableQty, l.billableUnit) + ' × ' + D.money(l.rate) : '';
+    });
     const set = (k, v) => { const el = body.querySelector('[data-t="' + k + '"]'); if (el) el.textContent = v; };
-    set('goods', D.money(t.goods)); set('taxable', D.money(t.taxable)); set('gst', D.money(t.gst) + ' (' + t.gstR + '%)'); set('total', D.money(t.total)); set('tonnes', t.tonnes + ' MT');
+    set('goods', D.money(t.goods)); set('taxable', D.money(t.taxable)); set('gst', D.money(t.gst) + ' (' + t.gstR + '%)'); set('total', D.money(t.total)); set('tonnes', UN.fmtQty(t.tonnes, 'Ton'));
+    const warn = body.querySelector('[data-t="why"]'); if (warn) warn.textContent = t.ok ? '' : t.why;
   }
   function openQuoteEditor(cust, o, after) {
     o = o || {};
@@ -192,7 +231,7 @@
       const offer = o.offerId ? Q.state.OFFERS.find(x => x.id === o.offerId) : null;
       const q = row ? JSON.parse(JSON.stringify(row)) : {
         date: today(), validUntil: C.addDays(today(), 7), gstR: 5, freight: 0, loading: 0, other: 0,
-        items: [req ? { product: req.product, qty: req.qty, unit: req.unit || 'MT', rate: req.targetRate || req.prefRate || '', discount: 0 } : offer ? { product: offer.product, qty: offer.qty, unit: offer.unit || 'MT', rate: offer.rate, discount: 0 } : { product: 'Quick Lime', qty: '', unit: 'MT', rate: '', discount: 0 }],
+        items: [req ? { product: req.product, qty: req.qty, unit: unitKey(req.unit), rate: req.targetRate || req.prefRate || '', rateUnit: rateUnitFor(req.unit, req.rateUnit), discount: 0 } : offer ? { product: offer.product, qty: offer.qty, unit: unitKey(offer.unit), rate: offer.rate, rateUnit: rateUnitFor(offer.unit, offer.rateUnit), discount: 0 } : { product: 'Quick Lime', qty: '', unit: 'Ton', rate: '', rateUnit: 'Ton', discount: 0 }],
         paymentTerms: (req && req.payment) || (offer && offer.payment) || c.payTerms || '', deliveryTerms: (offer && offer.delivery) || 'Within 2–3 days of confirmation', deliveryLoc: (req && req.deliveryLoc) || (offer && offer.deliveryLoc) || c.deliveryLoc || c.city || '', transport: (req && req.transport) || c.transport || '', packaging: (req && req.packaging) || '', reqId: o.reqId || null
       };
       const sel = (k, list, cur, blank) => `<select class="qlf-input" data-q="${k}">${blank ? '<option value="">—</option>' : ''}${list.map(x => `<option value="${esc(x[0])}" ${String(cur) === String(x[0]) ? 'selected' : ''}>${esc(x[1])}</option>`).join('')}</select>`;
@@ -207,13 +246,13 @@
         ${f('Specification (prints under the product)', inp('spec', q.spec, 'text', 'e.g. CaO 85% min, 0–5 mm'), true)}
         <input type="hidden" data-q="reqId" value="${esc(q.reqId || '')}">
         <div class="qlf-section"><span>Lines</span></div>
-        <div class="qlf-full"><div class="cu-tbl-wrap"><table class="cu-tbl"><thead><tr><th>Product</th><th class="n">Qty</th><th>Unit</th><th class="n">Rate</th><th class="n">Discount</th><th class="n">Amount</th><th></th></tr></thead><tbody id="cuLines">${q.items.map(lineRowHTML).join('')}</tbody></table></div>
+        <div class="qlf-full"><div class="cu-tbl-wrap"><table class="cu-tbl"><thead><tr><th>Product</th><th class="n">Qty</th><th>Unit</th><th class="n">Rate (₹)</th><th>Rate per</th><th class="n">Discount</th><th class="n">Amount</th><th></th></tr></thead><tbody id="cuLines">${q.items.map(lineRowHTML).join('')}</tbody></table></div>
         <button type="button" class="ql-btn ql-btn-secondary" id="cuAddLine" style="margin-top:8px">+ Add line</button></div>
         <div class="qlf-section"><span>Charges & tax</span></div>
         ${f('Freight (₹)', inp('freight', q.freight || '', 'number', '0'))}${f('Loading (₹)', inp('loading', q.loading || '', 'number', '0'))}
         ${f('Other charges (₹)', inp('other', q.other || '', 'number', '0'))}${f('Other charges label', inp('otherLabel', q.otherLabel, 'text', 'e.g. Packing'))}
         ${f('GST', sel('gstR', [['5', '5%'], ['12', '12%'], ['18', '18%'], ['0', 'Nil / export (LUT)']], q.isExport ? '0' : (q.gstR == null ? 5 : q.gstR)))}
-        <div class="qlf-field"><label class="qlf-label">Totals</label><div class="cu-totals"><div><span>Goods</span><b data-t="goods">—</b></div><div><span>Taxable</span><b data-t="taxable">—</b></div><div><span>GST</span><b data-t="gst">—</b></div><div class="g"><span>Total</span><b data-t="total">—</b></div><div><span>Tonnage</span><b data-t="tonnes">—</b></div></div></div>
+        <div class="qlf-field"><label class="qlf-label">Totals</label><div class="cu-totals"><div><span>Goods</span><b data-t="goods">—</b></div><div><span>Taxable</span><b data-t="taxable">—</b></div><div><span>GST</span><b data-t="gst">—</b></div><div class="g"><span>Total</span><b data-t="total">—</b></div><div><span>Tonnage</span><b data-t="tonnes">—</b></div></div><div class="qlf-hint" data-t="why" style="color:var(--ql-danger-600)"></div></div>
         ${f('Notes (print on the quotation)', `<textarea class="qlf-input" data-q="notes" rows="2">${esc(q.notes || '')}</textarea>`, true)}
       </div>`;
       const save = (bodyEl, thenPreview) => {
@@ -221,6 +260,7 @@
         v.items = v.items.filter(it => it.qty > 0);
         if (!v.items.length) { toast('Add at least one line with a quantity', 'err'); return; }
         if (v.items.some(it => !(it.rate > 0))) { toast('Every line needs a rate', 'err'); return; }
+        const tt = C.quoteTotals(v); if (!tt.ok) { toast(tt.why, 'err'); return; }
         const r = row ? M.updateQuote(row.id, v) : M.addQuote(Object.assign({ cust: id, offerId: o.offerId || null }, v));
         if (!r.ok) { toast(r.reason || 'Could not save', 'err'); return; }
         const qid = row ? row.id : r.id;
@@ -232,9 +272,14 @@
         title: row ? 'Edit quotation ' + row.no : 'New quotation', sub: c.name + (c.code ? ' · ' + c.code : ''), wide: true, body,
         actions: [{ label: 'Cancel', onClick: () => QLShell.closeModal() }, { label: 'Save draft', onClick: b => save(b, false) }, { label: 'Save & preview', primary: true, onClick: b => save(b, true) }],
         onMount(b) {
-          const wire = () => { b.querySelectorAll('.cu-in, [data-q]').forEach(el => { el.oninput = () => paintTotals(b); }); b.querySelectorAll('[data-del]').forEach(x => x.onclick = () => { x.closest('tr').remove(); paintTotals(b); }); };
+          const wire = () => {
+            b.querySelectorAll('.cu-in, [data-q]').forEach(el => { el.oninput = () => paintTotals(b); });
+            /* a new quantity unit resets 'Rate per' to its default (per Ton for any mass) */
+            b.querySelectorAll('select[data-f="unit"]').forEach(u => { u.onchange = () => { const r = u.closest('tr').querySelector('[data-f="rateUnit"]'); if (r) r.value = UN.defaultRateUnit(u.value); paintTotals(b); }; });
+            b.querySelectorAll('[data-del]').forEach(x => x.onclick = () => { x.closest('tr').remove(); paintTotals(b); });
+          };
           wire(); paintTotals(b);
-          b.querySelector('#cuAddLine').onclick = () => { const tb = b.querySelector('#cuLines'); const i = tb.querySelectorAll('tr').length; tb.insertAdjacentHTML('beforeend', lineRowHTML({ product: 'Quick Lime', unit: 'MT' }, i)); wire(); paintTotals(b); };
+          b.querySelector('#cuAddLine').onclick = () => { const tb = b.querySelector('#cuLines'); const i = tb.querySelectorAll('tr').length; tb.insertAdjacentHTML('beforeend', lineRowHTML({ product: 'Quick Lime', unit: 'Ton', rateUnit: 'Ton' }, i)); wire(); paintTotals(b); };
         }
       });
     });
@@ -340,11 +385,14 @@
       const fRow = M.enriched().find(x => x.id === id) || { invoices: [] };
       const hist = C.priceHistory(fRow.invoices, M.quotesOf(id), M.offersOf(id), null);
       const lastRate = hist.stats.lastOffered || hist.stats.current || '';
-      const o = Object.assign({ product: r0.product || 'Quick Lime', qty: r0.qty || '', unit: 'MT', rate: r0.targetRate || lastRate || '', freight: r0.freight || 'extra', gstText: 'As applicable', validDays: 3, delivery: 'Within 2–3 days', payment: r0.payment || c.payTerms || 'against_delivery', deliveryLoc: r0.deliveryLoc || c.deliveryLoc || c.city || '' }, pre);
+      const o = Object.assign({ product: r0.product || 'Quick Lime', qty: r0.qty || '', unit: r0.unit || 'Ton', rateUnit: r0.rateUnit || '', rate: r0.targetRate || lastRate || '', freight: r0.freight || 'extra', gstText: 'As applicable', validDays: 3, delivery: 'Within 2–3 days', payment: r0.payment || c.payTerms || 'against_delivery', deliveryLoc: r0.deliveryLoc || c.deliveryLoc || c.city || '' }, pre);
+      o.unit = unitKey(o.unit); o.rateUnit = rateUnitFor(o.unit, o.rateUnit);
       const specs = [
         { k: 'product', label: 'Product', type: 'select', opts: opts(C.PRODUCTS) },
-        { k: 'qty', label: 'Quantity (MT)', type: 'number' },
-        { k: 'rate', label: 'Offer price ₹/MT', type: 'number', req: true, reqNonZero: true, hint: hist.stats.current ? 'Last sold ₹' + hist.stats.current + (hist.stats.lastOffered ? ' · last offered ₹' + hist.stats.lastOffered : '') : (hist.stats.lastOffered ? 'Last offered ₹' + hist.stats.lastOffered : 'No price history yet') },
+        { k: 'qty', label: 'Quantity', type: 'number' },
+        unitSpec('unit', 'Quantity unit'),
+        { k: 'rate', label: 'Offer price (₹)', type: 'number', req: true, reqNonZero: true, hint: hist.stats.current ? 'Last sold ₹' + hist.stats.current + (hist.stats.lastOffered ? ' · last offered ₹' + hist.stats.lastOffered : '') : (hist.stats.lastOffered ? 'Last offered ₹' + hist.stats.lastOffered : 'No price history yet') },
+        rateUnitSpec('rateUnit', 'Price per'),
         { k: 'freight', label: 'Freight', type: 'select', opts: opts(C.FREIGHT) },
         { k: 'gstText', label: 'GST', ph: 'As applicable' },
         { k: 'validDays', label: 'Validity (days)', type: 'number' },
@@ -364,6 +412,7 @@
       const send = (via) => {
         const v = readSpecs(specs);
         if (!(+v.rate > 0)) { toast('Offer price is required', 'err'); return false; }
+        const why = unitsProblem(v.qty, v.unit, v.rate, v.rateUnit); if (why) { toast(why, 'err'); return false; }
         v.validUntil = C.addDays(today(), +v.validDays || 3);
         const r = M.addOffer(Object.assign({ cust: id }, v), via === 'save' ? '' : via === 'pdf' ? '' : via);
         if (!r.ok) { toast(r.reason || 'Could not save', 'err'); return false; }
@@ -377,7 +426,7 @@
         toast(via === 'save' ? 'Offer saved (' + r.no + ')' : 'Offer ' + r.no + ' ' + (via === 'pdf' ? 'generated' : 'sent by ' + via) + ' — logged on the timeline', 'ok');
         changed('offer'); QLShell.closeModal(); if (after) after(r.id);
       };
-      QLShell.openForm({ title: 'Send price offer', sub: c.name + (phoneOf(c) ? ' · ' + phoneOf(c) : ' · no phone on file'), wide: true, specs, initial: o, saveLabel: 'Save offer', onSave() { send('save'); return false; } });
+      QLShell.openForm({ title: 'Send price offer', sub: c.name + (phoneOf(c) ? ' · ' + phoneOf(c) : ' · no phone on file'), wide: true, specs, initial: o, saveLabel: 'Save offer', onRender() { wireUnitPair('unit', 'rateUnit'); }, onSave() { send('save'); return false; } });
       // extra send buttons beside Save
       const foot = document.querySelector('#qlModal .ql-modal-foot');
       if (foot) {
@@ -537,13 +586,16 @@
         specs: [
           { k: 'inv', label: 'Invoice no.', req: true, upper: true }, { k: 'date', label: 'Date', type: 'date', req: true },
           { k: 'product', label: 'Product', type: 'select', opts: opts(C.PRODUCTS).concat(it.product && !C.PRODUCTS.some(p => p[0] === it.product) ? [[it.product, it.product]] : []) },
-          { k: 'qty', label: 'Qty (MT)', type: 'number', req: true, reqNonZero: true }, { k: 'rate', label: 'Rate (₹/MT)', type: 'number', req: true, reqNonZero: true },
+          { k: 'qty', label: 'Quantity', type: 'number', req: true, reqNonZero: true }, unitSpec('unit', 'Quantity unit'),
+          { k: 'rate', label: 'Rate (₹)', type: 'number', req: true, reqNonZero: true }, rateUnitSpec('rateUnit', 'Rate per'),
           { k: 'gstR', label: 'GST rate', type: 'select', opts: [['5', '5%'], ['12', '12%'], ['18', '18%'], ['0', 'Nil']] },
           { k: 'veh', label: 'Vehicle no.', upper: true }, { k: 'eway', label: 'E-way bill' }
         ],
-        initial: { inv: nextInv, date: today(), product: it.product || 'Quick Lime', qty: it.qty || '', rate: it.rate || '', gstR: q ? (q.isExport ? 0 : q.gstR) : 5 }, saveLabel: 'Create invoice',
+        initial: { inv: nextInv, date: today(), product: it.product || 'Quick Lime', qty: it.qty || '', unit: unitKey(it.unit), rate: it.rate || '', rateUnit: rateUnitFor(it.unit, it.rateUnit), gstR: q ? (q.isExport ? 0 : q.gstR) : 5 }, saveLabel: 'Create invoice',
+        onRender() { wireUnitPair('unit', 'rateUnit'); },
         onSave(v) {
           v.gstR = +v.gstR;
+          const why = unitsProblem(v.qty, v.unit, v.rate, v.rateUnit); if (why) { toast(why, 'err'); return false; }
           const r = M.recordOrder(v, { cust: cid, quoteId: link.quoteId || null, offerId: link.offerId || null, dealId: link.dealId || null });
           if (!r.ok) { toast(r.reason || 'Could not create the invoice', 'err'); return false; }
           toast('Invoice #' + v.inv + ' created — order recorded' + (q ? ', ' + q.no + ' converted' : ''), 'ok'); changed('order'); if (after) after(r.idx);
@@ -580,13 +632,14 @@
       QLShell.openForm({
         title: row ? 'Edit deal' : 'New deal', sub: c.name,
         specs: [
-          { k: 'product', label: 'Product', type: 'select', opts: opts(C.PRODUCTS) }, { k: 'qty', label: 'Quantity (MT)', type: 'number' },
-          { k: 'targetRate', label: 'Target price ₹/MT', type: 'number' }, { k: 'value', label: 'Expected value (₹)', type: 'number', ph: 'blank = qty × price' },
+          { k: 'product', label: 'Product', type: 'select', opts: opts(C.PRODUCTS) }, { k: 'qty', label: 'Quantity', type: 'number' }, unitSpec('unit', 'Quantity unit'),
+          { k: 'targetRate', label: 'Target price (₹)', type: 'number' }, rateUnitSpec('rateUnit', 'Price per'), { k: 'value', label: 'Expected value (₹)', type: 'number', ph: 'blank = quantity × target price' },
           { k: 'stage', label: 'Stage', type: 'select', opts: C.STAGES.map(s => [s.key, s.label]) }, { k: 'expectedClose', label: 'Expected closing', type: 'date' },
           { k: 'owner', label: 'Sales person', type: people.length ? 'searchselect' : 'text', opts: people.map(p => [p, p]) }, { k: 'notes', label: 'Notes', type: 'textarea', full: true }
         ],
-        initial: row || { product: 'Quick Lime', stage: 'new_lead', owner: c.salesperson || '' }, saveLabel: row ? 'Save' : 'Add to pipeline',
-        onSave(v) { if (v.value === 0) v.value = null; const r = row ? (v.stage !== row.stage ? (M.updateDeal(row.id, Object.assign({}, v, { stage: row.stage })), M.moveDeal(row.id, v.stage)) : M.updateDeal(row.id, v)) : M.addDeal(Object.assign({ cust: cid }, v)); if (!r.ok) { toast(r.reason || 'Could not save', 'err'); return false; } toast(row ? 'Deal updated' : 'Deal added', 'ok'); changed('deal'); if (after) after(); }
+        initial: (() => { const i = Object.assign({}, row || { product: 'Quick Lime', stage: 'new_lead', owner: c.salesperson || '' }); i.unit = unitKey(i.unit); i.rateUnit = rateUnitFor(i.unit, i.rateUnit); return i; })(), saveLabel: row ? 'Save' : 'Add to pipeline',
+        onRender() { wireUnitPair('unit', 'rateUnit'); },
+        onSave(v) { if (v.value === 0) v.value = null; const why = unitsProblem(v.qty, v.unit, v.targetRate, v.rateUnit); if (why) { toast(why, 'err'); return false; } const r = row ? (v.stage !== row.stage ? (M.updateDeal(row.id, Object.assign({}, v, { stage: row.stage })), M.moveDeal(row.id, v.stage)) : M.updateDeal(row.id, v)) : M.addDeal(Object.assign({ cust: cid }, v)); if (!r.ok) { toast(r.reason || 'Could not save', 'err'); return false; } toast(row ? 'Deal updated' : 'Deal added', 'ok'); changed('deal'); if (after) after(); }
       });
     });
   }

@@ -116,7 +116,7 @@ const shell = fs.readFileSync(path.join(__dirname, 'shell.js'), 'utf8'), gal = f
 ok('renderInvoice feeds the firm\'s edited terms as cfg.terms', /const own = invoiceTerms\(\);/.test(shell) && /own\.length \? \{ terms: own \} : \{\}/.test(shell));
 ok('QLShell exports invoiceTerms / setInvoiceTerms', /invoiceTemplate: invoiceTemplateId, invoiceTerms, setInvoiceTerms,/.test(shell));
 ok('the Invoice Designs page has the terms editor', gal.includes('id="idTerms"') && gal.includes('function saveTerms()'));
-ok('invoiceData passes the optional fields through untouched', /po: s\.po \|\| \(s\.qa && s\.qa\.po\) \|\| ''/.test(data) && /items: Array\.isArray\(s\.items\) \? s\.items : null/.test(data) && /export: s\.export \|\| null, spec: s\.spec \|\| null, qa: s\.qa \|\| null/.test(data));
+ok('invoiceData passes the optional fields through (items gain their rate unit and a materialised taxable, nothing else changes)', /po: s\.po \|\| \(s\.qa && s\.qa\.po\) \|\| ''/.test(data) && /items: Array\.isArray\(s\.items\) \? s\.items\.map\(it => Object\.assign\(\{\}, it, \{ rateUnit: it\.rateUnit \|\| it\.unit \|\| '', taxable: /.test(data) && /export: s\.export \|\| null, spec: s\.spec \|\| null, qa: s\.qa \|\| null/.test(data));
 console.log('\n═══ Deshwali Professional Industrial Invoice ═══\n  Passed: ' + pass + '   Failed: ' + fail);
 fails.forEach(f => console.log('    ✗ ' + f));
 console.log(fail === 0 ? '\n✅ ALL ' + pass + ' INDUSTRIAL TESTS PASSED\n' : '\n❌ ' + fail + ' FAILED\n');

@@ -64,13 +64,14 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./party-identity.js?v=m28"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./party-resolve.js?v=pr1"></script>
-<script src="./costing-core.js?v=ct3"></script>
-<script src="./data.js?v=m52caaaaaaaaaaaaaaaaa"></script>
+<script src="./costing-core.js?v=ct4"></script>
+<script src="./units-core.js?v=u2"></script>
+<script src="./data.js?v=m52caaaaaaaaaaaaaaaaaaa"></script>
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./i18n.js?v=h8"></script>
-<script src="./wa-core.js?v=w3"></script>
-<script src="./invoice-templates.js?v=t18"></script>
-<script src="./shell.js?v=m68saaaaaaaaaaaaaaaaaaaa"></script>
+<script src="./wa-core.js?v=w4"></script>
+<script src="./invoice-templates.js?v=t20"></script>
+<script src="./shell.js?v=m68saaaaaaaaaaaaaaaaaaaa3"></script>
 <script src="./chat-core.js?v=cc2"></script>
 <script src="./imchat.js?v=im11"></script>
 <script src="./qlx.js?v=m20prgdaaaaaa"></script>
@@ -150,8 +151,27 @@ const INV_MATERIALS = [
 const INV_FG = { key: 'quicklime', nm: 'Quick Lime dispatched', unit: 'T', tint: 'lime', icon: 'plant', band: [1500, 20000], all: true, noun: 'invoice' };
 
 const invNum = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
-/* The whole fix in one predicate. NOT `+r.qty || 0`. */
-const invHasQty = r => invNum(r.qty) > 0;
+/* THE QUANTITY A ROW CONTRIBUTES — never the raw r.qty. A sale entered as
+   7,650 Kg is 7.65 T, and data.js already says so: every salesRows() /
+   purchaseRows() row carries r.tonnes (Kg ÷ 1000, MT as-is, null/0 for a
+   Bag/Nos/Litre line because a count is not a weight). Summing r.qty booked
+   that invoice as 7,650 T dispatched against 30 T produced (closing −7,620 T)
+   and a 32,490 Kg petcoke bill as 32,490 T. The one card counted in bags
+   (packaging) keeps r.qty. A row that arrives without a tonnes field (a raw
+   blob shape, as the fixtures are) follows data.js's own rule: a blank unit is
+   tonnes, a mass unit converts through QLUnits, anything else is not a tonnage. */
+const invTonnes = r => {
+  if (r.tonnes !== undefined) return invNum(r.tonnes);
+  const q = invNum(r.qty), u = ((r.unit || '') + '').trim();
+  if (!(q > 0)) return 0;
+  if (!u) return q;
+  const t = (typeof QLUnits !== 'undefined' && QLUnits) ? QLUnits.toTonnes(q, u) : null;
+  return t == null ? 0 : invNum(t);
+};
+const invQty = (r, m) => (m && m.unit !== 'T') ? invNum(r.qty) : invTonnes(r);
+/* The whole fix in one predicate. NOT `+r.qty || 0`. A recorded quantity is
+   one that is > 0 in the card's own unit — tonnes for a T card, bags for bags. */
+const invHasQty = (r, m) => invQty(r, m) > 0;
 /* data.js's own rule: cancelled, soft-deleted and archived records are not
    business records. withIdx() already drops _del/_arch upstream; repeated here
    because this core is fed fixtures in tests and must not depend on someone
@@ -215,8 +235,8 @@ function invCard(m, rows, period) {
   const addonValue = addons.reduce((a, r) => a + invVal(r), 0);
   const mat = all.filter(r => !INV_ADDON(r));                     // the bills that OUGHT to carry a quantity
   const matValue = mat.reduce((a, r) => a + invVal(r), 0);
-  const withQty = mat.filter(invHasQty);
-  const qty = withQty.reduce((a, r) => a + invNum(r.qty), 0);
+  const withQty = mat.filter(r => invHasQty(r, m));
+  const qty = withQty.reduce((a, r) => a + invQty(r, m), 0);          // tonnes for a T card (a Kg bill ÷ 1000), bags for bags
 
   const state = m.mixed ? 'mixed'
     : !mat.length ? 'addon'                                        // the group holds only freight/loading bills
@@ -262,8 +282,8 @@ function invStock(m, purchases, prod, period) {
   const runs = prod.filter(r => invLive(r) && invUpto(r.date, period));
   const used = runs.reduce((a, r) => a + invNum(r[m.consume]), 0);
   if (!mat.length && !used) return null;
-  const withQty = mat.filter(invHasQty);
-  const inward = withQty.reduce((a, r) => a + invNum(r.qty), 0);
+  const withQty = mat.filter(r => invHasQty(r, m));
+  const inward = withQty.reduce((a, r) => a + invQty(r, m), 0);       // tonnes, or bags for packaging
   const missing = mat.length - withQty.length;
   return {
     key: m.key, nm: m.nm, unit: m.unit, tint: m.tint, icon: m.icon,
@@ -277,8 +297,8 @@ function invFgStock(sales, prod, period) {
   const runs = prod.filter(r => invLive(r) && invUpto(r.date, period));
   const made = runs.reduce((a, r) => a + invNum(r.quicklime) + invNum(r.hydrated), 0);
   const disp = sales.filter(r => invLive(r) && invUpto(r.date, period));
-  const withQty = disp.filter(invHasQty);
-  const out = withQty.reduce((a, r) => a + invNum(r.qty), 0);
+  const withQty = disp.filter(r => invHasQty(r, INV_FG));
+  const out = withQty.reduce((a, r) => a + invQty(r, INV_FG), 0);    // r.tonnes — a 7,650 Kg invoice is 7.65 T out
   if (!made && !out) return null;
   const missing = disp.length - withQty.length;
   return {
@@ -414,13 +434,13 @@ function statCards(M) {
   const nBills = M.raw.reduce((a, c) => a + c.bills, 0) + (M.fg ? M.fg.bills : 0);
   const inValue = M.raw.reduce((a, c) => a + c.value, 0);
   const outValue = M.fg ? M.fg.value : 0;
-  const inQty = M.raw.reduce((a, c) => a + (c.qty || 0), 0);
+  const inQty = M.raw.filter(c => c.unit === 'T').reduce((a, c) => a + (c.qty || 0), 0);   // the headline says "T": bags are a count, not a tonnage
   const inKnown = M.raw.some(c => c.qtyKnown);
   const outKnown = !!(M.fg && M.fg.qtyKnown);
 
   const qtyCard = (label, val, known, missing, tint, icon) => ({
     label: label, tint: tint, icon: icon,
-    value: known ? nQ(val) + '<u class="qx-u">T</u>' : '—',
+    value: known ? nQ(val, 2) + '<u class="qx-u">T</u>' : '—',   // 7.65 T is 7.65 T, not 7.7
     sub: known
       ? (missing ? missing + ' bill' + (missing > 1 ? 's' : '') + ' still missing a quantity' : 'every bill recorded')
       : 'not recorded — the value is still real'
@@ -459,9 +479,9 @@ function qtyBlock(c) {
     <div class="qnote mute">${pl(c.bills, c.noun)} · services, no ${c.measure} to record.</div>`;
   if (c.state === 'unknown') return `<div class="unk">${ic('warn')}<span>Not recorded</span></div>
     <div class="qnote">${pl(c.matBills, c.noun)} · no quantity on ${c.matBills > 1 ? 'any of them' : 'it'}. The money below is real — the ${c.measure} was never entered.</div>`;
-  if (c.state === 'partial') return `<div class="qty">${nQ(c.qty)}<u>${esc(c.unit)}</u></div>
+  if (c.state === 'partial') return `<div class="qty">${nQ(c.qty, 2)}<u>${esc(c.unit)}</u></div>
     <div class="qnote">from ${c.withQty} of ${pl(c.matBills, c.noun)} — ${c.missingQty} carr${c.missingQty > 1 ? 'y' : 'ies'} no quantity, so this is a floor, not a total.</div>`;
-  return `<div class="qty">${nQ(c.qty)}<u>${esc(c.unit)}</u></div>
+  return `<div class="qty">${nQ(c.qty, 2)}<u>${esc(c.unit)}</u></div>
     <div class="qnote mute">across all ${pl(c.matBills, c.noun)}.</div>`;
 }
 function rateRow(c) {
@@ -498,7 +518,7 @@ function cardHTML(c, href) {
 }
 function stockHTML(s) {
   const body = s.computable
-    ? `<div class="qty${s.closing < 0 ? ' neg' : ''}">${nQ(s.closing)}<u>${esc(s.unit)}</u></div>
+    ? `<div class="qty${s.closing < 0 ? ' neg' : ''}">${nQ(s.closing, 2)}<u>${esc(s.unit)}</u></div>
        ${s.closing < 0 ? `<div class="qnote">Negative — more was ${s.fg ? 'dispatched than produced' : 'consumed than recorded inward'}. Check the entries.</div>` : ''}`
     : `<div class="unk">${ic('warn')}<span>Not computable</span></div>
        <div class="qnote">${s.missing} inward bill${s.missing > 1 ? 's have' : ' has'} no quantity, so inward − consumed would understate the stock. Recording them fixes this card.</div>`;
@@ -506,8 +526,8 @@ function stockHTML(s) {
     <div class="top"><div class="ic t-${s.tint}">${ic(s.icon)}</div>
       <div><div class="nm">${esc(s.nm)}</div><div class="sub">${s.fg ? 'produced − dispatched' : 'inward − consumed'}</div></div></div>
     ${body}
-    <div class="inv-kv"><span>${s.fg ? 'Produced' : 'Inward'}</span><b class="${s.computable ? '' : 'off'}">${s.computable ? nQ(s.inward) + ' ' + esc(s.unit) : 'incomplete'}</b></div>
-    <div class="inv-kv"><span>${s.fg ? 'Dispatched' : 'Consumed'}</span><b>${nQ(s.used)} ${esc(s.unit)}</b></div>
+    <div class="inv-kv"><span>${s.fg ? 'Produced' : 'Inward'}</span><b class="${s.computable ? '' : 'off'}">${s.computable ? nQ(s.inward, 2) + ' ' + esc(s.unit) : 'incomplete'}</b></div>
+    <div class="inv-kv"><span>${s.fg ? 'Dispatched' : 'Consumed'}</span><b>${nQ(s.used, 2)} ${esc(s.unit)}</b></div>
   </div>`;
 }
 function emptyHTML(icon, title, sub, href, btn) {
@@ -566,7 +586,7 @@ function movementHTML() {
   const dashT = t => '<span class="prd-dash" title="' + esc(t) + '" style="color:var(--ql-text-muted);cursor:help">\u2014</span>';
   const NAMES = { limestone: 'Limestone (T)', petcoke: 'Petcoke (T)', packaging: 'Bags (nos)' };
   const rmRows = rm.map(m => {
-    const dec = m.group === 'packaging' ? 0 : 1;
+    const dec = m.group === 'packaging' ? 0 : 2;   // tonnes to the 10 kg: a 7.65 T line must not read 7.7
     const c = v => v == null ? dashT(m.note || 'needs production runs') : QLD.fmt(v, dec);
     const rate = rates[m.group] && rates[m.group].rate != null ? fC(rates[m.group].rate) : '\u2014';
     return '<tr><td><b>' + NAMES[m.group] + '</b></td><td class="num">' + c(m.opening) + '</td><td class="num">' + QLD.fmt(m.purchased, dec) +
@@ -583,17 +603,17 @@ function movementHTML() {
     if (!anyRuns) return '<tr><td><b>' + label + '</b></td><td class="num" colspan="5">' + dashT('Finished-goods stock needs production runs \u2014 nothing records what was produced.') + '</td></tr>';
     const prodBefore = runs.filter(r => (r.date || '') < start).reduce((a, r) => a + r[key], 0);
     const prodIn = runs.filter(r => (r.date || '').slice(0, 7) === PERIOD).reduce((a, r) => a + r[key], 0);
-    const soldOf = f => sales.filter(s => s.product === key && f(s)).reduce((a, s) => a + s.qty, 0);
+    const soldOf = f => sales.filter(s => s.product === key && f(s)).reduce((a, s) => a + invTonnes(s), 0);   // tonnes, never raw qty
     if (!soldKnown) {
       return '<tr><td><b>' + label + '</b></td><td class="num">' + dashT('Sales invoices do not record the product, so per-product sold/closing cannot be split.') +
-        '</td><td class="num">' + QLD.fmt(prodIn, 1) + '</td><td class="num">' + dashT('product not on invoices') + '</td><td class="num">' + dashT('product not on invoices') + '</td><td class="num">\u2014</td></tr>';
+        '</td><td class="num">' + QLD.fmt(prodIn, 2) + '</td><td class="num">' + dashT('product not on invoices') + '</td><td class="num">' + dashT('product not on invoices') + '</td><td class="num">\u2014</td></tr>';
     }
     const opening = prodBefore - soldOf(s => (s.date || '') < start);
     const sold = soldOf(s => (s.date || '').slice(0, 7) === PERIOD);
     const pc = QLCosting.productionCost(inp);
     const perT = pc.perT != null ? fC(pc.perT) : '\u2014';
-    return '<tr><td><b>' + label + '</b></td><td class="num">' + QLD.fmt(opening, 1) + '</td><td class="num">' + QLD.fmt(prodIn, 1) +
-      '</td><td class="num">' + QLD.fmt(sold, 1) + '</td><td class="num">' + QLD.fmt(opening + prodIn - sold, 1) + '</td><td class="num">' + perT + '</td></tr>';
+    return '<tr><td><b>' + label + '</b></td><td class="num">' + QLD.fmt(opening, 2) + '</td><td class="num">' + QLD.fmt(prodIn, 2) +
+      '</td><td class="num">' + QLD.fmt(sold, 2) + '</td><td class="num">' + QLD.fmt(opening + prodIn - sold, 2) + '</td><td class="num">' + perT + '</td></tr>';
   };
   return '<div class="inv-sec-h">Stock movement \u2014 ' + esc(periodLabel(PERIOD)) + ' <span class="hint">opening + in \u2212 out = closing \u00b7 reconciles with Production</span></div>' +
     '<div class="qx-panel inv-panel" style="padding:12px;overflow-x:auto"><table class="tbl"><thead><tr><th>Raw material</th><th class="num">Opening</th><th class="num">Purchased</th><th class="num">Consumed</th><th class="num">Closing</th><th class="num">Avg cost</th></tr></thead>' +

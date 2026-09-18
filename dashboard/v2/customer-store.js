@@ -16,9 +16,31 @@
    ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
-  const Q = window.QLD, C = window.CustomerCore;
-  if (!Q || !C) { console.warn('customer-store: QLD/CustomerCore missing'); return; }
+  const Q = window.QLD, C = window.CustomerCore, U = window.QLUnits;
+  if (!Q || !C || !U) { console.warn('customer-store: QLD/CustomerCore/QLUnits missing'); return; }
   const S = Q.state;
+  /* Every row that carries a quantity carries its unit, and every row that
+     carries a rate carries the unit that rate is per (rateUnit). Legacy 'MT'
+     folds onto Ton; a NEW line whose form left rateUnit blank gets the
+     business default (mass → per Ton, bags → per Bag) via C.newRateUnit.
+     The amount is ALWAYS QLUnits.lineAmount — never qty × rate — so a
+     7,650 Kg order at ₹5,300 / Ton is ₹40,545. */
+  const withUnits = (row, rateKeys) => {
+    const out = Object.assign({}, row);
+    if (out.unit !== undefined || out.rateUnit !== undefined || (rateKeys || []).some(k => out[k] !== undefined && out[k] !== '')) {
+      out.unit = C.unitKey(out.unit) || 'Ton';
+      out.rateUnit = C.newRateUnit(out.unit, out.rateUnit);
+    }
+    return out;
+  };
+  /* An EXISTING record being edited keeps the rate unit it was booked with:
+     a legacy row with no rateUnit is priced per its own unit (C.rateUnitOf,
+     the register's rule), so an edit that does not touch the rate unit can
+     never silently re-price a stored Kg line as per Ton. */
+  const asStored = (r) => Object.assign({}, r, { rateUnit: C.rateUnitOf(r.unit, r.rateUnit) });
+  const priceOf = (row, rateKey) => C.priceLine(row.qty, row.unit, row[rateKey || 'rate'], row.rateUnit);
+  const qtyLabel = (qty, unit) => C.fmtQty(qty, unit);
+  const rateLabel = (rate, rateUnit, unit) => C.fmtRate(rate, rateUnit, unit);
   const now = () => new Date().toISOString();
   const today = () => C.iso(new Date());
   const stamp = () => Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36);
@@ -107,19 +129,29 @@
 
   /* ── requirements ─────────────────────────────────────────────────────── */
   function reqsOf(cust) { return S.REQS.filter(r => r.cust === cust && !r._del); }
-  function reqSummary(r) { return (r.product || 'Quick Lime') + ' · ' + (r.qty || 0) + ' ' + (r.unit || 'MT') + (r.freq === 'monthly' ? '/month' : r.freq === 'weekly' ? '/week' : '') + (r.targetRate ? ' · target ₹' + Math.round(r.targetRate).toLocaleString('en-IN') + '/MT' : ''); }
+  function reqSummary(r) { return (r.product || 'Quick Lime') + ' · ' + qtyLabel(r.qty || 0, r.unit) + (r.freq === 'monthly' ? '/month' : r.freq === 'weekly' ? '/week' : '') + (r.targetRate ? ' · target ' + rateLabel(r.targetRate, r.rateUnit, r.unit) : ''); }
+  const REQ_RATES = ['prefRate', 'targetRate', 'lastQuoted', 'acceptedRate'];
+  function reqUnitsOk(r) {
+    const rate = REQ_RATES.map(k => +r[k] || 0).find(x => x > 0);
+    if (!rate) return { ok: true };
+    const L = priceOf(Object.assign({}, r, { rate }), 'rate');
+    return L.ok ? { ok: true } : { ok: false, reason: L.why };
+  }
   function addReq(cust, v) {
     if (!byId(cust)) return { ok: false, reason: 'Customer not found' };
-    const r = Object.assign({ id: 'rq' + stamp(), cust, status: 'active', at: now(), updatedAt: now(), unit: 'MT', freq: 'monthly' }, clean(v));
+    const r = withUnits(Object.assign({ id: 'rq' + stamp(), cust, status: 'active', at: now(), updatedAt: now(), unit: 'Ton', freq: 'monthly' }, clean(v)), REQ_RATES);
     if (!(+r.qty > 0)) return { ok: false, reason: 'Quantity is required' };
+    const u = reqUnitsOk(r); if (!u.ok) return u;
     S.REQS.push(r); Q.commit();
     logEvent(cust, 'requirement', { title: 'Customer requirement added', detail: reqSummary(r), ref: { type: 'req', id: r.id } });
-    advanceDeal(cust, 'req_received', { product: r.product, qty: r.qty, targetRate: r.targetRate, reqId: r.id });
+    advanceDeal(cust, 'req_received', { product: r.product, qty: r.qty, unit: r.unit, targetRate: r.targetRate, rateUnit: r.rateUnit, reqId: r.id });
     return { ok: true, id: r.id };
   }
   function updateReq(id, v) {
     const r = S.REQS.find(x => x.id === id); if (!r) return { ok: false };
-    Object.assign(r, clean(v), { updatedAt: now() }); Q.commit();
+    const next = withUnits(Object.assign(asStored(r), clean(v)), REQ_RATES);
+    const u = reqUnitsOk(next); if (!u.ok) return u;
+    Object.assign(r, next, { updatedAt: now() }); Q.commit();
     logEvent(r.cust, 'requirement', { title: 'Requirement updated', detail: reqSummary(r), ref: { type: 'req', id } });
     return { ok: true };
   }
@@ -137,22 +169,30 @@
     if (!byId(v.cust)) return { ok: false, reason: 'Customer not found' };
     const q = Object.assign({ id: 'qt' + stamp(), no: nextQuoteNo(), date: today(), status: 'draft', rev: 1, items: [], gstR: 5, history: [], at: now(), by: who() }, clean(v));
     if (!q.validUntil) q.validUntil = C.addDays(q.date, 7);
-    q.items = (q.items || []).filter(it => +it.qty > 0);
+    q.items = normLines(q.items);
     if (!q.items.length) return { ok: false, reason: 'A quotation needs at least one line' };
+    const t = C.quoteTotals(q);
+    if (!t.ok) return { ok: false, reason: t.why };
     q.history.push({ at: now(), by: who(), what: 'Created', status: 'draft' });
     S.QUOTES.push(q); Q.commit();
-    const t = C.quoteTotals(q);
     logEvent(q.cust, 'quote_status', { title: 'Quotation ' + q.no + ' prepared', detail: lineSummary(q), amount: t.total, ref: { type: 'quote', id: q.id } });
-    advanceDeal(q.cust, 'quote_prepared', { product: q.items[0].product, qty: t.tonnes, targetRate: q.items[0].rate, value: t.total, quoteId: q.id });
+    advanceDeal(q.cust, 'quote_prepared', Object.assign({ product: q.items[0].product, value: t.total, quoteId: q.id }, dealQtyOf(q, t)));
     return { ok: true, id: q.id, no: q.no };
   }
-  function lineSummary(q) { return (q.items || []).map(it => (it.product || '') + ' – ' + it.qty + ' ' + (it.unit || 'MT') + ' @ ₹' + Math.round(+it.rate || 0).toLocaleString('en-IN') + '/' + (it.unit || 'MT')).join(' · '); }
+  /* Quotation lines: only lines with a quantity, each carrying its unit and
+     the unit its rate is per. */
+  function normLines(items) { return (items || []).filter(it => +it.qty > 0).map(it => withUnits(Object.assign({ unit: 'Ton' }, it), ['rate'])); }
+  /* What a quotation puts on its deal: the tonnage priced per Ton when the
+     lines are a mass, else the first line as entered (bags stay bags). */
+  function dealQtyOf(q, t) { const it = q.items[0] || {}; return t.tonnes > 0 ? { qty: t.tonnes, unit: 'Ton', targetRate: it.rate, rateUnit: it.rateUnit } : { qty: it.qty, unit: it.unit, targetRate: it.rate, rateUnit: it.rateUnit }; }
+  function lineSummary(q) { return (q.items || []).map(it => (it.product || '') + ' – ' + qtyLabel(it.qty, it.unit) + ' @ ' + rateLabel(it.rate, it.rateUnit, it.unit)).join(' · '); }
   function updateQuote(id, v, what) {
     const q = S.QUOTES.find(x => x.id === id); if (!q) return { ok: false };
-    const before = JSON.stringify((q.items || []).map(it => [it.product, it.qty, it.rate]));
+    const before = JSON.stringify((q.items || []).map(it => [it.product, it.qty, it.unit, it.rate, it.rateUnit]));
+    if (v.items) { const items = normLines(v.items); const t0 = C.quoteTotals(Object.assign({}, q, clean(v), { items })); if (!t0.ok) return { ok: false, reason: t0.why }; }
     Object.assign(q, clean(v), { updatedAt: now() });
-    if (v.items) q.items = v.items.filter(it => +it.qty > 0);
-    const after = JSON.stringify((q.items || []).map(it => [it.product, it.qty, it.rate]));
+    if (v.items) q.items = normLines(v.items);
+    const after = JSON.stringify((q.items || []).map(it => [it.product, it.qty, it.unit, it.rate, it.rateUnit]));
     q.history = q.history || []; q.history.push({ at: now(), by: who(), what: what || 'Edited', status: q.status });
     Q.commit();
     if (before !== after) logEvent(q.cust, 'price_revised', { title: 'Price revised on ' + q.no, detail: lineSummary(q), amount: C.quoteTotals(q).total, ref: { type: 'quote', id } });
@@ -171,7 +211,7 @@
     if (status === 'sent' && prev !== 'sent') logEvent(q.cust, 'quote_sent', { title: 'Quotation ' + q.no + ' sent' + (o.via ? ' by ' + o.via : ''), detail: lineSummary(q), amount: t.total, ref: { type: 'quote', id } });
     else logEvent(q.cust, 'quote_status', { title: 'Quotation ' + q.no + ': ' + C.labelOf(C.QUOTE_STATUS, status), detail: o.note || lineSummary(q), amount: t.total, ref: { type: 'quote', id } });
     if (status === 'negotiation' && o.priceRequest) logEvent(q.cust, 'price_request', { title: 'Customer requested revised price', detail: 'on ' + q.no + (o.note ? ' — ' + o.note : ''), ref: { type: 'quote', id } });
-    if (STAGE_FOR_QUOTE[status]) advanceDeal(q.cust, STAGE_FOR_QUOTE[status], { product: (q.items[0] || {}).product, qty: t.tonnes, targetRate: (q.items[0] || {}).rate, value: t.total, quoteId: q.id });
+    if (STAGE_FOR_QUOTE[status]) advanceDeal(q.cust, STAGE_FOR_QUOTE[status], Object.assign({ product: (q.items[0] || {}).product, value: t.total, quoteId: q.id }, dealQtyOf(q, t)));
     if (status === 'rejected') { const d = dealForQuote(q); if (d && C.isOpenStage(d.stage)) moveDeal(d.id, 'lost', 'Quotation rejected'); }
     return { ok: true };
   }
@@ -182,7 +222,8 @@
     const base = String(q.no).replace(/-R\d+$/, '');
     const rev = (q.rev || 1) + 1;
     const n = Object.assign({}, JSON.parse(JSON.stringify(q)), { id: 'qt' + stamp(), no: base + '-R' + rev, rev, parentId: q.id, status: 'draft', date: today(), validUntil: C.addDays(today(), 7), sentAt: null, sentVia: '', at: now(), by: who(), history: [{ at: now(), by: who(), what: 'Revised from ' + q.no, status: 'draft' }] }, clean(changes || {}));
-    if (changes && changes.items) n.items = changes.items.filter(it => +it.qty > 0);
+    if (changes && changes.items) n.items = normLines(changes.items);
+    const tn = C.quoteTotals(n); if (!tn.ok) return { ok: false, reason: tn.why };
     q.status = 'expired'; q.supersededBy = n.id; q.history = q.history || []; q.history.push({ at: now(), by: who(), what: 'Superseded by ' + n.no, status: 'expired' });
     S.QUOTES.push(n); Q.commit();
     logEvent(q.cust, 'price_revised', { title: 'Quotation revised: ' + n.no, detail: lineSummary(n), amount: C.quoteTotals(n).total, ref: { type: 'quote', id: n.id } });
@@ -201,22 +242,23 @@
   function nextOfferNo() { let mx = 0; S.OFFERS.forEach(o => { const m = /^PO-(\d+)/.exec(String(o.no || '')); if (m) mx = Math.max(mx, +m[1]); }); return 'PO-' + (mx + 1); }
   function addOffer(v, via) {
     if (!byId(v.cust)) return { ok: false, reason: 'Customer not found' };
-    const o = Object.assign({ id: 'of' + stamp(), no: nextOfferNo(), date: today(), unit: 'MT', status: via ? 'sent' : 'saved', via: via || '', at: now(), by: who() }, clean(v));
+    const o = withUnits(Object.assign({ id: 'of' + stamp(), no: nextOfferNo(), date: today(), unit: 'Ton', status: via ? 'sent' : 'saved', via: via || '', at: now(), by: who() }, clean(v)), ['rate']);
     if (!(+o.rate > 0)) return { ok: false, reason: 'Offer price is required' };
+    const L = priceOf(o); if (!L.ok) return { ok: false, reason: L.why };
     if (!o.validUntil) o.validUntil = C.addDays(o.date, +o.validDays || 3);
     S.OFFERS.push(o); Q.commit();
-    logEvent(o.cust, 'offer_sent', { title: (via ? 'Price offer sent by ' + via : 'Price offer saved') + ' (' + o.no + ')', detail: (o.product || '') + ' – ' + (o.qty || '?') + ' ' + o.unit + ' @ ₹' + Math.round(o.rate).toLocaleString('en-IN') + '/MT · ' + C.labelOf(C.FREIGHT, o.freight) + ' · valid till ' + o.validUntil, amount: (+o.qty || 0) * o.rate || null, ref: { type: 'offer', id: o.id } });
-    advanceDeal(o.cust, 'quote_sent', { product: o.product, qty: o.qty, targetRate: o.rate, offerId: o.id });
+    logEvent(o.cust, 'offer_sent', { title: (via ? 'Price offer sent by ' + via : 'Price offer saved') + ' (' + o.no + ')', detail: (o.product || '') + ' – ' + (o.qty ? qtyLabel(o.qty, o.unit) : '? ' + o.unit) + ' @ ' + rateLabel(o.rate, o.rateUnit, o.unit) + ' · ' + C.labelOf(C.FREIGHT, o.freight) + ' · valid till ' + o.validUntil, amount: (+o.qty > 0 ? L.amount : null) || null, ref: { type: 'offer', id: o.id } });
+    advanceDeal(o.cust, 'quote_sent', { product: o.product, qty: o.qty, unit: o.unit, targetRate: o.rate, rateUnit: o.rateUnit, offerId: o.id });
     return { ok: true, id: o.id, no: o.no };
   }
   function setOfferStatus(id, status, note) {
     const o = S.OFFERS.find(x => x.id === id); if (!o) return { ok: false };
     o.status = status; o.updatedAt = now(); Q.commit();
     logEvent(o.cust, 'quote_status', { title: 'Offer ' + o.no + ': ' + C.labelOf(C.OFFER_STATUS, status), detail: note || '', ref: { type: 'offer', id } });
-    if (status === 'accepted') advanceDeal(o.cust, 'price_confirmed', { product: o.product, qty: o.qty, targetRate: o.rate, offerId: id });
+    if (status === 'accepted') advanceDeal(o.cust, 'price_confirmed', { product: o.product, qty: o.qty, unit: o.unit, targetRate: o.rate, rateUnit: o.rateUnit, offerId: id });
     return { ok: true };
   }
-  function markOfferSent(id, via) { const o = S.OFFERS.find(x => x.id === id); if (!o) return; if (o.status === 'saved') o.status = 'sent'; o.via = via; o.sentAt = now(); Q.commit(); logEvent(o.cust, via === 'email' ? 'email' : 'whatsapp', { title: 'Offer ' + o.no + ' sent by ' + via, detail: (o.product || '') + ' @ ₹' + Math.round(o.rate).toLocaleString('en-IN') + '/MT', ref: { type: 'offer', id } }); }
+  function markOfferSent(id, via) { const o = S.OFFERS.find(x => x.id === id); if (!o) return; if (o.status === 'saved') o.status = 'sent'; o.via = via; o.sentAt = now(); Q.commit(); logEvent(o.cust, via === 'email' ? 'email' : 'whatsapp', { title: 'Offer ' + o.no + ' sent by ' + via, detail: (o.product || '') + ' @ ' + rateLabel(o.rate, o.rateUnit, o.unit), ref: { type: 'offer', id } }); }
 
   /* ── deals — the pipeline ─────────────────────────────────────────────── */
   const STAGE_ORDER = C.STAGES.map(s => s.key);
@@ -229,18 +271,20 @@
   function addDeal(v) {
     if (!byId(v.cust)) return { ok: false, reason: 'Customer not found' };
     const p = byId(v.cust);
-    const d = Object.assign({ id: 'dl' + stamp(), stage: 'new_lead', at: now(), updatedAt: now(), lastActivityAt: now(), owner: p.salesperson || '', unit: 'MT' }, clean(v));
+    const d = withUnits(Object.assign({ id: 'dl' + stamp(), stage: 'new_lead', at: now(), updatedAt: now(), lastActivityAt: now(), owner: p.salesperson || '', unit: 'Ton' }, clean(v)), ['targetRate']);
+    const u = dealUnitsOk(d); if (!u.ok) return u;
     S.DEALS.push(d); Q.commit();
     return { ok: true, id: d.id };
   }
-  function updateDeal(id, v) { const d = S.DEALS.find(x => x.id === id); if (!d) return { ok: false }; Object.assign(d, clean(v), { updatedAt: now() }); Q.commit(); return { ok: true }; }
+  function dealUnitsOk(d) { if (!(+d.qty > 0 && +d.targetRate > 0)) return { ok: true }; const L = priceOf(d, 'targetRate'); return L.ok ? { ok: true } : { ok: false, reason: L.why }; }
+  function updateDeal(id, v) { const d = S.DEALS.find(x => x.id === id); if (!d) return { ok: false }; const next = withUnits(Object.assign(asStored(d), clean(v)), ['targetRate']); const u = dealUnitsOk(next); if (!u.ok) return u; Object.assign(d, next, { updatedAt: now() }); Q.commit(); return { ok: true }; }
   function moveDeal(id, stage, note) {
     const d = S.DEALS.find(x => x.id === id); if (!d || !C.stage(stage)) return { ok: false };
     const prev = d.stage; if (prev === stage) return { ok: true };
     d.stage = stage; d.updatedAt = now(); d.lastActivityAt = now();
     if (stage === 'completed') d.wonAt = now(); if (stage === 'lost') { d.lostAt = now(); d.lostReason = note || d.lostReason || ''; }
     Q.commit();
-    logEvent(d.cust, stage === 'delivered' ? 'delivered' : stage === 'order_confirmed' ? 'order' : 'status', { title: (stage === 'delivered' ? 'Delivery completed' : stage === 'order_confirmed' ? 'Order confirmed' : 'Pipeline: ' + C.stageLabel(prev) + ' → ' + C.stageLabel(stage)), detail: (d.product || '') + (d.qty ? ' · ' + d.qty + ' ' + (d.unit || 'MT') : '') + (note ? ' — ' + note : ''), ref: { type: 'deal', id } });
+    logEvent(d.cust, stage === 'delivered' ? 'delivered' : stage === 'order_confirmed' ? 'order' : 'status', { title: (stage === 'delivered' ? 'Delivery completed' : stage === 'order_confirmed' ? 'Order confirmed' : 'Pipeline: ' + C.stageLabel(prev) + ' → ' + C.stageLabel(stage)), detail: (d.product || '') + (d.qty ? ' · ' + qtyLabel(d.qty, d.unit) : '') + (note ? ' — ' + note : ''), ref: { type: 'deal', id } });
     return { ok: true };
   }
   /* Move the customer's open deal forward to `stage` (never backwards), or
@@ -252,10 +296,11 @@
     if (!d) d = openDeal(cust, o.product);
     if (!d) {
       const p = byId(cust) || {};
-      d = { id: 'dl' + stamp(), cust, stage: 'new_lead', at: now(), updatedAt: now(), lastActivityAt: now(), owner: p.salesperson || '', unit: 'MT' };
+      d = { id: 'dl' + stamp(), cust, stage: 'new_lead', at: now(), updatedAt: now(), lastActivityAt: now(), owner: p.salesperson || '', unit: 'Ton' };
       S.DEALS.push(d);
     }
-    ['product', 'qty', 'targetRate', 'value', 'quoteId', 'reqId', 'offerId', 'saleIdx'].forEach(k => { if (o[k] != null && o[k] !== '') d[k] = o[k]; });
+    ['product', 'qty', 'unit', 'targetRate', 'rateUnit', 'value', 'quoteId', 'reqId', 'offerId', 'saleIdx'].forEach(k => { if (o[k] != null && o[k] !== '') d[k] = o[k]; });
+    if (o.qty != null && o.qty !== '') { d.unit = C.unitKey(o.unit || d.unit) || 'Ton'; d.rateUnit = C.rateUnitOf(d.unit, o.rateUnit || d.rateUnit); }
     if (STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf(d.stage)) d.stage = stage;
     d.updatedAt = now(); d.lastActivityAt = now();
     Q.commit();
@@ -327,14 +372,19 @@
   function recordOrder(v, link) {
     link = link || {};
     const p = byId(link.cust); if (!p) return { ok: false, reason: 'Customer not found' };
-    const sale = Object.assign({ party: p.name, gstin: p.gstin || '', date: today(), product: 'Quick Lime', gstR: 5 }, v, { custId: p.id, quoteId: link.quoteId || null, offerId: link.offerId || null, dealId: link.dealId || null });
+    /* The sale is self-describing: unit + rateUnit always stored (the form's
+       selects, else Ton / per Ton), so the register, the print and the e-way
+       value all price it through QLUnits.lineAmount. */
+    const sale = withUnits(Object.assign({ party: p.name, gstin: p.gstin || '', date: today(), product: 'Quick Lime', gstR: 5, unit: 'Ton' }, v, { custId: p.id, quoteId: link.quoteId || null, offerId: link.offerId || null, dealId: link.dealId || null }), ['rate']);
+    const L = priceOf(sale);
+    if (!L.ok) return { ok: false, reason: L.why };
     const r = Q.addSale(sale);
     if (r && r.ok === false) return r;
     const idx = S.SALES.length - 1;
     if (link.quoteId) { const q = S.QUOTES.find(x => x.id === link.quoteId); if (q) { q.convertedSale = idx; setQuoteStatus(q.id, 'converted', { note: 'Invoice #' + sale.inv }); } }
     if (link.offerId) setOfferStatus(link.offerId, 'accepted', 'Invoice #' + sale.inv);
-    const d = advanceDeal(p.id, 'order_confirmed', { product: sale.product, qty: sale.qty, targetRate: sale.rate, value: (+sale.qty || 0) * (+sale.rate || 0), quoteId: link.quoteId, offerId: link.offerId, saleIdx: idx });
-    logEvent(p.id, 'order', { title: 'Order received — invoice #' + sale.inv, detail: sale.product + ' · ' + sale.qty + ' MT @ ₹' + Math.round(+sale.rate || 0).toLocaleString('en-IN') + '/MT', amount: (+sale.qty || 0) * (+sale.rate || 0) * (1 + (+sale.gstR || 0) / 100), ref: { type: 'sale', id: idx } });
+    const d = advanceDeal(p.id, 'order_confirmed', { product: sale.product, qty: sale.qty, unit: sale.unit, targetRate: sale.rate, rateUnit: sale.rateUnit, value: L.amount, quoteId: link.quoteId, offerId: link.offerId, saleIdx: idx });
+    logEvent(p.id, 'order', { title: 'Order received — invoice #' + sale.inv, detail: sale.product + ' · ' + qtyLabel(sale.qty, sale.unit) + ' @ ' + rateLabel(sale.rate, sale.rateUnit, sale.unit), amount: U.round(L.amount * (1 + (+sale.gstR || 0) / 100), 2), ref: { type: 'sale', id: idx } });
     return { ok: true, idx, dealId: d && d.id };
   }
   /* A payment against an invoice, or on account. Both post to the same books
@@ -381,12 +431,18 @@
 
   function clean(v) { const o = {}; Object.keys(v || {}).forEach(k => { if (v[k] !== undefined) o[k] = v[k]; }); return o; }
 
-  /* The register rows, plus the per-tonne rate the price history needs:
-     salesRows() carries qty and the taxable value but not the rate, so it is
-     derived (taxable ÷ qty — the invoice average on a multi-line bill) when the
-     row itself does not say. */
+  /* The register rows, plus the rate the price history needs: salesRows()
+     carries qty, unit, rate, rateUnit and tonnes; a row with no stored rate
+     (a multi-line bill) gets the implied rate per Ton — taxable ÷ tonnes —
+     never taxable ÷ raw qty, which would make a Kg invoice look like ₹5 / T. */
   function salesForCrm() {
-    return Q.salesRows().map(s => { const raw = S.SALES[s.idx] || {}; const rate = +raw.rate || (s.qty ? Math.round(s.taxable / s.qty) : 0); return Object.assign({}, s, { rate, product: s.product || raw.product || 'Quick Lime' }); });
+    return Q.salesRows().map(s => {
+      const raw = S.SALES[s.idx] || {};
+      const unit = C.unitKey(s.unit || raw.unit) || 'Ton';
+      let rate = +s.rate || +raw.rate || 0, rateUnit = C.rateUnitOf(unit, s.rateUnit || raw.rateUnit);
+      if (!rate && +s.taxable > 0) { const t = s.tonnes != null ? +s.tonnes : C.tonnesOf(s.qty, unit); if (t > 0) { rate = U.round(s.taxable / t, 2); rateUnit = 'Ton'; } else if (+s.qty > 0) { rate = U.round(s.taxable / s.qty, 2); rateUnit = unit; } }
+      return Object.assign({}, s, { rate, unit, rateUnit, tonnes: s.tonnes != null ? +s.tonnes : C.tonnesOf(s.qty, unit), product: s.product || raw.product || 'Quick Lime' });
+    });
   }
   /* everything the read side needs, in one call */
   function enriched(opts) {

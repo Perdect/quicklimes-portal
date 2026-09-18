@@ -886,8 +886,55 @@ function ql_ensure_tables() {
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 
+/* ── Units: the PHP mirror of dashboard/v2/units-core.js. PURE, top-level,
+   each closes at column 0 so cron.test.php can lift them by regex. A rate has
+   a unit of its own; the amount is the quantity converted INTO the rate's unit
+   × the rate — 7,650 Kg @ ₹5,300 / Ton is ₹40,545, never ₹4,05,45,000. A row
+   with no rate_unit is priced per its own quantity unit (every row written
+   before rate units existed keeps the figure it was booked with). */
+function ql_unit_norm($u) {
+  $s = strtolower(trim((string)$u));
+  if ($s === '') return '';
+  $t = preg_replace('/[.\s]/', '', $s);
+  if (preg_match('/^(ton|tonnes?|tons?|mts?|t|to|metricton|metrictonne|tn)$/', $t)) return 'Ton';
+  if (preg_match('/^(kgs?|kilos?|kilograms?|kilogramme)$/', $t)) return 'Kg';
+  if (preg_match('/^(quintals?|qtl|qntl|q)$/', $t)) return 'Quintal';
+  if (preg_match('/^(bags?|boras?|sacks?)$/', $t)) return 'Bag';
+  if (preg_match('/^(nos?|pcs?|pieces?|units?|each|ea)$/', $t)) return 'Nos';
+  if (preg_match('/^(litres?|liters?|ltrs?|l|lt)$/', $t)) return 'Litre';
+  if (preg_match('/^(other|misc)$/', $t)) return 'Other';
+  return '';
+}
+function ql_unit_family($u) {
+  $k = ql_unit_norm($u);
+  if ($k === 'Ton' || $k === 'Kg' || $k === 'Quintal') return 'mass';
+  if ($k === 'Bag' || $k === 'Nos') return 'count';
+  if ($k === 'Litre') return 'volume';
+  return $k === '' ? '' : 'other';
+}
+function ql_convert_qty($qty, $from, $to) {
+  $q = (float)$qty;
+  $f = ql_unit_norm($from); $t = ql_unit_norm($to);
+  if ($f === '' || $t === '') return (strtolower(trim((string)$from)) === strtolower(trim((string)$to))) ? $q : null;
+  if ($f === $t) return $q;
+  $ff = ql_unit_family($f); $tf = ql_unit_family($t);
+  if ($ff !== $tf || $ff === 'other' || $ff === 'count') return null;
+  $base = ['Ton' => 1.0, 'Kg' => 0.001, 'Quintal' => 0.1, 'Litre' => 1.0];
+  return round($q * $base[$f] / $base[$t], 9);
+}
+function ql_line_amount($qty, $unit, $rate, $rateUnit) {
+  $q = (float)$qty; $r = (float)$rate;
+  $u = trim((string)$unit); $ru = trim((string)$rateUnit);
+  if ($ru === '') $ru = $u;
+  $bq = ql_convert_qty($q, $u, $ru);
+  if ($bq === null) return ['amount' => round($q * $r, 2), 'billableQty' => $q, 'billableUnit' => $u, 'ok' => false];
+  return ['amount' => round($bq * $r, 2), 'billableQty' => $bq, 'billableUnit' => (ql_unit_norm($ru) !== '' ? ql_unit_norm($ru) : $ru), 'ok' => true];
+}
 /* ── What one sale row still owes. PURE (no DB), so it can be tested, and
-   shared by the cron's freshness check. Mirrors QLD's cS(): a cancelled bill
+   shared by the cron's freshness check. Mirrors QLD's saleTaxable + cS():
+   the amount through ql_line_amount (items[] + charges[] when the sale is
+   multi-line), GST from gstR the way the browser reads it (export → 0,
+   absent → 5; the old 'gst' key is honoured as an alias), a cancelled bill
    owes nothing, 'paid'/'cash' are settled in full, otherwise total − paid. */
 function ql_sale_outstanding($s) {
   if (!is_array($s)) return 0.0;
@@ -895,8 +942,14 @@ function ql_sale_outstanding($s) {
   if ($status === 'cancelled') return 0.0;
   $qty     = (float)($s['qty'] ?? 0);
   $rate    = (float)($s['rate'] ?? 0);
-  $taxable = isset($s['taxable']) ? (float)$s['taxable'] : $qty * $rate;
-  $gst     = (float)($s['gst'] ?? 0);
+  $ru      = (string)($s['rateUnit'] ?? ($s['rate_unit'] ?? ''));
+  if (isset($s['taxable'])) $taxable = (float)$s['taxable'];
+  elseif (!empty($s['items']) && is_array($s['items'])) { $taxable = 0.0; foreach ($s['items'] as $it) { if (!is_array($it)) continue; $taxable += (isset($it['taxable']) && $it['taxable'] !== '') ? (float)$it['taxable'] : ql_line_amount($it['qty'] ?? 0, $it['unit'] ?? '', $it['rate'] ?? 0, $it['rateUnit'] ?? ($it['rate_unit'] ?? ''))['amount']; } if (!empty($s['charges']) && is_array($s['charges'])) foreach ($s['charges'] as $c) $taxable += (float)(is_array($c) ? ($c['amount'] ?? 0) : 0); }
+  else $taxable = ql_line_amount($qty, (string)($s['unit'] ?? ''), $rate, $ru)['amount'];
+  if (($s['type'] ?? '') === 'export') $gst = 0.0;
+  elseif (isset($s['gstR']) && $s['gstR'] !== '' && $s['gstR'] !== null) $gst = (float)$s['gstR'];
+  elseif (isset($s['gst'])) $gst = (float)$s['gst'];
+  else $gst = 5.0;
   $total   = isset($s['total']) ? (float)$s['total'] : $taxable * (1 + $gst / 100);
   $paid    = ($status === 'paid' || $status === 'cash') ? $total : (float)($s['paid'] ?? 0);
   return max(0.0, $total - $paid);

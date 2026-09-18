@@ -31,8 +31,29 @@
   var num = function (n) { return +n || 0; };
   var inYM = function (d, ym) { return String(d || '').slice(0, 7) === ym; };
   var live = function (r) { return !r._del && !r._arch && (r.status || 'pending') !== 'cancelled'; };
-  /* a sales row carries either a computed taxable or raw qty×rate */
-  var saleVal = function (s) { var t = num(s.taxable); return t > 0 ? t : R2(num(s.qty) * num(s.rate)); };
+  /* units-core.js is THE quantity / rate-unit arithmetic (window.QLUnits in
+     the browser, a require under Node). Resolved on first use and memoised:
+     expenses/inventory/production/sales.html load costing-core.js BEFORE
+     units-core.js, so a top-of-file read would see nothing. */
+  var _U = null;
+  var U = function () { return _U || (_U = root.QLUnits || (typeof globalThis !== 'undefined' && globalThis.QLUnits) || (typeof require === 'function' ? require('./units-core.js') : null)); };
+  /* A sales row carries either a computed taxable (salesRows) or the raw
+     record {qty, unit, rate, rateUnit} (costingInputs passes S.SALES). The raw
+     path is priced by QLUnits.lineAmount — billable qty (converted INTO the
+     rate's unit) × rate — so 7,650 Kg @ ₹5,300/Ton is ₹40,545 here exactly as
+     on the invoice, never 7,650 × 5,300. */
+  var saleVal = function (s) { var t = num(s.taxable); return t > 0 ? t : R2(U().lineAmount(s).amount); };
+  /* TONNES of a sales / purchase row. `tonnes` when the row is a salesRows /
+     purchaseRows row; else the entered unit converted to Ton (a blank unit is
+     a tonne — the legacy convention); null when the unit is not a mass (bags). */
+  var tonnesOf = function (r) {
+    if (!r) return null;
+    if (r.tonnes !== undefined) return r.tonnes == null ? null : num(r.tonnes);
+    var u = String(r.unit || '').trim();
+    if (!u) return num(r.qty);
+    return U().toTonnes(r.qty, u);
+  };
+  var tonnes = function (r) { var t = tonnesOf(r); return t == null ? 0 : t; };
 
   /* ── THE EXPENSE MASTER (§2) ─────────────────────────────────────────────
      group        one of the nine costing groups A–I
@@ -152,13 +173,19 @@
     var by = {};
     (purchases || []).filter(function (p) { return live(p) && inYM(p.date, ym); }).forEach(function (p) {
       var g = p.group || 'other';
-      var b = by[g] || (by[g] = { taxable: 0, qty: 0, bills: [] });
-      b.taxable += num(p.taxable); b.qty += num(p.qty);
-      b.bills.push({ ref: p.bill, amount: R2(num(p.taxable)), qty: num(p.qty) });
+      var b = by[g] || (by[g] = { taxable: 0, qty: 0, pricedTaxable: 0, unpriced: 0, bills: [] });
+      /* ₹/T must divide rupees by TONNES: a Kg petcoke bill is ÷1000, and a
+         bill whose quantity is not a mass (or not recorded) cannot price a
+         tonne — its money still counts as cost, but it is left out of the
+         rate's numerator and counted as `unpriced`. Packaging is per bag. */
+      var q = g === 'packaging' ? (num(p.qty) > 0 ? num(p.qty) : null) : tonnesOf(p);
+      b.taxable += num(p.taxable);
+      if (q != null && q > 0) { b.qty += q; b.pricedTaxable += num(p.taxable); } else b.unpriced++;
+      b.bills.push({ ref: p.bill, amount: R2(num(p.taxable)), qty: q == null ? 0 : R2(q), unit: g === 'packaging' ? 'Bag' : 'Ton' });
     });
     Object.keys(by).forEach(function (g) {
-      by[g].rate = by[g].qty > 0 ? R2(by[g].taxable / by[g].qty) : null;
-      by[g].taxable = R2(by[g].taxable); by[g].qty = R2(by[g].qty);
+      by[g].rate = by[g].qty > 0 ? R2(by[g].pricedTaxable / by[g].qty) : null;
+      by[g].taxable = R2(by[g].taxable); by[g].pricedTaxable = R2(by[g].pricedTaxable); by[g].qty = R2(by[g].qty);
     });
     return by;
   }
@@ -205,7 +232,7 @@
           detail: 'period purchases treated as consumed (no production runs recorded)',
           refs: rates[g].bills.map(function (b) { return b.ref; }) });
       });
-      outputT = R2(sales.reduce(function (a, s) { return a + num(s.qty); }, 0));
+      outputT = R2(sales.reduce(function (a, s) { return a + tonnes(s); }, 0));   // tonnes, whatever unit the invoice was in
       if (lines.length) warnings.push('No production runs are recorded for ' + ym +
         ', so this is PERIOD costing: purchases stand in for consumption and dispatched tonnes for output. Record runs on the Production page for actual costing.');
     }
@@ -280,12 +307,14 @@
     var ym = String(sale.date || '').slice(0, 7);
     var pc = productionCost(Object.assign({}, inp, { ym: ym }));
     var sales = (inp.sales || []).filter(function (s) { return live(s) && inYM(s.date, ym); });
-    var monthT = sales.reduce(function (a, s) { return a + num(s.qty); }, 0);
+    var monthT = sales.reduce(function (a, s) { return a + tonnes(s); }, 0);
     var sellExp = (inp.expenses || []).filter(function (e) {
       return live(e) && inYM(e.date, ym) &&
         (e.treatment || (GROUPS[e.group] || {}).treatment) === 'selling';
     }).reduce(function (a, e) { return a + num(e.amount); }, 0);
-    var qty = num(sale.qty), value = saleVal(sale);
+    /* sale.qty is TONNES here (callers pass r.tonnes); a sale handed in with a
+       unit is converted so a 7,650 Kg invoice costs 7.65 T of output, not 7,650. */
+    var qty = sale.unit ? tonnes(sale) : num(sale.qty), value = saleVal(sale);
     if (pc.perT == null) return { ok: false, error: 'No manufacturing cost/T for ' + ym + ' — ' +
       (pc.total > 0 ? 'no output tonnage to divide by' : 'no cost recorded'), ym: ym };
     var mfg = R2(qty * pc.perT);
@@ -308,7 +337,7 @@
     var ym = inp.ym;
     var pc = productionCost(inp);
     var sales = (inp.sales || []).filter(function (s) { return live(s) && inYM(s.date, ym); });
-    var salesT = R2(sales.reduce(function (a, s) { return a + num(s.qty); }, 0));
+    var salesT = R2(sales.reduce(function (a, s) { return a + tonnes(s); }, 0));
     var salesVal = R2(sales.reduce(function (a, s) { return a + saleVal(s); }, 0));
     var byT = function (t) {
       return R2((inp.expenses || []).filter(function (e) {
@@ -382,7 +411,10 @@
       var buy = function (filter) {
         var got = 0, missing = 0;
         P.filter(function (p) { return (p.group || "") === g && filter(p); }).forEach(function (p) {
-          if (num(p.qty) > 0) got += num(p.qty); else missing++;
+          /* limestone / petcoke in TONNES (a Kg bill ÷1000); bags stay a count.
+             A quantity that cannot be read as tonnes is missing, not 0. */
+          var q = g === "packaging" ? num(p.qty) : (tonnesOf(p) == null ? 0 : tonnesOf(p));
+          if (q > 0) got += q; else missing++;
         });
         return { qty: R2(got), missing: missing };
       };

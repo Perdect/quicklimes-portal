@@ -14,6 +14,9 @@
    ═══════════════════════════════════════════════════════════════════════ */
 const Q = window.QLD, C = window.CustomerCore, M = window.QLCRM, U = window.CRMUI;
 const esc = QLX.esc, svg = QLX.svg, IC = QLX.icons, fC = Q.fC;
+/* quantities print WITH their unit and rates WITH the unit they are per —
+   "7,650 Kg" · "₹5,300.00 / Ton" — through the one vocabulary (units-core) */
+const fQ = (qty, unit) => esc(C.fmtQty(qty, unit)), fRU = (rate, rateUnit, unit) => fC(rate) + ' / ' + esc(C.rateUnitOf(unit, rateUnit));
 const toast = (m, t) => QLX.toast(m, t);
 
 const TABS = [['customers', 'Customers'], ['pipeline', 'Pipeline'], ['followups', 'Follow-ups'], ['quotes', 'Quotations'], ['offers', 'Offers']];
@@ -239,9 +242,9 @@ function pipelineCfg() {
     columns: [
       { key: 'custName', label: 'Customer', sort: true, cell: r => `<a class="cu-link" href="${profile(r.cust)}">${esc(r.custName)}</a><span class="crm-mut" style="display:block;font-size:11px">${esc(r.custCode)}</span>` },
       { key: 'product', label: 'Product', sort: true, cell: r => esc(r.product || '—') },
-      { key: 'qty', label: 'Qty', sort: true, num: true, cell: r => r.qty ? r.qty + ' ' + (r.unit || 'MT') : '—' },
+      { key: 'qty', label: 'Qty', sort: true, num: true, cell: r => r.qty ? fQ(r.qty, r.unit) : '—' },
       { key: 'valueN', label: 'Expected value', sort: true, num: true, cell: r => r.valueN == null ? '<span class="qx-mut">no price</span>' : `<span class="qx-num qx-strong">${fC(r.valueN)}</span>` },
-      { key: 'targetRate', label: 'Target price', sort: true, num: true, cell: r => r.targetRate ? fC(r.targetRate) + '/MT' : '—' },
+      { key: 'targetRate', label: 'Target price', sort: true, num: true, cell: r => r.targetRate ? fRU(r.targetRate, r.rateUnit, r.unit) : '—' },
       { key: 'stage', label: 'Stage', sort: true, cell: r => `<span class="qx-pill" style="background:${stageDot(r.stage)}22;color:${stageDot(r.stage)}">${esc(r.stageL)}</span>` },
       { key: 'expectedClose', label: 'Expected close', sort: true, cell: r => r.expectedClose ? Q.fDS(r.expectedClose) : '—' },
       { key: 'owner', label: 'Sales person', sort: true, cell: r => esc(r.owner || '—') },
@@ -252,15 +255,15 @@ function pipelineCfg() {
     rowMenu: r => [
       { label: 'Edit deal', icon: IC.edit, onClick: r => U.openDealForm(r.cust, r.id) },
       { label: 'New quotation', icon: IC.doc2, onClick: r => U.openQuoteEditor(r.cust) },
-      { label: 'Send price offer', icon: IC.share, onClick: r => U.openOffer(r.cust, { product: r.product, qty: r.qty, rate: r.targetRate }) },
+      { label: 'Send price offer', icon: IC.share, onClick: r => U.openOffer(r.cust, { product: r.product, qty: r.qty, unit: r.unit, rate: r.targetRate, rateUnit: r.rateUnit }) },
       { label: 'Record order', icon: IC.truck, onClick: r => U.openRecordOrder(r.cust, { quoteId: r.quoteId, dealId: r.id }) },
       { label: 'Add follow-up', icon: IC.clock, onClick: r => U.openFollowupForm(r.cust) },
       { divider: true },
       { label: 'Mark lost', icon: IC.x, cls: 'del', onClick: r => QLShell.openForm({ title: 'Mark as lost', sub: r.custName, specs: [{ k: 'why', label: 'Reason', full: true, req: true }], initial: {}, saveLabel: 'Mark lost', onSave(v) { M.moveDeal(r.id, 'lost', v.why); invalidate(); QLX.refresh(); } }) }
     ],
     onOpen: r => { U.openDealForm(r.cust, r.id); return true; },
-    card: r => ({ id: r.id, title: esc(r.custName), amount: r.valueN == null ? 'no price' : fC(r.valueN), party: r.custName, partySub: (r.product || '') + (r.qty ? ' · ' + r.qty + ' ' + (r.unit || 'MT') : ''), chips: [
-      r.targetRate ? `<span class="qx-tag">₹${Math.round(r.targetRate).toLocaleString('en-IN')}/MT</span>` : '', r.expectedClose ? `<span class="qx-tag">${Q.fDS(r.expectedClose)}</span>` : '', r.owner ? `<span class="qx-tag">${esc(r.owner)}</span>` : '', `<span class="qx-tag">${U.when(r.last)}</span>` ].filter(Boolean) }),
+    card: r => ({ id: r.id, title: esc(r.custName), amount: r.valueN == null ? 'no price' : fC(r.valueN), party: r.custName, partySub: (r.product || '') + (r.qty ? ' · ' + fQ(r.qty, r.unit) : ''), chips: [
+      r.targetRate ? `<span class="qx-tag">${fRU(r.targetRate, r.rateUnit, r.unit)}</span>` : '', r.expectedClose ? `<span class="qx-tag">${Q.fDS(r.expectedClose)}</span>` : '', r.owner ? `<span class="qx-tag">${esc(r.owner)}</span>` : '', `<span class="qx-tag">${U.when(r.last)}</span>` ].filter(Boolean) }),
     footer: rs => { const s = C.pipelineSummary(rs); return [{ label: 'Deals', value: rs.length }, { label: 'Gross', value: fC(s.gross), strong: true }, { label: 'Weighted', value: fC(s.weighted) }]; }
   };
 }
@@ -330,7 +333,7 @@ function followupsCfg() {
 /* ═══════════════════════ 4. QUOTATIONS ═══════════════════════ */
 function quoteRows() {
   const cs = rows(); const t = today();
-  return Q.state.QUOTES.filter(q => !q._del).map(q => { const c = cs.find(x => x.id === q.cust) || {}; const tt = C.quoteTotals(q); const st = C.effectiveQuoteStatus(q, t); return Object.assign({}, q, { custName: c.name || '—', total: tt.total, tonnes: tt.tonnes, st, stL: C.labelOf(C.QUOTE_STATUS, st), open: C.isOpenQuote(q, t), firstProduct: (q.items[0] || {}).product || '', firstRate: (q.items[0] || {}).rate || 0, daysLeft: C.daysBetween(t, q.validUntil) }); });
+  return Q.state.QUOTES.filter(q => !q._del).map(q => { const c = cs.find(x => x.id === q.cust) || {}; const tt = C.quoteTotals(q); const st = C.effectiveQuoteStatus(q, t); const it = q.items[0] || {}; return Object.assign({}, q, { custName: c.name || '—', total: tt.total, tonnes: tt.tonnes, st, stL: C.labelOf(C.QUOTE_STATUS, st), open: C.isOpenQuote(q, t), firstProduct: it.product || '', firstQty: +it.qty || 0, firstUnit: it.unit || '', firstRate: it.rate || 0, firstRateUnit: C.rateUnitOf(it.unit, it.rateUnit), daysLeft: C.daysBetween(t, q.validUntil) }); });
 }
 function quotesCfg() {
   return {
@@ -345,7 +348,7 @@ function quotesCfg() {
       { label: 'Expiring in 3 days', value: open.filter(r => r.daysLeft != null && r.daysLeft <= 3).length, sub: 'follow up now', tint: 'amber', icon: IC.clock },
       { label: 'Won', value: won.length, sub: fC(won.reduce((a, r) => a + r.total, 0)), tint: 'green', icon: IC.check },
       { label: 'Conversion', value: dec.length ? Math.round(won.length / dec.length * 100) + '%' : '—', sub: won.length + ' of ' + dec.length + ' decided', tint: 'teal', icon: IC.activity },
-      { label: 'Tonnage quoted (open)', value: open.reduce((a, r) => a + r.tonnes, 0).toLocaleString('en-IN') + ' MT', sub: 'across open quotations', tint: 'violet', icon: IC.truck }
+      { label: 'Tonnage quoted (open)', value: fQ(open.reduce((a, r) => a + r.tonnes, 0), 'Ton'), sub: 'across open quotations', tint: 'violet', icon: IC.truck }
     ]; },
     quickDefault: 'open', quickFilters: [{ key: 'open', label: 'Open', test: r => r.open }, { key: 'all', label: 'All', test: () => true }, { key: 'won', label: 'Won', test: r => r.st === 'accepted' || r.st === 'converted' }, { key: 'lost', label: 'Rejected / expired', test: r => r.st === 'rejected' || r.st === 'expired' }],
     search: (r, q) => (r.no + ' ' + r.custName + ' ' + r.firstProduct + ' ' + r.stL).toLowerCase().includes(q),
@@ -359,8 +362,8 @@ function quotesCfg() {
       { key: 'date', label: 'Date', sort: true, cell: r => Q.fDS(r.date) },
       { key: 'custName', label: 'Customer', sort: true, cell: r => `<a class="cu-link" href="${profile(r.cust)}">${esc(r.custName)}</a>` },
       { key: 'firstProduct', label: 'Product', sort: true, cell: r => esc(r.firstProduct) + (r.items.length > 1 ? ` <span class="crm-mut">+${r.items.length - 1}</span>` : '') },
-      { key: 'tonnes', label: 'Qty', sort: true, num: true, cell: r => r.tonnes + ' MT' },
-      { key: 'firstRate', label: 'Rate', sort: true, num: true, cell: r => fC(r.firstRate) + '/MT' },
+      { key: 'tonnes', label: 'Qty', sort: true, num: true, cell: r => r.tonnes > 0 ? fQ(r.tonnes, 'Ton') : (r.firstQty ? fQ(r.firstQty, r.firstUnit) : '—') },
+      { key: 'firstRate', label: 'Rate', sort: true, num: true, cell: r => fC(r.firstRate) + ' / ' + esc(r.firstRateUnit) },
       { key: 'total', label: 'Total', sort: true, num: true, cell: r => `<span class="qx-num qx-strong">${fC(r.total)}</span>` },
       { key: 'validUntil', label: 'Valid until', sort: true, cell: r => `${Q.fDS(r.validUntil)}${r.open && r.daysLeft != null ? `<span class="crm-mut" style="display:block;font-size:11px;${r.daysLeft <= 3 ? 'color:#b45309' : ''}">${r.daysLeft < 0 ? 'expired' : r.daysLeft + 'd left'}</span>` : ''}` },
       { key: 'st', label: 'Status', sort: true, cell: r => qPill(r.st) },
@@ -378,15 +381,15 @@ function quotesCfg() {
       { label: 'Delete draft', icon: IC.trash, cls: 'del', onClick: r => { const x = M.removeQuote(r.id); if (x && x.ok === false) toast(x.reason, 'err'); invalidate(); QLX.refresh(); } }
     ],
     onOpen: r => { U.openQuoteDoc(r.id); return true; },
-    card: r => ({ id: r.id, title: esc(r.no), amount: fC(r.total), party: r.custName, partySub: r.firstProduct + ' · ' + r.tonnes + ' MT @ ' + fC(r.firstRate), status: qPill(r.st), chips: [`<span class="qx-tag">${Q.fDS(r.date)}</span>`, `<span class="qx-tag">valid ${Q.fDS(r.validUntil)}</span>`], rows: [['Total', fC(r.total)], ['Valid until', Q.fDS(r.validUntil)]] }),
-    footer: rs => [{ label: 'Quotations', value: rs.length }, { label: 'Value', value: fC(rs.reduce((a, r) => a + r.total, 0)), strong: true }, { label: 'Tonnage', value: rs.reduce((a, r) => a + r.tonnes, 0).toLocaleString('en-IN') + ' MT' }]
+    card: r => ({ id: r.id, title: esc(r.no), amount: fC(r.total), party: r.custName, partySub: r.firstProduct + ' · ' + (r.tonnes > 0 ? fQ(r.tonnes, 'Ton') : fQ(r.firstQty, r.firstUnit)) + ' @ ' + fC(r.firstRate) + ' / ' + esc(r.firstRateUnit), status: qPill(r.st), chips: [`<span class="qx-tag">${Q.fDS(r.date)}</span>`, `<span class="qx-tag">valid ${Q.fDS(r.validUntil)}</span>`], rows: [['Total', fC(r.total)], ['Valid until', Q.fDS(r.validUntil)]] }),
+    footer: rs => [{ label: 'Quotations', value: rs.length }, { label: 'Value', value: fC(rs.reduce((a, r) => a + r.total, 0)), strong: true }, { label: 'Tonnage', value: fQ(rs.reduce((a, r) => a + r.tonnes, 0), 'Ton') }]
   };
 }
 
 /* ═══════════════════════ 5. OFFERS ═══════════════════════ */
 function offerRows() {
   const cs = rows(); const t = today();
-  return Q.state.OFFERS.filter(o => !o._del).map(o => { const c = cs.find(x => x.id === o.cust) || {}; const st = (o.status === 'sent' || o.status === 'saved') && o.validUntil && o.validUntil < t ? 'expired' : (o.status || 'sent'); return Object.assign({}, o, { custName: c.name || '—', st, stL: C.labelOf(C.OFFER_STATUS, st), value: (+o.qty || 0) * (+o.rate || 0) }); });
+  return Q.state.OFFERS.filter(o => !o._del).map(o => { const c = cs.find(x => x.id === o.cust) || {}; const st = (o.status === 'sent' || o.status === 'saved') && o.validUntil && o.validUntil < t ? 'expired' : (o.status || 'sent'); const L = C.priceLine(o.qty, o.unit, o.rate, o.rateUnit); return Object.assign({}, o, { custName: c.name || '—', st, stL: C.labelOf(C.OFFER_STATUS, st), value: (+o.qty > 0 && L.ok) ? L.amount : 0, rateUnitL: L.rateUnit }); });
 }
 function offersCfg() {
   return {
@@ -400,7 +403,7 @@ function offersCfg() {
       { label: 'Live offers', value: rs.filter(r => r.st === 'sent').length, sub: 'sent, within validity', tint: 'blue', icon: IC.share },
       { label: 'Accepted', value: rs.filter(r => r.st === 'accepted').length, sub: 'turned into orders', tint: 'green', icon: IC.check },
       { label: 'Expired', value: rs.filter(r => r.st === 'expired').length, sub: 'no answer in time', tint: 'slate', icon: IC.clock },
-      { label: 'Avg offered rate', value: rs.length ? fC(rs.reduce((a, r) => a + r.rate, 0) / rs.length) + '/MT' : '—', sub: 'all offers', tint: 'violet', icon: IC.an }
+      { label: 'Avg offered rate', value: (() => { const pt = rs.filter(r => r.rateUnitL === 'Ton'); return pt.length ? fC(pt.reduce((a, r) => a + r.rate, 0) / pt.length) + ' / Ton' : '—'; })(), sub: 'offers priced per Ton', tint: 'violet', icon: IC.an }
     ]; },
     quickFilters: [{ key: 'all', label: 'All', test: () => true }, { key: 'live', label: 'Live', test: r => r.st === 'sent' }, { key: 'accepted', label: 'Accepted', test: r => r.st === 'accepted' }, { key: 'expired', label: 'Expired', test: r => r.st === 'expired' }],
     search: (r, q) => (r.no + ' ' + r.custName + ' ' + (r.product || '')).toLowerCase().includes(q),
@@ -412,8 +415,9 @@ function offersCfg() {
       { key: 'date', label: 'Date', sort: true, cell: r => Q.fDS(r.date) },
       { key: 'custName', label: 'Customer', sort: true, cell: r => `<a class="cu-link" href="${profile(r.cust)}">${esc(r.custName)}</a>` },
       { key: 'product', label: 'Product', sort: true, cell: r => esc(r.product || '') },
-      { key: 'qty', label: 'Qty', sort: true, num: true, cell: r => r.qty ? r.qty + ' ' + (r.unit || 'MT') : '—' },
-      { key: 'rate', label: 'Offer price', sort: true, num: true, cell: r => `<span class="qx-num qx-strong">${fC(r.rate)}/MT</span>` },
+      { key: 'qty', label: 'Qty', sort: true, num: true, cell: r => r.qty ? fQ(r.qty, r.unit) : '—' },
+      { key: 'rate', label: 'Offer price', sort: true, num: true, cell: r => `<span class="qx-num qx-strong">${fC(r.rate)} / ${esc(r.rateUnitL)}</span>` },
+      { key: 'value', label: 'Value', sort: true, num: true, cell: r => r.value ? `<span class="qx-num">${fC(r.value)}</span>` : '<span class="qx-mut">—</span>' },
       { key: 'freight', label: 'Freight', cell: r => esc(C.labelOf(C.FREIGHT, r.freight)) },
       { key: 'validUntil', label: 'Valid until', sort: true, cell: r => Q.fDS(r.validUntil) },
       { key: 'via', label: 'Sent by', cell: r => esc(r.via || '—') },
@@ -429,7 +433,7 @@ function offersCfg() {
       { label: 'Customer profile', icon: IC.eye, onClick: r => location.href = profile(r.cust) }
     ],
     onOpen: r => { U.printHTML(QuoteDoc.offerHTML(r, M.byId(r.cust), U.coProfile()), 'Price offer ' + r.no); return true; },
-    card: r => ({ id: r.id, title: esc(r.no), amount: fC(r.rate) + '/MT', party: r.custName, partySub: (r.product || '') + (r.qty ? ' · ' + r.qty + ' MT' : ''), status: qPill(r.st, C.OFFER_STATUS), rows: [['Valid until', Q.fDS(r.validUntil)], ['Freight', C.labelOf(C.FREIGHT, r.freight)]] })
+    card: r => ({ id: r.id, title: esc(r.no), amount: fC(r.rate) + ' / ' + esc(r.rateUnitL), party: r.custName, partySub: (r.product || '') + (r.qty ? ' · ' + fQ(r.qty, r.unit) : ''), status: qPill(r.st, C.OFFER_STATUS), rows: [['Valid until', Q.fDS(r.validUntil)], ['Freight', C.labelOf(C.FREIGHT, r.freight)]] })
   };
 }
 

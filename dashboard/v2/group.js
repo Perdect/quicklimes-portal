@@ -26,6 +26,11 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fC = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
   const fT = n => (n == null ? '—' : (Math.round(n * 10) / 10).toLocaleString('en-IN') + ' T');
+  /* A bill's OWN quantity and rate, in their own units (7,650 Kg @ ₹5,300 / Ton;
+     400 Bag @ ₹250 / Bag) — the "T" suffix belongs only to tonnage totals. */
+  const U = () => (typeof QLUnits !== 'undefined' ? QLUnits : null);
+  const fQ = (q, u) => (U() ? U().fmtQty(q, u) : (+q || 0).toLocaleString('en-IN') + (u ? ' ' + u : ''));
+  const fR = (r, u) => (U() ? U().fmtRate(r, u) : fC(r) + (u ? ' / ' + u : ''));
 
   /* ── companies straight from the account (same source data.js uses) ── */
   function companies() {
@@ -176,7 +181,7 @@
         `${t.production.runs} runs · QL ${fT(t.production.produced.quicklime)} + HL ${fT(t.production.produced.hydrated)}`,
         'No production runs recorded', split(vm, s => s.production.output, fT))}
       ${tile('Sales', S.sales.present, fC(t.sales.taxable),
-        `${fT(t.sales.qty)} · ${t.sales.count} invoices · excl. GST`,
+        `${fT(t.sales.qty)} · ${t.sales.count} invoices · excl. GST${t.sales.nonMass ? ` · ${t.sales.nonMass} bag/count invoice(s) not in tonnes` : ''}`,
         'Sales not uploaded', split(vm, s => s.sales.taxable, fC))}
       ${tile('Purchases', S.purchase.present, fC(t.purchase.value),
         `${fT(t.purchase.tonnes)} material · excl. GST`,
@@ -426,7 +431,7 @@
     const sales = `<div class="gv-h">Sales${det.sales.length ? ` <span style="font-weight:500;color:var(--ql-text-muted);font-size:var(--ql-text-sm)">${det.sales.length} invoice(s)</span>` : ''}</div>
       ${det.sales.length ? `<div class="gv-wrap"><table class="gv-tbl">
       <thead><tr><th>Date</th><th>Invoice</th>${mc ? '<th>Company</th>' : ''}<th>Customer</th><th>Qty</th><th>Rate</th><th>Amount (excl GST)</th><th>Total (incl GST)</th><th>Status</th></tr></thead><tbody>
-      ${det.sales.slice(0, CAP).map(r => `<tr><td>${esc(r.date)}</td><td style="text-align:left">${esc(r.inv || '—')}</td>${mc ? `<td style="text-align:left">${badge(r)}</td>` : ''}<td style="text-align:left">${esc(r.party)}</td><td>${r.qty ? fT(r.qty) : '—'}</td><td>${r.rate ? fC(r.rate) : '—'}</td><td>${fC(r.taxable)}</td><td>${fC(r.total)}</td><td style="text-align:left">${esc(r.status)}</td></tr>`).join('')}
+      ${det.sales.slice(0, CAP).map(r => `<tr><td>${esc(r.date)}</td><td style="text-align:left">${esc(r.inv || '—')}</td>${mc ? `<td style="text-align:left">${badge(r)}</td>` : ''}<td style="text-align:left">${esc(r.party)}</td><td>${r.qty ? esc(fQ(r.qty, r.unit)) : '—'}</td><td>${r.rate ? esc(fR(r.rate, r.rateUnit)) : '—'}</td><td>${fC(r.taxable)}</td><td>${fC(r.total)}</td><td style="text-align:left">${esc(r.status)}</td></tr>`).join('')}
       </tbody></table></div>${capNote(det.sales.length, 'invoices')}` : '<div class="gv-empty">No sales invoices in this period.</div>'}`;
 
     const purch = `<div class="gv-h">Purchases${det.purchases.length ? ` <span style="font-weight:500;color:var(--ql-text-muted);font-size:var(--ql-text-sm)">${det.purchases.length} bill(s)</span>` : ''}</div>

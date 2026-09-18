@@ -175,7 +175,9 @@ const REAL = 'GSTIN 24AAACI1681G1ZV\nGSTIN 08BNAPM0488E1Z3\nGOTAN LIME INDUSTRIE
   /* Load the module against that fake root, the way the page loads it. */
   function load(root) {
     const vm = require('vm'), fs = require('fs');
-    const ctx = { module: { exports: {} }, console, Math, Object, Array, Number, String, JSON, Date, Promise, setTimeout, isFinite, parseFloat };
+    /* units-core.js loads on purchase.html before this module — the page's
+       window.QLUnits is what arithmeticAgrees prices the line through. */
+    const ctx = { module: { exports: {} }, console, Math, Object, Array, Number, String, JSON, Date, Promise, setTimeout, isFinite, parseFloat, QLUnits: require('./units-core.js') };
     Object.assign(ctx, root);
     ctx.window = ctx; ctx.globalThis = ctx;
     vm.createContext(ctx);

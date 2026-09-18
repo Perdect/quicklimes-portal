@@ -9,6 +9,13 @@ const Q = window.QLD, fC = Q.fC, fmt = Q.fmt, fDS = d => Q.fDS(d);
 /* Hindi pilot — see sales.js. Local alias, English fallback. */
 const t = window.QLI18n ? QLI18n.t : (x => x);
 const esc = QLX.esc, svg = QLX.svg, IC = QLX.icons;
+/* units-core.js (window.QLUnits) is THE unit arithmetic. A purchase row's
+   tonnage is r.tonnes (purchaseRows → tonnesOf: Kg ÷ 1000, a Bag count is
+   null = not a tonnage); the entered qty prints WITH its unit and the rate
+   WITH the unit it is per. Nothing here sums a raw qty as tonnes. */
+const U = window.QLUnits;
+const tonnesOf = r => (r.tonnes == null ? 0 : +r.tonnes || 0);
+const rateUnitOf = r => U.normalizeUnit(r.rateUnit) || r.rateUnit || U.normalizeUnit(r.unit) || r.unit || 'Ton';
 const GCOL = { limestone: ['#f6f0e4', '#8a6d3b'], petcoke: ['#fdeceb', '#c0392b'], packaging: ['#eaf1ff', '#2f5fd0'], labour: ['#e9f9ee', '#1c7c3a'], maintenance: ['#f2eefb', '#6b3fa0'], utilities: ['#fff5e0', '#b7791f'], office: ['#eef2f7', '#475569'], other: ['#f1f5f9', '#64748b'] };
 // Short, friendly names for the Item filter (falls back to the full item name).
 // Item display names moved to data.js (Q.itemShort) so the register and the party
@@ -232,7 +239,7 @@ function billHTML(r) {
     <div class="grid"><div><div class="lbl">Supplier</div><div class="nm">${esc(r.sup)}</div><div class="mut">${r.gstin ? 'GSTIN: ' + esc(r.gstin) : ''}</div></div>
       <div style="text-align:right"><div class="lbl">ITC</div><div class="nm">${r.itc ? 'Eligible' : '—'}</div></div></div>
     <table><thead><tr><th>Purchase Group / Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Taxable</th></tr></thead>
-      <tbody><tr><td>${esc(r.emoji + ' ' + r.groupLabel)}<div class="it">${esc(r.item)}${r.desc ? ' — ' + esc(r.desc) : ''}</div></td><td class="r">${r.qty ? fmt(r.qty, 2) + (r.unit ? ' ' + esc(r.unit) : '') : '—'}</td><td class="r">${r.rate ? money(r.rate) : '—'}</td><td class="r">${money(r.taxable)}</td></tr></tbody></table>
+      <tbody><tr><td>${esc(r.emoji + ' ' + r.groupLabel)}<div class="it">${esc(r.item)}${r.desc ? ' — ' + esc(r.desc) : ''}</div></td><td class="r">${r.qty ? fmt(r.qty, 2) + (r.unit ? ' ' + esc(r.unit) : '') : '—'}</td><td class="r">${r.rate ? money(r.rate) + ' / ' + esc(rateUnitOf(r)) : '—'}</td><td class="r">${money(r.taxable)}</td></tr></tbody></table>
     <div class="tot"><div class="row"><span>Taxable value</span><span>${money(r.taxable)}</span></div>${gstRows}<div class="row g"><span>Total${rcm ? ' payable' : ''}</span><span>${money(r.total)}</span></div>${r.freightAddon ? `<div class="row"><span>Freight / transport (add-on)</span><span>${money(r.freightAddon)}</span></div><div class="row g"><span>Landed cost</span><span>${money(r.total + r.freightAddon)}</span></div>` : ''}</div>
     <div class="ft">System-generated from ${esc(co.name || 'QuickLimes')} · QuickLimes Purchase Register.</div>`;
 }
@@ -771,11 +778,14 @@ function aiInsightsPanel(rows) {
   const mon = QLX.month() ? QLX.monthLabel() : 'all time';
   const inMon = QLX.month() ? '' : ' (all)';
   const amt = pred => rows.filter(pred).reduce((a, r) => a + (r.total || 0), 0);
-  const qty = pred => rows.filter(pred).reduce((a, r) => a + (r.qty || 0), 0);
+  /* Tonnes for the two mass groups (r.tonnes — a Kg bill is ÷1000, a bill whose
+     unit is not a mass is unrecorded, not 0 T); a bag COUNT for packaging. */
+  const tons = pred => rows.filter(pred).reduce((a, r) => a + tonnesOf(r), 0);
+  const count = pred => rows.filter(pred).reduce((a, r) => a + (U.familyOf(r.unit) === 'mass' ? 0 : (+r.qty || 0)), 0);
   const cards = [
-    { ic: '🪨', tint: 'amber', label: 'Limestone', a: amt(r => r.group === 'limestone'), q: qty(r => r.group === 'limestone'), unit: 'T', act: 'purchased' },
-    { ic: '🔥', tint: 'red', label: 'Petcoke', a: amt(r => r.group === 'petcoke'), q: qty(r => r.group === 'petcoke'), unit: 'T', act: 'consumed' },
-    { ic: '📦', tint: 'blue', label: 'Plastic Bags', a: amt(r => r.group === 'packaging'), q: qty(r => r.group === 'packaging'), unit: 'bags', act: 'used' },
+    { ic: '🪨', tint: 'amber', label: 'Limestone', a: amt(r => r.group === 'limestone'), q: tons(r => r.group === 'limestone'), unit: 'T', act: 'purchased' },
+    { ic: '🔥', tint: 'red', label: 'Petcoke', a: amt(r => r.group === 'petcoke'), q: tons(r => r.group === 'petcoke'), unit: 'T', act: 'consumed' },
+    { ic: '📦', tint: 'blue', label: 'Plastic Bags', a: amt(r => r.group === 'packaging'), q: count(r => r.group === 'packaging'), unit: 'bags', act: 'used' },
     { ic: '📜', tint: 'violet', label: 'Royalty', a: amt(r => /royalty/i.test(r.item)), q: 0, unit: '', act: 'paid' }
   ];
   const cardHTML = c => {
@@ -868,8 +878,12 @@ QLX.mount({
        tap can't change what the bill says. Rates are still filled by the upload
        reader, the auto-backfill, and the deliberate bulk "Set rate ₹/T" action —
        just never by editing a single cell. */
-    { key: 'qty', label: t('Qty (T)'), sort: true, num: true, cell: r => (+r.qty > 0 ? `<span class="qx-num">${fmt(r.qty, 2)}</span>` : '<span class="qx-dash">—</span>') },
-    { key: 'rate', label: t('Rate ₹/T'), sort: true, num: true, cell: r => (+r.qty > 0 && +r.taxable > 0 ? `<span class="qx-num">${fC(Math.round(r.taxable / r.qty))}</span>` : '<span class="qx-dash">—</span>') },
+    /* TONNES (r.tonnes): a 7,650 Kg bill is 7.65 here, an Indian Oil 'TO' bill
+       is its tonnes, and a bill in bags has no tonnage — the entered qty shows
+       muted instead of pretending to be tonnes. Sorted by what it shows. */
+    { key: 'tonnes', label: t('Qty (T)'), sort: true, num: true, cell: r => (+r.tonnes > 0 ? `<span class="qx-num">${fmt(r.tonnes, 2)}</span>${(U.normalizeUnit(r.unit) || 'Ton') !== 'Ton' ? ` <span class="qx-mut">(${esc(U.fmtQty(r.qty, r.unit))})</span>` : ''}` : (+r.qty > 0 ? `<span class="qx-mut">${esc(U.fmtQty(r.qty, r.unit))}</span>` : '<span class="qx-dash">—</span>')) },
+    /* ₹/T = taxable ÷ TONNES — byte-for-byte the Sales register's cell. */
+    { key: 'rate', label: t('Rate ₹/T'), sort: true, num: true, cell: r => (+r.tonnes > 0 && +r.taxable > 0 ? `<span class="qx-num">${fC(Math.round(r.taxable / r.tonnes))}</span>` : `<span class="qx-dash">—</span>`) },
     { key: 'taxable', label: 'Taxable', sort: true, num: true, cell: r => `<span class="qx-num">${fC(r.taxable)}</span>` },
     // LANDED COST = the bill + the freight paid to get the material here. This is
     // what the petcoke actually cost, and it is what the owner reads the register
@@ -942,18 +956,42 @@ QLX.mount({
        stores each bill's own qty (qty = taxable ÷ rate), so every row's tonnage
        is correct for ITS amount, not a copied number. */
     { label: 'Set rate ₹/T', icon: (IC.tag || IC.edit || IC.check), onClick: rows => {
-        const eligible = rows.filter(r => +r.taxable > 0);
-        if (!eligible.length) { toast('None of the selected bills have a taxable amount to price', 'warn'); return; }
+        const priced = rows.filter(r => +r.taxable > 0);
+        if (!priced.length) { toast('None of the selected bills have a taxable amount to price', 'warn'); return; }
+        /* A ₹/T rate can only describe a bill counted by MASS. A bill that already
+           carries 200 Bag or 12 Nos is a count in another family — rewriting it to
+           "Ton" would destroy a quantity someone typed off the bill and price it as
+           if 200 Bag were 200 T. Those bills are skipped and reported, never touched.
+           No qty at all is fine (the tonnage gets derived below), and a blank unit
+           on a row that has a qty is a legacy tonnes row (units-core contract). */
+        const massOnly = r => !(+r.qty > 0) || QLUnits.familyOf(r.unit || 'Ton') === 'mass';
+        const eligible = priced.filter(massOnly), skipped = priced.length - eligible.length;
+        if (!eligible.length) { toast('All ' + priced.length + ' selected bill' + (priced.length === 1 ? ' is' : 's are') + ' counted in Bag / Nos — a ₹/T rate cannot price them', 'warn'); return; }
         QLShell.openForm({
           title: 'Set rate for ' + eligible.length + ' bill' + (eligible.length === 1 ? '' : 's'),
-          sub: 'Type the ₹/T off the bill — each bill\'s tonnage fills in from its own taxable amount',
+          sub: 'Type the ₹/T off the bill — each bill\'s tonnage fills in from its own taxable amount' + (skipped ? ' · ' + skipped + ' Bag/Nos bill' + (skipped === 1 ? '' : 's') + ' skipped' : ''),
           specs: [{ k: 'rate', label: 'Rate ₹/T', type: 'number', req: true, reqNonZero: true }],
           saveLabel: 'Apply rate',
           onSave(v) {
             const rate = +v.rate; if (!(rate > 0)) { toast('Enter a rate above 0', 'err'); return; }
-            let done = 0;
-            eligible.forEach(r => { const qty = Math.round((+r.taxable) / rate * 100) / 100; if (qty > 0) { Q.updatePurchase(r.idx, { qty }); done++; } });
-            toast('Rate ' + fC(rate) + '/T applied to ' + done + ' bill' + (done === 1 ? '' : 's') + ' — tonnage filled in', 'ok');
+            let done = 0, filled = 0;
+            eligible.forEach(r => {
+              if (+r.qty > 0) {
+                /* The bill already carries its mass quantity (40 Ton, 5,000 Kg, or a
+                   legacy blank-unit tonnes row). Convert NOTHING: the truck's unit and
+                   count stay exactly as typed, and the rate is per Ton whatever that
+                   unit is — rateUnit says so, so lineAmount prices it correctly. */
+                Q.updatePurchase(r.idx, { unit: r.unit || 'Ton', rate, rateUnit: 'Ton' }); done++; return;
+              }
+              /* No quantity: the rate typed is ₹ per TON, so the derived qty is tonnes —
+                 store the row self-describing (unit Ton, rate per Ton) so nothing later
+                 can re-read it in another unit. */
+              const qty = QLUnits.round((+r.taxable) / rate, 2);
+              if (qty > 0) { Q.updatePurchase(r.idx, { qty, unit: 'Ton', rate, rateUnit: 'Ton' }); done++; filled++; }
+            });
+            toast('Rate ' + fC(rate) + '/T applied to ' + done + ' bill' + (done === 1 ? '' : 's')
+              + (filled ? ' — tonnage filled in on ' + filled : '')
+              + (skipped ? ' · ' + skipped + ' skipped (Bag/Nos count kept)' : ''), skipped ? 'warn' : 'ok');
             QLX.refresh();
           }
         });
@@ -1127,7 +1165,11 @@ function importBills() {
       const qty = QLFin.parseNum(get('qty'));
       const unit = (get('unit') || '').toString().trim();
       const out = { bill: (get('bill') || '').toString().trim(), date: date || '', sup, gstin: (get('gstin') || '').toString().trim().toUpperCase(), taxable: +(taxable || 0), grate, itc, veh: (get('veh') || '').toString().trim().toUpperCase(), status: 'pending' };
-      if (qty > 0) { out.qty = qty; if (unit) out.unit = unit; if (taxable) out.rate = Math.round(taxable / qty * 100) / 100; }
+      /* The rate is derived per the bill's OWN unit (taxable ÷ qty in that unit),
+         and the row says so: unit + rateUnit are stored, so a 7,650 Kg bill
+         books ₹/Kg and prints as such — never a bare number read later as ₹/T.
+         taxable stays the stored truth; purchases never recompute qty × rate. */
+      if (qty > 0) { out.qty = qty; if (unit) { out.unit = QLUnits.normalizeUnit(unit) || unit; out.rateUnit = out.unit; } if (taxable) out.rate = QLUnits.impliedRate(taxable, qty, out.unit || '', out.rateUnit || '') || 0; }
       if (raw) { out.cat = raw; const gm = Q.purchaseGroups.find(g => raw.includes(g.label.toLowerCase()) || g.items.some(it => raw.includes(it.toLowerCase()))); if (gm) { out.group = gm.key; out.item = gm.items.find(it => raw.includes(it.toLowerCase())) || gm.items[0]; } }
       return out;
     },

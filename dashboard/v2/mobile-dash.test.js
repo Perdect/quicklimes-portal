@@ -44,12 +44,15 @@ console.log('\n═══ mobile dashboard · no pills · nothing lost · one per
    all-time ones, so a card that quietly reverted to QLD.kpis() would print a
    number this file can name. INV-005 is cancelled: it is July, it is large, and
    no KPI may count it. */
+/* salesRows rows carry `tonnes` (units-core.js) — INV-004 is entered in Kg, so
+   its 220,000 Kg is 220 T of dispatch, not 220,000: the tonnage the cards
+   print comes from r.tonnes, never a raw qty. */
 const SALES = [
-  { idx: 0, inv: 'INV-001', date: '2026-05-05', party: 'Bikaner Cement', veh: 'RJ-19-GA-0001', taxable: 300000, gst: 15000, total: 315000, paid: 315000, outstanding: 0, qty: 150, status: 'paid' },
-  { idx: 1, inv: 'INV-002', date: '2026-06-10', party: 'Marwar Traders', veh: 'RJ-19-GA-0002', taxable: 500000, gst: 25000, total: 525000, paid: 525000, outstanding: 0, qty: 250, status: 'paid' },
-  { idx: 2, inv: 'INV-003', date: '2026-07-01', party: 'Aziz Chemicals', veh: 'RJ-19-GA-1234', taxable: 600000, gst: 30000, total: 630000, paid: 400000, outstanding: 230000, qty: 300, status: 'pending' },
-  { idx: 3, inv: 'INV-004', date: '2026-07-02', party: 'Marwar Traders', veh: '', taxable: 400000, gst: 20000, total: 420000, paid: 420000, outstanding: 0, qty: 220, status: 'paid' },
-  { idx: 4, inv: 'INV-005', date: '2026-07-03', party: 'Voided Traders', veh: '', taxable: 900000, gst: 45000, total: 945000, paid: 0, outstanding: 0, qty: 999, status: 'cancelled' }
+  { idx: 0, inv: 'INV-001', date: '2026-05-05', party: 'Bikaner Cement', veh: 'RJ-19-GA-0001', taxable: 300000, gst: 15000, total: 315000, paid: 315000, outstanding: 0, qty: 150, unit: 'Ton', tonnes: 150, status: 'paid' },
+  { idx: 1, inv: 'INV-002', date: '2026-06-10', party: 'Marwar Traders', veh: 'RJ-19-GA-0002', taxable: 500000, gst: 25000, total: 525000, paid: 525000, outstanding: 0, qty: 250, unit: 'Ton', tonnes: 250, status: 'paid' },
+  { idx: 2, inv: 'INV-003', date: '2026-07-01', party: 'Aziz Chemicals', veh: 'RJ-19-GA-1234', taxable: 600000, gst: 30000, total: 630000, paid: 400000, outstanding: 230000, qty: 300, unit: 'Ton', tonnes: 300, status: 'pending' },
+  { idx: 3, inv: 'INV-004', date: '2026-07-02', party: 'Marwar Traders', veh: '', taxable: 400000, gst: 20000, total: 420000, paid: 420000, outstanding: 0, qty: 220000, unit: 'Kg', tonnes: 220, status: 'paid' },
+  { idx: 4, inv: 'INV-005', date: '2026-07-03', party: 'Voided Traders', veh: '', taxable: 900000, gst: 45000, total: 945000, paid: 0, outstanding: 0, qty: 999, unit: 'Ton', tonnes: 999, status: 'cancelled' }
 ];
 const PURCHASES = [
   { bill: 'BILL-001', date: '2026-05-05', sup: 'Rajasthan Minerals', taxable: 200000, gst: 10000, itc: 10000, total: 210000, paid: 210000, outstanding: 0, status: 'paid' },
@@ -269,7 +272,8 @@ const html = dash.innerHTML;
 
   // Production.
   ok(/Dispatched · July 2026/.test(html), 'Production section: the dispatched KPI survived');
-  ok(/520\.0 T/.test(html), '  with July\'s real tonnage');
+  ok(/520\.0 T/.test(html), '  with July\'s real tonnage (300 T + 220,000 Kg = 520 T — tonnes, not a raw qty sum of 220,300)');
+  ok(!/220,300|220300/.test(html), '  and the Kg invoice was never added as 220,000 tonnes');
   ok(/Gross profit · July 2026/.test(html) && /₹3,00,000/.test(html), '  and gross profit = July sales − July purchases');
 
   /* The trend compares against the month BEFORE the picked one — not against

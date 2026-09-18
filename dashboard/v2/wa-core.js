@@ -285,7 +285,7 @@
     o = o || {};
     var out = render((o.templates || {}).dispatch || TEMPLATES.dispatch, {
       PartyName: sale.party, VehicleNo: sale.veh, Material: sale.product || sale.item,
-      Quantity: sale.qty != null ? String(sale.qty) + ' T' : '', EwayBillNo: sale.eway || sale.ewayBill
+      Quantity: sale.qty != null ? ((typeof QLUnits !== 'undefined' && QLUnits.fmtQty) ? QLUnits.fmtQty(sale.qty, sale.unit || 'Ton') : String(sale.qty) + ' ' + (sale.unit || 'T')) : '', EwayBillNo: sale.eway || sale.ewayBill
     });
     var phone = normalizePhone((party || {}).wa || (party || {}).phone, o.cc);
     return {

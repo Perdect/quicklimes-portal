@@ -96,6 +96,10 @@
       jurisdiction: s.jurisdiction || '',
       inv: d.inv || '', date: fdate(d.date),
       hsn: d.hsn || '', product: d.product || '', unit: d.unit || '',
+      /* The rate's own unit (falls back to the quantity's — legacy rows) and the
+         quantity converted into it, for the arithmetic line on the paper. */
+      rateUnit: d.rateUnit || d.unit || '', billableQty: d.billableQty != null ? qfmt(d.billableQty) : qfmt(d.qty), billableUnit: d.billableUnit || d.rateUnit || d.unit || '',
+      unitsDiffer: unitsDiffer(d.unit, d.rateUnit),
       qty: qfmt(d.qty), rate: fmt(d.rate), taxable: fmt(d.taxable),
       gstR: (+d.gstR || 0).toFixed(2), halfR: halfR.toFixed(2),
       interState: !!d.interState,
@@ -111,7 +115,7 @@
       /* The lines every design prints — one line from the sale record unless the
          sale carries items[]. Shared so no design can print a phantom single line
          for a multi-line sale. */
-      items: (Array.isArray(d.items) && d.items.length) ? d.items : [{ hsn: d.hsn || '', product: d.product || '', qty: d.qty, unit: d.unit || '', rate: d.rate, taxable: d.taxable }],
+      items: (Array.isArray(d.items) && d.items.length) ? d.items : [{ hsn: d.hsn || '', product: d.product || '', qty: d.qty, unit: d.unit || '', rate: d.rate, rateUnit: d.rateUnit || d.unit || '', taxable: d.taxable }],
       /* Despatch. The transporter name, station and GR/RR number were dropped by
          request — they said nothing the buyer needed and ate a third of the header.
          Vehicle No. and E-Way Bill stayed on purpose: the E-Way number is what a
@@ -296,8 +300,8 @@
       + '<div class="meta">' + kv('Transport', f.transport) + kv('Vehicle No.', f.veh) + kv('Station', f.station) + kv('E-Way Bill No.', f.eway) + '</div></div>'
       + '<div class="row bb">' + party('Billed to', 'br') + party('Shipped to', '') + '</div>'
       + '<div class="gap bb"></div>'
-      + '<table class="it">' + COLS + '<tr><th>S.N.</th><th>Description of Goods</th><th>HSN/SAC<br>Code</th><th class="r">Qty.</th><th>Unit</th><th class="r">Price</th><th class="r">Amount(₹)</th></tr>'
-      + '<tr><td class="r">1.</td><td>' + esc(f.product) + '</td><td>' + esc(f.hsn) + '</td><td class="r">' + f.qty + '</td><td>' + esc(f.unit) + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr>'
+      + '<table class="it">' + COLS + '<tr><th>S.N.</th><th>Description of Goods</th><th>HSN/SAC<br>Code</th><th class="r">Qty.</th><th>Unit</th><th class="r">Price' + (f.rateUnit ? '<br>(per ' + esc(f.rateUnit) + ')' : '') + '</th><th class="r">Amount(₹)</th></tr>'
+      + '<tr><td class="r">1.</td><td>' + esc(f.product) + (f.unitsDiffer ? '<br><span style="font-size:9px;color:#444">' + f.qty + ' ' + esc(f.unit) + ' = ' + f.billableQty + ' ' + esc(f.billableUnit) + ' × ₹' + f.rate + '</span>' : '') + '</td><td>' + esc(f.hsn) + '</td><td class="r">' + f.qty + '</td><td>' + esc(f.unit) + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr>'
       + '<tr class="sp"><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></table>'
       + '<table>' + COLS + '<tr class="st"><td></td><td></td><td></td><td></td><td></td><td></td><td class="r amt">' + f.taxable + '</td></tr>' + taxes
       + '<tr class="gt"><td></td><td class="r">Grand Total</td><td></td><td colspan="2" class="c">' + qtyTotalEl(f) + '</td><td class="r">₹</td><td class="r amt">' + f.grand + '</td></tr></table>'
@@ -404,12 +408,21 @@
 
      Narrow preview panes SCALE the sheet (zoom) instead of restacking it, so
      the preview looks like the printed page, not a different layout. */
+  /* units-core, when present (browser global / Node require) — only for the
+     small "7,650 Kg = 7.65 Ton" note; the amounts themselves come from the data. */
+  function QLUnitsOpt() { try { if (typeof QLUnits !== 'undefined') return QLUnits; if (typeof require === 'function') return require('./units-core.js'); } catch (e) {} return null; }
+  /* 'Tonne' and 'Ton' are the same unit — compare canonical keys, never strings. */
+  function unitsDiffer(u, ru) { if (!ru || !u) return false; var U = QLUnitsOpt(); var a = U ? (U.normalizeUnit(u) || String(u).trim().toLowerCase()) : String(u).trim().toLowerCase(), b = U ? (U.normalizeUnit(ru) || String(ru).trim().toLowerCase()) : String(ru).trim().toLowerCase(); return a !== b; }
+  /* A line's taxable: stored when the record has it, else priced through units-core. */
+  function lineTaxable(it) { if (it.taxable != null && it.taxable !== '') return +it.taxable || 0; var U = QLUnitsOpt(); return U ? U.lineAmount(it).amount : (+it.qty || 0) * (+it.rate || 0); }
+  function convNote(it) { var U = QLUnitsOpt(); if (!U || !unitsDiffer(it.unit, it.rateUnit) || !(+it.qty)) return ''; var L = U.lineAmount(it); return qfmt(it.qty) + ' ' + esc(it.unit) + ' = ' + qfmt(L.billableQty) + ' ' + esc(L.billableUnit) + ' × ₹' + fmt(it.rate); }
   function itemRows(f, numbered) {
     return f.items.map(function (it, i) {
-      var name = esc(it.product || ''), qty = qfmt(it.qty) + (it.unit ? ' ' + esc(it.unit) : '');
+      var name = esc(it.product || ''), qty = qfmt(it.qty) + (it.unit ? ' ' + esc(it.unit) : ''), ru = it.rateUnit || it.unit || '', note = convNote(it), tx = lineTaxable(it);
+      if (note) name += '<br><span style="color:#6B7280;font-size:9.5px;font-weight:400">' + note + '</span>';
       return numbered
-        ? '<tr><td><b>' + (i + 1) + '. ' + name + '</b></td><td>' + esc(it.hsn || f.hsn) + '</td><td class="r">' + qty + '</td><td class="r">₹ ' + fmt(it.rate) + '</td><td class="r">₹ ' + fmt(it.taxable) + '</td></tr>'
-        : '<tr><td>' + (i + 1) + '.</td><td><b>' + name + '</b></td><td>' + esc(it.hsn || f.hsn) + '</td><td class="r">' + qty + '</td><td class="r">₹ ' + fmt(it.rate) + '</td><td class="r">₹ ' + fmt(it.taxable) + '</td></tr>';
+        ? '<tr><td><b>' + (i + 1) + '. ' + name + '</b></td><td>' + esc(it.hsn || f.hsn) + '</td><td class="r">' + qty + '</td><td class="r" style="white-space:nowrap">₹ ' + fmt(it.rate) + (ru ? '<span style="color:#6B7280">/' + esc(ru) + '</span>' : '') + '</td><td class="r">₹ ' + fmt(tx) + '</td></tr>'
+        : '<tr><td>' + (i + 1) + '.</td><td><b>' + name + '</b></td><td>' + esc(it.hsn || f.hsn) + '</td><td class="r">' + qty + '</td><td class="r" style="white-space:nowrap">₹ ' + fmt(it.rate) + (ru ? '<span style="color:#6B7280">/' + esc(ru) + '</span>' : '') + '</td><td class="r">₹ ' + fmt(tx) + '</td></tr>';
     }).join('');
   }
   /* IRN / Ack / QR — only for a sale that actually carries an IRN. */
@@ -461,7 +474,7 @@
       + '<div class="sec"><div><div class="lab">Billed to</div><div class="nm">' + esc(b.name) + '</div>' + (b.address ? '<div class="ln">' + esc(b.address) + '</div>' : '')
       + (b.gstin ? '<div class="ln" style="margin-top:8px"><b>GST</b>' + esc(b.gstin) + '</div>' : '') + (f.bState ? '<div class="ln"><b>State</b>' + esc(f.bState) + '</div>' : '') + (f.bPhone ? '<div class="ln"><b>Contact</b>' + esc(f.bPhone) + '</div>' : '') + '</div>'
       + '<div><div class="lab">Invoice details</div><div class="kv">' + kv('Invoice #', f.inv) + kv('Invoice Date', f.date) + kv('Due Date', fdate(d.due)) + kv('Place of supply', f.pos) + kv('Reverse charge', f.rcm) + kv('Vehicle no.', f.veh) + kv('E-Way Bill no.', f.eway) + '</div></div></div>'
-      + '<div class="itmw"><table class="itm"><thead><tr><th style="width:30px">#</th><th>Item description</th><th style="width:84px">HSN/SAC</th><th class="r" style="width:96px">Qty</th><th class="r" style="width:90px">Rate</th><th class="r" style="width:110px">Amount</th></tr></thead>'
+      + '<div class="itmw"><table class="itm"><thead><tr><th style="width:30px">#</th><th>Item description</th><th style="width:84px">HSN/SAC</th><th class="r" style="width:84px">Qty</th><th class="r" style="width:112px">Rate</th><th class="r" style="width:100px">Amount</th></tr></thead>'
       + '<tbody>' + itemRows(f, false) + '</tbody></table>' + (eInvBlock(d, 'einv') ? '<div style="margin-top:12px">' + eInvBlock(d, 'einv') + '</div>' : '') + '</div>'
       + '<div class="money"><div class="tot"><div class="tl"><span>Sub Total</span><span>₹ ' + f.taxable + '</span></div>' + taxRows(f, 'tl')
       + '<div class="gt"><span class="l">Total</span><span class="v">₹ ' + f.grand + '</span></div><div class="gtq">' + qtyTotalEl(f) + '</div>'
@@ -497,7 +510,7 @@
       + '<div class="cols"><div><h4>Invoice by</h4><div class="l">' + esc(s.name) + (s.address ? '<br>' + String(s.address).split(/\n/).map(esc).join('<br>') : '') + (f.unitAddr ? '<br><b>Unit</b> ' + esc(f.unitAddr) : '') + '<br><b>GSTIN</b> ' + esc(s.gstin || '') + (f.pan ? ' &nbsp; <b>PAN</b> ' + esc(f.pan) : '') + (f.msme ? '<br><b>MSME</b> ' + esc(f.msme) : '') + ((f.tel || s.email) ? '<br>' + esc([f.tel, s.email].filter(Boolean).join(' · ')) : '') + '</div></div>'
       + '<div><h4>Invoice to</h4><div class="l">' + esc(b.name) + (b.address ? '<br>' + esc(b.address) : '') + (b.gstin ? '<br><b>GSTIN</b> ' + esc(b.gstin) : '') + (f.bState ? '<br><b>State</b> ' + esc(f.bState) : '') + (f.bPhone ? '<br>' + esc(f.bPhone) : '') + '</div></div>'
       + '<div><div class="meta">' + m('Invoice No:', f.inv) + m('Invoice Date:', f.date) + m('Due Date:', fdate(d.due)) + '<div class="gap"></div>' + (isExportB ? m('Country of supply:', (d.export && d.export.country) || '') : '') + m('Place of supply:', f.pos) + m('Reverse charge:', f.rcm) + m('Vehicle No:', f.veh) + m('E-Way Bill No:', f.eway) + '</div></div></div>'
-      + '<table class="itm"><thead><tr><th>Item #/Item description</th><th style="width:84px">HSN/SAC</th><th class="r" style="width:96px">Quantity</th><th class="r" style="width:90px">Rate</th><th class="r" style="width:110px">Amount</th></tr></thead>'
+      + '<table class="itm"><thead><tr><th>Item #/Item description</th><th style="width:84px">HSN/SAC</th><th class="r" style="width:84px">Quantity</th><th class="r" style="width:112px">Rate</th><th class="r" style="width:100px">Amount</th></tr></thead>'
       + '<tbody>' + itemRows(f, true) + '</tbody></table>' + (eInvBlock(d, 'einv') ? '<div style="margin-top:14px">' + eInvBlock(d, 'einv') + '</div>' : '')
       + '<div class="bot"><div>' + (f.cfg.showDeclaration && f.terms.length ? '<h5>Terms and Conditions</h5><ol>' + f.terms.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ol>' : '')
       + (function () { var n = [notesLine(f, s), f.cfg.footerNote ? esc(f.cfg.footerNote) : ''].filter(Boolean).join('<br>'); return n ? '<h5>Additional Notes</h5><div class="nt">' + n + '</div>' : ''; })() + '</div>'
@@ -589,8 +602,8 @@
       + '<div class="row bb">' + party('Details of Buyer (Billed to)', 'br') + party('Details of Consignee (Shipped to)', '') + '</div>'
       + '<div class="body">' + (f.logo ? '<div class="wm">' + logoImg(f, 240, 'opacity:.07;max-width:420px') + '</div>' : '')
       + '<table class="it"><colgroup><col style="width:44px"><col style="width:78px"><col><col style="width:88px"><col style="width:84px"><col style="width:104px"></colgroup>'
-      + '<tr><th>S.No.</th><th>HSN CODE</th><th>DESCRIPTION OF GOODS</th><th>QTY<br>(' + esc(f.unit || '') + ')</th><th>RATE<br>(P.' + esc(f.unit || '') + ')</th><th>AMOUNT</th></tr>'
-      + '<tr><td class="c">1.</td><td class="c">' + esc(f.hsn) + '</td><td><b>' + esc(f.product) + '</b></td><td class="r">' + f.qty + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr>'
+      + '<tr><th>S.No.</th><th>HSN CODE</th><th>DESCRIPTION OF GOODS</th><th>QTY<br>(' + esc(f.unit || '') + ')</th><th>RATE<br>(P.' + esc(f.rateUnit || f.unit || '') + ')</th><th>AMOUNT</th></tr>'
+      + '<tr><td class="c">1.</td><td class="c">' + esc(f.hsn) + '</td><td><b>' + esc(f.product) + '</b>' + (f.unitsDiffer ? '<br><span style="font-size:9px;color:#444">' + f.qty + ' ' + esc(f.unit) + ' = ' + f.billableQty + ' ' + esc(f.billableUnit) + ' × ₹' + f.rate + '</span>' : '') + '</td><td class="r">' + f.qty + '</td><td class="r">' + f.rate + '</td><td class="r">' + f.taxable + '</td></tr>'
       + '<tr class="sp"><td></td><td></td><td></td><td></td><td></td><td></td></tr></table></div>'
       + '<div class="low bb"><div class="left br"><div class="rm bb"><b>Remarks :</b></div>' + eInv + '<div class="hs">' + bandTable(f, '') + '</div></div>'
       + '<div class="right">' + taxStack + '</div></div>'
@@ -734,15 +747,17 @@
       + ".ft{margin-top:12px;padding-top:6px;border-top:1px solid #111;font-size:8.5px;color:#444;display:flex;justify-content:space-between;gap:12px}"
       + "@media print{.ft{position:fixed;left:0;right:0;bottom:0;margin:0;padding:6px 30px 0;background:#fff}}@media screen and (max-width:760px){.sheet{zoom:.7}}";
     var qUnit = P(items[0].unit) || f.unit || '';   // never a unit nobody entered
+    var rUnit = P(items[0].rateUnit) || ((Array.isArray(d.items) && d.items.length) ? P(items[0].unit) : '') || f.rateUnit || qUnit;   // the rate's OWN unit — a Kg line priced per Ton says so
     /* Only the numeric columns are sized; Product Description — the legally
        required description of goods — takes everything that is left and is
        floored at 150px, so it is always the widest text column on A4. */
     var thead = '<tr><th style="width:32px">Sr. No.</th><th style="width:66px">HSN/SAC</th><th style="min-width:150px">Product Description</th>' + (hasGrade ? '<th style="width:88px">Grade / Specification</th>' : '') + (hasPack ? '<th style="width:66px">Packing</th>' : '') + (hasBags ? '<th class="r" style="width:48px">No. of Bags</th>' : '')
-      + '<th class="r" style="width:66px">Qty' + (qUnit ? ' (' + esc(qUnit) + ')' : '') + '</th><th class="r" style="width:70px">Rate' + (qUnit ? ' / ' + esc(qUnit) : '') + '</th><th class="r" style="width:92px">Taxable Value (₹)</th></tr>';
+      + '<th class="r" style="width:66px">Qty' + (qUnit ? ' (' + esc(qUnit) + ')' : '') + '</th><th class="r" style="width:70px">Rate' + (rUnit ? ' / ' + esc(rUnit) : '') + '</th><th class="r" style="width:92px">Taxable Value (₹)</th></tr>';
     var rows = items.map(function (it, i) {
-      return '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(P(it.hsn) || f.hsn) + '</td><td><b>' + esc(P(it.product)) + '</b>' + (P(it.desc) ? '<br><span style="color:#555">' + esc(P(it.desc)) + '</span>' : '') + '</td>'
+      var note = convNote(it), rowRu = P(it.rateUnit) || rUnit;
+      return '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(P(it.hsn) || f.hsn) + '</td><td><b>' + esc(P(it.product)) + '</b>' + (P(it.desc) ? '<br><span style="color:#555">' + esc(P(it.desc)) + '</span>' : '') + (note ? '<br><span style="color:#555;font-size:9px">' + note + '</span>' : '') + '</td>'
         + (hasGrade ? '<td>' + esc(P(it.grade)) + '</td>' : '') + (hasPack ? '<td>' + esc(P(it.packing)) + '</td>' : '') + (hasBags ? '<td class="r">' + esc(P(it.bags)) + '</td>' : '')
-        + '<td class="r">' + qfmt(it.qty) + '</td><td class="r">' + fmt(it.rate) + '</td><td class="r">' + fmt(it.taxable) + '</td></tr>';
+        + '<td class="r">' + qfmt(it.qty) + '</td><td class="r">' + fmt(it.rate) + (rowRu && rowRu !== rUnit ? '<br><span style="font-size:9px;color:#555">/ ' + esc(rowRu) + '</span>' : '') + '</td><td class="r">' + fmt(lineTaxable(it)) + '</td></tr>';
     }).join('');
     var order = cell('PO Number', d.po) + cell('PO Date', fdate(d.poDate)) + cell('Transport Mode', f.transport) + cell('Vehicle Number', f.veh) + cell('LR / GR/RR No.', f.grrr)
       + cell('Dispatch From', f.unitAddr || s.station || '') + cell('Place of Supply', f.pos) + cell('Delivery Station', f.station) + cell('Reverse Charge', f.rcm);

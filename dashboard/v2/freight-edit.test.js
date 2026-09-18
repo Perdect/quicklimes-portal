@@ -45,10 +45,13 @@ const psrc = fs.readFileSync(path.join(__dirname, 'purchase.js'), 'utf8');
     /* purchaseRows stamps createdBy from QL_PLANT — a real dependency, not a bug.
        Stubbed rather than hidden: the alternative was trimming the slice until the
        error went away, which is how a test ends up not running the real code. */
-    QL_PLANT: { owner_name: 'Sameer', plant_name: 'Gotan Lime Industries' }
+    QL_PLANT: { owner_name: 'Sameer', plant_name: 'Gotan Lime Industries' },
+    QLUnits: require('./units-core.js')
   };
   vm.createContext(ctx);
   vm.runInContext([
+    grabLine('const U_TONNE ='), grabLine('const U_KG '), grabLine('const U_QTL '), grabLine('const U_COUNT ='),
+    grabBlock('function tonnesOf(r) {', '\n  }'),
     grabLine('const cP = p =>'),
     grabLine('const isFreightItem = it =>'),
     grabBlock('function purchaseRows()', '\n  }'),

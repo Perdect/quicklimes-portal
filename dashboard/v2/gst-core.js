@@ -104,7 +104,11 @@
     /* Arithmetic is checked, not trusted. A taxable value that disagrees
        with qty×rate means the invoice and its own line have drifted apart,
        and the portal will reject it — better to catch that here. */
-    var expTax = r2(num(inv.qty) * num(inv.rate));
+    /* Through units-core when it is loaded (browser + Node tests): the taxable
+       value is the quantity converted into the rate's unit × the rate. */
+    var UN = (typeof QLUnits !== 'undefined') ? QLUnits : (typeof require === 'function' ? require('./units-core.js') : null);
+    var lineSum = function (x) { if (!UN) return r2(num(x.qty) * num(x.rate)); if (x.items && x.items.length) { var t = 0; x.items.forEach(function (it) { t += (it.taxable != null && it.taxable !== '') ? num(it.taxable) : UN.lineAmount(it).amount; }); (x.charges || []).forEach(function (c) { t += num(c && c.amount); }); return r2(t); } return r2(UN.lineAmount({ qty: x.qty, unit: x.unit, rate: x.rate, rateUnit: x.rateUnit }).amount); };
+    var expTax = lineSum(inv);
     if (num(inv.taxable) && Math.abs(num(inv.taxable) - expTax) > 1) {
       issue(out, SEVERITY.blocker, 'TAXABLE_MISMATCH', 'taxable',
         'Taxable value ' + num(inv.taxable) + ' does not equal quantity × rate (' + expTax + ').', 'Recheck the line');
@@ -148,7 +152,9 @@
      on the owner's behalf. */
   function ewbRequired(inv, rules) {
     rules = rules || {};
-    var value = num(inv.total) || r2(num(inv.qty) * num(inv.rate));
+    var UN2 = (typeof QLUnits !== 'undefined') ? QLUnits : (typeof require === 'function' ? require('./units-core.js') : null);
+    var lineSum2 = function (x) { if (!UN2) return r2(num(x.qty) * num(x.rate)); if (x.items && x.items.length) { var t = 0; x.items.forEach(function (it) { t += (it.taxable != null && it.taxable !== '') ? num(it.taxable) : UN2.lineAmount(it).amount; }); (x.charges || []).forEach(function (c) { t += num(c && c.amount); }); return r2(t); } return r2(UN2.lineAmount({ qty: x.qty, unit: x.unit, rate: x.rate, rateUnit: x.rateUnit }).amount); };
+    var value = num(inv.total) || lineSum2(inv);
     if (rules.threshold == null) {
       return { verdict: 'REVIEW', why: 'No E-Way Bill threshold configured — set it in GST settings so this can be decided automatically.', value: value };
     }

@@ -83,7 +83,10 @@
      Sale: taxable = qty × rate, gst = taxable × rate%.  Purchase: the
      bill's own taxable. Never re-derived differently here — a second
      opinion on arithmetic is how two screens start disagreeing. */
-  function saleTaxable(s) { return num(s.taxable) || round2(num(s.qty) * num(s.rate)); }
+  /* A stored taxable wins; otherwise the line is priced through units-core (the
+     quantity converted into the rate's unit × the rate), never qty × rate raw. */
+  var _UN = function () { return (typeof QLUnits !== 'undefined' ? QLUnits : (typeof window !== 'undefined' && window.QLUnits) || (typeof require === 'function' ? require('./units-core.js') : null)); };
+  function saleTaxable(s) { return num(s.taxable) || round2(_UN() ? _UN().lineAmount(s).amount : num(s.qty) * num(s.rate)); }
   function saleTotal(s) { const tx = saleTaxable(s); return round2(tx + tx * num(s.gstR) / 100); }
   function purchTaxable(p) { return num(p.taxable); }
 
@@ -177,7 +180,7 @@
         count: salesIn.length, months: months(salesIn),
         value: round2(salesIn.reduce((a, s) => a + saleTaxable(s), 0)),
         total: round2(salesIn.reduce((a, s) => a + saleTotal(s), 0)),
-        qty: round2(salesIn.reduce((a, s) => a + num(s.qty), 0))
+        qty: round2(salesIn.reduce((a, s) => { const q = num(s.qty); if (!q) return a; const u = (s.unit || '').trim(); if (!u) return a + q; const U = _UN(); const t = U ? U.toTonnes(q, u) : q; return a + (t == null ? 0 : t); }, 0))   // tonnes, not raw qty
       },
       purchase: {
         key: 'purchase', label: MODULE_LABEL.purchase, present: purchIn.length > 0,

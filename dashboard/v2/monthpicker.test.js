@@ -344,7 +344,7 @@ const grab = (start, end) => {
   return dsrc.slice(i, dsrc.indexOf(end, i) + end.length);
 };
 const S = { SALES: [], PURCHASES: [], WORKERS: [], CASHBOOK: [], CHUNNA: [] };
-const dctx = { console, Math, Object, Array, Number, String, Date, RegExp, isNaN, parseFloat, S, partyGstin: () => '' };
+const dctx = { console, Math, Object, Array, Number, String, Date, RegExp, isNaN, parseFloat, S, partyGstin: () => '', QLUnits: require('./units-core.js') };
 vm.createContext(dctx);
 vm.runInContext([
   grab('const RANGE_KEYS =', '\n'), grab('const RANGE_LABEL =', '\n'),

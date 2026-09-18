@@ -41,7 +41,7 @@ function grabBlock(startsWith, endsWith) {
 }
 
 const S = { SALES: [], PURCHASES: [], WORKERS: [], CASHBOOK: [] };
-const ctx = { console, Math, Object, Array, Number, isNaN, S, partyGstin: () => '', String, RegExp };
+const ctx = { console, Math, Object, Array, Number, isNaN, S, partyGstin: () => '', String, RegExp, QLUnits: require('./units-core.js') };
 vm.createContext(ctx);
 vm.runInContext([
   /* inPeriod is the month/year filter totS/totP/labourPaid all run rows through.

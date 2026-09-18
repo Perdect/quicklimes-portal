@@ -35,7 +35,10 @@
   var num = function (v) { var n = parseFloat(v); return isFinite(n) ? n : 0; };
   var r2 = function (n) { return Math.round(n * 100) / 100; };
   var live = function (r) { return r && !r._del && !r._arch && (r.status || 'pending') !== 'cancelled'; };
-  var taxable = function (s) { return num(s.taxable) || r2(num(s.qty) * num(s.rate)); };
+  var _UN = function () { return (typeof QLUnits !== 'undefined' ? QLUnits : (typeof window !== 'undefined' && window.QLUnits) || (typeof require === 'function' ? require('./units-core.js') : null)); };
+  var taxable = function (s) { return num(s.taxable) || r2(_UN() ? _UN().lineAmount(s).amount : num(s.qty) * num(s.rate)); };
+  /* tonnes, not raw quantity: a 7,650 Kg sale is 7.65 T; a bag count is not a tonnage */
+  var tonnesOf = function (s) { var q = num(s.qty); if (!q) return 0; var u = (s.unit || '').trim(); if (!u) return q; var U = _UN(); if (!U) return q; var t = U.toTonnes(q, u); return t == null ? 0 : t; };
 
   /* ── the canonical company identity layer ────────────────────────────
      firms = [{ id, name, short, gstins:[], pan }]  — GSTINs are the identity;
@@ -75,7 +78,7 @@
         gross: { salesValue: 0, purchaseValue: 0, salesQty: 0, salesCount: 0, purchaseCount: 0 },
         inter: { salesValue: 0, purchaseValue: 0, salesQty: 0, salesCount: 0, purchaseCount: 0 } };
       (b.sales || []).filter(live).forEach(function (s, i) {
-        var v = taxable(s), q = num(s.qty);
+        var v = taxable(s), q = tonnesOf(s);
         var hit = ident.of(s.gstin, s.party);
         var rel = (hit && hit.firm.id !== b.id) ? (hit.certain ? 'inter' : 'suspect') : 'external';
         var row = { kind: 'sale', firm: b.id, firmName: b.name, idx: i, ref: s.inv || '', date: s.date || '',
@@ -93,7 +96,7 @@
         var hit = ident.of(p.gstin, p.sup || p.name);
         var rel = (hit && hit.firm.id !== b.id) ? (hit.certain ? 'inter' : 'suspect') : 'external';
         var row = { kind: 'purchase', firm: b.id, firmName: b.name, idx: i, ref: p.bill || '', date: p.date || '',
-                    party: p.sup || p.name || '', gstin: p.gstin || '', value: v, qty: num(p.qty), rel: rel,
+                    party: p.sup || p.name || '', gstin: p.gstin || '', value: v, qty: tonnesOf(p), rel: rel,
                     counterFirm: hit ? hit.firm.id : null, counterName: hit ? hit.firm.short : '', certain: !!(hit && hit.certain) };
         out.rows.push(row); f.purchases.push(row);
         f.gross.purchaseValue += v; f.gross.purchaseCount++;

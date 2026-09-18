@@ -7,6 +7,10 @@
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
+  /* units-core.js is THE quantity/rate-unit arithmetic (window.QLUnits in the
+     browser, required under Node). Resolved once here so every helper below can
+     use the bare name; a vm test injects QLUnits into its sandbox. */
+  const QLUnits = (typeof window !== 'undefined' && window.QLUnits) || (typeof globalThis !== 'undefined' && globalThis.QLUnits) || (typeof require === 'function' ? require('./units-core.js') : null);
 
   /* ── Party identity ──────────────────────────────────────────
      Every "group by supplier/customer" in this app must go through here. Keying
@@ -408,7 +412,9 @@
      register (cS) and the invoice (invoiceData) both read this, so a multi-line
      invoice can never total differently on paper than in the books. An export
      (type === 'export') is zero-rated under LUT: no GST is charged. */
-  const saleTaxable = s => (Array.isArray(s.items) && s.items.length) ? s.items.reduce((a, it) => a + (+it.taxable || 0), 0) + (Array.isArray(s.charges) ? s.charges.reduce((a, c) => a + (+c.amount || 0), 0) : 0) : (+s.qty || 0) * (+s.rate || 0);   // ONE line: the house tests lift it by line
+  const saleTaxable = s => (Array.isArray(s.items) && s.items.length) ? s.items.reduce((a, it) => a + (it.taxable != null && it.taxable !== '' ? +it.taxable || 0 : QLUnits.lineAmount(it).amount), 0) + (Array.isArray(s.charges) ? s.charges.reduce((a, c) => a + (+c.amount || 0), 0) : 0) : QLUnits.lineAmount(s).amount;   // ONE line: the house tests lift it by line. QLUnits.lineAmount = billable qty (converted INTO the rate's unit) × rate — 7,650 Kg @ ₹5,300/Ton is ₹40,545, never ₹4,05,45,000
+  /* Tonnes for reporting — a sale in Kg counts as Kg/1000, a Bag count is NOT a tonnage (null → 0). Legacy rows with no unit are tonnes, as they always were. */
+  const saleTonnes = s => { if (Array.isArray(s.items) && s.items.length) return s.items.reduce((a, it) => { const q = +it.qty || 0; if (!q) return a; const u = (it.unit || '').trim(); if (!u) return a + q; const t = QLUnits.toTonnes(q, u); return a + (t == null ? 0 : t); }, 0); const q = +s.qty || 0; if (!q) return 0; const u = (s.unit || '').trim(); if (!u) return q; const t = QLUnits.toTonnes(q, u); return t == null ? 0 : t; };
   const saleGstRate = s => (s.type || '') === 'export' ? 0 : (s.gstR == null ? 5 : +s.gstR);
   const cS = s => { const tx = saleTaxable(s), g = tx * saleGstRate(s) / 100; return { tx, cgst: g / 2, sgst: g / 2, tot: tx + g }; };
   // RCM: the recipient pays GST to the govt, not the supplier — so the supplier-payable (total) is the taxable only, ITC still claimable
@@ -841,7 +847,13 @@
   }
   function addSale(e) {
     const d = dupCheck(e, S.SALES); if (d) return d;
-    S.SALES.push({ ...e, date: toISODate(e.date) || e.date, status: e.status || 'pending' });
+    /* Unit discipline: canonical unit key, and the rate's own unit. A row that
+       arrives with a unit but no rateUnit gets this business's default (mass →
+       per Ton, bags → per bag); a row with no unit at all is left exactly as
+       it was — its rate is per its own (unknown) unit. */
+    const u = e.unit ? (QLUnits.normalizeUnit(e.unit) || e.unit) : '';
+    const ru = e.rateUnit ? (QLUnits.normalizeUnit(e.rateUnit) || e.rateUnit) : (e.rateUnit === '' ? '' : (u ? QLUnits.defaultRateUnit(u) : ''));   // explicit '' = per its own unit (a copy of a legacy row prices like the original)
+    S.SALES.push({ ...e, ...(u ? { unit: u } : {}), ...(ru ? { rateUnit: ru } : (e.rateUnit === '' ? { rateUnit: '' } : {})), date: toISODate(e.date) || e.date, status: e.status || 'pending' });
     /* commit UNCONDITIONALLY. The old `if (e.party) upsertParty(...); else commit()`
        delegated the invoice's save to upsertParty — which returns early WITHOUT
        committing on a name under 2 chars. So a 1-char customer name pushed the
@@ -893,8 +905,15 @@
     const date = toISODate(g.date) || fmtISO(new Date());
     const cat = ((g.group || '') + ' ' + (g.item || '')).trim();
     if (kind === 'sales') {
-      let qty = num(g.qty) || 1, r = taxable ? Math.round(taxable / qty * 100) / 100 : num(g.rate);
-      addSale({ inv: (g.docno || '').toString().trim(), date, party: (g.name || '').toString().trim(), gstin, qty, rate: r, gstR: rate, veh, status: 'pending' });
+      /* The bill states a taxable value and a quantity; the rate is DERIVED —
+         per the unit lime is priced in (Ton for a Kg/Quintal/Ton line), so a
+         7,650 Kg bill for ₹40,545 books as ₹5,300 / Ton, not ₹5.30 / Kg. */
+      let qty = num(g.qty) || 1; const unit = QLUnits.normalizeUnit(g.unit) || '', rateUnit = unit ? QLUnits.defaultRateUnit(unit) : '';
+      /* No taxable on the bill: use the per-unit price OCR read (g.unitRate, per the
+         bill's own unit) — g.rate is the GST%, never a price. */
+      const uPrice = num(g.unitRate);
+      let r = taxable ? (unit ? (QLUnits.impliedRate(taxable, qty, unit, rateUnit) || 0) : Math.round(taxable / qty * 100) / 100) : (uPrice ? (unit && rateUnit && rateUnit !== unit ? (QLUnits.impliedRate(uPrice * qty, qty, unit, rateUnit) || uPrice) : uPrice) : 0);
+      addSale({ inv: (g.docno || '').toString().trim(), date, party: (g.name || '').toString().trim(), gstin, qty, ...(unit ? { unit, rateUnit } : {}), rate: r, gstR: rate, veh, status: 'pending' });
       return S.SALES.length - 1;
     }
     addPurchase({ bill: (g.docno || '').toString().trim(), date, sup: (g.name || '').toString().trim(), gstin, taxable, grate: rate, itc: g.itc || 'Eligible', veh, cat: cat || undefined, status: 'pending' });
@@ -1178,7 +1197,7 @@
       out.push({
         ym, m: d.toLocaleDateString('en-IN', { month: 'short' }),
         sales: sTot, purchases: pTx, profit: sTx - pTx,
-        qty: sal.reduce((a, s) => a + (s.qty || 0), 0),
+        qty: sal.reduce((a, s) => a + saleTonnes(s), 0),
         invoices: sal.length
       });
     }
@@ -1198,7 +1217,7 @@
     const overdueParties = [...new Set(outRows.filter(r => r.days > 30).map(r => _pIdx.keyOf(r.party, r.gstin)))];
     const collAmt = outRows.reduce((a, r) => a + r.outstanding, 0);
     const payAmt = purchaseRows().filter(r => r.outstanding > 0.5 && r.status !== 'cancelled').reduce((a, r) => a + r.outstanding, 0);
-    const totQty = S.SALES.filter(notCancelled).reduce((a, s) => a + (s.qty || 0), 0);
+    const totQty = S.SALES.filter(notCancelled).reduce((a, s) => a + saleTonnes(s), 0);
     return {
       sales:       { v: fC(ts.tx), trend: mom(cur.sales, prev.sales), meta: S.SALES.length + ' invoices · excl. GST' },
       profit:      { v: fC(pl.np), trend: mom(cur.profit, prev.profit), meta: 'Margin ' + pl.npm.toFixed(1) + '%' },
@@ -1287,7 +1306,7 @@
   function production() {
     const today = new Date(); const tISO = today.toISOString().slice(0, 10);
     // A cancelled/trashed invoice never left the gate — it must not be "dispatched".
-    const qtyIn = f => S.SALES.filter(s => notCancelled(s) && f(s)).reduce((a, s) => a + (s.qty || 0), 0);
+    const qtyIn = f => S.SALES.filter(s => notCancelled(s) && f(s)).reduce((a, s) => a + saleTonnes(s), 0);
     const ymNow = tISO.slice(0, 7);
     return {
       today: qtyIn(s => s.date === tISO),
@@ -1318,13 +1337,13 @@
     const sal = S.SALES.filter(s => notCancelled(s) && inPeriod(s.date, period));
     const chu = S.CHUNNA.filter(c => notCancelled(c) && inPeriod(c.date, period));
     const byDay = {};
-    sal.forEach(s => { const q = +s.qty || 0; if (q > 0 && s.date) byDay[s.date] = (byDay[s.date] || 0) + q; });
+    sal.forEach(s => { const q = saleTonnes(s); if (q > 0 && s.date) byDay[s.date] = (byDay[s.date] || 0) + q; });
     // Ties break on the EARLIER date so the answer is stable across renders rather
     // than depending on key order.
     const peak = Object.keys(byDay).sort((a, b) => byDay[b] - byDay[a] || a.localeCompare(b))[0];
     return {
       period: period || 'all',
-      dispatched: sal.reduce((a, s) => a + (+s.qty || 0), 0),
+      dispatched: sal.reduce((a, s) => a + saleTonnes(s), 0),
       invoices: sal.length,
       withQty: sal.filter(s => +s.qty > 0).length,
       chunna: chu.reduce((a, c) => a + (parseFloat(c.qty) || 0), 0),
@@ -1335,7 +1354,7 @@
 
   function topProducts(period) {
     const ts = totS(period);
-    const qty = S.SALES.filter(s => notCancelled(s) && inPeriod(s.date, period)).reduce((a, s) => a + (s.qty || 0), 0);
+    const qty = S.SALES.filter(s => notCancelled(s) && inPeriod(s.date, period)).reduce((a, s) => a + saleTonnes(s), 0);
     const rows = [{
       icon: '⚪', name: 'Quick Lime', sub: 'GST invoiced dispatches',
       qty: fmt(qty, 1) + ' T', avg: qty ? fC(ts.tx / qty) : '—', rev: fC(ts.tot)
@@ -1352,7 +1371,7 @@
   function activity() {
     const ev = [];
     S.SALES.forEach(s => {
-      ev.push({ d: s.date, tone: 'brand', icon: 'invoice', t: `Invoice ${s.inv} — ${s.party}`, s: fmt(s.qty, 1) + ' T · ' + fC(cS(s).tot) });
+      ev.push({ d: s.date, tone: 'brand', icon: 'invoice', t: `Invoice ${s.inv} — ${s.party}`, s: QLUnits.fmtQty(s.qty, s.unit || 'Ton') + ' · ' + fC(cS(s).tot) });
       if (s.status === 'paid' && s.paidDate) ev.push({ d: s.paidDate, tone: 'success', icon: 'paid', t: `${s.party} paid ${fC(cS(s).tot)}`, s: 'Invoice ' + s.inv + (s.paidMode ? ' · ' + s.paidMode : '') });
     });
     S.PURCHASES.forEach(p => ev.push({ d: p.date, tone: 'warning', icon: 'bill', t: `Bill ${p.bill} — ${p.sup}`, s: fC(p.taxable) + ' · ' + (p.cat || 'Purchase') }));
@@ -1394,7 +1413,11 @@
       const paid = (s.status === 'paid' || s.status === 'cash') ? c.tot : (+s.paid || 0);
       return {
         idx: i, inv: s.inv, date: s.date, party: s.party || '—',
-        qty: s.qty || 0, unit: s.unit || '', product: s.product || '',
+        qty: s.qty || 0, unit: s.unit || '', product: s.product || '', rate: +s.rate || 0,
+        /* The rate's unit (per the quantity's own unit on legacy rows), the
+           quantity converted into it, and tonnes for the reports — so no
+           consumer ever multiplies or sums a raw qty again. */
+        rateUnit: s.rateUnit || s.unit || '', billableQty: QLUnits.lineAmount(s).billableQty, billableUnit: QLUnits.lineAmount(s).billableUnit, tonnes: saleTonnes(s),
         taxable: c.tx, gst: c.cgst + c.sgst, total: c.tot,
         status: s.status || 'pending', veh: s.veh || '', gstin: s.gstin || partyGstin(s.party),
         days: daysAgo(s.date), paid, outstanding: Math.max(0, c.tot - paid),
@@ -1411,7 +1434,7 @@
       collected: rows.reduce((a, r) => a + r.paid, 0),     // actual money received (includes partial payments)
       pending: rows.reduce((a, r) => a + r.outstanding, 0),// true receivable still owed (includes partials)
       gst: rows.reduce((a, r) => a + r.gst, 0),
-      qty: rows.reduce((a, r) => a + r.qty, 0)
+      qty: rows.reduce((a, r) => a + r.tonnes, 0)   // tonnes — a Kg invoice is not 7,650 T
     };
   }
 
@@ -1653,7 +1676,7 @@
         group: g.group, groupLabel: gm.label, emoji: gm.emoji, item: g.item, dept: g.dept,
         itemIconEmoji: itemIcon(g.item, gm.emoji),
         taxable: p.taxable, gst: c.g, itc: c.itc, total: c.tot, grate: p.grate || 0,
-        qty: p.qty || 0, unit: p.unit || '', rate: p.rate || 0, desc: p.desc || '',
+        qty: p.qty || 0, unit: p.unit || '', rate: p.rate || 0, rateUnit: p.rateUnit || p.unit || '', tonnes: tonnesOf(p), desc: p.desc || '',
         status: p.status || 'pending', gstin: p.gstin || '', days: daysAgo(p.date),
         veh: p.veh || p.vehicle || '',
         remarks: p.remarks || '', dueDate: p.dueDate || '', createdBy: p.createdBy || (QL_PLANT.owner_name || QL_PLANT.plant_name || 'Owner'),
@@ -2135,7 +2158,10 @@
   // Average purchase rate (₹ per T / per bag) for a material group — from real bills.
   function avgRate(group) {
     const rs = purchaseRows().filter(r => r.group === group && r.status !== 'cancelled');
-    const q = rs.reduce((a, r) => a + (nQ(r.qty)), 0), v = rs.reduce((a, r) => a + (nQ(r.taxable) || nQ(r.total)), 0);
+    /* ₹ per tonne (or per bag for packaging): only bills whose quantity converts
+       count, so a KG petcoke bill no longer dilutes the ₹/T of the tonne ones. */
+    let q = 0, v = 0;
+    rs.forEach(r => { const n = group === 'packaging' ? countOf(r) : tonnesOf(r); if (n == null || !(n > 0)) return; q += n; v += nQ(r.taxable) || nQ(r.total); });
     return q ? v / q : 0;
   }
   // Consumed / produced totals + derived cost-per-ton and yield.
@@ -2195,7 +2221,10 @@
   function tonnesOf(r) {
     const q = parseFloat(r && r.qty); if (!(q > 0)) return null;
     const u = ((r.unit || '') + '').trim();
-    if (!u || U_TONNE.test(u)) return q;
+    if (!u) return q;
+    /* ONE unit vocabulary: units-core.js. (The regexes above stay for countOf.) */
+    if (QLUnits.familyOf(u) === 'mass') return QLUnits.toTonnes(q, u);
+    if (U_TONNE.test(u)) return q;
     if (U_KG.test(u))  return q / 1000;
     if (U_QTL.test(u)) return q / 10;
     return null;
@@ -2739,7 +2768,8 @@
          The GSTIN itself prints in its registered form — no spaces. */
       buyer: { name: s.party || '', gstin: cleanGstin(s.gstin), address: s.addr || '', state: reconcileState(s.state, bg), phone: partyPhone(s.party), email: '' },
       inv: s.inv, date: s.date, product: s.product || 'Quick Lime', qty: s.qty || 0, rate: s.rate || 0,
-      unit: s.unit || 'Tonne', veh: s.veh || '', eway: s.eway || '', gstR: rate,
+      unit: s.unit || 'Tonne', rateUnit: s.rateUnit || s.unit || 'Tonne', billableQty: QLUnits.lineAmount(s).billableQty, billableUnit: QLUnits.lineAmount(s).billableUnit || s.unit || 'Tonne',
+      veh: s.veh || '', eway: s.eway || '', gstR: rate,
       transport: s.transport || '', station: s.station || '', grrr: s.grrr || '',
       taxable, cgst, sgst, igst: interState ? cgst + sgst : 0, interState,
       total, roundOff: grand - total, grand,
@@ -2750,7 +2780,7 @@
          analysis-report form captured for the same dispatch. */
       po: s.po || (s.qa && s.qa.po) || '', poDate: s.poDate || (s.qa && s.qa.poDate) || '', due: s.due || '',
       irn: s.irn || '', ackNo: s.ackNo || '', ackDt: s.ackDt || '', qrData: s.qrData || '', qrImage: s.qrImage || '', ewayDate: s.ewayDate || '',
-      items: Array.isArray(s.items) ? s.items : null, charges: Array.isArray(s.charges) ? s.charges : null, shipTo: s.shipTo || null,
+      items: Array.isArray(s.items) ? s.items.map(it => Object.assign({}, it, { rateUnit: it.rateUnit || it.unit || '', taxable: (it.taxable != null && it.taxable !== '') ? +it.taxable || 0 : QLUnits.lineAmount(it).amount })) : null, charges: Array.isArray(s.charges) ? s.charges : null, shipTo: s.shipTo || null,
       type: s.type || '', export: s.export || null, spec: s.spec || null, qa: s.qa || null,
       grade: s.grade || '', packing: s.packing || '', bags: s.bags || '', cess: +s.cess || 0, otherTax: +s.otherTax || 0
     };
@@ -2815,7 +2845,7 @@
       const sTx = sal.reduce((a, s) => a + cS(s).tx, 0);
       const sTot = sal.reduce((a, s) => a + cS(s).tot, 0);
       const pTx = pur.reduce((a, p) => a + p.taxable, 0);
-      const qty = sal.reduce((a, s) => a + (s.qty || 0), 0);
+      const qty = sal.reduce((a, s) => a + saleTonnes(s), 0);
       const [y, m] = ym.split('-');
       return {
         ym, label: new Date(+y, +m - 1, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
@@ -2936,10 +2966,13 @@
     const gstSplit = sr => { let cg = 0, sg = 0, ig = 0; sr.forEach(x => { const inter = !!(x.gstin && x.gstin.length >= 2 && x.gstin.slice(0, 2) !== '08'); if (inter) ig += x.gst; else { cg += x.gst / 2; sg += x.gst / 2; } }); return { cg, sg, ig, out: cg + sg + ig }; };
     if (type === 'sales') {
       const r = active(salesRows());
-      headers = ['Invoice', 'Date', 'Party', 'GSTIN', 'Vehicle', 'Qty (T)', 'Taxable', 'GST', 'Total', 'Status'];
-      rows = r.map(x => [x.inv, x.date, x.party, x.gstin || '—', x.veh || '—', x.qty, x.taxable, x.gst, x.total, x.status]);
+      /* Qty (T) is TONNES (a Kg invoice is 7.65 T, not 7,650); the entered
+         quantity, its unit and the rate's unit follow after Status so every
+         column index the page and its tests already use stays put. */
+      headers = ['Invoice', 'Date', 'Party', 'GSTIN', 'Vehicle', 'Qty (T)', 'Taxable', 'GST', 'Total', 'Status', 'Qty entered', 'Unit', 'Rate', 'Rate per'];
+      rows = r.map(x => [x.inv, x.date, x.party, x.gstin || '—', x.veh || '—', x.tonnes, x.taxable, x.gst, x.total, x.status, x.qty, x.unit || 'Ton', x.rate, x.rateUnit || x.unit || 'Ton']);
       const tx = r.reduce((a, x) => a + x.taxable, 0), gst = r.reduce((a, x) => a + x.gst, 0), tot = r.reduce((a, x) => a + x.total, 0);
-      totals = ['Total', '', r.length + ' inv', '', '', r.reduce((a, x) => a + x.qty, 0), tx, gst, tot, ''];
+      totals = ['Total', '', r.length + ' inv', '', '', r.reduce((a, x) => a + (x.tonnes || 0), 0), tx, gst, tot, '', '', '', '', ''];
       kpis = [['Invoices', r.length], ['Taxable sales', fC(tx)], ['GST', fC(gst)], ['Total', fC(tot)]];
     } else if (type === 'purchase') {
       const r = active(purchaseRows());
@@ -3169,7 +3202,7 @@
     upsertParty, deleteParty,
     addSale, updateSale, deleteSale, setSaleStatus,
     addPurchase, updatePurchase, deletePurchase, setPurchaseStatus, importGenericBill,
-    attachDoc, getDoc, attachPartyDoc, fetchDocBlob,
+    attachDoc, getDoc, attachPartyDoc, saleTonnes, saleTaxable, fetchDocBlob,
     addFreightPayment, deleteFreightPayment, updateFreightNote,
     addWorker, updateWorker, deleteWorker,
     addCashEntry, deleteCashEntry,

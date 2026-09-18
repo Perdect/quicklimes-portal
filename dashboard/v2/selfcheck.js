@@ -161,6 +161,26 @@
         note: bad.length ? 'First: ' + (bad[0].bill || '(no number)') + ' — ' + (bad[0].sup || '') : 'RCM bills are excluded: their total legitimately excludes GST.' });
     }
 
+    /* ── Units: a quantity in Kg with a lime-sized rate is almost certainly a
+       per-Ton rate that was multiplied raw (the ₹4,05,45,000 bug). Rows saved
+       before rate units existed are left exactly as booked — so they are LISTED
+       here, with a one-click fix the owner confirms, never rewritten quietly. */
+    if (have('salesRows') && root.QLUnits) {
+      var U = root.QLUnits;
+      var sus = Q.salesRows().filter(function (r) {
+        if (r.status === 'cancelled') return false;
+        var u = U.normalizeUnit(r.unit);
+        if (u !== 'Kg' && u !== 'Quintal') return false;
+        if (r.rateUnit) return false;                        // a rate unit CHOSEN in a form is the owner's word — never second-guessed
+        return (+r.rate || 0) >= (u === 'Kg' ? 200 : 2000);  // lime is never ₹200+ per Kg or ₹2,000+ per Quintal — that is a per-Ton rate booked before rate units existed
+      });
+      add({ id: 'unit-rate', what: 'Kg / Quintal invoices are priced per Ton, not per Kg',
+        ok: sus.length === 0, a: sus.length + ' invoice(s) look priced per Kg', b: '0',
+        srcA: 'salesRows()', srcB: 'expected',
+        fix: sus.length ? { label: 'Price per Ton', rows: sus.map(function (r) { return r.idx; }), preview: sus.slice(0, 4).map(function (r) { return (r.inv || '(no number)') + ' · ' + U.fmtQty(r.qty, r.unit) + ' @ ₹' + Math.round(r.rate) + ' → ₹' + Math.round(U.lineAmount({ qty: r.qty, unit: r.unit, rate: r.rate, rateUnit: 'Ton' }).amount).toLocaleString('en-IN') + ' (was ₹' + Math.round(r.taxable).toLocaleString('en-IN') + ')'; }).join(' · ') } : null,
+        note: sus.length ? 'A rate of ₹' + Math.round(sus[0].rate) + ' on a ' + U.fmtQty(sus[0].qty, sus[0].unit) + ' line saved before rate units existed is a per-Ton rate. Fixing sets the rate unit to Ton so the amount becomes qty ÷ ' + (U.normalizeUnit(sus[0].unit) === 'Kg' ? '1000' : '10') + ' × rate; nothing else on the invoice changes.' : 'Every Kg / Quintal invoice either carries its rate unit or is priced per its own unit.' });
+    }
+
     return out;
   }
 

@@ -64,7 +64,8 @@ const dctx = {
   catToGroupItem: () => ({ group: 'other', item: 'Other', dept: '' }),
   PGROUP_MAP: { other: { label: 'Other', emoji: '•' } },
   itemIcon: () => '•', isFreightItem: () => false, nameByGstin: () => '',
-  QL_PLANT: { owner_name: 'Owner' }, SUP_LEAK: /^$/
+  QL_PLANT: { owner_name: 'Owner' }, SUP_LEAK: /^$/,
+  QLUnits: require('./units-core.js')
 };
 vm.createContext(dctx);
 vm.runInContext([
@@ -72,7 +73,8 @@ vm.runInContext([
   grabLine('  let _seq = 0;').trim(),
   grabLine('function idStamp()'),
   grabLine('function fmtISO(d)'),
-  grabLine('const saleTaxable = s =>'), grabLine('const saleGstRate = s =>'), grabLine('const cS = s =>'), grabLine('const cP = p =>'),
+  grabLine('const saleTaxable = s =>'), grabLine('  const saleTonnes = s =>').trim(), grabLine('const saleGstRate = s =>'), grabLine('const cS = s =>'), grabLine('const cP = p =>'),
+  grabLine('const U_TONNE ='), grabLine('const U_KG '), grabLine('const U_QTL '), grabLine('const U_COUNT ='), grabBlock('function tonnesOf(r) {', '\n  }'),
   grabLine('function cleanSup(p)'),
   grabLine('function methodToMode(m)'), grabLine('function modeToMethod(m)'),
   /* the shared "live money" predicate — a trashed/cancelled payment must leave the

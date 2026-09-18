@@ -142,7 +142,7 @@ function editLead(row) {
           // Don't reach for icp.js here — this page doesn't load it, and a
           // missing cost would silently unweight every score by margin, which
           // is the whole point of the score.
-          const tonnes = Q.salesRows().filter(s => s.status !== 'cancelled').reduce((a, s) => a + (+s.qty || 0), 0);
+          const tonnes = Q.salesRows().filter(s => s.status !== 'cancelled').reduce((a, s) => a + (s.tonnes != null ? +s.tonnes : (+s.qty || 0)), 0);
           const cpt = IC2.costPerTonne(Q.getPL ? Q.getPL() : null, tonnes);
           const icp = IC2.icpByIndustry({ sales: Q.salesRows(), parties: Q.partyRows(), costPerTonne: cpt });
           const s = IC2.scoreLead({ industry: co.industry, estTonnesPerMonth: +co.est_tpm || +v.tonnes || null, distanceKm: co.distance_km != null ? +co.distance_km : null }, icp);

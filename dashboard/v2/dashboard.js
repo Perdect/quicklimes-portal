@@ -55,7 +55,11 @@ function gstByMonth(n, end) {
 /* the dashboard's picked period, as data.js inPeriod understands it */
 function dashPeriod() { return (typeof dashMonth === 'string' && dashMonth && dashMonth !== 'all') ? dashMonth : null; }
 function inDashP(d) { const p = dashPeriod(); return !p || Q.inPeriod(d, p); }
-function matTons(g) { return Q.purchaseRows().filter(r => r.group === g && inDashP(r.date)).reduce((a, r) => a + (r.qty || 0), 0); }
+/* Tonnes come from the rows (r.tonnes: salesRows / purchaseRows convert the
+   entered unit — a 7,650 Kg invoice is 7.65 T, a bill in bags is no tonnage).
+   Never a raw qty summed as tonnes. */
+const tonnesOf = r => (r.tonnes == null ? 0 : +r.tonnes || 0);
+function matTons(g) { return Q.purchaseRows().filter(r => r.group === g && inDashP(r.date)).reduce((a, r) => a + tonnesOf(r), 0); }
 function matAmt(g) { return Q.purchaseRows().filter(r => r.group === g && inDashP(r.date)).reduce((a, r) => a + (r.taxable || r.total || 0), 0); }
 
 /* ── month filter (matches the Sales/Purchase registers) ── */
@@ -78,7 +82,7 @@ function monthMetrics() {
   return {
     salesTax, purchTax, invoices: ms.length, bills: mp.length,
     collected: ms.reduce((a, r) => a + r.paid, 0), pending: ms.reduce((a, r) => a + r.outstanding, 0),
-    qty: ms.reduce((a, r) => a + r.qty, 0), gst: ms.reduce((a, r) => a + r.gst, 0),
+    qty: ms.reduce((a, r) => a + tonnesOf(r), 0), gst: ms.reduce((a, r) => a + r.gst, 0),   // tonnes
     profit: salesTax - purchTax,
     /* itc / payable are additive — nothing on the desktop dashboard reads them.
        The mobile dashboard shows both and must scope them the SAME way as every
@@ -122,8 +126,8 @@ function buildMonthReport() {
   out.push(row(['Gross margin (sales − purchases)', M.profit]));
   out.push('');
   out.push(row(['SALES (' + S.length + ')']));
-  out.push(row(['Invoice', 'Date', 'Party', 'GSTIN', 'Vehicle', 'Qty (T)', 'Taxable', 'GST', 'Total', 'Paid', 'Outstanding', 'Status']));
-  S.forEach(r => out.push(row([r.inv, r.date, r.party, r.gstin, r.veh, r.qty, r.taxable, r.gst, r.total, r.paid, r.outstanding, r.status])));
+  out.push(row(['Invoice', 'Date', 'Party', 'GSTIN', 'Vehicle', 'Qty (T)', 'Taxable', 'GST', 'Total', 'Paid', 'Outstanding', 'Status', 'Qty', 'Unit', 'Rate', 'Rate per']));
+  S.forEach(r => out.push(row([r.inv, r.date, r.party, r.gstin, r.veh, tonnesOf(r), r.taxable, r.gst, r.total, r.paid, r.outstanding, r.status, r.qty, r.unit || 'Ton', r.rate, r.rateUnit || r.unit || 'Ton'])));
   out.push('');
   out.push(row(['PURCHASES (' + P.length + ')']));
   out.push(row(['Bill', 'Date', 'Supplier', 'GSTIN', 'Group', 'Item', 'Taxable', 'GST', 'ITC', 'Freight', 'Landed cost', 'Total', 'Paid', 'Status']));
@@ -312,7 +316,7 @@ function aiCard() {
 function flowWidget(prod) {
   const p = dashPeriod();
   const limeT = matTons('limestone');
-  const monthT = p ? Q.salesRows().filter(r => r.status !== 'cancelled' && inDashP(r.date)).reduce((a, r) => a + (r.qty || 0), 0) : prod.month;
+  const monthT = p ? Q.salesRows().filter(r => r.status !== 'cancelled' && inDashP(r.date)).reduce((a, r) => a + tonnesOf(r), 0) : prod.month;
   const todayT = prod.today;
   const stages = [
     { e: '🪨', n: 'Limestone', t: limeT ? fmt(limeT, 0) + ' T' : '—', m: fC(matAmt('limestone')), st: limeT ? 'ok' : 'idle' },
@@ -344,7 +348,7 @@ function kpiRow2() {
   const runs = (Q.productionRows ? Q.productionRows() : []).filter(r => inDashP(r.date));
   const runsOut = runs.reduce((a, r) => a + r.quicklime + r.hydrated, 0);
   const runsLime = runs.reduce((a, r) => a + r.limestone, 0);
-  const dispatched = Q.salesRows().filter(r => r.status !== 'cancelled' && inDashP(r.date)).reduce((a, r) => a + (r.qty || 0), 0);
+  const dispatched = Q.salesRows().filter(r => r.status !== 'cancelled' && inDashP(r.date)).reduce((a, r) => a + tonnesOf(r), 0);
   const outT = runsOut > 0 ? runsOut : dispatched;
   const costPerTon = outT ? pl.cogs / outT : 0;
   /* yield only from measured runs — dispatch ÷ purchases is not a yield */

@@ -18,6 +18,10 @@
    standard — they are stated so the numbers can be traced, nothing more):     */
 (function (root) {
   'use strict';
+  /* units-core.js is THE quantity / rate-unit arithmetic (window.QLUnits in the
+     browser, a require under Node) — resolved on first use, memoised. */
+  var _U = null;
+  var U = function () { return _U || (_U = root.QLUnits || (typeof globalThis !== 'undefined' && globalThis.QLUnits) || (typeof require === 'function' ? require('./units-core.js') : null)); };
   var A = {
     seed: 20260601,             // fixed → same data every run (§28 deterministic)
     limestonePerT: 1.75,        // T limestone per T lime out (≈57% yield) ± noise
@@ -85,11 +89,15 @@
     });
 
     var billNo = 1, invNo = 1;
+    /* Seed purchases are in tonnes at ₹/T (bags: per bag) — the row says so
+       (unit + rateUnit) and the taxable is priced through QLUnits.lineAmount,
+       the one place a quantity meets a rate. Same figures as before. */
     function buyMaterial(date, group, qty, rate, sup) {
-      var taxable = R2(qty * rate);
+      var unit = group === 'packaging' ? 'Bag' : 'Ton';
+      var taxable = R2(U().lineAmount({ qty: qty, unit: unit, rate: rate, rateUnit: unit }).amount);
       purchases.push({ _demo: 1, bill: sup.name.split(' ')[0].toUpperCase().slice(0, 4) + '/' + String(billNo++).padStart(3, '0'),
         date: date, sup: sup.name, gstin: sup.gstin, group: group, cat: group,
-        qty: R2(qty), taxable: taxable, grate: 5, itc: 'Eligible', veh: 'RJ19GA' + (1000 + Math.floor(rand() * 9000)),
+        qty: R2(qty), unit: unit, rate: rate, rateUnit: unit, taxable: taxable, grate: 5, itc: 'Eligible', veh: 'RJ19GA' + (1000 + Math.floor(rand() * 9000)),
         status: rand() < 0.7 ? 'paid' : 'pending' });
       return taxable;
     }
@@ -204,12 +212,12 @@
         var paid = rand() < 0.72;
         var inv = 'GLD/26-27/' + String(invNo++).padStart(3, '0');
         sales.push({ _demo: 1, inv: inv, date: D(M.ym, day2), party: cust.name, gstin: cust.gstin,
-          qty: qty, rate: rate, gstR: 5, product: wantHyd ? 'hydrated' : 'quicklime',
+          qty: qty, unit: 'Ton', rate: rate, rateUnit: 'Ton', gstR: 5, product: wantHyd ? 'hydrated' : 'quicklime',
           veh: 'RJ19GB' + (1000 + Math.floor(rand() * 9000)),
           status: paid ? 'paid' : 'pending',
           paidMode: paid ? (rand() < 0.5 ? 'bank' : 'upi') : '', paidDate: paid ? D(M.ym, Math.min(M.days, day2 + 3)) : '' });
         if (paid) cashbook.push({ id: id('cb'), _demo: 1, date: D(M.ym, Math.min(M.days, day2 + 3)), type: 'credit',
-          amount: R2(qty * rate * 1.05), party: cust.name, category: 'Customer receipt', notes: 'DEMO receipt · ' + inv, mode: 'bank' });
+          amount: R2(U().lineAmount({ qty: qty, unit: 'Ton', rate: rate, rateUnit: 'Ton' }).amount * 1.05), party: cust.name, category: 'Customer receipt', notes: 'DEMO receipt · ' + inv, mode: 'bank' });
       }
       /* supplier payments for the paid bills */
       purchases.forEach(function (p) {

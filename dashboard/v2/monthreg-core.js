@@ -41,6 +41,22 @@
 
   var R2 = function (n) { return Math.round((+n || 0) * 100) / 100; };
   var num = function (n) { return +n || 0; };
+  /* units-core.js is THE unit arithmetic (window.QLUnits in the browser, a
+     require under Node). Resolved once, like data.js does. */
+  var _U = null;   // resolved on first use (memoised), so script order on the page cannot matter
+  var U = function () { return _U || (_U = root.QLUnits || (typeof globalThis !== 'undefined' && globalThis.QLUnits) || (typeof require === 'function' ? require('./units-core.js') : null)); };
+  /* A row's TONNES. Rows are salesRows / purchaseRows, which carry `tonnes`
+     (a 7,650 Kg invoice → 7.65; a bill in bags → null = no tonnage, which is
+     "unrecorded", never 0 T). A bare row without the field is priced the way
+     data.js does: its unit converted to Ton, a blank unit is a tonne. Raw qty
+     is never summed as tonnes. */
+  function tonnesOf(r) {
+    if (!r) return 0;
+    if (r.tonnes !== undefined) return num(r.tonnes);
+    var u = String(r.unit || '').trim();
+    if (u && U()) { var t = U().toTonnes(r.qty, u); return t == null ? 0 : num(t); }
+    return num(r.qty);
+  }
 
   /* Same rule as data.js notCancelled: a row that is deleted, archived or
      cancelled is not in the book. */
@@ -94,7 +110,7 @@
     sal.forEach(function (r) {
       var tx = num(r.taxable), g = num(r.gst);
       netSales += tx; gstOut += g; grossSales += num(r.total) || (tx + g);
-      sQty += num(r.qty);
+      sQty += tonnesOf(r);
       collected += num(r.paid); outstanding += num(r.outstanding);
       /* Inter-state is IGST; the seller is in Rajasthan (state code 08). A sale
          with no GSTIN cannot be classified, so it is counted as intra-state —
@@ -110,7 +126,7 @@
       netPurch += tx;
       gstIn += num(r.itc);                       // ITC, not gross tax: RCM/ineligible carry none
       grossPurch += num(r.total) || tx;
-      if (num(r.qty) > 0) { pQtySum += num(r.qty); pQtyRecorded++; }
+      if (tonnesOf(r) > 0) { pQtySum += tonnesOf(r); pQtyRecorded++; }
       paidOut += num(r.paid); purOutstanding += num(r.outstanding);
     });
 
@@ -233,7 +249,7 @@
       var k = keyFn(r); if (!k) k = opts.blank || '—';
       var g = by[k] || (by[k] = { key: k, count: 0, value: 0, qty: 0, qtyRows: 0 });
       g.count++; g.value += num(r.taxable);
-      if (num(r.qty) > 0) { g.qty += num(r.qty); g.qtyRows++; }
+      if (tonnesOf(r) > 0) { g.qty += tonnesOf(r); g.qtyRows++; }
     });
     return Object.keys(by).map(function (k) {
       var g = by[k];
@@ -343,10 +359,10 @@
     add('warn', 'Sales with no customer GSTIN', noGst.length, null,
         'Without a GSTIN the sale cannot be classified inter-state, so it is treated as CGST+SGST.');
 
-    var noQty = sal.filter(function (r) { return !(num(r.qty) > 0); });
+    var noQty = sal.filter(function (r) { return !(tonnesOf(r) > 0); });
     add('warn', 'Invoices with no quantity', noQty.length, null, 'Rate and tonnage analysis skip these.');
 
-    var pNoQty = pur.filter(function (r) { return !(num(r.qty) > 0); });
+    var pNoQty = pur.filter(function (r) { return !(tonnesOf(r) > 0); });
     add('warn', 'Purchase bills with no quantity', pNoQty.length, null,
         'Their value counts in full; the tonnage does not, so purchase rate/T is a partial figure.');
 
@@ -378,7 +394,7 @@
     var srcSalesTx = R2(liveS.reduce(function (a, r) { return a + num(r.taxable); }, 0));
     var srcSalesGst = R2(liveS.reduce(function (a, r) { return a + num(r.gst); }, 0));
     var srcPurTx = R2(liveP.reduce(function (a, r) { return a + num(r.taxable); }, 0));
-    var srcQty = R2(liveS.reduce(function (a, r) { return a + num(r.qty); }, 0));
+    var srcQty = R2(liveS.reduce(function (a, r) { return a + tonnesOf(r); }, 0));
     var srcOut = R2(liveS.reduce(function (a, r) { return a + num(r.outstanding); }, 0));
     var eq = function (a, b) { return Math.abs(R2(a) - R2(b)) < 1; };   // within a rupee
     var checks = [

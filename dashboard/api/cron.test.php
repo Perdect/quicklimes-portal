@@ -17,10 +17,10 @@
 $src = file_get_contents(__DIR__ . '/db.php');
 // pull ONLY the pure function under test — never a copy of it, so this test
 // cannot silently drift from what ships.
-if (!preg_match('/function ql_sale_outstanding\(\$s\) \{.*?\n\}/s', $src, $m)) {
-  fwrite(STDERR, "✗ ql_sale_outstanding not found in db.php\n"); exit(1);
+foreach (['ql_unit_norm', 'ql_unit_family', 'ql_convert_qty', 'ql_line_amount', 'ql_sale_outstanding'] as $fn) {
+  if (!preg_match('/function ' . $fn . '\(.*?\n\}/s', $src, $m)) { fwrite(STDERR, "✗ $fn not found in db.php\n"); exit(1); }
+  eval($m[0]);
 }
-eval($m[0]);
 
 $pass = 0; $fail = 0; $fails = [];
 function ok($n, $c) { global $pass, $fail, $fails; if ($c) $pass++; else { $fail++; $fails[] = $n; } }

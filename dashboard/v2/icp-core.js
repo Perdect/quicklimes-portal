@@ -34,6 +34,20 @@
 
   var MIN_ORDERS = 3;          // below this there is no interval worth trusting
 
+  /* units-core.js is THE unit arithmetic (window.QLUnits / require). Rows are
+     salesRows, which carry `tonnes` (a 7,650 Kg invoice → 7.65); a bare row
+     with a unit is converted, a blank unit is a tonne (data.js convention).
+     Raw qty is never summed as tonnes. */
+  var _U = null;   // resolved on first use: crm/customers/parties.html load icp-core.js BEFORE units-core.js
+  var U = function () { return _U || (_U = (typeof window !== 'undefined' && window.QLUnits) || (typeof globalThis !== 'undefined' && globalThis.QLUnits) || (typeof require === 'function' ? require('./units-core.js') : null)); };
+  function tonnesOf(r) {
+    if (!r) return 0;
+    if (r.tonnes !== undefined) return +r.tonnes || 0;
+    var u = String(r.unit || '').trim();
+    if (u && U()) { var t = U().toTonnes(r.qty, u); return t == null ? 0 : t; }
+    return +r.qty || 0;
+  }
+
   /* ── industries ───────────────────────────────────────────────────────
      ORDER MATTERS — most specific first. "Autoclaved aerated CONCRETE" must
      match AAC before the cement rule sees the word "concrete"; the same
@@ -104,14 +118,14 @@
   function orderProfile(sales, todayISO) {
     var t = todayISO || today();
     var rows = live(sales).slice().sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
-    var tonnes = rows.reduce(function (a, r) { return a + (+r.qty || 0); }, 0);
+    var tonnes = rows.reduce(function (a, r) { return a + tonnesOf(r); }, 0);
     var revenue = rows.reduce(function (a, r) { return a + (+r.total || 0); }, 0);
     var last = rows.length ? rows[rows.length - 1].date : null;
     var daysSince = last ? daysBetween(last, t) : null;
 
     var out = {
       orders: rows.length, tonnes: tonnes, revenue: revenue,
-      medianTonnes: median(rows.map(function (r) { return +r.qty || 0; })),
+      medianTonnes: median(rows.map(tonnesOf)),
       medianDays: null, lastDate: last, daysSince: daysSince,
       dueInDays: null, status: 'unknown', confident: false, why: ''
     };
@@ -158,9 +172,10 @@
       groups[k] = groups[k] || { key: ind.key, label: ind.label, customers: {}, orders: 0, tonnes: 0, revenue: 0, prices: [], guessed: 0, known: 0 };
       var g = groups[k];
       g.orders++;
-      g.tonnes += (+s.qty || 0);
+      var st = tonnesOf(s);
+      g.tonnes += st;
       g.revenue += (+s.total || 0);
-      if ((+s.qty || 0) > 0) g.prices.push((+s.taxable || +s.total || 0) / (+s.qty));   // ex-GST where available
+      if (st > 0) g.prices.push((+s.taxable || +s.total || 0) / st);   // realised ₹/T, ex-GST where available
       g.customers[norm(s.party)] = 1;
       ind.source === 'set' ? g.known++ : g.guessed++;
     });
@@ -224,7 +239,7 @@
       // Expected value of the next order = what they usually take, at what they
       // usually pay. Used only to RANK the call list.
       var lastPrice = null;
-      for (var i = mine.length - 1; i >= 0; i--) { if ((+mine[i].qty || 0) > 0) { lastPrice = (+mine[i].taxable || +mine[i].total || 0) / +mine[i].qty; break; } }
+      for (var i = mine.length - 1; i >= 0; i--) { var lt = tonnesOf(mine[i]); if (lt > 0) { lastPrice = (+mine[i].taxable || +mine[i].total || 0) / lt; break; } }   // ₹/T
       var expected = (pr.medianTonnes && lastPrice) ? pr.medianTonnes * lastPrice : null;
       return {
         party: names[k], phone: p.phone || '', industry: ind.label, industryKey: ind.key,

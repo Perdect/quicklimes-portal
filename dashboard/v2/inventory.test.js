@@ -172,12 +172,16 @@ function loadPage(fx) {
    2. THE FIXTURES — the user's real numbers
    Shaped the way data.js hands rows to the page: purchaseRows() maps
    `qty: p.qty || 0`, so a bill that never had a tonnage arrives here as 0. That
-   is exactly the ambiguity the page has to survive.
+   is exactly the ambiguity the page has to survive. It also hands every row its
+   `tonnes` (tonnesOf: a blank unit is tonnes, Kg ÷ 1000, null when nothing is
+   recorded) — the page reads THAT, never the raw qty, so a 7,650 Kg line is not
+   7,650 T (inventory-tonnage.test.js drives the real data.js for that case).
    ══════════════════════════════════════════════════════════════════════════ */
-const bill = (o) => Object.assign({
+const tonnesLike = o => { const q = parseFloat(o.qty); return q > 0 ? q : null; };   // data.js tonnesOf() on a unit-less row
+const bill = (o) => { const r = Object.assign({
   group: 'limestone', item: 'Limestone Purchase', freight: false,
   date: '2026-03-10', taxable: 0, total: 0, qty: 0, status: 'pending', bill: 'B1'
-}, o);
+}, o); if (r.tonnes === undefined) r.tonnes = tonnesLike(r); return r; };
 
 // 9 limestone bills, ₹44,71,494, not one tonnage among them.
 const LIMESTONE_9 = Array.from({ length: 9 }, (_, i) =>
@@ -191,8 +195,8 @@ const PETCOKE_16 = Array.from({ length: 16 }, (_, i) =>
 const BAGS_1 = [bill({ group: 'packaging', item: 'Plastic Bags', bill: 'PB/1', taxable: 104000, qty: 0 })];
 // Quick lime dispatched: 4,416.5 T for ₹2,34,80,277 — raised in-app, qty × rate, so real.
 const SALES_REAL = [
-  { inv: 'S/1', date: '2026-03-12', qty: 2200.0, taxable: 11695000, total: 12300000, status: 'paid' },
-  { inv: 'S/2', date: '2026-03-20', qty: 2216.5, taxable: 11785277, total: 12400000, status: 'pending' }
+  { inv: 'S/1', date: '2026-03-12', qty: 2200.0, tonnes: 2200.0, taxable: 11695000, total: 12300000, status: 'paid' },
+  { inv: 'S/2', date: '2026-03-20', qty: 2216.5, tonnes: 2216.5, taxable: 11785277, total: 12400000, status: 'pending' }
 ];
 const sumQ = SALES_REAL.reduce((a, r) => a + r.qty, 0);
 const sumV = SALES_REAL.reduce((a, r) => a + r.taxable, 0);
@@ -354,7 +358,7 @@ const FULL = { purchases: LIMESTONE_9.concat(PETCOKE_16, BAGS_1), sales: SALES_R
   /* The mutation guard that matters: a hardcoded `flag: true` would pass every
      assertion above. Same material, same money, PLAUSIBLE tonnage → silent. So
      the warning must be computed from its inputs. */
-  const fixed = PETCOKE_16.map((r, i) => Object.assign({}, r, { qty: 627 / 16 }));
+  const fixed = PETCOKE_16.map((r, i) => bill(Object.assign({}, r, { qty: 627 / 16, tonnes: undefined })));   // re-derive tonnes as data.js would
   const pc2 = loadPage({ purchases: fixed }).X.invModel(fixed, [], [], 'all').raw.find(c => c.key === 'petcoke') || {};
   eq('  the SAME ₹75,22,976 over a plausible 627 T does NOT fire', pc2.flag, null);
   near('  ...because that is ₹11,998/T, an actual petcoke price', pc2.rate, 11998, 5);
@@ -651,8 +655,10 @@ const FULL = { purchases: LIMESTONE_9.concat(PETCOKE_16, BAGS_1), sales: SALES_R
   const code = core[1].replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1');
   ok(!/\+r\.qty\s*\|\|\s*0/.test(code),
     'the core is summing `+r.qty || 0` again — that is the whole bug: it turns a MISSING quantity into a zero and prints it as a fact');
-  ok(/invHasQty/.test(code) && /invNum\(r\.qty\) > 0/.test(code),
-    'the core decides "recorded" with an explicit qty > 0 test');
+  ok(/invHasQty/.test(code) && /invQty\(r, m\) > 0/.test(code),
+    'the core decides "recorded" with an explicit quantity > 0 test — in the card\'s own unit (tonnes, or bags)');
+  ok(!/invNum\(r\.qty\) > 0/.test(code) && !/a \+ invNum\(r\.qty\)/.test(code),
+    'and never reads the raw r.qty as a tonnage — a 7,650 Kg line is 7.65 T (r.tonnes), see inventory-tonnage.test.js');
   ok(!/\+r\.qty\s*\|\|\s*0/.test(HTML.replace(/\/\*[\s\S]*?\*\//g, ' ')),
     'and `+r.qty || 0` is gone from the whole page, not just the core');
 }

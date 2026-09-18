@@ -37,7 +37,7 @@ eq('prefix honoured', C.nextCode([{ code: 'DM-C-0012' }], 'DM-C-'), 'DM-C-0013')
 {
   const q = { items: [{ product: 'Quick Lime', qty: 42, rate: 4900, discount: 0 }], freight: 12600, loading: 2100, other: 0, gstR: 5 };
   const t = C.quoteTotals(q);
-  eq('goods = qty × rate', t.goods, 205800);
+  eq('goods = 42 Ton × ₹4,900 / Ton (a legacy line with no rateUnit is priced per its own unit)', t.goods, 205800);
   eq('taxable includes freight and loading', t.taxable, 205800 + 12600 + 2100);
   eq('GST 5% on the taxable', t.gst, 11025);
   eq('total', t.total, 231525);
@@ -47,6 +47,19 @@ eq('prefix honoured', C.nextCode([{ code: 'DM-C-0012' }], 'DM-C-'), 'DM-C-0013')
   eq('default GST is 5% when unset', C.quoteTotals({ items: [{ qty: 1, rate: 100 }] }).gstR, 5);
   eq('export is zero-rated', C.quoteTotals({ items: [{ qty: 1, rate: 100 }], gstR: 5, isExport: true }).gst, 0);
   eq('empty quotation totals zero, not NaN', C.quoteTotals({}).total, 0);
+  /* units: the line is priced through units-core, never qty × rate */
+  const kg = C.quoteTotals({ items: [{ product: 'Quick Lime', qty: 7650, unit: 'Kg', rate: 5300, rateUnit: 'Ton' }], gstR: 5 });
+  eq('7,650 Kg @ ₹5,300 / Ton = 7.65 × 5,300 = 40,545 (never 7,650 × 5,300)', [kg.goods, kg.taxable, kg.gst, kg.total], [40545, 40545, 2027.25, 42572.25]);
+  eq('  the line says what it billed', [kg.lines[0].billableQty, kg.lines[0].billableUnit, kg.lines[0].rateUnit, kg.lines[0].unit], [7.65, 'Ton', 'Ton', 'Kg']);
+  eq('  and a Kg line is 7.65 tonnes, not 0', kg.tonnes, 7.65);
+  eq('legacy unit MT with no rateUnit is unchanged (42 × 4,900)', C.quoteTotals({ items: [{ qty: 42, unit: 'MT', rate: 4900 }] }).goods, 205800);
+  eq('  and legacy MT counts as tonnes', C.quoteTotals({ items: [{ qty: 42, unit: 'MT', rate: 4900 }] }).tonnes, 42);
+  eq('a stored Kg line with NO rateUnit is priced per its own unit, exactly as booked (the register rule) — 7,650 × 5,300', C.quoteTotals({ items: [{ qty: 7650, unit: 'KG', rate: 5300 }] }).goods, 40545000);
+  eq('  rateUnitOf reads a blank rateUnit as the row\'s own unit; newRateUnit (a form\'s new line) gets the business default', [C.rateUnitOf('Kg', ''), C.rateUnitOf('Kg'), C.newRateUnit('Kg', ''), C.newRateUnit('Bag', ''), C.rateUnitOf('Kg', 'Ton')], ['Kg', 'Kg', 'Ton', 'Bag', 'Ton']);
+  const bag = C.quoteTotals({ items: [{ qty: 400, unit: 'Bag', rate: 5300, rateUnit: 'Ton' }] });
+  ok('a per-Ton rate cannot price Bags: flagged with a reason, not multiplied silently', bag.ok === false && /cannot price/.test(bag.why) && bag.lines[0].ok === false);
+  eq('bags priced per Bag are fine', C.quoteTotals({ items: [{ qty: 400, unit: 'Bag', rate: 120, rateUnit: 'Bag' }] }).goods, 48000);
+  eq('UNITS come from units-core (Ton first, legacy MT/KG/BAG fold onto them)', [C.UNITS.map(u => u[0]), C.unitKey('MT'), C.unitKey('KG'), C.unitKey('BAG'), C.unitKey('tonne')], [['Ton', 'Kg', 'Quintal', 'Bag', 'Nos', 'Litre', 'Other'], 'Ton', 'Kg', 'Bag', 'Ton']);
 }
 /* validity: expired only when undecided */
 eq('sent + past validity = expired', C.effectiveQuoteStatus({ status: 'sent', validUntil: '2026-09-01' }, TODAY), 'expired');
@@ -93,6 +106,24 @@ eq('closed requirement contributes nothing', C.monthlyOf({ qty: 100, freq: 'mont
   eq('  monthly potential = demand × target', d['Quick Lime'].monthlyPotential, 250 * 4900);
   eq('HL monthly demand', d['Hydrated Lime'].monthlyDemand, 100);
   eq('  HL potential uses last sold rate when no target', d['Hydrated Lime'].monthlyPotential, 100 * 6200);
+  eq('  demand is counted in tonnes for a mass product', [d['Quick Lime'].demandUnit, d['Hydrated Lime'].demandUnit], ['Ton', 'Ton']);
+  /* PIN: the potential is priced through units-core, never tonnes × rate.
+     7,650 Kg/month at a target of ₹5.30 / Kg is ₹40,545 — it used to show ₹41
+     (7.65 T × 5.30). */
+  const kg = C.demandByProduct([], [{ product: 'Quick Lime', qty: 7650, unit: 'Kg', freq: 'monthly', targetRate: 5.30, rateUnit: 'Kg', updatedAt: '2026-09-01' }], TODAY)['Quick Lime'];
+  eq('PIN 7,650 Kg/month @ ₹5.30 / Kg → demand 7.65 T, potential ₹40,545 (was ₹41)', [kg.monthlyDemand, kg.demandUnit, kg.rateUnit, kg.monthlyPotential], [7.65, 'Ton', 'Kg', 40545]);
+  const qt = C.demandByProduct([], [{ product: 'Quick Lime', qty: 76.5, unit: 'Quintal', freq: 'monthly', targetRate: 530, rateUnit: 'Quintal', updatedAt: '2026-09-01' }], TODAY)['Quick Lime'];
+  eq('  76.5 Quintal/month @ ₹530 / Quintal → the same ₹40,545', [qt.monthlyDemand, qt.monthlyPotential], [7.65, 40545]);
+  const pt = C.demandByProduct([], [{ product: 'Quick Lime', qty: 7650, unit: 'Kg', freq: 'monthly', targetRate: 5300, rateUnit: 'Ton', updatedAt: '2026-09-01' }], TODAY)['Quick Lime'];
+  eq('  7,650 Kg/month @ ₹5,300 / Ton → ₹40,545 too', pt.monthlyPotential, 40545);
+  const lg = C.demandByProduct([], [{ product: 'Quick Lime', qty: 7650, unit: 'Kg', freq: 'monthly', targetRate: 5300, updatedAt: '2026-09-01' }], TODAY)['Quick Lime'];
+  eq('  a stored Kg requirement with NO rateUnit prices its target per Kg, as booked', [lg.rateUnit, lg.monthlyPotential], ['Kg', 40545000]);
+  const bg = C.demandByProduct([], [{ product: 'Other', qty: 400, unit: 'Bag', freq: 'monthly', targetRate: 120, rateUnit: 'Bag', updatedAt: '2026-09-01' }], TODAY)['Other'];
+  eq('  400 Bag/month @ ₹120 / Bag is counted in bags and priced per bag', [bg.monthlyDemand, bg.demandUnit, bg.monthlyPotential], [400, 'Bag', 48000]);
+  const bt = C.demandByProduct([], [{ product: 'Other', qty: 400, unit: 'Bag', freq: 'monthly', targetRate: 5300, rateUnit: 'Ton', updatedAt: '2026-09-01' }], TODAY)['Other'];
+  eq('  a per-Ton target on Bags: the potential is unknown, not 400 × 5,300', bt.monthlyPotential, null);
+  const ls = C.demandByProduct([{ date: '2026-08-01', product: 'Quick Lime', qty: 7650, unit: 'Kg', rate: 5300, rateUnit: 'Ton', taxable: 40545 }], [{ product: 'Quick Lime', qty: 15300, unit: 'Kg', freq: 'monthly' }], TODAY)['Quick Lime'];
+  eq('  no target: the last sale\'s rate per Ton prices the tonnage (15.3 T × 5,300)', [ls.lastRate, ls.rateUnit, ls.monthlyPotential], [5300, 'Ton', 81090]);
   /* no requirement: observed rhythm becomes the demand, labelled */
   const o = C.demandByProduct(sales.slice(0, 3), [], TODAY)['Quick Lime'];
   eq('observed demand = avg × 30/gap', o.monthlyDemand, Math.round(42 * 30 / 16 * 10) / 10);
@@ -214,7 +245,9 @@ eq('closed requirement contributes nothing', C.monthlyOf({ qty: 100, freq: 'mont
   eq('payment event', [tl[3].amount, tl[3].detail], [100000, 'against #41 · Bank']);
   ok('overdue event says how far past terms', /29 days past 15-day terms/.test(tl[2].detail));
   eq('filter by kind', C.filterTimeline(tl, { kind: 'payment' }).length, 1);
-  eq('search matches detail', C.filterTimeline(tl, { q: '4,900' }).length, 1);
+  eq('search matches detail (the explicit event AND the invoice line, which now prints "₹4,900.00 / Ton")', C.filterTimeline(tl, { q: '4,900' }).length, 2);
+  ok('invoice event prints the quantity with its unit and the rate per its unit', /42 Ton · ₹4,900\.00 \/ Ton/.test(tl[4].detail));
+  ok('  a Kg invoice at a per-Ton rate prints as entered, priced per Ton', /7,650 Kg · ₹5,300\.00 \/ Ton/.test(C.timeline({ invoices: [{ idx: 2, inv: '42', date: '2026-08-02', qty: 7650, unit: 'Kg', rate: 5300, rateUnit: 'Ton', total: 42572.25, paid: 0, outstanding: 42572.25 }] }, [], TODAY).find(e => e.kind === 'invoice').detail));
   eq('no overdue when within terms', C.timeline({ creditDays: 60, invoices: f.invoices }, [], TODAY).filter(e => e.kind === 'overdue').length, 0);
 }
 
@@ -251,14 +284,16 @@ eq('closed requirement contributes nothing', C.monthlyOf({ qty: 100, freq: 'mont
   const vars = C.templateVars({ customer: { name: 'Balaji Buildcon', city: 'Jodhpur', payTerms: '15d' }, offer: { product: 'Quick Lime', qty: 42, rate: 4900, freight: 'extra', validUntil: '2026-09-17', delivery: 'Within 2-3 days', payment: 'against_delivery' }, company: { short: 'Deshwali Minerals' } });
   eq('offer vars', [vars.product, vars.rate, vars.quantity, vars.freight, vars.payment_terms, vars.location, vars.company], ['Quick Lime', '4,900', 42, 'Freight extra', 'Against delivery', 'Jodhpur', 'Deshwali Minerals']);
   const body = C.fillTemplate(C.DEFAULT_TEMPLATES[0].body, vars);
-  ok('the default offer template renders every line', /Quick Lime at ₹4,900\/MT for 42 MT/.test(body) && /Payment Terms: Against delivery/.test(body) && /valid until: 2026-09-17/.test(body) && /Deshwali Minerals/.test(body));
+  ok('the default offer template renders every line (rate per its unit, quantity with its unit)', /Quick Lime at ₹4,900\/Ton for 42 Ton/.test(body) && /Payment Terms: Against delivery/.test(body) && /valid until: 2026-09-17/.test(body) && /Deshwali Minerals/.test(body));
   ok('quote vars include the total', C.templateVars({ customer: {}, quote: { no: 'QT-1', items: [{ product: 'Quick Lime', qty: 10, rate: 5000 }], gstR: 5 } }).total === '52,500');
   eq('5 default templates', C.DEFAULT_TEMPLATES.length, 5);
 }
 
 /* ── 14. pipeline ── */
 {
-  eq('deal value = qty × target when no value', C.dealValue({ qty: 42, targetRate: 4900 }), 205800);
+  eq('deal value = 42 Ton × ₹4,900 / Ton when no value', C.dealValue({ qty: 42, targetRate: 4900 }), 205800);
+  eq('  a 42,000 Kg deal at ₹4,900 / Ton is the same ₹2,05,800 (lineAmount, not qty × rate)', C.dealValue({ qty: 42000, unit: 'Kg', targetRate: 4900, rateUnit: 'Ton' }), 205800);
+  eq('  a per-Ton rate on Bags is unknown, never a raw product', C.dealValue({ qty: 400, unit: 'Bag', targetRate: 4900, rateUnit: 'Ton' }), null);
   eq('explicit value wins', C.dealValue({ qty: 42, targetRate: 4900, value: 200000 }), 200000);
   eq('no price → unknown', C.dealValue({ qty: 42 }), null);
   const s = C.pipelineSummary([{ stage: 'quote_sent', qty: 10, targetRate: 5000 }, { stage: 'negotiation', qty: 10 }, { stage: 'completed', value: 99 }, { stage: 'lost', value: 5 }]);

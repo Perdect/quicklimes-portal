@@ -134,13 +134,14 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./party-identity.js?v=m28"></script>
 <script src="./import-guard.js?v=m28"></script>
 <script src="./party-resolve.js?v=pr1"></script>
-<script src="./costing-core.js?v=ct3"></script>
-<script src="./data.js?v=m52caaaaaaaaaaaaaaaaa"></script>
+<script src="./costing-core.js?v=ct4"></script>
+<script src="./units-core.js?v=u2"></script>
+<script src="./data.js?v=m52caaaaaaaaaaaaaaaaaaa"></script>
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./i18n.js?v=h8"></script>
-<script src="./wa-core.js?v=w3"></script>
-<script src="./invoice-templates.js?v=t18"></script>
-<script src="./shell.js?v=m68saaaaaaaaaaaaaaaaaaaa"></script>
+<script src="./wa-core.js?v=w4"></script>
+<script src="./invoice-templates.js?v=t20"></script>
+<script src="./shell.js?v=m68saaaaaaaaaaaaaaaaaaaa3"></script>
 <script src="./chat-core.js?v=cc2"></script>
 <script src="./imchat.js?v=im11"></script>
 <script src="./qlx.js?v=m20prgdaaaaaa"></script>
@@ -456,7 +457,8 @@ function renderProducts(inp, pc, runs) {
   }
   const pp = C.productProfit(inp, 'qty');
   const sold = { quicklime: 0, hydrated: 0 };
-  Q.salesRows().forEach(s => { if ((s.date || '').slice(0, 7) === MONTH && sold[s.product] != null) sold[s.product] += s.qty; });
+  /* s.tonnes, never s.qty: a 7,650 Kg invoice sold 7.65 T, not 7,650. */
+  Q.salesRows().forEach(s => { if ((s.date || '').slice(0, 7) === MONTH && sold[s.product] != null) sold[s.product] += (+s.tonnes || 0); });
   const soldKnown = sold.quicklime + sold.hydrated > 0;
   const dQl = new Set(runs.filter(r => r.quicklime > 0).map(r => r.date)).size;
   const dHy = new Set(runs.filter(r => r.hydrated > 0).map(r => r.date)).size;
@@ -469,7 +471,7 @@ function renderProducts(inp, pc, runs) {
   const r = (label, a, b, c2, tip) => `<tr><td>${label}${tip ? `<span class="prd-warn" title="${esc(tip)}">i</span>` : ''}</td><td class="num">${a}</td><td class="num">${b}</td><td class="num">${c2}</td></tr>`;
   tb.innerHTML =
     r('<b>Production</b>', nT(q) + ' T', nT(h) + ' T', '<b>' + nT(tot) + ' T</b>') +
-    r('Sold', soldKnown ? nT(sold.quicklime) + ' T' : dash('Sales invoices do not record the product — new invoices can.'), soldKnown ? nT(sold.hydrated) + ' T' : dash('Sales invoices do not record the product.'), soldKnown ? nT(sold.quicklime + sold.hydrated) + ' T' : nT(Q.salesRows().filter(s => (s.date || '').slice(0, 7) === MONTH).reduce((a, s) => a + s.qty, 0)) + ' T') +
+    r('Sold', soldKnown ? nT(sold.quicklime) + ' T' : dash('Sales invoices do not record the product — new invoices can.'), soldKnown ? nT(sold.hydrated) + ' T' : dash('Sales invoices do not record the product.'), soldKnown ? nT(sold.quicklime + sold.hydrated) + ' T' : nT(Q.salesRows().filter(s => (s.date || '').slice(0, 7) === MONTH).reduce((a, s) => a + (+s.tonnes || 0), 0)) + ' T') +
     r('Raw material (attributed)', nT(rmQ) + ' T', nT(rmH) + ' T', nT(limeTot) + ' T', 'Limestone is consumed by the kiln, not per product — attributed by output share.') +
     r('Production days', dQl, dHy, new Set(runs.map(x => x.date)).size) +
     r('Cost / tonne', cQ ? fC(cQ.perT) : '—', cH ? fC(cH.perT) : '—', pc.perT != null ? fC(pc.perT) : '—') +
@@ -576,7 +578,7 @@ function renderCustomers() {
   if (!probe.ok) { tb.innerHTML = '<tr><td colspan="6"><div class="prd-mini" style="padding:14px;text-align:center">' + esc(probe.error) + ' — customer profit needs the month&#39;s cost per tonne.</div></td></tr>'; return; }
   const by = {};
   sales.forEach(s => {
-    const ip = C.invoiceProfit({ date: s.date, qty: s.qty, taxable: s.taxable }, inp);
+    const ip = C.invoiceProfit({ date: s.date, qty: (+s.tonnes || 0), taxable: s.taxable }, inp);   // qty = tonnes: the engine prices per tonne
     if (!ip.ok) return;
     const b = by[s.party] || (by[s.party] = { qty: 0, rev: 0, cost: 0, profit: 0, n: 0 });
     b.qty += ip.qty; b.rev += ip.value; b.cost += ip.totalCost; b.profit += ip.profit; b.n++;

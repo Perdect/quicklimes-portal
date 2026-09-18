@@ -11,6 +11,7 @@
    Run: node customer-store.test.js */
 'use strict';
 const C = require('./customer-core.js');
+const UN = require('./units-core.js');
 
 /* ── the QLD shim: the state the store writes, the calls it makes ── */
 const S = { PARTIES: [], SALES: [], CASHBOOK: [], REQS: [], QUOTES: [], OFFERS: [], DEALS: [], FOLLOWUPS: [], CNOTES: [], CTIMELINE: [], MSG_TEMPLATES: [] };
@@ -19,7 +20,8 @@ const QLD = {
   state: S, activeCo: 'CO1', co: { short: 'Deshwali Minerals', name: 'DESHWALI MINERALS' },
   commit() { commits++; },
   upsertParty(name, gstin, phone, address, state, type) { S.PARTIES.push({ id: 'p' + (S.PARTIES.length + 1), name: name.trim(), gstin: (gstin || '').toUpperCase(), phone: phone || '', address: address || '', state: state || '', type: type || 'customer', notes: '', opening: 0, creditLimit: 0, creditDays: 0 }); },
-  salesRows() { return S.SALES.map((s, i) => ({ idx: i, inv: s.inv, date: s.date, party: s.party, gstin: s.gstin || '', qty: s.qty, product: s.product, taxable: s.qty * s.rate, total: s.qty * s.rate * (1 + (s.gstR || 0) / 100), status: s.status || 'pending', paid: s.paid || 0, outstanding: s.qty * s.rate * (1 + (s.gstR || 0) / 100) - (s.paid || 0), payments: s.payments || [] })); },
+  /* the register prices a line the way data.js does: QLUnits.lineAmount, never qty × rate */
+  salesRows() { return S.SALES.map((s, i) => { const tx = UN.lineAmount(s).amount, tot = tx * (1 + (s.gstR || 0) / 100); return { idx: i, inv: s.inv, date: s.date, party: s.party, gstin: s.gstin || '', qty: s.qty, unit: s.unit || '', rate: s.rate || 0, rateUnit: s.rateUnit || s.unit || '', tonnes: UN.toTonnes(s.qty, s.unit || 'Ton') || 0, product: s.product, taxable: tx, total: tot, status: s.status || 'pending', paid: s.paid || 0, outstanding: tot - (s.paid || 0), payments: s.payments || [] }; }); },
   ledgerNet() { return 0; },
   addSale(e) { S.SALES.push(Object.assign({ status: 'pending', paid: 0, payments: [] }, e)); return { ok: true }; },
   receiveSalesPayment(i, o) { const s = S.SALES[i]; s.paid = (s.paid || 0) + o.amount; s.payments = (s.payments || []).concat([{ date: o.date, amount: o.amount, method: o.method }]); s.status = 'partial'; },
@@ -76,6 +78,8 @@ const ord = M.recordOrder({ inv: '141', date: M.today(), product: 'Quick Lime', 
 ok('order recorded', ord.ok);
 const sale = S.SALES[ord.idx];
 eq('the invoice carries the customer id and the quotation id', [sale.custId, sale.quoteId, sale.party], [a.id, rev.id, 'Balaji Buildcon']);
+eq('  and is self-describing: unit Ton, rate per Ton (the form did not say, the default did)', [sale.unit, sale.rateUnit], ['Ton', 'Ton']);
+ok('  the order event prices through lineAmount: 42 Ton × 4,850 × 1.05', M.eventsOf(a.id).some(e => e.kind === 'order' && e.amount === 213885 && /42 Ton @ ₹4,850\.00 \/ Ton/.test(e.detail)));
 eq('the revision is Converted and knows its invoice', [M.quotesOf(a.id)[1].status, M.quotesOf(a.id)[1].convertedSale], ['converted', ord.idx]);
 eq('the deal is at Order Confirmed with the invoice index', [dealA.stage, dealA.saleIdx], ['order_confirmed', ord.idx]);
 ok('order event on A only', M.eventsOf(a.id).some(e => e.kind === 'order') && !M.eventsOf(b.id).some(e => e.kind === 'order'));
@@ -125,9 +129,65 @@ eq('A: 1 order, 2 requirements, 2 quotations, 1 note', [A.salesN, A.reqs.length,
 eq('B: no orders, 1 offer, monthly demand 250 + 30×4.33', [B.salesN, B.offers.length, B.monthlyDemand], [0, 1, 379.9]);
 eq('A\'s quotation conversion: 1 won of 2 decided (expired + converted)', [A.quotesDecided, A.quotesWon, A.conversion], [2, 1, 50]);
 
+/* ── 8b. units: a Kg order at a per-Ton rate is ₹40,545, and the deal follows ── */
+{
+  const kg = M.recordOrder({ inv: '142', date: M.today(), product: 'Quick Lime', qty: 7650, unit: 'Kg', rate: 5300, rateUnit: 'Ton', gstR: 5 }, { cust: b.id });
+  ok('a 7,650 Kg order at ₹5,300 / Ton is recorded', kg.ok);
+  const ev = M.eventsOf(b.id).find(e => e.kind === 'order');
+  eq('  its timeline amount is 40,545 + 5% GST, never 7,650 × 5,300', ev.amount, 42572.25);
+  ok('  its detail prints the quantity as entered and the rate per Ton', /7,650 Kg @ ₹5,300\.00 \/ Ton/.test(ev.detail));
+  const dk = M.dealsOf(b.id).find(d => d.saleIdx === kg.idx);
+  eq('  the deal it advanced carries unit, rateUnit and the priced value', [dk.qty, dk.unit, dk.rateUnit, dk.value, C.dealValue(Object.assign({}, dk, { value: null }))], [7650, 'Kg', 'Ton', 40545, 40545]);
+  eq('a per-Ton rate on Bags is refused with the reason', /cannot price/.test(M.recordOrder({ inv: '143', qty: 400, unit: 'Bag', rate: 5300, rateUnit: 'Ton', gstR: 5 }, { cust: b.id }).reason), true);
+  eq('  the same refusal for an offer', /cannot price/.test(M.addOffer({ cust: b.id, product: 'Quick Lime', qty: 400, unit: 'Bag', rate: 5300, rateUnit: 'Ton' }).reason), true);
+  eq('  and for a quotation line', /cannot price/.test(M.addQuote({ cust: b.id, items: [{ product: 'Quick Lime', qty: 400, unit: 'Bag', rate: 5300, rateUnit: 'Ton' }] }).reason), true);
+  const qk = M.addQuote({ cust: b.id, items: [{ product: 'Quick Lime', qty: 7650, unit: 'Kg', rate: 5300 }], gstR: 5 });
+  const qrow = M.quotesOf(b.id).find(q => q.id === qk.id);
+  eq('a quotation line stores unit + rateUnit (Kg priced per Ton by default)', [qrow.items[0].unit, qrow.items[0].rateUnit, C.quoteTotals(qrow).goods], ['Kg', 'Ton', 40545]);
+  ok('  its summary reads 7,650 Kg @ ₹5,300.00 / Ton', /7,650 Kg @ ₹5,300\.00 \/ Ton/.test(M.lineSummary(qrow)));
+  const rq = M.addReq(b.id, { product: 'Quick Lime', qty: 5000, unit: 'KG', freq: 'monthly', targetRate: 5100 });
+  const rrow = M.reqsOf(b.id).find(r => r.id === rq.id);
+  eq('a legacy-spelt KG requirement is stored as Kg, rates per Ton', [rrow.unit, rrow.rateUnit], ['Kg', 'Ton']);
+  ok('  and summarised with both units', /5,000 Kg\/month · target ₹5,100\.00 \/ Ton/.test(M.reqSummary(rrow)));
+  M.removeReq(rq.id);
+  /* PIN: one legacy rule for STORED rows, one default for NEW form lines.
+     A quote line the form creates with no rateUnit is stamped per Ton and
+     prices 7,650 Kg @ 5,300 as 40,545; a line already in the blob with no
+     rateUnit (written before rateUnit existed) prices per its OWN unit —
+     40,545,000, exactly as booked — and an edit that does not touch the rate
+     unit keeps that, it never re-prices the record per Ton. */
+  const fk = M.addQuote({ cust: b.id, items: [{ product: 'Quick Lime', qty: 7650, unit: 'Kg', rate: 5300 }], gstR: 5 });
+  const frow = M.quotesOf(b.id).find(q => q.id === fk.id);
+  eq('PIN a NEW form line {7650 Kg @ 5300, no rateUnit} is stamped rateUnit Ton and totals 40,545', [frow.items[0].rateUnit, C.quoteTotals(frow).goods], ['Ton', 40545]);
+  S.QUOTES.splice(S.QUOTES.findIndex(q => q.id === fk.id), 1); S.DEALS.splice(S.DEALS.findIndex(d => d.quoteId === fk.id), 1);   // leave the blob as it was
+  S.QUOTES.push({ id: 'qlegacy', no: 'QT-0000', cust: b.id, status: 'sent', date: '2026-08-01', validUntil: '2026-08-15', gstR: 5, items: [{ product: 'Quick Lime', qty: 7650, unit: 'Kg', rate: 5300 }] });
+  const lrow = M.quotesOf(b.id).find(q => q.id === 'qlegacy');
+  eq('PIN a STORED line {7650 Kg @ 5300, no rateUnit} totals 40,545,000 as booked (rate per its own unit)', [C.quoteTotals(lrow).lines[0].rateUnit, C.quoteTotals(lrow).goods], ['Kg', 40545000]);
+  ok('  its summary reads ₹5,300.00 / Kg, not a re-priced / Ton', /7,650 Kg @ ₹5,300\.00 \/ Kg/.test(M.lineSummary(lrow)));
+  S.QUOTES.splice(S.QUOTES.findIndex(q => q.id === 'qlegacy'), 1);
+  S.REQS.push({ id: 'rqlegacy', cust: b.id, status: 'active', product: 'Quick Lime', qty: 7650, unit: 'Kg', freq: 'monthly', targetRate: 5300, at: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' });
+  eq('  a stored requirement with no rateUnit summarises per Kg', /target ₹5,300\.00 \/ Kg/.test(M.reqSummary(S.REQS.find(r => r.id === 'rqlegacy'))), true);
+  M.updateReq('rqlegacy', { qty: 8000 });
+  const lreq = S.REQS.find(r => r.id === 'rqlegacy');
+  eq('  editing its quantity keeps the rate per Kg (an edit never re-prices a legacy row)', [lreq.qty, lreq.unit, lreq.rateUnit], [8000, 'Kg', 'Kg']);
+  M.updateReq('rqlegacy', { rateUnit: 'Ton' });
+  eq('  choosing Ton in the form re-prices it explicitly', S.REQS.find(r => r.id === 'rqlegacy').rateUnit, 'Ton');
+  S.REQS.splice(S.REQS.findIndex(r => r.id === 'rqlegacy'), 1);
+  const rn = M.addReq(b.id, { product: 'Hydrated Lime', qty: 7650, unit: 'Kg', freq: 'monthly', targetRate: 5.30, rateUnit: 'Kg' });
+  const en = M.enriched().find(r => r.id === b.id).demand['Hydrated Lime'];
+  eq('  7,650 Kg/month @ ₹5.30 / Kg shows a potential of ₹40,545 through the whole read side (was ₹41)', [en.monthlyDemand, en.demandUnit, en.rateUnit, en.monthlyPotential], [7.65, 'Ton', 'Kg', 40545]);
+  M.removeReq(rn.id);
+  S.DEALS.push({ id: 'dlegacy', cust: b.id, stage: 'new_lead', product: 'Quick Lime', qty: 7650, unit: 'Kg', targetRate: 5300, at: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z', lastActivityAt: '2026-08-01T00:00:00.000Z' });
+  M.updateDeal('dlegacy', { qty: 8000 });
+  const ld = S.DEALS.find(d => d.id === 'dlegacy');
+  eq('  a stored deal with no rateUnit keeps per-Kg pricing through an edit', [ld.rateUnit, C.dealValue(ld)], ['Kg', 8000 * 5300]);
+  S.DEALS.splice(S.DEALS.findIndex(d => d.id === 'dlegacy'), 1);
+  ok('salesForCrm carries unit, rateUnit and tonnes per row', M.salesForCrm().every(s => s.unit && s.rateUnit && typeof s.tonnes === 'number') && M.salesForCrm().find(s => s.inv === '142').tonnes === 7.65);
+}
+
 /* ── 9. blob round-trip: nothing lost through JSON ── */
 const blob = JSON.parse(JSON.stringify({ reqs: S.REQS, quotes: S.QUOTES, offers: S.OFFERS, deals: S.DEALS, followups: S.FOLLOWUPS, cnotes: S.CNOTES, ctimeline: S.CTIMELINE, msgTemplates: S.MSG_TEMPLATES }));
-eq('round-trip keeps every row', [blob.reqs.length, blob.quotes.length, blob.offers.length, blob.deals.length, blob.followups.length, blob.cnotes.length, blob.ctimeline.length], [4, 2, 1, 4, 3, 2, S.CTIMELINE.length]);
+eq('round-trip keeps every row', [blob.reqs.length, blob.quotes.length, blob.offers.length, blob.deals.length, blob.followups.length, blob.cnotes.length, blob.ctimeline.length], [4, 3, 1, 4, 3, 2, S.CTIMELINE.length]);
 ok('every row names its customer by stable id', ['reqs', 'quotes', 'offers', 'deals', 'followups', 'cnotes', 'ctimeline'].every(k => blob[k].every(r => r.cust === a.id || r.cust === b.id)));
 ok('commit() was called for every write', commits > 30);
 
