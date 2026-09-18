@@ -154,9 +154,10 @@
          PAN) and the firm's own export invoice EI/2026-27/01. A proprietorship
          has no CIN — the header prints one only for a firm that carries `cin`. */
       iec: 'NLIPS9801K', lut: 'AD080826023319U', email: 'deshwaliminerals@gmail.com', upi: '8875020202@hdfcbank',
-      /* The kiln at Borunda — printed on every bill as UNIT ADDRESS next to the
-         registered office (owner, 13-09-2026, verbatim). */
-      unitAddress: 'Khasra No.1787/7, Borunda, Jodhpur, Rajasthan, 342601',
+      /* No separate unit address any more: the owner asked for the REGD./UNIT
+         ADDRESS strip to be removed on 18-09-2026 once the office moved to
+         Borunda. Setting this prints the strip (and a Unit line on every design). */
+      unitAddress: '',
       /* Header line for the Professional Industrial design (owner's brief, 13-09-2026). */
       tagline: 'Manufacturer & Supplier of Quick Lime, Hydrated Lime, Lime Stone & Industrial Minerals'
     },
