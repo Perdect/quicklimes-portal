@@ -855,7 +855,7 @@
     var charges = (d.charges || []).filter(function (c) { return c && P(c.label) && +c.amount; });
     var roundOff = Math.round((+d.roundOff || 0) * 100) / 100, cess = +d.cess || 0, otherTax = +d.otherTax || 0;
     var terms = f.terms || [];
-    var words = /^Rupees /.test(f.words) ? 'Indian ' + f.words : f.words;
+    var words = f.words;   // 'Rupees … Only' — the owner asked for no 'Indian Rupees' on this design
     var unitOfItems = P(items[0].unit) || f.unit || '';
     var qty3 = function (q, u) { var U = QLUnitsOpt(); var mass = U ? U.familyOf(u) === 'mass' : /^(ton|tonne|mt|t|kg|quintal)/i.test(String(u || '')); var n = +q || 0; return mass && !Number.isInteger(n * 1000) === false && mass ? n.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : qfmt(n); };
     var rUnit = P(items[0].rateUnit) || f.rateUnit || unitOfItems;
@@ -877,7 +877,7 @@
       + "table.it{width:100%;border-collapse:collapse;border:1px solid #c9ced6}.it thead{display:table-header-group}.it th{background:" + PREMIUM_NAVY + ";color:#fff;font-size:6.8px;letter-spacing:.12em;text-transform:uppercase;padding:5px 6px;text-align:center}"
       + ".it td{padding:7px 7px;border-bottom:1px solid #c9ced6;border-right:1px solid #e3e6ea;font-size:8.7px;vertical-align:middle}.it td:last-child{border-right:0}.it tbody tr{break-inside:avoid}.r{text-align:right}.c{text-align:center}.it td.q{text-align:center;font-weight:800}.it td.r,.it td.q,.it td.c{white-space:nowrap}"
       + ".it .dn{font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9.6px}.it .ds{color:#6b7280;font-size:7.8px;margin-top:1px}"
-      + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:9px}.tot td{padding:5px 10px;border-bottom:1px solid #d6dae0;font-size:8.7px;vertical-align:middle}.tot td.l{text-align:right;font-size:7.4px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;background:#f1f3f6;width:70%;border-right:1px solid #d6dae0}.tot td.v{text-align:right;font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9.6px}.tot tr.g td.v{font-size:12.4px}.tot tr:last-child td{border-bottom:0}"
+      + ".tot{width:100%;border-collapse:collapse;border:1px solid #c9ced6;margin-top:9px}.tot td{padding:2.5px 10px;border-bottom:1px solid #d6dae0;font-size:8.7px;vertical-align:middle}.tot td.l{text-align:right;font-size:7.4px;letter-spacing:.14em;text-transform:uppercase;color:" + PREMIUM_NAVY + ";font-weight:800;background:#f1f3f6;width:70%;border-right:1px solid #d6dae0}.tot td.v{text-align:right;font-weight:800;color:" + PREMIUM_NAVY + ";font-size:9.6px}.tot tr.g td.v{font-size:12.4px}.tot tr:last-child td{border-bottom:0}"
       + ".words{margin:7px 0 0;font-size:8.7px}.words b{font-weight:800}"
       + ".tc{width:100%;border-collapse:collapse}.tc td{padding:6px 0;border-bottom:1px solid #e3e6ea;font-size:8.7px;vertical-align:top;line-height:1.45}.tc td.k{width:22%;font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;padding-top:8px}"
       + ".two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 2.2% 0}.pbox{border:1px solid #c9ced6;border-left:3px solid " + PREMIUM_GOLD + ";padding:8px 10px;font-size:8.6px;line-height:1.45}.pbox b.h{display:block;color:" + PREMIUM_NAVY + ";font-size:9.8px;margin-bottom:3px}"
@@ -919,17 +919,17 @@
       var note = convNote(it), rowRu = P(it.rateUnit) || rUnit;
       return '<tr><td class="c">' + (i + 1) + '</td><td><div class="dn">' + esc(P(it.product)) + '</div>' + (P(it.desc) || P(it.grade) ? '<div class="ds">' + esc([P(it.grade), P(it.desc)].filter(Boolean).join(' · ')) + '</div>' : '') + (note ? '<div class="ds">' + note + '</div>' : '') + '</td>'
         + '<td class="c">' + esc(P(it.hsn) || f.hsn) + '</td>' + (hasPack ? '<td class="c">' + esc(P(it.packing) || '—') + '</td>' : '')
-        + '<td class="q">' + qty3(it.qty, P(it.unit) || unitOfItems) + (P(it.unit) && P(it.unit) !== unitOfItems ? ' ' + esc(P(it.unit)) : '') + '</td><td class="r">INR ' + fmt(it.rate) + (rowRu !== rUnit ? '<br><span class="ds">/ ' + esc(rowRu) + '</span>' : '') + '</td><td class="r"><b>INR ' + fmt(lineTaxable(it)) + '</b></td></tr>';
+        + '<td class="q">' + qty3(it.qty, P(it.unit) || unitOfItems) + (P(it.unit) && P(it.unit) !== unitOfItems ? ' ' + esc(P(it.unit)) : '') + '</td><td class="r">' + fmt(it.rate) + (rowRu !== rUnit ? '<br><span class="ds">/ ' + esc(rowRu) + '</span>' : '') + '</td><td class="r"><b>' + fmt(lineTaxable(it)) + '</b></td></tr>';
     }).join('') + charges.map(function (c, i) {
-      return '<tr><td class="c">' + (items.length + i + 1) + '</td><td><div class="dn">' + esc(P(c.label)) + '</div>' + (P(c.desc) ? '<div class="ds">' + esc(P(c.desc)) + '</div>' : '') + '</td><td class="c">' + esc(P(c.hsn) || '9965') + '</td>' + (hasPack ? '<td class="c">—</td>' : '') + '<td class="c">—</td><td class="r">—</td><td class="r"><b>INR ' + fmt(c.amount) + '</b></td></tr>';
+      return '<tr><td class="c">' + (items.length + i + 1) + '</td><td><div class="dn">' + esc(P(c.label)) + '</div>' + (P(c.desc) ? '<div class="ds">' + esc(P(c.desc)) + '</div>' : '') + '</td><td class="c">' + esc(P(c.hsn) || '9965') + '</td>' + (hasPack ? '<td class="c">—</td>' : '') + '<td class="c">—</td><td class="r">—</td><td class="r"><b>' + fmt(c.amount) + '</b></td></tr>';
     }).join('');
     var trow = function (k, v, g) { return '<tr' + (g ? ' class="g"' : '') + '><td class="l">' + k + '</td><td class="v">' + v + '</td></tr>'; };
     var goods = items.reduce(function (a, it) { return a + lineTaxable(it); }, 0), chargeSum = charges.reduce(function (a, c) { return a + (+c.amount || 0); }, 0);
-    var tot = '<table class="tot">' + trow('Value of goods' + (items.length === 1 && +items[0].qty && +items[0].rate ? ' (' + qtyTotalEl(f) + ' × INR ' + (+items[0].rate % 1 ? fmt(items[0].rate) : Number(items[0].rate).toLocaleString('en-IN')) + (rUnit ? '/' + esc(rUnit) : '') + ')' : ''), 'INR ' + fmt(goods))
-      + (chargeSum ? trow('Charges', 'INR ' + fmt(chargeSum)) : '')
-      + (isExport ? trow('IGST — zero-rated export under LUT', 'INR ' + f.igst) : f.interState ? trow('IGST @ ' + f.gstR + ' %' + (f.hsn ? ' (HSN ' + esc(f.hsn) + ')' : ''), 'INR ' + f.igst) : trow('CGST @ ' + f.halfR + ' %', 'INR ' + f.cgst) + trow('SGST @ ' + f.halfR + ' %', 'INR ' + f.sgst))
-      + (cess ? trow('Cess', 'INR ' + fmt(cess)) : '') + (otherTax ? trow('Other tax', 'INR ' + fmt(otherTax)) : '') + (roundOff ? trow('Round off', (roundOff > 0 ? '+' : '−') + fmt(Math.abs(roundOff))) : '')
-      + trow('Total payable (goods incl. GST)', 'INR ' + f.grand, true) + '</table>';
+    var tot = '<table class="tot">' + trow('Value of goods' + (items.length === 1 && +items[0].qty && +items[0].rate ? ' (' + qtyTotalEl(f) + ' × ' + (+items[0].rate % 1 ? fmt(items[0].rate) : Number(items[0].rate).toLocaleString('en-IN')) + (rUnit ? '/' + esc(rUnit) : '') + ')' : ''), fmt(goods))
+      + (chargeSum ? trow('Charges', fmt(chargeSum)) : '')
+      + (isExport ? trow('IGST — zero-rated export under LUT', f.igst) : f.interState ? trow('IGST @ ' + f.gstR + ' %' + (f.hsn ? ' (HSN ' + esc(f.hsn) + ')' : ''), f.igst) : trow('CGST @ ' + f.halfR + ' %', f.cgst) + trow('SGST @ ' + f.halfR + ' %', f.sgst))
+      + (cess ? trow('Cess', fmt(cess)) : '') + (otherTax ? trow('Other tax', fmt(otherTax)) : '') + (roundOff ? trow('Round off', (roundOff > 0 ? '+' : '−') + fmt(Math.abs(roundOff))) : '')
+      + trow('Total payable (goods incl. GST)', f.grand, true) + '</table>';
     var termsRows = terms.map(function (t, i) { var m = String(t).match(/^([A-Za-z][A-Za-z /&]{2,28}):\s*(.+)$/); return '<tr><td class="k">' + (m ? esc(m[1]) : String(i + 1) + '.') + '</td><td>' + esc(m ? m[2] : t) + '</td></tr>'; }).join('');
     var bank = (s.bank || s.accNo || s.upi) ? '<div class="pbox"><b class="h">Bank Details — for payment</b>' + (s.name ? 'Account name: ' + esc(s.name) + '<br>' : '') + (s.bank ? esc(s.bank) + (s.bankBranch ? ', ' + esc(s.bankBranch) : '') + '<br>' : '') + (s.accNo ? 'A/C No.: ' + esc(s.accNo) : '') + (s.ifsc ? ' &nbsp;|&nbsp; IFSC: ' + esc(s.ifsc) : '') + (s.upi ? '<br>UPI: ' + esc(s.upi) : '') + '</div>' : '';
     var decl = '<div class="pbox"><b class="h">Declaration</b>' + PREMIUM_DECL + (f.rcm === 'Yes' ? '<br>Tax is payable on reverse charge.' : '') + '</div>';
