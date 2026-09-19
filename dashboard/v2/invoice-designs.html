@@ -87,7 +87,7 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./data.js?v=m52caaaaaaaaaaaaaaaaaaaa14"></script>
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./i18n.js?v=h8"></script>
-<script src="./qrcode-generator.js?v=q2"></script><script src="./qr-core.js?v=q2"></script><script src="./invoice-templates.js?v=t45"></script>
+<script src="./qrcode-generator.js?v=q2"></script><script src="./qr-core.js?v=q2"></script><script src="./invoice-templates.js?v=t46"></script>
 <script src="./wa-core.js?v=w4"></script>
 
 <script src="./shell.js?v=m68saaaaaaaaaaaaaaaaaaaa3"></script>
@@ -142,7 +142,14 @@ function sampleData() {
     veh: 'RJ21GA1234', eway: '881234567890', gstR: 5,
     taxable: 97000, cgst: 2425, sgst: 2425, igst: 0, interState: false,
     total: 101850, roundOff: 0, grand: 101850,
-    words: QLD.amountInWords ? QLD.amountInWords(101850) : 'Rupees One Lakh One Thousand Eight Hundred Fifty Only'
+    words: QLD.amountInWords ? QLD.amountInWords(101850) : 'Rupees One Lakh One Thousand Eight Hundred Fifty Only',
+    /* A SAMPLE e-invoice block so the gallery shows where the IRN / Ack / QR
+       print. The payload says so in plain text — it is not a registered
+       invoice and its QR verifies nothing. Real invoices carry the portal's
+       own SignedQRCode only after Generate e-Invoice succeeds. */
+    irn: 'sample0000000000000000000000000000000000000000000000000000000000',
+    ackNo: '000000000000000', ackDt: new Date().toISOString().slice(0, 10) + ' 00:00:00',
+    signedQr: 'eyJhbGciOiJub25lIn0.' + btoa(JSON.stringify({ data: 'SAMPLE DESIGN PREVIEW - NOT A REGISTERED E-INVOICE - QuickLimes' })).replace(/=+$/, '') + '.c2FtcGxl'
   };
 }
 

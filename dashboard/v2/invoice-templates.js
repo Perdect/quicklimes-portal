@@ -1040,29 +1040,30 @@
     var items = f.items, charges = Array.isArray(d.charges) ? d.charges.filter(function (c) { return c && P(c.label) && +c.amount; }) : [];
     var isExport = P(d.type).toLowerCase() === 'export';
     var bagsOf = function (it) { if (+it.bags) return String(+it.bags); var m = String(it.packing || d.packing || '').match(/(\d+(?:\.\d+)?)\s*kg/i); var U = QLUnitsOpt(); if (!m || !U || !(+it.qty)) return ''; var kg = U.convertQty(+it.qty, it.unit || f.unit, 'Kg'); return kg ? String(Math.round(kg / +m[1])) : ''; };
-    var bags = items.map(bagsOf), hasBags = bags.some(Boolean);
+    var bags = items.map(bagsOf), hasBags = true;   // the reference always carries the column; a line without bags shows a dash
     var unitOfItems = items.length && items.every(function (it) { return (it.unit || f.unit) === (items[0].unit || f.unit); }) ? (items[0].unit || f.unit) : '';
     var rUnit = items.length && items.every(function (it) { return (it.rateUnit || it.unit || f.rateUnit) === (items[0].rateUnit || items[0].unit || f.rateUnit); }) ? (items[0].rateUnit || items[0].unit || f.rateUnit) : '';
     var css = "@page{size:A4;margin:0}body{font-family:Arial,Helvetica,'Liberation Sans',sans-serif;color:#1a1a1a;font-size:9.5px;line-height:1.4;padding:0;background:#fff}@media print{body{padding:0}}"
-      + ".sheet{width:820px;margin:0 auto;padding:22px 26px 14px;box-sizing:border-box;display:flex;flex-direction:column;min-height:1160px}@media print{.sheet{width:auto;padding:9mm 10mm 6mm;min-height:100vh}}@media screen and (max-width:900px){body{overflow-x:hidden}.sheet{zoom:.72}}"
+      + ".sheet{width:820px;margin:0 auto;padding:22px 26px 14px;box-sizing:border-box}@media print{.sheet{width:auto;padding:9mm 10mm 6mm}}@media screen and (max-width:900px){body{overflow-x:hidden}.sheet{zoom:.72}}"
       /* letterhead: lockup left, the document title right, tagline, registration strip */
-      + ".lh{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:8px;border-bottom:2px solid " + ink + "}.lh .lk{height:40px;width:auto;display:block}.lh .nm{font-size:22px;font-weight:800;color:" + ink + ";letter-spacing:.04em;text-transform:uppercase;line-height:1}"
-      + ".lh .tg{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:" + GREY + ";margin-top:7px}"
-      + ".lh .ti{text-align:right}.lh .ti .w{font-size:17px;font-weight:800;letter-spacing:.12em;color:" + ink + ";line-height:1}.lh .ti .c{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:" + GREY + ";margin-top:5px}"
-      + ".reg{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 16px;padding:5px 10px;background:" + FILL + ";border-bottom:1px solid " + RULE + ";font-size:8.6px;color:#374151}.reg b{color:" + ink + ";font-weight:700;margin-right:3px}.reg .sep{color:#9ca3af;margin:0 6px}.reg .r{text-align:right;white-space:nowrap;margin-left:auto}"
+      + ".lh{display:grid;grid-template-columns:1fr auto 1fr;align-items:start;gap:12px;padding-bottom:8px;border-bottom:2px solid " + ink + "}.lh .ids{font-size:8.6px;line-height:1.55;color:#374151}.lh .ids b{display:inline-block;min-width:38px;color:" + ink + ";font-weight:700}"
+      + ".lh .mid{text-align:center}.lh .lk{height:46px;width:auto;display:inline-block}.lh .nm{font-size:22px;font-weight:800;color:" + ink + ";letter-spacing:.04em;text-transform:uppercase;line-height:1}"
+      + ".lh .tg{font-size:8.2px;letter-spacing:.14em;text-transform:uppercase;color:" + GREY + ";margin-top:6px}"
+      + ".lh .ctc{font-size:8.6px;line-height:1.55;text-align:right;color:#374151}"
+      + ".ttl{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:6px 0 4px}.ttl .w{grid-column:2;font-size:12.5px;font-weight:800;letter-spacing:.14em;color:" + ink + ";border-bottom:1.5px solid " + ink + ";padding-bottom:1px}.ttl .c{grid-column:3;text-align:right;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:" + GREY + "}"
       /* every block on one grid */
-      + ".grid2{display:grid;grid-template-columns:1fr 1fr;border:1px solid " + RULE + ";border-top:0}.grid2>div{padding:6px 10px}.grid2>div:first-child{border-right:1px solid " + RULE + "}"
-      + ".kv{display:flex;padding:1.6px 0;font-size:9.5px;line-height:1.35}.kv .k{width:110px;flex:none;color:" + GREY + "}.kv .c{width:10px;flex:none;color:" + GREY + "}.kv .v{flex:1;min-width:0;word-break:break-word;font-weight:700;color:#111}.kv .v .d{float:right;font-weight:400;color:#374151}.kv .v .d b{color:" + GREY + ";font-weight:400;margin-right:4px}"
+      + ".grid2{display:grid;grid-template-columns:1fr 1fr;border:1px solid " + RULE + "}.grid2+.grid2,.grid2+.dt,.dt+.grid2{border-top:0}.grid2>div{padding:5px 10px}.grid2>div:first-child{border-right:1px solid " + RULE + "}"
+      + ".kv{display:flex;padding:1.2px 0;font-size:9.5px;line-height:1.35}.kv .k{width:110px;flex:none;color:" + GREY + "}.kv .c{width:10px;flex:none;color:" + GREY + "}.kv .v{flex:1;min-width:0;word-break:break-word;font-weight:700;color:#111}.kv .v .d{float:right;font-weight:400;color:#374151}.kv .v .d b{color:" + GREY + ";font-weight:400;margin-right:4px}"
       + ".ph{font-size:7.6px;letter-spacing:.14em;text-transform:uppercase;color:" + ink + ";font-weight:800;padding:4px 10px;background:" + FILL + ";border-bottom:1px solid " + RULE + "}"
       + ".pc{padding:0!important}.pc .bd{padding:5px 10px 6px}.pc .kv .k{width:64px}.dt{padding:4px 10px;border:1px solid " + RULE + ";border-top:0;font-size:9px}.dt b{color:" + GREY + ";font-weight:400;margin-right:6px;letter-spacing:.08em;text-transform:uppercase;font-size:7.6px}"
       /* the goods table fills the page */
-      + ".body{position:relative;flex:1;display:flex;flex-direction:column;margin-top:10px}.body .fill{flex:1;min-height:40px;border-left:1px solid " + RULE + ";border-right:1px solid " + RULE + "}"
+      + ".body{position:relative;margin-top:10px}.body .fill{height:96px;border-left:1px solid " + RULE + ";border-right:1px solid " + RULE + "}"
       + "table{width:100%;border-collapse:collapse;table-layout:fixed}"
       + ".it th{background:" + ink + ";color:#fff;font-size:7.6px;letter-spacing:.12em;text-transform:uppercase;padding:6px 6px;text-align:center;vertical-align:middle;line-height:1.25;position:relative;z-index:1}"
       + ".it td{border-bottom:1px solid " + RULE + ";border-right:1px solid " + RULE + ";padding:6px;vertical-align:top;position:relative;z-index:1;font-size:9.5px}.it td:first-child{border-left:1px solid " + RULE + "}.it tr.ln{height:1px}"
       + ".r{text-align:right}.c{text-align:center}.it .dn{font-weight:700;color:" + NAVY + "}.it .ds{font-size:8.2px;color:" + GREY + ";font-weight:400}"
       + ".wm{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:0}"
-      + ".sum td{border:1px solid " + RULE + ";border-top:0;padding:4px 8px;font-size:9px}.sum td.l{text-align:right;letter-spacing:.1em;text-transform:uppercase;color:" + ink + ";font-weight:800;font-size:7.6px;background:" + FILL + "}.sum td.v{text-align:right;font-weight:700;color:" + NAVY + ";width:104px}.sum tr:first-child td{border-top:1px solid " + RULE + "}"
+      + ".sum td{border:1px solid " + RULE + ";border-top:0;padding:3.5px 8px;font-size:9px}.sum td.l{text-align:right;letter-spacing:.1em;text-transform:uppercase;color:" + ink + ";font-weight:800;font-size:7.6px;background:" + FILL + "}.sum td.v{text-align:right;font-weight:700;color:" + NAVY + ";width:104px}.sum tr:first-child td{border-top:1px solid " + RULE + "}"
       /* below the table */
       + ".low{display:grid;grid-template-columns:56% 44%;border:1px solid " + RULE + ";border-top:0}.left{border-right:1px solid " + RULE + "}"
       + ".rm{padding:5px 10px;min-height:20px;font-size:9px;border-bottom:1px solid " + RULE + "}.rm b{color:" + GREY + ";font-weight:400;margin-right:4px}"
@@ -1073,7 +1074,7 @@
       + ".tx tr.tot td{font-size:12.5px;font-weight:800}.tx tr.tot td:first-child{font-size:8px}"
       + ".wd{padding:5px 10px;font-size:9.5px;border:1px solid " + RULE + ";border-top:0}.wd b{color:" + GREY + ";font-weight:400;margin-right:4px}"
       + ".ft{display:grid;grid-template-columns:62% 38%;border:1px solid " + RULE + ";border-top:0}.tc{padding:6px 10px;font-size:8.8px;line-height:1.5;border-right:1px solid " + RULE + "}.tc b.h{display:block;font-size:7.6px;letter-spacing:.14em;text-transform:uppercase;color:" + ink + ";margin-bottom:3px}.tc ul{margin:0;padding-left:12px}"
-      + ".sg{padding:6px 10px 8px;text-align:right;display:flex;flex-direction:column;align-items:flex-end}.sg .for{font-weight:800;color:" + NAVY + ";font-size:9.5px}.sg .seal{margin:2px 0 0}.sg .nm{font-weight:700;font-size:9px;margin-top:2px}.sg .as{font-size:8.2px;color:#374151;border-top:1px solid " + NAVY + ";padding-top:3px;min-width:180px;text-align:center;margin-top:4px}"
+      + ".sg{padding:6px 10px 8px;text-align:right;display:flex;flex-direction:column;align-items:flex-end}.sg .for{font-weight:800;color:" + NAVY + ";font-size:9.5px}.sg .seal{margin:2px 0 0}.sg .tick{display:block;margin:2px 0 0}.sg .reg{font-size:8px;color:#374151;margin-top:2px}.sg .as{font-size:8.2px;color:#374151;border-top:1px solid " + NAVY + ";padding-top:3px;min-width:180px;text-align:center;margin-top:4px}"
       + ".ra{padding:6px 0 0;font-size:8px;color:" + GREY + ";text-align:center}.ra b{color:" + ink + ";font-weight:700;margin-right:4px}";
     var kv = function (k, v, extra) { return '<div class="kv"><span class="k">' + k + '</span><span class="c">:</span><span class="v">' + esc(v) + (extra || '') + '</span></div>'; };
     var withDate = function (iso) { return P(iso) ? '<span class="d"><b>Date</b>' + esc(fdate(iso)) + '</span>' : ''; };
@@ -1088,7 +1089,7 @@
     var rows = items.map(function (it, i) {
       var note = convNote(it), rowRu = P(it.rateUnit) || rUnit;
       return '<tr class="ln"><td class="c">' + (i + 1) + '</td><td class="c">' + esc(P(it.hsn) || f.hsn) + '</td><td><span class="dn">' + esc(P(it.product)) + '</span>' + (P(it.desc) || P(it.grade) ? '<br><span class="ds">' + esc([P(it.grade), P(it.desc)].filter(Boolean).join(' · ')) + '</span>' : '') + (note ? '<br><span class="ds">' + note + '</span>' : '') + '</td>'
-        + (hasBags ? '<td class="c">' + esc(bags[i] || dash) + '</td>' : '')
+        + (hasBags ? '<td class="c">' + (bags[i] ? esc(bags[i]) : dash) + '</td>' : '')
         + '<td class="r">' + qfmt(it.qty) + (P(it.unit) && P(it.unit) !== unitOfItems ? ' ' + esc(P(it.unit)) : '') + '</td><td class="r">' + fmt(it.rate) + (rowRu !== rUnit ? '<br><span class="ds">/ ' + esc(rowRu) + '</span>' : '') + '</td><td class="r"><b>' + fmt(lineTaxable(it)) + '</b></td></tr>';
     }).join('') + charges.map(function (c, i) {
       return '<tr class="ln"><td class="c">' + (items.length + i + 1) + '</td><td class="c">' + esc(P(c.hsn) || '9965') + '</td><td><span class="dn">' + esc(P(c.label)) + '</span>' + (P(c.desc) ? '<br><span class="ds">' + esc(P(c.desc)) + '</span>' : '') + '</td>' + (hasBags ? '<td class="c">' + dash + '</td>' : '') + '<td class="r">' + dash + '</td><td class="r">' + dash + '</td><td class="r"><b>' + fmt(c.amount) + '</b></td></tr>';
@@ -1107,15 +1108,14 @@
     var stName = (P(s.state).match(/^(.*?)\s*\((\d\d)\)\s*$/) || [])[1] || P(s.state);
     var sealLine = P(s.sealText) || [s.city, stName].filter(Boolean).join(', ');
     var seal = stampSeal(s.name, sealLine);
-    var reg = '<div class="reg"><div><b>GSTIN</b>' + esc(s.gstin || '') + (f.pan ? '<span class="sep">·</span><b>PAN</b>' + esc(f.pan) : '') + (f.iec ? '<span class="sep">·</span><b>IEC</b>' + esc(f.iec) : '') + (f.cin ? '<span class="sep">·</span><b>CIN</b>' + esc(f.cin) : '') + (f.msme ? '<span class="sep">·</span><b>MSME</b>' + esc(f.msme) + (s.msmeType ? ' (' + esc(s.msmeType) + ')' : '') : '') + '</div>'
-      + '<div class="r">' + (f.tel ? intlTel(f.tel) : '') + (s.email ? (f.tel ? '<span class="sep">·</span>' : '') + esc(s.email) : '') + '</div></div>';
+    var ids = '<div class="ids"><b>GSTIN</b>: ' + esc(s.gstin || '') + (f.cin ? '<br><b>CIN</b>: ' + esc(f.cin) : '') + (f.pan ? '<br><b>PAN</b>: ' + esc(f.pan) : '') + (f.iec ? '<br><b>IEC</b>: ' + esc(f.iec) : '') + '</div>';
+    var ctc = '<div class="ctc">' + (f.tel ? intlTel(f.tel).replace(', ', '<br>') : '') + (s.email ? '<br>' + esc(s.email) : '') + (s.website ? '<br>' + esc(s.website) : '') + '</div>';
     var body = '<div class="sheet">'
-      + '<div class="lh"><div>' + (s.lockupDark ? '<img class="lk" src="' + esc(s.lockupDark) + '" alt="' + esc(s.name) + '">' : (f.logo ? '<div style="display:flex;align-items:center;gap:10px">' + logoImg(f, 40) + '<div class="nm">' + esc(s.name) + '</div></div>' : '<div class="nm">' + esc(s.name) + '</div>')) + (f.tagline ? '<div class="tg">' + esc(f.tagline) + '</div>' : '') + '</div>'
-      + '<div class="ti"><div class="w">' + (eInv ? 'TAX E-INVOICE' : (isExport ? 'EXPORT INVOICE' : 'TAX INVOICE')) + '</div><div class="c">Original Copy</div></div></div>'
-      + reg
-      + '<div class="grid2"><div>' + kv('Invoice No', f.inv) + kv('Invoice Date', f.date) + kv('E-Way Bill No', f.eway) + (P(d.po) ? kv('PO No', d.po, withDate(d.poDate)) : '') + '</div>'
-      + '<div>' + kv('Transport Mode', f.transport) + kv('Vehicle No', f.veh) + kv('GR/RR No.', f.grrr, withDate(d.grDate)) + kv('From', s.station || s.city || '') + kv('Station', f.station) + kv('Place of Supply', f.pos) + '</div></div>'
-      + (P(s.docsThrough) ? '<div class="dt"><b>Documents through</b>' + esc(s.docsThrough) + '</div>' : '')
+      + '<div class="lh">' + ids + '<div class="mid">' + (s.lockupDark ? '<img class="lk" src="' + esc(s.lockupDark) + '" alt="' + esc(s.name) + '">' : (f.logo ? '<div style="display:flex;align-items:center;justify-content:center;gap:10px">' + logoImg(f, 44) + '<div class="nm">' + esc(s.name) + '</div></div>' : '<div class="nm">' + esc(s.name) + '</div>')) + (f.tagline ? '<div class="tg">' + esc(f.tagline) + '</div>' : '') + '</div>' + ctc + '</div>'
+      + '<div class="ttl"><div class="w">' + (eInv ? 'TAX E-INVOICE' : (isExport ? 'EXPORT INVOICE' : 'TAX INVOICE')) + '</div><div class="c">Original Copy</div></div>'
+      + '<div class="grid2"><div>' + (f.msme ? kv('MSME No', f.msme) + (s.msmeType ? kv('MSME Type', s.msmeType) : '') : '') + kv('Invoice No', f.inv) + kv('Invoice Date', f.date) + kv('E-Way Bill No', f.eway) + '</div>'
+      + '<div>' + (P(d.po) ? kv('PO No', d.po, withDate(d.poDate)) : '') + kv('Transport Mode', f.transport) + kv('GR/RR No.', f.grrr, withDate(d.grDate)) + kv('From', s.station || s.city || '', '<span class="d"><b>Place of Supply</b>' + esc(f.pos) + '</span>') + (P(f.station) ? kv('Station', f.station) : '') + kv('Vehicle No', f.veh) + '</div></div>'
+      + '<div class="dt"><b>Documents through</b>' + esc(P(s.docsThrough) || s.name || '') + '</div>'
       + '<div class="grid2">' + partyBox('Details of Buyer (Billed to)', { name: b.name, address: b.address, state: f.bState, gstin: b.gstin }) + partyBox('Details of Consignee (Shipped to)', consignee) + '</div>'
       + '<div class="body">' + (f.logo ? '<div class="wm">' + logoImg(f, 230, 'opacity:.06;max-width:400px') + '</div>' : '')
       + '<table class="it"><colgroup><col style="width:36px"><col style="width:72px"><col>' + (hasBags ? '<col style="width:58px">' : '') + '<col style="width:78px"><col style="width:84px"><col style="width:104px"></colgroup>'
@@ -1123,12 +1123,12 @@
       + rows + '</table><div class="fill"></div>'
       + '<table class="sum"><tr><td class="l">Packing and Forwarding Charges</td><td class="v">' + fmt(packing) + '</td></tr>'
       + '<tr><td class="l">Total Taxable Value &nbsp;(' + qtyTotalEl(f) + ')</td><td class="v">' + f.taxable + '</td></tr></table></div>'
-      + '<div class="low"><div class="left"><div class="rm"><b>Remarks</b> ' + esc(d.remarks || '') + '</div>' + (isExport && f.lut ? '<div class="lut"><b>LUT Bond No.</b> ' + esc(f.lut) + '</div>' : '') + eInv + '<div class="hs">' + bandTable(f, '') + '</div></div>'
+      + '<div class="low"><div class="left"><div class="rm"><b>Remarks</b> ' + esc(d.remarks || '') + '</div><div class="lut"><b>LUT Bond No.</b> ' + esc(isExport ? f.lut : '') + '</div>' + eInv + '<div class="hs">' + bandTable(f, '') + '</div></div>'
       + '<div>' + taxStack + '</div></div>'
       + '<div class="wd"><b>Amount in words</b> ' + esc(f.words) + '</div>'
       + '<div class="ft"><div class="tc"><b class="h">Terms &amp; Conditions</b>' + (f.cfg.showDeclaration && f.terms.length ? '<ul>' + f.terms.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' : '')
       + (isExport ? '<div style="margin-top:4px"><b>Export</b> Supply meant for export under LUT without payment of IGST' + (f.iec ? ' · IEC ' + esc(f.iec) : '') + '</div>' : '') + '</div>'
-      + '<div class="sg">' + (f.cfg.showSignature ? '<div class="for">For ' + esc(String(f.signatory || s.name || '').toUpperCase()) + '</div>' + seal + (P(s.ownerName) ? '<div class="nm">' + esc(String(s.ownerName).toUpperCase()) + '</div>' : '') + '<div class="as">Authorised Signatory &amp; Seal</div>' : qrBlock(f)) + '</div></div>'
+      + '<div class="sg">' + (f.cfg.showSignature ? '<div class="for">For ' + esc(String(f.signatory || s.name || '').toUpperCase()) + '</div>' + seal + '<svg class="tick" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#16a34a"/><path d="M6.5 12.5l3.6 3.6L17.5 8.7" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' + (eInv && P(d.ackDt) ? '<div class="reg">e-Invoice registered on ' + esc(fAckDt(d.ackDt)) + '</div>' : '') + '<div class="as">Authorised Signatory &amp; Seal</div>' : qrBlock(f)) + '</div></div>'
       + '<div class="ra"><b>Regd. Address</b>' + esc(String(s.address || '').replace(/\n/g, ', ')) + (s.unitAddress ? ' &nbsp;·&nbsp; <b>Unit</b>' + esc(s.unitAddress) : '') + '</div>'
       + '</div>';
     return doc(f, 'blueink', css + EINV_CSS + '.einv.irn{border:0;border-bottom:1px solid ' + RULE + ';padding:6px 10px}', body);
