@@ -51,7 +51,8 @@
     return '#';
   }
   function mailLink(c, subject, body) { return 'mailto:' + encodeURIComponent(c.email || '') + '?subject=' + encodeURIComponent(subject || '') + '&body=' + encodeURIComponent(body || ''); }
-  function coProfile() { const co = (Q && Q.co) || {}; return { name: co.name || co.short, short: co.short || co.name, address: co.address, city: co.city, state: co.state, pin: co.pin, gstin: co.gstin, phone: co.phone, email: co.email }; }
+  /* the whole letterhead — the quotation prints on the firm's navy sheet (lockup, product line, website, bank, seal, terms) */
+  function coProfile() { const co = (Q && Q.co) || {}; return Object.assign({}, co, { name: co.name || co.short, short: co.short || co.name }); }
 
   /* ═══════════════ CUSTOMER MASTER ═══════════════ */
   const SEG_TAGS = Object.keys(C.SEGMENTS).filter(k => !C.SEGMENTS[k].auto);

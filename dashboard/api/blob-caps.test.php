@@ -132,6 +132,7 @@ $EXPECTED = [
   'cnotes'       => 'sales',
   'ctimeline'    => 'sales',
   'msgTemplates' => 'sales',
+  'brand'        => 'public',     // the letterhead — lockup, slogan, website, registrations; what every customer sees
 ];
 foreach ($EXPECTED as $key => $want) {
   ok("'$key' is gated on '$want' exactly" . ($want === 'labour' ? ' (wages — never sales/production)' : ''),

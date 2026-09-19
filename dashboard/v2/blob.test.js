@@ -34,6 +34,7 @@ function grab(startsWith, endsWith) {
   return src.slice(i, j + endsWith.length);
 }
 const S_DECL = grab('const S = {', '\n  };');
+const F_BRAND = grab('function brandOf(co)', '\n  }');   // the letterhead the blob carries for the server's public pages
 const F_BLOB = grab('function blob(includePic)', '\n  }');
 const F_HYDR = grab('function hydrate(d)', '\n  }');
 const F_CLEAR = grab('function clearState()', '\n  }');
@@ -45,9 +46,10 @@ const ctx = {
   defaultFinance: () => ({ accounts: [] }),
   normalizeFinance: f => f,
   console,
+  COMPANIES: [{ name: 'DESHWALI MINERALS', website: 'www.deshwaliminerals.com' }], ACTIVE_CO: 0,
 };
 vm.createContext(ctx);
-vm.runInContext([S_DECL, F_BLOB, F_HYDR, F_CLEAR,
+vm.runInContext([S_DECL, F_BRAND, F_BLOB, F_HYDR, F_CLEAR,
   'this.S = S; this.blob = blob; this.hydrate = hydrate; this.clearState = clearState;'].join('\n'), ctx);
 ok('data.js S + blob + hydrate + clearState loaded and executable', typeof ctx.blob === 'function');
 

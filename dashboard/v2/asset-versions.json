@@ -60,8 +60,8 @@
     "sha": "79c8b3e077f0"
   },
   "data.js": {
-    "v": "m52caaaaaaaaaaaaaaaaaaaa15",
-    "sha": "f9a3901f4ade"
+    "v": "m52caaaaaaaaaaaaaaaaaaaa16",
+    "sha": "31c716d13dff"
   },
   "party-link.js": {
     "v": "pl1p",
@@ -84,8 +84,8 @@
     "sha": "2943c5e5ca72"
   },
   "invoice-templates.js": {
-    "v": "t47",
-    "sha": "f0da8e68f5bd"
+    "v": "t48",
+    "sha": "a45559e1823c"
   },
   "shell.js": {
     "v": "m68saaaaaaaaaaaaaaaaaaaa3",
@@ -164,12 +164,12 @@
     "sha": "b9cd11c76545"
   },
   "quote-doc.js": {
-    "v": "cu3",
-    "sha": "f8afabf08854"
+    "v": "cu4",
+    "sha": "dc4cbfa66131"
   },
   "crm-ui.js": {
-    "v": "cu3",
-    "sha": "3594c810b74f"
+    "v": "cu4",
+    "sha": "034b9d9f4bc4"
   },
   "customer.js": {
     "v": "cu3",

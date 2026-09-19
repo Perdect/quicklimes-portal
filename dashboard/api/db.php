@@ -278,11 +278,12 @@ function ql_role_caps() {
     'owner'      => ['*'],
     'admin'      => ['*'],
     'partner'    => ['*'],
-    'accountant' => ['sales', 'purchase', 'finance', 'gst', 'recon', 'reports', 'parties', 'extract'],
-    'sales'      => ['sales', 'parties', 'reports', 'extract'],
-    'purchase'   => ['purchase', 'parties', 'inventory', 'extract'],
-    'production'  => ['production', 'inventory'],
-    'dispatch'   => ['sales', 'production', 'inventory'],
+    /* 'public' = what every seat may read: the firm's own letterhead (brand) */
+    'accountant' => ['sales', 'purchase', 'finance', 'gst', 'recon', 'reports', 'parties', 'extract', 'public'],
+    'sales'      => ['sales', 'parties', 'reports', 'extract', 'public'],
+    'purchase'   => ['purchase', 'parties', 'inventory', 'extract', 'public'],
+    'production'  => ['production', 'inventory', 'public'],
+    'dispatch'   => ['sales', 'production', 'inventory', 'public'],
   ];
 }
 function ql_role_can($role, $cap) {
@@ -333,6 +334,9 @@ function ql_blob_caps() {
     // what was said to a customer — a sales seat's data, nobody else's.
     'reqs' => 'sales', 'quotes' => 'sales', 'offers' => 'sales', 'deals' => 'sales',
     'followups' => 'sales', 'cnotes' => 'sales', 'ctimeline' => 'sales', 'msgTemplates' => 'sales',
+    // The letterhead (lockup, slogan, website, registrations) — what every
+    // customer sees on every document; nothing to hide from any seat.
+    'brand' => 'public',
   ];
 }
 

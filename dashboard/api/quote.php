@@ -101,6 +101,8 @@ $st = $db->prepare('SELECT plant_name, gst_number, city, address, contact_phone,
 $st->execute([$coId !== '' ? $coId : $plantId]);
 $pl = $st->fetch() ?: [];
 $company = ['name' => $pl['plant_name'] ?? 'Deshwali Minerals', 'short' => $pl['plant_name'] ?? '', 'gstin' => $pl['gst_number'] ?? '', 'city' => $pl['city'] ?? '', 'address' => $pl['address'] ?? '', 'phone' => $pl['contact_phone'] ?? ($pl['owner_phone'] ?? '')];
+/* the letterhead the app prints with (lockup, slogan, website, product line, registrations) travels in the blob as 'brand' */
+if (isset($data['brand']) && is_array($data['brand'])) foreach ($data['brand'] as $bk => $bv) { if (is_string($bk) && ($bv !== '' && $bv !== null)) $company[$bk] = $bv; }
 
 try {
   ql_quote_views_table($db);
@@ -119,5 +121,5 @@ $json = json_encode(['quote' => $public, 'customer' => $custPublic, 'company' =>
 echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Quotation ' . htmlspecialchars((string)($quote['no'] ?? '')) . ' — ' . htmlspecialchars($company['name']) . '</title>'
    . '<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700;800&display=swap" rel="stylesheet"><style>body{margin:0;background:#f1f5f9;font-family:Geist,system-ui,sans-serif}.bar{max-width:820px;margin:14px auto 0;padding:0 12px;display:flex;justify-content:flex-end}.bar button{border:0;background:#0f4c81;color:#fff;font:600 13px Geist,sans-serif;padding:9px 14px;border-radius:9px;cursor:pointer}@media print{.bar{display:none}}</style></head><body>'
    . '<div class="bar"><button onclick="window.print()">Save as PDF / Print</button></div><div id="doc"></div>'
-   . '<script src="/v2/units-core.js?v=cu3"></script><script src="/v2/customer-core.js?v=cu3"></script><script src="/v2/quote-doc.js?v=cu3"></script>'
+   . implode('', array_map(function ($f) { $p = __DIR__ . '/../v2/' . $f; return '<script src="/v2/' . $f . '?v=' . (is_file($p) ? substr(md5_file($p), 0, 8) : 'x') . '"></script>'; }, ['units-core.js', 'customer-core.js', 'qrcode-generator.js', 'qr-core.js', 'invoice-templates.js', 'quote-doc.js']))
    . '<script>(function(){var d=' . $json . ';var s=document.createElement("style");s.textContent=QuoteDoc.CSS;document.head.appendChild(s);document.getElementById("doc").innerHTML=QuoteDoc.quotationHTML(d.quote,d.customer,d.company,{});})();</script></body></html>';

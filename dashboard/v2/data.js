@@ -642,6 +642,11 @@
      display (tds, challans, chunna, workLog, att) — or they'd be wiped.
      Loans are NOT part of this blob (separate dm_loans row), exactly
      like v1.  profile_pic is included in the cloud blob only. */
+  function brandOf(co) {
+    co = co || {};
+    return { name: co.name || '', short: co.short || '', lockup: co.lockup || '', lockupDark: co.lockupDark || '', logo: co.logo || '', slogan: co.slogan || '', website: co.website || '', product: co.product || '', tagline: co.tagline || '',
+      address: co.address || '', city: co.city || '', state: co.state || '', pin: co.pin || '', gstin: co.gstin || '', tel: co.tel || '', phone: co.phone || '', email: co.email || '', msme: co.msme || '', msmeType: co.msmeType || '', iec: co.iec || '', unitAddress: co.unitAddress || '', terms: co.terms || [] };
+  }
   function blob(includePic) {
     const b = {
       sales: S.SALES, purchases: S.PURCHASES, workers: S.WORKERS, workLog: S.WORK_LOG,
@@ -659,7 +664,12 @@
       // never saved and silently dies on reload. The WhatsApp send log is the
       // DEDUPE MEMORY — lose it and a customer gets chased twice for the same
       // invoice, which is the one thing the reminder engine exists to prevent.
-      wa: S.WA || { cfg: {}, log: [] }
+      wa: S.WA || { cfg: {}, log: [] },
+      // The letterhead facts the server needs to print a customer-facing page
+      // (the public quotation link) exactly as the app prints it: lockup,
+      // slogan, website, product line, registrations. Read-only, public by
+      // nature — it is what the customer sees on every document.
+      brand: brandOf(COMPANIES[ACTIVE_CO])
     };
     if (includePic) b.profile_pic = localStorage.getItem(picKey()) || null;
     return b;

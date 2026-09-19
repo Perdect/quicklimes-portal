@@ -71,15 +71,16 @@ const bare = s => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/g
   const q = { no: 'QT-2001', date: '2026-09-18', validUntil: '2026-09-25', gstR: 5, items: [{ product: 'Quick Lime', qty: 7650, unit: 'Kg', rate: 5300, rateUnit: 'Ton' }] };
   const html = D.quotationHTML(q, { name: 'Balaji Buildcon', city: 'Jodhpur' }, { name: 'Deshwali Minerals' }, {});
   ok('prints "7,650 Kg"', html.includes('7,650 Kg'));
-  ok('prints "₹5,300.00 / Ton"', html.includes('₹5,300.00 / Ton'));
+  ok('prints the rate 5,300.00 under "Rate / Ton"', /Rate \/ Ton/.test(html) && html.includes('5,300.00'));
   ok('prints "40,545.00"', html.includes('40,545.00'));
   ok('prints the one arithmetic line "7,650 Kg = 7.65 Ton × ₹5,300"', html.includes('7,650 Kg = 7.65 Ton × ₹5,300'));
+  ok('the quotation is the firm\'s navy sheet (Premium): the band, From — Supplier / To — Buyer, Price offer, To confirm this order', /class="band"/.test(html) && /From — Supplier/.test(html) && /To — Buyer/.test(html) && /Price offer/.test(html) && /To confirm this order/.test(html));
   ok('never prints the raw product', !html.includes('4,05,45,000') && !html.includes('40,545,000'));
   ok('GST and total follow', html.includes('2,027.25') && html.includes('42,572.25'));
   /* a Ton line has nothing to convert: no arithmetic line */
   const plain = D.quotationHTML({ no: 'QT-2002', date: '2026-09-18', validUntil: '2026-09-25', gstR: 5, items: [{ product: 'Quick Lime', qty: 42, unit: 'Ton', rate: 4900, rateUnit: 'Ton' }] }, {}, {}, {});
-  ok('a Ton line prints "42 Ton" and "₹4,900.00 / Ton" with no conversion line', plain.includes('42 Ton') && plain.includes('₹4,900.00 / Ton') && !plain.includes('qd-conv'));
-  ok('a legacy MT line prints as Ton', D.quotationHTML({ items: [{ product: 'Quick Lime', qty: 42, unit: 'MT', rate: 4900 }] }, {}, {}, {}).includes('42 Ton'));
+  ok('a Ton line prints 42 under "Qty (Ton)" and 4,900.00 under "Rate / Ton" with no conversion line', /Qty \(Ton\)/.test(plain) && />42</.test(plain) && plain.includes('4,900.00') && !/= 42 Ton ×/.test(plain));
+  ok('a legacy MT line prints as Ton', /Qty \(Ton\)/.test(D.quotationHTML({ items: [{ product: 'Quick Lime', qty: 42, unit: 'MT', rate: 4900 }] }, {}, {}, {})));
   /* the price offer card */
   const offer = D.offerHTML({ no: 'PO-9', date: '2026-09-18', product: 'Quick Lime', qty: 7650, unit: 'Kg', rate: 5300, rateUnit: 'Ton', freight: 'extra' }, { name: 'Balaji' }, { name: 'Deshwali' });
   ok('the offer prints "7,650 Kg", "₹5,300.00 / Ton" and the value 40,545.00', offer.includes('7,650 Kg') && offer.includes('₹5,300.00 / Ton') && offer.includes('40,545.00'));
@@ -89,9 +90,9 @@ const bare = s => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/g
 /* ── 5. wiring: the public quotation page loads units-core first; no raw qty × rate survives ── */
 {
   const api = R('../api/quote.php');
-  const i = api.indexOf('/v2/units-core.js'), j = api.indexOf('/v2/customer-core.js'), k = api.indexOf('/v2/quote-doc.js');
-  ok('quote.php loads units-core.js before customer-core.js before quote-doc.js', i > 0 && j > i && k > j);
-  ok('  and asks for the new bundles (?v=cu3 on all three)', (api.match(/\?v=cu3/g) || []).length === 3 && !/\?v=cu2/.test(api));
+  const i = api.indexOf("'units-core.js'"), j = api.indexOf("'customer-core.js'"), e = api.indexOf("'invoice-templates.js'"), k = api.indexOf("'quote-doc.js'");
+  ok('quote.php loads units-core.js before customer-core.js before the print engine before quote-doc.js', i > 0 && j > i && e > j && k > e);
+  ok('  and versions each script by its content hash (never a stale ?v= a browser could cache)', /md5_file\(\$p\)/.test(api) && !/\?v=cu[23]/.test(api));
   for (const f of ['customer-core.js', 'customer-store.js', 'customers.js', 'crm-ui.js', 'customer.js', 'quote-doc.js']) {
     const src = bare(R(f));
     ok(f + ' never multiplies a quantity by a rate itself', !/qty\s*\|\|\s*0\)\s*\*|\bqty\s*\*\s*\(?\s*\+?\s*[a-z.]*rate|\.qty\s*\*\s*/i.test(src));
