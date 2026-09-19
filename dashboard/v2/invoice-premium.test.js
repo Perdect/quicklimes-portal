@@ -21,7 +21,7 @@ const h = R(), t = h.replace(/<[^>]+>/g, ' ');
 console.log('\n═══ Deshwali Premium Invoice ═══');
 const reg = T.get('premium');
 ok('registered as "Deshwali Premium Invoice", fixed colours (not accentable), with despatch fields', reg && reg.name === 'Deshwali Premium Invoice' && reg.accentable === false && reg.despatch === true);
-ok('the existing designs are untouched (registry order)', T.TEMPLATES.map(x => x.id).join(',') === 'gst,modern,business,detailed,industrial,premium');
+ok('the existing designs are untouched (registry order; blueink added after, 19-09-2026)', T.TEMPLATES.map(x => x.id).join(',') === 'gst,modern,business,detailed,industrial,premium,blueink');
 ok('navy band (#0E2A47, sampled from the PDF): gem + two-line wordmark left, TAX INVOICE + copy label right — nothing else in it', /\.band\{background:#0E2A47/.test(h) && /class="band"/.test(h) && /TAX INVOICE/.test(t) && /Original for Recipient/.test(t) && !/class="t"/.test(h.slice(h.indexOf('class="band"'), h.indexOf('class="contact"'))));
 ok('the product line sits under the band above the contact line, not inside the band', /class="contact"><div class="pl">Manufacturer &amp; Exporter of Premium Quick Lime and Hydrated Lime<\/div>/.test(h));
 ok('gold rule under the band', /border-bottom:3px solid #C9A227/.test(h));

@@ -165,7 +165,7 @@
       unitAddress: '',
       /* The bottom arc of the firm's rubber stamp, as it reads on the quotation
          PDF of 18-09-2026; the Premium design draws the seal from this. */
-      sealText: 'BORUNDA, GOTAN', website: 'www.deshwaliminerals.com',
+      msme: 'UDYAM-RJ-25-0061661', msmeType: 'Micro', sealText: 'BORUNDA, GOTAN', website: 'www.deshwaliminerals.com',
       logoMark: 'gem',   // the Premium design draws the diamond's facets over the white logo (used only when there is no lockup)
       /* The letterhead lockup — diamond + wordmark as one white vector (the owner's
          'Group 4.svg', 18-09-2026). The Premium band prints this instead of logo + name. */
@@ -204,7 +204,7 @@
       phone: p.contact_phone || seller.phone || (QL_PLANT.owner_phone || ''), email: seller.email || '', station: seller.station || p.city || '',
       bank: seller.bank || '', bankBranch: seller.bankBranch || '', accNo: seller.accNo || '', ifsc: seller.ifsc || '',
       bank2: seller.bank2 || '', bankBranch2: seller.bankBranch2 || '', accNo2: seller.accNo2 || '', ifsc2: seller.ifsc2 || '',
-      product: seller.product || '', msme: seller.msme || '', logo: seller.logo || '', jurisdiction: seller.jurisdiction || '',
+      product: seller.product || '', msme: seller.msme || '', msmeType: seller.msmeType || '', logo: seller.logo || '', jurisdiction: seller.jurisdiction || '',
       tel: seller.tel || '', terms: seller.terms || [], invoiceTemplate: seller.invoiceTemplate || '', roundOff: seller.roundOff !== false,
       iec: seller.iec || '', lut: seller.lut || '', cin: seller.cin || '', upi: seller.upi || '', unitAddress: seller.unitAddress || '', tagline: seller.tagline || '', sealText: seller.sealText || '', website: seller.website || '', logoMark: seller.logoMark || '', lockup: seller.lockup || '', hsn: HSN,
       isPrimary: !p.parent_plant_id,

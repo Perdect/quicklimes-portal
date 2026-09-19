@@ -987,6 +987,138 @@
     return doc(f, 'premium', css, body);
   }
 
+  /* ══════════ blueink — "Deshwali Classic GST Invoice" (id blueink: 'classic' is a retired id) ══════════
+     Commissioned 19-09-2026 from the Raj Chemicals & Minerals tax e-invoice the
+     owner photographed: a blue-ink billing-software format. Letterhead with
+     GSTIN / CIN / PAN top-left, logo + firm name + tagline centred, phones and
+     e-mails top-right; ORIGINAL COPY; the underlined title; a left box (MSME,
+     invoice no./date, e-way bill) and a right box (PO no./date, transport mode,
+     G.R. no./date, From / Place of Supply, vehicle); "Documents through";
+     Buyer (Billed to) and Consignee (Shipped to); the goods table with the logo
+     watermarked behind it — S.No · HSN · Description · No. of Bags · Qty · Rate
+     · Amount; Packing & Forwarding and Total Taxable Value; Remarks, LUT Bond
+     No., IRN / Ack / QR on the left against the tax stack on the right (CGST /
+     SGST / IGST / GST Tax Amount / Amount After Tax / TCS / Total Amount / GST
+     Reverse Charge); AMOUNT IN WORDS; Terms & Conditions against the signature
+     block; REGD. / UNIT ADDRESS footer.
+
+     HIDE-EMPTY: MSME, CIN, PO, G.R. date, Documents through, No. of Bags,
+     Packing & Forwarding, TCS, LUT Bond No. (export only), IRN / QR and the
+     unit address print only when the firm or the sale carries them — the
+     owner gives those later; nothing is invented meanwhile. One A4 page: the
+     goods table stretches to fill it (flex), so the footer sits at the foot
+     of the page whatever the line count. */
+  function blueink(d, cfg) {
+    /* the sample's ink unless a colour was actually picked (the engine's default accent is a sentinel, not a choice) */
+    var f = facts(d, cfg), s = f.s, b = f.b, ink = (f.cfg.accent && f.cfg.accent !== DEFAULT_CFG.accent) ? f.cfg.accent : '#24479A';
+    var P = function (v) { return v == null ? '' : String(v).trim(); };
+    var pan = function (g) { g = String(g || ''); return g.length === 15 ? g.slice(2, 12) : ''; };
+    var dash = '&ndash;';
+    var items = f.items, charges = Array.isArray(d.charges) ? d.charges.filter(function (c) { return c && P(c.label) && +c.amount; }) : [];
+    var isExport = P(d.type).toLowerCase() === 'export';
+    /* No. of Bags: the line's own count, else read off a "50 kg …" packing text */
+    var bagsOf = function (it) { if (+it.bags) return String(+it.bags); var m = String(it.packing || d.packing || '').match(/(\d+(?:\.\d+)?)\s*kg/i); var U = QLUnitsOpt(); if (!m || !U || !(+it.qty)) return ''; var kg = U.convertQty(+it.qty, it.unit || f.unit, 'Kg'); return kg ? String(Math.round(kg / +m[1])) : ''; };
+    var bags = items.map(bagsOf), hasBags = bags.some(Boolean);
+    var unitOfItems = items.length && items.every(function (it) { return (it.unit || f.unit) === (items[0].unit || f.unit); }) ? (items[0].unit || f.unit) : '';
+    var rUnit = items.length && items.every(function (it) { return (it.rateUnit || it.unit || f.rateUnit) === (items[0].rateUnit || items[0].unit || f.rateUnit); }) ? (items[0].rateUnit || items[0].unit || f.rateUnit) : '';
+    var css = "@page{size:A4;margin:0}body{font-family:Arial,Helvetica,'Liberation Sans',sans-serif;color:" + ink + ";font-size:10.5px;line-height:1.35;padding:0;background:#fff}"
+      + "@media print{body{padding:0}}"
+      + ".sheet{max-width:820px;margin:0 auto;padding:18px 18px 12px;box-sizing:border-box}@media print{.sheet{max-width:none;padding:9mm 9mm 6mm;min-height:100vh;display:flex;flex-direction:column}}"
+      + ".inv{border:1px solid " + ink + ";display:flex;flex-direction:column;flex:1}.bb{border-bottom:1px solid " + ink + "}.br{border-right:1px solid " + ink + "}.row{display:flex}"
+      + ".top{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 10px 2px;gap:10px}"
+      + ".ids{font-size:9.5px;line-height:1.5;min-width:170px}.ids b{display:inline-block;width:38px;font-weight:400}"
+      + ".ctc{font-size:9.5px;line-height:1.5;text-align:right;min-width:170px}"
+      + ".mid{text-align:center;flex:1}.co{display:flex;align-items:center;justify-content:center;gap:12px}"
+      + ".iso{font-size:9px;letter-spacing:.04em}"
+      + ".cn{font-family:Georgia,'Times New Roman',Times,serif;font-size:23px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;line-height:1.1}"
+      + ".tg{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;margin-top:5px;line-height:1.35}"
+      + ".orig{text-align:right;padding:0 10px 2px;font-size:10px;font-weight:700;letter-spacing:.04em}"
+      + ".ttl{text-align:center;padding:0 0 6px}.ttl span{display:inline-block;font-weight:800;font-size:12.5px;letter-spacing:.04em;border-bottom:1.5px solid " + ink + "}"
+      + ".meta{width:50%;padding:6px 8px}.kv{display:flex;padding:1.5px 0;font-size:10.5px}.kv .k{width:118px;flex:none;font-weight:700}.kv .c{width:12px;flex:none}.kv .v{flex:1;min-width:0;word-break:break-word}.kv .v .d{float:right;font-weight:400}.kv .v .d b{font-weight:700;margin-right:6px}"
+      + ".dt{padding:3px 8px;font-size:10.5px;font-weight:700}.dt span{font-weight:700;margin-left:6px}"
+      + ".ph{font-size:9.5px;font-weight:700;text-align:center;padding:3px;letter-spacing:.03em;border-bottom:1px dashed " + ink + "}"
+      + ".pc{width:50%;padding:0 0 6px}.pc .kv{padding:1.5px 8px}.pc .kv .k{width:64px;font-weight:400}.pc .kv .v{font-weight:700}"
+      + "table{width:100%;border-collapse:collapse;table-layout:fixed}"
+      + ".body{position:relative;flex:1;display:flex;flex-direction:column}.body .it{flex:1;height:100%}"
+      + ".it th{border-right:1px solid " + ink + ";border-bottom:1px solid " + ink + ";padding:5px 5px;font-weight:800;font-size:10px;text-align:center;vertical-align:middle;line-height:1.2;position:relative;z-index:1}"
+      + ".it td{border-right:1px solid " + ink + ";padding:5px;vertical-align:top;position:relative;z-index:1}.it th:last-child,.it td:last-child{border-right:0}.it tr.ln{height:1px}"
+      + ".it .sp td{padding:0;height:60px}.r{text-align:right}.c{text-align:center}.it .dn{font-weight:700;text-transform:uppercase}.it .ds{font-size:9px;font-weight:400}"
+      + ".wm{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:0}"
+      + ".sum td{border-top:1px solid " + ink + ";padding:3.5px 6px;font-size:10.5px}.sum td.l{text-align:right;font-weight:700}.sum td.v{text-align:right;font-weight:700;border-left:1px solid " + ink + "}"
+      + ".low{display:flex}.left{width:56%;padding:0}.right{width:44%}"
+      + ".rm{padding:5px 8px;min-height:22px;font-size:10px}.rm b{font-weight:700}"
+      + ".lut{padding:5px 8px;font-size:10px;font-style:italic;font-weight:700}"
+      + ".irn{padding:6px 8px;font-size:10px;line-height:1.45;display:flex;gap:10px;align-items:flex-start}.irn b{font-weight:800}.irn .id{flex:1;word-break:break-all}.irn .qr{flex:none}"
+      + ".hs{padding:5px 8px}.hs table{width:auto}.hs th{font-weight:700;text-decoration:underline;text-align:left;padding:1px 8px 1px 0;font-size:9px;white-space:nowrap}.hs td{padding:1px 8px 1px 0;font-size:9.5px}"
+      + ".tx{width:100%}.tx td{border-bottom:1px solid " + ink + ";padding:3.5px 6px;font-size:10.5px}.tx td:first-child{font-weight:700;border-right:1px solid " + ink + ";width:62%}.tx td:last-child{text-align:right;font-weight:700}.tx tr:last-child td{border-bottom:0}"
+      + ".tx tr.tot td{font-size:12px;font-weight:800}"
+      + ".wd{padding:5px 8px;font-size:10.5px}.wd b{font-weight:800;margin-right:4px}.wd .q{float:right;font-size:9.5px}"
+      + ".ft{display:flex}.tc{width:62%;padding:6px 8px;font-size:9.5px;line-height:1.5}.tc b{display:block;font-size:10px;margin-bottom:2px}.tc ul{margin:0;padding-left:12px}"
+      + ".sg{width:38%;padding:6px 8px;text-align:center;display:flex;flex-direction:column;justify-content:space-between;min-height:96px}.sg .for{font-weight:800;font-size:11px}.sg .nm{font-weight:700;font-size:10.5px;margin-top:auto}.sg .as{font-weight:700;font-size:10.5px}"
+      + ".ra{padding:5px 10px;font-size:10px;line-height:1.5}.ra b{display:inline-block;width:118px;font-weight:800}"
+      + ".qrc{font-size:8px}";
+    var kv = function (k, v, extra) { return '<div class="kv"><span class="k">' + k + '</span><span class="c">:</span><span class="v">' + esc(v) + (extra || '') + '</span></div>'; };
+    var withDate = function (iso) { return P(iso) ? '<span class="d"><b>Date :</b>' + esc(fdate(iso)) + '</span>' : ''; };
+    var partyBox = function (title, p, cls) {
+      return '<div class="pc' + (cls ? ' ' + cls : '') + '"><div class="ph">' + title + '</div>'
+        + kv('Name', p.name || '') + kv('Address', String(p.address || '').replace(/\n/g, ', ')) + kv('State', p.state || '') + kv('PAN No', pan(p.gstin)) + kv('GSTIN', p.gstin || '') + '</div>';
+    };
+    var consignee = (d.consignee && P(d.consignee.name)) ? d.consignee : { name: b.name, address: b.address, state: f.bState, gstin: b.gstin };
+    var eInv = (d.irn || d.ackNo || d.ackDt)
+      ? '<div class="irn bb"><div class="id"><b>IRN:</b> ' + esc(d.irn || '') + '<br><b>AckNo:</b> ' + esc(d.ackNo || '') + ' &nbsp; <b>AckDt:</b> ' + esc(d.ackDt || '') + '</div>'
+        + (d.qrData ? '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(d.qrData) + '" alt="e-invoice QR" style="width:88px;height:88px"><div class="qrc">e-Invoice QR</div></div>' : '') + '</div>'
+      : '';
+    var packing = +d.packingCharge || 0;
+    var roundOff = Math.round(((+d.grand || 0) - (+d.total || 0)) * 100) / 100, tcs = +d.tcs || 0;
+    var rows = items.map(function (it, i) {
+      var note = convNote(it), rowRu = P(it.rateUnit) || rUnit;
+      return '<tr class="ln"><td class="c">' + (i + 1) + '.</td><td class="c">' + esc(P(it.hsn) || f.hsn) + '</td><td><span class="dn">' + esc(P(it.product)) + '</span>' + (P(it.desc) || P(it.grade) ? '<br><span class="ds">' + esc([P(it.grade), P(it.desc)].filter(Boolean).join(' · ')) + '</span>' : '') + (note ? '<br><span class="ds">' + note + '</span>' : '') + '</td>'
+        + (hasBags ? '<td class="c">' + esc(bags[i] || dash) + '</td>' : '')
+        + '<td class="r">' + qfmt(it.qty) + (P(it.unit) && P(it.unit) !== unitOfItems ? ' ' + esc(P(it.unit)) : '') + '</td><td class="r">' + fmt(it.rate) + (rowRu !== rUnit ? '<br><span class="ds">/ ' + esc(rowRu) + '</span>' : '') + '</td><td class="r">' + fmt(lineTaxable(it)) + '</td></tr>';
+    }).join('') + charges.map(function (c, i) {
+      return '<tr class="ln"><td class="c">' + (items.length + i + 1) + '.</td><td class="c">' + esc(P(c.hsn) || '9965') + '</td><td><span class="dn">' + esc(P(c.label)) + '</span>' + (P(c.desc) ? '<br><span class="ds">' + esc(P(c.desc)) + '</span>' : '') + '</td>' + (hasBags ? '<td class="c">' + dash + '</td>' : '') + '<td class="r">' + dash + '</td><td class="r">' + dash + '</td><td class="r">' + fmt(c.amount) + '</td></tr>';
+    }).join('');
+    var cols = 6 + (hasBags ? 1 : 0);
+    var taxStack = '<table class="tx">'
+      + '<tr><td>ADD: CGST' + (f.interState ? '' : ' @ ' + f.halfR + ' %') + '</td><td>' + (f.interState ? dash : f.cgst) + '</td></tr>'
+      + '<tr><td>ADD: SGST' + (f.interState ? '' : ' @ ' + f.halfR + ' %') + '</td><td>' + (f.interState ? dash : f.sgst) + '</td></tr>'
+      + '<tr><td>ADD: IGST' + (f.interState ? ' @ ' + f.gstR + ' %' : '') + '</td><td>' + (f.interState ? f.igst : dash) + '</td></tr>'
+      + '<tr><td>GST Tax Amount</td><td>' + f.totalTax + '</td></tr>'
+      + '<tr><td>Amount After Tax</td><td>' + fmt(d.total) + '</td></tr>'
+      + (tcs ? '<tr><td>ADD : TCS</td><td>' + fmt(tcs) + '</td></tr>' : '')
+      + (roundOff ? '<tr><td>Round Off</td><td>' + (roundOff > 0 ? '+' : '') + fmt(roundOff) + '</td></tr>' : '')
+      + '<tr class="tot"><td>Total Amount</td><td>' + f.grand + '</td></tr>'
+      + '<tr><td>GST Reverse Charge</td><td>' + (f.rcm === 'Yes' ? 'Yes' : 'N.A.') + '</td></tr></table>';
+    var body = '<div class="sheet"><div class="inv">'
+      + '<div class="top"><div class="ids"><b>GSTIN</b>: ' + esc(s.gstin || '') + (f.cin ? '<br><b>CIN</b>: ' + esc(f.cin) : '') + (f.pan ? '<br><b>PAN</b>: ' + esc(f.pan) : '') + (f.iec ? '<br><b>IEC</b>: ' + esc(f.iec) : '') + '</div>'
+      + '<div class="mid">' + (s.iso ? '<div class="iso">' + esc(s.iso) + '</div>' : '') + '<div class="co">' + (f.logo ? logoImg(f, 56) : '') + '<div><div class="cn">' + esc(s.name) + '</div>' + (f.tagline ? '<div class="tg">' + esc(f.tagline) + '</div>' : '') + '</div></div></div>'
+      + '<div class="ctc">' + (f.tel ? intlTel(f.tel) : '') + (s.email ? '<br>' + esc(s.email) : '') + (s.email2 ? '<br>' + esc(s.email2) : '') + '</div></div>'
+      + '<div class="orig">ORIGINAL COPY</div>'
+      + '<div class="ttl bb"><span>' + (eInv ? 'TAX E-INVOICE' : 'TAX INVOICE') + '</span></div>'
+      + '<div class="row bb"><div class="meta br">' + (f.msme ? kv('MSME No.', f.msme) + (s.msmeType ? kv('MSME Type', s.msmeType) : '') : '') + kv('Invoice No', f.inv) + kv('Invoice Date', f.date) + kv('Eway Bill No.', f.eway) + '</div>'
+      + '<div class="meta">' + (P(d.po) ? kv('PO No.', d.po, withDate(d.poDate)) : '') + kv('Transport Mode', f.transport) + kv('GR/RR No.', f.grrr, withDate(d.grDate)) + kv('From', s.station || s.city || '') + kv('Station', f.station) + kv('Place of Supply', f.pos) + kv('Vehicle No.', f.veh) + '</div></div>'
+      + (P(s.docsThrough) ? '<div class="dt bb">DOCUMENTS THROUGH :<span>' + esc(s.docsThrough) + '</span></div>' : '')
+      + '<div class="row bb">' + partyBox('Details of Buyer (Billed to)', { name: b.name, address: b.address, state: f.bState, gstin: b.gstin }, 'br') + partyBox('Details of Consignee (Shipped to)', consignee, '') + '</div>'
+      + '<div class="body">' + (f.logo ? '<div class="wm">' + logoImg(f, 240, 'opacity:.07;max-width:420px') + '</div>' : '')
+      + '<table class="it"><colgroup><col style="width:44px"><col style="width:78px"><col>' + (hasBags ? '<col style="width:56px">' : '') + '<col style="width:76px"><col style="width:80px"><col style="width:100px"></colgroup>'
+      + '<tr class="ln"><th>S.No.</th><th>HSN CODE</th><th>DESCRIPTION OF GOODS</th>' + (hasBags ? '<th>NO. OF BAGS</th>' : '') + '<th>QTY<br>(' + esc(unitOfItems || f.unit || '') + ')</th><th>RATE<br>(P.' + esc(rUnit || f.rateUnit || f.unit || '') + ')</th><th>AMOUNT</th></tr>'
+      + rows + '<tr class="sp"><td colspan="' + cols + '"></td></tr>'
+      + '<tr class="ln sum"><td class="l" colspan="' + (cols - 1) + '">Packing and Forwarding Charges</td><td class="v">' + fmt(packing) + '</td></tr>'   /* 0.00 when none — the sample prints the row either way */
+      + '<tr class="ln sum"><td class="l" colspan="' + (cols - 1) + '">Total Taxable Value &nbsp;(' + qtyTotalEl(f) + ')</td><td class="v">' + f.taxable + '</td></tr>'
+      + '</table></div>'
+      + '<div class="low bb"><div class="left br"><div class="rm bb"><b>Remarks :</b> ' + esc(d.remarks || '') + '</div>' + (isExport && f.lut ? '<div class="lut bb">LUT Bond No. : ' + esc(f.lut) + '</div>' : '') + eInv + '<div class="hs">' + bandTable(f, '') + '</div></div>'
+      + '<div class="right">' + taxStack + '</div></div>'
+      + '<div class="wd bb"><b>AMOUNT IN WORDS:</b> ' + esc(f.words) + '</div>'
+      + '<div class="ft bb"><div class="tc br"><b>TERMS &amp; CONDITIONS:</b>' + (f.cfg.showDeclaration && f.terms.length ? '<ul>' + f.terms.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' : '')
+      + (isExport ? '<div style="margin-top:4px"><b>Export</b> Supply meant for export under LUT without payment of IGST' + (f.iec ? ' · IEC ' + esc(f.iec) : '') + '</div>' : '') + '</div>'
+      + '<div class="sg">' + (f.cfg.showSignature ? '<div class="for">For: ' + esc(f.signatory) + '</div>' + qrBlock(f) + (P(s.ownerName) ? '<div class="nm">' + esc(String(s.ownerName).toUpperCase()) + '</div>' : '<div class="nm"></div>') + '<div class="as">Authorised Signatory</div>' : qrBlock(f)) + '</div></div>'
+      + '<div class="ra"><b>REGD. ADDRESS</b>: ' + esc(String(s.address || '').replace(/\n/g, ', ')) + (s.unitAddress ? '<br><b>UNIT ADDRESS</b>: ' + esc(s.unitAddress) : '') + '</div>'
+      + '</div></div>';
+    return doc(f, 'blueink', css, body);
+  }
+  /* +91 on each phone, as the sample prints them */
+  function intlTel(tel) { return String(tel || '').split(/[,/]/).map(function (x) { x = x.replace(/\D/g, ''); return x.length === 10 ? '+91 ' + x : x; }).filter(Boolean).map(esc).join(', '); }
+
   var TEMPLATES = [
     { id: 'gst',     name: 'GST Invoice (print format)', category: 'In use now', accentable: false, despatch: true,
       desc: 'Your billing software\'s format, line for line — logo, Tel., Transport / Station / GR-RR, party contact lines, Terms & Conditions, Receiver\'s Signature.', render: gst },
@@ -999,7 +1131,9 @@
     { id: 'industrial', name: 'Deshwali Professional Industrial Invoice', category: 'Premium', accentable: true, despatch: true,
       desc: 'Black-and-white first with one accent: registration strip, Bill To / Ship To, order & transport grid, multi-line product table, optional quality specification and charges, only the tax heads that apply, editable terms, e-invoice and export blocks only when real.', render: industrial },
     { id: 'premium', name: 'Deshwali Premium Invoice', category: 'Premium', accentable: false, despatch: true,
-      desc: 'The firm\'s quotation letterhead as a tax invoice: navy band with the logo, gold rule, boxed invoice strip, From / To boxes, navy table with packing and units, totals block, terms as a list, bank and declaration boxes, seal.', render: premium }
+      desc: 'The firm\'s quotation letterhead as a tax invoice: navy band with the logo, gold rule, boxed invoice strip, From / To boxes, navy table with packing and units, totals block, terms as a list, bank and declaration boxes, seal.', render: premium },
+    { id: 'blueink', name: 'Deshwali Classic GST Invoice', category: 'Classic', accentable: true, despatch: true,
+      desc: 'The blue-ink billing-software format of the Raj Chemicals bill you photographed: GSTIN / PAN header, ORIGINAL COPY, MSME and PO / transport boxes, Buyer and Consignee, No. of Bags, watermark, tax stack, IRN / QR when e-invoiced, terms, signature, REGD. / UNIT address footer.', render: blueink }
   ];
 
   function get(id) { for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].id === id) return TEMPLATES[i]; return TEMPLATES[0]; }

@@ -45,7 +45,7 @@ function buildData() {
     pos,
     inv: g('i_no'), date: g('i_date'), product: g('i_product') || 'Quick Lime',
     qty, rate, unit, rateUnit, billableQty: line.billableQty, billableUnit: line.billableUnit, lineOk: line.ok, lineWhy: line.why, gstR,
-    veh: g('i_veh'), eway: g('i_eway'), transport: g('i_trans'), station: g('i_stn'), grrr: g('i_grrr'),
+    veh: g('i_veh'), eway: g('i_eway'), transport: g('i_trans'), station: g('i_stn'), grrr: g('i_grrr'), po: g('i_po'), poDate: g('i_podate'),
     taxable, cgst, sgst, igst: interState ? cgst + sgst : 0, interState,
     total, roundOff: grand - total, grand,
     words: Q.amountInWords(grand)
@@ -115,6 +115,8 @@ function formHTML() {
       ${field('i_stn', 'Station', { ph: 'Destination' })}
       ${field('i_eway', 'E-Way Bill No.', {})}
       ${field('i_grrr', 'GR/RR No.', {})}
+      ${field('i_po', 'PO No.', { ph: 'Buyer\'s purchase order' })}
+      ${field('i_podate', 'PO Date', { type: 'date' })}
     </div>
     <div class="if-sec">Billed to / Shipped to</div>
     <div class="if-grid">
@@ -142,7 +144,7 @@ function save(andPrint) {
   if (!d.buyer.name) { toast('Enter the customer name', 'err'); document.getElementById('i_bname').focus(); return; }
   if (!d.qty || !d.rate) { toast('Enter quantity and rate', 'err'); return; }
   if (!d.lineOk) { toast(d.lineWhy, 'err'); document.getElementById('i_rateUnit').focus(); return; }
-  Q.addSale({ inv: d.inv, date: d.date, party: d.buyer.name, gstin: d.buyer.gstin, addr: d.buyer.address, state: d.buyer.state, product: d.product, qty: d.qty, rate: d.rate, rateUnit: d.rateUnit, gstR: d.gstR, veh: d.veh, eway: d.eway, unit: d.unit, hsn: d.hsn, transport: d.transport, station: d.station, grrr: d.grrr, status: 'pending' });
+  Q.addSale({ inv: d.inv, date: d.date, party: d.buyer.name, gstin: d.buyer.gstin, addr: d.buyer.address, state: d.buyer.state, product: d.product, qty: d.qty, rate: d.rate, rateUnit: d.rateUnit, gstR: d.gstR, veh: d.veh, eway: d.eway, unit: d.unit, hsn: d.hsn, transport: d.transport, station: d.station, grrr: d.grrr, po: d.po, poDate: d.poDate, status: 'pending' });
   toast('Invoice ' + (d.inv || '') + ' saved ✓', 'ok');
   if (andPrint) { const w = window.open('', '_blank'); if (w) { w.document.write(QLShell.renderInvoice(Object.assign({}, d, { noBar: true })) + '<scr' + 'ipt>onload=function(){setTimeout(print,300)}</scr' + 'ipt>'); w.document.close(); } }
   setTimeout(() => location.href = 'sales.html', andPrint ? 400 : 700);
