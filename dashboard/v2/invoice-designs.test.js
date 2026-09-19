@@ -61,7 +61,7 @@ ok('detailed: no round-off row when the firm does not round', !x.includes('Round
 ok('detailed: AMOUNT IN WORDS and REGD. ADDRESS', x.includes('<b>AMOUNT IN WORDS:</b> ' + D.words) && x.includes('<b>REGD. ADDRESS</b>: Merta City'));
 ok('detailed: NO IRN / QR / "Signature valid" when no e-invoice exists', !/IRN:|Ack No|qrserver|Signature valid|Digitally Signed/.test(x) && x.includes('TAX INVOICE') && !x.includes('E-INVOICE'));
 const xe = T.render(Object.assign({}, DT, { irn: 'abc123', ackNo: '1726', ackDt: '02-09-2026', qrData: 'x' }), { template: 'detailed' });
-ok('detailed: with a real IRN the title becomes TAX E-INVOICE and the IRN / Ack / QR block prints', xe.includes('TAX E-INVOICE') && xe.includes('<b>IRN:</b> abc123') && xe.includes('e-invoice QR'));
+ok('detailed: with a real IRN the title becomes TAX E-INVOICE and the IRN / Ack / QR block prints', xe.includes('TAX E-INVOICE') && xe.includes('<span>IRN</span><b>abc123</b>') && xe.includes('class="einv bb"'));
 const xr = T.render(Object.assign({}, DT, { total: 101849.6, grand: 101850 }), { template: 'detailed' });
 ok('detailed: a rounding firm gets a Round Off row', xr.includes('Round Off') && xr.includes('+0.40'));
 const xi = T.render(Object.assign({}, DT, { interState: true, cgst: 0, sgst: 0, igst: 3999.6, buyer: Object.assign({}, D.buyer, { gstin: '27CMVPC2808M1ZK', state: 'Maharashtra (27)' }) }), { template: 'detailed' });
@@ -83,7 +83,7 @@ for (const id of ['modern', 'business']) {
   ok(id + ': no "—" placeholder for a buyer without a GSTIN (the GSTIN row is simply absent)', (function () { const x = T.render(Object.assign({}, DT, { buyer: Object.assign({}, D.buyer, { gstin: '' }) }), { template: id }).replace(/<title>[^<]*<\/title>/, ''); return !x.includes('—') && !/<b>GST(IN)?<\/b>\s*<\/div>|<b>GST(IN)?<\/b> ?</.test(x); })());
   ok(id + ': no empty Additional Notes heading for a bare profile', !T.render(Object.assign({}, DT, { seller: { name: 'X', gstin: '08NLIPS9801K1Z5', address: 'A' } }), { template: id }).includes('Additional Notes'));
   const xe = T.render(Object.assign({}, DT, { irn: 'abc123', ackNo: '1726', ackDt: '2026-09-02', qrData: 'q' }), { template: id });
-  ok(id + ': an e-invoiced sale shows IRN / Ack / QR', xe.includes('<b>abc123</b>') && xe.includes('<b>1726</b>') && xe.includes('<b>02-09-2026</b>') && xe.includes('e-Invoice QR'));
+  ok(id + ': an e-invoiced sale shows IRN / Ack / QR', xe.includes('<b>abc123</b>') && xe.includes('<b>1726</b>') && xe.includes('<b>02-09-2026</b>') && xe.includes('class="einv"'));
   ok(id + ': no IRN block without an IRN (an Ack alone is not an e-invoice)', !/IRN|Ack No|e-Invoice QR/.test(T.render(Object.assign({}, DT, { ackNo: '1726' }), { template: id })));
 }
 ok('mixed units are never summed across units — "20 MT + 400 Bag"', /class="qtytot[^"]*">20 MT \+ 400 Bag</.test(T.render(Object.assign({}, MI, { items: [MI.items[0], { product: 'Hydrated Lime', qty: 400, unit: 'Bag', rate: 250, taxable: 100000 }] }), { template: 'modern' })));

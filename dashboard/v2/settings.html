@@ -338,6 +338,19 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
       <div id="gstStatus" style="margin-top:var(--ql-space-4)"></div>
     </div>
 
+    <!-- E-INVOICE (IRP) — register invoices with the GST portal; the portal's signed QR prints on the invoice -->
+    <div class="card" id="einvCard" style="margin-top:var(--ql-space-5)">
+      <div class="ft-head">
+        <span class="set-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM18 18h3v3h-3zM14 21h1M21 14v1"/></svg></span>
+        <div>
+          <h3 class="ft-title">e-Invoice (GST portal / IRP)</h3>
+          <div class="ft-note">Register a B2B invoice with the Invoice Registration Portal and get back the <b>IRN, Ack No, Ack Date and the portal's signed QR</b>, which then prints on the invoice in every design. Nothing is registered until you press <b>Generate e-Invoice</b> on an invoice. Credentials stay on the server.</div>
+        </div>
+        <button class="ql-btn ql-btn-secondary" id="einvRecheck" style="flex:none">Re-check</button>
+      </div>
+      <div id="einvStatus" style="margin-top:var(--ql-space-4)"></div>
+    </div>
+
     <!-- BANK ACCOUNTS (multi-bank, per firm) -->
     <div class="card" id="bankCard" style="margin-top:var(--ql-space-5)">
       <div class="ft-head">
@@ -414,12 +427,12 @@ document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}
 <script src="./party-resolve.js?v=pr1"></script>
 <script src="./demo-seed.js?v=ds3"></script>
 <script src="./units-core.js?v=u2"></script>
-<script src="./data.js?v=m52caaaaaaaaaaaaaaaaaaaa13"></script>
+<script src="./data.js?v=m52caaaaaaaaaaaaaaaaaaaa14"></script>
 <script src="./party-link.js?v=pl1p"></script>
 <script src="./recon-core.js?v=rc5a"></script>
 <script src="./wa-core.js?v=w4"></script>
 
-<script src="./invoice-templates.js?v=t43"></script>
+<script src="./qrcode-generator.js?v=q2"></script><script src="./qr-core.js?v=q2"></script><script src="./invoice-templates.js?v=t45"></script>
 
 <script src="./shell.js?v=m68saaaaaaaaaaaaaaaaaaaa3"></script>
 <script src="./chat-core.js?v=cc2"></script>
@@ -1070,6 +1083,61 @@ async function renderGst() {
 }
 $('#gstRecheck').addEventListener('click', () => renderGst());
 renderGst();
+
+/* ── e-Invoice (IRP). Credentials are posted ONCE and kept in plant_secrets on
+   the server (never in the browser, never in the app_data blob every role can
+   read); this page only ever sees them masked. */
+async function einvApi(body) {
+  const p = _plant();
+  try {
+    const r = await fetch('/api/einvoice.php', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ plant_id: p.id, token: p.token, co: (window.QLD && window.QLD.co && window.QLD.co.key) || p.id }, body)) });
+    return await r.json();
+  } catch (_) { return { ok: false, error: 'Network error' }; }
+}
+async function renderEinv() {
+  const el = $('#einvStatus'); if (!el) return;
+  el.innerHTML = '<div class="ft-note">Checking…</div>';
+  const r = await einvApi({ action: 'status' });
+  if (!r.ok) { el.innerHTML = '<div class="ft-note">' + esc(r.error || 'Could not read the e-invoice settings') + '</div>'; return; }
+  const on = !!r.configured, fromCfg = r.source === 'config.php', c = r.counts || {};
+  el.innerHTML = `
+    <div class="ft-row" style="align-items:center">
+      <div class="ft-info">
+        <div class="ft-label">Portal ${on ? waPill(r.mode === 'production' ? 'Connected · PRODUCTION' : 'Connected · sandbox', '#dcfce7', '#15803d') : waPill('Not connected', '#fef3c7', '#92400e')}</div>
+        <div class="ft-desc">${on ? (fromCfg ? 'Set by the operator in <b>api/config.php</b>.' : 'API user <code>' + esc(r.user || '') + '</code> · client <code>' + esc(r.client_id || '') + '</code> · <code>' + esc(r.base || '') + '</code>') + (r.session_expiry ? ' · session until ' + esc(r.session_expiry) : '') : 'No IRP credentials saved for this firm yet.'}
+          ${(c.generated || c.failed || c.cancelled) ? '<br>' + (c.generated || 0) + ' registered · ' + (c.failed || 0) + ' failed · ' + (c.cancelled || 0) + ' cancelled' : ''}</div>
+      </div>
+    </div>
+    ${fromCfg ? '' : `<div class="ft-note" style="margin-top:var(--ql-space-3);line-height:1.65">
+      <b>To connect:</b> on <b>einvoice1.gst.gov.in</b> (or the sandbox <b>einv-apisandbox.nic.in</b> first) go to <b>API Registration → User Credentials</b>, create an API user (through your GSP if you use one), and download the portal's <b>public key</b>. Paste everything here. Use the sandbox until a test invoice comes back with an IRN, then switch to Production.
+    </div>
+    <div class="ft-row" style="margin-top:var(--ql-space-3);display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <label class="ft-label">Environment<select class="qlf-input" id="einvMode" style="width:100%;margin-top:4px"><option value="sandbox"${r.mode !== 'production' ? ' selected' : ''}>Sandbox (test)</option><option value="production"${r.mode === 'production' ? ' selected' : ''}>Production (real invoices)</option></select></label>
+      <label class="ft-label">Base URL<input class="qlf-input" id="einvBase" value="${esc(r.base || '')}" placeholder="https://einv-apisandbox.nic.in" autocomplete="off" style="width:100%;margin-top:4px"></label>
+      <label class="ft-label">Client ID<input class="qlf-input" id="einvCid" placeholder="${r.client_id ? 'Saved: ' + esc(r.client_id) + ' — leave blank to keep' : 'from the portal / GSP'}" autocomplete="off" style="width:100%;margin-top:4px"></label>
+      <label class="ft-label">Client secret<input class="qlf-input" id="einvCsec" type="password" placeholder="${r.has_secret ? 'Saved — leave blank to keep' : ''}" autocomplete="new-password" style="width:100%;margin-top:4px"></label>
+      <label class="ft-label">API username<input class="qlf-input" id="einvUser" value="${esc(r.user || '')}" placeholder="API_DESHWALI" autocomplete="off" style="width:100%;margin-top:4px"></label>
+      <label class="ft-label">API password<input class="qlf-input" id="einvPass" type="password" placeholder="${r.has_pass ? 'Saved — leave blank to keep' : ''}" autocomplete="new-password" style="width:100%;margin-top:4px"></label>
+      <label class="ft-label" style="grid-column:1/-1">Portal public key (PEM)<textarea class="qlf-input" id="einvPub" rows="3" placeholder="${r.has_pubkey ? 'Saved — leave blank to keep' : '-----BEGIN PUBLIC KEY----- …'}" style="width:100%;margin-top:4px;font-family:var(--ql-font-mono);font-size:11px"></textarea></label>
+      <div style="grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="ql-btn ql-btn-primary" id="einvSave">Save</button>${on ? '<button class="ql-btn ql-btn-secondary" id="einvTest">Test connection</button><button class="ql-btn ql-btn-secondary" id="einvClear">Disconnect</button>' : ''}<span class="ft-desc" id="einvOut"></span></div>
+    </div>`}`;
+  const save = $('#einvSave'); if (save) save.addEventListener('click', async () => {
+    const body = { action: 'config', mode: $('#einvMode').value, base: $('#einvBase').value.trim() };
+    [['client_id', '#einvCid'], ['client_secret', '#einvCsec'], ['user', '#einvUser'], ['pass', '#einvPass'], ['pubkey', '#einvPub']].forEach(([k, sel]) => { const v = $(sel).value.trim(); if (v) body[k] = v; });   // a blank box keeps the saved value
+    const x = await einvApi(body);
+    if (!x.ok) { QLShell.toast(x.error || 'Could not save', 'err'); return; }
+    QLShell.toast(x.configured ? 'e-Invoice connection saved' : 'Saved — some credentials are still missing', x.configured ? 'ok' : 'err'); renderEinv();
+  });
+  const test = $('#einvTest'); if (test) test.addEventListener('click', async () => {
+    const out = $('#einvOut'); out.textContent = 'Signing in to the portal…';
+    const x = await einvApi({ action: 'status', test: true });
+    out.textContent = x.test && x.test.ok ? '✓ Signed in — session until ' + (x.test.expiry || '') : '✗ ' + ((x.test && x.test.error) || x.error || 'Failed');
+  });
+  const clr = $('#einvClear'); if (clr) clr.addEventListener('click', () => QLShell.confirmDelete({ title: 'Disconnect the e-invoice portal?', desc: 'The saved credentials are removed from the server. Invoices already registered keep their IRN and QR.', confirmLabel: 'Disconnect', onConfirm: async () => { const x = await einvApi({ action: 'config', clear: true }); QLShell.toast(x.ok ? 'e-Invoice disconnected' : (x.error || 'Could not disconnect'), x.ok ? 'ok' : 'err'); renderEinv(); } }));
+}
+$('#einvRecheck').addEventListener('click', () => renderEinv());
+renderEinv();
 
 /* Replace-a-month is owner-only, and the check FAILS CLOSED: _isOwner()
    treats a missing role as 'owner', which is a fine default for reading a

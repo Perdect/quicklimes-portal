@@ -75,8 +75,8 @@ ok('amount in words as "Indian Rupees … Only"', h.includes('<b>Indian Rupees E
 /* e-invoice + export */
 ok('no IRN / Ack / QR / e-invoice status without an IRN', !/IRN|Ack No|E-Invoice Status|qrserver|e-Invoice QR/.test(h));
 const he = R({ irn: 'abc123', ackNo: '1726', ackDt: '02-09-2026', qrData: 'signed' });
-ok('with a real IRN: status, IRN, Ack, QR area', he.includes('IRN generated') && he.includes('<b>abc123</b>') && he.includes('e-Invoice QR'));
-ok('the IRN, Ack No. and Ack Date print exactly ONCE (header carries only the status)', he.split('abc123').length - 1 === 1 && he.split('<span style="min-width:100px">Ack No.</span>').length - 1 === 1 && !/<span>IRN<\/span>/.test(he));
+ok('with a real IRN: status, IRN, Ack, QR area', he.includes('IRN generated') && he.includes('<b>abc123</b>') && he.includes('class="einv ein"'));
+ok('the IRN, Ack No. and Ack Date print exactly ONCE (header carries only the status)', he.split('abc123').length - 1 === 1 && he.split('<span>Ack No.</span>').length - 1 === 1 && he.split('<span>IRN</span>').length - 1 === 1);
 (function () {
   const CH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   if (!fs.existsSync(CH)) { ok('SKIPPED (no Chrome here): one-line e-invoice prints on one page', true); return; }

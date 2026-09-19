@@ -60,8 +60,8 @@
     "sha": "79c8b3e077f0"
   },
   "data.js": {
-    "v": "m52caaaaaaaaaaaaaaaaaaaa13",
-    "sha": "aa40132363a2"
+    "v": "m52caaaaaaaaaaaaaaaaaaaa14",
+    "sha": "ba0e4c8c0cdc"
   },
   "party-link.js": {
     "v": "pl1p",
@@ -75,9 +75,17 @@
     "v": "w4",
     "sha": "c0245259e46f"
   },
+  "qrcode-generator.js": {
+    "v": "q2",
+    "sha": "18ae399f8118"
+  },
+  "qr-core.js": {
+    "v": "q2",
+    "sha": "2943c5e5ca72"
+  },
   "invoice-templates.js": {
-    "v": "t43",
-    "sha": "81cc8be758d3"
+    "v": "t45",
+    "sha": "f955e5f6ecf0"
   },
   "shell.js": {
     "v": "m68saaaaaaaaaaaaaaaaaaaa3",
@@ -252,8 +260,8 @@
     "sha": "3f43f33c9bb3"
   },
   "invoice.js": {
-    "v": "tpl10",
-    "sha": "b9f739c48d4d"
+    "v": "tpl11",
+    "sha": "e7c1ff5ff1c7"
   },
   "labour.js": {
     "v": "m2",
@@ -343,9 +351,13 @@
     "v": "r2",
     "sha": "dcda51cabb2f"
   },
+  "einvoice-ui.js": {
+    "v": "e3",
+    "sha": "d62234e6392a"
+  },
   "sales.js": {
-    "v": "m321pcdaaaaa",
-    "sha": "e91d890c04f1"
+    "v": "m321pcdaaaaaaa",
+    "sha": "02a244fe6b18"
   },
   "selfcheck.js": {
     "v": "s4",

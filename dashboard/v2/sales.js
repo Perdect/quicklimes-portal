@@ -378,12 +378,77 @@ QLX.mount({
     tabs: [
       { label: 'Overview', icon: IC.file, render: tabOverview },
       { label: 'Invoice', icon: IC.doc2, render: r => `<div class="qx-inv-bar"><button class="qx-btn qx-btn-sm" onclick="printInvByIdx(${r.idx})">${svg(IC.print)} Print</button> <button class="qx-btn qx-btn-sm" onclick="QLShell.printQA(${r.idx})">${svg(IC.doc2)} Quality report</button></div><iframe class="qx-inv-frame" srcdoc="${esc((function(){try{return QLShell.getInvoiceHTML(r.idx)}catch(_){return salesBillHTML(r)}})())}" title="invoice"></iframe>` },
+      { label: 'E-Invoice', icon: IC.doc2, count: (r.irn || (Q.state.SALES[r.idx] || {}).irn) ? '✓' : null, render: tabEInvoice, onMount: wireEInvoice },
       { label: 'Documents', icon: IC.dl, count: (r.attach || []).length || null, render: tabDocs, onMount: wireDocs },
       { label: 'Payments', icon: IC.clock, render: tabPayments, onMount: wirePayments },
       { label: 'Profit', icon: IC.trend || IC.clock, render: tabProfit }
     ]
   })
 });
+
+/* ── E-Invoice tab: the portal's registration for this invoice (QLEInvoice) ──
+   The server row (einvoice.php) is the source of truth; after a successful
+   registration its facts are copied onto the sale so every print carries the
+   official signed QR. Nothing here manufactures an IRN or a QR. */
+function einvApi(body) {
+  let p = {}; try { p = JSON.parse(localStorage.getItem('ql_plant') || 'null') || {}; } catch (_) {}
+  const sellerProfile = (co => co ? { name: co.name, short: co.short, gstin: co.gstin, address: co.address, city: co.city, state: co.state, pin: co.pin, phone: co.phone, email: co.email, roundOff: co.roundOff } : null)(Q.co);
+  return fetch('/api/einvoice.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ plant_id: p.id, token: p.token, co: (Q.co && Q.co.key) || p.id, seller: sellerProfile }, body)) })
+    .then(r => r.json()).catch(() => ({ ok: false, error: 'Network error' }));
+}
+function einvCanManage() { let role = ''; try { role = (JSON.parse(localStorage.getItem('ql_plant') || 'null') || {}).role || ''; } catch (_) {} return !role || ['owner', 'admin', 'partner'].includes(role); }
+function einvSync(idx, doc) {   // the sale record mirrors the portal's answer, so prints never need the network
+  const f = window.QLEInvoice.saleFacts(doc); if (!f) return;
+  const s = Q.state.SALES[idx] || {};
+  if (s.irn === f.irn && s.signedQr === f.signedQr && s.einvStatus === f.einvStatus && s.ewbNo === f.ewbNo) return;
+  Q.updateSale(idx, f);
+}
+function tabEInvoice(r) {
+  if (!window.QLEInvoice) return '<div class="qx-empty-tab">e-Invoice module not loaded.</div>';
+  const sale = Q.state.SALES[r.idx] || {};
+  return '<style>' + window.QLEInvoice.CSS + '</style><div id="einvMount" data-idx="' + r.idx + '">' + window.QLEInvoice.view({ sale, doc: null, prep: null, canManage: einvCanManage(), qrSvg: p => window.QLQR ? window.QLQR.svg(p, 176, { label: 'GST e-Invoice QR' }) : '' }) + '<div class="einv-note" style="margin-top:8px">Checking the portal record…</div></div>';
+}
+function wireEInvoice(body, r) {
+  const mount = body.querySelector('#einvMount'); if (!mount) return;
+  const sale = () => Q.state.SALES[r.idx] || {};
+  const render = (doc, prep) => {
+    mount.innerHTML = window.QLEInvoice.view({ sale: sale(), doc, prep, canManage: einvCanManage(), qrSvg: p => window.QLQR ? window.QLQR.svg(p, 176, { label: 'GST e-Invoice QR' }) : '' });
+    mount.querySelectorAll('[data-einv]').forEach(b => b.addEventListener('click', () => act(b.dataset.einv, doc)));
+  };
+  const load = async () => {
+    const g = await einvApi({ action: 'get', inv: sale().inv });
+    if (g.ok && g.doc) einvSync(r.idx, g.doc);
+    if (!g.ok) { render(null, null); const n = document.createElement('div'); n.className = 'einv-err'; n.textContent = g.error || 'Could not reach the server'; mount.appendChild(n); return; }
+    if (g.doc && (g.doc.status === 'generated' || g.doc.status === 'cancelled' || g.doc.status === 'generating')) { render(g.doc, null); return; }
+    if (!einvCanManage()) { render(g.doc, null); return; }
+    const p = await einvApi({ action: 'prepare', inv: sale().inv });   // validation only — no network to the portal
+    render(g.doc, p.ok === undefined ? null : p);
+  };
+  const act = async (what, doc) => {
+    const inv = sale().inv;
+    if (what === 'json') { const j = await einvApi({ action: 'json', inv }); if (!j.ok) { toast(j.error || 'No signed JSON', 'err'); return; } const blob = new Blob([JSON.stringify({ irn: j.irn, signed_invoice: j.signed_invoice, signed_qr: j.signed_qr, decoded: j.decoded, portal_response: j.response }, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'einvoice-' + String(inv).replace(/[^\w.-]+/g, '_') + '.json'; a.click(); return; }
+    if (what === 'pdf') { QLShell.printInvoice(r.idx); return; }
+    if (what === 'qr') { const s = sale(); const svg = window.QLQR ? window.QLQR.svg(s.signedQr || (doc && doc.signedQr) || '', 520, { label: 'GST e-Invoice QR' }) : ''; const w = window.open('', '_blank'); if (w && svg) { w.document.write('<!doctype html><title>e-Invoice QR ' + (s.inv || '') + '</title><body style="margin:0;display:grid;place-items:center;min-height:100vh;font-family:sans-serif;text-align:center">' + '<div>' + svg + '<p>Invoice ' + window.QLEInvoice.esc(s.inv || '') + ' · IRN ' + window.QLEInvoice.esc(s.irn || '') + '<br><small>Official GST e-Invoice QR — scan with the GST e-invoice verifier</small></p></div></body>'); w.document.close(); } return; }
+    if (what === 'refresh') { mount.querySelectorAll('button').forEach(b => b.disabled = true); const v = await einvApi({ action: 'verify', inv }); if (v.doc) einvSync(r.idx, v.doc); toast(v.ok ? (v.registered ? 'Portal record refreshed' : (v.error || 'Not registered')) : (v.error || 'Could not verify'), v.ok && v.registered ? 'ok' : 'err'); load(); return; }
+    if (what === 'verify') { mount.querySelectorAll('button').forEach(b => b.disabled = true); const v = await einvApi({ action: 'verify', inv }); if (v.doc) einvSync(r.idx, v.doc); toast(v.ok ? (v.registered ? 'The portal already holds this invoice — registration recovered' : 'The portal has no registration for ' + inv) : (v.error || 'Could not verify'), v.ok && v.registered ? 'ok' : 'err'); load(); return; }
+    if (what === 'generate' || what === 'retry') {
+      mount.querySelectorAll('button').forEach(b => b.disabled = true);   // no double click
+      render(Object.assign({}, doc || {}, { status: 'generating', irn: (doc && doc.irn) || '' }), null);
+      const g = await einvApi({ action: 'generate', inv, retry: what === 'retry' });
+      if (g.doc) einvSync(r.idx, g.doc);
+      toast(g.ok ? (g.recovered ? 'Registration recovered from the portal' : (g.already ? 'Already registered' : 'e-Invoice generated ✓')) : (g.error || 'Generation failed'), g.ok ? 'ok' : 'err');
+      load(); return;
+    }
+    if (what === 'cancel') {
+      QLShell.confirmDelete({ title: 'Cancel this e-Invoice on the portal?', desc: 'The portal allows cancellation within 24 hours of generation. The IRN becomes invalid and the invoice prints without the QR.', confirmLabel: 'Cancel e-Invoice', onConfirm: async () => {
+        const c = await einvApi({ action: 'cancel', inv, reason: '2', remarks: 'Cancelled from QuickLimes' });
+        if (c.ok) Q.updateSale(r.idx, { einvStatus: 'cancelled', signedQr: '', irn: '', ackNo: '', ackDt: '' });
+        toast(c.ok ? 'e-Invoice cancelled' : (c.error || 'Could not cancel'), c.ok ? 'ok' : 'err'); load();
+      } });
+    }
+  };
+  load();
+}
 
 /* Invoice profitability (costing engine §10): sale value − its tonnes at the
    month's manufacturing cost/T − attributed selling cost. Every figure names

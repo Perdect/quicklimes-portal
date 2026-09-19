@@ -76,7 +76,7 @@ ok('multi-line: both items, the Kg line priced through units-core (40,545.00), t
 ok('multi-line: no quantity row in the totals block; the marked total rides under the words line, per unit', !/<td class="l">Total quantity/.test(ml) && /Total quantity:\s+20 MT \+ 7,650 Kg/.test(ml));
 ok('no IRN / QR without an IRN', !/IRN|Ack No|e-Invoice QR/.test(t));
 const ei = R({ irn: 'abc123def', ackNo: '172621081606743', ackDt: '2026-09-18', qrData: 'signed' });
-ok('with a real IRN: IRN, Ack No., Ack Date (dd-mm-yyyy) and the QR', /abc123def/.test(ei) && /172621081606743/.test(ei) && /18-09-2026/.test(ei) && /e-Invoice QR/.test(ei));
+ok('with a real IRN: IRN, Ack No., Ack Date (dd-mm-yyyy) and the QR', /abc123def/.test(ei) && /172621081606743/.test(ei) && /18-09-2026/.test(ei) && /class="einv ein"/.test(ei));
 ok('no export block on a domestic invoice', !/Export Details/.test(t));
 const xp = R({ type: 'export', export: { country: 'Nepal', incoterms: 'EXW', currency: 'INR' }, buyer: { name: 'NEW NEPAL ELECTRICALS', address: 'Surkhet, Nepal', gstin: '', state: '' }, igst: 0, gstR: 0 }).replace(/<[^>]+>/g, ' ');
 ok('export: EXPORT TAX INVOICE, zero-rated IGST line, Export Details with only the given facts, place of supply Nepal', /EXPORT TAX INVOICE/.test(xp) && /zero-rated export under LUT/.test(xp) && /Export Details/.test(xp) && /Nepal/.test(xp) && /EXW/.test(xp) && !/Shipping Bill/.test(xp) && !/Rajasthan \(08\)[\s\S]*Place of supply/.test(xp.slice(xp.indexOf('Place of supply'))));

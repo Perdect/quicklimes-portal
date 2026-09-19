@@ -144,7 +144,9 @@ function save(andPrint) {
   if (!d.buyer.name) { toast('Enter the customer name', 'err'); document.getElementById('i_bname').focus(); return; }
   if (!d.qty || !d.rate) { toast('Enter quantity and rate', 'err'); return; }
   if (!d.lineOk) { toast(d.lineWhy, 'err'); document.getElementById('i_rateUnit').focus(); return; }
-  Q.addSale({ inv: d.inv, date: d.date, party: d.buyer.name, gstin: d.buyer.gstin, addr: d.buyer.address, state: d.buyer.state, product: d.product, qty: d.qty, rate: d.rate, rateUnit: d.rateUnit, gstR: d.gstR, veh: d.veh, eway: d.eway, unit: d.unit, hsn: d.hsn, transport: d.transport, station: d.station, grrr: d.grrr, po: d.po, poDate: d.poDate, status: 'pending' });
+  const r = Q.addSale({ inv: d.inv, date: d.date, party: d.buyer.name, gstin: d.buyer.gstin, addr: d.buyer.address, state: d.buyer.state, product: d.product, qty: d.qty, rate: d.rate, rateUnit: d.rateUnit, gstR: d.gstR, veh: d.veh, eway: d.eway, unit: d.unit, hsn: d.hsn, transport: d.transport, station: d.station, grrr: d.grrr, po: d.po, poDate: d.poDate, status: 'pending' });
+  /* addSale refuses a duplicate (same number + same party as a live row) and returns {ok:false, dup:true} — that used to be swallowed: the toast said saved, the page printed and left, and nothing was stored. */
+  if (!r || !r.ok) { toast(r && r.dup ? 'Invoice ' + (d.inv || '') + ' already exists for ' + d.buyer.name + ' — not saved' : 'Could not save the invoice', 'err'); return; }
   toast('Invoice ' + (d.inv || '') + ' saved ✓', 'ok');
   if (andPrint) { const w = window.open('', '_blank'); if (w) { w.document.write(QLShell.renderInvoice(Object.assign({}, d, { noBar: true })) + '<scr' + 'ipt>onload=function(){setTimeout(print,300)}</scr' + 'ipt>'); w.document.close(); } }
   setTimeout(() => location.href = 'sales.html', andPrint ? 400 : 700);

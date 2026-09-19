@@ -2812,7 +2812,8 @@
          none of them prints exactly as before. PO no./date fall back to what the
          analysis-report form captured for the same dispatch. */
       po: s.po || (s.qa && s.qa.po) || '', poDate: s.poDate || (s.qa && s.qa.poDate) || '', due: s.due || '',
-      irn: s.irn || '', ackNo: s.ackNo || '', ackDt: s.ackDt || '', qrData: s.qrData || '', qrImage: s.qrImage || '', ewayDate: s.ewayDate || '',
+      /* e-invoice facts as the portal returned them (einvoice.php → sales.js writes them on the sale): the signed QR is printed verbatim */
+      irn: s.irn || '', ackNo: s.ackNo || '', ackDt: s.ackDt || '', signedQr: s.signedQr || '', qrData: s.qrData || '', qrImage: s.qrImage || '', ewayDate: s.ewayDate || '', ewbNo: s.ewbNo || '', ewbDt: s.ewbDt || '', einvStatus: s.einvStatus || '',
       items: Array.isArray(s.items) ? s.items.map(it => Object.assign({}, it, { rateUnit: it.rateUnit || it.unit || '', taxable: (it.taxable != null && it.taxable !== '') ? +it.taxable || 0 : QLUnits.lineAmount(it).amount })) : null, charges: Array.isArray(s.charges) ? s.charges : null, shipTo: s.shipTo || null,
       type: s.type || '', export: s.export || null, spec: s.spec || null, qa: s.qa || null,
       grade: s.grade || '', packing: s.packing || '', bags: s.bags || '', cess: +s.cess || 0, otherTax: +s.otherTax || 0

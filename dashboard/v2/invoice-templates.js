@@ -210,7 +210,8 @@
      square that scans to nothing is worse than no QR. */
   function qrBlock(f) {
     if (!f.cfg.showQR || !f.cfg.qrData) return '';
-    return '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(f.cfg.qrData) + '" alt="Scan to pay" style="width:88px;height:88px"><div class="qrc">Scan to pay</div></div>';
+    var Q = QLQROpt(), svg = Q ? Q.svg(f.cfg.qrData, 88, { label: 'Scan to pay', cls: 'qrimg' }) : '';
+    return svg ? '<div class="qr">' + svg + '<div class="qrc">Scan to pay</div></div>' : '';
   }
 
   /* Shared print setup. Colour templates must ask the browser to KEEP their
@@ -309,6 +310,7 @@
       + '<tr><td>' + esc(f.hsn) + '</td><td>' + (+f.gstR) + '%</td><td>' + f.taxable + '</td>' + taxSumCells(f) + '<td>' + f.totalTax + '</td></tr></table></div>'
       + '<div class="wd bb">' + esc(f.words) + '</div>'
       + bank
+      + (eInvBlock(d, 'einv') ? '<div class="bb" style="padding:6px 8px">' + eInvBlock(d, 'einv') + '</div>' : '')
       + '<div class="ft"><div class="tc br"><u>Terms &amp; Conditions</u><div class="eoe">E.&amp; O.E.</div>'
       + (f.cfg.showDeclaration ? '<ol>' + f.terms.map(function (t, i) { return '<li>' + (i + 1) + '. ' + esc(t) + '</li>'; }).join('') + '</ol>' : '')
       + (f.cfg.footerNote ? '<div style="margin-top:6px;font-size:10px">' + esc(f.cfg.footerNote) + '</div>' : '') + '</div>'
@@ -316,7 +318,7 @@
       + (f.cfg.showSignature ? '<div class="for">for ' + esc(f.signatory) + '</div><div class="as">Authorised Signatory</div>' : '') + '</div></div></div>'
       + (f.unitAddr ? '<div class="ua"><b>REGD. ADDRESS</b> : ' + esc(String(s.address || '').replace(/\n/g, ', ')) + '<br><b>UNIT ADDRESS</b> : ' + esc(f.unitAddr) + '</div>' : '')
       + '</div>';
-    return doc(f, 'gst', css + '@page{margin:0}@media print{body{padding:10mm}}@media screen and (max-width:760px){.hd{padding:9px 84px 7px 104px}.lg img{height:52px!important}.cn{font-size:21px}.ad,.tg{font-size:10px}}', body);
+    return doc(f, 'gst', css + EINV_CSS + (eInvBlock(d, 'einv') ? '.it .sp td{height:20px!important}' : '') + '@page{margin:0}@media print{body{padding:10mm}}@media screen and (max-width:760px){.hd{padding:9px 84px 7px 104px}.lg img{height:52px!important}.cn{font-size:21px}.ad,.tg{font-size:10px}}', body);
   }
 
   /* ── shared design furniture ──
@@ -410,6 +412,7 @@
      the preview looks like the printed page, not a different layout. */
   /* units-core, when present (browser global / Node require) — only for the
      small "7,650 Kg = 7.65 Ton" note; the amounts themselves come from the data. */
+  function QLQROpt() { try { if (typeof QLQR !== 'undefined') return QLQR; if (typeof require === 'function') return require('./qr-core.js'); } catch (e) {} return null; }
   function QLUnitsOpt() { try { if (typeof QLUnits !== 'undefined') return QLUnits; if (typeof require === 'function') return require('./units-core.js'); } catch (e) {} return null; }
   /* 'Tonne' and 'Ton' are the same unit — compare canonical keys, never strings. */
   function unitsDiffer(u, ru) { if (!ru || !u) return false; var U = QLUnitsOpt(); var a = U ? (U.normalizeUnit(u) || String(u).trim().toLowerCase()) : String(u).trim().toLowerCase(), b = U ? (U.normalizeUnit(ru) || String(ru).trim().toLowerCase()) : String(ru).trim().toLowerCase(); return a !== b; }
@@ -425,14 +428,35 @@
         : '<tr><td>' + (i + 1) + '.</td><td><b>' + name + '</b></td><td>' + esc(it.hsn || f.hsn) + '</td><td class="r">' + qty + '</td><td class="r" style="white-space:nowrap">₹ ' + fmt(it.rate) + (ru ? '<span style="color:#6B7280">/' + esc(ru) + '</span>' : '') + '</td><td class="r">₹ ' + fmt(tx) + '</td></tr>';
     }).join('');
   }
-  /* IRN / Ack / QR — only for a sale that actually carries an IRN. */
+  /* ── The e-invoice block, shared by EVERY design ──────────────────────
+     IRN · Ack No · Ack Date · the OFFICIAL signed QR · "Scan to verify".
+     Printed only for a sale that carries an IRN. The QR is the IRP's
+     SignedQRCode (d.signedQr — a JWS the portal signed) encoded verbatim,
+     in-process, as vector (QLQR): never fetched from a third party, never
+     built locally from the IRN or invoice number, never modified. A sale
+     with an IRN but no signed QR prints the IRN lines and NO square — a
+     square that does not verify is worse than none. d.qrImage (an image the
+     caller already holds) is honoured; the legacy d.qrData is treated as a
+     signed payload only when it looks like a JWS. */
+  /* the portal's '2026-09-19 10:12:33' (or a bare ISO date) → 19-09-2026 10:12:33 */
+  function fAckDt(v) { var s = String(v || '').trim(); var m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}:\d{2}(?::\d{2})?))?/); return m ? m[3] + '-' + m[2] + '-' + m[1] + (m[4] ? ' ' + m[4] : '') : s; }
+  function eInvQrPayload(d) {
+    var s = String(d.signedQr || '').trim(); if (s) return s;
+    var q = String(d.qrData || '').trim(); return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(q) ? q : '';
+  }
+  function eInvQr(d, px) {
+    if (d.qrImage) return '<img class="qrimg" src="' + esc(d.qrImage) + '" alt="e-Invoice QR" style="width:' + (px || 150) + 'px;height:' + (px || 150) + 'px">';
+    var Q = QLQROpt(), p = eInvQrPayload(d);
+    return (Q && p) ? Q.svg(p, px || 150, { label: 'GST e-Invoice QR — scan to verify', cls: 'qrimg' }) : '';
+  }
   function eInvBlock(d, cls) {
     if (!String(d.irn || '').trim()) return '';
     var row = function (k, v) { return v ? '<div class="ekv"><span>' + k + '</span><b>' + esc(v) + '</b></div>' : ''; };
-    var qr = d.qrImage ? '<img src="' + esc(d.qrImage) + '" alt="e-Invoice QR">' : (d.qrData ? '<img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(d.qrData) + '" alt="e-Invoice QR">' : '');
-    return '<div class="' + cls + '"><div>' + row('IRN', d.irn) + row('Ack No.', d.ackNo) + row('Ack Date', fdate(d.ackDt)) + '</div>' + qr + '</div>';
+    var qr = eInvQr(d, 150);
+    return '<div class="' + (cls || 'einv') + '"><div class="eid">' + row('IRN', d.irn) + row('Ack No.', d.ackNo) + row('Ack Date', fAckDt(d.ackDt)) + (d.ewbNo ? row('E-Way Bill', d.ewbNo + (d.ewbDt ? ' · ' + d.ewbDt : '')) : '') + '</div>'
+      + (qr ? '<div class="eqr">' + qr + '<div class="qrc">Scan to verify e-Invoice</div></div>' : '') + '</div>';
   }
-  var EINV_CSS = '.einv{display:flex;gap:14px;align-items:flex-start;border:1px solid #D1D5DB;padding:8px 12px;font-size:9.5px;word-break:break-all}.einv img{width:84px;height:84px;flex:none}.ekv{display:flex;gap:8px}.ekv span{color:#6B7280;min-width:56px;flex:none}.ekv b{font-weight:600;color:#111827}';
+  var EINV_CSS = '.einv{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;border:1px solid #D1D5DB;padding:8px 12px;font-size:9.5px;word-break:break-all;break-inside:avoid}.einv .eid{flex:1;min-width:0}.einv .eqr{flex:none;text-align:center}.einv .qrimg{display:block;width:150px;height:150px}.einv .qrc{font-size:8px;color:#6B7280;margin-top:2px}.ekv{display:flex;gap:8px}.ekv span{color:#6B7280;min-width:56px;flex:none}.ekv b{font-weight:600;color:#111827}';
   function contactLine(f, s) {
     var tel = f.tel, mail = s.email || '';
     if (!tel && !mail) return '';
@@ -575,10 +599,7 @@
       return '<div class="pc' + (cls ? ' ' + cls : '') + '"><div class="ph">' + title + '</div>'
         + kv('Name', b.name) + kv('Address', b.address || '') + kv('State', f.bState) + kv('PAN No', pan(b.gstin)) + kv('GSTIN', b.gstin || '') + '</div>';
     };
-    var eInv = (d.irn || d.ackNo || d.ackDt)
-      ? '<div class="irn bb"><b>IRN:</b> ' + esc(d.irn || '') + '<br><b>Ack No:</b> ' + esc(d.ackNo || '') + ' &nbsp; <b>Ack Dt:</b> ' + esc(d.ackDt || '')
-        + (d.qrData ? '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(d.qrData) + '" alt="e-invoice QR" style="width:88px;height:88px"><div class="qrc">e-Invoice QR</div></div>' : '') + '</div>'
-      : '';
+    var eInv = eInvBlock(d, 'einv bb');   // IRN gate + the official signed QR, shared
     var roundOff = Math.round(((+d.grand || 0) - (+d.total || 0)) * 100) / 100;
     var taxStack = '<table class="tx">'
       + '<tr><td>Total Taxable Value</td><td>' + f.taxable + '</td></tr>'
@@ -613,7 +634,7 @@
       + '<div class="sg">' + (f.cfg.showSignature ? '<div class="for">For: ' + esc(f.signatory) + '</div>' + qrBlock(f) + '<div class="as">Authorised Signatory</div>' : qrBlock(f)) + '</div></div>'
       + '<div class="ra"><b>REGD. ADDRESS</b>: ' + esc(String(s.address || '').replace(/\n/g, ', ')) + (s.unitAddress ? '<br><b>UNIT ADDRESS</b>: ' + esc(s.unitAddress) : '') + '</div>'
       + '</div>';
-    return doc(f, 'detailed', css, body);
+    return doc(f, 'detailed', css + EINV_CSS, body);
   }
 
   /* ══════════ qaReport — the certificate of analysis for one dispatch ══════════
@@ -766,8 +787,7 @@
       + (cess ? trow('Cess', fmt(cess)) : '') + (otherTax ? trow('Other Tax', fmt(otherTax)) : '') + (roundOff ? trow('Round Off', (roundOff > 0 ? '+' : '') + fmt(roundOff)) : '')
       + '<tr class="tot"><td><small>Total Invoice Value</small></td><td class="r">₹ ' + f.grand + '</td></tr>' + trow('Total Quantity', qtyTotalEl(f)) + '</table>'
       + '<div class="words"><span>Amount in words</span><b>' + esc(words) + '</b></div>';
-    var eblock = eInv ? '<div class="ein"><div>' + kv('IRN', d.irn, 100) + kv('Ack No.', d.ackNo, 100) + kv('Ack Date', fdate(d.ackDt), 100) + '</div>'
-      + (P(d.qrImage) ? '<img src="' + esc(P(d.qrImage)) + '" alt="e-Invoice QR">' : (P(d.qrData) ? '<img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(P(d.qrData)) + '" alt="e-Invoice QR">' : '')) + '</div>' : '';
+    var eblock = eInvBlock(d, 'einv ein');
     /* Only the export facts that exist; nothing defaulted (no invented
        "Country of Origin: India"). No facts at all → no block: the title and the
        zero-rated IGST line already say what this is. */
@@ -792,7 +812,7 @@
       + '<div>' + tax + '<div class="auth"><div class="for">FOR ' + esc(String(s.name || '').toUpperCase()) + '</div>' + qrBlock(f) + '<div class="sg">Digital Signature / Signature<b>Authorized Signatory</b></div></div></div></div>' + eblock + xblock
       + '<div class="ft"><div>' + [s.address ? 'Registered Address: ' + esc(String(s.address).replace(/\n/g, ', ')) : '', f.tel ? 'Phone: ' + esc(f.tel) : '', s.gstin ? 'GSTIN: ' + esc(s.gstin) : ''].filter(Boolean).join(' &nbsp;·&nbsp; ') + '</div><div>This is a computer-generated invoice.</div></div>'
       + '</div>';
-    return doc(f, 'industrial', css, body);
+    return doc(f, 'industrial', css + EINV_CSS, body);
   }
 
   /* ══════════ premium — "Deshwali Premium Invoice" ══════════
@@ -971,8 +991,7 @@
     var decl = '<div class="pbox"><b class="h">Declaration</b>' + PREMIUM_DECL + (f.rcm === 'Yes' ? '<br>Tax is payable on reverse charge.' : '') + '</div>';
     var sealLine = P(s.sealText) || [s.city, sSt.name].filter(Boolean).join(', ');
     var seal = stampSeal(s.name, sealLine);
-    var eblock = eInv ? '<div class="ein"><div>' + [['IRN', d.irn], ['Ack No.', d.ackNo], ['Ack Date', fdate(d.ackDt)]].map(function (x) { return P(x[1]) ? '<div><span style="color:#6b7280;display:inline-block;min-width:64px">' + x[0] + '</span><b>' + esc(P(x[1])) + '</b></div>' : ''; }).join('') + '</div>'
-      + (P(d.qrImage) ? '<img src="' + esc(P(d.qrImage)) + '" alt="e-Invoice QR">' : (P(d.qrData) ? '<img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(P(d.qrData)) + '" alt="e-Invoice QR">' : '')) + '</div>' : '';
+    var eblock = eInvBlock(d, 'einv ein');
     var xkv = function (k, v) { return P(v) ? '<div><span style="color:#6b7280;display:inline-block;min-width:150px">' + k + '</span><b>' + esc(P(v)) + '</b></div>' : ''; };
     var xrows = isExport ? xkv('IEC', f.iec) + xkv('LUT No.', ex.lut || f.lut) + xkv('Shipping Bill No.', ex.shippingBill) + xkv('Port of Loading', ex.portLoading) + xkv('Port of Discharge', ex.portDischarge) + xkv('Country of Destination', ex.country) + xkv('Country of Origin', ex.origin) + xkv('Currency', ex.currency) + xkv('Exchange Rate', ex.fx) + xkv('Incoterms', ex.incoterms) + xkv('Container No.', ex.container) + (P(ex.declaration) ? '<div class="decl">' + esc(P(ex.declaration)) + '</div>' : '') : '';
     var xblock = xrows ? '<div class="ex"><h3 style="margin-top:0">Export Details</h3>' + xrows + '</div>' : '';
@@ -991,7 +1010,7 @@
       + (f.cfg.showSignature ? '<div class="sig"><div class="for">For ' + esc(String(f.signatory || s.name || '').toUpperCase()) + '</div>' + seal + '<div class="cap">Authorised Signatory &amp; Seal</div></div>' : '') + '</div></div>'
       + '<div class="ft">Invoice ' + esc(f.inv) + (f.date ? ' · ' + esc(f.date) : '') + ' · This is a tax invoice under the CGST Rules, 2017.</div>'
       + '</div>';
-    return doc(f, 'premium', css, body);
+    return doc(f, 'premium', css + EINV_CSS + '.einv.ein{margin-top:8px}', body);
   }
 
   /* ══════════ blueink — "Deshwali Classic GST Invoice" (id blueink: 'classic' is a retired id) ══════════
@@ -1063,10 +1082,7 @@
         + kv('Name', p.name || '') + kv('Address', String(p.address || '').replace(/\n/g, ', ')) + kv('State', p.state || '') + kv('PAN No', pan(p.gstin)) + kv('GSTIN', p.gstin || '') + '</div></div>';
     };
     var consignee = (d.consignee && P(d.consignee.name)) ? d.consignee : { name: b.name, address: b.address, state: f.bState, gstin: b.gstin };
-    var eInv = (d.irn || d.ackNo || d.ackDt)
-      ? '<div class="irn"><div class="id"><b>IRN</b> ' + esc(d.irn || '') + '<br><b>Ack No</b> ' + esc(d.ackNo || '') + ' &nbsp; <b>Ack Dt</b> ' + esc(d.ackDt || '') + '</div>'
-        + (d.qrData ? '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(d.qrData) + '" alt="e-invoice QR" style="width:84px;height:84px"><div class="qrc">e-Invoice QR</div></div>' : '') + '</div>'
-      : '';
+    var eInv = eInvBlock(d, 'einv irn');
     var packing = +d.packingCharge || 0;
     var roundOff = Math.round(((+d.grand || 0) - (+d.total || 0)) * 100) / 100, tcs = +d.tcs || 0;
     var rows = items.map(function (it, i) {
@@ -1115,7 +1131,7 @@
       + '<div class="sg">' + (f.cfg.showSignature ? '<div class="for">For ' + esc(String(f.signatory || s.name || '').toUpperCase()) + '</div>' + seal + (P(s.ownerName) ? '<div class="nm">' + esc(String(s.ownerName).toUpperCase()) + '</div>' : '') + '<div class="as">Authorised Signatory &amp; Seal</div>' : qrBlock(f)) + '</div></div>'
       + '<div class="ra"><b>Regd. Address</b>' + esc(String(s.address || '').replace(/\n/g, ', ')) + (s.unitAddress ? ' &nbsp;·&nbsp; <b>Unit</b>' + esc(s.unitAddress) : '') + '</div>'
       + '</div>';
-    return doc(f, 'blueink', css, body);
+    return doc(f, 'blueink', css + EINV_CSS + '.einv.irn{border:0;border-bottom:1px solid ' + RULE + ';padding:6px 10px}', body);
   }
   /* +91 on each phone, as the sample prints them */
   function intlTel(tel) { return String(tel || '').split(/[,/]/).map(function (x) { x = x.replace(/\D/g, ''); return x.length === 10 ? '+91 ' + x : x; }).filter(Boolean).map(esc).join(', '); }
