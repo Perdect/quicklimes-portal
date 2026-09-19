@@ -1138,8 +1138,15 @@
      the two-column terms, Bank Details + To confirm this order, the closing
      lines against the seal. Numbers come from CustomerCore.quoteTotals when
      it is loaded — the same figures the register and the WhatsApp text use. */
+  var GST_STATE_NAMES = { '01': 'Jammu & Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh', '05': 'Uttarakhand', '06': 'Haryana', '07': 'Delhi', '08': 'Rajasthan', '09': 'Uttar Pradesh', '10': 'Bihar', '11': 'Sikkim', '12': 'Arunachal Pradesh', '13': 'Nagaland', '14': 'Manipur', '15': 'Mizoram', '16': 'Tripura', '17': 'Meghalaya', '18': 'Assam', '19': 'West Bengal', '20': 'Jharkhand', '21': 'Odisha', '22': 'Chhattisgarh', '23': 'Madhya Pradesh', '24': 'Gujarat', '26': 'Dadra & Nagar Haveli and Daman & Diu', '27': 'Maharashtra', '29': 'Karnataka', '30': 'Goa', '31': 'Lakshadweep', '32': 'Kerala', '33': 'Tamil Nadu', '34': 'Puducherry', '35': 'Andaman & Nicobar Islands', '36': 'Telangana', '37': 'Andhra Pradesh', '38': 'Ladakh', '97': 'Other Territory' };
   function quotationHTML(q, cust, co, opts) {
     q = q || {}; cust = cust || {}; co = co || {}; opts = opts || {};
+    /* the buyer's GSTIN is the fact: a stored state that names another code (the
+       form's old pre-fill) yields to it, and the GSTIN prints in its registered
+       form — the same rule the invoices apply */
+    var bg = String(cust.gstin || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    cust = Object.assign({}, cust, { gstin: bg });
+    if (bg.length === 15 && GST_STATE_NAMES[bg.slice(0, 2)] && String(cust.state || '').indexOf('(' + bg.slice(0, 2) + ')') < 0) cust.state = GST_STATE_NAMES[bg.slice(0, 2)] + ' (' + bg.slice(0, 2) + ')';
     var P = function (v) { return v == null ? '' : String(v).trim(); };
     var U = QLUnitsOpt(), C = (typeof CustomerCore !== 'undefined') ? CustomerCore : (typeof require === 'function' ? (function () { try { return require('./customer-core.js'); } catch (e) { return null; } })() : null);
     var t = C ? C.quoteTotals(q) : null;
