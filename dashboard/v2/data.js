@@ -169,7 +169,7 @@
       logoMark: 'gem',   // the Premium design draws the diamond's facets over the white logo (used only when there is no lockup)
       /* The letterhead lockup — diamond + wordmark as one white vector (the owner's
          'Group 4.svg', 18-09-2026). The Premium band prints this instead of logo + name. */
-      lockup: '/v2/deshwali-lockup.svg?v=1',
+      lockup: '/v2/deshwali-lockup.svg?v=1', lockupDark: '/v2/deshwali-lockup-dark.svg?v=1',
       /* Header line for the Professional Industrial design (owner's brief, 13-09-2026). */
       tagline: 'Manufacturer & Supplier of Quick Lime, Hydrated Lime, Lime Stone & Industrial Minerals'
     },
@@ -206,7 +206,7 @@
       bank2: seller.bank2 || '', bankBranch2: seller.bankBranch2 || '', accNo2: seller.accNo2 || '', ifsc2: seller.ifsc2 || '',
       product: seller.product || '', msme: seller.msme || '', msmeType: seller.msmeType || '', logo: seller.logo || '', jurisdiction: seller.jurisdiction || '',
       tel: seller.tel || '', terms: seller.terms || [], invoiceTemplate: seller.invoiceTemplate || '', roundOff: seller.roundOff !== false,
-      iec: seller.iec || '', lut: seller.lut || '', cin: seller.cin || '', upi: seller.upi || '', unitAddress: seller.unitAddress || '', tagline: seller.tagline || '', sealText: seller.sealText || '', website: seller.website || '', logoMark: seller.logoMark || '', lockup: seller.lockup || '', hsn: HSN,
+      iec: seller.iec || '', lut: seller.lut || '', cin: seller.cin || '', upi: seller.upi || '', unitAddress: seller.unitAddress || '', tagline: seller.tagline || '', sealText: seller.sealText || '', website: seller.website || '', logoMark: seller.logoMark || '', lockup: seller.lockup || '', lockupDark: seller.lockupDark || '', hsn: HSN,
       isPrimary: !p.parent_plant_id,
       dataKey: 'ql_data_' + p.id
     };

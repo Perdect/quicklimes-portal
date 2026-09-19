@@ -839,6 +839,42 @@
   function intlPhones(tel) { return String(tel || '').split(/[,/]/).map(function (p) { var s = p.trim(), d = s.replace(/\D/g, ''); if (d.length === 10) return '+91 ' + d.slice(0, 5) + ' ' + d.slice(5); if (d.length === 12 && d.slice(0, 2) === '91') return '+91 ' + d.slice(2, 7) + ' ' + d.slice(7); return s; }).filter(Boolean).join(', '); }
   function wordmark(name) { var w = String(name || '').trim().split(/\s+/); return w.length >= 2 ? esc(w[0]) + '<br>' + esc(w.slice(1).join(' ')) : esc(name || ''); }
   var PREMIUM_DECL = 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.';
+  /* The round seal shared by the Premium and Classic designs — the reference
+     stamp, measured (see the notes inside). stampSeal(name, line) → svg. */
+  function stampSeal(name, sealLine) {
+    /* The seal, measured on the owner's quotation PDF at 5000px (viewBox units,
+       outer edge = 50): a 1.75-wide outer ring at r 49.1 with a 0.8 ring at 46.6;
+       an inner pair at 33.7 (0.8) and 32.0 (0.6); the firm name on a 39.3 baseline
+       spanning 140° of arc in 7.8px bold, the stamp line hanging from a 45.0
+       baseline over up to 148° in 6.2px; 5-point stars 3.3 tall at r 41.4 on the
+       horizontal; dash-dot marks (8-long lines, r=1 dot) at y 29 and 69; ink
+       #0A1F5C (the ring core); 64px on the page (16.9mm on the reference). The
+       text is fitted to its arc: spacing opens up to the reference's span, a
+       long name is compressed rather than clipped. */
+    var SB = '#0A1F5C';
+    var TOP_R = 39.3, BOT_R = 45.0;
+    /* Centred by construction: the text starts at (half-circle − span)/2 along the
+       arc and is laid out over exactly that span, whatever font the viewer's
+       machine substitutes. text-anchor="middle" + textLength drifted the text
+       clockwise on the owner's Mac (Verdana is wider than DejaVu, and Chrome
+       centres the natural width, then stretches from there). */
+    var arcText = function (txt, fs, radius, degrees, maxGap) {
+      var half = Math.PI * radius, target = degrees / 360 * 2 * Math.PI * radius, est = txt.length * fs * 0.72;
+      var span = est > target ? target : Math.min(target, est + txt.length * maxGap);
+      return ' startOffset="' + ((half - span) / 2).toFixed(1) + '" textLength="' + span.toFixed(1) + '" lengthAdjust="spacingAndGlyphs"';
+    };
+    var star = function (cx, cy) { var p = []; for (var k = 0; k < 10; k++) { var a = (-90 + k * 36) * Math.PI / 180, r = k % 2 ? 1.35 : 3.3; p.push((cx + r * Math.cos(a)).toFixed(2) + ',' + (cy + r * Math.sin(a)).toFixed(2)); } return '<polygon points="' + p.join(' ') + '" fill="' + SB + '"/>'; };
+    var mark = function (y) { return '<line x1="38.7" y1="' + y + '" x2="46.8" y2="' + y + '"/><circle cx="50" cy="' + y + '" r="1" fill="' + SB + '" stroke="none"/><line x1="53.2" y1="' + y + '" x2="61.3" y2="' + y + '"/>'; };
+    var topTxt = String(name || '').toUpperCase(), botTxt = String(sealLine || '').toUpperCase();
+    var seal = '<svg class="seal" width="64" height="64" viewBox="0 0 100 100" aria-hidden="true"><defs><path id="sealTop" d="M' + +(50 - TOP_R).toFixed(1) + ',50 a' + TOP_R + ',' + TOP_R + ' 0 0,1 ' + +(2 * TOP_R).toFixed(1) + ',0"/><path id="sealBot" d="M' + +(50 - BOT_R).toFixed(1) + ',50 a' + BOT_R + ',' + BOT_R + ' 0 0,0 ' + +(2 * BOT_R).toFixed(1) + ',0"/></defs>'
+      + '<g fill="none" stroke="' + SB + '"><circle cx="50" cy="50" r="49.1" stroke-width="1.75"/><circle cx="50" cy="50" r="46.6" stroke-width=".8"/><circle cx="50" cy="50" r="33.7" stroke-width=".8"/><circle cx="50" cy="50" r="32" stroke-width=".6"/></g>'
+      + '<text font-size="7.8" font-weight="700" fill="' + SB + '"><textPath href="#sealTop"' + arcText(topTxt, 7.8, TOP_R, 140, 0.9) + '>' + esc(topTxt) + '</textPath></text>'
+      + (sealLine ? '<text font-size="6.2" font-weight="700" fill="' + SB + '"><textPath href="#sealBot"' + arcText(botTxt, 6.2, BOT_R, 148, 0.8) + '>' + esc(botTxt) + '</textPath></text>' : '')
+      + star(8.6, 50) + star(91.4, 50)
+      + '<g stroke="' + SB + '" stroke-width=".7">' + mark(29) + mark(69) + '</g></svg>';
+    return seal;
+  }
+
   function premium(d, cfg) {
     var f = facts(d, cfg), s = f.s, b = f.b;
     var P = function (v) { return v == null ? '' : String(v).trim(); };
@@ -934,36 +970,7 @@
     var bank = (s.bank || s.accNo || s.upi) ? '<div class="pbox"><b class="h">Bank Details — for payment</b>' + (s.name ? 'Account name: ' + esc(s.name) + '<br>' : '') + (s.bank ? esc(s.bank) + (s.bankBranch ? ', ' + esc(s.bankBranch) : '') + '<br>' : '') + (s.accNo ? 'A/C No.: ' + esc(s.accNo) : '') + (s.ifsc ? ' &nbsp;|&nbsp; IFSC: ' + esc(s.ifsc) : '') + (s.upi ? '<br>UPI: ' + esc(s.upi) : '') + '</div>' : '';
     var decl = '<div class="pbox"><b class="h">Declaration</b>' + PREMIUM_DECL + (f.rcm === 'Yes' ? '<br>Tax is payable on reverse charge.' : '') + '</div>';
     var sealLine = P(s.sealText) || [s.city, sSt.name].filter(Boolean).join(', ');
-    /* The seal, measured on the owner's quotation PDF at 5000px (viewBox units,
-       outer edge = 50): a 1.75-wide outer ring at r 49.1 with a 0.8 ring at 46.6;
-       an inner pair at 33.7 (0.8) and 32.0 (0.6); the firm name on a 39.3 baseline
-       spanning 140° of arc in 7.8px bold, the stamp line hanging from a 45.0
-       baseline over up to 148° in 6.2px; 5-point stars 3.3 tall at r 41.4 on the
-       horizontal; dash-dot marks (8-long lines, r=1 dot) at y 29 and 69; ink
-       #0A1F5C (the ring core); 64px on the page (16.9mm on the reference). The
-       text is fitted to its arc: spacing opens up to the reference's span, a
-       long name is compressed rather than clipped. */
-    var SB = '#0A1F5C';
-    var TOP_R = 39.3, BOT_R = 45.0;
-    /* Centred by construction: the text starts at (half-circle − span)/2 along the
-       arc and is laid out over exactly that span, whatever font the viewer's
-       machine substitutes. text-anchor="middle" + textLength drifted the text
-       clockwise on the owner's Mac (Verdana is wider than DejaVu, and Chrome
-       centres the natural width, then stretches from there). */
-    var arcText = function (txt, fs, radius, degrees, maxGap) {
-      var half = Math.PI * radius, target = degrees / 360 * 2 * Math.PI * radius, est = txt.length * fs * 0.72;
-      var span = est > target ? target : Math.min(target, est + txt.length * maxGap);
-      return ' startOffset="' + ((half - span) / 2).toFixed(1) + '" textLength="' + span.toFixed(1) + '" lengthAdjust="spacingAndGlyphs"';
-    };
-    var star = function (cx, cy) { var p = []; for (var k = 0; k < 10; k++) { var a = (-90 + k * 36) * Math.PI / 180, r = k % 2 ? 1.35 : 3.3; p.push((cx + r * Math.cos(a)).toFixed(2) + ',' + (cy + r * Math.sin(a)).toFixed(2)); } return '<polygon points="' + p.join(' ') + '" fill="' + SB + '"/>'; };
-    var mark = function (y) { return '<line x1="38.7" y1="' + y + '" x2="46.8" y2="' + y + '"/><circle cx="50" cy="' + y + '" r="1" fill="' + SB + '" stroke="none"/><line x1="53.2" y1="' + y + '" x2="61.3" y2="' + y + '"/>'; };
-    var topTxt = String(s.name || '').toUpperCase(), botTxt = String(sealLine || '').toUpperCase();
-    var seal = '<svg class="seal" width="64" height="64" viewBox="0 0 100 100" aria-hidden="true"><defs><path id="sealTop" d="M' + +(50 - TOP_R).toFixed(1) + ',50 a' + TOP_R + ',' + TOP_R + ' 0 0,1 ' + +(2 * TOP_R).toFixed(1) + ',0"/><path id="sealBot" d="M' + +(50 - BOT_R).toFixed(1) + ',50 a' + BOT_R + ',' + BOT_R + ' 0 0,0 ' + +(2 * BOT_R).toFixed(1) + ',0"/></defs>'
-      + '<g fill="none" stroke="' + SB + '"><circle cx="50" cy="50" r="49.1" stroke-width="1.75"/><circle cx="50" cy="50" r="46.6" stroke-width=".8"/><circle cx="50" cy="50" r="33.7" stroke-width=".8"/><circle cx="50" cy="50" r="32" stroke-width=".6"/></g>'
-      + '<text font-size="7.8" font-weight="700" fill="' + SB + '"><textPath href="#sealTop"' + arcText(topTxt, 7.8, TOP_R, 140, 0.9) + '>' + esc(topTxt) + '</textPath></text>'
-      + (sealLine ? '<text font-size="6.2" font-weight="700" fill="' + SB + '"><textPath href="#sealBot"' + arcText(botTxt, 6.2, BOT_R, 148, 0.8) + '>' + esc(botTxt) + '</textPath></text>' : '')
-      + star(8.6, 50) + star(91.4, 50)
-      + '<g stroke="' + SB + '" stroke-width=".7">' + mark(29) + mark(69) + '</g></svg>';
+    var seal = stampSeal(s.name, sealLine);
     var eblock = eInv ? '<div class="ein"><div>' + [['IRN', d.irn], ['Ack No.', d.ackNo], ['Ack Date', fdate(d.ackDt)]].map(function (x) { return P(x[1]) ? '<div><span style="color:#6b7280;display:inline-block;min-width:64px">' + x[0] + '</span><b>' + esc(P(x[1])) + '</b></div>' : ''; }).join('') + '</div>'
       + (P(d.qrImage) ? '<img src="' + esc(P(d.qrImage)) + '" alt="e-Invoice QR">' : (P(d.qrData) ? '<img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(P(d.qrData)) + '" alt="e-Invoice QR">' : '')) + '</div>' : '';
     var xkv = function (k, v) { return P(v) ? '<div><span style="color:#6b7280;display:inline-block;min-width:150px">' + k + '</span><b>' + esc(P(v)) + '</b></div>' : ''; };
@@ -989,131 +996,125 @@
 
   /* ══════════ blueink — "Deshwali Classic GST Invoice" (id blueink: 'classic' is a retired id) ══════════
      Commissioned 19-09-2026 from the Raj Chemicals & Minerals tax e-invoice the
-     owner photographed: a blue-ink billing-software format. Letterhead with
-     GSTIN / CIN / PAN top-left, logo + firm name + tagline centred, phones and
-     e-mails top-right; ORIGINAL COPY; the underlined title; a left box (MSME,
-     invoice no./date, e-way bill) and a right box (PO no./date, transport mode,
-     G.R. no./date, From / Place of Supply, vehicle); "Documents through";
-     Buyer (Billed to) and Consignee (Shipped to); the goods table with the logo
-     watermarked behind it — S.No · HSN · Description · No. of Bags · Qty · Rate
-     · Amount; Packing & Forwarding and Total Taxable Value; Remarks, LUT Bond
-     No., IRN / Ack / QR on the left against the tax stack on the right (CGST /
-     SGST / IGST / GST Tax Amount / Amount After Tax / TCS / Total Amount / GST
-     Reverse Charge); AMOUNT IN WORDS; Terms & Conditions against the signature
-     block; REGD. / UNIT ADDRESS footer.
+     owner photographed — its INFORMATION, in the firm's own modern language
+     (his words on the first cut: "no alignment or modern design … looks dummy").
+     So: the brand lockup (the navy Dark.svg — never a redrawn name), one grid
+     for every block (label column 110px, colon, value), the letterhead's
+     registration strip (GSTIN · PAN · IEC · MSME) against the contact line, a
+     navy goods table with the diamond watermarked behind it that stretches to
+     fill the page, the Raj boxes (invoice / e-way / PO left, transport / GR-RR
+     / from / station / place of supply / vehicle right), Billed to / Shipped
+     to, No. of Bags, Packing & Forwarding, Total Taxable Value, Remarks / LUT
+     / IRN + QR against the tax stack, AMOUNT IN WORDS, terms against the seal
+     and signatory, the registered address in the foot.
 
-     HIDE-EMPTY: MSME, CIN, PO, G.R. date, Documents through, No. of Bags,
-     Packing & Forwarding, TCS, LUT Bond No. (export only), IRN / QR and the
-     unit address print only when the firm or the sale carries them — the
-     owner gives those later; nothing is invented meanwhile. One A4 page: the
-     goods table stretches to fill it (flex), so the footer sits at the foot
-     of the page whatever the line count. */
+     HIDE-EMPTY: CIN, PO, GR-RR date, Documents through, No. of Bags, TCS,
+     Round Off, LUT (export), IRN / QR, the unit address and the MSME lines
+     print only when the firm or the sale carries them — nothing is invented. */
   function blueink(d, cfg) {
-    /* the sample's ink unless a colour was actually picked (the engine's default accent is a sentinel, not a choice) */
-    var f = facts(d, cfg), s = f.s, b = f.b, ink = (f.cfg.accent && f.cfg.accent !== DEFAULT_CFG.accent) ? f.cfg.accent : '#24479A';
+    var f = facts(d, cfg), s = f.s, b = f.b;
+    var NAVY = '#0E2A47', INK = '#013E5B', SKY = '#44BDEC', RULE = '#c9ced6', FILL = '#f1f3f6', GREY = '#6b7280';
+    var ink = (f.cfg.accent && f.cfg.accent !== DEFAULT_CFG.accent) ? f.cfg.accent : INK;
     var P = function (v) { return v == null ? '' : String(v).trim(); };
     var pan = function (g) { g = String(g || ''); return g.length === 15 ? g.slice(2, 12) : ''; };
     var dash = '&ndash;';
     var items = f.items, charges = Array.isArray(d.charges) ? d.charges.filter(function (c) { return c && P(c.label) && +c.amount; }) : [];
     var isExport = P(d.type).toLowerCase() === 'export';
-    /* No. of Bags: the line's own count, else read off a "50 kg …" packing text */
     var bagsOf = function (it) { if (+it.bags) return String(+it.bags); var m = String(it.packing || d.packing || '').match(/(\d+(?:\.\d+)?)\s*kg/i); var U = QLUnitsOpt(); if (!m || !U || !(+it.qty)) return ''; var kg = U.convertQty(+it.qty, it.unit || f.unit, 'Kg'); return kg ? String(Math.round(kg / +m[1])) : ''; };
     var bags = items.map(bagsOf), hasBags = bags.some(Boolean);
     var unitOfItems = items.length && items.every(function (it) { return (it.unit || f.unit) === (items[0].unit || f.unit); }) ? (items[0].unit || f.unit) : '';
     var rUnit = items.length && items.every(function (it) { return (it.rateUnit || it.unit || f.rateUnit) === (items[0].rateUnit || items[0].unit || f.rateUnit); }) ? (items[0].rateUnit || items[0].unit || f.rateUnit) : '';
-    var css = "@page{size:A4;margin:0}body{font-family:Arial,Helvetica,'Liberation Sans',sans-serif;color:" + ink + ";font-size:10.5px;line-height:1.35;padding:0;background:#fff}"
-      + "@media print{body{padding:0}}"
-      + ".sheet{max-width:820px;margin:0 auto;padding:18px 18px 12px;box-sizing:border-box}@media print{.sheet{max-width:none;padding:9mm 9mm 6mm;min-height:100vh;display:flex;flex-direction:column}}"
-      + ".inv{border:1px solid " + ink + ";display:flex;flex-direction:column;flex:1}.bb{border-bottom:1px solid " + ink + "}.br{border-right:1px solid " + ink + "}.row{display:flex}"
-      + ".top{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 10px 2px;gap:10px}"
-      + ".ids{font-size:9.5px;line-height:1.5;min-width:170px}.ids b{display:inline-block;width:38px;font-weight:400}"
-      + ".ctc{font-size:9.5px;line-height:1.5;text-align:right;min-width:170px}"
-      + ".mid{text-align:center;flex:1}.co{display:flex;align-items:center;justify-content:center;gap:12px}"
-      + ".iso{font-size:9px;letter-spacing:.04em}"
-      + ".cn{font-family:Georgia,'Times New Roman',Times,serif;font-size:23px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;line-height:1.1}"
-      + ".tg{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;margin-top:5px;line-height:1.35}"
-      + ".orig{text-align:right;padding:0 10px 2px;font-size:10px;font-weight:700;letter-spacing:.04em}"
-      + ".ttl{text-align:center;padding:0 0 6px}.ttl span{display:inline-block;font-weight:800;font-size:12.5px;letter-spacing:.04em;border-bottom:1.5px solid " + ink + "}"
-      + ".meta{width:50%;padding:6px 8px}.kv{display:flex;padding:1.5px 0;font-size:10.5px}.kv .k{width:118px;flex:none;font-weight:700}.kv .c{width:12px;flex:none}.kv .v{flex:1;min-width:0;word-break:break-word}.kv .v .d{float:right;font-weight:400}.kv .v .d b{font-weight:700;margin-right:6px}"
-      + ".dt{padding:3px 8px;font-size:10.5px;font-weight:700}.dt span{font-weight:700;margin-left:6px}"
-      + ".ph{font-size:9.5px;font-weight:700;text-align:center;padding:3px;letter-spacing:.03em;border-bottom:1px dashed " + ink + "}"
-      + ".pc{width:50%;padding:0 0 6px}.pc .kv{padding:1.5px 8px}.pc .kv .k{width:64px;font-weight:400}.pc .kv .v{font-weight:700}"
+    var css = "@page{size:A4;margin:0}body{font-family:Arial,Helvetica,'Liberation Sans',sans-serif;color:#1a1a1a;font-size:9.5px;line-height:1.4;padding:0;background:#fff}@media print{body{padding:0}}"
+      + ".sheet{width:820px;margin:0 auto;padding:22px 26px 14px;box-sizing:border-box;display:flex;flex-direction:column;min-height:1160px}@media print{.sheet{width:auto;padding:9mm 10mm 6mm;min-height:100vh}}@media screen and (max-width:900px){body{overflow-x:hidden}.sheet{zoom:.72}}"
+      /* letterhead: lockup left, the document title right, tagline, registration strip */
+      + ".lh{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:8px;border-bottom:2px solid " + ink + "}.lh .lk{height:40px;width:auto;display:block}.lh .nm{font-size:22px;font-weight:800;color:" + ink + ";letter-spacing:.04em;text-transform:uppercase;line-height:1}"
+      + ".lh .tg{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:" + GREY + ";margin-top:7px}"
+      + ".lh .ti{text-align:right}.lh .ti .w{font-size:17px;font-weight:800;letter-spacing:.12em;color:" + ink + ";line-height:1}.lh .ti .c{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:" + GREY + ";margin-top:5px}"
+      + ".reg{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 16px;padding:5px 10px;background:" + FILL + ";border-bottom:1px solid " + RULE + ";font-size:8.6px;color:#374151}.reg b{color:" + ink + ";font-weight:700;margin-right:3px}.reg .sep{color:#9ca3af;margin:0 6px}.reg .r{text-align:right;white-space:nowrap;margin-left:auto}"
+      /* every block on one grid */
+      + ".grid2{display:grid;grid-template-columns:1fr 1fr;border:1px solid " + RULE + ";border-top:0}.grid2>div{padding:6px 10px}.grid2>div:first-child{border-right:1px solid " + RULE + "}"
+      + ".kv{display:flex;padding:1.6px 0;font-size:9.5px;line-height:1.35}.kv .k{width:110px;flex:none;color:" + GREY + "}.kv .c{width:10px;flex:none;color:" + GREY + "}.kv .v{flex:1;min-width:0;word-break:break-word;font-weight:700;color:#111}.kv .v .d{float:right;font-weight:400;color:#374151}.kv .v .d b{color:" + GREY + ";font-weight:400;margin-right:4px}"
+      + ".ph{font-size:7.6px;letter-spacing:.14em;text-transform:uppercase;color:" + ink + ";font-weight:800;padding:4px 10px;background:" + FILL + ";border-bottom:1px solid " + RULE + "}"
+      + ".pc{padding:0!important}.pc .bd{padding:5px 10px 6px}.pc .kv .k{width:64px}.dt{padding:4px 10px;border:1px solid " + RULE + ";border-top:0;font-size:9px}.dt b{color:" + GREY + ";font-weight:400;margin-right:6px;letter-spacing:.08em;text-transform:uppercase;font-size:7.6px}"
+      /* the goods table fills the page */
+      + ".body{position:relative;flex:1;display:flex;flex-direction:column;margin-top:10px}.body .fill{flex:1;min-height:40px;border-left:1px solid " + RULE + ";border-right:1px solid " + RULE + "}"
       + "table{width:100%;border-collapse:collapse;table-layout:fixed}"
-      + ".body{position:relative;flex:1;display:flex;flex-direction:column}.body .it{flex:1;height:100%}"
-      + ".it th{border-right:1px solid " + ink + ";border-bottom:1px solid " + ink + ";padding:5px 5px;font-weight:800;font-size:10px;text-align:center;vertical-align:middle;line-height:1.2;position:relative;z-index:1}"
-      + ".it td{border-right:1px solid " + ink + ";padding:5px;vertical-align:top;position:relative;z-index:1}.it th:last-child,.it td:last-child{border-right:0}.it tr.ln{height:1px}"
-      + ".it .sp td{padding:0;height:60px}.r{text-align:right}.c{text-align:center}.it .dn{font-weight:700;text-transform:uppercase}.it .ds{font-size:9px;font-weight:400}"
+      + ".it th{background:" + ink + ";color:#fff;font-size:7.6px;letter-spacing:.12em;text-transform:uppercase;padding:6px 6px;text-align:center;vertical-align:middle;line-height:1.25;position:relative;z-index:1}"
+      + ".it td{border-bottom:1px solid " + RULE + ";border-right:1px solid " + RULE + ";padding:6px;vertical-align:top;position:relative;z-index:1;font-size:9.5px}.it td:first-child{border-left:1px solid " + RULE + "}.it tr.ln{height:1px}"
+      + ".r{text-align:right}.c{text-align:center}.it .dn{font-weight:700;color:" + NAVY + "}.it .ds{font-size:8.2px;color:" + GREY + ";font-weight:400}"
       + ".wm{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:0}"
-      + ".sum td{border-top:1px solid " + ink + ";padding:3.5px 6px;font-size:10.5px}.sum td.l{text-align:right;font-weight:700}.sum td.v{text-align:right;font-weight:700;border-left:1px solid " + ink + "}"
-      + ".low{display:flex}.left{width:56%;padding:0}.right{width:44%}"
-      + ".rm{padding:5px 8px;min-height:22px;font-size:10px}.rm b{font-weight:700}"
-      + ".lut{padding:5px 8px;font-size:10px;font-style:italic;font-weight:700}"
-      + ".irn{padding:6px 8px;font-size:10px;line-height:1.45;display:flex;gap:10px;align-items:flex-start}.irn b{font-weight:800}.irn .id{flex:1;word-break:break-all}.irn .qr{flex:none}"
-      + ".hs{padding:5px 8px}.hs table{width:auto}.hs th{font-weight:700;text-decoration:underline;text-align:left;padding:1px 8px 1px 0;font-size:9px;white-space:nowrap}.hs td{padding:1px 8px 1px 0;font-size:9.5px}"
-      + ".tx{width:100%}.tx td{border-bottom:1px solid " + ink + ";padding:3.5px 6px;font-size:10.5px}.tx td:first-child{font-weight:700;border-right:1px solid " + ink + ";width:62%}.tx td:last-child{text-align:right;font-weight:700}.tx tr:last-child td{border-bottom:0}"
-      + ".tx tr.tot td{font-size:12px;font-weight:800}"
-      + ".wd{padding:5px 8px;font-size:10.5px}.wd b{font-weight:800;margin-right:4px}.wd .q{float:right;font-size:9.5px}"
-      + ".ft{display:flex}.tc{width:62%;padding:6px 8px;font-size:9.5px;line-height:1.5}.tc b{display:block;font-size:10px;margin-bottom:2px}.tc ul{margin:0;padding-left:12px}"
-      + ".sg{width:38%;padding:6px 8px;text-align:center;display:flex;flex-direction:column;justify-content:space-between;min-height:96px}.sg .for{font-weight:800;font-size:11px}.sg .nm{font-weight:700;font-size:10.5px;margin-top:auto}.sg .as{font-weight:700;font-size:10.5px}"
-      + ".ra{padding:5px 10px;font-size:10px;line-height:1.5}.ra b{display:inline-block;width:118px;font-weight:800}"
-      + ".qrc{font-size:8px}";
+      + ".sum td{border:1px solid " + RULE + ";border-top:0;padding:4px 8px;font-size:9px}.sum td.l{text-align:right;letter-spacing:.1em;text-transform:uppercase;color:" + ink + ";font-weight:800;font-size:7.6px;background:" + FILL + "}.sum td.v{text-align:right;font-weight:700;color:" + NAVY + ";width:104px}.sum tr:first-child td{border-top:1px solid " + RULE + "}"
+      /* below the table */
+      + ".low{display:grid;grid-template-columns:56% 44%;border:1px solid " + RULE + ";border-top:0}.left{border-right:1px solid " + RULE + "}"
+      + ".rm{padding:5px 10px;min-height:20px;font-size:9px;border-bottom:1px solid " + RULE + "}.rm b{color:" + GREY + ";font-weight:400;margin-right:4px}"
+      + ".lut{padding:5px 10px;font-size:9px;border-bottom:1px solid " + RULE + "}.lut b{color:" + GREY + ";font-weight:400;margin-right:4px}"
+      + ".irn{padding:6px 10px;font-size:8.6px;line-height:1.45;display:flex;gap:10px;align-items:flex-start;border-bottom:1px solid " + RULE + "}.irn b{color:" + GREY + ";font-weight:400}.irn .id{flex:1;word-break:break-all}.irn .qr{flex:none}.qrc{font-size:7.5px;color:" + GREY + ";text-align:center}"
+      + ".hs{padding:5px 10px}.hs table{width:auto}.hs th{font-weight:700;text-align:left;padding:1px 10px 1px 0;font-size:7.6px;letter-spacing:.08em;text-transform:uppercase;color:" + GREY + ";white-space:nowrap}.hs td{padding:1px 10px 1px 0;font-size:8.8px}"
+      + ".tx{width:100%}.tx td{border-bottom:1px solid " + RULE + ";padding:4px 10px;font-size:9.5px;vertical-align:middle}.tx td:first-child{font-size:7.6px;letter-spacing:.1em;text-transform:uppercase;color:" + ink + ";font-weight:800;background:" + FILL + ";width:60%;border-right:1px solid " + RULE + "}.tx td:last-child{text-align:right;font-weight:700;color:" + NAVY + "}.tx tr:last-child td{border-bottom:0}"
+      + ".tx tr.tot td{font-size:12.5px;font-weight:800}.tx tr.tot td:first-child{font-size:8px}"
+      + ".wd{padding:5px 10px;font-size:9.5px;border:1px solid " + RULE + ";border-top:0}.wd b{color:" + GREY + ";font-weight:400;margin-right:4px}"
+      + ".ft{display:grid;grid-template-columns:62% 38%;border:1px solid " + RULE + ";border-top:0}.tc{padding:6px 10px;font-size:8.8px;line-height:1.5;border-right:1px solid " + RULE + "}.tc b.h{display:block;font-size:7.6px;letter-spacing:.14em;text-transform:uppercase;color:" + ink + ";margin-bottom:3px}.tc ul{margin:0;padding-left:12px}"
+      + ".sg{padding:6px 10px 8px;text-align:right;display:flex;flex-direction:column;align-items:flex-end}.sg .for{font-weight:800;color:" + NAVY + ";font-size:9.5px}.sg .seal{margin:2px 0 0}.sg .nm{font-weight:700;font-size:9px;margin-top:2px}.sg .as{font-size:8.2px;color:#374151;border-top:1px solid " + NAVY + ";padding-top:3px;min-width:180px;text-align:center;margin-top:4px}"
+      + ".ra{padding:6px 0 0;font-size:8px;color:" + GREY + ";text-align:center}.ra b{color:" + ink + ";font-weight:700;margin-right:4px}";
     var kv = function (k, v, extra) { return '<div class="kv"><span class="k">' + k + '</span><span class="c">:</span><span class="v">' + esc(v) + (extra || '') + '</span></div>'; };
-    var withDate = function (iso) { return P(iso) ? '<span class="d"><b>Date :</b>' + esc(fdate(iso)) + '</span>' : ''; };
-    var partyBox = function (title, p, cls) {
-      return '<div class="pc' + (cls ? ' ' + cls : '') + '"><div class="ph">' + title + '</div>'
-        + kv('Name', p.name || '') + kv('Address', String(p.address || '').replace(/\n/g, ', ')) + kv('State', p.state || '') + kv('PAN No', pan(p.gstin)) + kv('GSTIN', p.gstin || '') + '</div>';
+    var withDate = function (iso) { return P(iso) ? '<span class="d"><b>Date</b>' + esc(fdate(iso)) + '</span>' : ''; };
+    var partyBox = function (title, p) {
+      return '<div class="pc"><div class="ph">' + title + '</div><div class="bd">'
+        + kv('Name', p.name || '') + kv('Address', String(p.address || '').replace(/\n/g, ', ')) + kv('State', p.state || '') + kv('PAN No', pan(p.gstin)) + kv('GSTIN', p.gstin || '') + '</div></div>';
     };
     var consignee = (d.consignee && P(d.consignee.name)) ? d.consignee : { name: b.name, address: b.address, state: f.bState, gstin: b.gstin };
     var eInv = (d.irn || d.ackNo || d.ackDt)
-      ? '<div class="irn bb"><div class="id"><b>IRN:</b> ' + esc(d.irn || '') + '<br><b>AckNo:</b> ' + esc(d.ackNo || '') + ' &nbsp; <b>AckDt:</b> ' + esc(d.ackDt || '') + '</div>'
-        + (d.qrData ? '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(d.qrData) + '" alt="e-invoice QR" style="width:88px;height:88px"><div class="qrc">e-Invoice QR</div></div>' : '') + '</div>'
+      ? '<div class="irn"><div class="id"><b>IRN</b> ' + esc(d.irn || '') + '<br><b>Ack No</b> ' + esc(d.ackNo || '') + ' &nbsp; <b>Ack Dt</b> ' + esc(d.ackDt || '') + '</div>'
+        + (d.qrData ? '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(d.qrData) + '" alt="e-invoice QR" style="width:84px;height:84px"><div class="qrc">e-Invoice QR</div></div>' : '') + '</div>'
       : '';
     var packing = +d.packingCharge || 0;
     var roundOff = Math.round(((+d.grand || 0) - (+d.total || 0)) * 100) / 100, tcs = +d.tcs || 0;
     var rows = items.map(function (it, i) {
       var note = convNote(it), rowRu = P(it.rateUnit) || rUnit;
-      return '<tr class="ln"><td class="c">' + (i + 1) + '.</td><td class="c">' + esc(P(it.hsn) || f.hsn) + '</td><td><span class="dn">' + esc(P(it.product)) + '</span>' + (P(it.desc) || P(it.grade) ? '<br><span class="ds">' + esc([P(it.grade), P(it.desc)].filter(Boolean).join(' · ')) + '</span>' : '') + (note ? '<br><span class="ds">' + note + '</span>' : '') + '</td>'
+      return '<tr class="ln"><td class="c">' + (i + 1) + '</td><td class="c">' + esc(P(it.hsn) || f.hsn) + '</td><td><span class="dn">' + esc(P(it.product)) + '</span>' + (P(it.desc) || P(it.grade) ? '<br><span class="ds">' + esc([P(it.grade), P(it.desc)].filter(Boolean).join(' · ')) + '</span>' : '') + (note ? '<br><span class="ds">' + note + '</span>' : '') + '</td>'
         + (hasBags ? '<td class="c">' + esc(bags[i] || dash) + '</td>' : '')
-        + '<td class="r">' + qfmt(it.qty) + (P(it.unit) && P(it.unit) !== unitOfItems ? ' ' + esc(P(it.unit)) : '') + '</td><td class="r">' + fmt(it.rate) + (rowRu !== rUnit ? '<br><span class="ds">/ ' + esc(rowRu) + '</span>' : '') + '</td><td class="r">' + fmt(lineTaxable(it)) + '</td></tr>';
+        + '<td class="r">' + qfmt(it.qty) + (P(it.unit) && P(it.unit) !== unitOfItems ? ' ' + esc(P(it.unit)) : '') + '</td><td class="r">' + fmt(it.rate) + (rowRu !== rUnit ? '<br><span class="ds">/ ' + esc(rowRu) + '</span>' : '') + '</td><td class="r"><b>' + fmt(lineTaxable(it)) + '</b></td></tr>';
     }).join('') + charges.map(function (c, i) {
-      return '<tr class="ln"><td class="c">' + (items.length + i + 1) + '.</td><td class="c">' + esc(P(c.hsn) || '9965') + '</td><td><span class="dn">' + esc(P(c.label)) + '</span>' + (P(c.desc) ? '<br><span class="ds">' + esc(P(c.desc)) + '</span>' : '') + '</td>' + (hasBags ? '<td class="c">' + dash + '</td>' : '') + '<td class="r">' + dash + '</td><td class="r">' + dash + '</td><td class="r">' + fmt(c.amount) + '</td></tr>';
+      return '<tr class="ln"><td class="c">' + (items.length + i + 1) + '</td><td class="c">' + esc(P(c.hsn) || '9965') + '</td><td><span class="dn">' + esc(P(c.label)) + '</span>' + (P(c.desc) ? '<br><span class="ds">' + esc(P(c.desc)) + '</span>' : '') + '</td>' + (hasBags ? '<td class="c">' + dash + '</td>' : '') + '<td class="r">' + dash + '</td><td class="r">' + dash + '</td><td class="r"><b>' + fmt(c.amount) + '</b></td></tr>';
     }).join('');
-    var cols = 6 + (hasBags ? 1 : 0);
     var taxStack = '<table class="tx">'
-      + '<tr><td>ADD: CGST' + (f.interState ? '' : ' @ ' + f.halfR + ' %') + '</td><td>' + (f.interState ? dash : f.cgst) + '</td></tr>'
-      + '<tr><td>ADD: SGST' + (f.interState ? '' : ' @ ' + f.halfR + ' %') + '</td><td>' + (f.interState ? dash : f.sgst) + '</td></tr>'
-      + '<tr><td>ADD: IGST' + (f.interState ? ' @ ' + f.gstR + ' %' : '') + '</td><td>' + (f.interState ? f.igst : dash) + '</td></tr>'
+      + '<tr><td>CGST' + (f.interState ? '' : ' @ ' + f.halfR + ' %') + '</td><td>' + (f.interState ? dash : f.cgst) + '</td></tr>'
+      + '<tr><td>SGST' + (f.interState ? '' : ' @ ' + f.halfR + ' %') + '</td><td>' + (f.interState ? dash : f.sgst) + '</td></tr>'
+      + '<tr><td>IGST' + (f.interState ? ' @ ' + f.gstR + ' %' : '') + '</td><td>' + (f.interState ? f.igst : dash) + '</td></tr>'
       + '<tr><td>GST Tax Amount</td><td>' + f.totalTax + '</td></tr>'
       + '<tr><td>Amount After Tax</td><td>' + fmt(d.total) + '</td></tr>'
-      + (tcs ? '<tr><td>ADD : TCS</td><td>' + fmt(tcs) + '</td></tr>' : '')
+      + (tcs ? '<tr><td>TCS</td><td>' + fmt(tcs) + '</td></tr>' : '')
       + (roundOff ? '<tr><td>Round Off</td><td>' + (roundOff > 0 ? '+' : '') + fmt(roundOff) + '</td></tr>' : '')
       + '<tr class="tot"><td>Total Amount</td><td>' + f.grand + '</td></tr>'
       + '<tr><td>GST Reverse Charge</td><td>' + (f.rcm === 'Yes' ? 'Yes' : 'N.A.') + '</td></tr></table>';
-    var body = '<div class="sheet"><div class="inv">'
-      + '<div class="top"><div class="ids"><b>GSTIN</b>: ' + esc(s.gstin || '') + (f.cin ? '<br><b>CIN</b>: ' + esc(f.cin) : '') + (f.pan ? '<br><b>PAN</b>: ' + esc(f.pan) : '') + (f.iec ? '<br><b>IEC</b>: ' + esc(f.iec) : '') + '</div>'
-      + '<div class="mid">' + (s.iso ? '<div class="iso">' + esc(s.iso) + '</div>' : '') + '<div class="co">' + (f.logo ? logoImg(f, 56) : '') + '<div><div class="cn">' + esc(s.name) + '</div>' + (f.tagline ? '<div class="tg">' + esc(f.tagline) + '</div>' : '') + '</div></div></div>'
-      + '<div class="ctc">' + (f.tel ? intlTel(f.tel) : '') + (s.email ? '<br>' + esc(s.email) : '') + (s.email2 ? '<br>' + esc(s.email2) : '') + '</div></div>'
-      + '<div class="orig">ORIGINAL COPY</div>'
-      + '<div class="ttl bb"><span>' + (eInv ? 'TAX E-INVOICE' : 'TAX INVOICE') + '</span></div>'
-      + '<div class="row bb"><div class="meta br">' + (f.msme ? kv('MSME No.', f.msme) + (s.msmeType ? kv('MSME Type', s.msmeType) : '') : '') + kv('Invoice No', f.inv) + kv('Invoice Date', f.date) + kv('Eway Bill No.', f.eway) + '</div>'
-      + '<div class="meta">' + (P(d.po) ? kv('PO No.', d.po, withDate(d.poDate)) : '') + kv('Transport Mode', f.transport) + kv('GR/RR No.', f.grrr, withDate(d.grDate)) + kv('From', s.station || s.city || '') + kv('Station', f.station) + kv('Place of Supply', f.pos) + kv('Vehicle No.', f.veh) + '</div></div>'
-      + (P(s.docsThrough) ? '<div class="dt bb">DOCUMENTS THROUGH :<span>' + esc(s.docsThrough) + '</span></div>' : '')
-      + '<div class="row bb">' + partyBox('Details of Buyer (Billed to)', { name: b.name, address: b.address, state: f.bState, gstin: b.gstin }, 'br') + partyBox('Details of Consignee (Shipped to)', consignee, '') + '</div>'
-      + '<div class="body">' + (f.logo ? '<div class="wm">' + logoImg(f, 240, 'opacity:.07;max-width:420px') + '</div>' : '')
-      + '<table class="it"><colgroup><col style="width:44px"><col style="width:78px"><col>' + (hasBags ? '<col style="width:56px">' : '') + '<col style="width:76px"><col style="width:80px"><col style="width:100px"></colgroup>'
-      + '<tr class="ln"><th>S.No.</th><th>HSN CODE</th><th>DESCRIPTION OF GOODS</th>' + (hasBags ? '<th>NO. OF BAGS</th>' : '') + '<th>QTY<br>(' + esc(unitOfItems || f.unit || '') + ')</th><th>RATE<br>(P.' + esc(rUnit || f.rateUnit || f.unit || '') + ')</th><th>AMOUNT</th></tr>'
-      + rows + '<tr class="sp"><td colspan="' + cols + '"></td></tr>'
-      + '<tr class="ln sum"><td class="l" colspan="' + (cols - 1) + '">Packing and Forwarding Charges</td><td class="v">' + fmt(packing) + '</td></tr>'   /* 0.00 when none — the sample prints the row either way */
-      + '<tr class="ln sum"><td class="l" colspan="' + (cols - 1) + '">Total Taxable Value &nbsp;(' + qtyTotalEl(f) + ')</td><td class="v">' + f.taxable + '</td></tr>'
-      + '</table></div>'
-      + '<div class="low bb"><div class="left br"><div class="rm bb"><b>Remarks :</b> ' + esc(d.remarks || '') + '</div>' + (isExport && f.lut ? '<div class="lut bb">LUT Bond No. : ' + esc(f.lut) + '</div>' : '') + eInv + '<div class="hs">' + bandTable(f, '') + '</div></div>'
-      + '<div class="right">' + taxStack + '</div></div>'
-      + '<div class="wd bb"><b>AMOUNT IN WORDS:</b> ' + esc(f.words) + '</div>'
-      + '<div class="ft bb"><div class="tc br"><b>TERMS &amp; CONDITIONS:</b>' + (f.cfg.showDeclaration && f.terms.length ? '<ul>' + f.terms.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' : '')
+    /* the seal — the reference stamp, shared with the Premium design */
+    var stName = (P(s.state).match(/^(.*?)\s*\((\d\d)\)\s*$/) || [])[1] || P(s.state);
+    var sealLine = P(s.sealText) || [s.city, stName].filter(Boolean).join(', ');
+    var seal = stampSeal(s.name, sealLine);
+    var reg = '<div class="reg"><div><b>GSTIN</b>' + esc(s.gstin || '') + (f.pan ? '<span class="sep">·</span><b>PAN</b>' + esc(f.pan) : '') + (f.iec ? '<span class="sep">·</span><b>IEC</b>' + esc(f.iec) : '') + (f.cin ? '<span class="sep">·</span><b>CIN</b>' + esc(f.cin) : '') + (f.msme ? '<span class="sep">·</span><b>MSME</b>' + esc(f.msme) + (s.msmeType ? ' (' + esc(s.msmeType) + ')' : '') : '') + '</div>'
+      + '<div class="r">' + (f.tel ? intlTel(f.tel) : '') + (s.email ? (f.tel ? '<span class="sep">·</span>' : '') + esc(s.email) : '') + '</div></div>';
+    var body = '<div class="sheet">'
+      + '<div class="lh"><div>' + (s.lockupDark ? '<img class="lk" src="' + esc(s.lockupDark) + '" alt="' + esc(s.name) + '">' : (f.logo ? '<div style="display:flex;align-items:center;gap:10px">' + logoImg(f, 40) + '<div class="nm">' + esc(s.name) + '</div></div>' : '<div class="nm">' + esc(s.name) + '</div>')) + (f.tagline ? '<div class="tg">' + esc(f.tagline) + '</div>' : '') + '</div>'
+      + '<div class="ti"><div class="w">' + (eInv ? 'TAX E-INVOICE' : (isExport ? 'EXPORT INVOICE' : 'TAX INVOICE')) + '</div><div class="c">Original Copy</div></div></div>'
+      + reg
+      + '<div class="grid2"><div>' + kv('Invoice No', f.inv) + kv('Invoice Date', f.date) + kv('E-Way Bill No', f.eway) + (P(d.po) ? kv('PO No', d.po, withDate(d.poDate)) : '') + '</div>'
+      + '<div>' + kv('Transport Mode', f.transport) + kv('Vehicle No', f.veh) + kv('GR/RR No.', f.grrr, withDate(d.grDate)) + kv('From', s.station || s.city || '') + kv('Station', f.station) + kv('Place of Supply', f.pos) + '</div></div>'
+      + (P(s.docsThrough) ? '<div class="dt"><b>Documents through</b>' + esc(s.docsThrough) + '</div>' : '')
+      + '<div class="grid2">' + partyBox('Details of Buyer (Billed to)', { name: b.name, address: b.address, state: f.bState, gstin: b.gstin }) + partyBox('Details of Consignee (Shipped to)', consignee) + '</div>'
+      + '<div class="body">' + (f.logo ? '<div class="wm">' + logoImg(f, 230, 'opacity:.06;max-width:400px') + '</div>' : '')
+      + '<table class="it"><colgroup><col style="width:36px"><col style="width:72px"><col>' + (hasBags ? '<col style="width:58px">' : '') + '<col style="width:78px"><col style="width:84px"><col style="width:104px"></colgroup>'
+      + '<tr class="ln"><th>S.No.</th><th>HSN Code</th><th>Description of Goods</th>' + (hasBags ? '<th>No. of Bags</th>' : '') + '<th>Qty (' + esc(unitOfItems || f.unit || '') + ')</th><th>Rate (P.' + esc(rUnit || f.rateUnit || f.unit || '') + ')</th><th>Amount</th></tr>'
+      + rows + '</table><div class="fill"></div>'
+      + '<table class="sum"><tr><td class="l">Packing and Forwarding Charges</td><td class="v">' + fmt(packing) + '</td></tr>'
+      + '<tr><td class="l">Total Taxable Value &nbsp;(' + qtyTotalEl(f) + ')</td><td class="v">' + f.taxable + '</td></tr></table></div>'
+      + '<div class="low"><div class="left"><div class="rm"><b>Remarks</b> ' + esc(d.remarks || '') + '</div>' + (isExport && f.lut ? '<div class="lut"><b>LUT Bond No.</b> ' + esc(f.lut) + '</div>' : '') + eInv + '<div class="hs">' + bandTable(f, '') + '</div></div>'
+      + '<div>' + taxStack + '</div></div>'
+      + '<div class="wd"><b>Amount in words</b> ' + esc(f.words) + '</div>'
+      + '<div class="ft"><div class="tc"><b class="h">Terms &amp; Conditions</b>' + (f.cfg.showDeclaration && f.terms.length ? '<ul>' + f.terms.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' : '')
       + (isExport ? '<div style="margin-top:4px"><b>Export</b> Supply meant for export under LUT without payment of IGST' + (f.iec ? ' · IEC ' + esc(f.iec) : '') + '</div>' : '') + '</div>'
-      + '<div class="sg">' + (f.cfg.showSignature ? '<div class="for">For: ' + esc(f.signatory) + '</div>' + qrBlock(f) + (P(s.ownerName) ? '<div class="nm">' + esc(String(s.ownerName).toUpperCase()) + '</div>' : '<div class="nm"></div>') + '<div class="as">Authorised Signatory</div>' : qrBlock(f)) + '</div></div>'
-      + '<div class="ra"><b>REGD. ADDRESS</b>: ' + esc(String(s.address || '').replace(/\n/g, ', ')) + (s.unitAddress ? '<br><b>UNIT ADDRESS</b>: ' + esc(s.unitAddress) : '') + '</div>'
-      + '</div></div>';
+      + '<div class="sg">' + (f.cfg.showSignature ? '<div class="for">For ' + esc(String(f.signatory || s.name || '').toUpperCase()) + '</div>' + seal + (P(s.ownerName) ? '<div class="nm">' + esc(String(s.ownerName).toUpperCase()) + '</div>' : '') + '<div class="as">Authorised Signatory &amp; Seal</div>' : qrBlock(f)) + '</div></div>'
+      + '<div class="ra"><b>Regd. Address</b>' + esc(String(s.address || '').replace(/\n/g, ', ')) + (s.unitAddress ? ' &nbsp;·&nbsp; <b>Unit</b>' + esc(s.unitAddress) : '') + '</div>'
+      + '</div>';
     return doc(f, 'blueink', css, body);
   }
   /* +91 on each phone, as the sample prints them */
